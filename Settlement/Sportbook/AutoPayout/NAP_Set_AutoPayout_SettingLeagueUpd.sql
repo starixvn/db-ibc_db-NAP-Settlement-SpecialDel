@@ -1,0 +1,149 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+USE bodb02
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_SettingLeagueUpd] 
+	@LeagueId 			INT
+	, @AutoType			TINYINT
+	, @IsEnabled		BIT 
+	, @IsApplyAll 		BIT
+	, @AdminId 			INT
+	, @IP 				VARCHAR(20) = ''
+	, @ErrCode 			INT = 0 OUTPUT
+	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
+AS
+/*	Creator: 20160303@Patrick
+	Task: Auto Payout - update setting on league
+	DB: DBPRO/BODB02
+	
+	Revisions:
+		- 20160930@Bobby: #65003 - Merge Auto Payout and Inst CAL setting
+		- 20161212@Bobby: #67760 - Implement IS for FGLG bet types
+		- 20170123@Kathy: Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
+		
+	Param's Explanation:
+		- @IsApplyAll: 0: only update on league
+					   1: update on league & running match without matches in Queue
+					   
+		- @AutoType: TINYINT 
+			+ 1: Auto Payout
+			+ 2: Inst Calculation
+			+ 3: Fast Market
+ 
+*/
+BEGIN
+	SET NOCOUNT ON
+	DECLARE @AutoSettingForLeague 		TINYINT
+		, @StarTime 					DATETIME
+		, @EndTime 						DATETIME
+		, @Remark 						VARCHAR(1024)
+		, @actionLogId					INT
+		, @AutoSetting					TINYINT
+		
+	SELECT	@StarTime = GETDATE()
+			,@actionLogId = CASE 
+									WHEN @AutoType = 1 THEN 159 
+									WHEN @AutoType = 2 THEN 180
+									WHEN @AutoType = 3 THEN 183
+									ELSE -1 
+								END
+
+	SELECT @AutoSettingForLeague = ISNULL(AutoSetting, 0)
+	FROM dbo.League l WITH(NOLOCK) 
+	WHERE leagueid = @LeagueId
+		
+	-- update setting for matches do not have any setting
+	UPDATE	m
+		SET AutoSetting = @AutoSettingForLeague
+	FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
+	WHERE	m.leagueid = @LeagueId 
+			AND sporttype = 1 
+			AND AutoSetting IS NULL
+	
+	SELECT	@AutoSettingForLeague =  CASE 
+										WHEN @IsEnabled = 1 THEN @AutoSettingForLeague | POWER(2,@AutoType - 1) 
+										ELSE CASE WHEN @AutoSettingForLeague >= (POWER(2,@AutoType - 1)) THEN @AutoSettingForLeague ^ (POWER(2,@AutoType - 1))  ELSE @AutoSettingForLeague END
+									END
+	
+	--update setting on league
+	UPDATE	dbo.League WITH(ROWLOCK, UPDLOCK)
+		SET AutoSetting = @AutoSettingForLeague
+	WHERE	leagueid = @LeagueId
+
+	IF @@ERROR > 0
+	BEGIN
+		SELECT	@ErrCode = 1001018
+				,@ErrMsg = 'Cannot update auto setting on this league. Please try again.'
+				
+		RETURN
+	END
+								
+	IF @IsApplyAll = 1
+	BEGIN
+		--update running match
+		UPDATE m
+			SET @AutoSetting = ISNULL(m.AutoSetting,0)
+				,AutoSetting = CASE 
+									WHEN @IsEnabled = 1 THEN @AutoSetting | POWER(2,@AutoType - 1) 
+									ELSE CASE WHEN @AutoSetting  >= (POWER(2,@AutoType - 1)) THEN @AutoSetting ^ (POWER(2,@AutoType - 1))  ELSE @AutoSetting END
+								END
+		FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
+		WHERE	m.leagueid 	= @LeagueId 
+				AND sporttype 	= 1 
+				AND 1 = CASE 
+							WHEN @AutoType IN (1,3) AND eventstatus <> 'completed' THEN 1
+							WHEN @AutoType = 2 AND eventstatus IN ('running', 'closed') THEN 1
+							ELSE 0 
+						END
+				
+		IF @@ERROR > 0
+		BEGIN
+			SELECT @ErrCode = 1001019, @ErrMsg = 'Cannot update auto setting on match. Please try again.'
+			RETURN
+		END
+	END
+
+	SELECT @EndTime = GETDATE()
+	
+	SELECT @Remark = 'NAP: Update auto setting on league:' + CAST(@LeagueId AS NVARCHAR(10)) 
+		+ ' AutoSetting:' + CAST(ISNULL(@AutoSetting, 0) AS NVARCHAR(10))
+		+ ' AutoType:' + CAST(ISNULL(@AutoType, 0) AS NVARCHAR(10))
+		+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StarTime, @EndTime) AS NVARCHAR(50)) + ' ms'
+
+	BEGIN TRY
+		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+			, @Matchid			= NULL
+			, @ActionID			= @actionLogId
+			, @finalhomescore	= NULL
+			, @finalawayscore	= NULL
+			, @hthomescore		= NULL
+			, @htawayscore		= NULL
+			, @GoalRecord		= NULL
+			, @betstatus		= NULL
+			, @Remark			= @Remark
+			, @IP				= @IP
+	END TRY
+
+	BEGIN CATCH
+		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
+
+		EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+			, @Matchid			= NULL
+			, @ActionID			= @actionLogId
+			, @finalhomescore	= NULL
+			, @finalawayscore	= NULL
+			, @hthomescore		= NULL
+			, @htawayscore		= NULL
+			, @GoalRecord		= NULL
+			, @betstatus		= NULL
+			, @Remark			= @Remark
+			, @IP				= @IP
+	END CATCH 
+
+END
+
+GO
+GRANT EXECUTE ON [dbo].[NAP_Set_AutoPayout_SettingLeagueUpd] TO [bodbAdminNet] AS [dbo]
