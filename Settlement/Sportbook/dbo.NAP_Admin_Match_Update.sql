@@ -187,14 +187,6 @@ BEGIN
 		END
 		ELSE IF @sporttype = 2
 		BEGIN
-			SELECT	@betstatus = CASE 
-									WHEN SettlementStatusID = 1 THEN 'Refund;'
-									ELSE ''
-								END
-			FROM	dbo.ResultDetail WITH(ROWLOCK)
-			WHERE	MatchId = @matchid
-					AND ResourceId = '00'
-			
 			UPDATE	dbo.match WITH(ROWLOCK, UPDLOCK)
 				SET eventstatus = CASE 
 									WHEN @SelectedQuarter LIKE '%FT%' THEN N'Completed'
@@ -220,7 +212,10 @@ BEGIN
 										WHEN @SelectedQuarter LIKE '%1H%' THEN 0
 										ELSE htawayscore
 									END
-					,betstatus = @betstatus	 
+					,betstatus = CASE 
+										WHEN @SelectedQuarter LIKE '%FT%' THEN 'Refund;'
+										ELSE ''
+									END 
 					,changetime = GETDATE()
 					,settletime = GETDATE()
 			WHERE	matchid = @matchid
@@ -527,4 +522,3 @@ BEGIN
 		END 
 	END
 END
-GO
