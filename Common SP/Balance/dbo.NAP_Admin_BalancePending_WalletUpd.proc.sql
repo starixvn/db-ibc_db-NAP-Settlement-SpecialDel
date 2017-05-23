@@ -1,0 +1,289 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+-- CREATE TYPE [dbo].[TVP_BalanceWalletChange] AS TABLE(
+	-- [matchid] [int] NULL,
+	-- [custid] [int] NULL,
+	-- [balance] [money] NULL,
+	-- [balanceType] [tinyint] NULL,
+	-- [walletType] [tinyint] NULL DEFAULT ((2)),
+	-- [bonusId] [int] NULL DEFAULT ((0))
+-- )
+-- GO
+CREATE PROCEDURE [dbo].[NAP_Admin_BalancePending_WalletUpd]
+	@BalanceWalletBefore	TVP_BalanceWalletChange	READONLY
+	, @BalanceWalletAfter	TVP_BalanceWalletChange	READONLY
+	, @IsCheckNegative		BIT = 0
+	, @ActionId				INT = 0
+AS
+/* 
+	Created: 20170419@Bobby.nguyen  
+	Task:  75500 - Implement bonus system into NAP Settlement
+	DB: DBTXN/bodb02  
+	Original:   
+
+	Revisions:  
+
+	Param's Explanation:   
+		- @IsCheckNegative: BIT[1,0] 
+			+ Is checking negative balance or NOT
+		- @ActionId		  : INT 
+			+ Keep tracing the action log which is the root cause of negative balance
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	--FOR genneral wallet
+	DECLARE @GeneralBeforeUpd 	TVP_BalanceChange
+	DECLARE @GeneralAfterUpd 	TVP_BalanceChange
+	
+	--FOR bonus wallet
+	DECLARE @BonusWalletChange 	TVP_BalanceWalletChange
+	DECLARE @BonusWalletPending	TVP_BalanceWalletChange
+	
+	-- STORE customer bonus status
+	DECLARE @tempBonusStatus	TABLE (
+		custid					INT
+		, bonusID				INT
+		, bonusStatus			TINYINT
+	)
+	
+	--select '@BalanceWalletBefore' as [balance TVP], * FROM @BalanceWalletBefore
+	--select '@BalanceWalletAfter' as [balance TVP], * FROM @BalanceWalletAfter
+		
+	--GATHER customer bonus status
+	INSERT INTO @tempBonusStatus(custid, bonusID, bonusStatus)
+	SELECT bal.custid
+		, bal.BonusID
+		, bn.StatusID AS bonusStatus 
+	FROM dbo.BonusWalletCredit AS bn WITH(NOLOCK)
+		INNER JOIN @BalanceWalletBefore bal 
+		ON bn.custid			= bal.custid
+			AND bn.BonusID		= bal.BonusID
+			AND bal.walletType	= 1 --Bonus Wallet
+	
+	--select '@tempBonusStatus', * from @tempBonusStatus
+
+	BEGIN --GATHER genneral balance
+		INSERT INTO @GeneralBeforeUpd (custid, balanceType, balance)
+		SELECT bal.custid
+			, bal.balanceType
+			, SUM(balance) AS balance
+		FROM (
+			--CASH wallet
+			SELECT bal.custid 
+				, bal.balanceType
+				, bal.balance
+			FROM @BalanceWalletBefore bal
+			WHERE bal.walletType = 2
+			
+			--BONUS wallet
+			UNION ALL 
+			SELECT bal.custid
+				, bal.balanceType
+				, bal.balance
+			FROM @BalanceWalletBefore bal
+				INNER JOIN @tempBonusStatus bn 
+					ON bal.custid 		= bn.custid
+					AND bal.bonusID 	= bn.bonusID
+				INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
+					ON bn.bonusStatus 	= st.StatusID
+					
+			WHERE bal.walletType = 1
+				AND st.BonusFlag = 1
+		) AS bal
+		GROUP BY bal.custid, bal.balanceType
+		
+		--GATHER balance after
+		INSERT INTO @GeneralAfterUpd (custid, balanceType, balance)
+		SELECT bal.custid
+			, bal.balanceType
+			, SUM(balance) AS balance
+		FROM (
+			--CASH wallet
+			SELECT bal.custid
+				, bal.balanceType
+				, bal.balance
+			FROM @BalanceWalletAfter bal
+			WHERE bal.walletType = 2
+			
+			--BONUS wallet
+			UNION ALL
+			SELECT bal.custid
+				, bal.balanceType
+				, bal.balance
+			FROM @BalanceWalletAfter bal
+				INNER JOIN @tempBonusStatus bn 
+					ON bal.custid 		= bn.custid
+					AND bal.bonusID 	= bn.bonusID
+				INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
+					ON bn.bonusStatus 	= st.StatusID
+					
+			WHERE bal.walletType = 1
+				AND st.BonusFlag = 1
+		) AS bal
+		GROUP BY bal.custid, bal.balanceType
+		
+		--UPDATE genneral wallet
+		IF(@@ROWCOUNT > 0)
+		BEGIN
+			EXEC [dbo].[NAP_Admin_BalancePendingIns]
+			@BeforeUpd	= @GeneralBeforeUpd
+			,@AfterUpd  = @GeneralAfterUpd
+		END
+		
+	END
+	
+	--GATER bonus wallet
+	IF (EXISTS ( 
+			SELECT TOP 1 1 
+			FROM @tempBonusStatus st
+		)
+	)
+	BEGIN 
+		--GET diff amount from bonus wallet
+		INSERT INTO @BonusWalletChange (matchid, custid, balanceType, bonusID, balance, walletType)
+		SELECT a.matchid 
+			, a.custid
+			, 1 AS balanceType --sports
+			, a.bonusID
+			, (a.balance - b.balance) AS balance
+			, 1 AS walletType
+		FROM @BalanceWalletAfter a
+			INNER JOIN @BalanceWalletBefore b
+			ON a.matchid 			= b.matchid
+				AND a.custid 		= b.custid
+				AND a.balanceType 	= b.balanceType
+				AND a.walletType 	= b.walletType
+				AND a.bonusID		= b.bonusID
+				
+		WHERE a.walletType			= 1
+			AND a.bonusID			> 0
+
+		--select '@BonusWalletChange' as [balance TVP], * FROM @BonusWalletChange
+		
+		--Define bonus wallet changing
+		INSERT INTO @BonusWalletPending (custid, balanceType, bonusID, walletType, balance)
+		SELECT custid
+			, 1 AS balanceType --sports
+			, bonusID
+			, 1 AS walletType
+			, SUM(balance) AS balance
+		FROM @BonusWalletChange
+		GROUP BY custid
+			, bonusID
+		HAVING SUM(balance) <> 0
+		
+		--UPDATE bonus wallet
+		IF(@@ROWCOUNT > 0)
+		BEGIN
+			EXEC [dbo].[Dot_BalancePendingBonusIns]
+			@BonusWalletChange	= @BonusWalletPending
+		END
+		--select '@BonusWalletPending' as [balance TVP], * FROM @BonusWalletPending
+	END
+	
+	--Keep tracking for Adjustment Bonus transfer
+	IF (EXISTS ( 
+			SELECT TOP 1 1 
+			FROM @tempBonusStatus bn
+				INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
+				ON bn.bonusStatus 	= st.StatusID
+			WHERE st.BonusFlag 		= 2
+		)
+	)
+	BEGIN 
+		INSERT INTO dbo.BonusAdjustmentTransfer(
+			LogDate
+			, ExecDate
+			, CustID
+			, MatchID
+			, BonusID
+			, StatusID
+			, Bonus
+			, isTransferred
+		)
+		SELECT 
+			CURRENT_TIMESTAMP AS LogDate
+			, CURRENT_TIMESTAMP AS ExecDate
+			, bal.custid
+			, bal.MatchID
+			, bal.bonusID
+			, bn.bonusStatus
+			, bal.balance AS Bonus
+			, 0 AS isTransferred
+		FROM @BonusWalletChange bal
+			INNER JOIN @tempBonusStatus bn
+				ON bal.custid 	= bn.custid
+				AND bal.bonusID	= bn.bonusID
+			INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
+				ON bn.bonusStatus 	= st.StatusID
+		WHERE st.BonusFlag 		= 2
+			AND bal.balance 	<> 0
+	END
+	
+	/*
+	CHECKING negative balance
+	@ActionID: INT
+		- 182: Inst.CAL - UNDO
+		- 103: Munual.CAL - UNDO
+		- 157-158: Auto Payout (HT-FT)
+		- 148-149-150: Auto BetRadar (CAL-UNDO-REFUND)
+		- 109-110-111: Manual Refund(ALL-HT-FT)
+	*/
+	IF (@IsCheckNegative = 1 AND @ActionID > 0)
+	BEGIN 
+		WITH BalanceNegative AS (
+			SELECT
+				b.matchid
+				, b.custid
+				,SUM(a.balance - b.balance) AS balance
+				
+			FROM    @BalanceWalletBefore b
+				INNER JOIN @BalanceWalletAfter a 
+					ON b.matchid 		= a.matchid
+					AND b.custid 		= a.custid
+				LEFT JOIN (
+					SELECT bn.custid
+						, bn.bonusId
+					FROM @tempBonusStatus bn
+						INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
+						ON bn.bonusStatus 	= st.StatusID
+					WHERE st.BonusFlag = 1
+				) AS temp
+					ON b.custid 		= temp.custid
+						AND b.bonusID 	= temp.bonusID
+						
+			WHERE temp.custid IS NULL 	--Cash Wallet
+				OR temp.bonusID > 0		--countable bonus status
+			
+			GROUP BY b.matchid
+				, b.custid
+				
+			HAVING SUM(a.balance) < SUM(b.balance)
+		)
+		----
+		-- Add Negative Balance into BalanceNegative table 
+		----
+		INSERT INTO [bodb02].[dbo].[BalanceNegative] (
+				[ExecDate]
+				,[MatchID]
+				,[ActionID]
+				,[GroupID]
+				,[CustID]
+				,[Balance]
+				,[StatusID]
+				,[Remark]
+		)
+		SELECT GETDATE()
+				,MatchID
+				,@ActionId
+				,1 -- Sportsbook Single bet Settlement 
+				,CustID
+				,Balance
+				,0
+				,NULL
+		FROM BalanceNegative
+	END
+	
+	RETURN
+END
+GO

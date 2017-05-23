@@ -1,0 +1,407 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="0"></info>*/
+CREATE PROCEDURE dbo.Task_NAP_Admin_Adjustment_BonusTransfer_Job
+AS
+/*
+	Created:20170503@Bobby
+    Task:  72789 - Implement bonus system into NAP Settlement
+	DB: DBTXN/bodb02  
+	
+    Revisions:
+		
+    Parameters Explanation:   
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @actualrate		FLOAT
+		, @execRefno 		INT
+		, @transCount 		INT
+		, @maxExecID		INT
+		, @batchExec		INT
+		, @batchCount		INT
+		, @bettype   		SMALLINT
+		
+	
+	DECLARE @transExecNo	TABLE (ExecID BIGINT, refno INT)
+	DECLARE @tempInvalidDummy TABLE ([site] VARCHAR(30), username VARCHAR(30), currencyName VARCHAR(10), isDummy BIT)
+	
+	DECLARE @tempTransfer 	TABLE (
+		ExecID				BIGINT
+		, custid			INT
+		, matchid			INT
+		, bonusID			INT
+		, TransDesc			NVARCHAR(1000)
+		, transferId		INT
+		, actual_stake		MONEY 
+		, winlost			MONEY
+		, isValidDummy		BIT
+		, username			VARCHAR(30)
+		, currency			INT
+		, currencyName		VARCHAR(10)
+	)
+	
+	--GET actualrate
+	SELECT TOP(1) @actualrate = actualrate
+	FROM dbo.bettrans WITH(NOLOCK)
+	WHERE bettype < 20000
+	
+	SELECT @maxExecID 		= 0
+		, @batchExec		= 100
+		, @bettype			= 22027
+		
+	WHILE (1=1)
+	BEGIN
+		DELETE @tempTransfer
+		DELETE @transExecNo
+		
+		--SELECT top rows to insert bonus transfer
+		SELECT TOP(@batchExec)
+			trans.ExecID
+			, trans.CustID
+			, ci.username
+			, trans.MatchID
+			, trans.BonusID
+			, trans.Bonus
+			, ci.currency
+			, ex.currency AS currencyName
+			, rec.[site]
+			, ci.srecommend
+		INTO #tempAdjustment
+		FROM dbo.BonusAdjustmentTransfer AS trans WITH(NOLOCK)
+			INNER JOIN CustDB.dbo.Customer AS ci WITH(NOLOCK)
+				ON trans.custid = ci.custid
+			INNER JOIN CustDB.dbo.Customer AS rec WITH(NOLOCK)
+				ON rec.custid = ci.recommend
+			INNER JOIN CustDB.dbo.exchange AS ex WITH(NOLOCK)
+				ON rec.currency = ex.exchangeid
+				
+		WHERE trans.ExecID > @maxExecID
+			AND trans.isTransferred = 0
+			
+		ORDER BY trans.ExecID ASC
+		
+		SET @batchCount = @@ROWCOUNT
+		
+		SELECT @maxExecID = MAX(ExecID)
+		FROM #tempAdjustment
+		
+		BEGIN--Adjustment processing
+		;WITH tempDummyCust AS (
+			SELECT temp.ExecID
+				, temp.custid
+				, temp.username
+				, dummy.dummyUsername
+			FROM #tempAdjustment AS temp
+				OUTER APPLY (
+					SELECT TOP 1 REPLACE(srec.username,'Super','Bonus02') AS dummyUsername
+					FROM CustDB.dbo.Customer srec WITH(NOLOCK)
+					WHERE srec.custid = temp.srecommend
+				) AS dummy
+		),tempCoupleTransfer AS (	
+			SELECT temp.ExecID, temp.custid
+				, a.transferId, a.username, a.isDummy, a.isValidDummy
+			FROM tempDummyCust AS temp
+				LEFT JOIN CustDB.dbo.Customer dummy WITH(NOLOCK)
+					ON temp.dummyUsername 	= dummy.username 
+						AND dummy.roleid 	= 1
+				OUTER APPLY (
+					SELECT transferId, username, isDummy,isValidDummy
+					FROM ( VALUES
+						(temp.custid, temp.username, 0, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END),
+						(dummy.custid, temp.dummyUsername, 1, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END)
+				) AS t(transferId, username, isDummy, isValidDummy)) AS a
+		)
+		INSERT INTO @tempTransfer (ExecID, custid, matchid, bonusID, TransDesc, transferId, actual_stake, winlost, isValidDummy, username, currency, currencyName)
+		SELECT temp.ExecID
+			, temp.custid
+			, temp.matchid
+			, temp.bonusID
+			, 'Bonus Adjustment - MatchID=' + CAST(temp.matchid AS VARCHAR(20)) AS TransDesc
+			, trans.transferId
+			, CASE 
+				WHEN trans.isDummy = 0 AND temp.bonus < 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 1 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				ELSE 0 
+			END AS actual_stake
+			, CASE 
+				WHEN trans.isDummy = 1 AND temp.bonus < 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 0 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				ELSE 0 
+			END AS winlost
+			, trans.isValidDummy
+			, trans.username
+			, temp.currency
+			, temp.currencyName
+		FROM #tempAdjustment AS temp
+			INNER JOIN tempCoupleTransfer AS trans
+			ON temp.custid = trans.custid
+			
+		--RAISE error with invalid dummy account
+		INSERT INTO @tempInvalidDummy (site, username, currencyName, isDummy)
+		SELECT temp.site, trans.username, temp.currencyName
+			, CASE WHEN trans.transferId IS NULL THEN 1 ELSE 0 END --check dummy account
+		FROM #tempAdjustment temp
+			INNER JOIN @tempTransfer trans
+			ON temp.ExecID = trans.ExecID
+		
+		WHERE trans.isValidDummy = 0
+		
+		--Generate refno 
+		INSERT INTO @transExecNo (ExecID)
+		SELECT DISTINCT ExecID
+		FROM @tempTransfer
+		WHERE isValidDummy = 1
+		
+		SELECT @transCount = @@ROWCOUNT
+		
+		UPDATE dbo.ref WITH (ROWLOCK)
+		SET @execRefno = refno = refno + @transCount
+		WHERE  refid='refno'
+		
+		UPDATE @transExecNo
+		SET @execRefno = refno = ((@execRefno-1) + 1), @execRefno = @execRefno - 1
+		--End generate refno 
+		
+		--INSERT batch adjustment into bettrans
+		INSERT INTO [dbo].[bettrans]
+			   ([custid]
+			   ,[transdate]
+			   ,[oddsid]
+			   ,[hdp1]
+			   ,[hdp2]
+			   ,[odds]
+			   ,[stake]
+			   ,[status]
+			   ,[winlost]
+			   ,[awinlost]
+			   ,[mwinlost]
+			   ,[playercomm]
+			   ,[comm]
+			   ,[acomm]
+			   ,[apositiontaking]
+			   ,[mpositiontaking]
+			   ,[tpositiontaking]
+			   ,[playerdiscount]
+			   ,[discount]
+			   ,[adiscount]
+			   ,[livehomescore]
+			   ,[liveawayscore]
+			   ,[liveindicator]
+			   ,[betteam]
+			   ,[creator]
+			   ,[refno]
+			   ,[comstatus]
+			   ,[winlostdate]
+			   ,[betfrom]
+			   ,[betcheck]
+			   ,[checktime]
+			   ,[oddsspread]
+			   ,[actualrate]
+			   ,[matchid]
+			   ,[recommend]
+			   ,[mrecommend]
+			   ,[ruben]
+			   ,[betid]
+			   ,[statuswinlost]
+			   ,[modds]
+			   ,[bettype]
+			   ,[betdaqid]
+			   ,[actual_stake]
+			   ,[currency]
+			   ,[ip]
+			   ,[transdesc]
+			   ,[sdiscount]
+			   ,[scomm]
+			   ,[spositiontaking]
+			   ,[swinlost]
+			   ,[srecommend]
+			   ,[Username]
+			   ,[CurrencyName]
+			   ,[virtualrate]
+			   ,[oddstype]
+			   ,[statusID]
+			   ,[currency2]
+			   ,[balance]
+			   ,[SecAcceptFlag]
+			   ,[transid2]
+			   ,[RecommDate]
+			   ,[ExtraInfo]
+			   ,[WalletType]
+			   ,[BonusID]
+			   ,[RefCode])
+		--SELECT from temp table adjustment bonus transfer
+		SELECT temp.[transferId]
+			   ,CURRENT_TIMESTAMP AS  [transdate]
+			   ,0 AS [oddsid]
+			   ,0 AS [hdp1]
+			   ,0 AS [hdp2]
+			   ,0 AS [odds]
+			   ,0 AS [stake]
+			   ,'Completed' AS [status]
+			   ,temp.[winlost]
+			   ,0 AS [awinlost]
+			   ,0 AS [mwinlost]
+			   ,0 AS [playercomm]
+			   ,0 AS [comm]
+			   ,0 AS [acomm]
+			   ,0 AS [apositiontaking]
+			   ,0 AS [mpositiontaking]
+			   ,0 AS [tpositiontaking]
+			   ,0 AS [playerdiscount]
+			   ,0 AS [discount]
+			   ,0 AS [adiscount]
+			   ,0 AS [livehomescore]
+			   ,0 AS [liveawayscore]
+			   ,0 AS [liveindicator]
+			   ,NULL AS [betteam]
+			   ,temp.transferId AS [creator]
+			   ,execNo.[refno]
+			   ,'s' AS [comstatus]
+			   ,CAST(CURRENT_TIMESTAMP AS DATE) AS [winlostdate]
+			   ,'i' AS [betfrom]
+			   ,0 AS [betcheck]
+			   ,NULL AS [checktime]
+			   ,NULL AS [oddsspread]
+			   ,@actualrate AS [actualrate]
+			   ,0 AS [matchid]
+			   ,ci.[recommend]
+			   ,ci.[mrecommend]
+			   ,1 AS [ruben]
+			   ,NULL AS [betid]
+			   ,NULL AS [statuswinlost]
+			   ,1 AS [modds]
+			   ,@bettype AS [bettype]
+			   ,NULL AS [betdaqid]
+			   ,temp.[actual_stake]
+			   ,temp.currency
+			   ,'127.0.0.1' AS [ip]
+			   ,temp.[transdesc]
+			   ,0 AS [sdiscount]
+			   ,0 AS [scomm]
+			   ,0 AS [spositiontaking]
+			   ,0 AS [swinlost]
+			   ,ci.[srecommend]
+			   ,temp.[Username]
+			   ,temp.CurrencyName
+			   ,0 AS [virtualrate]
+			   ,NULL AS [oddstype]
+			   ,131 AS [statusID]
+			   ,NULL AS [currency2]
+			   ,NULL AS [balance]
+			   ,NULL AS [SecAcceptFlag]
+			   ,NULL AS [transid2]
+			   ,NULL AS [RecommDate]
+			   ,NULL AS [ExtraInfo]
+			   ,1 AS [WalletType]
+			   ,temp.[BonusID]
+			   ,NULL AS [RefCode]
+				   
+			FROM @tempTransfer AS temp
+				INNER JOIN CustDB.dbo.custinfo AS ci WITH(NOLOCK)
+					ON temp.transferId = ci.custid
+				INNER JOIN @transExecNo execNo 
+					ON temp.ExecID = execNo.ExecID
+						
+			WHERE temp.isValidDummy = 1
+			
+			--UPDATE back to BonusAdjustmentTransfer
+			IF(@@ROWCOUNT > 0)
+			BEGIN
+				UPDATE dbo.BonusAdjustmentTransfer WITH(ROWLOCK, UPDLOCK)
+				SET isTransferred 	= 1
+					,ExecDate 		= CURRENT_TIMESTAMP
+				WHERE ExecID IN (SELECT ExecID FROM @transExecNo)
+			END
+		END
+		
+		DROP TABLE #tempAdjustment
+		
+		IF(@batchCount < @batchExec) BREAK;
+	END
+	
+	--SEND out notification
+	IF(EXISTS(SELECT TOP 1 1 FROM @tempInvalidDummy))
+	BEGIN
+		DECLARE @email_body 	NVARCHAR(MAX)
+			, @subject 			NVARCHAR(200)
+			, @rowDummy			VARCHAR(MAX)
+			, @rowMember		VARCHAR(MAX)
+			, @tableRow			VARCHAR(MAX)
+		
+		SELECT @email_body = '
+			<html>
+				<body>
+				<style>
+					table {border-collapse: collapse;}
+					table, td, th {border: 1px solid black;}
+					/*tr:nth-child(even) {background-color: #f2f2f2}*/
+					th {text-align: left; padding: 8px;}
+					/*th {background-color: #4CAF50; color: white;}*/
+				</style>
+
+				<h1>Bonus Adjustment - Missing Dummy Account!</h1>
+				<p><b>Run time: ' + convert(varchar(50), getdate(), 121) + '</p>
+				<div style="background-color:red;color:white;text-align:center">Failure</div>
+				<p></p>
+				{<tableRow>}
+				</body>
+			</html>'
+		,@subject	= N'Bonus Adjustment - Missing Dummy Account'
+	
+		SET @tableRow = '<p>Missing Dummy Account List</p>
+			<table>
+				<tr>
+				<th style="text-align:center">Site</th>
+				<th style="text-align:center">Dummy UserName</th>
+				<th style="text-align:center">Currency</th>
+				</tr>
+				{<rowDummy>}
+			</table>
+			<p>&nbsp;<p/>
+			<p>Affected Member List</p>
+			<table>
+				<tr>
+				<th style="text-align:center">Site</th>
+				<th style="text-align:center">Member UserName</th>
+				<th style="text-align:center">Currency</th>
+				</tr>
+				{<rowMember>}
+			</table>'
+		--FORMAT dummy accounts 
+		SET @rowDummy = CONVERT(VARCHAR(MAX), (SELECT DISTINCT site AS 'td1'
+													, username AS 'td2'
+													, currencyName AS 'td1'
+												FROM @tempInvalidDummy
+												WHERE isDummy = 1
+												FOR XML PATH('tr'), TYPE
+											  ))    
+		SET @rowDummy = REPLACE(REPLACE(@rowDummy, 'td1>', 'td>'), 'td2>', 'td>')
+		
+		--FORMAT member rows
+		SET @rowMember = CONVERT(VARCHAR(MAX), (SELECT site AS 'td1'
+													, username AS 'td2'
+													, currencyName AS 'td1'
+												FROM @tempInvalidDummy
+												WHERE isDummy = 0
+												FOR XML PATH('tr'), TYPE
+											  ))    
+		SET @rowMember = REPLACE(REPLACE(@rowMember, 'td1>', 'td>'), 'td2>', 'td>')
+		
+		SET @tableRow = REPLACE(@tableRow, '{<rowDummy>}', @rowDummy)
+		SET @tableRow = REPLACE(@tableRow, '{<rowMember>}', @rowMember)
+		SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
+		
+		EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
+			, @recipients			 = 'patrick.pham@starixsoft.com;lukas.luu@starixsoft.com;daniel.truong@starixsoft.com;billy.bui@starixsoft.com;bobby.nguyen@starixsoft.com'
+			, @copy_recipients		 = ''
+			, @blind_copy_recipients = ''
+			, @subject				 = @subject
+			, @body					 = @email_body
+			, @body_format			 = 'HTML';
+			
+		--SELECT @email_body AS email_body_bonus_adjustment
+	END
+	
+	RETURN
+END
+GO

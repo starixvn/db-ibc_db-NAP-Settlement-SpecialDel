@@ -36,6 +36,7 @@ AS
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
 		- 20170321@Bobby: #73407 - CashOut integration
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
     
     Param's Explanation:
     • @matchid: matchid of match to Refund HT

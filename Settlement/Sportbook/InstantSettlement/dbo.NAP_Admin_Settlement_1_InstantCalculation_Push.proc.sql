@@ -1,11 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE bodb02
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] 
+CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] 
 	@AdminId 			INT
     , @MatchId			INT
 	, @InstantKey		INT
@@ -187,9 +181,5 @@ BEGIN
 			, @AdminId, @IP, @Mode, @sqlCommand, NULL
     END
 END
+GO
 
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] TO [vnteam] AS [dbo]
-GO

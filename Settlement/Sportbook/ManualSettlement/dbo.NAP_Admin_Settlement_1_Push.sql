@@ -64,6 +64,7 @@ AS
         - 20170522@Kathy: Correct checking waiting tickets for tennis [Redmine:#76931]
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
+		- 20170421@Bobby: 72789 - Implement bonus system into NAP Settlement
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner

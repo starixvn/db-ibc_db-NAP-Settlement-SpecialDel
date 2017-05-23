@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@Action	VARCHAR(20)
 	,@Results	VARCHAR(MAX)
@@ -24,7 +18,8 @@ AS
 	
 	Revisions:
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
-
+		- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
+		
 	Param's Explanation:
 		If @IsAuto = 0:
 			@ResultList = <r>
@@ -59,6 +54,15 @@ BEGIN
 				,@strFMBettypes	VARCHAR(MAX)
 				,@XmlData XML
 				,@rowcount	INT
+				,@avaiableProcess BIT
+
+	
+	--START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables
+	
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 				
 	SET @XmlData =  CONVERT(XML, @Results)
 
@@ -78,24 +82,19 @@ BEGIN
 	WHERE	matchid = @matchid
 
 	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (SELECT 1 
-				FROM dbo.TempVariableNumber t WITH(NOLOCK)
-				WHERE t.KeyID = 1 AND t.KeyValue = @matchid)
-	BEGIN
-		SELECT @ErrCode = 1000000
-			, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
-
-	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue)
-	VALUES (1, @matchid)
-
-	IF @@ERROR <> 0
-	BEGIN
-		SELECT @ErrCode = 1000000
-			, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
+	INSERT INTO #tblMatchProcess (matchid, KeyID)
+	SELECT @matchId AS matchid
+		, 1 AS KeyID
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+	
+	--CHECK avaiable process
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
 	CREATE TABLE #tblResultDetail (
 		BetType			SMALLINT
@@ -126,26 +125,33 @@ BEGIN
 			,ISNULL(BetOption,0)
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
+	
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceBefore (custid INT PRIMARY KEY, balance MONEY)
-	CREATE TABLE #BalanceAfter (custid INT PRIMARY KEY, balance MONEY)
-	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
-
-	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList
-
-	INSERT INTO	#BalanceBefore
-	SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm)
-	FROM	#tblResultDetail r
-		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-			ON	b.matchid = @matchid
-				AND b.bettype = r.BetType
-				AND b.hdp1 = r.Position
-	GROUP BY b.custid
 	
-	SET @rowcount = @@rowcount
+	INSERT INTO @BalanceWalletBefore (
+		matchid
+		, custid
+		, balanceType
+		, BonusID
+		, WalletType
+		, balance
+	)
+	SELECT matchid
+		, custid
+		, balanceType
+		, BonusID
+		, WalletType
+		, balance 
+	FROM dbo.f_NAP_Set_1_GetBalance (
+		@MatchId
+		, @Action
+		, 7 --@Mode fast market
+	)
+	
+	SELECT @rowcount = COUNT(DISTINCT custid)
+	FROM @BalanceWalletBefore
 	
 	BEGIN TRY
 		-- update resultstatus
@@ -168,58 +174,33 @@ BEGIN
 		-------------------------------------------------------------
 		---         CAPTURE value BALANCE after settlement        ---
 		---------------------------VVVV------------------------------
-		INSERT INTO #BalanceAfter
-		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm)
-		FROM	#tblResultDetail r
-			INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-				ON	b.matchid = @matchid
-					AND b.bettype = r.BetType
-					AND b.hdp1 = r.Position
-		GROUP BY b.custid
-		-------------------------------------------------------------
-		---                   compare BALANCE                     ---
-		---------------------------VVVV------------------------------
-		CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-
-		INSERT INTO #Balance
-		SELECT	b.custid, a.balance - b.balance
-				,CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-		FROM	#BalanceBefore b
-			INNER JOIN #BalanceAfter a 
-				ON	b.custid = a.custid
-		WHERE	b.balance <> a.balance
-	
-		INSERT INTO @tblDebitPending (custID, balance)
-		SELECT	custid, ABS(balance)
-		FROM	#Balance
-		WHERE	Increased = 0
-	
-		IF @@ROWCOUNT <> 0
-		BEGIN
-			EXEC dbo.Dot_BalancePendingDebitIns @BalancePending = @tblDebitPending, @Type = 1 -- Sports
-		END
-
-		INSERT INTO @tblCreditPending (custID, balance)
-		SELECT	custid, balance
-		FROM	#Balance
-		WHERE	Increased = 1
-	
-		IF @@ROWCOUNT <> 0
-		BEGIN
-			EXEC dbo.Dot_BalancePendingCreditIns @BalancePending = @tblCreditPending, @Type = 1 -- Sports
-		END
-		----
-		-- Add Negative Balance into BalanceNegative table 
-		----
-		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
-		SELECT GETDATE(), @MatchID, @ActionID, 1, CustID, Balance, 0, NULL
-		FROM	#Balance WITH(NOLOCK)
-		WHERE	Increased = 0
-
-		---------------------------------------------------
-		DROP TABLE #Balance
-		DROP TABLE #BalanceBefore
-		DROP TABLE #BalanceAfter
+		
+		INSERT INTO @BalanceWalletAfter (
+			matchid
+			, custid
+			, balanceType
+			, BonusID
+			, WalletType
+			, balance
+		)
+		SELECT matchid
+			, custid
+			, balanceType
+			, BonusID
+			, WalletType
+			, balance 
+		FROM dbo.f_NAP_Set_1_GetBalance (
+			@MatchId
+			, @Action
+			, 7 --@Mode fast market
+		)
+		
+		-- Compare Balance
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+			@BalanceWalletBefore	= @BalanceWalletBefore
+			, @BalanceWalletAfter	= @BalanceWalletAfter
+			, @ActionId				= @ActionID
+			, @IsCheckNegative		= 1
 		
 		SELECT	@ErrCode = 1001017
 				,@ErrMsg = ERROR_MESSAGE()
@@ -231,59 +212,32 @@ BEGIN
 	-------------------------------------------------------------
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
-	INSERT INTO #BalanceAfter
-	SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm)
-	FROM	#tblResultDetail r
-		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-			ON	b.matchid = @matchid
-				AND b.bettype = r.BetType
-				AND b.hdp1 = r.Position
-	GROUP BY b.custid
-	-------------------------------------------------------------
-	---                   compare BALANCE                     ---
-	---------------------------VVVV------------------------------
+	INSERT INTO @BalanceWalletAfter (
+			matchid
+			, custid
+			, balanceType
+			, BonusID
+			, WalletType
+			, balance
+	)
+	SELECT matchid
+		, custid
+		, balanceType
+		, BonusID
+		, WalletType
+		, balance 
+	FROM dbo.f_NAP_Set_1_GetBalance (
+		@MatchId
+		, @Action
+		, 7 --@Mode fast market
+	)
 	
-	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-
-	INSERT INTO #Balance
-	SELECT	b.custid, a.balance - b.balance
-			,CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM	#BalanceBefore b
-		INNER JOIN #BalanceAfter a 
-			ON	b.custid = a.custid
-	WHERE b.balance <> a.balance
-	
-	INSERT INTO @tblDebitPending (custID, balance)
-	SELECT	custid, ABS(balance)
-	FROM	#Balance
-	WHERE	Increased = 0
-	
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		EXEC dbo.Dot_BalancePendingDebitIns @BalancePending = @tblDebitPending, @Type = 1 -- Sports
-	END
-
-	INSERT INTO @tblCreditPending (custID, balance)
-	SELECT	custid, balance
-	FROM	#Balance
-	WHERE	Increased = 1
-	
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		EXEC dbo.Dot_BalancePendingCreditIns @BalancePending = @tblCreditPending, @Type = 1 -- Sports
-	END
-	----
-	-- Add Negative Balance into BalanceNegative table 
-	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
-	SELECT	GETDATE(), @MatchID, @ActionID, 1, CustID, Balance, 0, NULL
-	FROM	#Balance WITH(NOLOCK)
-	WHERE	Increased = 0
-
-	---------------------------------------------------
-	DROP TABLE #Balance
-	DROP TABLE #BalanceBefore
-	DROP TABLE #BalanceAfter
+	-- Compare Balance
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		@BalanceWalletBefore	= @BalanceWalletBefore
+		, @BalanceWalletAfter	= @BalanceWalletAfter
+		, @ActionId				= @ActionID
+		, @IsCheckNegative		= 1
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
@@ -339,17 +293,13 @@ BEGIN
 			, @IP				= @ip
 	END CATCH
 	
-	DELETE
-	FROM	dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-	WHERE	KeyID = 1 
-			AND KeyValue = @matchid
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @IsReleased		= 1
+	
+	DROP TABLE #tblMatchProcess
+	RETURN	
 	
 END
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] TO [Dot_Admin] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] TO [vnteam] AS [dbo]
