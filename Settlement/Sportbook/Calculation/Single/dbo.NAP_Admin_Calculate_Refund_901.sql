@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_901]
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_901]
 	@matchid INT,	
 	@ResourceIDs VARCHAR(MAX)=NULL,
 	@IsSettleAbandonedMatchIBC BIT = 0,
@@ -16,6 +17,7 @@ AS
 		Revisions:
 			- 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [Redmine:#61905]
 			- 20161108@Kathy: Settlement for new server [Redmine:#66849]
+			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
 		
 		Parameter's Explanation:
 	*/
@@ -53,7 +55,7 @@ BEGIN
 				UNION SELECT 16 UNION SELECT 177 UNION SELECT 178 UNION SELECT 183 UNION SELECT 184 --refund for match 3x30 
 		END
 		--Refund from auto settlement
-		IF @mode = 'ALL' AND @ResourceIDs IS NOT NULL
+		IF @mode = 'REFUND' AND @ResourceIDs IS NOT NULL
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 				SELECT 160 UNION SELECT 180
@@ -82,6 +84,7 @@ BEGIN
 		AND matchid = @matchid
 		AND statusid NOT IN (101,102)
 		AND betdaqid = 0--indicate tickets belong to bettrade
+		AND ExtraInfo IS NULL
 		AND 1 = CASE WHEN @ResourceIDs IS NOT NULL 
 						AND Bettype IN (160,180) AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
 					WHEN @ResourceIDs IS NULL AND bettype NOT IN (160,180) THEN 1
@@ -122,7 +125,7 @@ BEGIN
 	--END
 	
 	--Insert bettrade tickets to send API
-	IF @@SERVERNAME IN ('DBTRANS','DB230','DB206')
+	IF @@SERVERNAME IN ('DBTRANS','DB230','DB206', 'SITDBTRANS')
 	BEGIN
 		DECLARE @Session NVARCHAR(50) = CONVERT(NVARCHAR(50),NEWID())
 		
@@ -145,7 +148,7 @@ BEGIN
 	END
 	
 	--BEGIN: Cancel BetTradeSelling/BetTradeSellingCancelled ON DBTXN
-	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI')
+	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI')
 	BEGIN		
 		UPDATE b
 		SET Remark = 'SB refund ticket',
@@ -194,3 +197,4 @@ BEGIN
 	DROP TABLE #tmpRef
 				
 END
+GO

@@ -1,10 +1,6 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] @AdminId INT
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] 
+	@AdminId 		INT
     , @MatchId		INT
     , @FullTimeHome	SMALLINT        = NULL
     , @FullTimeAway	SMALLINT        = NULL
@@ -26,6 +22,7 @@ AS
 		- 20161028@Kathy: Extend sqlCommand column to varchar(max) [Redmine:#56367]
 		- 20170313@Kathy: Remove @betstatus, @goalrecord [Redmine:#73218]
 		- 20170314@Kathy: Not allow to process Auto Payout HT/FT if keyscore calculated HT/FT manually [Redmine:#73218]
+		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		
     Param's Explanation:
         
@@ -141,8 +138,4 @@ BEGIN
 			, @AdminId, @IP, @Action, @sqlCommand, NULL
     END
 END
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] TO [vnteam] AS [dbo]

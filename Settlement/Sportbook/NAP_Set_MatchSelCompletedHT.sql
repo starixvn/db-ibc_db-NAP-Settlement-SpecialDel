@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelCompletedHT] 
-	@Date 			DATETIME
+	@Date DATETIME
 	, @SportType 	SMALLINT = 0
 	, @LeagueID 	INT = 0 -- 0 for ALL Leagues
 	, @isReLoad 	BIT = 0
@@ -29,6 +29,7 @@ AS
 		- 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [Redmine:#61905]
 		- 20161013@Bobby: #65002 - Update changes for Instant Calculation 
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -104,6 +105,7 @@ BEGIN
 			AND bettype NOT BETWEEN 1501 and 1599 -- Keno
 			AND bettype NOT BETWEEN 901 AND 910 --bettrade
 			AND bettype NOT BETWEEN 801 AND 899--Metric Gaming
+			AND bettype NOT BETWEEN 911 AND 920--cashout tickets
 		GROUP BY b.matchid
 	)
 	

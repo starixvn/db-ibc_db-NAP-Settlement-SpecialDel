@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push] 
     @MatchId                        INT
     ,@AdminId                        INT
@@ -35,6 +29,7 @@ AS
         - 20150422@Jamie: Manual Settlement Betradar phase 2 [Redmine: #27212] 
         - 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
+		- 20170321@Bobby: #73407 - CashOut integration
     
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -199,10 +194,4 @@ BEGIN
             ,@sqlCommand
     END
 END
-
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_RefundHT_Push] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_RefundHT_Push] TO [vnteam] AS [dbo]
