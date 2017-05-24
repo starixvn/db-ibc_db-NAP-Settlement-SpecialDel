@@ -55,6 +55,7 @@ AS
 		- 20161028@Kathy: Extend sqlCommand column to varchar(max) [Redmine:#56367]
         - 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
         - 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+        - 20170522@Kathy: Correct checking waiting tickets for tennis [Redmine:#76931]
 		
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -127,6 +128,7 @@ BEGIN
     , @Mode = 'CAL'
 	, @IsExcludeCorner = @isExcludeCorner
 	, @SelectedQuarter = @SelectedQuarter
+	, @SelectedSet = @SelectedSet
     , @ErrCode = @ErrCode OUTPUT
     , @ErrMsg = @ErrMsg OUTPUT
         

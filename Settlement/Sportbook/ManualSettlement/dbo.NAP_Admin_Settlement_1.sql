@@ -73,7 +73,9 @@ AS
 		- 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
 		- 20160428@Kathy: Exclude Fast Market bettypes [Redmine:#56367]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
-		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
+		- 20170521@Kathy: Correct balance for Basketball [Redmine:#76931]
+		- 20170522@Kathy: Correct balance for Tennis [Redmine:#76931]
+		- 20170316@Bobby: Integrate CashOut bettypes [R
 		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -157,6 +159,8 @@ BEGIN
 
     SELECT  @HomeValue    = CAST(@fth AS VARCHAR(20))
             ,@AwayValue    = CAST(@fta AS VARCHAR(20)) 
+            ,@SelectedQuarter = CASE WHEN @sporttype <> 2 THEN NULL ELSE @SelectedQuarter END
+            ,@SelectedSet = CASE WHEN @sporttype <> 5 THEN NULL ELSE @SelectedSet END
 
     IF @@ROWCOUNT = 0
     BEGIN
@@ -234,8 +238,30 @@ BEGIN
     ELSE 
         SELECT    @TicketCount = COUNT(1)
         FROM    dbo.bettrans b WITH(NOLOCK)
-        WHERE    b.bettype <= 19000 
-                AND b.matchid = @matchid
+			INNER JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
+        WHERE  	b.matchid = @matchid
+				AND 1 = CASE -- Basketball
+						WHEN @SelectedQuarter IS NULL THEN 1
+						WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+						WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+						ELSE 0
+					END
+				AND 1 = CASE -- tennis
+							WHEN @SelectedSet IS NULL THEN 1
+							WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+							WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+								THEN CASE 
+										WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+										WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+										WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+										WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+										WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+									ELSE 0
+								END
+							ELSE 0
+						END
+				AND b.bettype <= 19000
                 AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                 AND b.bettype NOT BETWEEN 1501 AND 1599 -- Keno
                 AND 1 = CASE 
@@ -303,6 +329,8 @@ BEGIN
             SELECT    b.custid
                     ,SUM(b.winlost - b.actual_stake + b.playercomm)
             FROM    dbo.bettrans b WITH (ROWLOCK)
+				LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
             WHERE    b.matchid = @matchid 
                     AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                     AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -320,7 +348,26 @@ BEGIN
                                 ELSE 0 
                             END
                     AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-					
+					AND 1 = CASE -- basketball
+								WHEN @SelectedQuarter IS NULL THEN 1
+								WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+								WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+								ELSE 0
+							END
+					AND 1 = CASE -- tennis
+								WHEN @SelectedSet IS NULL THEN 1
+								WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+								WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+									THEN CASE 
+											WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+											WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+											WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+											WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+											WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+										ELSE 0
+									END
+								ELSE 0
+							END
             GROUP BY b.custid
 
             SET @TotalAccount = @@ROWCOUNT
@@ -383,6 +430,8 @@ BEGIN
             SELECT    b.custid
                     ,SUM(b.winlost - b.actual_stake + b.playercomm)
             FROM    dbo.bettrans b WITH (ROWLOCK)
+				LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
             WHERE    b.matchid = @matchid
                     AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                     AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -400,7 +449,26 @@ BEGIN
                                 ELSE 0 
                             END
                     AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-					
+					AND 1 = CASE -- basketball
+								WHEN @SelectedQuarter IS NULL THEN 1
+								WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+								WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+								ELSE 0
+							END
+					AND 1 = CASE -- tennis
+								WHEN @SelectedSet IS NULL THEN 1
+								WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+								WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+									THEN CASE 
+											WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+											WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+											WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+											WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+											WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+										ELSE 0
+									END
+								ELSE 0
+							END
             GROUP BY b.custid
             
             SET @TotalAccount = @@ROWCOUNT
@@ -715,7 +783,9 @@ BEGIN
                 INSERT INTO #BalanceAfter
                 SELECT    b.custid
                         ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
+                FROM    dbo.bettrans b WITH (ROWLOCK)	
+					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
                 WHERE    b.matchid = @matchid 
                         AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                         AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -733,7 +803,26 @@ BEGIN
                                 ELSE 0 
                             END
                         AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						
+						AND 1 = CASE -- basketball
+									WHEN @SelectedQuarter IS NULL THEN 1
+									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+									ELSE 0
+								END
+						AND 1 = CASE -- tennis
+									WHEN @SelectedSet IS NULL THEN 1
+									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+										THEN CASE 
+												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+											ELSE 0
+										END
+									ELSE 0
+								END
                 GROUP BY b.custid
             END
             ELSE IF @Action = 'CAL-HT'
@@ -767,6 +856,8 @@ BEGIN
                 SELECT    b.custid
                         ,SUM(b.winlost - b.actual_stake + b.playercomm)
                 FROM    dbo.bettrans b WITH (ROWLOCK)
+					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
                 WHERE    b.matchid = @matchid
                         AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                         AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -784,7 +875,26 @@ BEGIN
                                 ELSE 0 
                             END
                         AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						
+						AND 1 = CASE -- basketball
+									WHEN @SelectedQuarter IS NULL THEN 1
+									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+									ELSE 0
+								END
+						AND 1 = CASE -- tennis
+									WHEN @SelectedSet IS NULL THEN 1
+									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+										THEN CASE 
+												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+											ELSE 0
+										END
+									ELSE 0
+								END
                 GROUP BY b.custid
             END
         END --IF @SkipBalanceUpdate = 0
@@ -862,6 +972,8 @@ BEGIN
                 SELECT    b.custid
                         ,SUM(b.winlost - b.actual_stake + b.playercomm)
                 FROM    dbo.bettrans b WITH (ROWLOCK)
+					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
                 WHERE    b.matchid = @matchid 
                         AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                         AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -879,7 +991,26 @@ BEGIN
                                 ELSE 0 
                             END
                         AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						
+						AND 1 = CASE -- basketball
+									WHEN @SelectedQuarter IS NULL THEN 1
+									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+									ELSE 0
+								END
+						AND 1 = CASE -- tennis
+									WHEN @SelectedSet IS NULL THEN 1
+									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+										THEN CASE 
+												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+											ELSE 0
+										END
+									ELSE 0
+								END
                 GROUP BY b.custid
             END
             ELSE IF @Action = 'CAL-HT'
@@ -912,6 +1043,8 @@ BEGIN
                 SELECT    b.custid
                         ,SUM(b.winlost - b.actual_stake + b.playercomm)
                 FROM    dbo.bettrans b WITH (ROWLOCK)
+					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
                 WHERE    b.matchid = @matchid
                         AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
                         AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
@@ -926,10 +1059,30 @@ BEGIN
 										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
 										ELSE 0
 									END
+									ELSE 0
+								END
+						AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
+						AND 1 = CASE -- basketball
+									WHEN @SelectedQuarter IS NULL THEN 1
+									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
+									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
+									ELSE 0
+								END
+						AND 1 = CASE -- tennis
+									WHEN @SelectedSet IS NULL THEN 1
+									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
+										THEN CASE 
+												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
+												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
+												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
+												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
+												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
+											ELSE 0
+										END
                                 ELSE 0 
                             END
-                        AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						
+                        
                 GROUP BY b.custid
             END
     END --IF @SkipBalanceUpdate = 0
