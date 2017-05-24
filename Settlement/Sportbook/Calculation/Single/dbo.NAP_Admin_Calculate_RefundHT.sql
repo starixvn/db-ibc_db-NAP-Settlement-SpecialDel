@@ -1,11 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_Admin_Calculate_RefundHT]    Script Date: 07/15/2016 09:32:27 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.NAP_Admin_Calculate_RefundHT    Script Date: 19/10/2015 10:46:58 AM ******/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_RefundHT] @matchid INT
     ,@IsExcludeBetdaq BIT = 0
     ,@IsExcludeBetfair BIT = 0
@@ -29,6 +22,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20160120@Patrick: PH-AiO - Change request [Redmine: #51116]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
+		- 20170321@Bobby: #73407 - CashOut integration
 
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -43,12 +37,22 @@ BEGIN
     SET NOCOUNT ON
 	
 	DECLARE @xml XML	
-	SET @xml = CONVERT(XML, REPLACE('<root><r t="' + @strBettypes + '"/></root>', ',','"/><r t="'))
-	
 	DECLARE @tblBettypes TABLE (bettype SMALLINT)
+	
+	/*SET @xml = CONVERT(XML, REPLACE('<root><r t="' + @strBettypes + '"/></root>', ',','"/><r t="'))
 	INSERT INTO @tblBettypes (bettype)
 	SELECT T.c.value('./@t','SMALLINT')
 	FROM @xml.nodes('/root/r') AS T(c)
+	*/
+	
+	SET @xml = CONVERT(XML, @strBettypes)
+	
+	INSERT INTO @tblBettypes (bettype)
+	SELECT	T.c.value('./@t','SMALLINT')
+	FROM @xml.nodes('/root/r') AS T(c)
+	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
+	
+	
 	
     WHILE 1 = 1
     BEGIN
@@ -78,8 +82,4 @@ BEGIN
             BREAK
     END
 END
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Calculate_RefundHT] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_RefundHT] TO [vnteam] AS [dbo]

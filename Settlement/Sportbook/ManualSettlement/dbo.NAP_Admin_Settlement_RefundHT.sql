@@ -85,12 +85,20 @@ BEGIN
     DECLARE @start DATETIME
         ,@stop DATETIME
         ,@strBettypes VARCHAR(MAX) 
+		,@strRefundBettypes VARCHAR(MAX) 
 		,@matchdate DATETIME
 
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	dbo.f_Set_GetGroupBettypes ()
 	WHERE	Is3x30 = 1
 	
+	-- SELECT for new formation
+	SET @strRefundBettypes = (SELECT  f.BetType 'r/@t'
+						FROM	dbo.f_Set_GetGroupBettypes() AS f			
+						WHERE	f.Is3x30 = 1
+						FOR XML PATH ('root')
+							)	
+							
 	
 	SELECT @matchdate = eventdate
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
@@ -260,7 +268,7 @@ BEGIN
 				,@mode = 'REFUND-HT'
 				,@IsExcludeBetdaq = @IsExcludeBetdaq
 				,@IsExcludeBetfair = @IsExcludeBetfair
-				,@strBettypes = @strBettypes 
+				,@strBettypes = @strRefundBettypes 
 				,@matchdate		= @matchdate
 				
 			-- BetTrade Winlost Sharing
