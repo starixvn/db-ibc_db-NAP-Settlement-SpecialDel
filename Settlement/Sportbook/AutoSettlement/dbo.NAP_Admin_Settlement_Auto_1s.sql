@@ -110,7 +110,7 @@ BEGIN
 			, BonusID
 			, WalletType
 			, balance 
-		FROM dbo.f_NAP_Set_1_GetBalance (
+		FROM dbo.f_NAP_Set_GetBalanceByWallet (
 			@MatchId
 			, @Action
 			, 6 --@Mode auto settlement
@@ -272,7 +272,7 @@ BEGIN
 		, BonusID
 		, WalletType
 		, balance 
-	FROM dbo.f_NAP_Set_1_GetBalance (
+	FROM dbo.f_NAP_Set_GetBalanceByWallet (
 		@MatchId
 		, @Action
 		, 6 --@Mode auto settlement

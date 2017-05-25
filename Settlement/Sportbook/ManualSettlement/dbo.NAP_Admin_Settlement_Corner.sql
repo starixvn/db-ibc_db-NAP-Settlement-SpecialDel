@@ -118,7 +118,7 @@ BEGIN
 			, BonusID
 			, WalletType
 			, balance 
-		FROM dbo.f_NAP_Set_1_GetBalance (
+		FROM dbo.f_NAP_Set_GetBalanceByWallet (
 			@MatchId
 			, @Action
 			, 5 --@Mode corner
@@ -211,7 +211,7 @@ BEGIN
 			, BonusID
 			, WalletType
 			, balance 
-		FROM dbo.f_NAP_Set_1_GetBalance (
+		FROM dbo.f_NAP_Set_GetBalanceByWallet (
 			@MatchId
 			, @Action
 			, 5 --@Mode corner
