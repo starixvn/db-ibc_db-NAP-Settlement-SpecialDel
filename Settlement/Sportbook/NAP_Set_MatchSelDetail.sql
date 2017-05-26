@@ -46,6 +46,8 @@ AS
 		- 20161006@Bobby: #61352 - Implement SDT for parlay tickets
 		- 20170329@Kathy: Change refer score from DBTRANS to DBPRO [Redmine:#74259]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170525@Kathy: Not allow to cal FT basketball when have tickets of bettype 603 and quarters has not been calculated [Redmine:#77046]
+		
 */
 BEGIN
     SET NOCOUNT ON
@@ -98,6 +100,8 @@ BEGIN
 		,@StatusQuarter3	NVARCHAR(20)
 		,@StatusQuarter4	NVARCHAR(20)
 		
+		,@isExistFTHighestQuarter BIT
+		
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, GroupId TINYINT, IsUsedGoalRecordValue BIT, IsDetermined BIT, GroupName VARCHAR(50))
 	INSERT INTO @tmpBettypes (bettype, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName)
 	SELECT	BetType, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName
@@ -121,6 +125,7 @@ BEGIN
 		,@isExistBettrade		= 0
 		,@IsEnabledGoalRecordHT = 0
 		,@IsEnabledGoalRecordFT = 0
+		,@isExistFTHighestQuarter = 0
 
     SELECT @sporttype 	= sporttype
 		,@LeagueID    	= leagueid
@@ -196,6 +201,8 @@ BEGIN
 			
 			,@isExistBettrade = MAX(CASE WHEN b.bettype BETWEEN 901 AND 910 THEN 1 ELSE 0 END) 
 			,@IsLive = MAX(CASE WHEN b.IsLive = 1 THEN 1 ELSE 0 END)
+			
+			,@isExistFTHighestQuarter = MAX(CASE WHEN f.BetType = 603 THEN 1 ELSE 0 END)
 	FROM	#Data b
 		LEFT JOIN @tmpBettypes f
 			ON b.bettype = f.BetType
@@ -213,6 +220,7 @@ BEGIN
 			
 			,@IsEnabledGoalRecordHT = CASE WHEN @IsEnabledGoalRecordHT > 0 THEN @IsEnabledGoalRecordHT ELSE MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END
 			,@IsEnabledGoalRecordFT = CASE WHEN @IsEnabledGoalRecordFT > 0 THEN @IsEnabledGoalRecordFT ELSE MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END		
+			,@isExistFTHighestQuarter = CASE WHEN @isExistFTHighestQuarter > 0 THEN @isExistFTHighestQuarter ELSE MAX(CASE WHEN f.BetType = 603 THEN 1 ELSE 0 END) END
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN @tmpBettypes f
 			ON	bm.bettype = f.bettype
@@ -554,6 +562,7 @@ BEGIN
 		,ISNULL(match.AutoSetting, ISNULL(l.AutoSetting,0)) AS AutoSetting
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
+		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		INNER JOIN DBPRO.bodb02.dbo.league l WITH (NOLOCK) ON match.leagueid = l.leagueid
@@ -582,7 +591,7 @@ BEGIN
 				END AS ResourceId
 		FROM	dbo.bettrans b WITH (NOLOCK)
 		WHERE	b.matchid = @MatchId
-				AND b.bettype IN (603, 604, 605, 606, 607, 613, 617)
+				AND b.bettype IN (604, 605, 606, 607, 613, 617)
 		GROUP BY b.bettype 
 				,CASE 
 					WHEN b.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
@@ -599,7 +608,7 @@ BEGIN
 				END AS ResourceId
 		FROM	dbo.bettransm bm WITH (NOLOCK)
 		WHERE	bm.matchid = @MatchId		
-				AND bm.bettype IN (603, 604, 605, 606, 607, 613, 617)
+				AND bm.bettype IN (604, 605, 606, 607, 613, 617)
 		GROUP BY bm.bettype
 				,CASE 
 					WHEN bm.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
@@ -627,7 +636,7 @@ BEGIN
 				WHERE	matchid = @MatchId
 						AND ( ResourceId IN ('00','01', 'OT')
 							OR ResourceId LIKE 'Q[1-4]'
-							OR ResourceId LIKE '60[3-5]'
+							OR ResourceId LIKE '60[4-5]'
 							OR ResourceId LIKE '60[6-7]__'
 							OR ResourceId LIKE '6130[1-4]__'
 							OR ResourceId LIKE '6170[1-4]'

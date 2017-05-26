@@ -120,6 +120,7 @@ AS
     Task: Implement SDT Parlay @bettypes - Modds Calculation
     DB: DBTXN/bodb02
     Revisions:
+			- 20170525@Kathy: Add logic for bettype 617 [Redmine:#77046]
 	
     Parameters Explanation:    
 	
@@ -1689,18 +1690,22 @@ RETURN (
 				WHEN 617 THEN -- Quarter X Which team to score the last basket
 					CASE	
 						WHEN @betcheck = '801' THEN CASE
+														WHEN @Q1LastBasket = 'N' THEN 0
 														WHEN @betteam = @Q1LastBasket THEN 1
 														ELSE -1
 													END
 						WHEN @betcheck = '802' THEN CASE
+														WHEN @Q2LastBasket = 'N' THEN 0
 														WHEN @betteam = @Q2LastBasket THEN 1
 														ELSE -1
 													END
 						WHEN @betcheck = '803' THEN CASE
+														WHEN @Q3LastBasket = 'N' THEN 0
 														WHEN @betteam = @Q3LastBasket THEN 1
 														ELSE -1
 													END
 						WHEN @betcheck = '804' THEN CASE
+														WHEN @Q4LastBasket = 'N' THEN 0
 														WHEN @betteam = @Q4LastBasket THEN 1
 														ELSE -1
 													END
