@@ -616,12 +616,23 @@ BEGIN
 					ELSE ''
 				END
 		
+		;WITH cteResultDetail
+		AS (
+			SELECT	matchid
+					, ResourceId
+					, HomeValue
+					, AwayValue
+					, ResultStatusID
+					, SettlementStatusID
+			FROM	DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
+			WHERE	MatchId = @MatchId
+		)
 		SELECT	@matchId AS MatchId
 				,COALESCE(r.ResourceId, s.ResourceId, p.ResourceId) AS ResourceId
-				,r.HomeValue
-				,r.AwayValue
-				,r.ResultStatusID
-				,r.SettlementStatusID				
+				,ISNULL(r.HomeValue, t.HomeValue) AS HomeValue
+				,ISNULL(r.AwayValue, t.AwayValue) AS AwayValue
+				,ISNULL(r.ResultStatusID, t.ResultStatusID) AS ResultStatusID
+				,ISNULL(r.SettlementStatusID, t.SettlementStatusID) AS SettlementStatusID			
 		FROM	@tmpSingleBettype s
 			FULL JOIN @tmpParlayBettype p
 				ON	s.ResourceId = p.ResourceId
@@ -632,17 +643,27 @@ BEGIN
 						, AwayValue
 						, ResultStatusID
 						, SettlementStatusID
-				FROM	DBPRO.BODB02.dbo.[ResultDetail] r WITH (NOLOCK) 
-				WHERE	matchid = @MatchId
-						AND ( ResourceId IN ('00','01', 'OT')
+				FROM	cteResultDetail
+				WHERE	( ResourceId IN ('00','01', 'OT')
 							OR ResourceId LIKE 'Q[1-4]'
-							OR ResourceId LIKE '60[4-5]'
+						)
+			) r
+				ON	ISNULL(s.ResourceId,p.ResourceId) = r.ResourceId
+			LEFT JOIN (
+				SELECT	matchid
+						, ResourceId
+						, HomeValue
+						, AwayValue
+						, ResultStatusID
+						, SettlementStatusID
+				FROM	cteResultDetail 
+				WHERE	(ResourceId LIKE '60[4-5]'
 							OR ResourceId LIKE '60[6-7]__'
 							OR ResourceId LIKE '6130[1-4]__'
 							OR ResourceId LIKE '6170[1-4]'
 						)
-			) r
-				ON	ISNULL(s.ResourceId,p.ResourceId) = r.ResourceId
+			) t
+				ON	COALESCE(r.ResourceId, s.ResourceId, p.ResourceId) = t.ResourceId
 	END
 	ELSE
 	BEGIN
@@ -652,7 +673,7 @@ BEGIN
 				, AwayValue
 				, ResultStatusID
 				, SettlementStatusID
-		FROM    DBPRO.BODB02.dbo.[ResultDetail] WITH (NOLOCK) 
+		FROM    DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK) 
 		WHERE    MatchID = @MatchID 
 				AND (@Sporttype = 5 
 						OR(    @Sporttype = 1 

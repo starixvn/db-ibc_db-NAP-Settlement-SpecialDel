@@ -1,11 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-ALTER PROCEDURE [NAP_Set_MatchSelHedge] @matchid INT
+ALTER PROCEDURE dbo.NAP_Set_MatchSelHedge @matchid INT
 AS
 /* Created: 20140114@Kathy
  Task: Select hedging matches correlative real matches    
@@ -37,7 +31,7 @@ BEGIN
 	SELECT m.matchid
 		, m.matchcode
 		, CASE WHEN ISNULL(sdt.IsDeterminedHedgeMatch, 0 ) = 1 AND m.sporttype = 1 THEN 1 ELSE 0 END AS IsDeterminedHedgeMatch
-		, mr.isUndecided
+		, ISNULL(mr.isUndecided,0) AS isUndecided
 	FROM dbo.match m WITH (NOLOCK)
 		OUTER APPLY (
 			SELECT TOP 1 CAST(1 AS BIT) AS IsDeterminedHedgeMatch
@@ -57,15 +51,3 @@ BEGIN
 	ORDER BY m.matchcode
 END
 GO
-
-GRANT EXECUTE
-	ON [NAP_Set_MatchSelHedge]
-	TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION
-	ON [NAP_Set_MatchSelHedge]
-	TO [vnteam] AS [dbo]
-GO
-
-

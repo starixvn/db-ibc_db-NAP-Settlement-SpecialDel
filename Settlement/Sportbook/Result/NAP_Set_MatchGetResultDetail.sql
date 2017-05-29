@@ -1,10 +1,4 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchGetResultDetail]
 	@MatchID	INT 
 AS
@@ -17,10 +11,12 @@ AS
 	Revisions:  	
 		- 20150406@Jamie: Settlement Betradar phase 2 [Redmine: #27212]
 		- 20170209@Bobby: Add filtering Abandoned status [Redmine: #71284]
+		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 */
 BEGIN
 	SET NOCOUNT ON
-
+	DECLARE @Sporttype SMALLINT
+	
 	SELECT	 m.MatchID
 			,m.matchcode
 			,m.sporttype
@@ -49,21 +45,32 @@ BEGIN
 	FROM	dbo.Match m WITH (NOLOCK)
 			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.MatchID = mr.MatchID 
 	WHERE	m.MatchID = @MatchID 
+	
+	SELECT 	@Sporttype = sporttype
+	FROM 	dbo.Match WITH (NOLOCK)
+	WHERE 	matchId = @MatchId
 
 	SELECT	 MatchId
 			,ResourceID 
 			,HomeValue 
 			,AwayValue 
 			,OtherInfo
-			,SettlementStatusID
+			,CASE 
+				WHEN @Sporttype = 2 AND SettlementStatusID = 0 THEN 4
+				ELSE SettlementStatusID
+			END AS SettlementStatusID
 	FROM	dbo.[ResultDetail] WITH (NOLOCK) 
 	WHERE	MatchID = @MatchID 
-			AND ResultStatusID > 0 
+			AND 1 = CASE
+						WHEN @Sporttype = 2 THEN CASE 
+													WHEN LEN(ResourceId) = 2 THEN 1
+													WHEN SettlementStatusID > 0 THEN 1
+													WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
+													ELSE 0
+												END
+						ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
+					END			
+	
 	ORDER BY ResourceID 
 END
-
-GO
-GRANT EXECUTE ON [NAP_Set_MatchGetResultDetail] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [NAP_Set_MatchGetResultDetail] TO [vnteam] AS [dbo]
 GO
