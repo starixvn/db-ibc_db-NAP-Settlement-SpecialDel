@@ -29,6 +29,7 @@ AS
   - 20160317@bobby.nguyen: #57700 - Add Macau Game product
   - 20160817@bobby.nguyen: #62572 - Exclude BT's bettype 904
   - 20161013@Kathy: Add NG2 [Redmine:#63211]
+  - 20170309@Kent: Integrate Cash-out [Redmine:#72059]
   
 Explanation's Param:  
 	- @ProductIds: [1-99]
@@ -84,7 +85,7 @@ BEGIN
 		INNER JOIN #productIdList p ON sb.ProductId = p.ProductId
 		
 	WHERE sb.SubProduct NOT IN ('MG-SuperLive') 
-		AND sb.Bettype 	NOT IN (901, 902, 903, 904, 500)
+		AND sb.Bettype 	NOT IN (901, 902, 903, 904, 911, 912, 913, 914, 500)
 	
 	-- Check metric gaming
 	IF(EXISTS (
@@ -131,7 +132,7 @@ BEGIN
 			INNER JOIN #transIdList t 
 			ON b.transid 	= t.transid
 			INNER JOIN #productBettype bt
-			ON b.bettype 	= bt.bettype
+			ON b.bettype 	= bt.bettype			   
 			
 		UNION ALL 
 		SELECT 
@@ -147,7 +148,7 @@ BEGIN
 			INNER JOIN #transIdList t 
 			ON b.transid = t.transid
 			INNER JOIN #productBettype bt
-			ON b.bettype 	= bt.bettype
+			ON b.bettype 	= bt.bettype			   
 	END
 	-- search by group 2
 	/*	

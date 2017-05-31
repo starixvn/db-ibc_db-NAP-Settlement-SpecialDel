@@ -24,6 +24,7 @@ AS
 		- 20161104@Kent: Correct logic for GroupName [Redmine:#65531]
 		- 20161111@Kent: Correct WinLost when for returned table [Redmine:#65531]
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -61,7 +62,7 @@ BEGIN
 								,custid			INT
 								,mrecommend		INT
 								,recommend		INT
-								,isdeposit		TINYINT
+								,isdeposit		BIT
 								)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
 	
@@ -72,39 +73,7 @@ BEGIN
 								)								
 											
 	DECLARE @tblBeforeBalance	TABLE (custid INT, balance MONEY)
-	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)
-	
-	SELECT	1 AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
-			,1 AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
-			,1 AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
-			,'' AS GroupName
-			,b.transid    
-			,b.Username
-			,TransDate     
-			,BetType    
-			,b.Refno     
-			,Status     
-			,WinLost    
-			,betid      
-			,BetTeam    
-			,livehomescore    
-			,liveawayscore    
-			,Stake     
-			,Odds     
-			,hdp1     
-			,hdp2     
-			,NULL AS homeid      
-			,NULL AS awayid      
-			,NULL AS sporttype     
-			,NULL AS leagueid     
-			,betcheck    
-			,transdesc   
-			,'' AS BetFrom
-			,GETDATE() AS [DateTime] 
-				INTO #t
-	FROM	#tblRecoverBet t
-			INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	WHERE 1 = 0
+	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)		
 	
 	--- Check for concurrent running
 	EXEC [dbo].[NAP_Admin_CheckingProcess]
@@ -115,10 +84,7 @@ BEGIN
 		  , @ErrMsg	= @ErrMsg OUTPUT
 	
 	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN					 
-		SELECT * FROM #t
-		DROP TABLE #t
-		
+	BEGIN		
 		RETURN		
 	END
 	
@@ -164,10 +130,7 @@ BEGIN
 					@IsExistParlay = 1			
 				  , @IsReleased	= 1			  			
 			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-			
-			SELECT * FROM #t
-			DROP TABLE #t
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
 		
 			RETURN
 		END
@@ -337,9 +300,9 @@ BEGIN
 					 AND a.custid  = @UserID)
 			SELECT @IsITAdmin = 1
 
-		SELECT	CASE WHEN c.currency <> 20 AND @IsITAdmin = 1 THEN 1 ELSE 0 END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
-				,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITAdmin = 0 )THEN 1 ELSE 0 END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
-				,CASE WHEN c.currency = 20 AND @IsITAdmin = 1 THEN 1 ELSE 0 END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
+		SELECT	CASE WHEN c.currency <> 20 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
+				,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITAdmin = 0 )THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
+				,CASE WHEN c.currency = 20 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
 				,SUBSTRING(T1.GroupName, 3, 30) AS GroupName
 				,b.transid    
 				,b.Username
@@ -400,15 +363,10 @@ BEGIN
 		  , @IsReleased	= 1		  
 	
 		SELECT @ErrCode = 100,
-				@ErrMsg = 'Unable to recover these parlay bets'
-				
-		SELECT * FROM #t
-		DROP TABLE #t
+				@ErrMsg = 'Unable to recover these parlay bets'						
 						
 		RETURN
-	END CATCH
-	
-	DROP TABLE #t
+	END CATCH		
 END
 
 

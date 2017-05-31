@@ -31,6 +31,7 @@ AS
               - 20151209@Kathy: get translog.siteid for MG API [Redmine:#49019]
 			  - 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 			  - 20160401@Bobby: #55354 - Update changes for new message structure
+			  - 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 			  
 	Param's Explanation:
 
@@ -681,7 +682,7 @@ BEGIN
 			MATCH.leagueid,
 			GETDATE() AS DATETIME,
 			ISNULL(MATCH.isNeutral, CONVERT(BIT,0)) AS IsNeutral,
-			0 AS IsOutright
+			CAST(0 AS BIT) AS IsOutright
 		FROM
 			MATCH WITH (NOLOCK)
 		WHERE 
@@ -759,7 +760,7 @@ BEGIN
 				ELSE su.site 
 			END AS EmailGroup
 			,su.site 
-			,CASE WHEN s.custid IS NOT NULL THEN 1 ELSE 0 END AS IsDeposit
+			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 			,@isITAdmin	AS IsITSupport
 			
 		FROM #BetDelete b WITH (NOLOCK)

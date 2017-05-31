@@ -37,6 +37,8 @@ AS
 		- 20161013@Kathy: Exclude phone betting tickets [Redmine:#63211]
 		- 20161124@Kent: Include phone betting tickets and add new GroupName "Phone Betting" [Redmine:#67751]
 		- 20170302@Kent: Fix show time for virtual sport [Redmine:#72475]
+		- 20170314@Kent: Integrate cash-out [Redmine:#72059]
+		- 20170417@Kent: Tune performance [Redmine:#72059]		
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -69,6 +71,7 @@ BEGIN
 	CREATE TABLE #Data (
 		GroupID			BIGINT
 		,bettype		INT
+		,OriginalBetType SMALLINT
 		,transid		BIGINT PRIMARY KEY
 		,betid			BIGINT
 		,refno			BIGINT
@@ -108,14 +111,18 @@ BEGIN
 		,recommend		INT
 		,IsHideComm		BIT DEFAULT(0)
 		,oddsid			INT
+		,ExtraInfo		VARCHAR(1000)
+		,IsCashOutMemberTicket BIT DEFAULT 0
+		,MainCashoutId	BIGINT
 	)
 	
 	IF(LEN(@TransIds) > 0)
 	BEGIN
 		INSERT INTO #transIdTemp (transid)
 		SELECT DISTINCT val 
-		FROM dbo.strSplit(@TransIds, ',')
+		FROM dbo.f_SplitString(@TransIds, ',')
 		WHERE val <> ''
+		OPTION (maxrecursion 0)
 	END
 	
 	IF(@custid > 0)
@@ -139,8 +146,9 @@ BEGIN
 						AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 						AND b.bettype NOT BETWEEN 801 AND 806-- MG
 						AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
+						AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 						AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-						AND b.statusID NOT IN (101, 102)
+						AND b.statusID NOT IN (101, 102)						
 					) THEN 1
 				ELSE 0 END			
 	END
@@ -181,7 +189,7 @@ BEGIN
 			,TransDesc		
 			,betdaqid
 			,username
-			,recommend
+			,recommend			
 		)
 		SELECT	
 			b.translogID AS GroupID
@@ -214,12 +222,10 @@ BEGIN
 			,b.transdesc
 			,-1 -- normal ticket
 			,username
-			,recommend
-			
+			,recommend					
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
-			ON b.translogid = temp.transid
-			
+			ON b.translogid = temp.transid			
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -259,6 +265,8 @@ BEGIN
 			,recommend
 			,IsHideComm
 			,oddsid
+			,ExtraInfo
+			,MainCashoutId
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -302,14 +310,19 @@ BEGIN
 			,b.recommend			
 			,0 AS IsHideComm
 			,b.oddsid
+			,b.ExtraInfo
+			,CASE
+				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+						THEN b.transid
+				ELSE NULL
+			 END AS MainCashoutId
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
 				AND b.refno 	= tl.translogid
 				AND b.matchid 	= tl.eventid
 			INNER JOIN #transIdTemp temp
-			ON tl.translogid 	= temp.transid
-			
+			ON tl.translogid 	= temp.transid			
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102)
@@ -355,21 +368,37 @@ BEGIN
 			,b.betdaqid
 			,b.username
 			,b.recommend			
-			,CASE WHEN b.bettype = 501 AND b.playerdiscount < 0 THEN 1 ELSE 0 END AS IsHideComm
+			,CASE 
+				WHEN b.bettype = 501 AND b.playerdiscount < 0 THEN 1				 
+				ELSE 0 
+			 END AS IsHideComm
 			,b.oddsid
-			
+			,b.ExtraInfo
+			,CASE
+				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+						THEN b.transid
+				ELSE NULL
+			 END AS MainCashoutId
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
-				ON b.transid = temp.transid
-				
+				ON b.transid = temp.transid				
 		WHERE	b.winlostdate >= @FromDate				
 			AND b.bettype < 19001
 			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 			AND b.bettype NOT BETWEEN 801 AND 806-- MG
 			AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
+			AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-			AND b.statusID NOT IN (101, 102)			
-	END
+			AND b.statusID NOT IN (101, 102)				
+	END		
+	
+	-- delete cash-out member bet tickets
+	DELETE t
+	FROM #Data t
+	WHERE EXISTS (SELECT TOP 1 1
+				  FROM bettrans sub911 (NOLOCK)
+				  WHERE sub911.bettype = 911
+				    AND sub911.transid = t.refno)				    					    				    					    
 	
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype NOT IN (9, 29)))
@@ -443,7 +472,10 @@ BEGIN
 	FROM #Data
 	
 	-- get sub ticket of BetTrade (901)
-	IF(EXISTS (SELECT TOP 1 1 FROM #Data WHERE betdaqid = 0 ) )
+	IF(EXISTS (SELECT TOP 1 1 
+			   FROM #Data 
+			   WHERE betdaqid = 0 
+			     AND extrainfo is null))
 	BEGIN
 		WITH CTE_LastTransBT AS (
 			SELECT 
@@ -458,6 +490,8 @@ BEGIN
 				, sub.recommend
 				, sub.matchid
 				, sub.bettype
+				, sub.betdaqid
+				, sub.ExtraInfo
 				, ROW_NUMBER() OVER (PARTITION  BY sub.refno ORDER BY sub.transId DESC ) AS BTNo 
 				
 			FROM dbo.bettrans sub WITH(NOLOCK)
@@ -470,10 +504,12 @@ BEGIN
 			WHERE sub.bettype 		= 901
 				AND sub.statusID 	IN (111,112,113,103) --WON/LOSE/DRAW/REFUND
 				AND main.betdaqid	= 0
+				AND main.extrainfo is null
 		)
 		INSERT INTO #Data(
 			GroupID			
-			,bettype		
+			,bettype
+			,OriginalBetType		
 			,transid		
 			,betid			
 			,refno		
@@ -510,10 +546,13 @@ BEGIN
 			,sporttype
 			,IsNeutral
 			,showtime
+			,ExtraInfo			
+			,IsHideComm
 		)
 		SELECT	
 			main.transid
 			,sub.bettype
+			,main.bettype AS OriginalBetType
 			,sub.transid
 			,main.bettype AS betid
 			,sub.refno
@@ -540,7 +579,7 @@ BEGIN
 			,main.commission
 			,main.winlostdate
 			,main.TransDesc
-			,main.betdaqid
+			,sub.betdaqid
 			,sub.username
 			,sub.recommend
 			,main.matchcode
@@ -549,8 +588,9 @@ BEGIN
 			,main.leagueid
 			,main.sporttype
 			,main.IsNeutral
-			,main.showtime			
-			
+			,main.showtime
+			,sub.ExtraInfo						
+			,1 AS IsHideComm
 		FROM CTE_LastTransBT sub WITH(NOLOCK)
 			INNER JOIN #Data main
 			ON	sub.refno 	= main.transid 
@@ -574,7 +614,222 @@ BEGIN
 			AND main.matchid 	= bt.matchid
 					
 		WHERE main.betdaqid = 0 -- main ticket is BTrade
-	END
+		  AND main.extrainfo is null
+	END		
+	
+	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
+	IF(EXISTS (SELECT TOP 1 1 
+			   FROM #Data 
+			   WHERE betdaqid = 0 
+			     AND charindex ('p25',extrainfo)> 0	))
+	BEGIN
+		-- get sub ticket of Cash-out (911)	
+		INSERT INTO #Data(
+			GroupID			
+			,bettype
+			,OriginalBetType		
+			,transid		
+			,betid			
+			,refno		
+			,hdp1			
+			,hdp2			
+			,odds			
+			,finalodds		
+			,finalodds2		
+			,OddsType		
+			,STATUS			
+			,comstatus		
+			,stake								
+			,transdate		
+			,betteam		
+			,betcheck		
+			,liveindicator	
+			,modds			
+			,custid						
+			,livehomescore	
+			,liveawayscore					
+			,betfrom		
+			,matchid					
+			,winlost		
+			,commission					
+			,winlostdate	
+			,TransDesc		
+			,betdaqid
+			,username
+			,recommend
+			,matchcode
+			,homeid
+			,awayid
+			,leagueid
+			,sporttype
+			,IsNeutral
+			,showtime
+			,ExtraInfo
+			,MainCashoutId
+			,IsHideComm
+		)
+		SELECT  sub911.transid
+				,sub911.bettype
+				,main.bettype AS OriginalBetType
+				,sub911.transid
+				,main.bettype AS betid
+				,sub911.refno
+				,main.hdp1
+				,main.hdp2
+				,main.odds
+				,main.finalodds
+				,main.finalodds2
+				,main.OddsType
+				,'Cash out'
+				,main.comstatus
+				,sub911.stake			
+				,sub911.transdate
+				,main.betteam
+				,main.betcheck
+				,main.liveindicator
+				,main.modds
+				,sub911.custid
+				,main.livehomescore
+				,main.liveawayscore
+				,main.betfrom
+				,main.matchid
+				,sub911.winlost - sub911.actual_stake
+				,main.commission
+				,main.winlostdate
+				,main.TransDesc
+				,sub911.betdaqid
+				,sub911.username
+				,sub911.recommend
+				,main.matchcode
+				,main.homeid
+				,main.awayid
+				,main.leagueid
+				,main.sporttype
+				,main.IsNeutral
+				,main.showtime
+				,sub911.ExtraInfo
+				,main.transid AS MainCashoutId
+				,1 AS IsHideComm
+		FROM #Data main
+			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
+					 ON main.transid = sub911.refno
+						AND sub911.matchid = main.matchid	
+						AND sub911.custid = main.custid	
+						AND main.betdaqid = 0
+						AND charindex ('p25',main.extrainfo)> 0	
+						AND sub911.bettype = 911			 
+		WHERE sub911.statusID IN (111,112,113,103) --WON/LOSE/DRAW/REFUND								 						
+		
+		-- get cash-out member bet tickets
+		INSERT INTO #Data (
+			GroupID			
+			,bettype
+			,OriginalBetType		
+			,transid		
+			,betid			
+			,refno		
+			,hdp1			
+			,hdp2			
+			,odds			
+			,finalodds		
+			,finalodds2		
+			,OddsType		
+			,STATUS			
+			,comstatus		
+			,stake							
+			,transdate		
+			,betteam		
+			,betcheck		
+			,liveindicator	
+			,modds			
+			,custid						
+			,livehomescore	
+			,liveawayscore					
+			,betfrom		
+			,matchid					
+			,winlost		
+			,commission					
+			,winlostdate	
+			,TransDesc		
+			,betdaqid
+			,username
+			,recommend			
+			,oddsid
+			,ExtraInfo
+			,IsCashOutMemberTicket
+			,MainCashoutId
+			,matchcode
+			,homeid
+			,awayid
+			,leagueid
+			,sporttype
+			,IsNeutral
+			,showtime	
+			,IsHideComm		
+		)
+		SELECT  sub911.transid AS GroupId
+				,b.bettype
+				,sub911.OriginalBetType
+				,b.transid
+				,isnull(b.BetID, 0) AS BetID
+				,b.refno			
+				,b.hdp1
+				,b.hdp2
+				,b.odds
+				,0 finalodds
+				,0 finalodds2
+				,b.OddsType
+				,CASE 
+					WHEN b.STATUS = 'running'
+						AND IsNull(b.SecAcceptFlag, 0) = 1
+						AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+					ELSE b.STATUS
+					END AS STATUS
+				,CASE 
+					WHEN b.comstatus = '1' THEN 1
+					ELSE 0
+					END AS comstatus
+				,b.stake				
+				,b.transdate
+				,b.betteam
+				,b.betcheck
+				,b.liveindicator
+				,b.modds
+				,b.custid
+				,b.livehomescore
+				,b.liveawayscore				
+				,b.betfrom
+				,b.matchid				
+				,(b.winlost - b.actual_stake) winlost
+				,b.playercomm AS commission				
+				,b.winlostdate
+				,b.transdesc
+				,b.betdaqid
+				,b.username
+				,b.recommend				
+				,b.oddsid
+				,b.ExtraInfo
+				,1 AS IsCashOutMemberTicket
+				,sub911.MainCashoutId
+				,sub911.matchcode
+				,sub911.homeid
+				,sub911.awayid
+				,sub911.leagueid
+				,sub911.sporttype
+				,sub911.IsNeutral
+				,sub911.showtime
+				,1 AS IsHideComm
+		FROM #Data sub911
+			 CROSS APPLY (
+							  SELECT b.*
+							  FROM dbo.bettrans b WITH (NOLOCK)
+							  WHERE b.refno = sub911.transid
+								AND b.matchid = sub911.matchid
+								AND b.bettype = sub911.OriginalBetType
+								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+						 ) AS b
+		WHERE sub911.bettype = 911
+	END			     
 		
 	-- UPDATE SiteName
 	;WITH CustSiteName AS (
@@ -588,7 +843,7 @@ BEGIN
 	, CTE_GroupInfo AS (
 		SELECT DISTINCT d.custid
 			,cs.mrecommend
-			,CASE WHEN s.custid IS NOT NULL THEN 1 ELSE 0 END AS IsDeposit
+			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 			,CASE 
 				WHEN (
 					d.recommend NOT IN (52466)
@@ -614,6 +869,7 @@ BEGIN
 	SELECT
 		CASE WHEN d.bettype BETWEEN 801 AND 899 THEN d.refno ELSE d.transid END AS transid
 		,d.bettype
+		,d.OriginalBetType
 		,d.betid
 		,d.refno
 		,d.matchcode
@@ -651,6 +907,9 @@ BEGIN
 		,d.IsHideComm
 		,g.IsDeposit
 		,SUBSTRING(T.GroupName, 3, 30) AS GroupName
+		,d.betdaqid
+		,d.ExtraInfo
+		,d.MainCashoutId
 		
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g
@@ -671,7 +930,7 @@ BEGIN
 		AND d.recommend 	NOT IN (13423967) --OneExchange
 		
 	ORDER BY T.GroupName
-		,d.GroupID
+		,ISNULL(d.MainCashoutId, d.GroupId)
 		,d.transid
 	
 	-->> Ticket in Details for LiveCS
@@ -689,7 +948,7 @@ BEGIN
 
 	-- invalid trans
 	SELECT	transid AS InvalidTrans
-			,ISNULL(bm.isMoved, 0) AS isMoved
+			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
 	FROM #transIdTemp temp
 		OUTER APPLY (
 			SELECT TOP 1 CAST(1 AS BIT) AS isMoved

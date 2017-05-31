@@ -33,7 +33,9 @@ AS
 		- 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 		- 20150119@Kathy: Changes for phase 1.2 of PH All in One: add new column transdesc [Redmine:#50932]
 		- 20170104@Kent: Add Column SportType to output tables [Redmine:#69816]	
+		- 20170410@Kent: Add columns OriginalBetType, BetdaqId, ExtraInfo [Redmine:#72887]
 		- 20170414@Kent: Fix IBC to MBC [Redmine:#75009]  
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -123,8 +125,10 @@ BEGIN
 		ChoiceLeagueId INT  ,
         ChoiceSportType SMALLINT,  
         TransDesc NVARCHAR(300),
-        SportType SMALLINT  
-
+        SportType SMALLINT,
+		OriginalBetType	SMALLINT,
+		ExtraInfo VARCHAR(1000),
+		BetdaqId BIGINT
 	)
 	
 	----Direct Licensee
@@ -174,6 +178,9 @@ BEGIN
 				m.sporttype as ChoiceSportType
 				,b.transdesc				
 				,m.sporttype AS SportType
+				,b.bettype AS OriginalBetType
+				,b.ExtraInfo
+				,b.BetdaqId
 		FROM		Bettrans b WITH (NOLOCK) 
 		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
 		WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
@@ -238,7 +245,9 @@ BEGIN
 				m.sporttype as ChoiceSportType		
 				,b.transdesc		
 				,m.sporttype AS SportType
-
+				,b.gameID AS OriginalBetType
+				,NULL AS ExtraInfo
+				,NULL AS BetdaqId
 		FROM		translog b WITH (NOLOCK) 
 		INNER JOIN  match m WITH (NOLOCK) on b.eventid = m.matchid 	
 		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype		
@@ -308,6 +317,9 @@ BEGIN
 				m.sporttype as ChoiceSportType
 				,b.transdesc
 				,m.sporttype AS SportType
+				,b.bettype AS OriginalBetType
+				,b.ExtraInfo
+				,b.BetdaqId
 		FROM		Bettrans b WITH (NOLOCK) 
 		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
 		WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
@@ -372,6 +384,9 @@ BEGIN
 				m.sporttype as ChoiceSportType
 				,b.transdesc
 				,m.sporttype AS SportType
+				,b.gameID AS OriginalBetType
+				,NULL AS ExtraInfo
+				,NULL AS BetdaqId
 		FROM		Translog b WITH (NOLOCK) 
 		INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 
 		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype			
@@ -441,6 +456,9 @@ BEGIN
 				m.sporttype as ChoiceSportType	
 				,b.transdesc
 				,m.sporttype AS SportType
+				,b.bettype AS OriginalBetType
+				,b.ExtraInfo
+				,b.BetdaqId
 		FROM		Bettrans b WITH (NOLOCK)
 		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
 		WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
@@ -503,6 +521,9 @@ BEGIN
 				m.sporttype as ChoiceSportType	
 				,b.transdesc
 				,m.sporttype AS SportType
+				,b.gameID AS OriginalBetType
+				,NULL AS ExtraInfo
+				,NULL AS BetdaqId
 		FROM		Translog b WITH (NOLOCK)
 		INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 	
 		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno	AND b.gameid = bs.bettype	
@@ -548,13 +569,13 @@ BEGIN
 			livehomescore ,
 			liveawayscore ,
 			liveindicator as IsLiveIndicator, 
-			0 as IsNeutral ,
+			CAST(0 AS BIT) as IsNeutral ,
 			OddsType ,
 			CurrencyName ,
 			winlost ,
 			betid,	
-			0 as isMP,
-			0,
+			CAST(0 AS BIT) as isMP,
+			CAST(0 AS BIT) AS SecAcceptFlag,
 			refno,
 			transid as ChoiceTransID,
 			bettype as ChoiceBetType ,
@@ -569,11 +590,13 @@ BEGIN
 			livehomescore as ChoiceLiveHomeScore,
 			liveawayscore as ChoiceLiveAwayScore,
 			liveindicator as ChoiceLiveIndicator,
-			0  as ChoiceLeagueId ,
-			0 as ChoiceSportType
-			,NULL AS transdesc
-			,NULL AS Sporttype
-			,'' AS transdesc
+			CAST(0 AS INT)  as ChoiceLeagueId ,
+			CAST(0 AS SMALLINT) as ChoiceSportType
+			,CAST('' AS NVARCHAR(300)) AS transdesc
+			,CAST(1 AS SMALLINT) AS Sporttype			
+			,bettype AS OriginalBetType
+			,ExtraInfo
+			,BetdaqId
 	FROM bettrans WITH (NOLOCK)
 	WHERE 0 = 1
 END 
@@ -608,8 +631,8 @@ BEGIN
 				b.CurrencyName,
 				(b.winlost-b.actual_stake )as winlost,
 				b.betid,
-				1 as isMP,
-				0 SecAcceptFlag,
+				CAST(1 AS BIT) as isMP,
+				CAST(0 AS BIT) SecAcceptFlag,
 				b.refno,
 				bm.transid ChoiceTransID,
 				bm.bettype ChoiceBetType,
@@ -674,8 +697,8 @@ BEGIN
 				b.CurrencyName,
 				(b.winlost-b.actual_stake )as winlost,
 				b.betid,
-				1 as isMP,
-				0 SecAcceptFlag,
+				CAST(1 AS BIT) as isMP,
+				CAST(0 AS BIT) SecAcceptFlag,
 				b.refno,
 				bm.transid ChoiceTransID,
 				bm.bettype ChoiceBetType,
@@ -738,8 +761,8 @@ BEGIN
 				b.CurrencyName,
 				(b.winlost-b.actual_stake )as winlost,
 				b.betid,
-				1 as isMP,
-				0 SecAcceptFlag,
+				CAST(1 AS BIT) as isMP,
+				CAST(0 AS BIT) SecAcceptFlag,
 				b.refno,
 				bm.transid ChoiceTransID,
 				bm.bettype ChoiceBetType,
@@ -787,37 +810,37 @@ BEGIN
 				odds ,
 				status,
 				transdate ,		
-				'' as betteam	,
-				'' as betcheck,
+				betteam	,
+				betcheck,
 				livehomescore ,
 				liveawayscore ,
 				liveindicator as IsLiveIndicator , 
-				0 as IsNeutral ,
+				CAST(0 AS BIT) as IsNeutral ,
 				OddsType ,
 				CurrencyName ,
 				winlost - actual_stake as winlost,
 				betid,
-				0 as isMP,
-				0 SecAcceptFlag,
+				CAST(0 AS BIT) as isMP,
+				CAST(0 AS BIT) SecAcceptFlag,
 				refno,
-				0 as ChoiceTransID,
-				0 ChoiceBetType,
+				transid as ChoiceTransID,
+				bettype ChoiceBetType,
 				0 ChoiceHomeID,
 				0 ChoiceAwayID,
-				0 ChoiceHdp1,
-				0 ChoiceHdp2,
-				0 ChoiceOdds,
-				0 ChoiceStake,
-				0 ChoiceBetTeam,
-				0 ChoiceBetCheck,
-				0 ChoiceLiveHomeScore,
-				0 ChoiceLiveAwayScore,
-				0 ChoiceLiveIndicator,
-				0  as ChoiceLeagueId ,
-				0 as ChoiceSportType,
-				NULL AS sporttype,
-				NULL AS modds,
-				'' AS transdesc
+				convert(float, hdp1) ChoiceHdp1,
+				convert(float, hdp2) ChoiceHdp2,
+				odds AS ChoiceOdds,
+				stake AS ChoiceStake,
+				betteam AS ChoiceBetTeam,
+				betcheck AS ChoiceBetCheck,
+				livehomescore AS ChoiceLiveHomeScore,
+				liveawayscore AS ChoiceLiveAwayScore,
+				liveindicator AS ChoiceLiveIndicator,
+				CAST(0 AS INT)  as ChoiceLeagueId ,
+				CAST(0 AS TINYINT) as ChoiceSportType,
+				CAST(0 AS TINYINT) AS sporttype,
+				modds,
+				transdesc
 		FROM bettrans WITH (NOLOCK) 
 		WHERE 0 = 1
 END

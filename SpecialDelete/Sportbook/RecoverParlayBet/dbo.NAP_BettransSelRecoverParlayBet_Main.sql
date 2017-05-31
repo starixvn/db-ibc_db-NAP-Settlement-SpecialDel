@@ -16,6 +16,7 @@ AS
 
 	Revisions: 		
 		- 20161011@Kent: Select main voided Parlay tickets [Redmine:#65531]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 
 	Param's Explanation:			
 			- @BetType:
@@ -30,7 +31,7 @@ BEGIN
 	
 	DECLARE @tblRecoverBet TABLE (		
 		custid					INT
-		,isdeposit				TINYINT
+		,isdeposit				BIT
 		,mrecommend				INT
 		,recommend				INT
 		,transid				BIGINT
@@ -174,8 +175,8 @@ BEGIN
 					SELECT b14.transid
 					FROM dbo.bettrans14 b14 WITH (NOLOCK)
 					WHERE b14.transid = t.transid
-					) THEN 1
-			ELSE 0
+					) THEN CAST(1 AS BIT)
+			ELSE CAST(0 AS BIT)
 			END AS isMoved
 	FROM @tblTransIds t
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet r WHERE r.transid = t.transid)

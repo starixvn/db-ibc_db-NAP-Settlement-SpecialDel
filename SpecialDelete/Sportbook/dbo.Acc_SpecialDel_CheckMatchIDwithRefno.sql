@@ -23,7 +23,7 @@ BEGIN
         - 20150210@Kathy:  check if tickets have been moved to match14, bettrans14 [Redmine:#30298] 
         - 201507014@Dominic: Integrate Metric Gaming - Superlive product into the Special Delete site - Redmine: #38200
         - 20150922@Kathy: Add more Type value to support BetTrade transaction [Redmine:#43233]
-                           
+        - 20170405@Kent: Integrate Cash-out [Redmine:#72059]
     
     Param's Explanation:    
         - @Type: sports type
@@ -32,6 +32,7 @@ BEGIN
             2: Number Game
             3: Live Casino
             4: BetTrade
+            5: CashOut
 */
     SET NOCOUNT ON
     DECLARE @totalRecord INT, @Sporttype int
@@ -40,7 +41,7 @@ BEGIN
     from match with (NOLOCK)
     where matchid = @MatchID
     
-    IF @Sporttype not between 1 and 99 AND @Sporttype <> 154 AND @Type IN (0, 4)
+    IF @Sporttype not between 1 and 99 AND @Sporttype <> 154 AND @Type IN (0, 4, 5)
     BEGIN 
         SET @ErrCode = 2
         SET @ErrMsg ='This MatchID doesn''t belong to sportbook.' 
@@ -74,7 +75,11 @@ BEGIN
         FROM dbo.bettrans WITH (NOLOCK)        
         WHERE transid IN (@FromRefno,@ToRefno)
             AND matchid = @MatchID    
-            AND bettype = CASE WHEN @Type = 4 THEN 901 ELSE bettype END
+            AND bettype = CASE 
+							WHEN @Type = 4 THEN 901
+							WHEN @Type = 5 THEN 911 
+							ELSE bettype 
+						  END
         UNION ALL
         SELECT 1 Row
         FROM dbo.translog WITH (NOLOCK)        

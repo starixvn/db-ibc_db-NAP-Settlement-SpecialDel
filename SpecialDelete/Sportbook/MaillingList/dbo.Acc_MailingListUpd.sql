@@ -1,4 +1,16 @@
-﻿ALTER PROCEDURE [Acc_MailingListUpd]
+USE [bodb_ACC]
+GO
+/****** Object:  StoredProcedure [dbo].[Acc_MailingListUpd]    Script Date: 3/27/2017 5:19:57 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/****** Object:  Stored Procedure dbo.Acc_MailingListUpd    Script Date: 9/15/2015 5:41:32 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListUpd    Script Date: 9/3/2015 8:47:38 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListUpd    Script Date: 9/3/2015 8:46:06 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListUpd    Script Date: 8/21/2015 9:11:20 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListUpd    Script Date: 8/21/2015 9:10:03 AM ******/
+ALTER PROCEDURE [dbo].[Acc_MailingListUpd]
 	@Userid INT,		
 	@Siteid INT = 0, 
 	@FuncID INT = 287,  -- [SpecialDeleteMailing]
@@ -14,7 +26,7 @@ AS
 Created by: Scott  
 Date: 2013-01-08
 Task : Update Mailing list
-DB: DB06.bodb02  
+DB: DBACC/BODB_ACC
 Original SP:   
 Revisions: 
 	20130301@Scott: Add more parameter @funcname and change dblink from db03 -> DBPOLICY	
@@ -23,6 +35,8 @@ Revisions:
 	20131101@Kathy: Add Foobet group [Redmine:#5697]
 	20131113@Kathy: Add RecoverBet group [Redmine:#6647]
 	20140411@Kathy: Add BetFair, OneExchange's group [Redmine:#6647]
+	20150615@Dominic: Add BetTrade's group RM:#36964
+	20170327@Kent: Integrate Cash-out [Redmine:#72059]
 */  
 
 BEGIN	
@@ -54,7 +68,7 @@ IF @ErrCode <> 0
 	RETURN
 
 --2. VALIDATE LICENSEE.
-IF @Siteid NOT IN (1000000, 1000001, 1000002, 1000003, 1000004, 1000005, 1000006) -- 12EU, IT QA, IT Support, Foobet, RecoverBet, BetFair, OneExchange
+IF @Siteid NOT IN (1000000, 1000001, 1000002, 1000003, 1000004, 1000005, 1000006, 1000007, 1000008) -- 12EU, IT QA, IT Support, Foobet, RecoverBet, BetFair, OneExchange, BetTrade, Cash-out
 	IF NOT EXISTS( SELECT 1 FROM bodb02.dbo.[SITE] WITH(NOLOCK) WHERE siteid = @Siteid  and islicensee = 1 ) AND @Siteid <> 0
 	BEGIN
 		SELECT @ErrMsg = 'This Licensee does not exists in System.',
@@ -117,6 +131,3 @@ END
 
 
 GRANT EXECUTE ON [dbo].[Acc_MailingListUpd] TO [bodbAdminNet]
-go
-GRANT VIEW DEFINITION ON [dbo].[Acc_MailingListUpd] TO [vnteam]
-go

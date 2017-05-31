@@ -6,21 +6,21 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update] 
-	@MatchID		INT = 0,
-	@LicenseeNames	VARCHAR(MAX),
-	@TicketType		VARCHAR(100) = 'All',
-	@CurrencyIDs	VARCHAR(MAX),
-	@TransIDs		VARCHAR(MAX),
-	@SoldTransIds	VARCHAR(MAX) = '', -- just for BetTrade's subticket (transid of bettype 901)		
+	@MatchID			INT = 0,
+	@LicenseeNames		VARCHAR(MAX),
+	@TicketType			VARCHAR(100) = 'All',
+	@CurrencyIDs		VARCHAR(MAX),
+	@TransIDs			VARCHAR(MAX),
+	@SoldTransIds		VARCHAR(MAX) = '', -- just for BetTrade's subticket (transid of bettype 901)		
 
-	@UserID			INT,  
-	@UserName		NVARCHAR(50),
-	@UserPassword   NVARCHAR(50),  
-	@Reason			NVARCHAR(500) = '',  
-	@IP				VARCHAR(15)  = '',  
-	@ErrorMsg		NVARCHAR(200) = '' OUTPUT,  
-	@ErrorCode		INT  = 0  OUTPUT,
-	@InvalidTrans	VARCHAR(MAX) = '' OUTPUT -- invalid trans of BTrade 
+	@UserID				INT,  
+	@UserName			NVARCHAR(50),
+	@UserPassword		NVARCHAR(50),  
+	@Reason				NVARCHAR(500) = '',  
+	@IP					VARCHAR(15)  = '',  
+	@ErrorMsg			NVARCHAR(200) = '' OUTPUT,  
+	@ErrorCode			INT  = 0  OUTPUT,
+	@InvalidTransIds	VARCHAR(MAX) = '' OUTPUT -- invalid trans of BTrade 
 AS
 /*
 	Created: Kent
@@ -29,7 +29,11 @@ AS
 
 	Revisions: 		
 		- 20161201@Kent: Search sportbook tickets by crrency to void [Redmine:#67987]
+		- 20170313@Kent: Integrate cash-out [Redmine:#72059]
 		- 20170418@Kent: Fix Returned Data Type For Bit Columns [Redmine:#75009]
+		- 20170417@Kent: Tune performance [Redmine:#72059]
+		- 20170424@Kent: Implement Concurrency Checking [Redmine:#72059]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -40,7 +44,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @InvalidTrans = ''
+	SELECT @ErrorCode = 0
+		 , @ErrorMsg = ''  
+		 , @InvalidTransIds = ''
 	
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
 		  , @789y_Name	   VARCHAR(50) = '789y'		  
@@ -58,7 +64,14 @@ BEGIN
 	DECLARE @IsExistParlay				BIT = 0		  
 		  , @isExistMatch				BIT = 0
 		  , @KeyID						INT
-		  , @AvaiableProcess			BIT = 1			  			  	  	  
+		  , @AvaiableProcess			BIT = 1	
+		  
+	DECLARE @isExistBT	BIT = 0 
+		  , @isExistCashOut	BIT = 0
+		  
+	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''
+	
+	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
 	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	
@@ -75,12 +88,14 @@ BEGIN
 	CREATE TABLE #SpecialDeleteBets (
 			id					INT IDENTITY,
 	
+			GroupID				BIGINT,
 			Stake				MONEY,
 			AwayId				INT,
 			BetCheck			NVARCHAR(50),
 			BetId				BIGINT DEFAULT (0),
 			BetTeam				NVARCHAR(10),
 			BetType				SMALLINT,
+			OriginalBetType		SMALLINT,
 			CurrencyCode		NVARCHAR(50),
 			Creator				INT,			
 			Hdp1				SMALLMONEY,
@@ -110,6 +125,11 @@ BEGIN
 			betdaqid			BIGINT,	
 			IsBetTrade			BIT,			
 			BettradeGroupID		BIGINT,
+			ExtraInfo			VARCHAR(1000),
+			IsCashOutMemberTicket BIT DEFAULT 0,
+			MainCashoutId		BIGINT,
+			awinlost			MONEY,
+			matchid				INT,			
 			
 			SubTransId			BIGINT,
 			SubBetCheck			NVARCHAR(50),
@@ -147,10 +167,19 @@ BEGIN
 		, recommend		INT
 		, balance		MONEY
 		, betdaqid		BIGINT
+		, ExtraInfo		VARCHAR(1000)
 	)
 	CREATE CLUSTERED INDEX IDX_BTTransActive_bettype_refno ON #BTTransActive(bettype, refno)
 	CREATE INDEX IDX_BTTransActive_bettype_custid_matchid ON #BTTransActive(bettype, custid)
-	CREATE INDEX IDX_BTTransActive_custid_balance ON #BTTransActive(custid, balance) INCLUDE(transId)	
+	CREATE INDEX IDX_BTTransActive_custid_balance ON #BTTransActive(custid, balance) INCLUDE(transId)
+	
+	CREATE TABLE #CashOutTransActive (		
+		transId				BIGINT PRIMARY KEY,
+		bettype				SMALLINT,				
+		OriginalBetType		SMALLINT,
+		MainCashoutId		BIGINT,
+		matchid				INT			
+	) -- store 911,912,913		
 	
 	-- store invalid BT transid
 	DECLARE @tblInvalidTrans TABLE (transid BIGINT) 
@@ -161,64 +190,22 @@ BEGIN
 		custid INT	  
 	)
 	
-	CREATE TABLE #t_CustID_501(custid INT PRIMARY KEY)
-		
-	SELECT  s.Stake,			
-			s.BetCheck,
-			s.BetId,
-			s.BetTeam,
-			s.BetType,
-			s.CurrencyCode,			
-			s.Hdp1,
-			s.Hdp2,			
-			s.IsLiveIndicator,
-			s.IsNeutral,				
-			s.LiveAwayScore,
-			s.LiveHomeScore,
-			s.Odds,
-			CAST(1 AS BIT) AS IsMixParlay,
-			s.OddsType,
-			s.RefNo,
-			s.SportType,
-			s.Status,
-			s.TransDate,
-			s.TransDesc,
-			s.TransId,
-			s.UserName,
-			s.NetWinLost AS WinLost,				
-			CAST('' AS VARCHAR(50)) AS EmailGroup,
-			s.site,
-			CAST(1 AS BIT) AS IsDeposit,
-			s.custid,
-			s.recommend,
-			CAST('' AS VARCHAR(30)) AS AgUserName,
-			s.mrecommend,
-			CAST('' AS VARCHAR(30)) AS MagUserName,
-			s.srecommend,
-			CAST('' AS VARCHAR(30)) AS SagUserName,
-			CAST(1 AS BIT) AS IsBetTrade,
-			
-			s.SubTransId,
-			s.SubBetCheck,
-			s.SubBetTeam,
-			s.SubBetType,
-			s.SubHdp1,
-			s.SubHdp2,
-			s.SubOdds,
-						
-			CAST(1 AS BIT) AS IsItSupport,
-			s.betfrom,
-			CURRENT_TIMESTAMP AS [DateTime]
-				INTO #t
-	FROM #SpecialDeleteBets s
-	WHERE 1 = 0	
+	--store Cash-Out's custid
+	DECLARE @tblCustCashOut912 TABLE 
+	(
+		custid INT
+	)
+	
+	CREATE TABLE #t_CustID_501(custid INT PRIMARY KEY)				
 	
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)	
 	
 	CREATE TABLE #t_exchanges(exchangeid INT, currency NVARCHAR(50))
 	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
+	
+	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
 	
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName)
@@ -270,9 +257,7 @@ BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
                 ,@ErrorCode = 101  
                 
-        EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData
-        
-        SELECT * FROM #t
+        EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData                
         
         RETURN
     END
@@ -280,9 +265,7 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1
 				   FROM @tblTransIds)
 	BEGIN		
-		SELECT @ErrorCode = 99, @ErrorMsg = 'No ticket found.'
-		
-		SELECT * FROM #t		
+		SELECT @ErrorCode = 99, @ErrorMsg = 'No ticket found.'						
 		
 		RETURN
 	END						 	  
@@ -295,9 +278,7 @@ BEGIN
 	ELSE IF @TicketType = 'ParlayTicket'	
 		SELECT @SearchParlay = 1			 		 
 	ELSE
-	BEGIN	
-		SELECT * FROM #t										
-					 
+	BEGIN					 
 		RETURN		 
 	END		
 	
@@ -307,6 +288,7 @@ BEGIN
 		IF @SearchSingle = 1
 		BEGIN
 			INSERT INTO #SpecialDeleteBets_Single(
+						GroupID,
 						Stake,
 						AwayId,
 						BetCheck,
@@ -342,6 +324,10 @@ BEGIN
 						betdaqid,
 						IsBetTrade,						
 						BettradeGroupID,
+						ExtraInfo,
+						MainCashoutId,
+						awinlost,
+						matchid,
 						
 						SubTransId,
 						SubBetCheck,
@@ -351,7 +337,8 @@ BEGIN
 						SubHdp2,
 						SubOdds		
 					)
-			SELECT 	b.Stake,
+			SELECT 	b.transid AS GroupID,
+					b.Stake,
 					m.AwayId,
 					b.BetCheck,
 					b.BetId,
@@ -384,8 +371,16 @@ BEGIN
 					b.custid,
 					b.winlost - b.actual_stake + b.playercomm AS balance,
 					b.betdaqid,
-					CASE WHEN b.betdaqid = 0 THEN 1 ELSE 0 END AS IsBetTrade,					
+					CASE WHEN b.betdaqid = 0 AND b.ExtraInfo IS NULL THEN 1 ELSE 0 END AS IsBetTrade,					
 					b.transid AS BettradeGroupID,
+					b.ExtraInfo,
+					CASE
+						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+								THEN b.transid
+						ELSE NULL
+					END AS MainCashoutId,
+					b.awinlost,
+					b.matchid,
 					
 					b.TransId AS SubTransId,
 					NULL AS SubBetCheck,
@@ -408,6 +403,7 @@ BEGIN
 			WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
+				AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket
 				AND b.statusID NOT IN (101, 102) -- reject, void
 				AND b.betfrom <> 'P' -- exclude phone betting
 				AND b.matchid = @MatchID -- filer for @MatchID
@@ -417,13 +413,12 @@ BEGIN
 				AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 				AND b.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND b.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
-				AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)					
+				AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)									
 		
-			SET @CountSingle = @@ROWCOUNT
+			SET @CountSingle = @@ROWCOUNT						
 			
 			IF ISNULL(@SoldTransIds,'') <> ''
-			BEGIN
-				
+			BEGIN				
 				INSERT INTO #tblTransIdSolds(grouptransid, transid)
 				SELECT  
 					sub.refno
@@ -445,6 +440,7 @@ BEGIN
 			OUTPUT	DELETED.TransId
 			INTO	@tblInvalidTrans (transid)			
 			WHERE	betdaqid = 0 
+					AND extrainfo is null
 					AND transid NOT IN (SELECT grouptransid FROM #tblTransIdSolds)
 			SET @CountSingle = @CountSingle - @@ROWCOUNT					
 			
@@ -454,56 +450,332 @@ BEGIN
 			OUTPUT	DELETED.TransId
 			INTO	@tblInvalidTrans (transid)			
 			WHERE	betdaqid = -1 
+					AND extrainfo is null
 					AND transid IN (SELECT grouptransid FROM #tblTransIdSolds)	
-			SET @CountSingle = @CountSingle - @@ROWCOUNT					
+			SET @CountSingle = @CountSingle - @@ROWCOUNT	
+			
+			-- checking cash-out process
+			INSERT INTO #tblCashOutProcess(transid)
+			SELECT transid
+			FROM #SpecialDeleteBets_Single	
+			WHERE betdaqid = 0 
+			  AND charindex ('p25',extrainfo)> 0
+			
+			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+					@Mode = 'Original'
+				  , @Action = 'Void'
+				  , @IsReleased = 0
+			
+			DELETE bd
+			FROM #SpecialDeleteBets_Single bd
+				 INNER JOIN #tblCashOutProcess rp
+						 ON bd.TransId = rp.transid							
+							AND rp.IsAvailable = 0	
+			SET @CountSingle = @CountSingle - @@ROWCOUNT										
 					
 			-- return invalid transId	
-			SELECT @InvalidTrans = @InvalidTrans + CAST(transid AS VARCHAR(20)) + ','
-			FROM @tblInvalidTrans
-			
-			IF @InvalidTrans <> ''
-				SET @InvalidTrans = 'Failed to void the ticket(s): ' + LEFT(@InvalidTrans,LEN(@InvalidTrans) -1)											
-			
-			--Insert multiple Bet trade transaction
-			INSERT INTO #BTTransActive (custid, refno, matchid, bettype, transId, awinlost
-									  , BetId, TransDate, UserName, NetWinLost, srecommend, mrecommend, recommend, balance, betdaqid)
-			SELECT bt.custid, bt.refno, bt.matchid, bt.bettype, bt.transId, bt.awinlost
-				 , bt.BetId, bt.TransDate, bt.UserName, bt.NetWinLost, bt.srecommend, bt.mrecommend, bt.recommend, bt.balance, bt.betdaqid
+			SELECT @InvalidTransIds = @InvalidTransIds + CAST(T.transid AS VARCHAR(20)) + ','
 			FROM (
-				SELECT sub.custid
-					, sub.refno
-					, sub.matchid
-					, sub.bettype
-					, sub.transId
-					, sub.awinlost
-					, sub.betid
-					, sub.TransDate
-					, sub.UserName
-					, sub.winlost - sub.actual_stake AS NetWinLost
-					, sub.srecommend
-					, sub.mrecommend
-					, sub.recommend	
-					, sub.winlost - sub.actual_stake + sub.playercomm AS balance	
-					, sub.betdaqid						
-					, ROW_NUMBER() OVER ( PARTITION  BY sub.custid, sub.refno, sub.matchid, sub.bettype ORDER BY sub.transId DESC ) AS BTNo 
-					
-				FROM #SpecialDeleteBets_Single main
-					INNER JOIN dbo.bettrans sub WITH(NOLOCK)					
-							ON main.transId = sub.refno						
-				WHERE main.betdaqid = 0
-					AND sub.matchid = @MatchID
-					AND sub.bettype BETWEEN 901 AND 910
-					AND sub.statusID IN (111,112,113,103)					
-			) AS bt
-			WHERE bt.BTNo = 1
+					SELECT transid
+					FROM @tblInvalidTrans
+					UNION ALL
+					SELECT transid
+					FROM #tblCashOutProcess
+					WHERE IsAvailable = 0
+				 ) AS T
 			
-			INSERT INTO #SpecialDeleteBets_Single(
+			--- check exists BT + Cash-out or not
+			SELECT @isExistBT 	= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+				 , @isExistCashOut = MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+			FROM #SpecialDeleteBets_Single
+			
+			IF (@isExistBT = 1)
+			BEGIN
+				--Insert multiple Bet trade transaction (901,902,903)
+				INSERT INTO #BTTransActive (custid, refno, matchid, bettype, transId, awinlost
+										  , BetId, TransDate, UserName, NetWinLost, srecommend, mrecommend, recommend, balance, betdaqid
+										  , ExtraInfo)
+				SELECT bt.custid, bt.refno, bt.matchid, bt.bettype, bt.transId, bt.awinlost
+					 , bt.BetId, bt.TransDate, bt.UserName, bt.NetWinLost, bt.srecommend, bt.mrecommend, bt.recommend, bt.balance, bt.betdaqid
+					 , bt.ExtraInfo
+				FROM (
+					SELECT sub.custid
+						, sub.refno
+						, sub.matchid
+						, sub.bettype
+						, sub.transId
+						, sub.awinlost
+						, sub.betid
+						, sub.TransDate
+						, sub.UserName
+						, sub.winlost - sub.actual_stake AS NetWinLost
+						, sub.srecommend
+						, sub.mrecommend
+						, sub.recommend	
+						, sub.winlost - sub.actual_stake + sub.playercomm AS balance	
+						, sub.betdaqid
+						, sub.ExtraInfo						
+						, ROW_NUMBER() OVER ( PARTITION  BY sub.custid, sub.refno, sub.matchid, sub.bettype ORDER BY sub.transId DESC ) AS BTNo 
+						
+					FROM #SpecialDeleteBets_Single main
+						INNER JOIN dbo.bettrans sub WITH(NOLOCK)					
+								ON main.transId = sub.refno						
+					WHERE main.betdaqid = 0
+						AND main.extrainfo is null
+						AND sub.matchid = @MatchID
+						AND sub.bettype BETWEEN 901 AND 910
+						AND sub.statusID IN (111,112,113,103)					
+				) AS bt
+				WHERE bt.BTNo = 1
+				
+				-- insert 901
+				INSERT INTO #SpecialDeleteBets_Single(
+							GroupID,
+							Stake,
+							AwayId,
+							BetCheck,
+							BetId,
+							BetTeam,
+							BetType,
+							OriginalBetType,
+							CurrencyCode,
+							Creator,						
+							Hdp1,
+							Hdp2,
+							HomeId,
+							IsLiveIndicator,
+							IsNeutral,						
+							LiveAwayScore,
+							LiveHomeScore,
+							Odds,						
+							OddsType,
+							RefNo,
+							SportType,
+							Status,
+							TransDate,
+							TransDesc,
+							TransId,
+							UserName,
+							NetWinLost,
+							site,
+							betfrom,
+							srecommend,
+							mrecommend,
+							recommend,
+							custid,
+							balance,
+							betdaqid,
+							IsBetTrade,						
+							BettradeGroupID,
+							ExtraInfo,							
+							awinlost,
+							
+							SubTransId,
+							SubBetCheck,
+							SubBetTeam,
+							SubBetType,
+							SubHdp1,
+							SubHdp2,
+							SubOdds
+						)
+				SELECT  tmpmain.TransId AS GroupID,
+						tmpmain.Stake,
+						tmpmain.AwayId,
+						tmpmain.BetCheck,
+						tmpmain.BetType AS BetId,
+						tmpmain.BetTeam,
+						sub.BetType,
+						tmpmain.BetType AS OriginalBetType,
+						tmpmain.CurrencyCode,
+						tmpmain.Creator,						
+						tmpmain.Hdp1,
+						tmpmain.Hdp2,
+						tmpmain.HomeId,
+						tmpmain.IsLiveIndicator,
+						tmpmain.IsNeutral,						
+						tmpmain.LiveAwayScore,
+						tmpmain.LiveHomeScore,
+						tmpmain.Odds,						
+						tmpmain.OddsType,
+						sub.RefNo,
+						tmpmain.SportType,
+						'SOLD' AS Status,
+						sub.TransDate,
+						tmpmain.TransDesc,
+						sub.TransId,
+						sub.UserName,
+						sub.NetWinLost,
+						tmpmain.site,
+						tmpmain.betfrom,
+						sub.srecommend,
+						sub.mrecommend,
+						sub.recommend,
+						sub.custid,
+						sub.balance,
+						sub.betdaqid,
+						CAST(1 AS BIT) AS IsBetTrade,					
+						sub.refno AS BettradeGroupID,
+						sub.ExtraInfo,						
+						sub.awinlost,
+						
+						sub.TransId AS SubTransId,
+						NULL AS SubBetCheck,
+						NULL AS SubBetTeam,
+						NULL AS SubBetType,
+						NULL AS SubHdp1,
+						NULL AS SubHdp2,
+						NULL AS SubOdds
+				FROM #SpecialDeleteBets_Single tmpmain										
+					 INNER JOIN #BTTransActive sub
+							 ON tmpmain.transid = sub.refno															
+				WHERE tmpmain.betdaqid = 0
+				  AND tmpmain.extrainfo is null
+				  AND sub.bettype = 901
+				
+				SET @CountSingle = @CountSingle + @@ROWCOUNT
+				
+				--insert custBT 
+				INSERT INTO @tblCustBT902( custid)
+				SELECT DISTINCT bt.custid
+				FROM #BTTransActive bt			
+				WHERE bt.bettype = 902	
+			END	
+			
+			IF (@isExistCashOut = 1)
+			BEGIN
+				-- insert 911
+				INSERT INTO #SpecialDeleteBets_Single(
+							GroupID,
+							Stake,
+							AwayId,
+							BetCheck,
+							BetId,
+							BetTeam,
+							BetType,
+							OriginalBetType,
+							CurrencyCode,
+							Creator,						
+							Hdp1,
+							Hdp2,
+							HomeId,
+							IsLiveIndicator,
+							IsNeutral,						
+							LiveAwayScore,
+							LiveHomeScore,
+							Odds,						
+							OddsType,
+							RefNo,
+							SportType,
+							Status,
+							TransDate,
+							TransDesc,
+							TransId,
+							UserName,
+							NetWinLost,
+							site,
+							betfrom,
+							srecommend,
+							mrecommend,
+							recommend,
+							custid,
+							balance,
+							betdaqid,
+							IsBetTrade,						
+							BettradeGroupID,
+							ExtraInfo,
+							MainCashoutId,
+							awinlost,
+							matchid,
+							
+							SubTransId,
+							SubBetCheck,
+							SubBetTeam,
+							SubBetType,
+							SubHdp1,
+							SubHdp2,
+							SubOdds
+						)
+				OUTPUT inserted.transid
+					 , inserted.bettype 
+					 , inserted.OriginalBetType
+				     , inserted.MainCashoutId
+				     , inserted.matchid
+						INTO #CashOutTransActive(transid
+											   , bettype
+											   , OriginalBetType
+											   , MainCashoutId
+											   , matchid)						
+				SELECT  sub.TransId AS GroupID,
+						sub.Stake,
+						tmpmain.AwayId,
+						tmpmain.BetCheck,
+						tmpmain.BetType AS BetId,
+						tmpmain.BetTeam,
+						sub.BetType,
+						tmpmain.BetType AS OriginalBetType,
+						tmpmain.CurrencyCode,
+						tmpmain.Creator,						
+						tmpmain.Hdp1,
+						tmpmain.Hdp2,
+						tmpmain.HomeId,
+						tmpmain.IsLiveIndicator,
+						tmpmain.IsNeutral,						
+						tmpmain.LiveAwayScore,
+						tmpmain.LiveHomeScore,
+						tmpmain.Odds,						
+						tmpmain.OddsType,
+						sub.RefNo,
+						tmpmain.SportType,
+						'Cash out' AS Status,
+						sub.TransDate,
+						tmpmain.TransDesc,
+						sub.TransId,
+						sub.UserName,
+						sub.winlost - sub.actual_stake AS NetWinLost,
+						tmpmain.site,
+						tmpmain.betfrom,
+						sub.srecommend,
+						sub.mrecommend,
+						sub.recommend,
+						sub.custid,
+						sub.balance,
+						sub.betdaqid,
+						CAST(0 AS BIT) AS IsBetTrade,					
+						sub.refno AS BettradeGroupID,
+						sub.ExtraInfo,
+						tmpmain.transid AS MainCashoutId,
+						sub.awinlost,
+						sub.matchid,
+						
+						sub.TransId AS SubTransId,
+						NULL AS SubBetCheck,
+						NULL AS SubBetTeam,
+						NULL AS SubBetType,
+						NULL AS SubHdp1,
+						NULL AS SubHdp2,
+						NULL AS SubOdds
+				FROM dbo.bettrans sub WITH(NOLOCK)
+					 INNER JOIN #SpecialDeleteBets_Single tmpmain
+							 ON	sub.refno = tmpmain.transid	
+								AND sub.matchid = tmpmain.matchid
+								AND sub.custid = tmpmain.custid													
+								AND tmpmain.betdaqid = 0
+								AND charindex ('p25',tmpmain.extrainfo)> 0			
+								AND sub.bettype = 911								
+				WHERE sub.statusID NOT IN (102, 101) -- VOID, REJECT					 															 
+				
+				SET @CountSingle = @CountSingle + @@ROWCOUNT
+				
+				-- insert cash-out member bet tickets
+				INSERT INTO #SpecialDeleteBets_Single(
+						GroupID,
 						Stake,
 						AwayId,
 						BetCheck,
 						BetId,
 						BetTeam,
 						BetType,
+						OriginalBetType,
 						CurrencyCode,
 						Creator,						
 						Hdp1,
@@ -533,6 +805,10 @@ BEGIN
 						betdaqid,
 						IsBetTrade,						
 						BettradeGroupID,
+						ExtraInfo,
+						MainCashoutId,
+						IsCashOutMemberTicket,
+						awinlost,
 						
 						SubTransId,
 						SubBetCheck,
@@ -540,64 +816,101 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds
+						SubOdds		
 					)
-			SELECT  tmpmain.Stake,
-					tmpmain.AwayId,
-					tmpmain.BetCheck,
-					tmpmain.BetType AS BetId,
-					tmpmain.BetTeam,
-					sub.BetType,
-					tmpmain.CurrencyCode,
-					tmpmain.Creator,						
-					tmpmain.Hdp1,
-					tmpmain.Hdp2,
-					tmpmain.HomeId,
-					tmpmain.IsLiveIndicator,
-					tmpmain.IsNeutral,						
-					tmpmain.LiveAwayScore,
-					tmpmain.LiveHomeScore,
-					tmpmain.Odds,						
-					tmpmain.OddsType,
-					sub.RefNo,
-					tmpmain.SportType,
-					'SOLD' AS Status,
-					sub.TransDate,
-					tmpmain.TransDesc,
-					sub.TransId,
-					sub.UserName,
-					sub.NetWinLost,
-					tmpmain.site,
-					tmpmain.betfrom,
-					sub.srecommend,
-					sub.mrecommend,
-					sub.recommend,
-					sub.custid,
-					sub.balance,
-					sub.betdaqid,
-					CAST(1 AS BIT) AS IsBetTrade,					
-					sub.refno AS BettradeGroupID,
+				SELECT  sub911.TransId AS GroupID,
+						b.Stake,
+						m.AwayId,
+						b.BetCheck,
+						b.BetId,
+						b.BetTeam,
+						b.BetType,
+						sub911.OriginalBetType,
+						te.currency AS CurrencyCode,
+						b.Creator,					
+						b.Hdp1,
+						b.Hdp2,
+						m.HomeId,
+						b.LiveIndicator AS IsLiveIndicator,
+						ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+						b.LiveAwayScore,
+						b.LiveHomeScore,
+						b.Odds,					
+						b.OddsType,
+						b.RefNo,
+						m.SportType,
+						b.status AS STATUS,
+						b.TransDate,
+						b.TransDesc,
+						b.TransId,
+						b.UserName,
+						b.WinLost - b.actual_stake AS NetWinLost,
+						c.site,
+						b.betfrom,
+						b.srecommend,
+						b.mrecommend,
+						b.recommend,
+						b.custid,
+						b.winlost - b.actual_stake + b.playercomm AS balance,
+						b.betdaqid,
+						CAST(0 AS BIT) AS IsBetTrade,					
+						b.transid AS BettradeGroupID,
+						b.ExtraInfo,
+						sub911.MainCashoutId,
+						1 AS IsCashOutMemberTicket,
+						b.awinlost,
+						
+						b.TransId AS SubTransId,
+						NULL AS SubBetCheck,
+						NULL AS SubBetTeam,
+						NULL AS SubBetType,
+						NULL AS SubHdp1,
+						NULL AS SubHdp2,
+						NULL AS SubOdds
+				FROM #CashOutTransActive sub911					 
+					 CROSS APPLY (
+									  SELECT b.*
+									  FROM dbo.bettrans b WITH (NOLOCK)
+									  WHERE b.refno = sub911.transid
+										AND b.matchid = sub911.matchid
+										AND b.bettype = sub911.OriginalBetType									
+										AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								 ) AS b					
+					 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+						 ON b.recommend = c.custid					
+					 LEFT JOIN (SELECT [site] AS LicenseeName
+									 , CASE 
+											WHEN isLicensee = 0		  
+												 AND isActive = 1	
+												 AND [site] <> @789y_Name 
+													THEN @MBCGroup_Name
+											ELSE [site]
+									   END AS GroupName
+								FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK)) tl
+							 ON tl.LicenseeName = c.site
+					 LEFT JOIN match m WITH (NOLOCK)
+							 ON b.matchid = m.matchid
+					 LEFT JOIN CustDB.dbo.exchange te WITH(NOLOCK)
+							 ON b.currency = te.exchangeid											 								 
 					
-					sub.TransId AS SubTransId,
-					NULL AS SubBetCheck,
-					NULL AS SubBetTeam,
-					NULL AS SubBetType,
-					NULL AS SubHdp1,
-					NULL AS SubHdp2,
-					NULL AS SubOdds
-			FROM #SpecialDeleteBets_Single tmpmain										
-				 INNER JOIN #BTTransActive sub
-						 ON tmpmain.transid = sub.refno															
-			WHERE tmpmain.betdaqid = 0
-			  AND sub.bettype = 901
-			
-			SET @CountSingle = @CountSingle + @@ROWCOUNT
-			
-			--insert custBT 
-			INSERT INTO @tblCustBT902( custid)
-			SELECT DISTINCT bt.custid
-			FROM #BTTransActive bt			
-			WHERE bt.bettype = 902				
+				SET @CountSingle = @CountSingle + @@ROWCOUNT																		
+				
+				--Insert multiple cash-out transaction (912,913)
+				INSERT INTO #CashOutTransActive(bettype, transId)
+				SELECT sub_912_913.bettype, sub_912_913.transId											
+				FROM #CashOutTransActive sub911
+					INNER JOIN dbo.bettrans sub_912_913 WITH(NOLOCK)					
+							ON sub911.transId = sub_912_913.refno
+							   AND sub911.matchid = sub_912_913.matchid							   					
+							   AND sub_912_913.bettype IN (912,913)
+							   AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT													
+				
+				--insert custCashOut912
+				INSERT INTO @tblCustCashOut912( custid)
+				SELECT DISTINCT custid
+				FROM #SpecialDeleteBets_Single
+				WHERE IsCashOutMemberTicket = 1	
+			END		
 		END
 		
 		--> Get parlay tickets		
@@ -725,15 +1038,16 @@ BEGIN
 		
 		-------> Check No ticket found
 		IF @CountSingle + @CountParlay = 0
-		BEGIN					
-			SET @ErrorCode = 99
+		BEGIN			
+			IF @InvalidTransIds = ''
+				SELECT @ErrorCode = 99
+					 , @ErrorMsg = 'No ticket found.'						
 			
-			IF @InvalidTrans <> '' -- when all single tickets are deleted due to invalid bettrade
-				SET @ErrorMsg = @InvalidTrans
-			ELSE
-				SET @ErrorMsg = 'No ticket found.'
-			
-			SELECT * FROM #t		
+			-------> releasing cash-out process
+			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+					@Mode = 'Original'
+				  , @Action = 'Void'
+				  , @IsReleased = 1			
 			
 			RETURN
 		END
@@ -759,11 +1073,15 @@ BEGIN
 				, @IsExistParlay	= @IsExistParlay				
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
-				, @ErrMsg			= @ErrorMsg OUTPUT				
+				, @ErrMsg			= @ErrorMsg OUTPUT															
 				
 			IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
-			BEGIN
-				SELECT * FROM #t			
+			BEGIN				
+				-------> releasing cash-out process
+				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+						@Mode = 'Original'
+					  , @Action = 'Void'
+					  , @IsReleased = 1				
 				
 				RETURN
 			END									
@@ -778,68 +1096,131 @@ BEGIN
 		--> backups for single
 		IF @CountSingle > 0
 		BEGIN
-			-- backup for normal ticket
+			-- backup for normal ticket, main bettrade, main cash-out, cash-out member bet tickets
 			INSERT INTO zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
 						winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
-						winlostdate,betfrom,betcheck,checktime,matchid, bettype)
+						winlostdate,betfrom,
+						betcheck,
+						checktime,matchid, bettype)
 			SELECT  main.transid, main.custid, CURRENT_TIMESTAMP, main.oddsid, main.hdp1, main.hdp2, main.odds, main.stake, main.status, 
 					main.winlost, main.livehomescore, main.liveawayscore, main.liveindicator, main.betteam, main.creator , main.refno, 
-					main.winlostdate, main.betfrom, main.betcheck, main.checktime, main.matchid, main.bettype
+					main.winlostdate, main.betfrom, 
+					CASE
+						WHEN (tmpmain.betdaqid = 0 AND charindex ('p25',tmpmain.extrainfo)> 0) -- main ticket is Cash-out
+							 OR tmpmain.IsCashOutMemberTicket = 1
+								THEN @session
+						ELSE main.betcheck
+					END AS betcheck, 
+					main.checktime, main.matchid, main.bettype
 			FROM #SpecialDeleteBets_Single tmpmain
 				 INNER JOIN dbo.bettrans main WITH (nolock)
 						 ON tmpmain.transid = main.transid
 			WHERE tmpmain.BetType NOT BETWEEN 901 AND 910
+			  AND tmpmain.BetType NOT BETWEEN 911 AND 914
 			
-			-- backups for bettrade ticket
-			INSERT INTO zzzbettrans (
-				transid
-				,custid
-				,transdate
-				,oddsid
-				,hdp1
-				,hdp2
-				,odds
-				,stake
-				,STATUS
-				,winlost
-				,livehomescore
-				,liveawayscore
-				,liveindicator
-				,betteam
-				,creator
-				,refno
-				,winlostdate
-				,betfrom
-				,betcheck
-				,checktime
-				,matchid
-				,bettype
-				)
-			SELECT sub.transid
-				,sub.custid
-				,CURRENT_TIMESTAMP
-				,sub.oddsid
-				,sub.hdp1
-				,sub.hdp2
-				,sub.odds
-				,sub.stake
-				,sub.STATUS
-				,sub.winlost
-				,sub.livehomescore
-				,sub.liveawayscore
-				,sub.liveindicator
-				,sub.betteam
-				,sub.creator
-				,sub.refno
-				,sub.winlostdate
-				,sub.betfrom
-				,sub.betcheck
-				,sub.checktime
-				,sub.matchid
-				,sub.bettype
-			FROM #BTTransActive bt
-				INNER JOIN dbo.bettrans AS sub WITH (NOLOCK)
-						ON bt.transId = sub.transId							
+			-- backups for bettrade sub ticket (901,902,903)
+			IF (@isExistBT = 1)
+				INSERT INTO zzzbettrans (
+					transid
+					,custid
+					,transdate
+					,oddsid
+					,hdp1
+					,hdp2
+					,odds
+					,stake
+					,STATUS
+					,winlost
+					,livehomescore
+					,liveawayscore
+					,liveindicator
+					,betteam
+					,creator
+					,refno
+					,winlostdate
+					,betfrom
+					,betcheck
+					,checktime
+					,matchid
+					,bettype
+					)
+				SELECT sub.transid
+					,sub.custid
+					,CURRENT_TIMESTAMP
+					,sub.oddsid
+					,sub.hdp1
+					,sub.hdp2
+					,sub.odds
+					,sub.stake
+					,sub.STATUS
+					,sub.winlost
+					,sub.livehomescore
+					,sub.liveawayscore
+					,sub.liveindicator
+					,sub.betteam
+					,sub.creator
+					,sub.refno
+					,sub.winlostdate
+					,sub.betfrom
+					,sub.betcheck
+					,sub.checktime
+					,sub.matchid
+					,sub.bettype
+				FROM #BTTransActive bt
+					INNER JOIN dbo.bettrans AS sub WITH (NOLOCK)
+							ON bt.transId = sub.transId
+				
+			-- backups for cash-out sub ticket (911,912,913)
+			IF (@isExistCashOut = 1)			
+				INSERT INTO zzzbettrans (
+					transid
+					,custid
+					,transdate
+					,oddsid
+					,hdp1
+					,hdp2
+					,odds
+					,stake
+					,STATUS
+					,winlost
+					,livehomescore
+					,liveawayscore
+					,liveindicator
+					,betteam
+					,creator
+					,refno
+					,winlostdate
+					,betfrom
+					,betcheck
+					,checktime
+					,matchid
+					,bettype
+					)
+				SELECT sub.transid
+					,sub.custid
+					,CURRENT_TIMESTAMP
+					,sub.oddsid
+					,sub.hdp1
+					,sub.hdp2
+					,sub.odds
+					,sub.stake
+					,sub.STATUS
+					,sub.winlost
+					,sub.livehomescore
+					,sub.liveawayscore
+					,sub.liveindicator
+					,sub.betteam
+					,sub.creator
+					,sub.refno
+					,sub.winlostdate
+					,sub.betfrom
+					,@session AS betcheck
+					,sub.checktime
+					,sub.matchid
+					,sub.bettype
+				FROM #CashOutTransActive bt
+					INNER JOIN dbo.bettrans AS sub WITH (NOLOCK)
+							ON bt.transId = sub.transId			
 		END				
 		
 		--> backups for parlay	
@@ -873,24 +1254,33 @@ BEGIN
 		INSERT INTO @tblBeforeBalance (custid, balance)
 		SELECT T.custid, SUM(T.balance) balance
 		FROM (
-				  -- normal and main bettrade
+				-- normal, main bettrade, main cash-out, cash-out member bet ticket
 				SELECT	t.custid
 						,SUM (b.winlost - b.actual_stake + b.playercomm) balance
 				FROM #SpecialDeleteBets_Single t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
 				WHERE t.BetType NOT BETWEEN 901 AND 910
+				  AND t.BetType NOT BETWEEN 911 AND 914
 				GROUP BY t.CustID
-				-- bettrade
 				UNION ALL
+				-- sub bettrade (901,902,903)												
 				SELECT bt.custid
 					  ,SUM(sub.winlost - sub.actual_stake + sub.playercomm) AS balance
 				FROM dbo.bettrans sub WITH (NOLOCK)
 					INNER JOIN #BTTransActive bt 
 						ON sub.transId = bt.transId					
-				GROUP BY bt.custid
-				-- parlay
+				GROUP BY bt.custid	
 				UNION ALL
+				-- sub cash-out (911,912,913)
+				SELECT sub.custid
+					  ,SUM(sub.winlost - sub.actual_stake + sub.playercomm) AS balance
+				FROM dbo.bettrans sub WITH (NOLOCK)
+					INNER JOIN #CashOutTransActive bt 
+						ON sub.transId = bt.transId					
+				GROUP BY sub.custid							
+				UNION ALL
+				-- parlay				
 				SELECT	t.custid
 						,SUM (b.winlost - b.actual_stake + b.playercomm) balance
 				FROM #SpecialDeleteBets_Parlay t	
@@ -906,8 +1296,8 @@ BEGIN
 				WHERE b.bettype = 500
 				  AND b.matchid = @MatchID					
 				GROUP BY b.CustID
-				-- BT-WLSharing
 				UNION ALL
+				-- BT-WLSharing (904)								
 				SELECT	sub904.custid
 					   ,SUM(sub904.winlost - sub904.actual_stake + sub904.playercomm) AS balance
 				FROM	bettrans sub904 WITH (NOLOCK)
@@ -916,14 +1306,24 @@ BEGIN
 						AND sub904.matchid = @MatchID											
 				WHERE sub904.bettype = 904
 				GROUP BY sub904.custid
+				UNION ALL
+				-- cash-out summary 914
+				SELECT	sub914.custid
+					   ,SUM(sub914.winlost - sub914.actual_stake + sub914.playercomm) AS balance
+				FROM	bettrans sub914 WITH (NOLOCK)
+					INNER JOIN @tblCustCashOut912 temp
+					ON sub914.custid = temp.custid
+						AND sub914.matchid = @MatchID											
+				WHERE sub914.bettype = 914
+				GROUP BY sub914.custid
 			 ) AS T
 		GROUP BY T.custid
 		
 		-------> update status for tickets to void		
-		--> update status for single, BT
+		--> update status for single
 		IF @CountSingle > 0
 		BEGIN
-			-- update status for normal ticket, main bettrade
+			-- update status for normal, main bettrade, main cash-out, cash-out member bet ticket
 			UPDATE	main
 				SET winlost		= main.actual_stake
 					,ruben			= 1
@@ -943,121 +1343,217 @@ BEGIN
 					ON	main.transid = tmpmain.transid					
 						AND main.matchid = @matchid	
 						AND tmpmain.Bettype NOT BETWEEN 901 AND 910
-						
-			-- update status for sub bettrade ticket
-			UPDATE sub
-			SET winlost = sub.actual_stake
-				,ruben = 1
-				,statuswinlost = 6
-				,creator = @UserID
-				,mwinlost = 0
-				,swinlost = 0
-				,awinlost = 0
-				,playercomm = 0
-				,comm = 0
-				,acomm = 0
-				,scomm = 0
-				,statusID = 102
-				,status = 'VOID'
-			FROM dbo.bettrans AS sub WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN #BTTransActive bt
-				ON sub.transId = bt.transId			
+						AND tmpmain.Bettype NOT BETWEEN 911 AND 914
 			
-			--Pre-CAL 904
-			DECLARE @CustIdsBT VARCHAR(MAX)
-			SET @CustIdsBT = STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-								    FROM @tblCustBT902 tt								    
-								    FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')											    
-			EXEC dbo.NAP_Admin_Calculate_904 
-					@MatchId 	= @MatchID
-					, @Action 	= 'VOID'
-					, @CustIds 	= @CustIdsBT
-					
-			-- Insert BetTradeSellingCancel	
-			INSERT INTO [dbo].[BetTradeSellingCancelled]  
-						  ([TicketID]  
-						  ,[Remark]  
-						  ,[BTBuyBack]  
-						  ,[BTComission]  
-						  ,[AfterBalance]  
-						  ,[Owner]  
-						  ,[Cancelled]  
-						  ,[ChangeDate]  
-						  ,[CreateDate]  
-						  ,TradeID
-						)  
-			   SELECT	bt.refno
-						, 'SB void ticket due to ' + @Reason
-						,bt.awinlost
-						,0
-						,0
-						,'SB'
-						,1
-						,GETDATE()
-						,GETDATE()
-						,bts.TradeID
-				FROM #BTTransActive AS bt
-					INNER JOIN [dbo].[BetTradeSelling] bts WITH(NOLOCK)
-						ON bts.TicketID = bt.refno
-					LEFT JOIN [dbo].[BetTradeSellingCancelled] c WITH(NOLOCK) 
-						ON c.[TicketID] = bt.refno						
-				WHERE bt.bettype 		= 901 
-					AND c.[BTBuyBack] 	IS NULL 
-					AND ( bts.Status 	= 'Accept' OR bts.Status = 'Confirm')
-					
-			-- Update	
-			UPDATE main
-			SET
-				[Remark] 		= 'SB void ticket due to ' + @Reason,
-				[BTBuyBack] 	= ISNULL(bt.awinlost, 0),
-				[BTComission] 	= 0,
-				[Owner] 		= 'SB',
-				[Cancelled] 	= 1,
-				[ChangeDate] 	= GETDATE(),
-				AfterBalance 	= ISNULL(bl.AfterBalance, 0)
-			FROM [dbo].[BetTradeSellingCancelled] main WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN #BTTransActive bt 
-					ON main.[TicketID] = bt.refno
-				OUTER APPLY (
-					SELECT SUM(
-							CASE 
-								WHEN b.ruben = 1
-								THEN b.winlost - b.actual_stake + b.playercomm
-								ELSE 0
-							END
-						) AS AfterBalance
-					FROM dbo.bettrans b WITH (NOLOCK)
-					WHERE b.custid = bt.custid
-				) bl
-			WHERE bt.bettype = 901
-			
-			-- Insert bettrade tickets to send API
-			DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
-			;WITH cteMainTicket
-			AS(
-				SELECT	transid
-				FROM	#SpecialDeleteBets_Single 
-				WHERE	betdaqid = 0 -- main ticket
-			)
-			INSERT INTO dbo.BettradeAPI (
-					transid
-					,matchid
-					,[Session]
-					,[action]
-					,buybackNo
-					,Payout
-					,Remark
+			IF (@isExistBT = 1 OR @isExistCashOut = 1)
+			BEGIN
+				-- update status for sub bettrade ticket (901,902,903)
+				IF (@isExistBT = 1)
+					UPDATE sub
+					SET winlost = sub.actual_stake
+						,ruben = 1
+						,statuswinlost = 6
+						,creator = @UserID
+						,mwinlost = 0
+						,swinlost = 0
+						,awinlost = 0
+						,playercomm = 0
+						,comm = 0
+						,acomm = 0
+						,scomm = 0
+						,statusID = 102
+						,status = 'VOID'
+					FROM dbo.bettrans AS sub WITH (ROWLOCK, UPDLOCK)
+						INNER JOIN #BTTransActive bt
+						ON sub.transId = bt.transId
+				
+				-- update status for sub cash-out ticket (911,912,913)
+				IF (@isExistCashOut = 1)
+					UPDATE sub
+					SET winlost = sub.actual_stake
+						,ruben = 1
+						,statuswinlost = 6
+						,creator = @UserID
+						,mwinlost = 0
+						,swinlost = 0
+						,awinlost = 0
+						,playercomm = 0
+						,comm = 0
+						,acomm = 0
+						,scomm = 0
+						,statusID = 102
+						,status = 'VOID'
+					FROM dbo.bettrans AS sub WITH (ROWLOCK, UPDLOCK)
+						INNER JOIN #CashOutTransActive bt
+						ON sub.transId = bt.transId
+				
+				--Pre-CAL 904
+				IF (@isExistBT = 1)	
+				BEGIN
+					SET @CustIds_BT_CashOut = STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
+													 FROM @tblCustBT902 tt								    
+													 FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')											    
+					EXEC dbo.NAP_Admin_Calculate_904 
+							@MatchId 	= @MatchID
+							, @Action 	= 'VOID'
+							, @CustIds 	= @CustIds_BT_CashOut
+				END
+				
+				--Pre-CAL 914
+				IF (@isExistCashOut = 1)
+				BEGIN
+					SET @CustIds_BT_CashOut = STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
+													 FROM @tblCustCashOut912 tt								    
+													 FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')											    
+					EXEC dbo.NAP_Admin_Calculate_914 
+							@MatchId 	= @MatchID
+							, @Action 	= 'VOID'
+							, @CustIds 	= @CustIds_BT_CashOut
+				END
+				
+				-- Update BetTrade selling information
+				CREATE TABLE #CustIdList
+				(
+					custid INT PRIMARY KEY
 				)
-			SELECT	b.TicketID
-					,b.MatchID
-					,@session
-					,'VOID'
-					,b.BuyBackNo
-					,b.PayOut
-					,'SB void ticket due to ' + @Reason
-			FROM	dbo.BetTradeSelling b WITH(NOLOCK)
-			WHERE	b.TicketID IN (SELECT transid FROM cteMainTicket)
-				AND b.[Status] IN ('Accept', 'Confirm')							
+			
+				CREATE TABLE #CustList
+				(
+					custid INT PRIMARY KEY,
+					Balance MONEY
+				)
+				
+				INSERT INTO #CustIdList(custid)
+				SELECT DISTINCT custid FROM #SpecialDeleteBets_Single
+				
+				INSERT INTO #CustList(custid, Balance)
+				SELECT T.custid, SUM(T.Balance)
+				FROM
+				(
+					SELECT	b.custid, b.winlost - b.actual_stake + b.playercomm AS Balance				
+					FROM	dbo.bettrans b WITH(NOLOCK)
+						LEFT JOIN dbo.translog tl WITH(NOLOCK)
+							ON	b.refno = tl.translogid
+								AND b.matchid = tl.eventID
+					WHERE	b.custid IN (SELECT custid FROM #CustIdList)
+							AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))				
+					UNION ALL 
+					SELECT	tl.custid, 0 - tl.actual_stake + 0 AS Balance 
+					FROM	dbo.translog tl WITH(NOLOCK)
+					WHERE	tl.custid IN (SELECT custid FROM #CustIdList)
+							AND tl.statusID = 0				
+					UNION ALL
+					SELECT	custid, winlost - actual_stake + playercomm AS Balance
+					FROM	dbo.bettransRnG WITH(NOLOCK)
+					WHERE	custid IN (SELECT custid FROM #CustIdList)
+							AND IsSum=0				
+					UNION ALL
+					SELECT	custid, winlost - actual_stake + playercomm AS Balance
+					FROM	dbo.bettransLC WITH(NOLOCK)
+					WHERE	custid IN (SELECT custid FROM #CustIdList) 
+							AND IsSum=0	
+					UNION ALL
+					SELECT bal.CustId, (Credit - Debit) AS Balance
+					FROM dbo.BalNetPosition bal WITH(NOLOCK)
+						INNER JOIN #SpecialDeleteBets_Single d 
+								 ON bal.CustId = d.CustId 
+									AND bal.MatchId = @MatchId 
+									AND bal.Bettype = d.bettype	
+					UNION ALL
+					SELECT DISTINCT c.CustId, c.Credit AS Balance
+					FROM DBCUST.custDB.dbo.custInfo c WITH(NOLOCK)						
+						 INNER JOIN #CustIdList d 
+								 ON c.CustId = d.CustId
+				) T
+				GROUP BY T.custid
+				
+				;WITH CTE_Source AS
+				(
+					SELECT	bts.TradeID AS TradeID
+							,bts.TicketID AS [TicketID]					
+							,'SB void ticket due to ' + @Reason AS [Remark]
+							,tmpsub.awinlost AS [BTBuyBack]
+							,0 AS [BTComission]
+							,tcust.Balance AS [AfterBalance]
+							,'SB' AS [Owner]
+							,1 AS [Cancelled]
+							,GETDATE() AS [ChangeDate]
+							,GETDATE() AS [CreateDate]
+					FROM #SpecialDeleteBets_Single tmpsub						 											 
+						 INNER JOIN [dbo].[BetTradeSelling] bts WITH(NOLOCK)			    
+								 ON bts.TicketID = tmpsub.refno -- bettrade + cash-out
+									AND CASE																				 
+											WHEN tmpsub.bettype = 911 -- cash-out													 
+													THEN CASE
+															WHEN bts.SoldTicketID = tmpsub.transid THEN 1
+															ELSE 0
+														 END																							
+											ELSE 1
+										END = 1	
+						 INNER JOIN #CustList tcust
+								 ON tmpsub.custid = tcust.custid						 							
+					WHERE tmpsub.BetType IN (901,911)					  
+				)
+				MERGE INTO [dbo].[BetTradeSellingCancelled] AS [Target]
+				USING (SELECT * FROM CTE_Source) AS [Source]
+				ON [Target].TradeID = [Source].TradeID
+				WHEN MATCHED THEN UPDATE SET [Remark] = [Source].[Remark]
+											,[BTBuyBack] = [Source].[BTBuyBack]
+											,[BTComission] = [Source].[BTComission]
+											,[AfterBalance] = [Source].[AfterBalance]
+											,[Owner] = [Source].[Owner]
+											,[Cancelled] = [Source].[Cancelled]
+											,[ChangeDate] = [Source].[ChangeDate]										
+				WHEN NOT MATCHED THEN INSERT(TradeID
+											,[TicketID]										
+											,[Remark]
+											,[BTBuyBack]
+											,[BTComission]
+											,[AfterBalance]
+											,[Owner]
+											,[Cancelled]
+											,[ChangeDate]
+											,[CreateDate])
+									  VALUES([Source].TradeID
+											,[Source].[TicketID]										
+											,[Source].[Remark]
+											,[Source].[BTBuyBack]
+											,[Source].[BTComission]
+											,[Source].[AfterBalance]
+											,[Source].[Owner]
+											,[Source].[Cancelled]
+											,[Source].[ChangeDate]
+											,[Source].[CreateDate]);	
+				
+				-- Insert bettrade tickets to send API
+				IF (@isExistBT = 1)	
+					WITH cteMainTicket
+					AS(
+						SELECT	transid
+						FROM	#SpecialDeleteBets_Single 
+						WHERE	betdaqid = 0 -- main ticket
+						  AND	extrainfo is null
+					)
+					INSERT INTO dbo.BettradeAPI (
+							transid
+							,matchid
+							,[Session]
+							,[action]
+							,buybackNo
+							,Payout
+							,Remark
+						)
+					SELECT	b.TicketID
+							,b.MatchID
+							,@session
+							,'VOID'
+							,b.BuyBackNo
+							,b.PayOut
+							,'SB void ticket due to ' + @Reason
+					FROM	dbo.BetTradeSelling b WITH(NOLOCK)
+					WHERE	b.TicketID IN (SELECT transid FROM cteMainTicket)
+						AND b.[Status] IN ('Accept', 'Confirm')		
+			END														
 		END				
 		
 		--> update status for parlay
@@ -1135,24 +1631,33 @@ BEGIN
 		INSERT INTO @tblAfterBalance (custid, balance)
 		SELECT T.custid, SUM(T.balance) balance
 		FROM (
-				-- normal and main bettrade
+				-- normal, main bettrade, main cash-out, cash-out member bet ticket
 				SELECT	t.custid
 						,SUM (b.winlost - b.actual_stake + b.playercomm) balance
 				FROM #SpecialDeleteBets_Single t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
 				WHERE t.BetType NOT BETWEEN 901 AND 910
+				  AND t.BetType NOT BETWEEN 911 AND 914
 				GROUP BY t.CustID
-				-- bettrade
 				UNION ALL
+				-- sub bettrade (901,902,903)												
 				SELECT bt.custid
 					  ,SUM(sub.winlost - sub.actual_stake + sub.playercomm) AS balance
 				FROM dbo.bettrans sub WITH (NOLOCK)
 					INNER JOIN #BTTransActive bt 
 						ON sub.transId = bt.transId					
-				GROUP BY bt.custid
-				-- parlay
+				GROUP BY bt.custid	
 				UNION ALL
+				-- sub cash-out (911,912,913)
+				SELECT sub.custid
+					  ,SUM(sub.winlost - sub.actual_stake + sub.playercomm) AS balance
+				FROM dbo.bettrans sub WITH (NOLOCK)
+					INNER JOIN #CashOutTransActive bt 
+						ON sub.transId = bt.transId					
+				GROUP BY sub.custid							
+				UNION ALL
+				-- parlay				
 				SELECT	t.custid
 						,SUM (b.winlost - b.actual_stake + b.playercomm) balance
 				FROM #SpecialDeleteBets_Parlay t	
@@ -1168,8 +1673,8 @@ BEGIN
 				WHERE b.bettype = 500
 				  AND b.matchid = @MatchID					
 				GROUP BY b.CustID
-				-- BT-WLSharing
 				UNION ALL
+				-- BT-WLSharing (904)								
 				SELECT	sub904.custid
 					   ,SUM(sub904.winlost - sub904.actual_stake + sub904.playercomm) AS balance
 				FROM	bettrans sub904 WITH (NOLOCK)
@@ -1178,6 +1683,16 @@ BEGIN
 						AND sub904.matchid = @MatchID											
 				WHERE sub904.bettype = 904
 				GROUP BY sub904.custid
+				UNION ALL
+				-- cash-out summary 914
+				SELECT	sub914.custid
+					   ,SUM(sub914.winlost - sub914.actual_stake + sub914.playercomm) AS balance
+				FROM	bettrans sub914 WITH (NOLOCK)
+					INNER JOIN @tblCustCashOut912 temp
+					ON sub914.custid = temp.custid
+						AND sub914.matchid = @MatchID											
+				WHERE sub914.bettype = 914
+				GROUP BY sub914.custid
 			 )	AS T
 		GROUP BY T.custid
 		
@@ -1225,13 +1740,19 @@ BEGIN
 				   AND b.matchid = @MatchID			
 			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid  
 			INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) ON c.currency = e.exchangeid	
-		WHERE bd.Bettype NOT BETWEEN 901 AND 910  --BetTrade subtickets 																								
+		WHERE bd.Bettype IN (1,3,7,8)
 			 
 		-------> Release process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsReleased		= 1						
 			, @isExistMatch		= @isExistMatch			
 			, @isExistParlay  = @isExistParlay
+			
+		-------> releasing cash-out process
+		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+				@Mode = 'Original'
+			  , @Action = 'Void'
+			  , @IsReleased = 1			
 			
 		-------> write log		
 		EXEC WriteLog_UserLog 
@@ -1250,6 +1771,7 @@ BEGIN
 				s.BetId,
 				s.BetTeam,
 				s.BetType,
+				s.OriginalBetType,
 				s.CurrencyCode,				
 				s.Hdp1,
 				s.Hdp2,				
@@ -1288,6 +1810,10 @@ BEGIN
 				s.srecommend,
 				sc.username AS SagUserName,
 				s.IsBetTrade,
+				CASE WHEN s.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut,
+				s.betdaqid,
+				s.ExtraInfo,
+				s.MainCashoutId,
 				
 				s.SubTransId,
 				s.SubBetCheck,
@@ -1306,7 +1832,7 @@ BEGIN
 				s.betfrom,
 				CURRENT_TIMESTAMP AS [DateTime]				
 		FROM (
-				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single
+				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
 				SELECT CAST(1 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Parlay
 			 ) s			 
@@ -1322,19 +1848,23 @@ BEGIN
 											THEN 1
 									ELSE NULL
 								 END AS a) AS T2
-		ORDER BY s.IsMixParlay ASC, s.BettradeGroupID ASC, s.betdaqid ASC									 			 						  			 	
+		ORDER BY s.IsMixParlay ASC, ISNULL(s.MainCashoutId, s.GroupId) ASC, s.TransId ASC
 	END TRY
 	BEGIN CATCH
 		-------> Release process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsReleased		= 1						
 			, @isExistMatch		= @isExistMatch			
-			, @isExistParlay  = @isExistParlay			  
+			, @isExistParlay  = @isExistParlay
+			
+		-------> releasing cash-out process
+		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+				@Mode = 'Original'
+			  , @Action = 'Void'
+			  , @IsReleased = 1						  
 	
 		SELECT @ErrorCode = 100,
-				@ErrorMsg = @GeneralErrMsg							
-				
-		SELECT * FROM #t					
+				@ErrorMsg = @GeneralErrMsg											
 							
 		RETURN				
 	END CATCH		

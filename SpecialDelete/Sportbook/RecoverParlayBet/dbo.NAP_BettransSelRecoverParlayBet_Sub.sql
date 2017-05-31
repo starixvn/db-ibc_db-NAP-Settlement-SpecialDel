@@ -17,6 +17,7 @@ AS
 
 	Revisions: 		
 		- 20161011@Kent: Select sub voided Parlay tickets [Redmine:#65531]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 
 	Param's Explanation:			
 			- @BetType:
@@ -47,7 +48,7 @@ BEGIN
 		,SubLeagueID			INT	
 				
 		,custid					INT
-		,isdeposit				TINYINT
+		,isdeposit				BIT
 		,mrecommend				INT
 		,recommend				INT
 		,transid				BIGINT
@@ -243,11 +244,11 @@ BEGIN
 		 , CASE
 				WHEN b.transid IS NOT NULL
 					 AND bm.transid IS NOT NULL
-						THEN 0 -- case 1
+						THEN CAST(0 AS BIT) -- case 1
 				WHEN b14.transid IS NOT NULL
 					 OR bm14.transid IS NOT NULL
-						THEN 1 -- case 2 + 3 + 4				
-				ELSE 0 -- case 5 					
+						THEN CAST(1 AS BIT) -- case 2 + 3 + 4				
+				ELSE CAST(0 AS BIT) -- case 5 					
 		   END AS isMoved
 	FROM InvalidTransID t
 		 LEFT JOIN bettrans b WITH(NOLOCK)
