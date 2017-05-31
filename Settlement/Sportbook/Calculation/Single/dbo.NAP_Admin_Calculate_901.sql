@@ -1,5 +1,4 @@
-﻿ USE [bodb02]
- GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
  ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_901]
 	@matchid INT,	
 	@action	VARCHAR(30)= '',
@@ -16,7 +15,9 @@
 		Revisions:
 			- 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [Redmine:#61905]
 			- 20161108@Kathy: Settlement for new server [Redmine:#66849]
-		
+			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
+			- 20170411@Bobby: 74819 - Correct Bettrade condition for auto bettypes
+			
 		Parameter's Explantion:
 	*/
 BEGIN
@@ -87,15 +88,21 @@ BEGIN
 	
 	--get main tickets which have been sold to bettrade
 	INSERT INTO #tmp(transid)
-	SELECT transid
-	FROM bettrans WITH(NOLOCK)
-	WHERE bettype IN (SELECT bettype FROM @tmpBettype)
-		AND matchid = @matchid
-		AND 1 = CASE WHEN Bettype IN (160,180) AND CHARINDEX(SUBSTRING(CAST(betID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-					 WHEN Bettype NOT IN (160,180) THEN 1 
-					 ELSE 0 END
-		AND statusid NOT IN (101,102)		
-		AND betdaqid = 0--indicate tickets belong to bettrade
+	SELECT b.transid
+	FROM dbo.bettrans b WITH(NOLOCK)
+	WHERE b.bettype IN (SELECT bettype FROM @tmpBettype)
+		AND b.matchid = @matchid
+		AND 1 = CASE 
+					WHEN @ResourceIDs IS NULL AND b.Bettype NOT IN (160,180)  THEN 1 --manual page
+					WHEN (@ResourceIDs IS NOT NULL 
+						AND b.Bettype IN (160,180) 
+						AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs) > 0) THEN 1 
+					WHEN (@ResourceIDs IS NOT NULL 
+						AND CHARINDEX(',' +CAST(b.bettype AS VARCHAR(10)) + ',', ',' + @ResourceIDs + ',') > 0) THEN 1
+				ELSE 0 END
+		AND b.statusid NOT IN (101,102)		
+		AND b.betdaqid = 0--indicate tickets belong to bettrade
+		AND b.ExtraInfo IS NULL
 	
 	IF @@ROWCOUNT = 0 RETURN
 	
@@ -170,7 +177,7 @@ BEGIN
 	--end
 		
 	--Insert bettrade tickets to send API
-	IF @@SERVERNAME IN ('DBTRANS','DB230','DB206')
+	IF @@SERVERNAME IN ('DBTRANS','DB230','DB206', 'SITDBTRANS')
 	BEGIN
 		DECLARE @Session NVARCHAR(50) = CONVERT(NVARCHAR(50),NEWID())
 		
@@ -187,15 +194,15 @@ BEGIN
 			@action+':'+@mode as action,			
 			BuyBackNo,
 			PayOut
-        FROM bettradeSelling b WITH(NOLOCK)
+        FROM dbo.BettradeSelling b WITH(NOLOCK)
 		WHERE ticketID IN (SELECT DISTINCT refno FROM #bettrans)
 			AND status IN ('Accept','Confirm')
 	END
 	
 	--recover BetTradeSelling & BetTradeSellingCancelled on DBTXN
-	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI')
+	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI')
 	BEGIN		
-		UPDATE BetTradeSellingCancelled WITH(UPDLOCK,ROWLOCK)
+		UPDATE dbo.BetTradeSellingCancelled WITH(UPDLOCK,ROWLOCK)
 		SET BTBuyback = -BTBuyback,
 			Remark = 'SB recover ticket',
 			AfterBalance = 0,

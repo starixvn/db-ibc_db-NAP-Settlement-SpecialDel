@@ -1,11 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT] @matchid INT
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT] 
+	@matchid INT
     ,@adminid INT
     ,@IsExcludeBetdaq BIT = 0
     ,@IsSettleAbandonedMatch BIT = 0
@@ -46,6 +41,7 @@ AS
 						  - Capture balance incase of failure
 		- 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [R
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
+		- 20170321@Bobby: #73407 - CashOut integration
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -89,12 +85,20 @@ BEGIN
     DECLARE @start DATETIME
         ,@stop DATETIME
         ,@strBettypes VARCHAR(MAX) 
+		,@strRefundBettypes VARCHAR(MAX) 
 		,@matchdate DATETIME
 
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	dbo.f_Set_GetGroupBettypes ()
 	WHERE	Is3x30 = 1
 	
+	-- SELECT for new formation
+	SET @strRefundBettypes = (SELECT  f.BetType 'r/@t'
+						FROM	dbo.f_Set_GetGroupBettypes() AS f			
+						WHERE	f.Is3x30 = 1
+						FOR XML PATH ('root')
+							)	
+							
 	
 	SELECT @matchdate = eventdate
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
@@ -126,36 +130,40 @@ BEGIN
 
     CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 	
-	INSERT INTO #tmpTrans
-	SELECT transid
+	INSERT INTO #tmpTrans (transid)
+	SELECT ISNULL(co.transid, b.transid) AS transid
 	FROM dbo.bettrans b WITH (ROWLOCK)
-	WHERE matchid = @matchid 
-		AND 1 = CASE
-					WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1 
-					ELSE 0 
-				END
-		AND betdaqid = 0--bettrade tickets
+		LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
+		ON b.matchid = co.matchid 
+			AND co.refno = b.transid 
+			AND co.bettype = 911 --CashOut tickets
+			
+	WHERE b.matchid = @matchid 
+		AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0
+		AND b.betdaqid = 0--bettrade or cashout tickets
 		
     INSERT INTO #BalanceBefore
     SELECT custid
         ,SUM(winlost - actual_stake + playercomm)
     FROM dbo.bettrans b WITH (ROWLOCK)
     WHERE	matchid = @matchid 
-			AND 1 = CASE
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1 
-						WHEN b.bettype BETWEEN 901 AND 910 THEN 1
-						ELSE 0 
-					END
-
 			AND 1 = CASE 
-						WHEN (bettype BETWEEN 901 AND 910 
-									AND refno IN (SELECT transid FROM #tmpTrans))
-								OR b.bettype = 904 -- The 904 refno is equal to single ticket
-							THEN 1 
-						WHEN bettype NOT BETWEEN 901 AND 910 THEN 1
-						ELSE 0 
+						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
+						WHEN (b.bettype BETWEEN 901 AND 920) THEN  
+							CASE
+								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
+								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
+								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
+									CASE
+										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
+										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
+										ELSE 0
+									END
+								ELSE 0 
+							END
+						ELSE 0
 					END
-    GROUP BY custid
+    GROUP BY b.custid
 
     IF @IsSettleAbandonedMatch = 1
         SELECT @IsExcludeBetdaq = 1
@@ -260,24 +268,22 @@ BEGIN
 				,@mode = 'REFUND-HT'
 				,@IsExcludeBetdaq = @IsExcludeBetdaq
 				,@IsExcludeBetfair = @IsExcludeBetfair
-				,@strBettypes = @strBettypes 
+				,@strBettypes = @strRefundBettypes 
 				,@matchdate		= @matchdate
 				
-			--do refund-ht FGLG 	
-			/*EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
-				,@action 		= 'REFUND-FGLG'
-				,@mode 			= 'REFUND-HT'
-				,@LGOnly 		= 0
-				,@matchdate 	= @matchdate
-				,@IsExcludeBetdaq	= @IsExcludeBetdaq
-				,@IsExcludeBetfair  = @IsExcludeBetfair
-			*/
-		
-		-- BetTrade Winlost Sharing
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 901 AND 910)
-			EXEC dbo.NAP_Admin_Calculate_904
+			-- BetTrade Winlost Sharing
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 901 AND 910)
+				EXEC dbo.NAP_Admin_Calculate_904
 				@MatchId = @matchid
 				,@Action = 'REFUND-HT'
+			
+			-- CashOut Winlost Sharing
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 911 AND 920)
+			BEGIN
+				EXEC dbo.NAP_Admin_Calculate_914
+				@MatchId = @matchid
+				,@Action = 'REFUND-HT'
+			END
 		END
 	END TRY
 	BEGIN CATCH
@@ -286,20 +292,23 @@ BEGIN
 				,SUM(winlost - actual_stake + playercomm)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 		WHERE	matchid = @matchid 
-				AND 1 = CASE
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1 
-						WHEN b.bettype BETWEEN 901 AND 910 THEN 1
-						ELSE 0 
-					END
 				AND 1 = CASE 
-							WHEN (bettype BETWEEN 901 AND 910 
-										AND refno IN (SELECT transid FROM #tmpTrans))
-									OR b.bettype = 904 -- The 904 refno is equal to single ticket
-								THEN 1 
-							WHEN bettype NOT BETWEEN 901 AND 910 THEN 1
-							ELSE 0 
+							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
+							WHEN (b.bettype BETWEEN 901 AND 920) THEN  
+								CASE
+									WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
+									WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
+									WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
+										CASE
+											WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
+											WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
+											ELSE 0
+										END
+									ELSE 0 
+								END
+							ELSE 0
 						END
-		GROUP BY custid
+		GROUP BY b.custid
 		
 		INSERT INTO #Balance
 		SELECT b.custid
@@ -374,18 +383,21 @@ BEGIN
     WHERE	matchid = @matchid 
 			AND 1 = CASE
 						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1 
-						WHEN b.bettype BETWEEN 901 AND 910 THEN 1
-						ELSE 0 
+						WHEN b.bettype BETWEEN 901 AND 920 THEN 
+							CASE 
+								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
+								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
+								WHEN (b.bettype BETWEEN 911 AND 914) THEN --CashOut transaction
+									CASE
+										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
+										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
+										ELSE 0
+									END
+								ELSE 0 
+							END
+						ELSE 0
 					END
-			AND 1 = CASE 
-						WHEN (bettype BETWEEN 901 AND 910 
-									AND refno IN (SELECT transid FROM #tmpTrans))
-								OR b.bettype = 904 -- The 904 refno is equal to single ticket	
-							THEN 1 
-						WHEN bettype NOT BETWEEN 901 AND 910 THEN 1
-						ELSE 0 
-					END
-    GROUP BY custid
+    GROUP BY b.custid
 
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
@@ -549,11 +561,4 @@ BEGIN
     FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
     WHERE KeyID = 1 AND KeyValue = @matchid
 END
-
-
-
-GO 
- GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_RefundHT] TO [vnteam]
-GO 
- GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_RefundHT] TO [bodbAdminNet]
-GO 
+GO

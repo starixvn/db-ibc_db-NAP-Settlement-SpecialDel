@@ -27,6 +27,7 @@ AS
 	   - 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
        - 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [Redmine:#61905]
 	   - 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
+	   - 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
        
     Param's Explanation:
     • @Mode:
@@ -297,21 +298,10 @@ BEGIN
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM (
 		SELECT	bettype
-		FROM	bettrans WITH(NOLOCK)
+		FROM	dbo.bettrans WITH(NOLOCK)
 		WHERE 	matchid = @matchid
 		GROUP BY bettype
-		
-		UNION ALL
-		SELECT	bettype
-		FROM	bettransm WITH(NOLOCK)
-		WHERE 	matchid = @matchid
-			AND 1 = CASE 
-					WHEN @mode IN ('CAL-HT') AND bettype IN (127) THEN 1 
-					WHEN @mode IN ('CAL-FT') AND bettype IN (14) THEN 1 
-					WHEN @mode IN ('CAL') AND bettype IN (14,127) THEN 1 
-				ELSE 0 END
-			AND @IsAutoCalculatePage = 0
-		GROUP BY bettype
+	
 	) AS b 
 	WHERE b.bettype IN (SELECT bettype FROM cteBettypes)
 	GROUP BY bettype
@@ -389,5 +379,13 @@ BEGIN
 			EXEC dbo.NAP_Admin_Calculate_904
 				@MatchId = @matchid
 				,@Action = @Mode
+		-- CashOut Winlost Sharing
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 911 AND 920)
+		BEGIN
+			--RE-CAL winloss sharing
+			EXEC dbo.NAP_Admin_Calculate_914
+				@MatchId = @matchid
+				,@Action = @Mode
+		END
 END
 GO
