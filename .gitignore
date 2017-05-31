@@ -1,0 +1,16 @@
+*.BASE
+*.REMOTE
+*.LOCAL
+*.org
+*.orig
+*.original
+*.*test*
+*.*UAT*
+*.bk
+*.backup
+*.del
+*.delete
+del/
+delete/
+bk/
+backup/
