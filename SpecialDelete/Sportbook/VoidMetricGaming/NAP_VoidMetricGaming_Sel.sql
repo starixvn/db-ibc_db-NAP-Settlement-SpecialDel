@@ -17,6 +17,7 @@ BEGIN
 	Revisions:
 		- 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 		- 20160401@Bobby: #55354 - Update changes for new message structure
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 	
 	Explanation's Param:
 
@@ -43,7 +44,7 @@ BEGIN
 		creator				VARCHAR(30),
 		Stake				MONEY,
 		CurrencyName		VARCHAR(10),
-		IsDeposit			TINYINT,
+		IsDeposit			BIT,
 		status				NVARCHAR(10), 
 		mrecommend			INT, 
 		recommend			INT, 

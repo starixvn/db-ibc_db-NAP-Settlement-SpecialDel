@@ -24,6 +24,7 @@ AS
 	Revisions: 		
 		- 20161019@Kent: Recover sub voided Parlay tickets [Redmine:#65531]
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 	
 	Param's Explanation:			
 			- @BetType:
@@ -70,7 +71,7 @@ BEGIN
 		
 		,balance				MONEY					
 		,custid					INT
-		,isdeposit				TINYINT
+		,isdeposit				BIT
 		,mrecommend				INT
 		,recommend				INT
 		,srecommend				INT
@@ -112,46 +113,7 @@ BEGIN
 	
 	DECLARE @tblDebitPending TVP_BalanceList
 	
-	DECLARE @tblCreditPending TVP_BalanceList
-		
-	SELECT	t.SubTransID     
-			 ,t.SubBetCheck  
-			 ,t.SubOdds      
-			 ,t.SubBetTeam  
-			 ,t.SubBetType     
-			 ,t.SubHdp1       
-			 ,t.SubHdp2 
-			 ,t.SubTransDesc 
-			 ,t.SubLivehomescore   
-			 ,t.SubLiveawayscore 
-			 ,t.SubLiveindicator
-			 ,t.SubHomeID
-			 ,t.SubAwayID
-			 ,t.SubSportType 
-			 ,t.SubLeagueID     			 
-			 ,'' AS GroupName			 
-			 ,t.transid    
-			 ,t.UserName    
-			 ,t.TransDate     
-			 ,t.BetType    
-			 ,t.Refno     
-			 ,t.[Status]     
-			 ,t.WinLost    
-			 ,t.betid     
-			 ,t.BetTeam    			 
-			 ,t.Stake     
-			 ,t.Odds     			   
-			 ,t.hdp1     
-			 ,t.hdp2			     
-			 ,t.betcheck    			   
-			 ,CAST(1 AS BIT) AS IsCsd
-			 ,CAST(1 AS BIT) AS IsItQa
-			 ,CAST(1 AS BIT) AS IsItSupport
-			 ,t.betfrom AS BetFrom
-			 ,CURRENT_TIMESTAMP AS [DateTime]
-				INTO #t
-	FROM @tblRecoverBet t
-	WHERE 1 = 0		
+	DECLARE @tblCreditPending TVP_BalanceList					
 	
 	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - @beforeDaysNum, GETDATE()), 120)
 		  ,@ErrCode = 0
@@ -164,10 +126,7 @@ BEGIN
 	
 	IF @@ROWCOUNT = 0
 	BEGIN		
-		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-		
-		SELECT * FROM #t
-		DROP TABLE #t
+		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
 		
 		RETURN
 	END		  
@@ -181,10 +140,7 @@ BEGIN
 		  , @ErrMsg	= @ErrMsg OUTPUT
 	
 	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN	
-		SELECT * FROM #t
-		DROP TABLE #t
-					 
+	BEGIN					 
 		RETURN		 
 	END 
 	
@@ -296,10 +252,7 @@ BEGIN
 				@IsExistParlay = 1			
 			  , @IsReleased	= 1			  			
 			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
-			
-			SELECT * FROM #t
-			DROP TABLE #t
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
 		
 			RETURN
 		END										
@@ -568,15 +521,10 @@ BEGIN
 		  , @IsReleased	= 1		  
 	
 		SELECT @ErrCode = 100,
-				@ErrMsg = 'Unable to recover these parlay bets'
-				
-		SELECT * FROM #t
-		DROP TABLE #t
+				@ErrMsg = 'Unable to recover these parlay bets'						
 							
 		RETURN				
-	END CATCH									  			
-		  
-	DROP TABLE #t		  	  
+	END CATCH		  		  	  
 		
 	RETURN;							
 END

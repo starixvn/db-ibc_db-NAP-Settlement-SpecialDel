@@ -1,4 +1,16 @@
-﻿ALTER PROCEDURE [Acc_MailingListSel] 
+USE [bodb_ACC]
+GO
+/****** Object:  StoredProcedure [dbo].[Acc_MailingListSel]    Script Date: 3/27/2017 5:18:40 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/15/2015 5:41:31 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/3/2015 8:47:38 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/3/2015 8:46:04 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 8/21/2015 9:11:20 AM ******/
+/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 8/21/2015 9:10:01 AM ******/
+ALTER PROCEDURE [dbo].[Acc_MailingListSel] 
 	@FuncID int = 287  -- [SpecialDeleteMailing]
 AS 
 /*    
@@ -16,6 +28,9 @@ AS
 		- 20131113@Kathy: Add RecoverBet group [Redmine:#6647]
 		- 20130107@Kathy: Rename 'RecoverBet' group to 'CSD Recovery' [Redmine:#10270]
 		- 20140411@Kathy: Add BetFair, OneExchange's group [Redmine:#6647]
+		- 20150615@Dominic: Add BetTrade's group RM:#36964
+		- 20170327@Kent: Integrate Cash-out [Redmine:#72059]
+		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 */    
 BEGIN 
 
@@ -24,14 +39,14 @@ BEGIN
 	IF EXISTS (SELECT TOP(1) 1 FROM [Acc_MailingList] WITH(NOLOCK) WHERE FuncID = @FuncID AND siteID = 0)
 	BEGIN
 		SELECT siteid, '' site, tolist, cclist, bcclist,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe 
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe 
 		FROM [Acc_MailingList] WITH(NOLOCK)
 		WHERE FuncID = @FuncID AND siteID = 0
 	END
 	ELSE
 	BEGIN
 		SELECT a.siteid, a.site,b.tolist,b.cclist,b.bcclist,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM bodb02.dbo.[site] a WITH(NOLOCK)
 			INNER JOIN [Acc_MailingList] b  WITH(NOLOCK) on a.siteid = b.siteid  
 		WHERE a.islicensee= 1 
@@ -39,7 +54,7 @@ BEGIN
 
 		UNION  --- not union all
 		SELECT a.siteid, a.site,b.tolist,b.cclist,b.bcclist,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM bodb02.dbo.[site] a WITH(NOLOCK)
 		LEFT JOIN ( SELECT *
 					FROM [Acc_MailingList] WITH(NOLOCK)
@@ -49,62 +64,65 @@ BEGIN
 
 		UNION ALL
 		SELECT SiteId, '12EU', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000000
 
 		UNION ALL 
 		SELECT SiteId, 'IT QA', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000001
 
 		UNION ALL 
 		SELECT SiteId, 'IT Support', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000002
 
 		UNION ALL 
 		SELECT SiteId, 'Foobet', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000003
 
 		UNION ALL
 		SELECT SiteId, 'CSD Recovery', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000004
 
 		UNION ALL
 		SELECT SiteId, 'BetFair', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000005
 
 		UNION ALL
 		SELECT SiteId, 'OneExchange', ToList, CcList, BccList,
-			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN 1 ELSE 0 END isavailabe  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
 		FROM Acc_MailingList WITH(NOLOCK)
 		WHERE FuncID = @FuncID 
 		and SiteId = 1000006
+		
+		UNION ALL
+		SELECT SiteId, 'BetTrade', ToList, CcList, BccList,
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
+		FROM Acc_MailingList WITH(NOLOCK)
+		WHERE FuncID = @FuncID 
+		and SiteId = 1000007
+		
+		UNION ALL  
+	    SELECT SiteId, 'Cash Out', ToList, CcList, BccList,  
+			CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe    
+	    FROM Acc_MailingList WITH(NOLOCK)  
+	    WHERE FuncID = @FuncID   
+	    and SiteId = 1000008
 	END    
-END  
-go
-
-/*
-==========Execute sample=================  
-Acc_MailingListSel   
-*/
-  
-GRANT EXECUTE ON [dbo].[Acc_MailingListSel] TO [bodbAdminNet]
-go
-GRANT VIEW DEFINITION ON [dbo].[Acc_MailingListSel] TO [vnteam]
-go
+END
