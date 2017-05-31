@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_3_Basketball
+ALTER PROCEDURE dbo.NAP_Admin_Settlement_3_Basketball
 	@matchId			INT
 	,@Mode				VARCHAR(10) = 'CAL'
 	,@SelectedQuarter	VARCHAR(50)
