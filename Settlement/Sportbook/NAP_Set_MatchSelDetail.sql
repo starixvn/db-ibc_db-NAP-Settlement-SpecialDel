@@ -592,6 +592,7 @@ BEGIN
 		FROM	dbo.bettrans b WITH (NOLOCK)
 		WHERE	b.matchid = @MatchId
 				AND b.bettype IN (604, 605, 606, 607, 613, 617)
+				AND b.statusId NOT IN (101, 102)
 		GROUP BY b.bettype 
 				,CASE 
 					WHEN b.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
@@ -609,6 +610,7 @@ BEGIN
 		FROM	dbo.bettransm bm WITH (NOLOCK)
 		WHERE	bm.matchid = @MatchId		
 				AND bm.bettype IN (604, 605, 606, 607, 613, 617)
+				AND bm.statusId NOT IN (101, 102)
 		GROUP BY bm.bettype
 				,CASE 
 					WHEN bm.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
