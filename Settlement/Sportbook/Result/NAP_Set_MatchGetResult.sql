@@ -18,6 +18,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20170209@Bobby: Add filtering Abandoned status [Redmine: #71284]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 
 	Param explanation:  
 		@sporttype: show info of particular sport
@@ -398,14 +399,26 @@ BEGIN
 			, CASE WHEN @Sporttype = 1 THEN '0'
 				   WHEN @Sporttype = 5 AND LEN(ResourceID) > 2 THEN '0' 
 				   ELSE AwayValue END AS AwayValue 
-			, CASE WHEN @Sporttype = 1 OR (@Sporttype = 5 AND LEN(ResourceID) > 2) THEN  4 
+			, CASE WHEN @Sporttype = 1 
+						OR (@Sporttype = 5 AND LEN(ResourceID) > 2)
+						OR (@Sporttype = 2 AND LEN(ResourceId) = 2 AND SettlementStatusID = 0)
+							THEN 4 
 				   ELSE SettlementStatusID END AS SettlementStatusID
 	FROM	dbo.[ResultDetail] WITH (NOLOCK) 
 	WHERE	(@Sporttype IN (2, 5)
 				OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
 			))
 			AND MatchID IN (SELECT MatchID FROM #matchList)
-			AND ResultStatusID > 0 
+			AND 1 = CASE
+						WHEN @Sporttype = 2 THEN CASE
+													WHEN LEN(ResourceId) = 2 THEN 1
+													WHEN SettlementStatusID > 0 THEN 1
+													WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
+													ELSE 0
+												END
+						ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
+					END								
+			
 	ORDER BY MatchID, ResourceID 
 
 	DROP TABLE #matchList

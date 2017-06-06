@@ -11,8 +11,10 @@ AS
     Original:
 
     Revisions:
-
+			- 20170525@Kathy: Add logic for bettype 617 [Redmine:#77046]
+			
     Param's Explanation:
+	
 
 */
 BEGIN
@@ -152,6 +154,7 @@ BEGIN
 										ELSE -1
 									END
 						WHEN 617 THEN CASE
+										WHEN QXLastBasket = 'N' THEN 0
 										WHEN b.betteam = QXLastBasket THEN 1 
 										ELSE -1
 									END
@@ -325,6 +328,7 @@ BEGIN
 										ELSE -1
 									END
 						WHEN 617 THEN CASE
+										WHEN QXLastBasket = 'N' THEN 0
 										WHEN b.betteam = QXLastBasket THEN 1 
 										ELSE -1
 									END

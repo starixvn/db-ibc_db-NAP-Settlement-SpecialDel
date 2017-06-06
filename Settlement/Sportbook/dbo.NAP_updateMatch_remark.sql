@@ -22,7 +22,8 @@ WITH RECOMPILE
 		- 20140905@Kathy: Update SettlementStatus135 = 4 if the match hasn't any PS ticket [Redmine:#21560]
 		- 20141022@Jamie: Sporting Solution for Tennis [Redmine:#23034]
 		- 20150418@Jamie: Manual Settlement Betradar phase 2 [Redmine: #27212]
-		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]		
+		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]	
+		- 20170525@Kathy: Set calrefund = 1 when refund FT basketball  [Redmine:#77046]
 	Param's Explanation: 
 */
 AS
@@ -73,7 +74,10 @@ BEGIN
 	END
 	
 	-- Match Refund
-	IF @command = 'F' AND (@SelectedSet IS NULL OR @SelectedSet LIKE'%6%')
+	IF @command = 'F' AND ((@SelectedSet IS NULL AND @SelectedQuarter IS NULL)
+							OR @SelectedSet LIKE'%6%'
+							OR @SelectedQuarter LIKE '%FT%'
+						)
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET calculate		= 0
