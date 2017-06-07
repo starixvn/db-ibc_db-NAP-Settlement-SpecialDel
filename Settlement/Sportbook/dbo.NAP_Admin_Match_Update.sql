@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
+CREATE PROCEDURE [dbo].[NAP_Admin_Match_Update]
 (
 	@Command 					VARCHAR(100),
 	@MatchID 					INT,
@@ -45,6 +45,7 @@ AS
 		- 20161118@Bobby: #67551 - Update changes for refunding SDT - Abandoned match
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170606@Bobby: 77720 - Implement BetRadar VS League & Nation
 		
 	Parameters Explanation:    
 	
@@ -521,4 +522,33 @@ BEGIN
 			WHERE matchid	= @MatchID
 		END 
 	END
+	--BEGIN: 77720 - Implement BetRadar VS
+	IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-CAL'
+	BEGIN
+		UPDATE	dbo.match WITH(ROWLOCK, UPDLOCK)
+			SET finalhomescore = @fthome
+				,finalawayscore = @ftaway
+				,hthomescore = @hthome
+				,htawayscore = @htaway
+				,eventstatus = 'Completed'
+				,betstatus = ''
+				,changetime = CURRENT_TIMESTAMP
+				,settletime = CURRENT_TIMESTAMP
+		WHERE	matchid = @matchid
+	END
+	IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+	BEGIN
+		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+			SET eventstatus = 'Completed'
+				,betstatus = 'Refund'
+				,changetime = CURRENT_TIMESTAMP
+				,settletime = CURRENT_TIMESTAMP
+				,finalhomescore=0
+				,finalawayscore=0		
+				,hthomescore = 0
+				,htawayscore = 0
+		WHERE	matchid = @matchid
+	END
+	--END: 77720
 END
+GO
