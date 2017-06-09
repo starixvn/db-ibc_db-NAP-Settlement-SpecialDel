@@ -9,21 +9,22 @@ AS
     Task: 
     DB: DBTXN/bodb02
     Revisions:
-	
-     Columns Explanation:    
-		- @CalType: TINYINT [1:HT,2:FT]
+		- 20160606@Bobby: Initialize
+    
+	Columns Explanation:    
+		- @CalMode: TINYINT [1:HT,2:FT]
     
 */
 
 RETURN (
 	SELECT vs.bettype
 		, vs.SportType
-		, vs.CalType
+		, vs.CalMode
 	FROM (
 		--single bettype VS League
 		SELECT CAST(2701 AS SMALLINT) AS bettype
 			, CAST(190 AS SMALLINT) AS SportType
-			, CAST(2 AS TINYINT) AS CalType -- HT-FT
+			, CAST(2 AS TINYINT) AS CalMode -- HT-FT
 		UNION ALL SELECT 2702, 190, 1
 		UNION ALL SELECT 2703, 190, 2
 		UNION ALL SELECT 2704, 190, 1
@@ -32,7 +33,7 @@ RETURN (
 		UNION ALL SELECT 2707, 190, 2
 		
 		--single bettype VS Nation
-		UNION ALL SELECT 2701, 191, 1
+		UNION ALL SELECT 2701, 191, 2
 		UNION ALL SELECT 2702, 191, 1
 		UNION ALL SELECT 2703, 191, 2
 		UNION ALL SELECT 2704, 191, 1

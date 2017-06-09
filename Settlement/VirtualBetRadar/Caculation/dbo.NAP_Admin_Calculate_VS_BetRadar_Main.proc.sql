@@ -1,0 +1,221 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main] 
+	@Creator 		INT
+	,@SportType		INT
+	,@matchid 		INT
+	,@mode 			VARCHAR(6) = 'CAL'
+	,@CALBettypes 	VARCHAR(MAX)
+	,@ErrCode		INT				= 0		OUTPUT
+	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
+AS
+/*
+	Created: 20160606@Bobby
+	Task :  77720 - Implement BetRadar VS League & Nation
+	DB: DBTXN/BODB02
+	Revisions:
+		- 20160606@Bobby: Initialize
+		
+
+	Param's Explanation:
+	• @Mode:
+		CAL : All single BetTypes (HT-FT)
+*/
+BEGIN
+	SET NOCOUNT ON 
+
+	DECLARE @fth 			INT
+		, @fta 				INT
+		, @hth 				INT
+		, @hta 				INT
+		, @xmlBettype		XML
+		, @IgnoreList 		VARCHAR(200)
+		, @commWinRate 		SMALLMONEY
+		, @commLostRate 	SMALLMONEY
+	
+	DECLARE @tempBettype TABLE (bettype SMALLINT)
+	
+	--SET Ignore DB-Servers
+	SET @IgnoreList = 'DB04,DB042,DB043,DB044'	
+		
+	--CONVERT bettype
+	SET @xmlBettype = CONVERT(XML, @CALBettypes)
+	
+	INSERT INTO @tempBettype (bettype)
+	SELECT T.C.value('./@t', 'SMALLINT') AS bettype
+	FROM @xmlBettype.nodes('/root/r') AS T(C)
+	OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))
+	
+	IF (@@ROWCOUNT = 0) RETURN
+	
+	SELECT TOP(1)
+		@fth 	= FinalHomeScore
+		, @fta 	= FinalAwayScore
+		, @hth 	= HTHomeScore
+		, @hta 	= HTAwayScore
+	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
+	WHERE matchid = @matchid
+	
+	--SELECT tickets for calculating
+	SELECT	transid, actual_stake, stake, odds, comstatus, 
+			betteam, hdp1, hdp2, livehomescore, liveawayscore,
+			apositiontaking, mpositiontaking, spositiontaking, 
+			playerdiscount,discount, adiscount, sdiscount,
+			WinLost, aWinLost, mWinLost, sWinLost, 
+			PlayerComm, comm, acomm, scomm,
+			StatusID, ods.modds
+	INTO #TempData				
+	FROM dbo.bettrans b WITH(ROWLOCK)
+		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
+			ON b.bettype = f.bettype
+		OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
+			b.bettype 			
+			, b.betteam 			
+			, b.hdp1 			
+			, b.hdp2 			
+			, b.livehomescore	
+			, b.liveawayscore	
+			, @fth				
+			, @fta				
+			, @hth				
+			, @hta
+			, f.CalMode
+		) AS ods
+	WHERE b.matchid 	= @matchid 
+		AND f.sporttype = @sporttype
+		AND b.statusID NOT IN (101,102) --void/reject
+
+	IF @@ROWCOUNT = 0 RETURN		
+	
+	UPDATE #TempData
+	SET 
+		@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+			WHEN '0' THEN 1
+			WHEN '1' THEN 0 
+			ELSE 1 END,
+		@commLostRate = CASE comstatus
+			WHEN '0' THEN 1
+			WHEN '1' THEN 2 
+			ELSE 1 END, 
+		
+		WinLost = CASE
+				WHEN modds >  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else odds end)
+				WHEN modds =  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else odds end) * 0.5
+				WHEN modds =  0	THEN actual_stake
+				WHEN modds = -0.25	THEN actual_stake * 0.5
+				WHEN modds < -0.25	THEN 0
+			END,
+
+		aWinLost = CASE
+				WHEN modds >  0.25	THEN stake * (case when odds<0 then 1 else odds end) * -apositiontaking
+				WHEN modds =  0.25	THEN stake * (case when odds<0 then 1 else odds end) * -apositiontaking * 0.5
+				WHEN modds =  0	THEN 0
+				WHEN modds = -0.25	THEN actual_stake * apositiontaking * 0.5
+				WHEN modds < -0.25	THEN actual_stake * apositiontaking
+			END,
+		mWinLost = CASE
+				WHEN modds >  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -mpositiontaking
+				WHEN modds =  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -mpositiontaking * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
+				WHEN modds < -0.25 THEN actual_stake * mpositiontaking
+			END,
+		sWinLost = CASE
+				WHEN modds >  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -spositiontaking
+				WHEN modds =  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -spositiontaking * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN actual_stake * spositiontaking * 0.5
+				WHEN modds < -0.25 THEN actual_stake * spositiontaking
+			END,
+
+		PlayerComm = CASE
+				WHEN modds >  0.25 THEN @commWinRate * playerdiscount * stake
+				WHEN modds =  0.25 THEN @commWinRate * playerdiscount * stake * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN @commLostRate * playerdiscount * stake * 0.5
+				WHEN modds < -0.25 THEN @commLostRate * playerdiscount * stake
+			END,
+		Comm = CASE
+				WHEN modds >  0.25 THEN @commWinRate * discount * stake * (1-apositiontaking)
+				WHEN modds =  0.25 THEN @commWinRate * discount * stake * (1-apositiontaking) * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking) * 0.5
+				WHEN modds < -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking)
+			END,
+		aComm = CASE
+				WHEN modds >  0.25 THEN @commWinRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
+				WHEN modds =  0.25 THEN @commWinRate * adiscount * stake * (1-(mpositiontaking+apositiontaking)) * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking)) * 0.5
+				WHEN modds < -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
+			END,
+		sComm = CASE
+				WHEN modds >  0.25 THEN @commWinRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+				WHEN modds =  0.25 THEN @commWinRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * 0.5
+				WHEN modds =  0    THEN 0
+				WHEN modds = -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * 0.5
+				WHEN modds < -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+			END,
+		StatusID = CASE
+			WHEN modds > 0 THEN 112 --WON
+			WHEN modds = 0 THEN 111 --DRAW
+			WHEN modds < 0 THEN 113 --LOSE
+		END	
+
+	--UPDATE tickets by batch
+	DECLARE @_xml 		XML
+		, @_sXML 		VARCHAR(MAX)
+	DECLARE @subtable 	TABLE (
+		transid 		BIGINT
+		, winlost 		MONEY
+		, awinlost 		MONEY
+		, mwinlost 		MONEY
+		, swinlost 		MONEY
+		, playercomm 	MONEY
+		, comm 			MONEY
+		, acomm 		MONEY
+		, scomm 		MONEY
+		, statusid 		TINYINT
+		, modds 		MONEY
+	)
+
+		
+	WHILE (1 = 1)
+	BEGIN
+		DELETE @subtable
+		
+		DELETE TOP (1000) #TempData
+		OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	
+			deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm, deleted.statusid, deleted.modds	
+		INTO @subtable(transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds)	
+		
+		IF @@ROWCOUNT = 0 BREAK
+		
+		SET @_xml = (
+			SELECT 
+				transid '@q'
+				,NULLIF(winlost,0) '@a'
+				,NULLIF(awinlost,0) '@z'
+				,NULLIF(mwinlost,0) '@w'				
+				,NULLIF(swinlost,0) '@s'
+				,NULLIF(playercomm,0) '@x'
+				,NULLIF(comm,0) '@e'
+				,NULLIF(acomm,0) '@d'
+				,NULLIF(scomm,0) '@c'	
+				,statusid '@r'	
+				,NULLIF(modds,0) '@f'
+			FROM @subtable
+			FOR XML PATH('r'), ROOT('root'), TYPE
+		) 
+		SELECT @_sXML = CONVERT(varchar(max), @_xml)
+		
+		EXEC dbo.Bet_ExecRep_05 
+			@IgnoreList		= @IgnoreList
+			,@updatetype	= 1
+			,@_sXML			= @_sXML
+			 					
+	END
+	RETURN
+	
+	
+END
+GO
