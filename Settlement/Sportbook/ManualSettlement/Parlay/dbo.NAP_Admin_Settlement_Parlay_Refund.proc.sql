@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Refund] (
 	@MatchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -23,6 +17,7 @@ AS
 
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 
 	Param's Explanation:		
 		- @Mode: ['REFUND', 'REFUND-HT','REFUND-FT']
@@ -31,24 +26,45 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @tempRefundBatch TABLE (refno BIGINT, betcount INT)
-	CREATE TABLE #refundBettypes (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, GroupName NVARCHAR(50))
+	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20))
+	CREATE TABLE #refundBettypes (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, GroupName NVARCHAR(50), isEarly BIT)
 	
-	DECLARE @SelectedQuarterREFUND VARCHAR(50) = NULL
+	DECLARE @basketball_ResourceIdsREFUND VARCHAR(MAX) = NULL
 			,@xmlbb XML
 	
 	IF @resultDetail_bb IS NOT NULL
 	BEGIN
 		SET @xmlbb = CONVERT(XML, @resultDetail_bb)    
 		
-		SELECT	TOP(1) 
-				@SelectedQuarterREFUND = ISNULL(T.C.value('./@SelectedQuarterREFUND[1]', 'varchar(50)'), '')
-		FROM	@xmlbb.nodes('/root/r') as [T](C) --T: table, C: column    
-		OPTION	( OPTIMIZE FOR ( @xmlbb = NULL ) )  
+		;WITH cteResultDetail
+		AS(
+			SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId				
+					,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
+			FROM	@xmlbb.nodes('/root/r') AS T(c)
+		)
+		INSERT INTO @tmpResultDetail(ResourceId)
+		SELECT	ResourceId
+		FROM	cteResultDetail r
+		WHERE	SettlementStatusId = 1
+		OPTION ( OPTIMIZE FOR ( @xmlbb = NULL ) )
+		
+		SELECT @basketball_ResourceIdsREFUND = COALESCE(@basketball_ResourceIdsREFUND + ',' + r.ResourceId , r.ResourceId)	 
+				FROM	@tmpResultDetail t
+					CROSS APPLY (
+						SELECT CASE
+									WHEN t.ResourceId = '00' THEN 'FT'
+									WHEN t.ResourceId = '01' THEN '1H'
+									WHEN t.ResourceId = '02' THEN '2H'
+									ELSE t.ResourceId
+								END AS ResourceId
+					) r					
 	END
 	
-	INSERT INTO #refundBettypes (bettype, groupId, GroupName)
-	SELECT f.BetType, f.GroupId, f.GroupName
+	INSERT INTO #refundBettypes (bettype, groupId, GroupName, isEarly)
+	SELECT f.BetType, f.GroupId, f.GroupName, CASE WHEN e.bettype IS NOT NULL THEN 1 ELSE 0 END AS isEarly
 	FROM dbo.f_Set_GetGroupBettypes() f
+		LEFT JOIN dbo.f_Set_GetEarlyBettypes() e
+			ON f.BetType = e.bettype
 	WHERE 1 = CASE 
 				WHEN @Mode = 'REFUND' THEN 1
 				WHEN @Mode = 'REFUND-HT' THEN
@@ -69,7 +85,7 @@ BEGIN
 					END
 				ELSE 0 
 			END
-		AND f.IsAuto = 0 -- Exclude BetRadar, FM
+		AND f.GroupId NOT IN (8,9) -- Exclude BetRadar, FM
 	
 	DECLARE @fromTransId	INT
 		,@batchNo			INT
@@ -81,20 +97,42 @@ BEGIN
 		, @fromTransId		= 0
 		, @ticketCount		= 0
 	
-	DECLARE @tempRefno TABLE (refno BIGINT)
+	DECLARE @tempRefno TABLE (refno BIGINT, QuarterX VARCHAR(20))
 	
-	INSERT INTO @tempRefno (refno)
-	SELECT bm.refno
+	INSERT INTO @tempRefno (refno, QuarterX)
+	SELECT bm.refno, res.QuarterX
 	FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN #refundBettypes t ON bm.bettype = t.bettype
-	
+		CROSS APPLY (
+				SELECT CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)), '') AS ResourceId
+		) r
+		CROSS APPLY (
+			SELECT CASE 
+						WHEN t.groupId = 10 
+							THEN CASE 
+									WHEN bm.betcheck = '801' THEN 'Q1'
+									WHEN bm.betcheck = '802' THEN 'Q2'
+									WHEN bm.betcheck = '803' THEN 'Q3'
+									WHEN bm.betcheck = '804' THEN 'Q4'
+									ELSE ''
+								END
+						ELSE ''
+					END AS QuarterX
+		) res
 	WHERE bm.matchid 	= @matchid
 		AND bm.statusID NOT IN (101,102)
 		AND 1 = CASE
-					WHEN @SelectedQuarterREFUND IS NULL THEN 1
-					WHEN @SelectedQuarterREFUND LIKE '%' + t.GroupName + '%' THEN 1
-					WHEN t.groupId = 10 AND @SelectedQuarterREFUND LIKE '%' + LEFT(bm.betcheck,3) + '%' THEN 1
-					ELSE 0
+					WHEN @resultDetail_bb IS NULL THEN 1
+					WHEN t.isEarly = 1 THEN CASE
+												WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
+												ELSE 0
+											END
+					WHEN t.groupId = 10 THEN CASE
+												WHEN CHARINDEX(',' + res.QuarterX + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
+												ELSE 0
+											END
+					WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
+					ELSE 0 
 				END
 
 	--GROUP BY bm.refno
@@ -145,3 +183,4 @@ BEGIN
 	DROP TABLE #refundBettypes
 	RETURN
 END
+GO

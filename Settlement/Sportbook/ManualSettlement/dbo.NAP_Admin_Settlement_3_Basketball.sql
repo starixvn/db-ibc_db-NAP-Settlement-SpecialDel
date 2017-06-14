@@ -10,6 +10,7 @@ AS
     DB: DBTXN/bodb02
 
     Revisions:
+		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
        
     Param's Explanation:
     • @Mode: CAL
@@ -31,20 +32,38 @@ BEGIN
 			
 			,@xmlResultDetail		VARCHAR(MAX)
 			,@xml					XML
-			,@strBettypes VARCHAR(MAX)
+			,@strBettypes			VARCHAR(MAX)
+			,@strResourceIds		VARCHAR(MAX) = ''
 			
+	DECLARE @tmpResult TABLE(ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	
 	EXEC dbo.Nap_Admin_Settlement_2 @mode = 'basketball'
 		,@matchid = @matchid
 		,@str_resultDetail = @xmlResultDetail OUTPUT
 		
 	SET @xml = CONVERT(XML, @xmlResultDetail)
 	
-	SELECT	@fth = ISNULL(T.C.value('./@FTHome[1]', 'INT'), 0)
-			,@fta = ISNULL(T.C.value('./@FTAway[1]', 'INT'), 0)
-			,@hth = ISNULL(T.C.value('./@HTHome[1]', 'INT'), 0)
-			,@hta = ISNULL(T.C.value('./@HTAway[1]', 'INT'), 0)
-	FROM	@xml.nodes('/root/r') AS T(c) -- Table/Column
-	OPTION ( OPTIMIZE FOR ( @xml = NULL ) ) 
+	;WITH cteResult
+	AS(
+		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+		FROM	@xml.nodes('/root/r') AS T(c)
+	)
+	INSERT INTO @tmpResult(ResourceId, HomeValue, AwayValue)
+	SELECT	ResourceId, HomeValue, AwayValue
+	FROM	cteResult r
+	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
+	
+	SELECT	@fth = HomeValue
+			,@fta = AwayValue
+	FROM	@tmpResult
+	WHERE	ResourceId = '00'
+	
+	SELECT	@hth = HomeValue
+			,@hta = AwayValue
+	FROM	@tmpResult
+	WHERE	ResourceId = '01'
 	
 	SELECT @totalgoal	=  @fth + @fta
 		,@totalht		= @hth + @hta
@@ -53,22 +72,43 @@ BEGIN
 		,@oddeven		= (@fth + @fta) % 2
 		,@oddevenht		= (@hth + @hta) % 2
 		
-	DECLARE @tblBettypes TABLE (bettype SMALLINT)
+	DECLARE @tmpBettypes TABLE (bettype SMALLINT, ResourceIds VARCHAR(MAX))
 
-	INSERT INTO @tblBettypes (BetType)	
-	SELECT	b.bettype
-	FROM	dbo.bettrans b WITH(NOLOCK)
-	WHERE	b.matchid = @matchid
-	GROUP BY b.bettype
+	;WITH cteBettypeResourceIds
+	AS(
+		SELECT	b.bettype, r.ResourceId		
+		FROM	dbo.bettrans b WITH(NOLOCK)
+			CROSS APPLY (
+				SELECT CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId
+			) r
+		WHERE	b.matchid = @matchid
+		GROUP BY b.bettype, r.ResourceId
+	)
+	,cteBettypes
+	AS
+	(
+		SELECT c.bettype, t.ResourceId
+		FROM cteBettypeResourceIds c
+			LEFT JOIN @tmpResult t
+				ON c.ResourceId = t.ResourceId
+	)
+	INSERT INTO @tmpBettypes (BetType, ResourceIds)	
+	SELECT	c.bettype, STUFF((SELECT ',' + CAST(ResourceId AS VARCHAR) FROM cteBettypes WHERE bettype = c.bettype FOR XML PATH('')),1,1,'') AS ResourceIds
+	FROM	cteBettypes c
+	GROUP BY c.bettype
 	
-
-	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(b.bettype AS VARCHAR(10)), CAST(b.bettype AS VARCHAR(10))) 
-	FROM	dbo.f_Set_GetGroupBettypes() c
-		INNER JOIN @tblBettypes b
-			ON b.bettype = c.bettype
-	WHERE	(GroupId = 10 AND @SelectedQuarter LIKE '%80[1-4]%')
-			OR @SelectedQuarter LIKE '%' + GroupName + '%' -- 1H, 2H, FT	
-				
+	SELECT	@strBettypes = COALESCE(@strBettypes + ',' + CAST(b.bettype AS VARCHAR(10)), CAST(b.bettype AS VARCHAR(10))) 
+			,@strResourceIds = REPLACE(COALESCE(@strResourceIds + ',' + ISNULL(b.ResourceIds,''), ISNULL(b.ResourceIds,'')) ,',,',',')
+	FROM	dbo.f_Set_GetGroupBettypes() f
+		INNER JOIN @tmpBettypes b
+			ON b.bettype = f.bettype
+	WHERE	f.IsAuto = 0
+			AND 1 = CASE 
+						WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, FT	
+						WHEN GroupId = 10 AND @SelectedQuarter LIKE '%80[1-4]%' THEN 1
+						ELSE 0
+					END
+	
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
         ,@mode = @mode
         ,@fth = @fth
@@ -84,7 +124,7 @@ BEGIN
         ,@scorediff = @FTScoreDiff
         ,@scorediff_ht = @HTScoreDiff
 		,@xmlData = @xmlResultDetail		
-		,@SelectedQuarter = @SelectedQuarter
+		,@ResourceIds = @strResourceIds
 		,@sporttype = 2
 		,@CalledByBrokerService = 0 
 		,@strBettypes = @strBettypes

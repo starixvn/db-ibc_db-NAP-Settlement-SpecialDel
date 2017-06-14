@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -34,7 +28,7 @@ AS
 	ORIGINAL: 
 
 	Revisions:		
-		
+			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -102,16 +96,8 @@ BEGIN
         ,@FirstGoalMethod			VARCHAR(2) = NULL
         ,@ResourceIDsCAL        VARCHAR(MAX)= NULL
         ,@ResourceIDsREFUND        VARCHAR(MAX)= NULL
-		,@SelectedQuarterCAL		VARCHAR(50) = NULL
+        
 		,@FTHighestQuarter	VARCHAR(10) = NULL
-		,@FTFirstBasket		VARCHAR(10) = NULL
-		,@FTLastBasket		VARCHAR(10) = NULL
-		,@HTRaceTo20		VARCHAR(10) = NULL
-		,@HTRaceTo25		VARCHAR(10) = NULL
-		,@HTRaceTo30		VARCHAR(10) = NULL
-		,@SecondRaceTo20		VARCHAR(10) = NULL
-		,@SecondRaceTo25		VARCHAR(10) = NULL
-		,@SecondRaceTo30		VARCHAR(10) = NULL
 		,@Q1Home				INT = NULL
 		,@Q2Home				INT = NULL
 		,@Q3Home				INT = NULL
@@ -120,24 +106,10 @@ BEGIN
 		,@Q2Away				INT = NULL
 		,@Q3Away				INT = NULL
 		,@Q4Away				INT = NULL
-		,@Q1RaceTo10			VARCHAR(10) = NULL
-		,@Q1RaceTo15			VARCHAR(10) = NULL
-		,@Q1RaceTo20			VARCHAR(10) = NULL
-		,@Q2RaceTo10			VARCHAR(10) = NULL
-		,@Q2RaceTo15			VARCHAR(10) = NULL
-		,@Q2RaceTo20			VARCHAR(10) = NULL
-		,@Q3RaceTo10			VARCHAR(10) = NULL
-		,@Q3RaceTo15			VARCHAR(10) = NULL
-		,@Q3RaceTo20			VARCHAR(10) = NULL
-		,@Q4RaceTo10			VARCHAR(10) = NULL
-		,@Q4RaceTo15			VARCHAR(10) = NULL
-		,@Q4RaceTo20			VARCHAR(10) = NULL
-		,@Q1LastBasket			VARCHAR(10) = NULL
-		,@Q2LastBasket			VARCHAR(10) = NULL
-		,@Q3LastBasket			VARCHAR(10) = NULL
-		,@Q4LastBasket			VARCHAR(10) = NULL
+		,@basketball_ResourceIdsCAL VARCHAR(MAX)
 
-	CREATE TABLE #bettypeCAL (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, groupName NVARCHAR(50))
+	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	CREATE TABLE #bettypeCAL (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, groupName NVARCHAR(50), isEarly BIT)
 	
 	SELECT @FGLG1 				= ''
 			, @FGLG2 			= ''
@@ -218,8 +190,9 @@ BEGIN
 		END
 	END
 
-	INSERT INTO #bettypeCAL (bettype, groupId, groupName)
+	INSERT INTO #bettypeCAL (bettype, groupId, groupName, isEarly)
 	SELECT f.bettype, f.GroupId, f.GroupName
+			,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
 	FROM	dbo.[f_Set_GetGroupBettypes]() AS f
 	WHERE	1 = CASE 
 					WHEN @Mode IN ('REFUND-HT') THEN 
@@ -235,7 +208,7 @@ BEGIN
 					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype = 2) THEN 1
 					ELSE 0
 				END
-			AND f.IsAuto = 0 --Exclude BetRadar, FM
+			AND f.GroupId NOT IN (8,9) --Exclude BetRadar, FM
 	
 	IF @Sporttype = 1 AND @resultDetail_cb IS NOT NULL -- corners bets 
 	BEGIN
@@ -290,49 +263,58 @@ BEGIN
 	
 		SET @xmlbb = CONVERT(XML, @resultDetail_bb)    
 		
-		SELECT	TOP(1) @SelectedQuarterCAL = ISNULL(T.C.value('./@SelectedQuarterCAL[1]', 'varchar(50)'), '')
-				--,@FTHighestQuarter = ISNULL(T.C.value('./@FTHighestQuarter[1]', 'varchar(10)'), '')
-				,@FTFirstBasket = ISNULL(T.C.value('./@FTFirstBasket[1]', 'varchar(10)'), '')
-				,@FTLastBasket = ISNULL(T.C.value('./@FTLastBasket[1]', 'varchar(10)'), '')
-				,@HTRaceTo20 = ISNULL(T.C.value('./@HTRaceTo20[1]', 'varchar(10)'), '')
-				,@HTRaceTo25 = ISNULL(T.C.value('./@HTRaceTo25[1]', 'varchar(10)'), '')
-				,@HTRaceTo30 = ISNULL(T.C.value('./@HTRaceTo30[1]', 'varchar(10)'), '')
-				,@SecondRaceTo20 = ISNULL(T.C.value('./@SecondRaceTo20[1]', 'varchar(10)'), '')
-				,@SecondRaceTo25 = ISNULL(T.C.value('./@SecondRaceTo25[1]', 'varchar(10)'), '')
-				,@SecondRaceTo30 = ISNULL(T.C.value('./@SecondRaceTo30[1]', 'varchar(10)'), '')
-				,@Q1Home = ISNULL(T.C.value('./@Q1Home[1]', 'INT'), '')
-				,@Q2Home = ISNULL(T.C.value('./@Q2Home[1]', 'INT'), '')
-				,@Q3Home = ISNULL(T.C.value('./@Q3Home[1]', 'INT'), '')
-				,@Q4Home = ISNULL(T.C.value('./@Q4Home[1]', 'INT'), '')
-				,@Q1Away = ISNULL(T.C.value('./@Q1Away[1]', 'INT'), '')
-				,@Q2Away = ISNULL(T.C.value('./@Q2Away[1]', 'INT'), '')
-				,@Q3Away = ISNULL(T.C.value('./@Q3Away[1]', 'INT'), '')
-				,@Q4Away = ISNULL(T.C.value('./@Q4Away[1]', 'INT'), '')
-				,@Q1RaceTo10 = ISNULL(T.C.value('./@Q1RaceTo10[1]', 'varchar(10)'), '')
-				,@Q1RaceTo15 = ISNULL(T.C.value('./@Q1RaceTo15[1]', 'varchar(10)'), '')
-				,@Q1RaceTo20 = ISNULL(T.C.value('./@Q1RaceTo20[1]', 'varchar(10)'), '')
-				,@Q2RaceTo10 = ISNULL(T.C.value('./@Q2RaceTo10[1]', 'varchar(10)'), '')
-				,@Q2RaceTo15 = ISNULL(T.C.value('./@Q2RaceTo15[1]', 'varchar(10)'), '')
-				,@Q2RaceTo20 = ISNULL(T.C.value('./@Q2RaceTo20[1]', 'varchar(10)'), '')
-				,@Q3RaceTo10 = ISNULL(T.C.value('./@Q3RaceTo10[1]', 'varchar(10)'), '')
-				,@Q3RaceTo15 = ISNULL(T.C.value('./@Q3RaceTo15[1]', 'varchar(10)'), '')
-				,@Q3RaceTo20 = ISNULL(T.C.value('./@Q3RaceTo20[1]', 'varchar(10)'), '')
-				,@Q4RaceTo10 = ISNULL(T.C.value('./@Q4RaceTo10[1]', 'varchar(10)'), '')
-				,@Q4RaceTo15 = ISNULL(T.C.value('./@Q4RaceTo15[1]', 'varchar(10)'), '')
-				,@Q4RaceTo20 = ISNULL(T.C.value('./@Q4RaceTo20[1]', 'varchar(10)'), '')
-				,@Q1LastBasket = ISNULL(T.C.value('./@Q1LastBasket[1]', 'varchar(10)'), '')
-				,@Q2LastBasket = ISNULL(T.C.value('./@Q2LastBasket[1]', 'varchar(10)'), '')
-				,@Q3LastBasket = ISNULL(T.C.value('./@Q3LastBasket[1]', 'varchar(10)'), '')
-				,@Q4LastBasket = ISNULL(T.C.value('./@Q4LastBasket[1]', 'varchar(10)'), '')
-        FROM	@xmlbb.nodes('/root/r') as [T](C) --T: table, C: column
-        OPTION	( OPTIMIZE FOR ( @xmlbb = NULL ) )
+		;WITH cteResultDetail
+		AS(
+			SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+					,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+					,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+					,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
+			FROM	@xmlbb.nodes('/root/r') AS T(c)
+		)
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue)
+		SELECT	ResourceId, HomeValue, AwayValue
+		FROM	cteResultDetail r
+		WHERE	SettlementStatusId = 4
+		OPTION ( OPTIMIZE FOR ( @xmlbb = NULL ) )
 		
-		SELECT	@FTHighestQuarter = CASE 
-							WHEN MAX(t.scoreH) > MAX(t.scoreA) THEN 'H'
-							WHEN MAX(t.scoreH) < MAX(t.scoreA) THEN 'A'
-							ELSE ''
-						END	
-		FROM	(VALUES(@Q1Home,@Q1Away),(@Q2Home,@Q2Away),(@Q3Home,@Q3Away),(@Q4Home,@Q4Away)) AS t(scoreH,scoreA)
+		SELECT	@FTHighestQuarter = CASE
+											WHEN MAX(HomeValue) > MAX(AwayValue) THEN 'H'
+											WHEN MAX(HomeValue) < MAX(AwayValue) THEN 'A'
+											ELSE 'N'
+										END
+		FROM	@tmpResultDetail
+		WHERE	ResourceId LIKE 'Q[1-4]'
+		
+		SELECT	@Q1Home = HomeValue
+				,@Q1Away = AwayValue
+		FROM	@tmpResultDetail
+		WHERE	ResourceId = 'Q1'
+		
+		SELECT	@Q2Home = HomeValue
+				,@Q2Away = AwayValue
+		FROM	@tmpResultDetail
+		WHERE	ResourceId = 'Q2'
+		
+		SELECT	@Q3Home = HomeValue
+				,@Q3Away = AwayValue
+		FROM	@tmpResultDetail
+		WHERE	ResourceId = 'Q3'
+		
+		SELECT	@Q4Home = HomeValue
+				,@Q4Away = AwayValue
+		FROM	@tmpResultDetail
+		WHERE	ResourceId = 'Q4'
+		
+		SELECT @basketball_ResourceIdsCAL = COALESCE(@basketball_ResourceIdsCAL + ',' + r.ResourceId , r.ResourceId)	 
+				FROM	@tmpResultDetail t
+					CROSS APPLY (
+						SELECT CASE
+									WHEN t.ResourceId = '00' THEN 'FT'
+									WHEN t.ResourceId = '01' THEN '1H'
+									WHEN t.ResourceId = '02' THEN '2H'
+									ELSE t.ResourceId
+								END AS ResourceId
+					) r
 	END
 	
 	--Start process
@@ -342,22 +324,61 @@ BEGIN
 		,@batchCount		INT
 		,@strTicket			VARCHAR(MAX)
 	
-	DECLARE @tempRefno TABLE (refno BIGINT)
-	DECLARE @tempBatch TABLE (refno BIGINT)
+	DECLARE @tempRefno TABLE (refno BIGINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), QXHome INT, QXAway INT, QuarterX VARCHAR(20))
+	DECLARE @tempBatch TABLE (refno BIGINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), QXHome INT, QXAway INT, QuarterX VARCHAR(20))
 
-	INSERT INTO @tempRefno (refno)
-	SELECT bm.refno
+	INSERT INTO @tempRefno (refno, ResourceId, HomeValue, QXHome, QXAway, QuarterX)
+	SELECT bm.refno, r.ResourceId, rd.HomeValue, res.QXHome, res.QXAway, res.QuarterX
 	FROM dbo.bettransm bm WITH(NOLOCK)
 		INNER JOIN #bettypeCAL t ON bm.bettype = t.bettype
-
+		CROSS APPLY (
+			SELECT CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)), '') AS ResourceId
+		) r
+		CROSS APPLY ( -- basketball
+			SELECT 
+				CASE
+						WHEN bm.betcheck = '801' THEN @Q1Home
+						WHEN bm.betcheck = '802' THEN @Q2Home
+						WHEN bm.betcheck = '803' THEN @Q3Home
+						WHEN bm.betcheck = '804' THEN @Q4Home
+						ELSE 0
+					END AS QXHome
+					,CASE
+						WHEN bm.betcheck = '801' THEN @Q1Away
+						WHEN bm.betcheck = '802' THEN @Q2Away
+						WHEN bm.betcheck = '803' THEN @Q3Away
+						WHEN bm.betcheck = '804' THEN @Q4Away
+						ELSE 0
+					END AS QXAway
+					,CASE 
+						WHEN t.groupId = 10 
+							THEN CASE 
+									WHEN bm.betcheck = '801' THEN 'Q1'
+									WHEN bm.betcheck = '802' THEN 'Q2'
+									WHEN bm.betcheck = '803' THEN 'Q3'
+									WHEN bm.betcheck = '804' THEN 'Q4'
+									ELSE ''
+								END
+						ELSE ''
+					END AS QuarterX
+		) res
+		LEFT JOIN @tmpResultDetail rd
+			ON r.ResourceId = rd.ResourceId
 	WHERE bm.matchid 	= @matchid
 		AND bm.statusID NOT IN (101,102)
 		AND 1 = CASE
-					WHEN @SelectedQuarterCAL IS NULL THEN 1
-					WHEN @SelectedQuarterCAL LIKE '%' + t.GroupName + '%' THEN 1
-					WHEN t.groupId = 10 AND @SelectedQuarterCAL LIKE '%' + LEFT(bm.betcheck,3) + '%' THEN 1
+					WHEN @resultDetail_bb IS NULL THEN 1
+					WHEN t.isEarly = 1 THEN CASE
+												WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
+												ELSE 0
+												END
+					WHEN t.groupId = 10 THEN CASE
+												WHEN CHARINDEX(',' + res.QuarterX + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
+												ELSE 0
+											END
+					WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
 					ELSE 0
-				END
+					END		
 	
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0
@@ -369,7 +390,8 @@ BEGIN
 		DELETE @tempBatch
 		
 		DELETE TOP(@batchNo) t
-		OUTPUT deleted.refno INTO @tempBatch(refno)
+		OUTPUT deleted.refno, DELETED.resourceId, DELETED.homevalue, DELETED.QXHome, DELETED.QXAway, DELETED.QuarterX
+		INTO @tempBatch(refno, ResourceId, HomeValue, QXHome, QXAway, QuarterX)
 		FROM @tempRefno t	
 
 		SELECT @batchCount 	= @@ROWCOUNT
@@ -460,39 +482,9 @@ BEGIN
 						, @home_firstteam3goals
 						, @away_firstteam3goals
 						, @FTHighestQuarter	
-						, @FTFirstBasket	
-						, @FTLastBasket		
-						, @HTRaceTo20		
-						, @HTRaceTo25		
-						, @HTRaceTo30		
-						, @SecondRaceTo20	
-						, @SecondRaceTo25	
-						, @SecondRaceTo30	
-						, @Q1Home			
-						, @Q2Home			
-						, @Q3Home			
-						, @Q4Home			
-						, @Q1Away			
-						, @Q2Away			
-						, @Q3Away			
-						, @Q4Away			
-						, @Q1RaceTo10		
-						, @Q1RaceTo15		
-						, @Q1RaceTo20		
-						, @Q2RaceTo10		
-						, @Q2RaceTo15		
-						, @Q2RaceTo20		
-						, @Q3RaceTo10		
-						, @Q3RaceTo15		
-						, @Q3RaceTo20		
-						, @Q4RaceTo10		
-						, @Q4RaceTo15		
-						, @Q4RaceTo20		
-						, @Q1LastBasket		
-						, @Q2LastBasket		
-						, @Q3LastBasket		
-						, @Q4LastBasket		
-						
+						, ref.HomeValue
+						, ref.QXHome					
+						, ref.QXAway
 					) AS odds
 				WHERE b.matchId = @matchId
 			) AS b FOR XML AUTO
