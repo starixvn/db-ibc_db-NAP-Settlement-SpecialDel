@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Bet_ExecRep_05] 
 	@IgnoreList 	VARCHAR(200)
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4, 5
@@ -14,7 +15,7 @@ AS
 		- 20130131@Dan:		add virtual racing
 		- 20131208@Viet:	add refund NG
 		- 20140910@Kathy:	Include range of NG bettypes ( 81-> 120)
-		- 20170614@Bobby: 77721 - Implement parlay bettype for BetRadar VS
+		- 20170614@Bobby: 77721 - Implement VS BetRadar
 		
 	Param: 
 		+ @updatetype: 
@@ -47,6 +48,7 @@ BEGIN
 				,ISNULL(T.C.value('./@c', 'money'), 0) as scomm
 				,T.C.value('./@r', 'tinyint') as StatusID
 				,ISNULL(T.C.value('./@f', 'money'), 0) as modds
+				,T.C.value('./@wd', 'DATE') as winlostdate
 			FROM @_xml.nodes('/root/r') as [T](C) --T: table, C: column
 		)	
 		UPDATE dbo.bettrans WITH(ROWLOCK, UPDLOCK)
@@ -69,7 +71,8 @@ BEGIN
 				END 			
 			,ruben = CASE 
 				WHEN s.statusid IN (111,112,113,103) THEN 1
-				ELSE 0 END			
+				ELSE 0 END
+			,winlostdate = ISNULL(s.winlostdate, bettrans.winlostdate)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 	END		

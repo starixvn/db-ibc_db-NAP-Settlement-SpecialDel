@@ -47,6 +47,7 @@ BEGIN
 		, CASE 
 				WHEN ods.modds > 0.25 THEN 2 -- WON
 				WHEN ods.modds = 0.25 THEN 1 -- Half WON
+				WHEN ods.modds = 0 THEN 0 -- DRAW
 				WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
 				WHEN ods.modds < -0.25 THEN 4 -- LOSE
 				ELSE bm.statuswinlost

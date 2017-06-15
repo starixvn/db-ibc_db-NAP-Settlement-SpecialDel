@@ -41,8 +41,6 @@ BEGIN
 	--balance tables
 	DECLARE @beforeUpd			TVP_BalanceChange
 			,@afterUpd			TVP_BalanceChange
-
-	CREATE TABLE #tempBalance_2799 (custid int PRIMARY KEY, balance money, Increased bit)
 	
 	SELECT @parlayBettype 		= 2799 
 		, @ErrCode				= 0
@@ -153,15 +151,7 @@ BEGIN
 				AND b.bettype = @parlayBettype
 				AND EXISTS (SELECT 1 FROM @tempRefno WHERE refno = b.refno)
 		GROUP BY b.custid	
-		
-		-- compare balance
-		INSERT INTO #tempBalance_2799
-		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-		FROM @afterUpd b
-			INNER JOIN @afterUpd a 
-			ON b.custid = a.custid
-		WHERE b.balance <> a.balance
-		
+				
 		----
 		-- Add Negative Balance into BalanceNegative table 
 		----
@@ -177,14 +167,16 @@ BEGIN
 			)
 		SELECT GETDATE()
 			,@MatchID
-			,@ActionID --Task_Calculate_Parlay
+			,@ActionID
 			,4 -- VS BetRadar Parlay Settlement 
-			,CustID
-			,Balance
+			,b.CustID
+			,, a.balance - b.balance AS Balance
 			,0
 			,NULL
-		FROM #tempBalance_2799 WITH (NOLOCK)
-		WHERE Increased = 0		
+		FROM @beforeUpd b
+			INNER JOIN @afterUpd a 
+			ON b.custid = a.custid
+		WHERE a.balance < b.balance
 		
 		RETURN
 	END
@@ -224,14 +216,6 @@ BEGIN
 			,@AfterUpd 	= @afterUpd
 	END
 	
-	-- compare balance
-	INSERT INTO #tempBalance_2799
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM @afterUpd b
-		INNER JOIN @afterUpd a 
-		ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-	
 	----
 	-- Add Negative Balance into BalanceNegative table 
 	----
@@ -247,14 +231,16 @@ BEGIN
 		)
 	SELECT GETDATE()
 		,@MatchID
-		,@ActionID --Task_Calculate_Parlay
+		,@ActionID
 		,4 -- VS BetRadar Parlay Settlement 
-		,CustID
-		,Balance
+		,b.CustID
+		,, a.balance - b.balance AS Balance
 		,0
 		,NULL
-	FROM #tempBalance_2799 WITH (NOLOCK)
-	WHERE Increased = 0		
+	FROM @beforeUpd b
+		INNER JOIN @afterUpd a 
+		ON b.custid = a.custid
+	WHERE a.balance < b.balance
 	
 	
 	

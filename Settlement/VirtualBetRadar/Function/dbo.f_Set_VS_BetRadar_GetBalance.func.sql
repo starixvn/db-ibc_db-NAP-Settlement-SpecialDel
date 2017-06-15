@@ -3,6 +3,7 @@ CREATE FUNCTION [dbo].[f_Set_VS_BetRadar_GetBalance] (
 	@Matchid 		INT
 	,@SportType 	SMALLINT
 	,@VSType 		TINYINT = 2 -- BetRadar VS
+	,@maxTransId	BIGINT
 )
 RETURNS TABLE
 AS
@@ -39,6 +40,7 @@ RETURN (
 			SELECT 1 FROM CTE_Bettypes AS cte
 			WHERE cte.bettype = b.bettype
 		)
+		AND b.transid <= @maxTransId
 		
 	GROUP BY b.custid
 )
