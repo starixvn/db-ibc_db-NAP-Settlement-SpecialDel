@@ -5,8 +5,9 @@ CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	, @message			VARCHAR(500)
 	, @actionId			INT
 	, @AdminId 			INT
-	, @procName      	SYSNAME
+	, @procName      	VARCHAR(100) = NULL
 	, @severity			VARCHAR(30) = 'Error'
+	, @remark			VARCHAR(500)
 AS
 /*
 	Created:20170503@Bobby
@@ -14,6 +15,7 @@ AS
 	DB: DBTXN/bodb02  
 	
     Revisions:
+		- 20160606@Bobby: Initialize
 		
     Parameters Explanation:   
 		- @severity: [Error, Warning]
@@ -26,6 +28,7 @@ BEGIN
 		, @rowMatch			VARCHAR(MAX)
 		-------------------------------
 		, @actionName		VARCHAR(100)
+		, @SPName			VARCHAR(100)
 		--, @xmlDoc			XML
 		
 	BEGIN TRY
@@ -40,8 +43,9 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xmlDoc = NULL ))
 		*/
 	
-		SELECT @actionName = ActionNameEn
-		FROM DBOLOG.bodb_CustomerLog.dbo.LogAction WITH(NOLOCK)
+		SELECT @actionName 	= ActionNameEn
+			,@SPName		= SPName
+		FROM DBLOG.bodb_CustomerLog.dbo.LogAction WITH(NOLOCK)
 		WHERE ActionId = @actionId
 		
 		SELECT @subject	= @severity + ' - ' + @SoureName + ' - ' + ISNULL(@actionName, 'N/A')
@@ -67,26 +71,36 @@ BEGIN
 				<th style="text-align:center">Match ID</th>
 				<th style="text-align:center">Severity</th>
 				<th style="text-align:center">Action Name</th>
+				<th style="text-align:center">SP Name</th>
 				<th style="text-align:center">Message</th>
 				</tr>
 				{<rowMatch>}
 			</table>
-			<p>&nbsp;<p/>'
+			<p>&nbsp;<p/>
+			<p>Remark:</p>'
+			
+			SELECT @tableRow += '<i> Source SP: ' + @procName + '</i><br/>'
+			WHERE LEN(@procName) > 0
+			
+			SELECT @tableRow += '<i>' +  @remark + '</i>'
+			WHERE LEN(@remark) > 0
+			
 		--FORMAT dummy accounts 
 		SET @rowMatch = CONVERT(VARCHAR(MAX), (SELECT @matchid AS 'td1'
 													, @severity AS 'td2'
 													, @actionName AS 'td3'
-													, @message AS 'td4'
+													, @SPName AS 'td4'
+													, @message AS 'td5'
 												FOR XML PATH('tr'), TYPE
 											  ))    
-		SET @rowMatch = REPLACE(REPLACE(REPLACE(REPLACE(@rowMatch, 'td1>', 'td>'), 'td2>', 'td>'), 'td3>','td>'), 'td4>','td>')
+		SET @rowMatch = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(@rowMatch, 'td1>', 'td>'), 'td2>', 'td>'), 'td3>','td>'), 'td4>','td>'),'td5>','td>')
 		
 		
 		SET @tableRow = REPLACE(@tableRow, '{<rowMatch>}', @rowMatch)
 		SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 		
 		EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-			, @recipients			 = 'patrick.pham@starixsoft.com;lukas.luu@starixsoft.com;daniel.truong@starixsoft.com;billy.bui@starixsoft.com;bobby.nguyen@starixsoft.com'
+			, @recipients			 = 'bobby.nguyen@starixsoft.com;dora.le@starixsoft.com;kathy.nguyen@starixsoft.com'
 			, @copy_recipients		 = ''
 			, @blind_copy_recipients = ''
 			, @subject				 = @subject
@@ -100,4 +114,3 @@ BEGIN
 	END CATCH
 END
 GO
-

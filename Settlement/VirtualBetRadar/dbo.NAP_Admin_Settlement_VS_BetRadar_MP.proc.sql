@@ -170,7 +170,7 @@ BEGIN
 			,@ActionID
 			,4 -- VS BetRadar Parlay Settlement 
 			,b.CustID
-			,, a.balance - b.balance AS Balance
+			, a.balance - b.balance AS Balance
 			,0
 			,NULL
 		FROM @beforeUpd b
@@ -234,7 +234,7 @@ BEGIN
 		,@ActionID
 		,4 -- VS BetRadar Parlay Settlement 
 		,b.CustID
-		,, a.balance - b.balance AS Balance
+		, a.balance - b.balance AS Balance
 		,0
 		,NULL
 	FROM @beforeUpd b
