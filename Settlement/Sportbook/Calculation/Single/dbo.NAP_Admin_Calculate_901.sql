@@ -17,6 +17,7 @@
 			- 20161108@Kathy: Settlement for new server [Redmine:#66849]
 			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
 			- 20170411@Bobby: 74819 - Correct Bettrade condition for auto bettypes
+			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 			
 		Parameter's Explantion:
 	*/
@@ -200,7 +201,7 @@ BEGIN
 	END
 	
 	--recover BetTradeSelling & BetTradeSellingCancelled on DBTXN
-	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI')
+	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06')
 	BEGIN		
 		UPDATE dbo.BetTradeSellingCancelled WITH(UPDLOCK,ROWLOCK)
 		SET BTBuyback = -BTBuyback,
