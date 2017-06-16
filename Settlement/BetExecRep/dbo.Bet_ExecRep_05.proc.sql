@@ -217,7 +217,7 @@ BEGIN
 				AND bettype BETWEEN 81 AND 120
 		END		
 	END
-	ELSE IF @updatetype = 5 --CAL/REFUND VS BetRadar parlay
+	ELSE IF @updatetype = 5 --CAL/REFUND/VOID VS BetRadar parlay
 	BEGIN
 		;WITH sourceData AS (
 			SELECT	
@@ -225,6 +225,7 @@ BEGIN
 				,T.C.value('./@d', 'DATE') as winlostdate
 				,T.C.value('./@w', 'TINYINT') as statuswinlost
 				,T.C.value('./@s', 'TINYINT') as statusId				
+				,T.C.value('./@cr', 'INT') as creator  
 			FROM @_xml.nodes('/root/r') as [T](C) --T: table, C: column
 		)	
 		UPDATE dbo.bettransm WITH(ROWLOCK, UPDLOCK)
@@ -239,8 +240,9 @@ BEGIN
 				WHEN 0 THEN 'Running'
 				END 			
 			,ruben = CASE 
-				WHEN s.statusid IN (111,112,113,103) THEN 1
-				ELSE 0 END			
+				WHEN s.statusid IN (111,112,113,103,102) THEN 1
+				ELSE 0 END
+			,creator = ISNULL(s.creator, bettransm.creator)   
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 	END

@@ -50,34 +50,40 @@ BEGIN
 		
 	DECLARE @_xml XML, @_sXML varchar(MAX)
 	DECLARE @subtable TABLE(transid INT)
-		
-	WHILE (1 = 1)
-	BEGIN
-		DELETE @subtable
-		
-		DELETE TOP (1000) #TempData
-		OUTPUT deleted.transid
-		INTO @subtable(transid)	
-		
-		IF @@ROWCOUNT = 0 BREAK
-		
-		SET @_xml = (
-			SELECT 
-				transid '@t'
-				,@matchdate '@d'
-				,0 '@w'
-				,103 '@s'				
-			FROM @subtable
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(varchar(max), @_xml)
-		
-		EXEC dbo.Bet_ExecRep_05 
-			@IgnoreList 	= @IgnoreList
-			, @updatetype 	= 5
-			, @_sXML 		= @_sXML
-			 					
-	END
-	RETURN
+	
+	BEGIN TRY
+		WHILE (1 = 1)
+		BEGIN
+			DELETE @subtable
+			
+			DELETE TOP (1000) #TempData
+			OUTPUT deleted.transid
+			INTO @subtable(transid)	
+			
+			IF @@ROWCOUNT = 0 BREAK
+			
+			SET @_xml = (
+				SELECT 
+					transid '@t'
+					,@matchdate '@d'
+					,0 '@w'
+					,103 '@s'				
+				FROM @subtable
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(varchar(max), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				@IgnoreList 	= @IgnoreList
+				, @updatetype 	= 5
+				, @_sXML 		= @_sXML
+									
+		END
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = ERROR_NUMBER()
+			, @ErrMsg 	= ERROR_MESSAGE()
+	END CATCH
+	
 END
 GO

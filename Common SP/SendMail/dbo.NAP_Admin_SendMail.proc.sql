@@ -7,7 +7,7 @@ CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	, @AdminId 			INT
 	, @procName      	VARCHAR(100) = NULL
 	, @severity			VARCHAR(30) = 'Error'
-	, @remark			VARCHAR(500)
+	, @remark			VARCHAR(500) = ''
 AS
 /*
 	Created:20170503@Bobby
@@ -100,7 +100,7 @@ BEGIN
 		SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 		
 		EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-			, @recipients			 = 'bobby.nguyen@starixsoft.com;dora.le@starixsoft.com;kathy.nguyen@starixsoft.com'
+			, @recipients			 = 'bobby.nguyen@starixsoft.com;dora.le@starixsoft.com;kathy.nguyen@starixsoft.com;justin.doan@starixsoft.com'
 			, @copy_recipients		 = ''
 			, @blind_copy_recipients = ''
 			, @subject				 = @subject

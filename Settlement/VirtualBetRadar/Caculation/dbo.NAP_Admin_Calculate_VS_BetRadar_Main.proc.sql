@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]
 	,@matchid 		INT
 	,@mode 			VARCHAR(6) = 'CAL'
 	,@CALBettypes 	VARCHAR(MAX)
+	,@maxTransId	BIGINT
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -35,7 +36,9 @@ BEGIN
 	DECLARE @tempBettype TABLE (bettype SMALLINT)
 	
 	--SET Ignore DB-Servers
-	SET @IgnoreList = 'DB04,DB042,DB043,DB044'	
+	SELECT @IgnoreList = 'DB04,DB042,DB043,DB044'	
+			, @ErrCode = 0
+			, @ErrMsg  = ''
 		
 	--CONVERT bettype
 	SET @xmlBettype = CONVERT(XML, @CALBettypes)
@@ -83,6 +86,7 @@ BEGIN
 	WHERE b.matchid 	= @matchid 
 		AND f.sporttype = @sporttype
 		AND b.statusID NOT IN (101,102) --void/reject
+		AND b.transid <= @maxTransId
 
 	IF @@ROWCOUNT = 0 RETURN		
 	
@@ -177,45 +181,49 @@ BEGIN
 		, statusid 		TINYINT
 		, modds 		MONEY
 	)
-
-		
-	WHILE (1 = 1)
-	BEGIN
-		DELETE @subtable
-		
-		DELETE TOP (1000) #TempData
-		OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	
-			deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm, deleted.statusid, deleted.modds	
-		INTO @subtable(transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds)	
-		
-		IF @@ROWCOUNT = 0 BREAK
-		
-		SET @_xml = (
-			SELECT 
-				transid '@q'
-				,NULLIF(winlost,0) '@a'
-				,NULLIF(awinlost,0) '@z'
-				,NULLIF(mwinlost,0) '@w'				
-				,NULLIF(swinlost,0) '@s'
-				,NULLIF(playercomm,0) '@x'
-				,NULLIF(comm,0) '@e'
-				,NULLIF(acomm,0) '@d'
-				,NULLIF(scomm,0) '@c'	
-				,statusid '@r'	
-				,NULLIF(modds,0) '@f'
-			FROM @subtable
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(varchar(max), @_xml)
-		
-		EXEC dbo.Bet_ExecRep_05 
-			@IgnoreList		= @IgnoreList
-			,@updatetype	= 1
-			,@_sXML			= @_sXML
-			 					
-	END
+	
+	BEGIN TRY	
+		WHILE (1 = 1)
+		BEGIN
+			DELETE @subtable
+			
+			DELETE TOP (1000) #TempData
+			OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	
+				deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm, deleted.statusid, deleted.modds	
+			INTO @subtable(transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds)	
+			
+			IF @@ROWCOUNT = 0 BREAK
+			
+			SET @_xml = (
+				SELECT 
+					transid '@q'
+					,NULLIF(winlost,0) '@a'
+					,NULLIF(awinlost,0) '@z'
+					,NULLIF(mwinlost,0) '@w'				
+					,NULLIF(swinlost,0) '@s'
+					,NULLIF(playercomm,0) '@x'
+					,NULLIF(comm,0) '@e'
+					,NULLIF(acomm,0) '@d'
+					,NULLIF(scomm,0) '@c'	
+					,statusid '@r'	
+					,NULLIF(modds,0) '@f'
+				FROM @subtable
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(varchar(max), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				@IgnoreList		= @IgnoreList
+				,@updatetype	= 1
+				,@_sXML			= @_sXML
+									
+		END
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = ERROR_NUMBER()
+			, @ErrMsg 	= ERROR_MESSAGE()
+	END CATCH
+	
 	RETURN
-	
-	
 END
 GO

@@ -137,6 +137,17 @@ BEGIN
 			,@ErrMsg			= @ErrMsg OUTPUT
 	END
 	
+	--CAL mains ticket with refno
+	IF(@ErrCode = 0) 
+	BEGIN	
+		EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
+			@MatchId			= @MatchId
+			,@strRefnos 		= @strRefnos
+			,@matchdate			= @matchdate
+			,@ErrCode			= @ErrCode OUTPUT
+			,@ErrMsg			= @ErrMsg OUTPUT
+	END	
+	
 	IF(@ErrCode > 0) 
 	BEGIN
 		-------------------------------------------------------------
@@ -151,7 +162,22 @@ BEGIN
 				AND b.bettype = @parlayBettype
 				AND EXISTS (SELECT 1 FROM @tempRefno WHERE refno = b.refno)
 		GROUP BY b.custid	
-				
+		
+		-------------------------------------------------------------
+		---                   compare BALANCE  with ERROR         ---
+		---------------------------VVVV------------------------------
+		SELECT @TotalAccount = COUNT(DISTINCT b.custid)
+		FROM @beforeUpd b
+			INNER JOIN @afterUpd a ON b.custid = a.custid
+		WHERE b.balance <> a.balance
+
+		IF(@TotalAccount > 0)
+		BEGIN
+			EXEC [dbo].[NAP_Admin_BalancePendingIns]
+				@BeforeUpd	= @beforeUpd
+				,@AfterUpd 	= @afterUpd
+		END
+	
 		----
 		-- Add Negative Balance into BalanceNegative table 
 		----
@@ -168,7 +194,7 @@ BEGIN
 		SELECT GETDATE()
 			,@MatchID
 			,@ActionID
-			,4 -- VS BetRadar Parlay Settlement 
+			,7 -- VS BetRadar Parlay Settlement 
 			,b.CustID
 			, a.balance - b.balance AS Balance
 			,0
@@ -180,14 +206,6 @@ BEGIN
 		
 		RETURN
 	END
-	
-	--CAL mains ticket with refno
-	EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
-		@MatchId			= @MatchId
-		,@strRefnos 		= @strRefnos
-		,@matchdate			= @matchdate
-		,@ErrCode			= @ErrCode OUTPUT
-		,@ErrMsg			= @ErrMsg OUTPUT
 	
 	
 	-------------------------------------------------------------
@@ -204,6 +222,9 @@ BEGIN
 	GROUP BY b.custid	
 	
 	
+	-------------------------------------------------------------
+	---                   compare BALANCE  				      ---
+	---------------------------VVVV------------------------------
 	SELECT @TotalAccount = COUNT(DISTINCT b.custid)
 	FROM @beforeUpd b
 		INNER JOIN @afterUpd a ON b.custid = a.custid
@@ -232,7 +253,7 @@ BEGIN
 	SELECT GETDATE()
 		,@MatchID
 		,@ActionID
-		,4 -- VS BetRadar Parlay Settlement 
+		,7 -- VS BetRadar Parlay Settlement 
 		,b.CustID
 		, a.balance - b.balance AS Balance
 		,0

@@ -90,34 +90,40 @@ BEGIN
 		,statuswinlost 	TINYINT
 		,statusID 		TINYINT
 	)
-		
-	WHILE (1 = 1)
-	BEGIN
-		DELETE @subtable
-		
-		DELETE TOP (1000) #TempData
-		OUTPUT deleted.transid, deleted.statuswinlost, deleted.statusID
-		INTO @subtable(transid, statuswinlost, statusID)	
-		
-		IF @@ROWCOUNT = 0 BREAK
-		
-		SET @_xml = (
-			SELECT 
-				transid '@t'
-				,@matchdate '@d'
-				,statuswinlost '@w'
-				,statusID '@s'				
-			FROM @subtable
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
-		
-		EXEC dbo.Bet_ExecRep_05 
-			@IgnoreList 	= @IgnoreList
-			, @updatetype 	= 5
-			, @_sXML 		= @_sXML
-			 					
-	END
+	
+	BEGIN TRY
+		WHILE (1 = 1)
+		BEGIN
+			DELETE @subtable
+			
+			DELETE TOP (1000) #TempData
+			OUTPUT deleted.transid, deleted.statuswinlost, deleted.statusID
+			INTO @subtable(transid, statuswinlost, statusID)	
+			
+			IF @@ROWCOUNT = 0 BREAK
+			
+			SET @_xml = (
+				SELECT 
+					transid '@t'
+					,@matchdate '@d'
+					,statuswinlost '@w'
+					,statusID '@s'				
+				FROM @subtable
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				@IgnoreList 	= @IgnoreList
+				, @updatetype 	= 5
+				, @_sXML 		= @_sXML
+									
+		END
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = ERROR_NUMBER()
+			, @ErrMsg 	= ERROR_MESSAGE()
+	END CATCH
 	RETURN
 END
 GO
