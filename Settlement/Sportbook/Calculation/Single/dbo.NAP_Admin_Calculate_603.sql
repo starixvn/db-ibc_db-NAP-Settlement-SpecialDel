@@ -113,21 +113,20 @@ BEGIN
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue)
 		SELECT	ResourceId, HomeValue, AwayValue
 		FROM	cteResult r
-		WHERE	1 = CASE
-						WHEN @strResourceIds IS NULL THEN 1
-						WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @strResourceIds + ',') > 0 THEN 1
-						ELSE 0
-					END
 		OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
 		
 		IF @bettype = 603
 		BEGIN		
 			SELECT	@FTHighestQuarter = CASE
-											WHEN MAX(HomeValue) > MAX(AwayValue) THEN 'H'
-											WHEN MAX(HomeValue) < MAX(AwayValue) THEN 'A'
+											WHEN MAX(result.HomeValue) > MAX(result.AwayValue) THEN 'H'
+											WHEN MAX(result.HomeValue) < MAX(result.AwayValue) THEN 'A'
 											ELSE 'N'
 										END
-			FROM	@tmpResultDetail
+			FROM	@tmpResultDetail t
+				CROSS APPLY (
+					SELECT CAST(t.HomeValue AS INT) HomeValue
+						,CAST(t.AwayValue AS INT) AwayValue
+				)result
 			WHERE	ResourceId LIKE 'Q[1-4]'
 		END	
 		
@@ -196,9 +195,9 @@ BEGIN
 								WHEN b.betteam = 'H5-8' AND (m.QXHome - m.QXAway) BETWEEN 5 AND 8 THEN 1
 								WHEN b.betteam = 'H9+' AND (m.QXHome - m.QXAway) >= 9 THEN 1
 								WHEN b.betteam = 'D' AND (m.QXHome - m.QXAway) = 0 THEN 1
-								WHEN b.betteam = 'A1-4' AND (m.QXHome - m.QXAway) BETWEEN 1 AND 4 THEN 1
-								WHEN b.betteam = 'A5-8' AND (m.QXHome - m.QXAway) BETWEEN 5 AND 8 THEN 1
-								WHEN b.betteam = 'A9+' AND (m.QXHome - m.QXAway) >= 9 THEN 1
+								WHEN b.betteam = 'A1-4' AND (m.QXAway - m.QXHome) BETWEEN 1 AND 4 THEN 1
+								WHEN b.betteam = 'A5-8' AND (m.QXAway - m.QXHome) BETWEEN 5 AND 8 THEN 1
+								WHEN b.betteam = 'A9+' AND (m.QXAway - m.QXHome) >= 9 THEN 1
 								ELSE -1
 								END
 					WHEN b.bettype = 615 
@@ -216,10 +215,20 @@ BEGIN
 					ELSE -1
 				END AS modds
 				,b.custid
-				,b.recommend			
+				,b.recommend	
+				
 		FROM	dbo.bettrans b WITH(ROWLOCK)
 			CROSS APPLY (
-				SELECT	CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)), '') AS ResourceId
+				SELECT	CASE 
+							WHEN @strResourceIds IS NOT NULL 
+								THEN CASE 
+										WHEN b.bettype IN (605, 607, 617, 604, 606, 613) THEN CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)), '')
+										ELSE ISNULL(LEFT(CAST(b.betid AS VARCHAR),3),'') -- QuarterX
+										END
+							
+							ELSE ''
+						END AS ResourceId
+						
 			) r
 			CROSS APPLY (
 				SELECT CASE
@@ -242,11 +251,11 @@ BEGIN
 		WHERE	matchid = @Matchid
 				AND bettype = @BetType
 				AND 1 = CASE
-							WHEN @strResourceIds IS NULL THEN 1
-							WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @strResourceIds + ',') > 0 THEN 1
+							WHEN b.bettype = 603 THEN 1
+							WHEN @strResourceIds IS NOT NULL AND CHARINDEX(',' + r.ResourceId + ',', ',' + @strResourceIds + ',') > 0 THEN 1
 							ELSE 0
 						END
-		
+					
 		IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231','DB215')
 		BEGIN
 			DECLARE @affectedagents INT
@@ -284,29 +293,29 @@ BEGIN
 							ELSE 1
 							END
 						, WinLost = CASE 
-							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END)
-							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * 0.5
+							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END)
+							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * 0.5
 							WHEN @modds = 0 THEN actual_stake
 							WHEN @modds = -0.25 THEN actual_stake * 0.5
 							WHEN @modds < -0.25 THEN 0
 							END
 						, aWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -apositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -apositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -apositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * apositiontaking
 							END
 						, mWinLost = CASE
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -mpositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -mpositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -mpositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
 							END
 						, sWinLost = CASE
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -spositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -spositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -spositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * spositiontaking
@@ -403,29 +412,29 @@ BEGIN
 							ELSE 1
 							END
 						, WinLost = CASE 
-							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END)
-							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * 0.5
+							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END)
+							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * 0.5
 							WHEN @modds = 0 THEN actual_stake
 							WHEN @modds = -0.25 THEN actual_stake * 0.5
 							WHEN @modds < -0.25 THEN 0
 							END
 						, aWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -apositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -apositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -apositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * apositiontaking
 							END
 						, mWinLost = CASE
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -mpositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -mpositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -mpositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
 							END
 						, sWinLost = CASE
-							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -spositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END) * -spositiontaking * 0.5
+							WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -spositiontaking
+							WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
 							WHEN @modds = 0 THEN 0
 							WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
 							WHEN @modds < -0.25 THEN actual_stake * spositiontaking
@@ -482,5 +491,7 @@ BEGIN
 			END
 		END
 	END
+	
 END
+
 GO

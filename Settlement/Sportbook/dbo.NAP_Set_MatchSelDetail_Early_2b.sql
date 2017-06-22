@@ -73,7 +73,8 @@ BEGIN
     FROM    dbo.Bettrans b WITH (NOLOCK)
         INNER JOIN @tmpEarlyBettypes f
             ON b.bettype = f.BetType
-    WHERE    matchID = @MatchID 
+    WHERE   matchID = @MatchID 
+			AND b.statusId NOT IN (101, 102)
     GROUP BY CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20))
 	
 	INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning)
@@ -90,7 +91,8 @@ BEGIN
     FROM    dbo.Bettransm bm WITH (NOLOCK)
         INNER JOIN @tmpEarlyBettypes f
             ON bm.bettype = f.BetType
-    WHERE    matchID = @MatchID 
+    WHERE   matchID = @MatchID 
+			AND bm.statusId NOT IN (101, 102)
     GROUP BY  CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20))
 	
     -- Detail 

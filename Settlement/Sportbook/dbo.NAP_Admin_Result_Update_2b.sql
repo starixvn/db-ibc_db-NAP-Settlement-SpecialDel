@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_2b]
   @Command			VARCHAR(100) 
  ,@MatchID			INT
- ,@Results			VARCHAR(MAX)= NULL 
+ ,@Results			VARCHAR(MAX) 
  ,@creator			INT			= 0 
  ,@SelectedQuarter	VARCHAR(50) = NULL
 AS 
@@ -78,7 +78,16 @@ BEGIN
 		INSERT INTO @tmpResourceIds (ResourceId) VALUES ('604'),('606__'),('607__'),('61301__'),('61302__'),('61303__'),('61304__')		
 	END
 		
-	IF @Command IN ('NAP_Admin_Settlement_1-UNDO', 'NAP_Admin_Settlement_2b-UNDO')
+	SET @xml = CONVERT(XML,@Results)
+				
+	INSERT INTO @tmpResult (ResourceId, HomeValue, AwayValue)
+	SELECT T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+		,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+		,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+	FROM @xml.nodes('/Results/Resource') AS T(C)
+	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )	
+	
+	IF @Command = 'NAP_Admin_Settlement_1-UNDO'
 	BEGIN
 		UPDATE	r
 		SET		 HomeValue			= NULL 
@@ -94,17 +103,25 @@ BEGIN
 		WHERE	MatchID = @MatchID
 	
 	END	
-	ELSE IF @Command IN('NAP_Admin_Settlement_1-CAL', 'NAP_Admin_Settlement_Refund_All','NAP_Admin_Settlement_2b-CAL', 'NAP_Admin_Settlement_2b-REFUND')
+	ELSE IF @Command = 'NAP_Admin_Settlement_2b-UNDO'
 	BEGIN
-		SET @xml = CONVERT(XML,@Results)
-				
-		INSERT INTO @tmpResult (ResourceId, HomeValue, AwayValue)
-		SELECT T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-			,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
-			,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
-		FROM @xml.nodes('/Results/Resource') AS T(C)
-		OPTION ( OPTIMIZE FOR ( @xml = NULL ) )	
-		
+		UPDATE	r
+		SET		 HomeValue			= NULL 
+				,AwayValue			= NULL 
+				,OtherInfo			= NULL 
+				,ResultStatusID		= 0		-- Initial 
+				,SettlementStatusID	= 0		-- Initial
+				,LastModifyBy		= @Creator 
+				,LastModifyDate		= GETDATE() 
+		FROM	dbo.ResultDetail r WITH (UPDLOCK,ROWLOCK)
+			INNER JOIN @tmpResourceIDs t
+				ON	r.ResourceId LIKE t.ResourceId
+			INNER JOIN @tmpResult tr
+				ON tr.ResourceId LIKE r.ResourceId
+		WHERE	MatchID = @MatchID
+	END
+	ELSE IF @Command IN('NAP_Admin_Settlement_1-CAL', 'NAP_Admin_Settlement_Refund_All','NAP_Admin_Settlement_2b-CAL', 'NAP_Admin_Settlement_2b-REFUND')
+	BEGIN		
 		UPDATE @tmpResult
 			SET HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
 				,AwayValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE AwayValue END

@@ -957,7 +957,7 @@ BEGIN
         WHERE    Increased = 0
 				
         SELECT    @ErrCode = 1001017 
-                ,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
+                ,@ErrMsg = ERROR_MESSAGE()
         
         RETURN        
     END CATCH

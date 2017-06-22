@@ -1374,7 +1374,7 @@ RETURN (
 					END
 				WHEN 603 THEN -- FT Which team to score the highest quarter
 					CASE 
-						WHEN @FTHighestQuarter = '' THEN 0
+						WHEN @FTHighestQuarter = 'N' THEN 0
 						WHEN @betteam = @FTHighestQuarter THEN 1 
 						ELSE -1 
 					END
@@ -1453,9 +1453,9 @@ RETURN (
 						WHEN @betteam = 'H5-8' AND (@QXHome - @QXAway) BETWEEN 5 AND 8 THEN 1
 						WHEN @betteam = 'H9+' AND (@QXHome - @QXAway) >= 9 THEN 1
 						WHEN @betteam = 'D' AND (@QXHome - @QXAway) = 0 THEN 1
-						WHEN @betteam = 'A1-4' AND (@QXHome - @QXAway) BETWEEN 1 AND 4 THEN 1
-						WHEN @betteam = 'A5-8' AND (@QXHome - @QXAway) BETWEEN 5 AND 8 THEN 1
-						WHEN @betteam = 'A9+' AND (@QXHome - @QXAway) >= 9 THEN 1
+						WHEN @betteam = 'A1-4' AND (@QXAway - @QXHome) BETWEEN 1 AND 4 THEN 1
+						WHEN @betteam = 'A5-8' AND (@QXAway - @QXHome) BETWEEN 5 AND 8 THEN 1
+						WHEN @betteam = 'A9+' AND (@QXAway - @QXHome) >= 9 THEN 1
 						ELSE -1
 					END
 				WHEN 615 THEN -- Quarter X Home Team Over Under

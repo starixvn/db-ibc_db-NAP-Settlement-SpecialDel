@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Admin_Settlement_3_Basketball
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Basketball]
 	@matchId			INT
 	,@Mode				VARCHAR(10) = 'CAL'
 	,@SelectedQuarter	VARCHAR(50)
@@ -13,7 +13,7 @@ AS
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
        
     Param's Explanation:
-    • @Mode: CAL
+    @Mode: CAL
        
 */
 BEGIN
@@ -33,11 +33,11 @@ BEGIN
 			,@xmlResultDetail		VARCHAR(MAX)
 			,@xml					XML
 			,@strBettypes			VARCHAR(MAX)
-			,@strResourceIds		VARCHAR(MAX) = ''
+			,@strResourceIds		VARCHAR(MAX) 
 			
 	DECLARE @tmpResult TABLE(ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	
-	EXEC dbo.Nap_Admin_Settlement_2 @mode = 'basketball'
+	EXEC dbo.NAP_Admin_Settlement_2 @mode = 'basketball'
 		,@matchid = @matchid
 		,@str_resultDetail = @xmlResultDetail OUTPUT
 		
@@ -71,43 +71,53 @@ BEGIN
 		,@HTScoreDiff	= @hth - @hta
 		,@oddeven		= (@fth + @fta) % 2
 		,@oddevenht		= (@hth + @hta) % 2
-		
-	DECLARE @tmpBettypes TABLE (bettype SMALLINT, ResourceIds VARCHAR(MAX))
-
-	;WITH cteBettypeResourceIds
-	AS(
-		SELECT	b.bettype, r.ResourceId		
-		FROM	dbo.bettrans b WITH(NOLOCK)
-			CROSS APPLY (
-				SELECT CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId
-			) r
-		WHERE	b.matchid = @matchid
-		GROUP BY b.bettype, r.ResourceId
-	)
-	,cteBettypes
-	AS
-	(
-		SELECT c.bettype, t.ResourceId
-		FROM cteBettypeResourceIds c
-			LEFT JOIN @tmpResult t
-				ON c.ResourceId = t.ResourceId
-	)
-	INSERT INTO @tmpBettypes (BetType, ResourceIds)	
-	SELECT	c.bettype, STUFF((SELECT ',' + CAST(ResourceId AS VARCHAR) FROM cteBettypes WHERE bettype = c.bettype FOR XML PATH('')),1,1,'') AS ResourceIds
-	FROM	cteBettypes c
-	GROUP BY c.bettype
 	
-	SELECT	@strBettypes = COALESCE(@strBettypes + ',' + CAST(b.bettype AS VARCHAR(10)), CAST(b.bettype AS VARCHAR(10))) 
-			,@strResourceIds = REPLACE(COALESCE(@strResourceIds + ',' + ISNULL(b.ResourceIds,''), ISNULL(b.ResourceIds,'')) ,',,',',')
-	FROM	dbo.f_Set_GetGroupBettypes() f
-		INNER JOIN @tmpBettypes b
-			ON b.bettype = f.bettype
+	DECLARE @tmpBettypeResourceId TABLE (bettype SMALLINT, ResourceId VARCHAR(20))
+	;WITH cteBettypes
+	AS(
+		SELECT	b.bettype, b.betid
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+		GROUP BY b.bettype, b.betid
+	)
+	INSERT INTO @tmpBettypeResourceId(bettype, ResourceId)
+	SELECT	c.bettype
+			,CASE
+				WHEN c.BetType = 605 THEN q.ResourceId
+				WHEN CHARINDEX(',' + q.QuarterX + ',', ',' + @SelectedQuarter + ',') > 0 
+					THEN CASE 
+							WHEN c.bettype = 617 THEN q.ResourceId
+							WHEN f.GroupId = 10 THEN q.QuarterX
+							ELSE NULL
+							END
+				ELSE NULL
+				END 
+	FROM	cteBettypes c
+		INNER JOIN dbo.f_Set_GetGroupBettypes() f
+			ON c.bettype = f.BetType
+		CROSS APPLY (
+			SELECT CASE
+						WHEN f.groupId = 10 THEN ISNULL(LEFT(CAST(c.betid AS VARCHAR),3),'')
+						ELSE NULL
+						END AS QuarterX
+					,CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(c.betid AS VARCHAR), 2, LEN(c.betid)), '') AS ResourceId
+		) q
+			
 	WHERE	f.IsAuto = 0
 			AND 1 = CASE 
 						WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, FT	
-						WHEN GroupId = 10 AND @SelectedQuarter LIKE '%80[1-4]%' THEN 1
+						WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%80[1-4]%' THEN 1
 						ELSE 0
-					END
+						END
+						
+	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
+	FROM	@tmpBettypeResourceId
+	GROUP BY bettype
+	
+	SELECT @strResourceIds = COALESCE(@strResourceIds + ',' + ResourceId, ResourceId) 
+	FROM	@tmpBettypeResourceId
+	WHERE	ResourceId IS NOT NULL
+	GROUP BY ResourceId
 	
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
         ,@mode = @mode
@@ -129,4 +139,5 @@ BEGIN
 		,@CalledByBrokerService = 0 
 		,@strBettypes = @strBettypes
 END
+
 GO

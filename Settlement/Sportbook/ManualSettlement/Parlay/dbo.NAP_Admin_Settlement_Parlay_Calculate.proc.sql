@@ -278,11 +278,15 @@ BEGIN
 		OPTION ( OPTIMIZE FOR ( @xmlbb = NULL ) )
 		
 		SELECT	@FTHighestQuarter = CASE
-											WHEN MAX(HomeValue) > MAX(AwayValue) THEN 'H'
-											WHEN MAX(HomeValue) < MAX(AwayValue) THEN 'A'
+											WHEN MAX(result.HomeValue) > MAX(result.AwayValue) THEN 'H'
+											WHEN MAX(result.HomeValue) < MAX(result.AwayValue) THEN 'A'
 											ELSE 'N'
 										END
-		FROM	@tmpResultDetail
+		FROM	@tmpResultDetail t
+			CROSS APPLY (
+				SELECT CAST(t.HomeValue AS INT) HomeValue
+					,CAST(t.AwayValue AS INT) AwayValue
+			)result
 		WHERE	ResourceId LIKE 'Q[1-4]'
 		
 		SELECT	@Q1Home = HomeValue

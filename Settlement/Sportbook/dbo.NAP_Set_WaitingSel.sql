@@ -191,7 +191,6 @@ BEGIN
 					GROUP BY bm.matchid, bm.bettype
 				)bm
 				ON bm.bettype = bt.bettype
-		WHERE	bt.GroupId IN (3,4,8)
 		GROUP BY bm.matchid, bm.bettype, bt.GroupId
 
 		;WITH cteBetStatus

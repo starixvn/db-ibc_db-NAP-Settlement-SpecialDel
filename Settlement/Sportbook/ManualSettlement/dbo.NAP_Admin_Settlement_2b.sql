@@ -263,7 +263,7 @@ BEGIN
 		SELECT @QuarterResult = LEFT(@QuarterResult,LEN(@QuarterResult)-1)
 		
     SELECT @logdata = 'NAP: Early Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                           + 'Result: ' + @QuarterResult + '<br/> '
+                                                           + ' Result: ' + @QuarterResult + '<br/> '
                                                            + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
     EXEC dbo.WriteLog_UserLog 
         @UserID = @AdminId

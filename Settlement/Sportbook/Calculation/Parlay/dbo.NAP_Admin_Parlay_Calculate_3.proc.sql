@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
@@ -18,6 +12,8 @@ AS
 	Original:
 
     Revisions:        
+		- 20170609@Kathy: Early Settlement - BAIO [Redmine:#77835]
+		
     Param's Explanation:
         
 */
@@ -156,3 +152,5 @@ BEGIN
 	DROP TABLE #parlayOutput
 	RETURN;
 END
+
+GO
