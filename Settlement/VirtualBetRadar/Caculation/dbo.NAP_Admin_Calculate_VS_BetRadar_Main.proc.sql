@@ -33,7 +33,7 @@ BEGIN
 		, @commWinRate 		SMALLMONEY
 		, @commLostRate 	SMALLMONEY
 	
-	DECLARE @tempBettype TABLE (bettype SMALLINT)
+	DECLARE @tempBettype TABLE (bettype SMALLINT, CalMode TINYINT)
 	
 	--SET Ignore DB-Servers
 	SELECT @IgnoreList = 'DB04,DB042,DB043,DB044'	
@@ -43,9 +43,15 @@ BEGIN
 	--CONVERT bettype
 	SET @xmlBettype = CONVERT(XML, @CALBettypes)
 	
-	INSERT INTO @tempBettype (bettype)
-	SELECT T.C.value('./@t', 'SMALLINT') AS bettype
-	FROM @xmlBettype.nodes('/root/r') AS T(C)
+	;WITH CTE_Bettype AS (
+		SELECT T.C.value('./@t', 'SMALLINT') AS bettype
+		FROM @xmlBettype.nodes('/root/r') AS T(C)
+	)
+	INSERT INTO @tempBettype (bettype, CalMode)
+	SELECT temp.bettype, f.CalMode
+	FROM CTE_Bettype temp
+		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
+		ON temp.bettype = f.bettype
 	OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))
 	
 	IF (@@ROWCOUNT = 0) RETURN
@@ -60,16 +66,16 @@ BEGIN
 	
 	--SELECT tickets for calculating
 	SELECT	transid, actual_stake, stake, odds, comstatus, 
-			betteam, hdp1, hdp2, livehomescore, liveawayscore,
-			apositiontaking, mpositiontaking, spositiontaking, 
-			playerdiscount,discount, adiscount, sdiscount,
-			WinLost, aWinLost, mWinLost, sWinLost, 
-			PlayerComm, comm, acomm, scomm,
-			StatusID, ods.modds
+		betteam, hdp1, hdp2, livehomescore, liveawayscore,
+		apositiontaking, mpositiontaking, spositiontaking, 
+		playerdiscount,discount, adiscount, sdiscount,
+		WinLost, aWinLost, mWinLost, sWinLost, 
+		PlayerComm, comm, acomm, scomm,
+		StatusID, ods.modds
 	INTO #TempData				
 	FROM dbo.bettrans b WITH(ROWLOCK)
-		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
-			ON b.bettype = f.bettype
+		INNER JOIN @tempBettype AS temp
+			ON b.bettype = temp.bettype
 		OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
 			b.bettype 			
 			, b.betteam 			
@@ -81,10 +87,10 @@ BEGIN
 			, @fta				
 			, @hth				
 			, @hta
-			, f.CalMode
+			, temp.CalMode
 		) AS ods
+		
 	WHERE b.matchid 	= @matchid 
-		AND f.sporttype = @sporttype
 		AND b.statusID NOT IN (101,102) --void/reject
 		AND b.transid <= @maxTransId
 
