@@ -32,13 +32,17 @@ BEGIN
 		, @IgnoreList 		VARCHAR(200)
 		, @commWinRate 		SMALLMONEY
 		, @commLostRate 	SMALLMONEY
+		, @fromTransId		BIGINT
+		, @batchCount		INT 
 	
 	DECLARE @tempBettype TABLE (bettype SMALLINT, CalMode TINYINT)
 	
 	--SET Ignore DB-Servers
-	SELECT @IgnoreList = 'DB04,DB042,DB043,DB044'	
-			, @ErrCode = 0
-			, @ErrMsg  = ''
+	SELECT @IgnoreList 		= 'DB04,DB042,DB043,DB044'	
+			, @ErrCode 		= 0
+			, @ErrMsg  		= ''
+			, @fromTransId 	= 0
+			, @batchCount 	= 2000
 		
 	--CONVERT bettype
 	SET @xmlBettype = CONVERT(XML, @CALBettypes)
@@ -64,37 +68,84 @@ BEGIN
 	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
 	WHERE matchid = @matchid
 	
+	--CLone table structure
+	INSERT INTO @tempBatchTicket (batchNo, fromTransId, toTransId)
+	SELECT batchNo
+		, MIN(transid) AS fromTransId
+		, MAX(transid) AS toTransId
+	FROM (
+		SELECT transid
+			, batchNo = (
+				ROW_NUMBER() OVER (
+					ORDER BY rn
+					) + 1
+				) / 2
+		FROM (
+			SELECT transid
+				, rn = ROW_NUMBER() OVER (
+					ORDER BY transid
+					)
+				, rn_rev = ROW_NUMBER() OVER (
+					ORDER BY transid DESC
+					)
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN @tempBettype AS temp
+				ON b.bettype = temp.bettype
+			WHERE matchid = @matchid
+				
+				AND b.statusID NOT IN (101,102) --void/reject
+		) x
+		WHERE rn % @batchcount = 0 -- toTransId
+			OR (rn - 1) % @batchcount = 0 -- fromTransId
+			OR rn_rev = 1 --maxTransId
+	) AS t
+	GROUP BY batchNo
+	ORDER BY batchNo
+	
+	DECLARE @batchNo INT = 1
+	
 	--SELECT tickets for calculating
-	SELECT	transid, actual_stake, stake, odds, comstatus, 
-		betteam, hdp1, hdp2, livehomescore, liveawayscore,
-		apositiontaking, mpositiontaking, spositiontaking, 
-		playerdiscount,discount, adiscount, sdiscount,
-		WinLost, aWinLost, mWinLost, sWinLost, 
-		PlayerComm, comm, acomm, scomm,
-		StatusID, ods.modds
-	INTO #TempData				
-	FROM dbo.bettrans b WITH(ROWLOCK)
-		INNER JOIN @tempBettype AS temp
-			ON b.bettype = temp.bettype
-		OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
-			b.bettype 			
-			, b.betteam 			
-			, b.hdp1 			
-			, b.hdp2 			
-			, b.livehomescore	
-			, b.liveawayscore	
-			, @fth				
-			, @fta				
-			, @hth				
-			, @hta
-			, temp.CalMode
-		) AS ods
+	WHILE (EXISTS(SELECT 1 FROM @tempBatchTicket WHERE batchNo = @batchNo))
+	BEGIN
 		
-	WHERE b.matchid 	= @matchid 
-		AND b.statusID NOT IN (101,102) --void/reject
-		AND b.transid <= @maxTransId
-
-	IF @@ROWCOUNT = 0 RETURN		
+		SELECT @fromTransId = fromTransId
+			,@fromTransId 	= fromTransId
+		FROM @tempBatchTicket
+		WHERE batchNo = @batchNo
+		
+		SELECT TOP (@batchCount)
+			transid, actual_stake, stake, odds, comstatus, 
+			betteam, hdp1, hdp2, livehomescore, liveawayscore,
+			apositiontaking, mpositiontaking, spositiontaking, 
+			playerdiscount,discount, adiscount, sdiscount,
+			WinLost, aWinLost, mWinLost, sWinLost, 
+			PlayerComm, comm, acomm, scomm,
+			StatusID, ods.modds
+		INTO #TempData				
+		FROM dbo.bettrans b WITH(ROWLOCK)
+			INNER JOIN @tempBettype AS temp
+				ON b.bettype = temp.bettype
+			OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
+				b.bettype 			
+				, b.betteam 			
+				, b.hdp1 			
+				, b.hdp2 			
+				, b.livehomescore	
+				, b.liveawayscore	
+				, @fth				
+				, @fta				
+				, @hth				
+				, @hta
+				, temp.CalMode
+			) AS ods
+			
+		WHERE b.matchid 	= @matchid 
+			AND b.statusID 	NOT IN (101,102) --void/reject
+			AND b.transid  	BETWEEN @fromTransId AND @toTransId
+			
+		SET @batchNo += 1
+		
+	END
 	
 	UPDATE #TempData
 	SET 
@@ -186,6 +237,7 @@ BEGIN
 		, scomm 		MONEY
 		, statusid 		TINYINT
 		, modds 		MONEY
+		, custid		INT
 	)
 	
 	BEGIN TRY	
