@@ -1,0 +1,179 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Caculate_Bettrans] 
+	@BetTickets			TVP_Settlement_BetTicket READONLY
+	,@CWLBettype		SMALLINT 		= 0
+	,@BalnaceUpd		XML 			= NULL 	OUTPUT
+	,@ErrCode			INT				= 0		OUTPUT
+	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+AS
+/*
+	Created: 20160606@Bobby
+	Task :  77720 - Implement BetRadar VS League & Nation
+	DB: DBTXN/BODB02
+	Revisions:
+		- 20160606@Bobby: Initialize
+		
+
+	Param's Explanation:
+		Bettrans_04: balanceType = 4 others
+*/
+BEGIN
+	SET NOCOUNT ON 
+	
+	DECLARE @strBetTicket			VARCHAR(MAX)
+	 
+	--Tracing company winlimit control
+	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
+	CREATE TABLE #BalanceCWLAfter (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
+	
+	--BEGIN: CAPTURE value BALANCE before calculating
+	INSERT INTO #BalanceCWLBefore (
+		custid
+		, winlostdate 
+		, gametypeid
+		, balance 
+		, winlost 
+	)
+	SELECT t.custid
+		,b.winlostdate
+		,t.bettype AS gametypeid
+		,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+		,SUM(CASE
+				WHEN b.ruben = 1 THEN (b.winlost - b.actual_stake)
+				ELSE 0 
+			END) AS winlost
+	FROM dbo.bettrans b WITH(ROWLOCK)
+		INNER JOIN @BetTickets AS t 
+		ON b.matchid 	= t.matchid
+		AND b.custid 	= t.custid
+		AND b.bettype 	= t.bettype
+		AND b.transid 	= t.transid
+	WHERE b.statusid	NOT IN (101,102) --void/reject	
+	
+	GROUP BY t.custid, b.winlostdate, t.bettype
+	
+	-------------------------------------------------------------
+	---        TODO UPDATE bettrans                           ---
+	---------------------------VVVV------------------------------
+	
+	BEGIN TRY
+		SELECT @strBetTicket = CONVERT(VARCHAR(MAX)
+									,(SELECT 
+											matchid 		AS '@mi'
+											,custid  		AS '@ci'
+											,bettype 		AS '@bt'
+											,transid 		AS '@ti'
+											,winlost 		AS '@wl'
+											,awinlost 		AS '@awl'
+											,mwinlost 		AS '@mwl'				
+											,swinlost 		AS '@swl'
+											,playercomm 	AS '@pcomm'
+											,comm 			AS '@comm'
+											,acomm 			AS '@acomm'
+											,scomm 			AS '@scomm'	
+											,statusid 		AS '@st'	
+											,modds 			AS '@mo'
+											,winlostdate	AS '@wd'
+										FROM @BetTickets
+										FOR XML PATH('r'), ROOT('root'), TYPE
+									) 
+								)
+								
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket
+			
+	END TRY
+	BEGIN CATCH
+	
+		SELECT @ErrCode = ERROR_NUMBER()
+			, @ErrMsg 	= ERROR_MESSAGE()
+			
+	END CATCH
+	
+	--BEGIN: CAPTURE value BALANCE after calculating
+	INSERT INTO #BalanceCWLAfter(
+		custid
+		, winlostdate 
+		, gametypeid
+		, balance 
+		, winlost 
+	)
+	SELECT t.custid
+		,b.winlostdate
+		,t.bettype AS gametypeid
+		,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+		,SUM(CASE
+				WHEN b.ruben = 1 THEN b.winlost - b.actual_stake 
+				ELSE 0 
+			END) AS winlost
+	FROM dbo.bettrans b WITH(ROWLOCK)
+		INNER JOIN @BetTickets AS t 
+		ON b.matchid 	= t.matchid
+		AND b.custid 	= t.custid
+		AND b.bettype 	= t.bettype
+		AND b.transid 	= t.transid
+	
+	GROUP BY t.custid, b.winlostdate, t.bettype
+	
+	IF(@@ROWCOUNT > 0)
+	BEGIN		
+		-- OUTPUT updated balance custid
+		SELECT @BalnaceUpd = (
+			SELECT a.custid		AS '@c'
+				,SUM(b.balance) AS '@b'
+				,SUM(a.balance) AS '@a'
+			FROM #BalanceCWLBefore b
+				INNER JOIN #BalanceCWLAfter a 
+				ON	a.custid = b.custid
+				
+			GROUP BY a.custid
+			HAVING SUM(b.balance) <> SUM(a.balance)
+			FOR XML PATH('r'), ROOT('root'), TYPE
+		)
+
+		IF(@CWLBettype > 0)--BEGIN: integrating with company winlimit
+		BEGIN
+			--CAPTURE increase
+			INSERT INTO dbo.BalancePendingCreditGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT a.custid
+				,a.winlostdate
+				,@CWLBettype AS bettype
+				,a.gametypeid
+				,(a.winlost - b.winlost) AS Balance
+			FROM #BalanceCWLBefore b
+				INNER JOIN #BalanceCWLAfter a 
+				ON	a.custid 			= b.custid
+					AND a.winlostdate 	= b.winlostdate
+					AND a.gametypeid 	= b.gametypeid
+			WHERE a.winlost > b.winlost
+			
+			--CAPTURE decrease
+			INSERT INTO dbo.BalancePendingDebitGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT a.custid
+				,a.winlostdate
+				,@CWLBettype AS bettype
+				,a.gametypeid
+				,ABS(a.winlost - b.winlost) AS Balance
+			FROM #BalanceCWLBefore b
+				INNER JOIN #BalanceCWLAfter a 
+				ON	a.custid 			= b.custid
+					AND a.winlostdate 	= b.winlostdate
+					AND a.gametypeid 	= b.gametypeid
+			WHERE a.winlost < b.winlost
+			
+		END --END: integrating with company winlimit
+	END	
+	
+END
+GO

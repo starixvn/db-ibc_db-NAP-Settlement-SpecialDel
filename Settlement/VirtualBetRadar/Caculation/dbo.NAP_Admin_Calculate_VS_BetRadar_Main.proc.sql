@@ -1,11 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main] 
-	@Creator 		INT
-	,@SportType		INT
-	,@matchid 		INT
-	,@mode 			VARCHAR(6) = 'CAL'
-	,@CALBettypes 	VARCHAR(MAX)
-	,@maxTransId	BIGINT
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]	
+	@matchid 		INT				= 0
+	,@mode 			VARCHAR(6)		= 'CAL'
+	,@CALBettypes 	VARCHAR(MAX)	= NULL
+	,@maxTransId	BIGINT			= 0
+	,@ActionID		TINYINT			= 0
+	,@TicketInfos 	VARCHAR(MAX)	= NULL
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -15,37 +15,93 @@ AS
 	DB: DBTXN/BODB02
 	Revisions:
 		- 20160606@Bobby: Initialize
-		
+		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 
 	Param's Explanation:
 	• @Mode:
 		CAL : All single BetTypes (HT-FT)
+		VOID : Re-settle single ticket
+	• @TicketInfos : 
+		meaning : single transids (bettrans.transid)	
+		format xml : <root><r m="1234", t="2333" /></root>
 */
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @fth 			INT
-		, @fta 				INT
-		, @hth 				INT
-		, @hta 				INT
-		, @xmlBettype		XML
-		, @IgnoreList 		VARCHAR(200)
+	DECLARE @xmlBettype		XML
+		, @xmlTicket		XML
 		, @commWinRate 		SMALLMONEY
 		, @commLostRate 	SMALLMONEY
-		, @fromTransId		BIGINT
-		, @batchCount		INT 
+		, @batchCount		INT
+		, @BalanceCount     INT
+		, @balnaceUpd		XML
+		, @BalanceType		TINYINT
+		
 	
-	DECLARE @tempBettype TABLE (bettype SMALLINT, CalMode TINYINT)
+	--Tracing pending balance table
+	DECLARE @beforeUpd			TVP_BalanceChange
+		, @afterUpd				TVP_BalanceChange
+		
+	--Tracing negative table
+	DECLARE @custBalnaceUpd TABLE (custid INT, balanceBefore MONEY, balanceAfter MONEY)			
+		
+	DECLARE @tempBettype 	TABLE (bettype SMALLINT, CalMode TINYINT)
+	DECLARE @BetTickets  	TVP_Settlement_BetTicket
+	
+	CREATE TABLE #tblTicketInfos (matchid int, transid BIGINT)		
+	
+	CREATE TABLE #tblMatchResult
+	(
+		matchid INT, 
+		fth INT, 
+		fta INT, 
+		hth INT, 
+		hta INT,
+		sporttype TINYINT
+	)
+	
+	CREATE TABLE #TempData (
+		[recommend] 		[INT]
+		, [matchid] 		[INT]
+		, [custid] 			[INT]
+		, [bettype] 		[SMALLINT]
+		, [transid] 		[BIGINT]
+		, [actual_stake] 	[MONEY]
+		, [stake] 			[MONEY]
+		, [odds] 			[SMALLMONEY]
+		, [comstatus] 		[NVARCHAR](20)
+		, [betteam] 		[nvarchar](10)
+		-- , [hdp1] 			[SMALLMONEY]
+		-- , [hdp2] 			[SMALLMONEY]
+		-- , [livehomescore] 	[SMALLINT]
+		-- , [liveawayscore] 	[SMALLINT]
+		, [apositiontaking] [SMALLMONEY]
+		, [mpositiontaking] [SMALLMONEY]
+		, [spositiontaking] [SMALLMONEY]
+		, [playerdiscount] 	[DECIMAL](9, 8)
+		, [discount] 		[DECIMAL](9, 8)
+		, [adiscount] 		[DECIMAL](9, 8)
+		, [sdiscount] 		[DECIMAL](9, 8)
+		, [WinLost] 		[MONEY]
+		, [aWinLost] 		[MONEY]
+		, [mWinLost] 		[MONEY]
+		, [sWinLost] 		[MONEY]
+		, [PlayerComm] 		[MONEY]
+		, [comm] 			[MONEY]
+		, [acomm] 			[MONEY]
+		, [scomm] 			[MONEY]
+		, [StatusID] 		[TINYINT]
+		, [modds] 			[SMALLMONEY]
+	)
 	
 	--SET Ignore DB-Servers
-	SELECT @IgnoreList 		= 'DB04,DB042,DB043,DB044'	
-			, @ErrCode 		= 0
+	SELECT @ErrCode 		= 0
 			, @ErrMsg  		= ''
-			, @fromTransId 	= 0
 			, @batchCount 	= 2000
+			, @BalanceType 	= 4 --Others 3rd products
 		
 	--CONVERT bettype
-	SET @xmlBettype = CONVERT(XML, @CALBettypes)
+	SET @xmlBettype = CONVERT(XML, @CALBettypes)			
 	
 	;WITH CTE_Bettype AS (
 		SELECT T.C.value('./@t', 'SMALLINT') AS bettype
@@ -56,73 +112,61 @@ BEGIN
 	FROM CTE_Bettype temp
 		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
 		ON temp.bettype = f.bettype
-	OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))
+	WHERE @mode = 'CAL'		
+	OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))			
 	
-	IF (@@ROWCOUNT = 0) RETURN
+	--CONVERT Ticket
+	SET @xmlTicket = CONVERT(XML, @TicketInfos)
 	
-	SELECT TOP(1)
-		@fth 	= FinalHomeScore
-		, @fta 	= FinalAwayScore
-		, @hth 	= HTHomeScore
-		, @hta 	= HTAwayScore
+	INSERT INTO #tblTicketInfos(matchid, transid)
+	SELECT T.C.value('./@m', 'INT') as matchid
+		 , T.C.value('./@t', 'BIGINT') as transid					
+	FROM @xmlTicket.nodes('/root/r') as [T](C) --T: table, C: column	
+	WHERE @Mode = 'VOID'
+	OPTION (OPTIMIZE FOR (@xmlTicket = NULL ))	
+	
+	-- build match list
+	;WITH CTE_MatchID AS
+	(
+		SELECT @matchid AS matchid WHERE @mode = 'CAL'
+		UNION ALL
+		SELECT DISTINCT matchid FROM #tblTicketInfos WHERE @mode = 'VOID'
+	)	
+	INSERT INTO #tblMatchResult(matchid, fth, fta, hth, hta, sporttype)
+	SELECT matchid
+		, FinalHomeScore
+		, FinalAwayScore
+		, HTHomeScore
+		, HTAwayScore
+		, sporttype
 	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-	WHERE matchid = @matchid
-	
-	--CLone table structure
-	INSERT INTO @tempBatchTicket (batchNo, fromTransId, toTransId)
-	SELECT batchNo
-		, MIN(transid) AS fromTransId
-		, MAX(transid) AS toTransId
-	FROM (
-		SELECT transid
-			, batchNo = (
-				ROW_NUMBER() OVER (
-					ORDER BY rn
-					) + 1
-				) / 2
-		FROM (
-			SELECT transid
-				, rn = ROW_NUMBER() OVER (
-					ORDER BY transid
-					)
-				, rn_rev = ROW_NUMBER() OVER (
-					ORDER BY transid DESC
-					)
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN @tempBettype AS temp
-				ON b.bettype = temp.bettype
-			WHERE matchid = @matchid
-				
-				AND b.statusID NOT IN (101,102) --void/reject
-		) x
-		WHERE rn % @batchcount = 0 -- toTransId
-			OR (rn - 1) % @batchcount = 0 -- fromTransId
-			OR rn_rev = 1 --maxTransId
-	) AS t
-	GROUP BY batchNo
-	ORDER BY batchNo
-	
-	DECLARE @batchNo INT = 1
+	WHERE matchid IN (SELECT matchid FROM CTE_MatchID)			
+		
+	IF (@@ROWCOUNT = 0) RETURN		
 	
 	--SELECT tickets for calculating
-	WHILE (EXISTS(SELECT 1 FROM @tempBatchTicket WHERE batchNo = @batchNo))
-	BEGIN
-		
-		SELECT @fromTransId = fromTransId
-			,@fromTransId 	= fromTransId
-		FROM @tempBatchTicket
-		WHERE batchNo = @batchNo
-		
-		SELECT TOP (@batchCount)
+	IF @mode = 'CAL'
+	BEGIN	
+		INSERT INTO #TempData(recommend, matchid, custid, bettype,
 			transid, actual_stake, stake, odds, comstatus, 
-			betteam, hdp1, hdp2, livehomescore, liveawayscore,
+			--betteam, hdp1, hdp2, livehomescore, liveawayscore,
 			apositiontaking, mpositiontaking, spositiontaking, 
 			playerdiscount,discount, adiscount, sdiscount,
 			WinLost, aWinLost, mWinLost, sWinLost, 
 			PlayerComm, comm, acomm, scomm,
-			StatusID, ods.modds
-		INTO #TempData				
+			StatusID, modds
+		)
+		SELECT	b.recommend, b.matchid, b.custid, b.bettype,
+			transid, actual_stake, stake, odds, comstatus, 
+			--betteam, hdp1, hdp2, livehomescore, liveawayscore,
+			apositiontaking, mpositiontaking, spositiontaking, 
+			playerdiscount,discount, adiscount, sdiscount,
+			WinLost, aWinLost, mWinLost, sWinLost, 
+			PlayerComm, comm, acomm, scomm,
+			StatusID, ods.modds						
 		FROM dbo.bettrans b WITH(ROWLOCK)
+			INNER JOIN #tblMatchResult mr 
+				ON b.matchid = mr.matchid
 			INNER JOIN @tempBettype AS temp
 				ON b.bettype = temp.bettype
 			OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
@@ -132,20 +176,60 @@ BEGIN
 				, b.hdp2 			
 				, b.livehomescore	
 				, b.liveawayscore	
-				, @fth				
-				, @fta				
-				, @hth				
-				, @hta
+				, mr.fth				
+				, mr.fta				
+				, mr.hth				
+				, mr.hta
 				, temp.CalMode
 			) AS ods
 			
 		WHERE b.matchid 	= @matchid 
-			AND b.statusID 	NOT IN (101,102) --void/reject
-			AND b.transid  	BETWEEN @fromTransId AND @toTransId
-			
-		SET @batchNo += 1
-		
-	END
+			AND b.statusID NOT IN (101,102) --void/reject
+			AND b.transid <= @maxTransId
+	END			
+	ELSE IF @mode = 'VOID'
+	BEGIN			
+		INSERT INTO #TempData(recommend, matchid, custid, bettype,
+				b.transid, actual_stake, stake, odds, comstatus, 
+				--betteam, hdp1, hdp2, livehomescore, liveawayscore,
+				apositiontaking, mpositiontaking, spositiontaking, 
+				playerdiscount,discount, adiscount, sdiscount,
+				WinLost, aWinLost, mWinLost, sWinLost, 
+				PlayerComm, comm, acomm, scomm,
+				StatusID, modds)
+		SELECT	b.recommend, b.matchid, b.custid, b.bettype,
+				b.transid, actual_stake, stake, odds, comstatus, 
+				--betteam, hdp1, hdp2, livehomescore, liveawayscore,
+				apositiontaking, mpositiontaking, spositiontaking, 
+				playerdiscount,discount, adiscount, sdiscount,
+				WinLost, aWinLost, mWinLost, sWinLost, 
+				PlayerComm, comm, acomm, scomm,
+				StatusID, ods.modds					
+		FROM dbo.bettrans b WITH(ROWLOCK)
+			INNER JOIN #tblMatchResult mr 
+				ON b.matchid = mr.matchid
+			INNER JOIN #tblTicketInfos t 
+				ON b.transid = t.transid
+			INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
+				ON b.bettype = f.bettype
+					AND mr.sporttype = f.SportType		
+			OUTER APPLY dbo.f_Set_VS_BetRadar_CalModds (
+				  b.bettype 			
+				, b.betteam 			
+				, b.hdp1 			
+				, b.hdp2 			
+				, b.livehomescore	
+				, b.liveawayscore	
+				, mr.fth				
+				, mr.fta				
+				, mr.hth				
+				, mr.hta
+				, f.CalMode
+			) AS ods
+		WHERE b.statusID NOT IN (101,102) --void/reject	
+	END						
+
+	IF @@ROWCOUNT = 0 RETURN		
 	
 	UPDATE #TempData
 	SET 
@@ -223,65 +307,115 @@ BEGIN
 		END	
 
 	--UPDATE tickets by batch
-	DECLARE @_xml 		XML
-		, @_sXML 		VARCHAR(MAX)
-	DECLARE @subtable 	TABLE (
-		transid 		BIGINT
-		, winlost 		MONEY
-		, awinlost 		MONEY
-		, mwinlost 		MONEY
-		, swinlost 		MONEY
-		, playercomm 	MONEY
-		, comm 			MONEY
-		, acomm 		MONEY
-		, scomm 		MONEY
-		, statusid 		TINYINT
-		, modds 		MONEY
-		, custid		INT
-	)
 	
 	BEGIN TRY	
 		WHILE (1 = 1)
 		BEGIN
-			DELETE @subtable
+			DELETE @BetTickets
 			
-			DELETE TOP (1000) #TempData
-			OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	
-				deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm, deleted.statusid, deleted.modds	
-			INTO @subtable(transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds)	
+			DELETE TOP (@batchCount) #TempData
+			OUTPUT deleted.recommend, deleted.matchid, deleted.custid, deleted.bettype, deleted.transid
+				, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost
+				, deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm
+				, deleted.statusid, deleted.modds, deleted.actual_stake	
+			INTO @BetTickets(recommend, matchid, custid, bettype, transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds, actual_stake)	
 			
 			IF @@ROWCOUNT = 0 BREAK
 			
-			SET @_xml = (
-				SELECT 
-					transid '@q'
-					,NULLIF(winlost,0) '@a'
-					,NULLIF(awinlost,0) '@z'
-					,NULLIF(mwinlost,0) '@w'				
-					,NULLIF(swinlost,0) '@s'
-					,NULLIF(playercomm,0) '@x'
-					,NULLIF(comm,0) '@e'
-					,NULLIF(acomm,0) '@d'
-					,NULLIF(scomm,0) '@c'	
-					,statusid '@r'	
-					,NULLIF(modds,0) '@f'
-				FROM @subtable
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @_sXML = CONVERT(varchar(max), @_xml)
+			EXEC dbo.NAP_Admin_Caculate_Bettrans
+				@BetTickets		= @BetTickets	
+				,@CWLBettype	= 2701
+				,@balnaceUpd 	= @balnaceUpd OUTPUT
+				,@ErrCode 		= @ErrCode OUTPUT
+				,@ErrMsg 		= @ErrMsg OUTPUT
 			
-			EXEC dbo.Bet_ExecRep_05 
-				@IgnoreList		= @IgnoreList
-				,@updatetype	= 1
-				,@_sXML			= @_sXML
-									
+			--tracing negative balance & updated custid
+			;WITH CTE_BalnaceUpd AS (
+				SELECT T.C.value('./@c', 'INT') AS custid
+					, T.C.value('./@b', 'MONEY') AS balanceBefore
+					, T.C.value('./@a', 'MONEY') AS balanceAfter
+				FROM @balnaceUpd.nodes('/root/r') as [T](C) --T: table, C: column	
+			)
+			INSERT INTO @custBalnaceUpd (custid, balanceBefore, balanceAfter)	
+			SELECT bal.CustID
+				, bal.balanceBefore
+				, bal.balanceAfter
+			FROM CTE_BalnaceUpd AS bal
+			OPTION (OPTIMIZE FOR (@balnaceUpd = NULL ))				
+			
+			IF (@ErrCode > 0 ) BREAK
 		END
 	END TRY
 	BEGIN CATCH
+	
 		SELECT @ErrCode = ERROR_NUMBER()
 			, @ErrMsg 	= ERROR_MESSAGE()
+		
 	END CATCH
 	
-	RETURN
+	--CAPTURE pending balance before
+	INSERT INTO @beforeUpd (
+		custid
+		,balance
+		,balanceType
+	)
+	SELECT b.custid
+		,SUM(b.balanceBefore) AS balance
+		,@BalanceType
+	FROM @custBalnaceUpd AS b
+	GROUP BY b.custid
+	
+	--CAPTURE pending balance after
+	INSERT INTO @afterUpd (
+		custid
+		,balance
+		,balanceType
+	)
+	SELECT a.custid
+		,SUM(a.balanceAfter) AS balance
+		,@BalanceType
+	FROM @custBalnaceUpd AS a
+	GROUP BY a.custid
+	
+	
+	---INSERT data into pending balance table   
+	IF(EXISTS (SELECT 1
+		FROM @beforeUpd b
+			INNER JOIN @afterUpd a
+			ON b.custid = a.custid
+		WHERE b.balance <> a.balance)
+	)
+	BEGIN
+		
+		--UPDATE pending table balance
+		EXEC [dbo].[NAP_Admin_BalancePendingIns]
+			@BeforeUpd	 = @beforeUpd
+			, @AfterUpd	 = @afterUpd
+	
+		----
+		-- Add Negative Balance into BalanceNegative table 
+		----
+		INSERT INTO [bodb02].[dbo].[BalanceNegative] (
+			[ExecDate]
+			,[MatchID]
+			,[ActionID]
+			,[GroupID]
+			,[CustID]
+			,[Balance]
+			,[StatusID]
+			,[Remark]
+			)
+		SELECT GETDATE()
+			,@MatchID
+			,@ActionID
+			,7 -- VS BetRadar Settlement 
+			,bal.CustID
+			,SUM(bal.balanceAfter - bal.balanceBefore) AS Balance
+			,0
+			,NULL
+		FROM @custBalnaceUpd AS bal
+		GROUP BY bal.custid
+		HAVING SUM(bal.balanceAfter - bal.balanceBefore) < 0
+	END
 END
 GO

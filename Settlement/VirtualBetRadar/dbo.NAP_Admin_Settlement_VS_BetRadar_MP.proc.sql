@@ -29,7 +29,6 @@ BEGIN
 		, @matchdate			SMALLDATETIME
 		, @strRefnos			VARCHAR(MAX)
 		, @TotalAccount			INT
-		, @parlayBettype		SMALLINT
 		, @ActionID				INT
 
 		, @start				DATETIME
@@ -38,12 +37,7 @@ BEGIN
 		
 	DECLARE @tempRefno			TABLE (refno BIGINT)
 	
-	--balance tables
-	DECLARE @beforeUpd			TVP_BalanceChange
-			,@afterUpd			TVP_BalanceChange
-	
-	SELECT @parlayBettype 		= 2799 
-		, @ErrCode				= 0
+	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 		, @ActionID 			= CASE @Action
 									WHEN 'CAL'		THEN 187
@@ -96,21 +90,6 @@ BEGIN
 				FROM @tempRefno AS r
 				FOR XML PATH('r'), ROOT('root'), TYPE
 		) AS VARCHAR(MAX))
-		
-		
-	-------------------------------------------------------------
-	---        CAPTURE value BALANCE before settlement        ---
-	---------------------------VVVV------------------------------
-
-	INSERT INTO @beforeUpd (custid, balance, balanceType)
-	SELECT	b.custid
-		, SUM(b.winlost-b.actual_stake+b.playercomm) AS balance
-		, 4 AS balanceType
-	FROM	dbo.bettrans b with (rowlock)
-	WHERE	b.matchid = @parlayBettype
-			AND b.bettype = @parlayBettype
-			AND EXISTS (SELECT 1 FROM @tempRefno WHERE refno = b.refno)
-	GROUP BY b.custid	
 	
 	
 	IF(@Action = 'CAL')
@@ -144,126 +123,12 @@ BEGIN
 			@MatchId			= @MatchId
 			,@strRefnos 		= @strRefnos
 			,@matchdate			= @matchdate
+			,@ActionID			= @ActionID
 			,@ErrCode			= @ErrCode OUTPUT
 			,@ErrMsg			= @ErrMsg OUTPUT
 	END	
 	
-	IF(@ErrCode > 0) 
-	BEGIN
-		-------------------------------------------------------------
-		---         CAPTURE value BALANCE after settlement with ERROR       ---
-		---------------------------VVVV------------------------------
-		INSERT INTO @afterUpd (custid, balance, balanceType)
-		SELECT	b.custid
-			, SUM(b.winlost-b.actual_stake+b.playercomm) AS balance
-			, 4 AS balanceType
-		FROM	dbo.bettrans b with (rowlock)
-		WHERE	b.matchid = @parlayBettype
-				AND b.bettype = @parlayBettype
-				AND EXISTS (SELECT 1 FROM @tempRefno WHERE refno = b.refno)
-		GROUP BY b.custid	
-		
-		-------------------------------------------------------------
-		---                   compare BALANCE  with ERROR         ---
-		---------------------------VVVV------------------------------
-		SELECT @TotalAccount = COUNT(DISTINCT b.custid)
-		FROM @beforeUpd b
-			INNER JOIN @afterUpd a ON b.custid = a.custid
-		WHERE b.balance <> a.balance
-
-		IF(@TotalAccount > 0)
-		BEGIN
-			EXEC [dbo].[NAP_Admin_BalancePendingIns]
-				@BeforeUpd	= @beforeUpd
-				,@AfterUpd 	= @afterUpd
-		END
-	
-		----
-		-- Add Negative Balance into BalanceNegative table 
-		----
-		INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-			[ExecDate]
-			,[MatchID]
-			,[ActionID]
-			,[GroupID]
-			,[CustID]
-			,[Balance]
-			,[StatusID]
-			,[Remark]
-			)
-		SELECT GETDATE()
-			,@MatchID
-			,@ActionID
-			,7 -- VS BetRadar Parlay Settlement 
-			,b.CustID
-			, a.balance - b.balance AS Balance
-			,0
-			,NULL
-		FROM @beforeUpd b
-			INNER JOIN @afterUpd a 
-			ON b.custid = a.custid
-		WHERE a.balance < b.balance
-		
-		RETURN
-	END
-	
-	
-	-------------------------------------------------------------
-	---         CAPTURE value BALANCE after settlement        ---
-	---------------------------VVVV------------------------------
-	INSERT INTO @afterUpd (custid, balance, balanceType)
-	SELECT	b.custid
-		, SUM(b.winlost-b.actual_stake+b.playercomm) AS balance
-		, 4 AS balanceType
-	FROM	dbo.bettrans b with (rowlock)
-	WHERE	b.matchid = @parlayBettype
-			AND b.bettype = @parlayBettype
-			AND EXISTS (SELECT 1 FROM @tempRefno WHERE refno = b.refno)
-	GROUP BY b.custid	
-	
-	
-	-------------------------------------------------------------
-	---                   compare BALANCE  				      ---
-	---------------------------VVVV------------------------------
-	SELECT @TotalAccount = COUNT(DISTINCT b.custid)
-	FROM @beforeUpd b
-		INNER JOIN @afterUpd a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-
-	IF(@TotalAccount > 0)
-	BEGIN
-		EXEC [dbo].[NAP_Admin_BalancePendingIns]
-			@BeforeUpd	= @beforeUpd
-			,@AfterUpd 	= @afterUpd
-	END
-	
-	----
-	-- Add Negative Balance into BalanceNegative table 
-	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-		[ExecDate]
-		,[MatchID]
-		,[ActionID]
-		,[GroupID]
-		,[CustID]
-		,[Balance]
-		,[StatusID]
-		,[Remark]
-		)
-	SELECT GETDATE()
-		,@MatchID
-		,@ActionID
-		,7 -- VS BetRadar Parlay Settlement 
-		,b.CustID
-		, a.balance - b.balance AS Balance
-		,0
-		,NULL
-	FROM @beforeUpd b
-		INNER JOIN @afterUpd a 
-		ON b.custid = a.custid
-	WHERE a.balance < b.balance
-	
-	
+	IF(@ErrCode > 0) RETURN
 	
 	----------------------------------------------------------------------------------------------------------------------------------------
 	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
@@ -282,9 +147,6 @@ BEGIN
 			,@creator = @AdminId
 			
 	END --END: UPDATE match_remark ----------------------------------	
-
-	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
-	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do, end 2799_cal')
 	
 	--RELEASE process
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -301,7 +163,14 @@ BEGIN
 		EXEC dbo.WriteLog_UserLog @AdminId, @Remark
 
 		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-
+		
+		--RESET scores values
+		SELECT @fth = NULL
+			,@fta 	= NULL
+			,@hth 	= NULL
+			,@hta	= NULL
+		WHERE @Action = 'REFUND'
+		
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid

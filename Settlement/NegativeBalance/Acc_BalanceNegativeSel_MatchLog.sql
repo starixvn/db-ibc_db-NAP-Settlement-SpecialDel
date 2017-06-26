@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
+﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
 	 @MatchID	INT,
 	 @GroupID	INT = 1 
 AS
@@ -12,7 +13,7 @@ AS
 		- 20140304@Elodie: Retreive settlement log for outright
 		- 20150918@Elodie: Get Log Action Name by Chinese langague [Red:#43705]
 	Param's Explanation: 
-		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright 
+		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
 
 */
 BEGIN 
@@ -25,9 +26,10 @@ BEGIN
 		,EventDate		DATETIME
 		,HomeID			INT
 		,AwayID			INT
+		,SportType		INT
 	)
 	
-	IF @GroupID BETWEEN 1 AND  2 
+	IF @GroupID IN (1,2,7)
 	BEGIN 
 
 		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[match] WITH (NOLOCK) WHERE matchid = @MatchID)
@@ -39,6 +41,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -46,6 +49,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	bodb02.dbo.[match]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -58,6 +62,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -65,6 +70,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	bodb02.dbo.[match14]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -77,6 +83,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -84,6 +91,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	DBACC.bodb_archive.dbo.[match_bk]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -155,9 +163,10 @@ BEGIN
 			,EventDate
 			,HomeID
 			,AwayID
+			,SportType
 	FROM	@tmpMatch
 
-	IF @GroupID BETWEEN 1 AND  2 
+	IF @GroupID IN (1,2,7)
 	BEGIN
 		SELECT	  l.logid
 				, l.logdate
@@ -186,6 +195,4 @@ BEGIN
 		ORDER BY	l.LogID ASC 	
 	END
 END 
-
 GO 
-GRANT EXECUTE ON [dbo].[Acc_BalanceNegativeSel_MatchLog] TO [bodbAdminNet]
