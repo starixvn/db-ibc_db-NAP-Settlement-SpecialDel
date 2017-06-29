@@ -34,7 +34,7 @@ BEGIN
 		, @commLostRate 	SMALLMONEY
 		, @batchCount		INT
 		, @BalanceCount     INT
-		, @balnaceUpd		XML
+		, @balanceUpd		XML
 		, @BalanceType		TINYINT
 		
 	
@@ -325,7 +325,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_Caculate_Bettrans
 				@BetTickets		= @BetTickets	
 				,@CWLBettype	= 2701
-				,@balnaceUpd 	= @balnaceUpd OUTPUT
+				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
 			
@@ -334,14 +334,14 @@ BEGIN
 				SELECT T.C.value('./@c', 'INT') AS custid
 					, T.C.value('./@b', 'MONEY') AS balanceBefore
 					, T.C.value('./@a', 'MONEY') AS balanceAfter
-				FROM @balnaceUpd.nodes('/root/r') as [T](C) --T: table, C: column	
+				FROM @balanceUpd.nodes('/root/r') as [T](C) --T: table, C: column	
 			)
 			INSERT INTO @custBalnaceUpd (custid, balanceBefore, balanceAfter)	
 			SELECT bal.CustID
 				, bal.balanceBefore
 				, bal.balanceAfter
 			FROM CTE_BalnaceUpd AS bal
-			OPTION (OPTIMIZE FOR (@balnaceUpd = NULL ))				
+			OPTION (OPTIMIZE FOR (@balanceUpd = NULL ))				
 			
 			IF (@ErrCode > 0 ) BREAK
 		END
@@ -395,27 +395,30 @@ BEGIN
 		----
 		-- Add Negative Balance into BalanceNegative table 
 		----
-		INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-			[ExecDate]
-			,[MatchID]
-			,[ActionID]
-			,[GroupID]
-			,[CustID]
-			,[Balance]
-			,[StatusID]
-			,[Remark]
-			)
-		SELECT GETDATE()
-			,@MatchID
-			,@ActionID
-			,7 -- VS BetRadar Settlement 
-			,bal.CustID
-			,SUM(bal.balanceAfter - bal.balanceBefore) AS Balance
-			,0
-			,NULL
-		FROM @custBalnaceUpd AS bal
-		GROUP BY bal.custid
-		HAVING SUM(bal.balanceAfter - bal.balanceBefore) < 0
+		IF(@ActionID > 0 AND @MatchID > 0)
+		BEGIN
+			INSERT INTO [bodb02].[dbo].[BalanceNegative] (
+				[ExecDate]
+				,[MatchID]
+				,[ActionID]
+				,[GroupID]
+				,[CustID]
+				,[Balance]
+				,[StatusID]
+				,[Remark]
+				)
+			SELECT GETDATE()
+				,@MatchID
+				,@ActionID
+				,7 -- VS BetRadar Settlement 
+				,bal.CustID
+				,SUM(bal.balanceAfter - bal.balanceBefore) AS Balance
+				,0
+				,NULL
+			FROM @custBalnaceUpd AS bal
+			GROUP BY bal.custid
+			HAVING SUM(bal.balanceAfter - bal.balanceBefore) < 0
+		END
 	END
 END
 GO

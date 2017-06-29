@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Caculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
 	,@CWLBettype		SMALLINT 		= 0
-	,@BalnaceUpd		XML 			= NULL 	OUTPUT
+	,@BalanceUpd		XML 			= NULL 	OUTPUT
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -15,7 +15,7 @@ AS
 		
 
 	Param's Explanation:
-		Bettrans_04: balanceType = 4 others
+		
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -117,7 +117,7 @@ BEGIN
 	IF(@@ROWCOUNT > 0)
 	BEGIN		
 		-- OUTPUT updated balance custid
-		SELECT @BalnaceUpd = (
+		SELECT @BalanceUpd = (
 			SELECT a.custid		AS '@c'
 				,SUM(b.balance) AS '@b'
 				,SUM(a.balance) AS '@a'
