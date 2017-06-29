@@ -12,6 +12,8 @@ AS
 	Revisions:
 		- 20140304@Elodie: Retreive settlement log for outright
 		- 20150918@Elodie: Get Log Action Name by Chinese langague [Red:#43705]
+		- 20170629@Bobby: 78882 - Add groupid = 7
+		- 
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
 
