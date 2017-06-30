@@ -37,7 +37,7 @@ BEGIN
 		, @ErrMsg				= ''
 		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'
 	
-	--SELECT perlay tickets
+	--SELECT parlay tickets
 	SELECT transid		
 	INTO #TempData				
 	FROM dbo.bettransm bm WITH(ROWLOCK)

@@ -34,9 +34,10 @@ BEGIN
 		, @commLostRate 	SMALLMONEY
 		, @batchCount		INT
 		, @BalanceCount     INT
-		, @balanceUpd		XML
+		, @balanceUpd		VARCHAR(MAX)
 		, @BalanceType		TINYINT
-		, @xmlBalanceAcc 	XML
+		, @balanceAcc 		VARCHAR(MAX)
+		, @GroupID			INT
 		
 	DECLARE @tempBettype 	TABLE (bettype SMALLINT, CalMode TINYINT)
 	DECLARE @BetTickets  	TVP_Settlement_BetTicket
@@ -64,10 +65,6 @@ BEGIN
 		, [odds] 			[SMALLMONEY]
 		, [comstatus] 		[NVARCHAR](20)
 		, [betteam] 		[nvarchar](10)
-		-- , [hdp1] 			[SMALLMONEY]
-		-- , [hdp2] 			[SMALLMONEY]
-		-- , [livehomescore] 	[SMALLINT]
-		-- , [liveawayscore] 	[SMALLINT]
 		, [apositiontaking] [SMALLMONEY]
 		, [mpositiontaking] [SMALLMONEY]
 		, [spositiontaking] [SMALLMONEY]
@@ -92,9 +89,9 @@ BEGIN
 			, @ErrMsg  		= ''
 			, @batchCount 	= 2000
 			, @BalanceType 	= 4 --Others 3rd products
+			, @balanceAcc	= ''
+			, @GroupID		= 7 --VS Betradar
 	
-	--INITIAL balance account
-	SET @xmlBalanceAcc	= '<root />'
 	
 	--CONVERT bettype
 	SET @xmlBettype = CONVERT(XML, @CALBettypes)			
@@ -307,6 +304,8 @@ BEGIN
 	BEGIN TRY	
 		WHILE (1 = 1)
 		BEGIN
+		
+			SET @balanceUpd = NULL
 			DELETE @BetTickets
 			
 			DELETE TOP (@batchCount) #TempData
@@ -328,8 +327,7 @@ BEGIN
 			--tracing updated balance ACC
 			IF(@balanceUpd IS NOT NULL)
 			BEGIN
-				SET @balanceUpd = (SELECT @balanceUpd.query('/root/r'))
-				SET @xmlBalanceAcc.modify('insert sql:variable("@balanceUpd") as last into (/root)[1]')
+				SET @balanceAcc += @balanceUpd
 			END			
 			
 			IF (@ErrCode > 0 ) BREAK
@@ -344,9 +342,10 @@ BEGIN
 	
 	-- Settlement balance process
 	EXEC dbo.NAP_Admin_Settlement_BalanceProcess
-		@xmlBalance				= @xmlBalanceAcc
+		@BalanceAcc				= @balanceAcc
 		, @BalanceType			= @BalanceType
 		, @actionId				= @actionId
-		, @MatchID				= @MatchID	
+		, @MatchID				= @MatchID
+		, @GroupID				= @GroupID		
 END
 GO

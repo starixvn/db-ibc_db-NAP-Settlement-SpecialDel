@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Caculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
 	,@CWLBettype		SMALLINT 		= 0
-	,@BalanceUpd		XML 			= NULL 	OUTPUT
+	,@BalanceUpd		VARCHAR(MAX)	= NULL 	OUTPUT
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -25,6 +25,11 @@ BEGIN
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
 	CREATE TABLE #BalanceCWLAfter (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
+	
+	--RESET output
+	SELECT  @ErrCode	= 0
+		, @ErrMsg		= ''
+		, @BalanceUpd 	= NULL
 	
 	--BEGIN: CAPTURE value BALANCE before calculating
 	INSERT INTO #BalanceCWLBefore (
@@ -117,18 +122,17 @@ BEGIN
 	IF(@@ROWCOUNT > 0)
 	BEGIN		
 		-- OUTPUT updated balance custid
-		SELECT @BalanceUpd = (
-			SELECT a.custid		AS '@c'
-				,SUM(b.balance) AS '@b'
-				,SUM(a.balance) AS '@a'
-			FROM #BalanceCWLBefore b
-				INNER JOIN #BalanceCWLAfter a 
-				ON	a.custid = b.custid
-				
-			GROUP BY a.custid
-			HAVING SUM(b.balance) <> SUM(a.balance)
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		)
+		SELECT @BalanceUpd = CAST((
+				SELECT a.custid		AS '@c'
+					,SUM(b.balance) AS '@b'
+					,SUM(a.balance) AS '@a'
+				FROM #BalanceCWLBefore b
+					INNER JOIN #BalanceCWLAfter a 
+					ON	a.custid = b.custid
+				GROUP BY a.custid
+				HAVING SUM(b.balance) <> SUM(a.balance)
+				FOR XML PATH('r'), TYPE
+			) AS VARCHAR(MAX))
 
 		IF(@CWLBettype > 0)--BEGIN: integrating with company winlimit
 		BEGIN

@@ -41,24 +41,21 @@ BEGIN
 	
 	CREATE TABLE #tblMatchResult
 	(
-		matchid INT, 
-		fth INT, 
-		fta INT, 
-		hth INT, 
-		hta INT,
-		sporttype TINYINT,
-		matchdate SMALLDATETIME
+		matchid 		INT 
+		, fth 			INT
+		, fta 			INT 
+		, hth 			INT 
+		, hta 			INT
+		, sporttype 	TINYINT
+		, matchdate 	SMALLDATETIME
 	)
 	
-	SELECT bm.transid
-		 , bm.statuswinlost
-		 , bm.statusID
-		 , mr.matchdate	
-	INTO #TempData				
-	FROM dbo.bettransm bm WITH(ROWLOCK)
-		 INNER JOIN #tblMatchResult mr 
-				 ON bm.matchid = mr.matchid
-	WHERE 1 = 0							
+	CREATE TABLE #TempData (
+		transid			BIGINT
+		, statuswinlost	TINYINT
+		, statusID		TINYINT
+		, matchdate		SMALLDATETIME
+	)							
 	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
