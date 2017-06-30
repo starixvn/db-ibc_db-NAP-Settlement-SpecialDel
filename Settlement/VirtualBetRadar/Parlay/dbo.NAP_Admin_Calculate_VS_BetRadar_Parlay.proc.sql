@@ -1,13 +1,15 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay] 
-	@SportType			INT
-	,@MatchId			INT
-	,@Fth				SMALLINT
-	,@Fta				SMALLINT
-	,@Hth				SMALLINT
-	,@Hta				SMALLINT
-	,@strRefnos			VARCHAR(MAX)
-	,@matchdate			SMALLDATETIME
+	@SportType			INT				= 0
+	,@MatchId			INT				= 0
+	,@TicketInfos 		VARCHAR(MAX)	= NULL
+	,@mode 				VARCHAR(6)		= 'CAL'
+	,@Fth				SMALLINT		= 0
+	,@Fta				SMALLINT		= 0
+	,@Hth				SMALLINT		= 0
+	,@Hta				SMALLINT		= 0
+	,@strRefnos			VARCHAR(MAX)	= ''
+	,@matchdate			SMALLDATETIME	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -17,78 +19,184 @@ AS
 	
 	Revisions:
 		- 20160606@Bobby: Initialize
+		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		
 	Param's Explanation:
- 
+		• @Mode:
+			CAL : Settle sub parlay ticket by match
+			VOID : Re-settle sub parlay ticket by list ticket
+		• @TicketInfos : 
+			meaning : single transids (bettrans.transid)	
+			format xml : <root><r m="1234", t="2333" /></root>
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @xmlRefno	 	XML
+		  , @xmlTicket		XML
 	DECLARE @IgnoreList 	VARCHAR(200)
 	DECLARE @tempRefno 		TABLE (refno BIGINT)
 	
-	--CONVERT refno
-	SET @xmlRefno = CONVERT(XML, @strRefnos)
+	CREATE TABLE #tblTicketInfos (matchid int, transid BIGINT)
 	
-	INSERT INTO @tempRefno (refno)
-	SELECT T.C.value('./@rn', 'BIGINT') AS refno
-	FROM @xmlRefno.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@xmlRefno = NULL ))
+	CREATE TABLE #tblMatchResult
+	(
+		matchid INT, 
+		fth INT, 
+		fta INT, 
+		hth INT, 
+		hta INT,
+		sporttype TINYINT,
+		matchdate SMALLDATETIME
+	)
 	
-	IF (@@ROWCOUNT = 0) RETURN
+	SELECT bm.transid
+		 , bm.statuswinlost
+		 , bm.statusID
+		 , mr.matchdate	
+	INTO #TempData				
+	FROM dbo.bettransm bm WITH(ROWLOCK)
+		 INNER JOIN #tblMatchResult mr 
+				 ON bm.matchid = mr.matchid
+	WHERE 1 = 0							
 	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'
-	
-	--SELECT perlay tickets
-	SELECT bm.transid
-		, CASE 
-				WHEN ods.modds > 0.25 THEN 2 -- WON
-				WHEN ods.modds = 0.25 THEN 1 -- Half WON
-				WHEN ods.modds = 0 THEN 0 -- DRAW
-				WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
-				WHEN ods.modds < -0.25 THEN 4 -- LOSE
-				ELSE bm.statuswinlost
-			END AS statuswinlost
-		, CASE 
-				WHEN ods.modds = 0 THEN 111 --DRAW
-				WHEN ods.modds > 0 THEN 112 --WON
-				WHEN ods.modds < 0 THEN 113 --LOSE
-				ELSE bm.statusID
-			END AS statusID
 		
-	INTO #TempData				
-	FROM dbo.bettransm bm WITH(ROWLOCK)
-		INNER JOIN @tempRefno temp 
-			ON bm.refno = temp.refno
-		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
-			ON bm.bettype = f.bettype
-		OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds] (
-			bm.bettype 			
-			, bm.betteam 			
-			, bm.hdp1 			
-			, bm.hdp2 			
-			, bm.livehomescore	
-			, bm.liveawayscore	
-			, @fth				
-			, @fta				
-			, @hth				
-			, @hta
-			, f.CalMode
-		) AS ods
-	WHERE bm.matchid = @matchid 
-		AND f.sportType = @sportType
-		AND bm.statusID NOT IN (101,102) --void/reject
+	IF @mode = 'CAL'
+	BEGIN
+		--CONVERT refno
+		SET @xmlRefno = CONVERT(XML, @strRefnos)
+	
+		INSERT INTO @tempRefno (refno)
+		SELECT T.C.value('./@rn', 'BIGINT') AS refno
+		FROM @xmlRefno.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@xmlRefno = NULL ))
 
-	IF @@ROWCOUNT = 0 RETURN	
+		IF @@ROWCOUNT = 0 RETURN
+
+		--SELECT perlay tickets
+		INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
+		SELECT bm.transid
+			, CASE 
+					WHEN ods.modds > 0.25 THEN 2 -- WON
+					WHEN ods.modds = 0.25 THEN 1 -- Half WON
+					WHEN ods.modds = 0 THEN 0 -- DRAW
+					WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
+					WHEN ods.modds < -0.25 THEN 4 -- LOSE
+					ELSE bm.statuswinlost
+				END AS statuswinlost
+			, CASE 
+					WHEN ods.modds = 0 THEN 111 --DRAW
+					WHEN ods.modds > 0 THEN 112 --WON
+					WHEN ods.modds < 0 THEN 113 --LOSE
+					ELSE bm.statusID
+				END AS statusID	
+			, @matchdate							
+		FROM dbo.bettransm bm WITH(ROWLOCK)
+			INNER JOIN @tempRefno temp 
+				ON bm.refno = temp.refno
+			INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+				ON bm.bettype = f.bettype
+			OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds] (
+				bm.bettype 			
+				, bm.betteam 			
+				, bm.hdp1 			
+				, bm.hdp2 			
+				, bm.livehomescore	
+				, bm.liveawayscore	
+				, @fth				
+				, @fta				
+				, @hth				
+				, @hta
+				, f.CalMode
+			) AS ods
+		WHERE bm.matchid = @MatchId
+		  AND f.SportType = @SportType
+		  AND bm.statusID NOT IN (101,102) --void/reject
+		  
+		IF @@ROWCOUNT = 0 RETURN		
+	END	
+	ELSE IF @Mode = 'VOID'
+	BEGIN
+		--CONVERT Ticket
+		SET @xmlTicket = CONVERT(XML, @TicketInfos)
+	
+		INSERT INTO #tblTicketInfos(matchid, transid)
+		SELECT T.C.value('./@m', 'INT') as matchid
+			 , T.C.value('./@t', 'BIGINT') as transid					
+		FROM @xmlTicket.nodes('/root/r') as [T](C) --T: table, C: column
+		OPTION (OPTIMIZE FOR (@xmlTicket = NULL ))
+
+		IF @@ROWCOUNT = 0 RETURN
+
+		-- build match list
+		INSERT INTO #tblMatchResult(matchid, fth, fta, hth, hta, sporttype, matchdate)
+		SELECT matchid
+			, FinalHomeScore
+			, FinalAwayScore
+			, HTHomeScore
+			, HTAwayScore
+			, sporttype
+			, eventdate
+		FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
+		WHERE matchid IN (SELECT DISTINCT matchid FROM #tblTicketInfos)
+	
+		IF @@ROWCOUNT = 0 RETURN
+
+		--SELECT perlay tickets
+		INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
+		SELECT bm.transid
+			, CASE 
+					WHEN ods.modds > 0.25 THEN 2 -- WON
+					WHEN ods.modds = 0.25 THEN 1 -- Half WON
+					WHEN ods.modds = 0 THEN 0 -- DRAW
+					WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
+					WHEN ods.modds < -0.25 THEN 4 -- LOSE
+					ELSE bm.statuswinlost
+				END AS statuswinlost
+			, CASE 
+					WHEN ods.modds = 0 THEN 111 --DRAW
+					WHEN ods.modds > 0 THEN 112 --WON
+					WHEN ods.modds < 0 THEN 113 --LOSE
+					ELSE bm.statusID
+				END AS statusID	
+			, mr.matchdate							
+		FROM dbo.bettransm bm WITH(ROWLOCK)
+			INNER JOIN #tblTicketInfos temp 
+				ON bm.transid = temp.transid
+			INNER JOIN #tblMatchResult mr 
+				ON bm.matchid = mr.matchid
+			INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+				ON bm.bettype = f.bettype
+				   AND mr.sporttype = f.SportType
+			OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds] (
+				bm.bettype 			
+				, bm.betteam 			
+				, bm.hdp1 			
+				, bm.hdp2 			
+				, bm.livehomescore	
+				, bm.liveawayscore	
+				, mr.fth				
+				, mr.fta				
+				, mr.hth				
+				, mr.hta
+				, f.CalMode
+			) AS ods
+		WHERE bm.statusID NOT IN (101,102) --void/reject	
+		
+		IF @@ROWCOUNT = 0 RETURN		
+	END
+	ELSE
+		RETURN
 		
 	DECLARE @_xml XML, @_sXML varchar(MAX)
 	DECLARE @subtable TABLE(
 		transid 		INT
 		,statuswinlost 	TINYINT
 		,statusID 		TINYINT
+		,matchdate		SMALLDATETIME
 	)
 	
 	BEGIN TRY
@@ -97,15 +205,15 @@ BEGIN
 			DELETE @subtable
 			
 			DELETE TOP (1000) #TempData
-			OUTPUT deleted.transid, deleted.statuswinlost, deleted.statusID
-			INTO @subtable(transid, statuswinlost, statusID)	
+			OUTPUT deleted.transid, deleted.statuswinlost, deleted.statusID, deleted.matchdate
+			INTO @subtable(transid, statuswinlost, statusID, matchdate)	
 			
 			IF @@ROWCOUNT = 0 BREAK
 			
 			SET @_xml = (
 				SELECT 
 					transid '@t'
-					,@matchdate '@d'
+					,matchdate '@d'
 					,statuswinlost '@w'
 					,statusID '@s'				
 				FROM @subtable

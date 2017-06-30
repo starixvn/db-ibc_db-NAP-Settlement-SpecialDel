@@ -36,14 +36,7 @@ BEGIN
 		, @BalanceCount     INT
 		, @balanceUpd		XML
 		, @BalanceType		TINYINT
-		
-	
-	--Tracing pending balance table
-	DECLARE @beforeUpd			TVP_BalanceChange
-		, @afterUpd				TVP_BalanceChange
-		
-	--Tracing negative table
-	DECLARE @custBalnaceUpd TABLE (custid INT, balanceBefore MONEY, balanceAfter MONEY)			
+		, @xmlBalanceAcc 	XML
 		
 	DECLARE @tempBettype 	TABLE (bettype SMALLINT, CalMode TINYINT)
 	DECLARE @BetTickets  	TVP_Settlement_BetTicket
@@ -99,7 +92,10 @@ BEGIN
 			, @ErrMsg  		= ''
 			, @batchCount 	= 2000
 			, @BalanceType 	= 4 --Others 3rd products
-		
+	
+	--INITIAL balance account
+	SET @xmlBalanceAcc	= '<root />'
+	
 	--CONVERT bettype
 	SET @xmlBettype = CONVERT(XML, @CALBettypes)			
 	
@@ -329,19 +325,12 @@ BEGIN
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
 			
-			--tracing negative balance & updated custid
-			;WITH CTE_BalnaceUpd AS (
-				SELECT T.C.value('./@c', 'INT') AS custid
-					, T.C.value('./@b', 'MONEY') AS balanceBefore
-					, T.C.value('./@a', 'MONEY') AS balanceAfter
-				FROM @balanceUpd.nodes('/root/r') as [T](C) --T: table, C: column	
-			)
-			INSERT INTO @custBalnaceUpd (custid, balanceBefore, balanceAfter)	
-			SELECT bal.CustID
-				, bal.balanceBefore
-				, bal.balanceAfter
-			FROM CTE_BalnaceUpd AS bal
-			OPTION (OPTIMIZE FOR (@balanceUpd = NULL ))				
+			--tracing updated balance ACC
+			IF(@balanceUpd IS NOT NULL)
+			BEGIN
+				SET @balanceUpd = (SELECT @balanceUpd.query('/root/r'))
+				SET @xmlBalanceAcc.modify('insert sql:variable("@balanceUpd") as last into (/root)[1]')
+			END			
 			
 			IF (@ErrCode > 0 ) BREAK
 		END
@@ -353,72 +342,11 @@ BEGIN
 		
 	END CATCH
 	
-	--CAPTURE pending balance before
-	INSERT INTO @beforeUpd (
-		custid
-		,balance
-		,balanceType
-	)
-	SELECT b.custid
-		,SUM(b.balanceBefore) AS balance
-		,@BalanceType
-	FROM @custBalnaceUpd AS b
-	GROUP BY b.custid
-	
-	--CAPTURE pending balance after
-	INSERT INTO @afterUpd (
-		custid
-		,balance
-		,balanceType
-	)
-	SELECT a.custid
-		,SUM(a.balanceAfter) AS balance
-		,@BalanceType
-	FROM @custBalnaceUpd AS a
-	GROUP BY a.custid
-	
-	
-	---INSERT data into pending balance table   
-	IF(EXISTS (SELECT 1
-		FROM @beforeUpd b
-			INNER JOIN @afterUpd a
-			ON b.custid = a.custid
-		WHERE b.balance <> a.balance)
-	)
-	BEGIN
-		
-		--UPDATE pending table balance
-		EXEC [dbo].[NAP_Admin_BalancePendingIns]
-			@BeforeUpd	 = @beforeUpd
-			, @AfterUpd	 = @afterUpd
-	
-		----
-		-- Add Negative Balance into BalanceNegative table 
-		----
-		IF(@ActionID > 0 AND @MatchID > 0)
-		BEGIN
-			INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-				[ExecDate]
-				,[MatchID]
-				,[ActionID]
-				,[GroupID]
-				,[CustID]
-				,[Balance]
-				,[StatusID]
-				,[Remark]
-				)
-			SELECT GETDATE()
-				,@MatchID
-				,@ActionID
-				,7 -- VS BetRadar Settlement 
-				,bal.CustID
-				,SUM(bal.balanceAfter - bal.balanceBefore) AS Balance
-				,0
-				,NULL
-			FROM @custBalnaceUpd AS bal
-			GROUP BY bal.custid
-			HAVING SUM(bal.balanceAfter - bal.balanceBefore) < 0
-		END
-	END
+	-- Settlement balance process
+	EXEC dbo.NAP_Admin_Settlement_BalanceProcess
+		@xmlBalance				= @xmlBalanceAcc
+		, @BalanceType			= @BalanceType
+		, @actionId				= @actionId
+		, @MatchID				= @MatchID	
 END
 GO

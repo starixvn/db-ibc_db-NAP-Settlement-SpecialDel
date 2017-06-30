@@ -11,6 +11,7 @@ AS
 		
 
 	Param's Explanation:
+		- ExecRep SP: DBTrans_Bet
 					
 */
 BEGIN
