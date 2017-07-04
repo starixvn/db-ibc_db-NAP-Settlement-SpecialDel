@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]	
 	@matchid 		INT				= 0
+	,@SportType		INT				= 0
 	,@mode 			VARCHAR(6)		= 'CAL'
 	,@CALBettypes 	VARCHAR(MAX)	= NULL
 	,@maxTransId	BIGINT			= 0
@@ -105,7 +106,8 @@ BEGIN
 	FROM CTE_Bettype temp
 		INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes () AS f
 		ON temp.bettype = f.bettype
-	WHERE @mode = 'CAL'		
+	WHERE @mode = 'CAL' 
+		AND f.SportType = @SportType
 	OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))			
 	
 	--CONVERT Ticket
