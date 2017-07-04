@@ -128,7 +128,10 @@ BEGIN
 					,SUM(a.balance) AS '@a'
 				FROM #BalanceCWLBefore b
 					INNER JOIN #BalanceCWLAfter a 
-					ON	a.custid = b.custid
+					ON	a.custid 			= b.custid
+						AND a.gametypeid 	= b.gametypeid
+						AND a.winlostdate 	= b.winlostdate
+						
 				GROUP BY a.custid
 				HAVING SUM(b.balance) <> SUM(a.balance)
 				FOR XML PATH('r'), TYPE
