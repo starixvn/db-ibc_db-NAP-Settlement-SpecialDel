@@ -1,11 +1,4 @@
-﻿USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_Admin_Settlement_Outright]    Script Date: 08/07/2015 09:48:27 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.NAP_Admin_Settlement_Outright    Script Date: 9/19/2014 9:34:19 AM ******/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Outright]
 	 @MatchID		INT
 	,@Status		NVARCHAR(10)	= NULL 
@@ -297,4 +290,3 @@ BEGIN
 END
 
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Outright] TO [bodbAdminNet] AS [dbo]
