@@ -2,9 +2,9 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_10]
 	 @MatchID			INT
 	,@Status			NVARCHAR(10)
-	,@Action			VARCHAR(10)		= 'CAL'
 	,@Deadheat			FLOAT			= 1
 	,@Winlostdate		DATETIME		= NULL
+	,@Action			VARCHAR(10)		= 'CAL'
 AS
 /*
 	Created: Jamie
