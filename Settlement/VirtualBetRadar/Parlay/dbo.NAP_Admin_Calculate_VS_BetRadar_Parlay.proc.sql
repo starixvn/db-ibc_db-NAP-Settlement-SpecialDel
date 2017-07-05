@@ -24,10 +24,10 @@ AS
 	Param's Explanation:
 		• @Mode:
 			CAL : Settle sub parlay ticket by match
-			VOID : Re-settle sub parlay ticket by list ticket
+			RECOVER : Re-settle sub parlay ticket by list ticket
 		• @TicketInfos : 
 			meaning : single transids (bettrans.transid)	
-			format xml : <root><r m="1234", t="2333" /></root>
+			format xml : <root><r m="1234" t="2333" /></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -115,7 +115,7 @@ BEGIN
 		  
 		IF @@ROWCOUNT = 0 RETURN		
 	END	
-	ELSE IF @Mode = 'VOID'
+	ELSE IF @Mode = 'RECOVER'
 	BEGIN
 		--CONVERT Ticket
 		SET @xmlTicket = CONVERT(XML, @TicketInfos)

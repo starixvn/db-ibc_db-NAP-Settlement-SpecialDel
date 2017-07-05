@@ -21,10 +21,10 @@ AS
 	Param's Explanation:
 	• @Mode:
 		CAL : All single BetTypes (HT-FT)
-		VOID : Re-settle single ticket
+		RECOVER : Re-settle single ticket
 	• @TicketInfos : 
 		meaning : single transids (bettrans.transid)	
-		format xml : <root><r m="1234", t="2333" /></root>
+		format xml : <root><r m="1234" t="2333" /></root>
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -117,7 +117,7 @@ BEGIN
 	SELECT T.C.value('./@m', 'INT') as matchid
 		 , T.C.value('./@t', 'BIGINT') as transid					
 	FROM @xmlTicket.nodes('/root/r') as [T](C) --T: table, C: column	
-	WHERE @Mode = 'VOID'
+	WHERE @Mode = 'RECOVER'
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL ))	
 	
 	-- build match list
@@ -125,7 +125,7 @@ BEGIN
 	(
 		SELECT @matchid AS matchid WHERE @mode = 'CAL'
 		UNION ALL
-		SELECT DISTINCT matchid FROM #tblTicketInfos WHERE @mode = 'VOID'
+		SELECT DISTINCT matchid FROM #tblTicketInfos WHERE @mode = 'RECOVER'
 	)	
 	INSERT INTO #tblMatchResult(matchid, fth, fta, hth, hta, sporttype)
 	SELECT matchid
@@ -182,7 +182,7 @@ BEGIN
 			AND b.statusID NOT IN (101,102) --void/reject
 			AND b.transid <= @maxTransId
 	END			
-	ELSE IF @mode = 'VOID'
+	ELSE IF @mode = 'RECOVER'
 	BEGIN			
 		INSERT INTO #TempData(recommend, matchid, custid, bettype,
 				b.transid, actual_stake, stake, odds, comstatus, 
