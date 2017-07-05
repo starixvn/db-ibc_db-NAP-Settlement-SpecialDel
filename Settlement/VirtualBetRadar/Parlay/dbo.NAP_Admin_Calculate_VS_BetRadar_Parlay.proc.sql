@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay]
 	@SportType			INT				= 0
 	,@MatchId			INT				= 0
 	,@TicketInfos 		VARCHAR(MAX)	= NULL
-	,@mode 				VARCHAR(6)		= 'CAL'
+	,@mode 				VARCHAR(10)		= 'CAL'
 	,@Fth				SMALLINT		= 0
 	,@Fta				SMALLINT		= 0
 	,@Hth				SMALLINT		= 0

@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]	
 	@matchid 		INT				= 0
 	,@SportType		INT				= 0
-	,@mode 			VARCHAR(6)		= 'CAL'
+	,@mode 			VARCHAR(10)		= 'CAL'
 	,@CALBettypes 	VARCHAR(MAX)	= NULL
 	,@maxTransId	BIGINT			= 0
 	,@ActionID		TINYINT			= 0
