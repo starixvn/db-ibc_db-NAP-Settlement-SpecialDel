@@ -319,7 +319,7 @@ BEGIN
 			
 			IF @@ROWCOUNT = 0 BREAK
 			
-			EXEC dbo.NAP_Admin_Caculate_Bettrans
+			EXEC dbo.NAP_Admin_Calculate_Bettrans
 				@BetTickets		= @BetTickets	
 				,@CWLBettype	= 2701
 				,@balanceUpd 	= @balanceUpd OUTPUT

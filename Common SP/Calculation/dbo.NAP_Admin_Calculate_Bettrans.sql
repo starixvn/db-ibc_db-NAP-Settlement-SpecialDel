@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Caculate_Bettrans] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
 	,@CWLBettype		SMALLINT 		= 0
 	,@BalanceUpd		VARCHAR(MAX)	= NULL 	OUTPUT
