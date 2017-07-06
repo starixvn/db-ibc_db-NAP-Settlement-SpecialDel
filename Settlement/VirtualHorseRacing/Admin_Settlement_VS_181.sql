@@ -1,10 +1,4 @@
-﻿USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[Admin_Settlement_VS_181]    Script Date: 08/07/2015 14:06:50 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Admin_Settlement_VS_181]
 	@matchid int, --VS EventID
 	@action varchar(10) = 'CAL', -- CAL  / Refund 
@@ -20,6 +14,7 @@ AS
 	
 	Revisions:
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
+		- 20161201@Kathy: Company win limit [Redmine:#66599]
 
 */
 BEGIN
@@ -78,14 +73,21 @@ END
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceBefore (custid int PRIMARY KEY, balance money)
+	CREATE TABLE #BalanceBefore (custid int, balance money, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
 	Declare @TotalAccount int, @TotalAccount_BalanceUpdate int
 		
-	INSERT INTO #BalanceBefore
-	SELECT custid, SUM(winlost-actual_stake+playercomm)
+	INSERT INTO #BalanceBefore (custid, balance, winlost, winlostdate, gametypeid)
+	SELECT custid
+		,SUM(winlost-actual_stake+playercomm) AS balance
+		,SUM(CASE
+					WHEN ruben = 1 THEN winlost - actual_stake 
+					ELSE 0 
+				END) AS winlost
+		,winlostdate
+		,bettype
 	FROM dbo.bettrans with (rowlock)
 	WHERE matchid = @matchid AND bettype in (1231,1232,1233)
-	GROUP BY custid
+	GROUP BY custid, winlostdate, bettype
 
 	SET @TotalAccount = @@ROWCOUNT
 
@@ -112,39 +114,45 @@ END
 	-------------------------------------------------------------
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceAfter (custid int PRIMARY KEY, balance money)
+	CREATE TABLE #BalanceAfter (custid int, balance money, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
 	
-	INSERT INTO #BalanceAfter
-	SELECT custid, SUM(winlost-actual_stake+playercomm)
+	INSERT INTO #BalanceAfter (custid, balance, winlost, winlostdate, gametypeid)
+	SELECT custid
+		,SUM(winlost-actual_stake+playercomm)
+		,SUM(CASE 
+					WHEN ruben = 1 THEN winlost - actual_stake 
+					ELSE 0
+				END) AS winlost
+		,winlostdate
+		,bettype
 	FROM dbo.bettrans with (rowlock)	
 	WHERE matchid = @matchid AND bettype in (1231,1232,1233)
-	GROUP BY custid
+	GROUP BY custid, winlostdate, bettype
 	
 
 	-------------------------------------------------------------
 	---                   compare BALANCE                     ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #Balance (custid int PRIMARY KEY, balance money, Increased bit)
+	CREATE TABLE #Balance (custid int, balance money, Increased bit)
 	
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
 	
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 
-	INSERT INTO #Balance
+	INSERT INTO #Balance (custid, balance, Increased)
 	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 	FROM #BalanceBefore b
-		INNER JOIN #BalanceAfter a ON b.custid = a.custid
+		INNER JOIN #BalanceAfter a 
+			ON b.custid = a.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
 	WHERE b.balance <> a.balance
 
-	SET @TotalAccount_BalanceUpdate = @@ROWCOUNT
-
-
-
-	--INSERT INTO dbo.BalancePendingDebit (custid, balance)
-	--SELECT custid, ABS(balance)
-	--FROM #Balance
-	--WHERE Increased = 0
+	--SET @TotalAccount_BalanceUpdate = @@ROWCOUNT
+	SELECT @TotalAccount_BalanceUpdate = COUNT(1)
+	FROM #Balance
+	GROUP BY custid
 	
 	INSERT INTO @tblDebitPending (custID, balance)
 	SELECT	custid, ABS(balance)
@@ -156,11 +164,6 @@ END
 			@BalancePending = @tblDebitPending
 			,@Type			= 4 -- Others
 
-	--INSERT INTO dbo.BalancePendingCredit (custid, balance)
-	--SELECT custid, balance
-	--FROM #Balance
-	--WHERE Increased = 1
-	
 	INSERT INTO @tblCreditPending (custID, balance)
 	SELECT	custid, balance
 	FROM	#Balance
@@ -171,6 +174,46 @@ END
 			@BalancePending = @tblCreditPending
 			,@Type			= 4 -- Others
 			
+			
+		---insert data into pending balance game table 
+	INSERT INTO BalancePendingCreditGame (
+		custid
+		,winlostdate
+		,balance
+		,bettype
+		,GameTypeID
+		)
+	SELECT a.custid
+		,a.winlostdate
+		,(a.winlost - b.winlost) AS Balance
+		,1201
+		,a.gametypeid
+	FROM #BalanceBefore b
+		INNER JOIN #BalanceAfter a 
+			ON	a.custid = b.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
+	WHERE (a.winlost - b.winlost) > 0
+
+	INSERT INTO BalancePendingDebitGame (
+		custid
+		,winlostdate
+		,balance
+		,bettype
+		,GameTypeID
+		)
+	SELECT a.custid
+		,a.winlostdate
+		,ABS(a.winlost - b.winlost) AS Balance
+		,1201
+		,a.gametypeid
+	FROM #BalanceBefore b
+		INNER JOIN #BalanceAfter a 
+			ON	a.custid = b.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
+	WHERE (a.winlost - b.winlost) < 0
+	
 	DROP TABLE #Balance
 	DROP TABLE #BalanceBefore
 	DROP TABLE #BalanceAfter
@@ -265,4 +308,3 @@ END
 END
 
 GO
-GRANT EXECUTE ON [dbo].[Admin_Settlement_VS_181] TO [Dot_Member] AS [dbo]
