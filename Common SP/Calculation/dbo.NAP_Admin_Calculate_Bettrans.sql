@@ -20,8 +20,8 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 	
-	DECLARE @strBetTicket			VARCHAR(MAX)
-	 
+	DECLARE @strBetTicket		VARCHAR(MAX)
+	
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
 	CREATE TABLE #BalanceCWLAfter (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
@@ -44,16 +44,15 @@ BEGIN
 		,t.bettype AS gametypeid
 		,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		,SUM(CASE
-				WHEN b.ruben = 1 THEN (b.winlost - b.actual_stake)
+				WHEN b.ruben = 1 THEN b.winlost - b.actual_stake 
 				ELSE 0 
 			END) AS winlost
 	FROM dbo.bettrans b WITH(ROWLOCK)
 		INNER JOIN @BetTickets AS t 
-		ON b.matchid 	= t.matchid
-		AND b.custid 	= t.custid
-		AND b.bettype 	= t.bettype
-		AND b.transid 	= t.transid
-	WHERE b.statusid	NOT IN (101,102) --void/reject	
+			ON  b.matchid 	= t.matchid
+			AND b.custid 	= t.custid
+			AND b.bettype 	= t.bettype
+			AND b.transid 	= t.transid
 	
 	GROUP BY t.custid, b.winlostdate, t.bettype
 	
@@ -112,10 +111,10 @@ BEGIN
 			END) AS winlost
 	FROM dbo.bettrans b WITH(ROWLOCK)
 		INNER JOIN @BetTickets AS t 
-		ON b.matchid 	= t.matchid
-		AND b.custid 	= t.custid
-		AND b.bettype 	= t.bettype
-		AND b.transid 	= t.transid
+			ON  b.matchid 	= t.matchid
+			AND b.custid 	= t.custid
+			AND b.bettype 	= t.bettype
+			AND b.transid 	= t.transid
 	
 	GROUP BY t.custid, b.winlostdate, t.bettype
 	

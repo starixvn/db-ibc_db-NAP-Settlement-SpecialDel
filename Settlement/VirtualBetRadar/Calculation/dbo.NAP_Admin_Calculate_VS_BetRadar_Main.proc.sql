@@ -7,6 +7,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]
 	,@maxTransId	BIGINT			= 0
 	,@ActionID		TINYINT			= 0
 	,@TicketInfos 	VARCHAR(MAX)	= NULL
+	,@IsBalance		BIT 			= 1
+	,@CWLBettype	SMALLINT 		= 2701
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -321,7 +323,7 @@ BEGIN
 			
 			EXEC dbo.NAP_Admin_Calculate_Bettrans
 				@BetTickets		= @BetTickets	
-				,@CWLBettype	= 2701
+				,@CWLBettype	= @CWLBettype
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
@@ -343,11 +345,14 @@ BEGIN
 	END CATCH
 	
 	-- Settlement balance process
-	EXEC dbo.NAP_Admin_Settlement_BalanceProcess
-		@BalanceAcc				= @balanceAcc
-		, @BalanceType			= @BalanceType
-		, @actionId				= @actionId
-		, @MatchID				= @MatchID
-		, @GroupID				= @GroupID		
+	IF(@IsBalance = 1)
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_BalanceProcess
+			@BalanceAcc				= @balanceAcc
+			, @BalanceType			= @BalanceType
+			, @actionId				= @actionId
+			, @MatchID				= @MatchID
+			, @GroupID				= @GroupID		
+	END
 END
 GO

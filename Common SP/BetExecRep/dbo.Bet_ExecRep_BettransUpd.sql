@@ -123,7 +123,7 @@ BEGIN
 	END
 	ELSE --UPDATE on DBTXN
     BEGIN
-		UPDATE dbo.bettrans WITH(ROWLOCK, UPDLOCK)
+		UPDATE b 
 		SET winlost 		= s.winlost
 			,awinlost 		= s.awinlost
 			,mwinlost 		= s.mwinlost
@@ -145,16 +145,17 @@ BEGIN
 								WHEN s.statusid IN (111,112,113,103) THEN 1
 								ELSE 0 
 							END
-			,winlostdate 	= ISNULL(s.winlostdate, bettrans.winlostdate)
+			,winlostdate 	= ISNULL(s.winlostdate, b.winlostdate)
 			,statuswinlost	= CASE 
 								WHEN s.statusid IN (103) THEN 0 --REFUND
-								ELSE bettrans.statuswinlost 
+								ELSE b.statuswinlost 
 							END
-		FROM @sourceTicket s
-		WHERE bettrans.matchid 		= s.matchid
-			AND bettrans.custid 	= s.custid
-			AND bettrans.bettype 	= s.bettype
-			AND bettrans.transid 	= s.transid
+		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @sourceTicket s 
+			ON b.matchid 		= s.matchid
+				AND b.custid 	= s.custid
+				AND b.bettype 	= s.bettype
+				AND b.transid 	= s.transid
 		
 	END
 	
