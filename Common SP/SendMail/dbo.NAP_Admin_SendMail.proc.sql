@@ -5,9 +5,12 @@ CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	, @message			VARCHAR(500)
 	, @actionId			INT
 	, @AdminId 			INT
-	, @procName      	VARCHAR(100) = NULL
-	, @severity			VARCHAR(30) = 'Error'
-	, @remark			VARCHAR(500) = ''
+	, @procName      	VARCHAR(100) 	= NULL
+	, @severity			VARCHAR(30) 	= 'Error'
+	, @remark			VARCHAR(500) 	= ''
+	, @recipients		VARCHAR(250) 	= ''
+	,@ErrCode			INT				= 0		OUTPUT
+	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
 /*
 	Created:20170503@Bobby
@@ -32,16 +35,6 @@ BEGIN
 		--, @xmlDoc			XML
 		
 	BEGIN TRY
-		/*
-		SET @xmlDoc = CAST(@XmlMessage AS XML)
-		SELECT @matchid = T.C.value('./@matchid', 'INT')
-			,@severity 	= T.C.value('./@severity', 'VARCHAR(30)')
-			,@message	= T.C.value('./@message', 'VARCHAR(500)')
-			,@actionId  = T.C.value('./@actionId', 'INT')
-			,@AdminId    = T.C.value('./@adminId', 'INT')
-		FROM @xmlDoc.nodes('/mail/message') AS T(C)
-		OPTION (OPTIMIZE FOR (@xmlDoc = NULL ))
-		*/
 	
 		SELECT @actionName 	= ActionNameEn
 			,@SPName		= SPName
@@ -99,18 +92,22 @@ BEGIN
 		SET @tableRow = REPLACE(@tableRow, '{<rowMatch>}', @rowMatch)
 		SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 		
-		EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-			, @recipients			 = 'bobby.nguyen@starixsoft.com;dora.le@starixsoft.com;kathy.nguyen@starixsoft.com;justin.doan@starixsoft.com'
-			, @copy_recipients		 = ''
-			, @blind_copy_recipients = ''
-			, @subject				 = @subject
-			, @body					 = @email_body
-			, @body_format			 = 'HTML';
-			
-		--SELECT @email_body AS email_body_bonus_adjustment
+		IF(LEN(ISNULL(@recipients,'')) > 0)
+		BEGIN
+			EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
+				, @recipients			 = @recipients
+				, @copy_recipients		 = ''
+				, @blind_copy_recipients = ''
+				, @subject				 = @subject
+				, @body					 = @email_body
+				, @body_format			 = 'HTML';
+		END
+		
+		--SELECT @email_body AS email_body
 	END TRY
 	BEGIN CATCH
-	
+		SELECT @ErrCode =  ERROR_NUMBER() 
+			,@ErrMsg 	=  ERROR_MESSAGE()
 	END CATCH
 END
 GO
