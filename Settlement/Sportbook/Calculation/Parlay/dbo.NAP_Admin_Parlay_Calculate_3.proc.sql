@@ -13,6 +13,7 @@ AS
 
     Revisions:        
 		- 20170609@Kathy: Early Settlement - BAIO [Redmine:#77835]
+		- 20170719@Kathy: Correct statuswinlost of refund [Redmine:#77835]
 		
     Param's Explanation:
         
@@ -74,7 +75,7 @@ BEGIN
 				WHEN t.modds = 0.25 THEN 1 -- Half WON
 				WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
 				WHEN t.modds < - 0.25 THEN 4 -- LOSE
-				ELSE bm.statuswinlost
+				ELSE 0
 			END
 			,ruben 		= 1
 			
