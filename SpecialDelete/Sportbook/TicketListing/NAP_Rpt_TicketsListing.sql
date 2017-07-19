@@ -34,15 +34,18 @@ AS
 		- 20160722@Bobby: #61240 - Implement parent-child for PHAIO new 19 bet types
 		- 20170414@Kent: Fix IBC to MBC [Redmine:#75009]
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
+		- 20170718@Paul: Integrate Lucky 3 [Redmine:#77175]
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 		
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
 		1: Number Game
-		2: Virtual sports		
+		2: Virtual sports
+		3: Live casino
 		4: Metric Gaming Super Live
 		5: Virtual sports betradar
+		6: Lucky 3
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -106,6 +109,7 @@ BEGIN
 			AND @sporttype <> 162 
 			AND @sporttype NOT BETWEEN 180 AND 186
 			AND @sporttype NOT BETWEEN 190 AND 199
+			AND @sporttype <> 160
 		  )
 	BEGIN
 		SET @ErrCode = 1
@@ -146,6 +150,14 @@ BEGIN
 
 		RETURN
 	END	
+	ELSE IF @sporttype <> 160
+		AND @Type = 6
+	BEGIN
+		SET @ErrCode = 6
+		SET @ErrMsg = 'This MatchID is not Lucky 3.'
+
+		RETURN
+	END
 	ELSE
 		SELECT @matchcode	AS matchcode
 			,@homeid		AS homeid
@@ -394,7 +406,7 @@ BEGIN
 	----## IBC Group
 	IF @LicenseeID = - 1
 	BEGIN
-		IF @BetTypes <> '9'			
+		IF @BetTypes <> '9'
 			AND @BetTypes <> '29'
 			AND @BetTypes <> '2799'
 			AND @BetTypes <> '9,29,2799'
