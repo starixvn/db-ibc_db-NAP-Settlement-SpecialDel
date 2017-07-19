@@ -47,6 +47,7 @@ AS
 		- 20170329@Kathy: Change refer score from DBTRANS to DBPRO [Redmine:#74259]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170525@Kathy: Not allow to cal FT basketball when have tickets of bettype 603 and quarters has not been calculated [Redmine:#77046]
+		- 20170609@Kathy: Remove "early settled" bettypes from Calculation popup [Redmine:#77835]
 		
 */
 BEGIN
@@ -249,7 +250,6 @@ BEGIN
 					WHEN g.groupId = 5 THEN 4 -- HT Corner
 					WHEN g.groupId = 6 THEN 5 -- FT Corner
 					WHEN g.GroupId = 7 THEN 7 -- SS
-					WHEN g.GroupId = 2 AND g.GroupName = '2H' AND @sporttype = 2 THEN 8 -- Second half of Basketball
 					WHEN g.GroupId = 10 THEN 9 -- All quaters of Basketball
 					ELSE 0
 				END AS GroupId
@@ -275,7 +275,6 @@ BEGIN
 					WHEN g.groupId = 5 THEN 4 -- HT Corner
 					WHEN g.groupId = 6 THEN 5 -- FT Corner
 					WHEN g.GroupId = 7 THEN 7 -- SS
-					WHEN g.GroupId = 2 AND g.GroupName = '2H' AND @sporttype = 2 THEN 8 -- Second half of Basketball
 					WHEN g.GroupId = 10 THEN 9 -- All quaters of Basketball
 					ELSE 0
 				END
@@ -300,9 +299,6 @@ BEGIN
 
         IF NOT EXISTS ( SELECT * FROM @status WHERE GroupId = 7)
             INSERT INTO @status (GroupId, BetCount, InRunning) VALUES (7,0,0)
-            
-        IF NOT EXISTS ( SELECT * FROM @status WHERE GroupId = 8)
-            INSERT INTO @status (GroupId, BetCount, InRunning) VALUES (8,0,0)
             
         IF NOT EXISTS ( SELECT * FROM @status WHERE GroupId = 9)
             INSERT INTO @status (GroupId, BetCount, InRunning) VALUES (9,0,0)
@@ -393,15 +389,6 @@ BEGIN
         FROM    @Status 
         WHERE    GroupId = 0
                 AND @Sporttype = 5    
-                
-        -- Basketball ticket status
-        SELECT @2HStatus = CASE 
-								WHEN betcount = 0 THEN N'No Ticket'   						
-								WHEN InRunning = 0 THEN N'Calculated' 
-								ELSE N'Running'
-							END
-		FROM	@status
-		WHERE	GroupId = 8
 		
 		SELECT	@StatusQuarter1 = CASE
 									WHEN ISNULL(BetCountSet1,0) = 0 THEN N'No Ticket'
@@ -529,7 +516,6 @@ BEGIN
         ,mr.ConfirmHT
         ,mr.ConfirmFT
         ,@HTStatus HTStatus
-        ,@2HStatus AS SecondHalfStatus
         ,@FTStatus FTStatus
         ,ISNULL(@IsExistFGLG,0) AS IsExistFGLG
         ,ISNULL(@IsExistLG,0) AS IsExistLG
@@ -585,36 +571,32 @@ BEGIN
 		INSERT INTO @tmpSingleBettype (ResourceId)
 		SELECT	CAST(b.bettype AS VARCHAR) 
 				+ CASE 
-					WHEN b.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
-					WHEN b.bettype IN (613) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,5)
+					WHEN b.bettype = 617 THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
 					ELSE ''
 				END AS ResourceId
 		FROM	dbo.bettrans b WITH (NOLOCK)
 		WHERE	b.matchid = @MatchId
-				AND b.bettype IN (604, 605, 606, 607, 613, 617)
+				AND b.bettype IN (605, 617)
 				AND b.statusId NOT IN (101, 102)
 		GROUP BY b.bettype 
 				,CASE 
-					WHEN b.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
-					WHEN b.bettype IN (613) THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,5)
+					WHEN b.bettype = 617 THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
 					ELSE ''
 				END
 		
 		INSERT INTO @tmpParlayBettype (ResourceId)
 		SELECT	CAST(bm.bettype AS VARCHAR) 
 				+ CASE 
-					WHEN bm.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
-					WHEN bm.bettype IN (613) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,5)
+					WHEN bm.bettype = 617 THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
 					ELSE ''
 				END AS ResourceId
 		FROM	dbo.bettransm bm WITH (NOLOCK)
 		WHERE	bm.matchid = @MatchId		
-				AND bm.bettype IN (604, 605, 606, 607, 613, 617)
+				AND bm.bettype IN (605, 617)
 				AND bm.statusId NOT IN (101, 102)
 		GROUP BY bm.bettype
 				,CASE 
-					WHEN bm.bettype IN (606, 607, 617) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
-					WHEN bm.bettype IN (613) THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,5)
+					WHEN bm.bettype = 617 THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
 					ELSE ''
 				END
 		
@@ -659,9 +641,7 @@ BEGIN
 						, ResultStatusID
 						, SettlementStatusID
 				FROM	cteResultDetail 
-				WHERE	(ResourceId LIKE '60[4-5]'
-							OR ResourceId LIKE '60[6-7]__'
-							OR ResourceId LIKE '6130[1-4]__'
+				WHERE	(ResourceId = '605'
 							OR ResourceId LIKE '6170[1-4]'
 						)
 			) t

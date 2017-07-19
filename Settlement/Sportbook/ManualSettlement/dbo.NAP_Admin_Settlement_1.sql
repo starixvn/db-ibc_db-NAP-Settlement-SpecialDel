@@ -75,7 +75,8 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170521@Kathy: Correct balance for Basketball [Redmine:#76931]
 		- 20170522@Kathy: Correct balance for Tennis [Redmine:#76931]
-		- 20170316@Bobby: Integrate CashOut bettypes [R
+		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#71355]
+		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
 		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -206,14 +207,15 @@ BEGIN
     SELECT	@strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
     FROM    dbo.f_Set_GetGroupBettypes() f 
 	WHERE  	f.GroupId IN (1,3,5) -- include HT-FGLG groupId = 3
+			AND f.IsAuto = 0
 	
-	SET @strBettypes = (SELECT  BetType 'r/@t'
-								,GroupId 'r/@g'
-								,GroupName 'r/@n'
+	SET @strBettypes = CAST((SELECT  BetType '@t'
+								,GroupId '@g'
+								,GroupName '@n'
 						FROM	dbo.f_Set_GetGroupBettypes()			
 						WHERE	IsAuto = 0
-						FOR XML PATH ('root')
-							)	
+						FOR XML PATH ('r'), ROOT('root'), TYPE
+							) AS VARCHAR(MAX))
 	
     IF @Action = 'CAL-HT'
         SELECT    @TicketCount = COUNT(1)

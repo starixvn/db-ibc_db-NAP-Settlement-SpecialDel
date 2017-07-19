@@ -25,6 +25,7 @@ AS
 		- 20160509@Kathy: Fast Market integration [Remine:#56367]
 		- 20170208@Bobby: Correct IsMissingAutoResult case [Remine:#67952]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170613@Kathy: Early Settlement [Redmine:#77835]
 	
 	Param's explanation:  
 		
@@ -57,6 +58,10 @@ BEGIN
 		,IsExistFastMarket				BIT
 		,IsRunningFastMarket			BIT
 		,IsExistFastMarketResult		BIT
+		,IsExistEarlyBettypes 			BIT
+		,IsExistEarlyBettypesParlay 	BIT
+		,IsRunningEarlyBettypes			BIT
+		,IsRunningEarlyBettypesParlay	BIT
 	)
 	
 	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT)
@@ -87,7 +92,7 @@ BEGIN
 	
 	INSERT INTO @TempMatch(MatchId, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
 		, IsExistAutoBettypes, IsExistAutoBettypesParlay, IsRunningAutoBettypes, IsRunningAutoBettypesParlay, IsMissingAutoResult
-		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult
+		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 		, sg.IsCalculating AS SingleStatus
@@ -104,6 +109,10 @@ BEGIN
 		, 0 AS IsExistFastMarket
 		, 0 AS IsRunningFastMarket
 		, 0 AS IsExistFastMarketResult
+		, 0 AS IsExistEarlyBettypes
+		, 0 AS IsExistEarlyBettypesParlay
+		, 0 AS IsRunningEarlyBettypes
+		, 0 AS IsRunningEarlyBettypesParlay
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
 	
@@ -118,6 +127,11 @@ BEGIN
 				,GroupId
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	GroupId IN (3,4,8,9)
+		UNION ALL
+		SELECT	bettype
+				,'' AS ResourceId -- not used for BAIO
+				,10 AS GroupId
+		FROM	dbo.f_Set_GetEarlyBettypes()
 		
 		SELECT @MinBettype = MIN(bettype)
 			,@MaxBettype = MAX(bettype)
@@ -177,7 +191,6 @@ BEGIN
 					GROUP BY bm.matchid, bm.bettype
 				)bm
 				ON bm.bettype = bt.bettype
-		WHERE	bt.GroupId IN (3,4,8)
 		GROUP BY bm.matchid, bm.bettype, bt.GroupId
 
 		;WITH cteBetStatus
@@ -191,6 +204,10 @@ BEGIN
 				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningAutoBettypesParlay
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistFastMarket
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningFastMarket
+				,MAX(CASE WHEN groupId = 10 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistEarlyBettypes
+				,MAX(CASE WHEN groupId = 10 AND IsParlay = 1 THEN 1 ELSE 0 END) AS IsExistEarlyBettypesParlay
+				,MAX(CASE WHEN groupId = 10 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypes
+				,MAX(CASE WHEN groupId = 10 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypesParlay
 			FROM #tblBetStatus
 			GROUP BY matchid
 		)
@@ -203,6 +220,10 @@ BEGIN
 			,IsRunningAutoBettypesParlay = CASE WHEN tt.IsRunningAutoBettypesParlay > 0 THEN 1 ELSE 0 END
 			,IsExistFastMarket = CASE WHEN tt.IsExistFastMarket > 0 THEN 1 ELSE 0 END
 			,IsRunningFastMarket = CASE WHEN tt.IsRunningFastMarket > 0 THEN 1 ELSE 0 END
+			,IsExistEarlyBettypes = CASE WHEN tt.IsExistEarlyBettypes > 0 THEN 1 ELSE 0 END
+			,IsExistEarlyBettypesParlay = CASE WHEN tt.IsExistEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
+			,IsRunningEarlyBettypes = CASE WHEN tt.IsRunningEarlyBettypes > 0 THEN 1 ELSE 0 END
+			,IsRunningEarlyBettypesParlay = CASE WHEN tt.IsRunningEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
 		FROM @TempMatch t
 		INNER JOIN cteBetStatus tt ON t.MatchId = tt.MatchId	
 		
@@ -261,6 +282,12 @@ BEGIN
 			WHEN tm.IsRunningFastMarket > 0 THEN 'Running'
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
+		, CASE
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
+			WHEN tm.IsRunningEarlyBettypes > 0 THEN 'Running'
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsRunningEarlyBettypesParlay > 0 THEN 'Parlay Running'
+			ELSE 'Completed'
+		END AS EarlySettleStatus
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN @TempMatch tm ON m.matchid = tm.matchid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid

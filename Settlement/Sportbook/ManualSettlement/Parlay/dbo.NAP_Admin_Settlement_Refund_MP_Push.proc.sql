@@ -1,11 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	@AdminId 						INT
 	,@MatchId 						INT
@@ -23,6 +16,7 @@ AS
 
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170609@Kathy: Early settlement for BAIO [Redmine:#77835]
 
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -47,6 +41,11 @@ BEGIN
 		,@IsExistNetPosition	BIT = 0
 		,@Mode					VARCHAR(20)
 
+	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
+	INSERT INTO @tmpBettypes(bettype, groupId, groupname, isEarly)
+	SELECT	f.BetType, f.GroupId, f.GroupName, (SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
+	FROM	dbo.f_Set_GetGroupBettypes() f
+	
 	DECLARE @match TABLE ( matchid INT
 						  ,matchcode NVARCHAR(50)
 						  ,fth SMALLINT
@@ -175,12 +174,14 @@ BEGIN
 					,bm.betcheck
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 			WHERE	bm.matchid IN (SELECT matchid FROM @match)
+					AND bm.statusID = 0
 			GROUP BY bm.matchid, bm.bettype, bm.betcheck
 		)
 		,cteResourceID
 		AS(
 			SELECT c.matchid
 					,CASE 
+						WHEN f.isEarly = 1 OR f.bettype IN (605, 617) THEN CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(c.betid, 2, LEN(c.betid)), '')
 						WHEN f.GroupName = 'FT' THEN '00'
 						WHEN f.GroupName = '1H' THEN '01'
 						WHEN f.GroupName = '2H' THEN '02'
@@ -188,12 +189,13 @@ BEGIN
 						ELSE NULL
 					END AS ResourceID
 					,CASE 
+						WHEN f.isEarly = 1 THEN 'Early Settle'
 						WHEN f.GroupName IN ('FT', '1H', '2H') THEN f.GroupName
 						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betid,3,1)
 						ELSE NULL
 					END AS QuarterX
 			FROM	cteBetstatus c
-				INNER JOIN	dbo.[f_Set_GetGroupBettypes]() f
+				INNER JOIN	@tmpBettypes f
 					ON c.bettype = f.BetType
 		)
 		INSERT INTO @tblRunningBAIO (matchid, QuarterX)
@@ -258,7 +260,7 @@ BEGIN
 		WHERE b.matchid = @MatchId
 			AND b.statusID = 1 -- waiting status
 		)
-
+	
 	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '')
 	BEGIN
 		SELECT   @ErrCode = 1001011
@@ -277,7 +279,7 @@ BEGIN
 								END
 		RETURN
 	END
-
+	
 	SELECT @procName = OBJECT_NAME(@@PROCID)
 	
 	IF @procName LIKE '%_xtest' or @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
@@ -301,9 +303,4 @@ BEGIN
 		SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @mode
 	END
 END
-
-GO 
- GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_MP_Push] TO [bodbAdminNet]
-GO 
- GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Refund_MP_Push] TO [vnteam]
 GO 
