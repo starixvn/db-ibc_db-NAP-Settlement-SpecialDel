@@ -7,10 +7,10 @@ CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	, @AdminId 			INT
 	, @procName      	VARCHAR(100) 	= NULL
 	, @severity			VARCHAR(30) 	= 'Error'
-	, @remark			VARCHAR(500) 	= ''
+	, @remark			VARCHAR(MAX) 	= ''
 	, @recipients		VARCHAR(250) 	= ''
-	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	, @ErrCode			INT				= 0		OUTPUT
+	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
 /*
 	Created:20170503@Bobby
