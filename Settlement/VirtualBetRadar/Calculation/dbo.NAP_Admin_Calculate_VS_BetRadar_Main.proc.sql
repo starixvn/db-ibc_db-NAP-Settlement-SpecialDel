@@ -178,6 +178,7 @@ BEGIN
 				, mr.hth				
 				, mr.hta
 				, temp.CalMode
+				, b.transdesc
 			) AS ods
 			
 		WHERE b.matchid 	= @matchid 
@@ -222,6 +223,7 @@ BEGIN
 				, mr.hth				
 				, mr.hta
 				, f.CalMode
+				, b.transdesc
 			) AS ods
 		WHERE b.statusID NOT IN (101,102) --void/reject	
 	END						
@@ -245,6 +247,7 @@ BEGIN
 				WHEN modds =  0	THEN actual_stake
 				WHEN modds = -0.25	THEN actual_stake * 0.5
 				WHEN modds < -0.25	THEN 0
+				ELSE WinLost
 			END,
 
 		aWinLost = CASE
@@ -253,6 +256,7 @@ BEGIN
 				WHEN modds =  0	THEN 0
 				WHEN modds = -0.25	THEN actual_stake * apositiontaking * 0.5
 				WHEN modds < -0.25	THEN actual_stake * apositiontaking
+				ELSE aWinLost
 			END,
 		mWinLost = CASE
 				WHEN modds >  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -mpositiontaking
@@ -260,6 +264,7 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
 				WHEN modds < -0.25 THEN actual_stake * mpositiontaking
+				ELSE mWinLost
 			END,
 		sWinLost = CASE
 				WHEN modds >  0.25 THEN stake * (case when odds<0 then 1 else odds end) * -spositiontaking
@@ -267,6 +272,7 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN actual_stake * spositiontaking * 0.5
 				WHEN modds < -0.25 THEN actual_stake * spositiontaking
+				ELSE sWinLost
 			END,
 
 		PlayerComm = CASE
@@ -275,6 +281,7 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN @commLostRate * playerdiscount * stake * 0.5
 				WHEN modds < -0.25 THEN @commLostRate * playerdiscount * stake
+				ELSE PlayerComm
 			END,
 		Comm = CASE
 				WHEN modds >  0.25 THEN @commWinRate * discount * stake * (1-apositiontaking)
@@ -282,6 +289,7 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking) * 0.5
 				WHEN modds < -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking)
+				ELSE Comm
 			END,
 		aComm = CASE
 				WHEN modds >  0.25 THEN @commWinRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
@@ -289,6 +297,7 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking)) * 0.5
 				WHEN modds < -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
+				ELSE aComm
 			END,
 		sComm = CASE
 				WHEN modds >  0.25 THEN @commWinRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
@@ -296,11 +305,13 @@ BEGIN
 				WHEN modds =  0    THEN 0
 				WHEN modds = -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * 0.5
 				WHEN modds < -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+				ELSE sComm
 			END,
 		StatusID = CASE
 			WHEN modds > 0 THEN 112 --WON
 			WHEN modds = 0 THEN 111 --DRAW
 			WHEN modds < 0 THEN 113 --LOSE
+			ELSE StatusID
 		END	
 
 	--UPDATE tickets by batch

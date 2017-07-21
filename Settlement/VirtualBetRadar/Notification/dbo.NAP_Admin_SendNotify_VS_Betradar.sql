@@ -1,7 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_SendNotify_VS_Betradar] 
 	@MatchId			INT 
-	,@notifyAction		INT 
+	,@notifyAction		INT
+	,@IsParlay			BIT 			= 0
+	,@parlayStatus		TINYINT			= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -14,6 +16,7 @@ AS
 		
 	Param's Explanation:
 		- @notifyAction: [@ActionId:187-RE-SETTLE;@ActionId:188-REFUND]
+		- @parlayStatus: Is refer to Parlay_Calculate_Queue_VS.IsCalculating which record has singleQueueId = Single_Calculate_Queue_VS.KeyId
  
 */
 BEGIN
@@ -98,17 +101,20 @@ BEGIN
 			SELECT bm.custid, bm.refno
 			FROM dbo.bettransm bm WITH(NOLOCK)
 				OUTER APPLY (
-					SELECT TOP(1) CAST(1 AS BIT) AS IsMultiple 
+					SELECT TOP(1) CAST(1 AS BIT) AS IsMultiple
 					FROM dbo.match_remark mr WITH(NOLOCK)
 					WHERE mr.matchid = @matchid
 						AND 1 = CASE 
-									WHEN @notifyAction = 187 AND multiple = 1 THEN 1 -- Mix Parlay calculated
-									WHEN @notifyAction = 188 AND refund = 1 THEN 1 -- Mix Parlay Refund
-									ELSE 0
-								END
-				) AS mp				
+								WHEN @notifyAction = 187 AND (multiple = 1 OR refund = 1) THEN 1 -- Parlay has calculated or refund completely
+								WHEN @notifyAction = 188 AND (refund = 1) THEN 1 -- Parlay refund completely
+								ELSE 0
+							END 
+				)
+				AS mr
 			WHERE bm.matchid 		= @matchid
-				AND mp.IsMultiple 	= 1
+				AND @IsParlay 		= 1
+				AND mr.IsMultiple 	= 1
+				AND @parlayStatus	= 2 --queue for CAL/REFUND parlay completely
 			
 		)
 		INSERT INTO @betTicket ( 

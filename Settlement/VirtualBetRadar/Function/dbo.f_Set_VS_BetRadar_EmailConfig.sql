@@ -37,7 +37,7 @@ RETURN (
 		SELECT 'NOTIFY'
 			, 'bobby.nguyen@starixsoft.com'
 			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com'
+			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
 			, 'DB206'
 			, 'LOCAL'
 			
@@ -45,7 +45,7 @@ RETURN (
 		SELECT 'NOTIFY'
 			, 'bobby.nguyen@starixsoft.com'
 			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com'
+			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
 			, 'SITDBTRANS'
 			, 'SIT'
 			
@@ -53,7 +53,7 @@ RETURN (
 		SELECT 'NOTIFY'
 			, 'bobby.nguyen@starixsoft.com'
 			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com'
+			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 		

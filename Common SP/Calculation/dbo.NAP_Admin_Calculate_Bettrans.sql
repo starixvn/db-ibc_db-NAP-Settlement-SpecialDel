@@ -40,7 +40,7 @@ BEGIN
 		, winlost 
 	)
 	SELECT t.custid
-		,b.winlostdate
+		,CASE WHEN t.bettype = 2799  THEN t.winlostdate ELSE b.winlostdate END AS winlostdate
 		,t.bettype AS gametypeid
 		,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		,SUM(CASE
@@ -54,7 +54,9 @@ BEGIN
 			AND b.bettype 	= t.bettype
 			AND b.transid 	= t.transid
 	
-	GROUP BY t.custid, b.winlostdate, t.bettype
+	GROUP BY t.custid
+		, CASE WHEN t.bettype = 2799  THEN t.winlostdate ELSE b.winlostdate END
+		, t.bettype
 	
 	-------------------------------------------------------------
 	---        TODO UPDATE bettrans                           ---
@@ -102,7 +104,7 @@ BEGIN
 		, winlost 
 	)
 	SELECT t.custid
-		,b.winlostdate
+		,CASE WHEN t.bettype = 2799  THEN t.winlostdate ELSE b.winlostdate END AS winlostdate
 		,t.bettype AS gametypeid
 		,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		,SUM(CASE
@@ -116,7 +118,9 @@ BEGIN
 			AND b.bettype 	= t.bettype
 			AND b.transid 	= t.transid
 	
-	GROUP BY t.custid, b.winlostdate, t.bettype
+	GROUP BY t.custid
+		, CASE WHEN t.bettype = 2799  THEN t.winlostdate ELSE b.winlostdate END
+		, t.bettype
 	
 	IF(@@ROWCOUNT > 0)
 	BEGIN		

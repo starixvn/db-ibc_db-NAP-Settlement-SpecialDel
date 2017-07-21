@@ -108,6 +108,7 @@ BEGIN
 				, @hth				
 				, @hta
 				, f.CalMode
+				, bm.transdesc
 			) AS ods
 		WHERE bm.matchid = @MatchId
 		  AND f.SportType = @SportType
@@ -180,6 +181,7 @@ BEGIN
 				, mr.hth				
 				, mr.hta
 				, f.CalMode
+				, bm.transdesc
 			) AS ods
 		WHERE bm.statusID NOT IN (101,102) --void/reject	
 		
