@@ -1,9 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main] 
 	@BetType				VARCHAR(20)		= 'All',
 	@TransIds				VARCHAR(MAX)	= '',
@@ -25,6 +20,7 @@ AS
 		- 20161111@Kent: Correct WinLost when for returned table [Redmine:#65531]
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20170727@Kathy: Update statuswinlost, creator when recover [Redmine:#80135]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -180,7 +176,9 @@ BEGIN
 			,playercomm = 0
 			,comm = 0
 			,acomm = 0
-			,scomm = 0				
+			,scomm = 0		
+			,statuswinlost = NULL
+			,creator = b.custid
 		FROM dbo.bettrans b
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 
@@ -368,10 +366,4 @@ BEGIN
 		RETURN
 	END CATCH		
 END
-
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_BettransRecoverParlayBet_Main] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_BettransRecoverParlayBet_Main] TO [vnteam] AS [dbo]
