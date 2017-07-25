@@ -46,7 +46,8 @@ BEGIN
 		homeid			INT,
 		awayid			INT,
 		srecommend		INT,
-		IsNeutral		BIT
+		IsNeutral		BIT,
+		CurrencyName	NVARCHAR(50)
 	);
 
 	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
@@ -57,11 +58,13 @@ BEGIN
 
 	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120);
 
+	--Parse trans ID string
 	INSERT INTO #TransIds(transid)
 	SELECT DISTINCT ss.val
 	FROM dbo.f_SplitString(@TransIds, ',') ss
 	OPTION (maxrecursion 0);
 
+	--Get tickets from zzzbettrans
 	INSERT INTO #RecoverBet(
 		transid,
 		refno,
@@ -89,7 +92,8 @@ BEGIN
 		homeid,
 		awayid,
 		custid,
-		IsNeutral
+		IsNeutral,
+		CurrencyName
 	)
 	SELECT	z.transid,
 			z.refno,
@@ -117,7 +121,8 @@ BEGIN
 			m.homeid,
 			m.awayid,
 			z.custid,
-			m.IsNeutral
+			m.IsNeutral,
+			b.CurrencyName
 	FROM dbo.zzzbettrans z WITH(NOLOCK)
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON z.transid = b.transid
@@ -157,7 +162,8 @@ BEGIN
 			t.homeid,
 			t.awayid,
 			t.matchcode,
-			t.IsNeutral
+			t.IsNeutral,
+			t.CurrencyName
 	FROM #RecoverBet t
 		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid
 	ORDER BY GroupName, transid;
