@@ -1,16 +1,12 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel]    Script Date: 10/13/2016 12:40:47 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
-	@CustID			INT				= NULL 	
-	,@TransIds		VARCHAR(MAX)	= NULL 
-	,@FromDate		DATETIME		= NULL
-	,@ToDate		DATETIME		= NULL
-	,@Duration		INT = 0 OUTPUT	
+	@CustID				INT				= NULL 	
+	,@TransIds			VARCHAR(MAX)	= NULL 
+	,@FromDate			DATETIME		= NULL
+	,@ToDate			DATETIME		= NULL
+	,@Duration			INT				= 0	 OUTPUT	
+	,@InvalidTransIds	VARCHAR(MAX)	= '' OUTPUT
+	,@MovedTransIds		VARCHAR(MAX)	= '' OUTPUT
 AS
 /*  
 	Created by: Bobby  
@@ -38,7 +34,8 @@ AS
 		- 20161124@Kent: Include phone betting tickets and add new GroupName "Phone Betting" [Redmine:#67751]
 		- 20170302@Kent: Fix show time for virtual sport [Redmine:#72475]
 		- 20170314@Kent: Integrate cash-out [Redmine:#72059]
-		- 20170417@Kent: Tune performance [Redmine:#72059]		
+		- 20170417@Kent: Tune performance [Redmine:#72059]
+		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -401,7 +398,7 @@ BEGIN
 				    AND sub911.transid = t.refno)				    					    				    					    
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype NOT IN (9, 29)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -416,7 +413,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
 			
-		WHERE d.bettype NOT IN (9, 29)
+		WHERE d.bettype NOT IN (9, 29, 2799)
 			
 	END
 	
@@ -461,7 +458,7 @@ BEGIN
 	--- Remove invalid sporttype	
 	DELETE 
 	FROM #Data
-	WHERE bettype NOT IN (9, 29)
+	WHERE bettype NOT IN (9, 29, 2799)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -931,37 +928,43 @@ BEGIN
 		
 	ORDER BY T.GroupName
 		,ISNULL(d.MainCashoutId, d.GroupId)
-		,d.transid
-	
-	-->> Ticket in Details for LiveCS
-	SELECT BG.refno
-		,BG.odds
-		,BG.stake
-		,BG.STATUS
-		,BG.bettype
-		,BG.betteam
-	FROM dbo.bettransg BG WITH (NOLOCK)
-		INNER JOIN #Data B 
-		ON BG.refno = B.refno
-	WHERE B.Bettype BETWEEN 1101 AND 1199
-	
+		,d.transid	
 
 	-- invalid trans
-	SELECT	transid AS InvalidTrans
-			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-	FROM #transIdTemp temp
-		OUTER APPLY (
-			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-			FROM dbo.bettrans14 WITH(NOLOCK) 
-			WHERE transid = temp.transid
-		) bm
-	WHERE	NOT EXISTS (SELECT 1 FROM #Data WHERE transid = temp.transid OR refno = temp.transid)
+	SELECT @InvalidTransIds = '', @MovedTransIds = ''
+	;WITH t_invalid AS
+	(
+		SELECT	transid
+				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+		FROM #transIdTemp temp
+			OUTER APPLY (
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM dbo.bettrans14 WITH(NOLOCK) 
+				WHERE transid = temp.transid
+			) bm
+		WHERE NOT EXISTS (SELECT 1 
+						  FROM #Data 
+						  WHERE transid = temp.transid 
+						     OR refno = temp.transid)
+	)
+	SELECT @InvalidTransIds = @InvalidTransIds +
+							  CASE
+								  WHEN isMoved = 0
+										THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
+											 CAST(transid AS VARCHAR(100))
+								  ELSE ''
+							  END								  
+		 , @MovedTransIds = @MovedTransIds +
+							CASE
+								WHEN isMoved = 1
+										THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
+											 CAST(transid AS VARCHAR(100))
+								ELSE ''
+							END
+		FROM t_invalid
 	
-	SELECT @Duration 		= DATEDIFF(MS, @startTime, CURRENT_TIMESTAMP)
+	SELECT @Duration = DATEDIFF(MS, @startTime, CURRENT_TIMESTAMP)
 	
 	RETURN;
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] TO [vnteam] AS [dbo]

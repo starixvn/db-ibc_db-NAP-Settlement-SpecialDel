@@ -1,14 +1,16 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
-	@IsExistParlay 		BIT = 0
-	, @IsExistOutright 	BIT = 0
-	, @IsExistMG		BIT = 0
-	, @IsExistMatch		BIT = 0
-	, @IsExistNG		BIT = 0
-	, @IsExistVS		BIT = 0
-	, @IsReleased		BIT	= 0
-	, @AvaiableProcess	BIT = 0 OUTPUT
-	, @ErrCode			INT = 0 OUTPUT
-	, @ErrMsg			NVARCHAR(200) = '' OUTPUT
+	@IsExistParlay 				BIT = 0
+	, @IsExistOutright 			BIT = 0
+	, @IsExistMG				BIT = 0
+	, @IsExistMatch				BIT = 0
+	, @IsExistNG				BIT = 0
+	, @IsExistVS				BIT = 0
+	, @IsExistParlayVSBetradar 	BIT = 0
+	, @IsReleased				BIT	= 0	
+	, @AvaiableProcess			BIT = 0 OUTPUT
+	, @ErrCode					INT = 0 OUTPUT
+	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
 AS 
 /* Created by: Bobby  
  Task:  VOID BY BET ID (Running & Settled tickets)  
@@ -19,6 +21,7 @@ AS
 	-20160318@bobby.nguyen: #54311 - Correct checking process on match with specific product/sport
 	-20160318@bobby.nguyen: #55930 - Exclude bettype 9 from match locking table
 	-20160413@bobby.nguyen: #55756 - Update changes for checking process
+	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 	
  Param's Explanation:   
  
@@ -76,6 +79,30 @@ BEGIN
 				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
 				SET VValue 		= '1'  
 				WHERE VName 	= 'isCalculatingParlay' 
+				
+				SET @avaiableProcess = 1
+			END
+		END
+		
+		IF (@IsExistParlayVSBetradar  = 1)
+		BEGIN		
+			IF EXISTS(
+				SELECT 1 
+				FROM dbo.SystemSettings WITH (NOLOCK) 
+				WHERE VValue 	= 1 
+				AND VName 		= 'isCalculatingParlayVSBetradar'
+			)  
+			BEGIN  
+				SELECT @ErrCode	= 100  
+					,@ErrMsg 	= 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'  
+				
+				RETURN
+			END  
+			ELSE
+			BEGIN
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				SET VValue 		= '1'  
+				WHERE VName 	= 'isCalculatingParlayVSBetradar' 
 				
 				SET @avaiableProcess = 1
 			END
@@ -155,6 +182,11 @@ BEGIN
 					SET VValue 			= '0'  
 					WHERE VName 		= 'isCalculatingParlay' 
 					AND @isExistParlay 	= 1
+					
+					UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+					SET VValue 			= '0'  
+					WHERE VName 		= 'isCalculatingParlayVSBetradar' 
+					AND @IsExistParlayVSBetradar 	= 1
 									
 					UPDATE dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 					SET VValue 		= '0'
@@ -176,6 +208,11 @@ BEGIN
 				SET VValue 			= '0'  
 				WHERE VName 		= 'isCalculatingParlay' 
 				AND @isExistParlay 	= 1
+				
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				SET VValue 			= '0'  
+				WHERE VName 		= 'isCalculatingParlayVSBetradar' 
+				AND @IsExistParlayVSBetradar 	= 1
 								
 				UPDATE dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 				SET VValue 		= '0'
@@ -199,6 +236,11 @@ BEGIN
 		SET VValue 			= '0'  
 		WHERE VName 		= 'isCalculatingParlay' 
 		AND @isExistParlay 	= 1
+		
+		UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+		SET VValue 			= '0'  
+		WHERE VName 		= 'isCalculatingParlayVSBetradar' 
+		AND @IsExistParlayVSBetradar = 1
 						
 		UPDATE dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 		SET VValue 			= '0'
