@@ -134,21 +134,15 @@ BEGIN
 		matchid
 		, custid
 		, balanceType
-		, BonusID
-		, WalletType
+		, walletType
+		, bonusId
 		, balance
 	)
-	SELECT matchid
-		, custid
-		, balanceType
-		, BonusID
-		, WalletType
-		, balance 
-	FROM dbo.f_NAP_Set_GetBalanceByWallet (
-		@MatchId
-		, @Action
-		, 7 --@Mode fast market
-	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @Action 			= @Action
+		, @Mode 			= 7 --@Mode fast market
+		, @Results			= @Results
 	
 	SELECT @rowcount = COUNT(DISTINCT custid)
 	FROM @BalanceWalletBefore
@@ -179,21 +173,15 @@ BEGIN
 			matchid
 			, custid
 			, balanceType
-			, BonusID
-			, WalletType
+			, walletType
+			, bonusId
 			, balance
 		)
-		SELECT matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance 
-		FROM dbo.f_NAP_Set_GetBalanceByWallet (
-			@MatchId
-			, @Action
-			, 7 --@Mode fast market
-		)
+		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+			@MatchId 			= @matchId
+			, @Action 			= @Action
+			, @Mode 			= 7 --@Mode fast market
+			, @Results			= @Results
 		
 		-- Compare Balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]

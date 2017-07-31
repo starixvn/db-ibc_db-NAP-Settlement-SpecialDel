@@ -11,7 +11,6 @@
 CREATE PROCEDURE [dbo].[NAP_Admin_BalancePending_WalletUpd]
 	@BalanceWalletBefore	TVP_BalanceWalletChange	READONLY
 	, @BalanceWalletAfter	TVP_BalanceWalletChange	READONLY
-	, @IsCheckNegative		BIT = 0
 	, @ActionId				INT = 0
 AS
 /* 
@@ -229,7 +228,7 @@ BEGIN
 		- 148-149-150: Auto BetRadar (CAL-UNDO-REFUND)
 		- 109-110-111: Manual Refund(ALL-HT-FT)
 	*/
-	IF (@IsCheckNegative = 1 AND @ActionID > 0)
+	IF (@ActionID > 0)
 	BEGIN 
 		WITH BalanceNegative AS (
 			SELECT
@@ -283,7 +282,5 @@ BEGIN
 				,NULL
 		FROM BalanceNegative
 	END
-	
-	RETURN
 END
 GO
