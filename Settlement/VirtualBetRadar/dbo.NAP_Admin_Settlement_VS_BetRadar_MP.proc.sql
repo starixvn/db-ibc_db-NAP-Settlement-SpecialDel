@@ -179,8 +179,8 @@ BEGIN
 				,@finalawayscore = @fta
 				,@hthomescore = @hth
 				,@htawayscore = @hta
-				,@GoalRecord = ''
-				,@betstatus = ''
+				,@GoalRecord = NULL
+				,@betstatus = NULL
 				,@Remark = @Remark
 				,@IP = @IP
 		END TRY

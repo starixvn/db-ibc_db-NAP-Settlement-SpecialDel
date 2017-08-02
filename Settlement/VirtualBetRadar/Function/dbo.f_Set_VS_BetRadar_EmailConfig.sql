@@ -43,7 +43,7 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'bobby.nguyen@starixsoft.com'
+			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com'
 			, 'dora.le@starixsoft.com'
 			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
 			, 'SITDBTRANS'
@@ -74,13 +74,13 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'dora.le@starixsoft.com;justin.doan@starixsoft.com', '', ''
+			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com', '', ''
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'dora.le@starixsoft.com;justin.doan@starixsoft.com', '', ''
+			, 'bobby.nguyen@starixsoft.com;johnson.nguyen@starixsoft.com', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 			

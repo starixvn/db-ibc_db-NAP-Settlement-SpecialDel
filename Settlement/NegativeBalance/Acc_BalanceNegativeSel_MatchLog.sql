@@ -172,15 +172,47 @@ BEGIN
 	BEGIN
 		SELECT	  l.logid
 				, l.logdate
-				, la.ActionNameEN
-				, la.ActionNameCS
+				, act.ActionNameEN
+				, act.ActionNameCS
 				, l.finalhomescore
 				, l.finalawayscore
 				, l.hthomescore
 				, l.htawayscore
 		FROM	bodb_CustomerLog.dbo.UserLog_Settle l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
+				OUTER APPLY (
+					SELECT 
+						CASE 
+							WHEN l.ActionId IN (187,188) THEN 
+								CASE 
+									WHEN l.Remark LIKE '%Multiple%' THEN  REPLACE(REPLACE(la.ActionNameEN, 'VS BetRadar', ''), 'All', 'Mix Parlay All') 
+									ELSE REPLACE(la.ActionNameEN, 'VS BetRadar', '') --remove product name
+								END
+							ELSE la.ActionNameEN 
+						END AS ActionNameEN
+						,CASE 
+							WHEN l.ActionId IN (187,188) THEN 
+								CASE 
+									WHEN l.Remark LIKE '%Multiple%' THEN  
+										CASE 
+											WHEN l.ActionId = 187 THEN N'计算混合过关' 
+											WHEN l.ActionId = 188 THEN N'所有混合过关退款'
+										END
+									ELSE REPLACE(la.ActionNameCS, 'VS BetRadar', '') --remove product name
+								END
+							ELSE la.ActionNameCS 
+						END AS ActionNameCS
+				) AS act
+
 		WHERE	l.MatchID = @MatchID
+			AND 1 = CASE 
+						WHEN @GroupID = 7 THEN 
+							CASE 
+								WHEN l.Remark NOT LIKE '%Error%' AND l.Remark NOT LIKE '%API%' THEN 1
+								ELSE 0
+							END
+						ELSE 1
+					END
 		ORDER BY	l.LogID ASC 	
 	END
 	ELSE IF @GroupID = 3
