@@ -5,7 +5,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @Mode 			TINYINT = 1
 	, @FMResults		VARCHAR(MAX)	= NULL
 	, @BAQuarter 		VARCHAR(100)	= NULL
-	, @TennisSet    	VARCHAR(100)	= NULL 
+	, @TennisSet    	VARCHAR(100)	= NULL
+	, @BAResults		VARCHAR(MAX)	= NULL 
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -14,6 +15,7 @@ AS
 	Original:   
 
 	Revisions:  
+		- 20170801@Bobby: Initial
 
 	Param's Explanation:   
 		- @Action : [CAL, CAL-HT, CAL-FT]
@@ -24,9 +26,12 @@ AS
 			   5: Used for Conner
 			   6: Used for Auto Settlement
 			   7: Used for Fast Market
+			   8: Used for Early Payout
+
 		- @FMResults: Fast Market result
 		- @BAQuarter: BAIO result
 		- @TennisSet: Tennis result
+		- @BAResults: Early Payout result
 */
 BEGIN
 	SET NOCOUNT ON
@@ -42,11 +47,11 @@ BEGIN
 	SELECT @isTrading			= 0
 		, @isCheckBet			= 0
 		, @FMResults 			= ISNULL(@FMResults, '<r />')
+		, @BAResults 			= ISNULL(@BAResults, '<Results />')
 	
-	--CHECK sportType, trading and checking bet ticket
+	--CHECK sportType, is trading bet ticket
 	SELECT TOP(1) @sportType 	= sportType
 		, @isTrading 			= ISNULL(trade.IsTrading, 0)
-		, @isCheckBet			= CASE WHEN @sportType IN (2,5) THEN 1 ELSE 0 END
 	FROM dbo.match m WITH(NOLOCK)
 		OUTER APPLY (
 			SELECT TOP(1) CAST(1 AS BIT) AS IsTrading
@@ -59,9 +64,15 @@ BEGIN
 				)
 		) AS trade
 	WHERE m.matchid = @matchid
-		
+	
+	--Check for doing capture balance by bet ticket or NOT
+	SELECT @isCheckBet	= CASE 
+							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
+							ELSE 0 
+						END
+
 	--GET list bettype
-	SELECT @bettypes = (
+	SELECT @bettypes 	= (
 			SELECT GroupId AS '@GroupId'
 				, GroupName AS '@GroupName'
 				, Bettype AS '@Bettype'
@@ -106,9 +117,14 @@ BEGIN
 							WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 8 THEN 1
 							ELSE 0
 						END
-					WHEN @Mode = 7 THEN --FastMarket
+					WHEN @Mode = 7 THEN --Fast Market
 						CASE 
 							WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 9 THEN 1
+							ELSE 0
+						END
+					WHEN @Mode = 8 THEN --Early Payout
+						CASE 
+							WHEN EXISTS(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.bettype) THEN 1
 							ELSE 0
 						END
 					ELSE 0 
@@ -144,6 +160,7 @@ BEGIN
 				@MatchId
 				, @bettypes
 			)
+			--GET balance by trading bet
 			IF (@isTrading = 1)
 			BEGIN
 				INSERT INTO @capturedBalance(
@@ -185,9 +202,12 @@ BEGIN
 			FROM dbo.f_Settle_GetBalanceByBettypeTicket (
 				@MatchId
 				, @bettypes
+				, @Mode
+				, @SportType
 				, @FMResults
 				, @BAQuarter
 				, @TennisSet
+				, @BAResults
 			)
 		END
 	END

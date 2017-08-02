@@ -105,26 +105,18 @@ BEGIN
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
 	INSERT INTO @BalanceWalletBefore (
-			matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance
-		)
-		SELECT matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance 
-		FROM dbo.f_NAP_Set_GetBalanceByWallet (
-			@MatchId
-			, @Action
-			, 5 --@Mode corner
-		)
-
-	--===
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @Action 			= @Action
+		, @Mode 			= 5 --@Mode corner
+            
 	--^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	IF @Action IN ('CAL', 'CAL-FT', 'CAL-HT')
 	BEGIN
@@ -198,31 +190,23 @@ BEGIN
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
 	INSERT INTO @BalanceWalletAfter (
-			matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance
-		)
-		SELECT matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance 
-		FROM dbo.f_NAP_Set_GetBalanceByWallet (
-			@MatchId
-			, @Action
-			, 5 --@Mode corner
-		)
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @Action 			= @Action
+		, @Mode 			= 5 --@Mode corner
 	
 	-- Compare Balance
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		@BalanceWalletBefore	= @BalanceWalletBefore
 		, @BalanceWalletAfter	= @BalanceWalletAfter
 		, @ActionId				= @ActionID
-		, @IsCheckNegative		= 1
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
@@ -285,8 +269,6 @@ BEGIN
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 	
-	DROP TABLE #tblMatchProcess
-	RETURN	
-	
+	DROP TABLE #tblMatchProcess	
 END
 GO

@@ -2,12 +2,13 @@
 CREATE PROCEDURE dbo.Task_NAP_Admin_Adjustment_BonusTransfer_Job
 AS
 /*
-	Created:20170503@Bobby
+	Created:20170503@Bobby.Nguyen
     Task:  72789 - Implement bonus system into NAP Settlement
 	DB: DBTXN/bodb02  
 	
     Revisions:
-		
+		- 20170503@Bobby.Nguyen: Initial
+
     Parameters Explanation:   
 */
 BEGIN

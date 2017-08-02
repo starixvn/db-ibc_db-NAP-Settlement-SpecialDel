@@ -1,14 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
--- CREATE TYPE [dbo].[TVP_BalanceWalletChange] AS TABLE(
-	-- [matchid] [int] NULL,
-	-- [custid] [int] NULL,
-	-- [balance] [money] NULL,
-	-- [balanceType] [tinyint] NULL,
-	-- [walletType] [tinyint] NULL DEFAULT ((2)),
-	-- [bonusId] [int] NULL DEFAULT ((0))
--- )
--- GO
-CREATE PROCEDURE [dbo].[NAP_Admin_BalancePending_WalletUpd]
+ALTER PROCEDURE [dbo].[NAP_Admin_BalancePending_WalletUpd]
 	@BalanceWalletBefore	TVP_BalanceWalletChange	READONLY
 	, @BalanceWalletAfter	TVP_BalanceWalletChange	READONLY
 	, @ActionId				INT = 0
@@ -20,10 +11,9 @@ AS
 	Original:   
 
 	Revisions:  
+		- 20170419@Bobby.nguyen: Initial
 
 	Param's Explanation:   
-		- @IsCheckNegative: BIT[1,0] 
-			+ Is checking negative balance or NOT
 		- @ActionId		  : INT 
 			+ Keep tracing the action log which is the root cause of negative balance
 */
@@ -234,9 +224,10 @@ BEGIN
 			SELECT
 				b.matchid
 				, b.custid
+				, @ActionId AS ActionId
 				,SUM(a.balance - b.balance) AS balance
 				
-			FROM    @BalanceWalletBefore b
+			FROM @BalanceWalletBefore b
 				INNER JOIN @BalanceWalletAfter a 
 					ON b.matchid 		= a.matchid
 					AND b.custid 		= a.custid
@@ -275,12 +266,14 @@ BEGIN
 		SELECT GETDATE()
 				,MatchID
 				,@ActionId
-				,1 -- Sportsbook Single bet Settlement 
+				,ISNULL(bg.GroupID,1) AS GroupID -- Negative balance defined group Id
 				,CustID
 				,Balance
 				,0
 				,NULL
-		FROM BalanceNegative
+		FROM BalanceNegative bal
+			LEFT JOIN dbo.f_Settle_NegativeBalance_GroupActions() AS bg
+			ON bal.ActionId = bg.ActionId
 	END
 END
 GO

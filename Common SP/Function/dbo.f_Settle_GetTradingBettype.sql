@@ -1,15 +1,15 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Settle_GetTradingBettype] ()
 RETURNS TABLE
 WITH SCHEMABINDING
 AS
 
 /*
-    Created: 
-    Task: 
-    DB: DBTXN/bodb02; DBPRO/bodb02
+    Created: 20170801@Bobby.Nguyen
+    Task: Implement new capture balance method [Redmine:#80774]
+    DB: DBTXN/bodb02
     Revisions:
-		- 20160825@Bobby: #62921 - Allow FGLG (14,127) bet types to settle determindable
+		  - 20170801@Bobby.Nguyen: Initialize
 	
     Parameters Explanation:    
 */

@@ -97,24 +97,19 @@ BEGIN
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------    
     INSERT INTO @BalanceWalletBefore (
-			matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance
-		)
-    SELECT matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance 
-		FROM dbo.f_NAP_Set_GetBalanceByWallet (
-			@MatchId
-			, @Action
-			, 6 --@Mode auto settlement
-		)
+        matchid
+        , custid
+        , balanceType
+        , walletType
+        , bonusId
+        , balance
+    )
+    EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+        @MatchId 			= @matchId
+        , @Action 			= @Action
+        , @Mode 			= 6 --@Mode auto settlement
+		
+
     SET @strXML = CAST((SELECT  BetType '@t'
 								,GroupId '@g'
 								,GroupName '@n'
@@ -124,7 +119,6 @@ BEGIN
 							) AS VARCHAR(MAX))
 							
 		
- 
     --^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     IF @Action='CAL'
     BEGIN
@@ -260,23 +254,16 @@ BEGIN
     ---------------------------VVVV------------------------------
 	INSERT INTO @BalanceWalletAfter (
 		matchid
-		, custid
-		, balanceType
-		, BonusID
-		, WalletType
-		, balance
-	)
-    SELECT matchid
-		, custid
-		, balanceType
-		, BonusID
-		, WalletType
-		, balance 
-	FROM dbo.f_NAP_Set_GetBalanceByWallet (
-		@MatchId
-		, @Action
-		, 6 --@Mode auto settlement
-	)
+        , custid
+        , balanceType
+        , walletType
+        , bonusId
+        , balance
+    )
+    EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+        @MatchId 			= @matchId
+        , @Action 			= @Action
+        , @Mode 			= 6 --@Mode auto settlement
 		
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
@@ -286,7 +273,6 @@ BEGIN
 		@BalanceWalletBefore	= @BalanceWalletBefore
 		, @BalanceWalletAfter	= @BalanceWalletAfter
 		, @ActionId				= @ActionID
-		, @IsCheckNegative		= 1
 	
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
@@ -344,7 +330,5 @@ BEGIN
 	@isExistMatch		= 1
 	, @IsReleased		= 1
 	
-	DROP TABLE #tblMatchProcess
-	RETURN	
 END
 GO

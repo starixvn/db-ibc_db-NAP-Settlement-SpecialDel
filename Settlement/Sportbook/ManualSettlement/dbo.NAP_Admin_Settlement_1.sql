@@ -85,7 +85,8 @@ AS
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171226@Kathy: Clear data in table AutoPayoutResult if match has been undo [Redmine:#86890]
-		
+		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
+
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
         + @GameResult: Game result for Set(s) of Tennis Sport 
@@ -137,17 +138,13 @@ BEGIN
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)		
-        
-    CREATE TABLE #tmpTrans (transid BIGINT, refno BIGINT)--tickets of bettrade and refno for CashOut tickets
+
+    --START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables    
+    
     DECLARE @status TABLE (FTBet BIT, BetCount INT, InRunning INT)
-    
-    CREATE TABLE #BalanceBefore (custid INT PRIMARY KEY, balance MONEY)
-    CREATE TABLE #BalanceAfter (custid INT PRIMARY KEY, balance MONEY)    
-    CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
-    CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-    
-    DECLARE @tblDebitPending TVP_BalanceList
-    DECLARE @tblCreditPending TVP_BalanceList
     
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
     
@@ -324,6 +321,24 @@ BEGIN
     ---------------------------VVVV------------------------------
     IF @SkipBalanceUpdate = 0
     BEGIN
+        INSERT INTO @BalanceWalletBefore (
+            matchid
+            , custid
+            , balanceType
+            , walletType
+            , bonusId
+            , balance
+        )
+        EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+            @MatchId 			= @matchId
+            , @Action 			= @Action
+            , @Mode 			= 2 --@Mode Manual Settlement
+            , @TennisSet		= @SelectedSet
+            , @BAQuarter		= @SelectedQuarter
+
+        SELECT @TotalAccount = @@ROWCOUNT
+
+        /****
         IF @Action IN ('CAL', 'CAL-FT')
         BEGIN
             INSERT INTO #tmpTrans(transid)
@@ -487,8 +502,8 @@ BEGIN
             GROUP BY b.custid
             
             SET @TotalAccount = @@ROWCOUNT
-        END
-                --===
+        END*/
+
     END --IF @SkipBalanceUpdate = 0
             --^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     BEGIN TRY
@@ -801,7 +816,22 @@ BEGIN
         -- Capture Balance incase of failure
         IF @SkipBalanceUpdate = 0
         BEGIN
-            IF @Action IN ('CAL', 'CAL-FT')
+            INSERT INTO @BalanceWalletAfter (
+                matchid
+                , custid
+                , balanceType
+                , walletType
+                , bonusId
+                , balance
+            )
+            EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+                @MatchId 			= @matchId
+                , @Action 			= @Action
+                , @Mode 			= 2 --@Mode Manual Settlement
+                , @TennisSet		= @SelectedSet
+                , @BAQuarter		= @SelectedQuarter
+
+            /*IF @Action IN ('CAL', 'CAL-FT')
             BEGIN
                 INSERT INTO #BalanceAfter
                 SELECT    b.custid
@@ -919,10 +949,16 @@ BEGIN
 									ELSE 0
 								END
                 GROUP BY b.custid
-            END
+            END*/
         END --IF @SkipBalanceUpdate = 0
         
-        -- Compare Balance
+        -- Compare and update pending balance with error case
+        EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+            @BalanceWalletBefore	= @BalanceWalletBefore
+            , @BalanceWalletAfter	= @BalanceWalletAfter
+            , @ActionId				= @ActionID
+
+        /*** Compare Balance
         INSERT INTO #Balance
         SELECT    b.custid
                 ,a.balance - b.balance
@@ -976,7 +1012,7 @@ BEGIN
                 ,NULL
         FROM    #Balance WITH(NOLOCK)
         WHERE    Increased = 0
-				
+        ***/
         SELECT    @ErrCode = 1001017 
                 ,@ErrMsg = ERROR_MESSAGE()
         
@@ -989,6 +1025,21 @@ BEGIN
 
     IF @SkipBalanceUpdate = 0
     BEGIN
+        INSERT INTO @BalanceWalletAfter (
+                matchid
+                , custid
+                , balanceType
+                , walletType
+                , bonusId
+                , balance
+        )
+        EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+            @MatchId 			= @matchId
+            , @Action 			= @Action
+            , @Mode 			= 2 --@Mode Manual Settlement
+            , @TennisSet		= @SelectedSet
+            , @BAQuarter		= @SelectedQuarter
+        /***
         IF @Action IN ('CAL', 'CAL-FT')
             BEGIN
                 INSERT INTO #BalanceAfter
@@ -1108,13 +1159,32 @@ BEGIN
                         
                 GROUP BY b.custid
             END
+            **/
     END --IF @SkipBalanceUpdate = 0
 
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
     ---------------------------VVVV------------------------------
 
-    INSERT INTO #Balance
+    SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custid)
+    FROM @BalanceWalletAfter a
+        INNER JOIN @BalanceWalletBefore b 
+        ON     a.matchid            = b.matchid
+                AND a.custid        = b.custid
+                AND a.balanceType   = b.balanceType
+                AND a.walletType    = b.walletType
+                AND a.bonusId       = b.bonusId
+                
+
+    WHERE a.balance <> b.balance
+
+    -- Compare and update pending balance
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		@BalanceWalletBefore	= @BalanceWalletBefore
+		, @BalanceWalletAfter	= @BalanceWalletAfter
+		, @ActionId				= @ActionID
+
+    /*INSERT INTO #Balance
     SELECT    b.custid
             ,a.balance - b.balance
             ,CASE 
@@ -1179,6 +1249,7 @@ BEGIN
     DROP TABLE #BalanceAfter
     
     DROP TABLE #tmpTrans
+    */
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
     ---------------------------VVVV------------------------------

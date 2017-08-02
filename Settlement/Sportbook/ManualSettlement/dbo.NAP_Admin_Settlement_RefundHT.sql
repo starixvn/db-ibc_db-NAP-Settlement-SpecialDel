@@ -48,6 +48,7 @@ AS
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
 		- 20170321@Bobby: #73407 - CashOut integration
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+        - 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -67,6 +68,10 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
+    --START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables      
 	DECLARE @Remark VARCHAR(500)
         ,@ActionID INT
         ,@start DATETIME
@@ -77,12 +82,10 @@ BEGIN
 		,@avaiableProcess	BIT
     
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
-    -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
 			,1 AS KeyId
-
+	
     --check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
@@ -99,7 +102,6 @@ BEGIN
 	END
 	
 	SELECT @ActionID = 110
-
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	dbo.f_Set_GetGroupBettypes ()
 	WHERE	Is3x30 = 1
@@ -116,10 +118,9 @@ BEGIN
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
 	
-	
     SELECT @start = CURRENT_TIMESTAMP
 
-    CREATE TABLE #BalanceBefore (
+    /*CREATE TABLE #BalanceBefore (
         custid INT PRIMARY KEY
         ,balance MONEY
         )
@@ -141,8 +142,25 @@ BEGIN
     DECLARE @tblCreditPending TVP_BalanceList
 
     CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-	
-	INSERT INTO #tmpTrans (transid)
+	*/
+
+    -------------------------------------------------------------
+    ---        CAPTURE value BALANCE before settlement        ---
+    ---------------------------VVVV------------------------------
+	INSERT INTO @BalanceWalletBefore (
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @Action 			= @Action
+		, @Mode 			= 3 --@Mode Manual Refund
+
+	/*INSERT INTO #tmpTrans (transid)
 	SELECT ISNULL(co.transid, b.transid) AS transid
 	FROM dbo.bettrans b WITH (ROWLOCK)
 		LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
@@ -175,7 +193,7 @@ BEGIN
 							END
 						ELSE 0
 					END
-    GROUP BY b.custid
+    GROUP BY b.custid*/
 
     IF @IsSettleAbandonedMatch = 1
         SELECT @IsExcludeBetdaq = 1
@@ -191,9 +209,14 @@ BEGIN
             )
     BEGIN
         ------ releasing Settlement process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch		= 1
-			, @IsReleased		= 1
+        EXEC dbo.NAP_Admin_CheckingProcess
+            @isExistMatch		= 1
+            , @IsReleased		= 1
+        
+        /*DELETE
+        FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
+        WHERE KeyID = 1 AND KeyValue = @matchid
+        */
 
 		EXEC dbo.NAP_Admin_Settlement_Refund_All @matchid = @matchid
             ,@creator = @adminid
@@ -238,10 +261,14 @@ BEGIN
 				SELECT @ErrCode = 1000005
 					,@ErrMsg = 'Cannot settle determined ticket(s) without HT Score!'
 
-				-----
-				DELETE
+				------ releasing Settlement process
+                EXEC dbo.NAP_Admin_CheckingProcess
+                    @isExistMatch		= 1
+                    , @IsReleased		= 1
+				
+                /*DELETE
 				FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-				WHERE KeyID = 1 AND KeyValue = @matchid
+				WHERE KeyID = 1 AND KeyValue = @matchid*/
 
 				RETURN
 			END
@@ -300,7 +327,30 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		INSERT INTO #BalanceAfter
+		-------------------------------------------------------------
+        ---         CAPTURE value BALANCE after settlement        ---
+        ---------------------------VVVV------------------------------
+        INSERT INTO @BalanceWalletAfter (
+            matchid
+            , custid
+            , balanceType
+            , WalletType
+            , BonusID
+            , balance
+        )
+        EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+            @MatchId 			= @matchId
+            , @Action 			= @Action
+            , @Mode 			= 3 --@Mode Manual Refund
+            
+
+        -- Compare and update pending balance with error case
+        EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+            @BalanceWalletBefore	= @BalanceWalletBefore
+            , @BalanceWalletAfter	= @BalanceWalletAfter
+            , @ActionId				= @ActionID
+
+        /*INSERT INTO #BalanceAfter
 		SELECT	custid
 				,SUM(winlost - actual_stake + playercomm)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
@@ -380,7 +430,8 @@ BEGIN
 		
 		DROP TABLE #Balance
 		DROP TABLE #BalanceBefore
-		DROP TABLE #BalanceAfter
+		DROP TABLE #BalanceAfter*/
+
 	    
 		SELECT	@ErrCode = 1001017 
 				,@ErrMsg = ERROR_MESSAGE()
@@ -389,7 +440,29 @@ BEGIN
 		
 	END CATCH
 	
-    INSERT INTO #BalanceAfter
+    -------------------------------------------------------------
+    ---         CAPTURE value BALANCE after settlement        ---
+    ---------------------------VVVV------------------------------
+    INSERT INTO @BalanceWalletAfter (
+        matchid
+        , custid
+        , balanceType
+        , WalletType
+        , BonusID
+        , balance
+    )
+    EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+        @MatchId 			= @matchId
+        , @Action 			= @Action
+        , @Mode 			= 3 --@Mode Manual Refund
+
+    -- Compare and update pending balance with error case
+    EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+        @BalanceWalletBefore	= @BalanceWalletBefore
+        , @BalanceWalletAfter	= @BalanceWalletAfter
+        , @ActionId				= @ActionID
+
+    /*INSERT INTO #BalanceAfter
     SELECT custid
         ,SUM(winlost - actual_stake + playercomm)
     FROM dbo.bettrans b WITH (ROWLOCK)
@@ -469,6 +542,7 @@ BEGIN
         ,NULL
     FROM #Balance WITH (NOLOCK)
     WHERE Increased = 0
+    */
 
     ---------------------------------------
     --  Betfair & Betdaq - Warning message:
@@ -498,13 +572,6 @@ BEGIN
                 ,@ErrMsg = 'Please move Betfair tickets to a new match before ' + @movebet + ' GMT-4. Otherwise they will bring harm to the system'
         END
     END
-
-    ---------------------------------------------------
-    DROP TABLE #Balance
-
-    DROP TABLE #BalanceBefore
-
-    DROP TABLE #BalanceAfter
 
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---

@@ -18,7 +18,7 @@ AS
 	
 	Revisions:
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
-		- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -142,7 +142,7 @@ BEGIN
 		@MatchId 			= @matchId
 		, @Action 			= @Action
 		, @Mode 			= 7 --@Mode fast market
-		, @Results			= @Results
+		, @FMResults		= @Results
 	
 	SELECT @rowcount = COUNT(DISTINCT custid)
 	FROM @BalanceWalletBefore
@@ -181,14 +181,13 @@ BEGIN
 			@MatchId 			= @matchId
 			, @Action 			= @Action
 			, @Mode 			= 7 --@Mode fast market
-			, @Results			= @Results
+			, @FMResults		= @Results
 		
 		-- Compare Balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @BalanceWalletBefore
 			, @BalanceWalletAfter	= @BalanceWalletAfter
 			, @ActionId				= @ActionID
-			, @IsCheckNegative		= 1
 		
 		SELECT	@ErrCode = 1001017
 				,@ErrMsg = ERROR_MESSAGE()
@@ -201,31 +200,25 @@ BEGIN
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
 	INSERT INTO @BalanceWalletAfter (
-			matchid
-			, custid
-			, balanceType
-			, BonusID
-			, WalletType
-			, balance
-	)
-	SELECT matchid
+		matchid
 		, custid
 		, balanceType
-		, BonusID
-		, WalletType
-		, balance 
-	FROM dbo.f_NAP_Set_GetBalanceByWallet (
-		@MatchId
-		, @Action
-		, 7 --@Mode fast market
+		, walletType
+		, bonusId
+		, balance
 	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @Action 			= @Action
+		, @Mode 			= 7 --@Mode fast market
+		, @FMResults		= @Results
 	
-	-- Compare Balance
+	-- Compare and update pending balance
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		@BalanceWalletBefore	= @BalanceWalletBefore
 		, @BalanceWalletAfter	= @BalanceWalletAfter
 		, @ActionId				= @ActionID
-		, @IsCheckNegative		= 1
+
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
@@ -285,9 +278,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
-	
-	DROP TABLE #tblMatchProcess
-	RETURN	
 	
 END
 GO
