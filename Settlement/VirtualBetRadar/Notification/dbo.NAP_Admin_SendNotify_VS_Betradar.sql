@@ -102,7 +102,7 @@ BEGIN
 			FROM dbo.bettransm bm WITH(NOLOCK)
 				OUTER APPLY (
 					SELECT TOP(1) CAST(1 AS BIT) AS IsMultiple
-					FROM dbo.match_remark mr WITH(NOLOCK)
+					FROM DBPRO.BODB02.dbo.match_remark mr WITH(NOLOCK)
 					WHERE mr.matchid = @matchid
 						AND 1 = CASE 
 								WHEN @notifyAction = 187 AND (multiple = 1 OR refund = 1) THEN 1 -- Parlay has calculated or refund completely

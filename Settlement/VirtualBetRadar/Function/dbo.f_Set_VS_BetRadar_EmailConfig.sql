@@ -36,24 +36,24 @@ RETURN (
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'bobby.nguyen@starixsoft.com'
-			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'DB206'
 			, 'LOCAL'
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw'
-			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'bobby.nguyen@starixsoft.com'
-			, 'dora.le@starixsoft.com'
-			, 'justin.doan@starixsoft.com;dora.le@starixsoft.com'
+			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 		
@@ -68,19 +68,19 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'bobby.nguyen@starixsoft.com;dora.le@starixsoft.com;justin.doan@starixsoft.com', '', ''
+			, 'qa@starixsoft.com;bobby.nguyen@starixsoft.com', '', ''
 			, 'DB206'
 			, 'LOCAL'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw', '', ''
+			, 'qa@starixsoft.com;bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw', '', ''
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'bobby.nguyen@starixsoft.com;johnson.nguyen@starixsoft.com', '', ''
+			, 'qa@starixsoft.com;bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 			
