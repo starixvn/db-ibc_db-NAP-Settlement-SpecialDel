@@ -120,7 +120,7 @@ BEGIN
 		@MatchId 			= @matchId
 		, @Action 			= @Action
 		, @Mode 			= 8 --@Mode Baseketball Early payout
-		, @BAResult			= @QuarterResult
+		, @BAResults		= @QuarterResult
 
     /*INSERT INTO @BeforeUpd(custid, balance, balanceType)
 	SELECT	b.custid
@@ -219,7 +219,7 @@ BEGIN
 		@MatchId 			= @matchId
 		, @Action 			= @Action
 		, @Mode 			= 8 --@Mode Baseketball Early payout
-		, @BAResult			= @QuarterResult
+		, @BAResults		= @QuarterResult
 
 	-- Compare and update pending balance with error case
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]

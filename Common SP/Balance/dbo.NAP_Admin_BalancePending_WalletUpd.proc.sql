@@ -272,7 +272,7 @@ BEGIN
 				,0
 				,NULL
 		FROM BalanceNegative bal
-			LEFT JOIN dbo.f_Settle_NegativeBalance_GroupActions() AS bg
+			LEFT JOIN dbo.f_Settle_NegativeBalance_ActionGroup() AS bg
 			ON bal.ActionId = bg.ActionId
 	END
 END

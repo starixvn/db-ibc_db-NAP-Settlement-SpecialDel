@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	@MatchId 			INT
 	, @Action 			VARCHAR(30)
-	, @Mode 			TINYINT = 1
+	, @Mode 			TINYINT
 	, @FMResults		VARCHAR(MAX)	= NULL
 	, @BAQuarter 		VARCHAR(100)	= NULL
 	, @TennisSet    	VARCHAR(100)	= NULL
@@ -18,6 +18,7 @@ AS
 		- 20170801@Bobby: Initial
 
 	Param's Explanation:   
+		- @MatchId: Id of match event
 		- @Action : [CAL, CAL-HT, CAL-FT]
 		- @Mode: 1: Used for Auto payout process
 			   2: Used for Manual settle process
@@ -29,9 +30,24 @@ AS
 			   8: Used for Early Payout
 
 		- @FMResults: Fast Market result
-		- @BAQuarter: BAIO result
+			+ Sample: '<b Id="221">
+							<r p="0" r="36" />
+							<r p="2" r="1" />
+							<r p="2" r="4" />
+						</b>'
+
+		- @BAQuarter: BAIO quater info 
+			+ Sample: '801,802,1H,803,804,2H,FT'
+
 		- @TennisSet: Tennis result
+			+ Sample: '1,2,3,4,5,6'
+
 		- @BAResults: Early Payout result
+			+ Sample: '<Results>
+					   <Resource Id="603" HomeValue="H"/> 
+					   <Resource Id="604" HomeValue="H"/> 
+					   <Resource Id="Q1" HomeValue="30" AwayValue="40"/> 
+					 </Results>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -56,7 +72,8 @@ BEGIN
 		OUTER APPLY (
 			SELECT TOP(1) CAST(1 AS BIT) AS IsTrading
 			FROM dbo.bettrans b WITH(NOLOCK)
-			WHERE matchid 	= @matchid
+			WHERE matchid 		= @matchid 
+				AND m.SportType = 1 --just offered soccer
 				AND EXISTS ( 
 					SELECT TOP 1 1
 					FROM dbo.f_Settle_GetTradingBettype() 
@@ -73,10 +90,12 @@ BEGIN
 
 	--GET list bettype
 	SELECT @bettypes 	= (
-			SELECT GroupId AS '@GroupId'
-				, GroupName AS '@GroupName'
-				, Bettype AS '@Bettype'
+			SELECT f.GroupId 	AS '@GroupId'
+				, f.GroupName 	AS '@GroupName'
+				, f.Bettype 	AS '@Bettype'
 			FROM dbo.f_Set_GetGroupBettypes() AS f
+				LEFT JOIN dbo.f_Set_GetEarlyBettypes() AS fba
+				ON f.Bettype = fba.Bettype
 			WHERE 1 = CASE 
 					WHEN @Mode = 1 THEN --Auto Payout
 						CASE 
@@ -94,7 +113,7 @@ BEGIN
 						END
 					WHEN @Mode = 3 THEN --Maunal REFUND
 						CASE 
-							WHEN @Action = 'CAL' AND f.GroupId BETWEEN 1 AND 8 THEN 1
+							WHEN @Action = 'CAL' AND f.IsAuto = 0 THEN 1
 							WHEN @Action = 'CAL-HT' AND f.Is3x30 = 1 THEN 1
 							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6,7) THEN 1
 							ELSE 0
@@ -124,13 +143,14 @@ BEGIN
 						END
 					WHEN @Mode = 8 THEN --Early Payout
 						CASE 
-							WHEN EXISTS(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.bettype) THEN 1
+							WHEN fba.Bettype > 0 THEN 1
 							ELSE 0
 						END
 					ELSE 0 
 				END
 				FOR XML PATH ('r')
 		)
+	
 	
 	IF(@SportType > 0)
 	BEGIN		
@@ -140,7 +160,7 @@ BEGIN
 								ELSE 4  -- Others
 							END
 	
-		IF (@isCheckBet = 0) --Captured Balance M1
+		IF (@isCheckBet = 0) --Capturing Balance M1
 		BEGIN
 			INSERT INTO @capturedBalance(
 				matchid
@@ -183,7 +203,7 @@ BEGIN
 				)
 			END
 		END
-		ELSE --Captured Balance M2
+		ELSE --Capturing Balance M2
 		BEGIN
 			INSERT INTO @capturedBalance(
 				matchid
