@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_s160
 	@MatchId		INT
 	,@Action		VARCHAR(20)		= 'CAL'
