@@ -15,7 +15,6 @@ AS
     
     Revisions:
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
-		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -40,10 +39,8 @@ BEGIN
             ,@strEarlyBettypes	VARCHAR(MAX) 
             ,@strResourceIds	VARCHAR(MAX)	
     
-    --START Balance tables	
-	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
-		, @BalanceWalletAfter			TVP_BalanceWalletChange
-	--END Balance tables             
+    DECLARE @BeforeUpd 			TVP_BalanceChange
+			,@AfterUpd 			TVP_BalanceChange                       
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT)
@@ -104,25 +101,10 @@ BEGIN
 	SELECT	@strEarlyBettypes = COALESCE(@strEarlyBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM	@tmpResultDetail
 	GROUP BY bettype	
-    
-	-------------------------------------------------------------
+    -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------
-	INSERT INTO @BalanceWalletBefore (
-		matchid
-		, custid
-		, balanceType
-		, WalletType
-		, BonusID
-		, balance
-	)
-	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-		@MatchId 			= @matchId
-		, @Action 			= @Action
-		, @Mode 			= 8 --@Mode Baseketball Early payout
-		, @BAResults		= @QuarterResult
-
-    /*INSERT INTO @BeforeUpd(custid, balance, balanceType)
+    INSERT INTO @BeforeUpd(custid, balance, balanceType)
 	SELECT	b.custid
 			,SUM(b.winlost - b.actual_stake + b.playercomm)
 			,1 -- sportbook
@@ -133,7 +115,7 @@ BEGIN
 	WHERE	b.matchid = @MatchId
 			AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strEarlyBettypes + ',') > 0
 			AND CHARINDEX(',' + CAST(r.ResourceId AS VARCHAR) + ',', ',' + @strResourceIds + ',') > 0       
-	GROUP BY b.custid*/
+	GROUP BY b.custid
    
 	BEGIN TRY
 		IF @Action='CAL'
@@ -207,27 +189,7 @@ BEGIN
     -------------------------------------------------------------
     ---         CAPTURE value BALANCE after settlement        ---
     ---------------------------VVVV------------------------------
-	INSERT INTO @BalanceWalletAfter (
-		matchid
-		, custid
-		, balanceType
-		, WalletType
-		, BonusID
-		, balance
-	)
-	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-		@MatchId 			= @matchId
-		, @Action 			= @Action
-		, @Mode 			= 8 --@Mode Baseketball Early payout
-		, @BAResults		= @QuarterResult
-
-	-- Compare and update pending balance with error case
-	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-		@BalanceWalletBefore	= @BalanceWalletBefore
-		, @BalanceWalletAfter	= @BalanceWalletAfter
-		, @ActionId				= @ActionID
-
-    /*INSERT INTO @AfterUpd(custid, balance, balanceType)
+    INSERT INTO @AfterUpd(custid, balance, balanceType)
 	SELECT	b.custid
 		,SUM(b.winlost - b.actual_stake + b.playercomm)
 		,1 -- sportbook
@@ -266,8 +228,7 @@ BEGIN
     FROM @BeforeUpd b
 		INNER JOIN @AfterUpd a
 			ON b.custid = a.custid
-    WHERE a.balance < b.balance*/
-
+    WHERE a.balance < b.balance
     
     --Exit process with ERROR
 	IF(@ErrCode <> 0) 

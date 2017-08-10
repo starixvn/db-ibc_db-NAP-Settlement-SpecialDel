@@ -60,28 +60,31 @@ BEGIN
 		
 	DECLARE @capturedBalance	TVP_BalanceWalletChange
 	
-	SELECT @isTrading			= 0
+	SELECT @sportType			= 1 
+		, @isTrading			= 0
 		, @isCheckBet			= 0
 		, @FMResults 			= ISNULL(@FMResults, '<r />')
 		, @BAResults 			= ISNULL(@BAResults, '<Results />')
 	
 	--CHECK sportType, is trading bet ticket
-	SELECT TOP(1) @sportType 	= sportType
-		, @isTrading 			= ISNULL(trade.IsTrading, 0)
-	FROM dbo.match m WITH(NOLOCK)
-		OUTER APPLY (
-			SELECT TOP(1) CAST(1 AS BIT) AS IsTrading
-			FROM dbo.bettrans b WITH(NOLOCK)
-			WHERE matchid 		= @matchid 
-				AND m.SportType = 1 --just offered soccer
-				AND EXISTS ( 
-					SELECT TOP 1 1
-					FROM dbo.f_Settle_GetTradingBettype() 
-					WHERE bettype = b.bettype
-				)
-		) AS trade
-	WHERE m.matchid = @matchid
-	
+	IF(@Mode NOT IN(6,7,8))
+	BEGIN
+		SELECT TOP(1) @sportType 	= sportType
+			, @isTrading 			= ISNULL(trade.IsTrading, 0)
+		FROM dbo.match m WITH(NOLOCK)
+			OUTER APPLY (
+				SELECT TOP(1) CAST(1 AS BIT) AS IsTrading
+				FROM dbo.bettrans b WITH(NOLOCK)
+				WHERE matchid 		= @matchid 
+					AND m.SportType = 1 --just offered soccer
+					AND EXISTS ( 
+						SELECT TOP 1 1
+						FROM dbo.f_Settle_GetTradingBettype() 
+						WHERE bettype = b.bettype
+					)
+			) AS trade
+		WHERE m.matchid = @matchid
+	END
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
 							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
