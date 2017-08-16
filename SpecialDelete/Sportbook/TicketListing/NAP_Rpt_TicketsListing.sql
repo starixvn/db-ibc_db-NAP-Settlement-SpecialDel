@@ -1,16 +1,9 @@
-﻿USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_Rpt_TicketsListing]    Script Date: 01/21/2016 15:39:25 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.NAP_Rpt_TicketsListing    Script Date: 20/01/2016 2:35:02 PM ******/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListing] 
 	@MatchId			INT
 	,@LicenseeId		INT
-	,@BetTypes			VARCHAR(1000)
-	,@BetTypesLive		VARCHAR(1000)
+	,@BetTypes			VARCHAR(1000)	= ''
+	,@BetTypesLive		VARCHAR(1000)	= ''
 	,@LiveType			SMALLINT 		= 2
 	,@LiveHomeScore		SMALLINT 		= NULL
 	,@LiveAwayScore		SMALLINT 		= NULL
@@ -40,14 +33,15 @@ AS
 		- 20150119@Kathy: Changes parent-child for phase 1.2 of PH All in One:  [Redmine:#50932]	  
 		- 20160722@Bobby: #61240 - Implement parent-child for PHAIO new 19 bet types
 		- 20170414@Kent: Fix IBC to MBC [Redmine:#75009]
+		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
 		1: Number Game
-		2: Virtual sports
-		3: Live casino
+		2: Virtual sports		
 		4: Metric Gaming Super Live
+		5: Virtual sports betradar
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -71,7 +65,7 @@ AS
 				set @p12=0
 				declare @p13 varchar(1000)
 				set @p13=''
-								exec NAP_Rpt_TicketsListing_xtest @MatchId=4626986,@LicenseeID=0,@BetTypes='1101,1102',@BetTypesLive='',@LiveType=2,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=3,@SecondAcceptFlag=0,@ErrCode=@p12 output,@ErrMsg=@p13 output
+								exec NAP_Rpt_TicketsListing @MatchId=4626986,@LicenseeID=0,@BetTypes='1101,1102',@BetTypesLive='',@LiveType=2,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=3,@SecondAcceptFlag=0,@ErrCode=@p12 output,@ErrMsg=@p13 output
 				select @p12, @p13		
 */
 BEGIN
@@ -89,7 +83,7 @@ BEGIN
 	SET @sporttype = 0
 
 	---- If number game or virtual sports, live casino then don't care @livetype , so set @LiveType to zero
-	IF @Type = 1 OR @Type = 2 OR @Type = 3
+	IF @Type = 1 OR @Type = 2
 		SELECT @LiveType = 0
 
 	----Show match description
@@ -103,7 +97,15 @@ BEGIN
 	FROM match WITH (NOLOCK)
 	WHERE matchid = @MatchId
 
-	IF ISNULL(@sporttype, 0) = 0 OR ( @sporttype > 99 AND @sporttype <> 154 AND @sporttype <> 161 AND @sporttype <> 162 AND @sporttype NOT BETWEEN 180 AND 186)
+	IF ISNULL(@sporttype, 0) = 0 
+	   OR ( 
+			@sporttype > 99 
+			AND @sporttype <> 154 
+			AND @sporttype <> 161 
+			AND @sporttype <> 162 
+			AND @sporttype NOT BETWEEN 180 AND 186
+			AND @sporttype NOT BETWEEN 190 AND 199
+		  )
 	BEGIN
 		SET @ErrCode = 1
 		SET @ErrMsg = 'Invalid MatchID.'
@@ -127,8 +129,7 @@ BEGIN
 
 		RETURN
 	END
-	ELSE IF @sporttype NOT BETWEEN 180
-			AND 186
+	ELSE IF @sporttype NOT BETWEEN 180 AND 186
 		AND @Type = 2
 	BEGIN
 		SET @ErrCode = 4
@@ -136,14 +137,14 @@ BEGIN
 
 		RETURN
 	END
-	ELSE IF @sporttype <> 162
-		AND @Type = 3
+	ELSE IF @sporttype NOT BETWEEN 190 AND 199
+		AND @Type = 5
 	BEGIN
 		SET @ErrCode = 5
-		SET @ErrMsg = 'This MatchID is not live casino.'
+		SET @ErrMsg = 'This MatchID is not virtual sports betradar.'
 
 		RETURN
-	END
+	END	
 	ELSE
 		SELECT @matchcode	AS matchcode
 			,@homeid		AS homeid
@@ -373,7 +374,8 @@ BEGIN
 
 		IF @BetTypes <> '9'
 			AND @BetTypes <> '29'
-			AND @BetTypes <> '9,29'
+			AND @BetTypes <> '2799'
+			AND @BetTypes <> '9,29,2799'
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -401,6 +403,7 @@ BEGIN
 
 		---mix parlay
 		IF charindex('9', @BetTypes, 1) <> 0
+		   OR charindex('2799', @BetTypes, 1) <> 0
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -423,8 +426,8 @@ BEGIN
 					)
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype IN (9, 29)
-				AND b.matchid IN (9, 29)
+				AND b.bettype IN (9, 29, 2799)
+				AND b.matchid IN (9, 29, 2799)
 				AND CASE 
 					WHEN @LiveType <> 2 THEN bm.liveindicator
 					ELSE 0
@@ -469,9 +472,10 @@ BEGIN
 	----## IBC Group
 	IF @LicenseeID = - 1
 	BEGIN
-		IF @BetTypes <> '9'
+		IF @BetTypes <> '9'			
 			AND @BetTypes <> '29'
-			AND @BetTypes <> '9,29'
+			AND @BetTypes <> '2799'
+			AND @BetTypes <> '9,29,2799'
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -497,6 +501,7 @@ BEGIN
 
 		---mix parlay
 		IF charindex('9', @BetTypes, 1) <> 0
+		   OR charindex('2799', @BetTypes, 1) <> 0
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -518,8 +523,8 @@ BEGIN
 					)
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
-				AND b.bettype IN (9, 29)
-				AND b.matchid IN (9, 29)
+				AND b.bettype IN (9, 29, 2799)
+				AND b.matchid IN (9, 29, 2799)
 				AND CASE 
 					WHEN @LiveType <> 2 THEN bm.liveindicator
 					ELSE 0
@@ -566,7 +571,8 @@ BEGIN
 	BEGIN
 		IF @BetTypes <> '9'
 			AND @BetTypes <> '29'
-			AND @BetTypes <> '9,29'
+			AND @BetTypes <> '2799'
+			AND @BetTypes <> '9,29,2799'
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -601,6 +607,7 @@ BEGIN
 
 		---mix parlay
 		IF charindex('9', @BetTypes, 1) <> 0
+		   OR charindex('2799', @BetTypes, 1) <> 0
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -628,8 +635,8 @@ BEGIN
 				AND s.isActive = 1
 				AND s.siteID NOT IN (29, 35)
 			WHERE bm.matchid = @MatchId
-				AND b.bettype IN (9, 29)
-				AND b.matchid IN (9, 29)
+				AND b.bettype IN (9, 29, 2799)
+				AND b.matchid IN (9, 29, 2799)
 				AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
 				AND CASE 
 					WHEN @LiveType <> 2 THEN bm.liveindicator
@@ -695,8 +702,4 @@ BEGIN
 
 	DROP TABLE #TmpBettrans
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Rpt_TicketsListing] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Rpt_TicketsListing] TO [vnteam] AS [dbo]
 GO

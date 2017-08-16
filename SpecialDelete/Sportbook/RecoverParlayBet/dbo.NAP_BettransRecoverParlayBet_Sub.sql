@@ -1,9 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub] 
 	@UserId				INT,	
 	@IP					VARCHAR(50),
@@ -11,10 +6,10 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@MainTransIds		VARCHAR(MAX)	= '',
 	@matchid			BIGINT,
 	
-	@SettledMainTranIds	VARCHAR(MAX) OUTPUT,
-	@NegativeBalanceUsers VARCHAR(MAX) OUTPUT,
-	@ErrCode			INT	OUTPUT,
-	@ErrMsg				NVARCHAR(200) OUTPUT
+	@SettledMainTranIds	VARCHAR(MAX) = '' OUTPUT,
+	@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT,
+	@ErrCode			INT = 0	OUTPUT,
+	@ErrMsg				NVARCHAR(200) = '' OUTPUT
 AS
 /*
 	Created: Kent
@@ -528,9 +523,4 @@ BEGIN
 		
 	RETURN;							
 END
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_BettransRecoverParlayBet_Sub] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_BettransRecoverParlayBet_Sub] TO [vnteam] AS [dbo]
