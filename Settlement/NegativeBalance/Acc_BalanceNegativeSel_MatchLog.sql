@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
+﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
 	 @MatchID	INT,
 	 @GroupID	INT = 1 
 AS
@@ -11,8 +12,10 @@ AS
 	Revisions:
 		- 20140304@Elodie: Retreive settlement log for outright
 		- 20150918@Elodie: Get Log Action Name by Chinese langague [Red:#43705]
+		- 20170629@Bobby: 78882 - Add groupid = 7
+		- 
 	Param's Explanation: 
-		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright 
+		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
 
 */
 BEGIN 
@@ -25,9 +28,10 @@ BEGIN
 		,EventDate		DATETIME
 		,HomeID			INT
 		,AwayID			INT
+		,SportType		INT
 	)
 	
-	IF @GroupID BETWEEN 1 AND  2 
+	IF @GroupID IN (1,2,7)
 	BEGIN 
 
 		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[match] WITH (NOLOCK) WHERE matchid = @MatchID)
@@ -39,6 +43,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -46,6 +51,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	bodb02.dbo.[match]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -58,6 +64,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -65,6 +72,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	bodb02.dbo.[match14]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -77,6 +85,7 @@ BEGIN
 				,EventDate
 				,HomeID
 				,AwayID
+				,SportType
 			)
 			SELECT	 TOP 1 MatchID
 					,LeagueID
@@ -84,6 +93,7 @@ BEGIN
 					,EventDate
 					,HomeID
 					,AwayID
+					,SportType
 			FROM	DBACC.bodb_archive.dbo.[match_bk]  WITH (NOLOCK)
 			WHERE	matchid = @MatchID
 		END
@@ -155,21 +165,54 @@ BEGIN
 			,EventDate
 			,HomeID
 			,AwayID
+			,SportType
 	FROM	@tmpMatch
 
-	IF @GroupID BETWEEN 1 AND  2 
+	IF @GroupID IN (1,2,7)
 	BEGIN
 		SELECT	  l.logid
 				, l.logdate
-				, la.ActionNameEN
-				, la.ActionNameCS
+				, act.ActionNameEN
+				, act.ActionNameCS
 				, l.finalhomescore
 				, l.finalawayscore
 				, l.hthomescore
 				, l.htawayscore
 		FROM	bodb_CustomerLog.dbo.UserLog_Settle l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
+				OUTER APPLY (
+					SELECT 
+						CASE 
+							WHEN l.ActionId IN (187,188) THEN 
+								CASE 
+									WHEN l.Remark LIKE '%Multiple%' THEN  REPLACE(REPLACE(la.ActionNameEN, 'VS BetRadar', ''), 'All', 'Mix Parlay All') 
+									ELSE REPLACE(la.ActionNameEN, 'VS BetRadar', '') --remove product name
+								END
+							ELSE la.ActionNameEN 
+						END AS ActionNameEN
+						,CASE 
+							WHEN l.ActionId IN (187,188) THEN 
+								CASE 
+									WHEN l.Remark LIKE '%Multiple%' THEN  
+										CASE 
+											WHEN l.ActionId = 187 THEN N'计算混合过关' 
+											WHEN l.ActionId = 188 THEN N'所有混合过关退款'
+										END
+									ELSE REPLACE(la.ActionNameCS, 'VS BetRadar', '') --remove product name
+								END
+							ELSE la.ActionNameCS 
+						END AS ActionNameCS
+				) AS act
+
 		WHERE	l.MatchID = @MatchID
+			AND 1 = CASE 
+						WHEN @GroupID = 7 THEN 
+							CASE 
+								WHEN l.Remark NOT LIKE '%Error%' AND l.Remark NOT LIKE '%API%' THEN 1
+								ELSE 0
+							END
+						ELSE 1
+					END
 		ORDER BY	l.LogID ASC 	
 	END
 	ELSE IF @GroupID = 3
@@ -186,6 +229,4 @@ BEGIN
 		ORDER BY	l.LogID ASC 	
 	END
 END 
-
 GO 
-GRANT EXECUTE ON [dbo].[Acc_BalanceNegativeSel_MatchLog] TO [bodbAdminNet]
