@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	, @resultDetail_cb 	VARCHAR(MAX) = NULL
 	, @resultDetail_ss 	VARCHAR(MAX) = NULL
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
+	, @resultDetail		VARCHAR(MAX) = NULL
 	, @IsRefundHT		BIT  = 0
 	, @ticketCount		INT = 0 OUTPUT
 	, @ErrCode 			INT = 0 OUTPUT
@@ -30,6 +31,7 @@ AS
 	Revisions:		
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
+			- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -39,13 +41,11 @@ BEGIN
 	
 	DECLARE 
 		-- for FGLG
-		@FGLG1 				VARCHAR(10)
-		, @FGLG2 			VARCHAR(10)
-		, @FLString 		VARCHAR(10)
-		, @HT_FGLG1 		VARCHAR(10)
-		, @HT_FGLG2 		VARCHAR(10)
-		, @HT_FLString 		VARCHAR(10)
-		, @temp_betstatus 	NVARCHAR(50)
+		@ft_fg 				VARCHAR(10)
+		, @ft_lg 			VARCHAR(10)
+		, @ht_fg 			VARCHAR(10)
+		, @ht_lg 			VARCHAR(10)
+		
 		-- coner bets
 		,@fthCorners        INT = NULL 
 		,@ftaCorners        INT = NULL 
@@ -112,30 +112,8 @@ BEGIN
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	CREATE TABLE #bettypeCAL (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, groupName NVARCHAR(50), isEarly BIT)
 	
-	SELECT @FGLG1 				= ''
-			, @FGLG2 			= ''
-			, @HT_FGLG1 		= ''
-			, @HT_FGLG2 		= ''
-			, @temp_betstatus 	= @betstatus
-			, @ticketCount		= 0
+	SELECT @ticketCount		= 0
 	
-	IF CHARINDEX('1FL:', @temp_betstatus) > 0 
-	BEGIN
-		SELECT @HT_FLString = SUBSTRING(@temp_betstatus, CHARINDEX('1FL:',@temp_betstatus) + 4, 3)
-			, @temp_betstatus = REPLACE(@temp_betstatus, SUBSTRING(@temp_betstatus, CHARINDEX('1FL:', @temp_betstatus), 7),'')
-			, @HT_FGLG1 = CASE @HT_FLString WHEN '0-0' THEN '0:0'
-							ELSE LEFT(@HT_FLString, 1) + ':1' END
-			, @HT_FGLG2 = CASE @HT_FLString WHEN '0-0' THEN ''
-							ELSE RIGHT(@HT_FLString, 1) + ':2' END
-	END
-	IF CHARINDEX('FL:', @temp_betstatus) > 0
-	BEGIN
-		SELECT @FLString = SUBSTRING(@temp_betstatus, CHARINDEX('FL:',@temp_betstatus) + 3, 3)
-			, @FGLG1 = CASE @FLString WHEN '0-0' THEN '0:0'
-							ELSE LEFT(@FLString,1) + ':1' END
-			, @FGLG2 = CASE @FLString WHEN '0-0' THEN ''
-							ELSE RIGHT(@FLString,1) + ':2' END
-	END
 	DECLARE @csHTFT NVARCHAR(10) -- HT/FT correct score
 
 	SELECT @csHTFT = CASE WHEN @hth + @hta >= 4 THEN '4+' 
@@ -228,6 +206,64 @@ BEGIN
 		FROM @xmlCorner.nodes('/root/r') as [T](C) --T: table, C: column    
 		OPTION ( OPTIMIZE FOR ( @xmlCorner = NULL ) )    
 	
+	END
+	
+	IF @sportType = 1 AND @resultDetail IS NOT NULL
+	BEGIN
+		DECLARE @xmlResultDetail XML
+		
+		SET @xmlResultDetail = CONVERT(XML,@resultDetail)
+		
+		;WITH cteResult
+		AS(
+			SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+					,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+					,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+			FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+		)
+		SELECT	@ht_fg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='127F' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:1'
+													WHEN HomeValue = 'A' THEN '2:1'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')		
+				,@ht_lg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='127L' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:2'
+													WHEN HomeValue = 'A' THEN '2:2'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')			
+				,@ft_fg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='14F' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:1'
+													WHEN HomeValue = 'A' THEN '2:1'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')		
+				,@ft_lg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='14L' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:2'
+													WHEN HomeValue = 'A' THEN '2:2'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')					
+		FROM	cteResult r
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+		
 	END
 	
 	IF @Sporttype = 5 AND @resultDetail_ss IS NOT NULL -- sportting solution
@@ -442,10 +478,10 @@ BEGIN
 						, @fta
 						, @hth
 						, @hta
-						, @HT_FGLG1
-						, @HT_FGLG2
-						, @FGLG1
-						, @FGLG2
+						, @ht_fg
+						, @ht_lg
+						, @ft_fg
+						, @ft_lg
 						, @TennisTotal
 						, @TotalGameHomeMatch
 						, @TotalGameAwayMatch

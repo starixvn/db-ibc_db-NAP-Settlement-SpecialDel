@@ -46,6 +46,7 @@ AS
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170606@Bobby: 77720 - Implement BetRadar VS League & Nation
+		- 20171011@Kathy: Correct GoalRecord value when do instant + cal HT [Redmine:#81308]
 		
 	Parameters Explanation:    
 	
@@ -90,7 +91,7 @@ BEGIN
 		--	betstatus = CASE WHEN @action = 'CAL-FT' AND CHARINDEX('Refund HT;',betstatus)>0 THEN 'Refund HT;' + ISNULL(@betstatus,'') ELSE @betstatus END,
 			betstatus = ISNULL(@betstatus,''),
 			goalrecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord 
-							  WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> '' THEN REPLACE(GoalRecord,LEFT(GoalRecord,CHARINDEX(';',GoalRecord)),(LEFT(@goalrecord,CHARINDEX(';',@goalrecord)))) -- only update HT part
+							  WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> '' AND CHARINDEX(';',GoalRecord) > 0 THEN REPLACE(GoalRecord,LEFT(GoalRecord,CHARINDEX(';',GoalRecord)),(LEFT(@goalrecord,CHARINDEX(';',@goalrecord)))) -- only update HT part
 							  ELSE @goalrecord END,
 			eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (1,2,5)		THEN N'completed'
 								WHEN @action = 'CAL' AND Sporttype = 1 AND @isExcludeCorner = 0 THEN N'completed'

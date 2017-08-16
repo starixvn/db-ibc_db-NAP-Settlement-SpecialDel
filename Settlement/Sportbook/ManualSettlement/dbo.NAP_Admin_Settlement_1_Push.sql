@@ -29,13 +29,15 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@HTFCorner             VARCHAR(1)      = NULL
     ,@HTLCorner             VARCHAR(1)      = NULL     
     ,@isExcludeCorner       BIT             = 0 
+    ,@SelectedQuarter		VARCHAR(50)		= NULL
+    ,@QuarterResult			VARCHAR(MAX)	= NULL
+    ,@ResourceResult		VARCHAR(MAX)	= NULL
     ,@Action                VARCHAR(10)     = 'CAL'
     ,@IP                    VARCHAR(15)     = ''
+    
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 	,@ServiceCommand		NVARCHAR(1000)	= ''	OUTPUT
-	,@SelectedQuarter		VARCHAR(50)		= NULL
-    ,@QuarterResult			VARCHAR(MAX)	= NULL
 AS
 /*    Creator: Kathy
     Date: 20140213
@@ -56,6 +58,7 @@ AS
         - 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
         - 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
         - 20170522@Kathy: Correct checking waiting tickets for tennis [Redmine:#76931]
+        - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -68,7 +71,10 @@ AS
 					   <Resource Id="604" HomeValue="H"/> 
 					   <Resource Id="Q1" HomeValue="30" AwayValue="40"/> 
 					 </Results>
-
+		* @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
         
 */
 BEGIN
@@ -196,6 +202,8 @@ BEGIN
                                                                                      ELSE '''' + @SelectedQuarter + '''' END 
 														  + ', @QuarterResult = ' + CASE WHEN @QuarterResult IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @QuarterResult + '''' END 
+														  + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                                                     ELSE '''' + @ResourceResult + '''' END 
                                                           + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'

@@ -17,6 +17,8 @@ AS
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170609@Kathy: Early settlement for BAIO [Redmine:#77835]
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		
 
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -30,6 +32,7 @@ BEGIN
 	DECLARE  @NotKeyScoreList	VARCHAR(130) = ''
 		,@NotAllowCalculating	VARCHAR(200)
 		,@HaveWaitingTicket		VARCHAR(200)
+		,@NotExecutedFGLG		VARCHAR(200)
 
     DECLARE @matchcode			NVARCHAR(50)
 		,@sporttype     		INT
@@ -42,32 +45,49 @@ BEGIN
 		,@Mode					VARCHAR(20)
 
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
+	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpAutoBetRadarBettypes TABLE (bettype SMALLINT PRIMARY KEY)
+	
+	DECLARE @tmpRunningAutoSettle TABLE (matchid INT)
+	DECLARE @tmpFGLGMatch TABLE (matchid INT)
+	DECLARE @tmpRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50))
+	
+	DECLARE @match TABLE ( 
+		matchid		INT
+		,matchcode	NVARCHAR(50)
+		,fth		SMALLINT
+		,fta		SMALLINT
+		,hth		SMALLINT
+		,hta		SMALLINT
+		,sporttype	SMALLINT
+		,leagueid	INT
+		,betstatus	VARCHAR(50)
+	)
+	SELECT	@ActionId = CASE 
+							WHEN @Action = 'REFUND' THEN 107 
+							WHEN @Action = 'REFUND-HT' THEN 120 
+							WHEN @Action = 'REFUND-FT' THEN 106 
+							ELSE 0 
+						END
+			,@Mode = CASE 
+						WHEN @Action = 'REFUND' AND @SettleAbandonedMatchIBCParlay =  1 THEN 'ABANDONED-1H'
+						WHEN @Action = 'REFUND-FT' AND @SettleAbandonedMatchIBCParlay =  2 THEN 'ABANDONED-2H'
+						ELSE @Action
+					END
+							
 	INSERT INTO @tmpBettypes(bettype, groupId, groupname, isEarly)
 	SELECT	f.BetType, f.GroupId, f.GroupName, (SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	
-	DECLARE @match TABLE ( matchid INT
-						  ,matchcode NVARCHAR(50)
-						  ,fth SMALLINT
-						  ,fta SMALLINT
-						  ,hth SMALLINT
-						  ,hta SMALLINT
-						  ,sporttype SMALLINT
-						  ,leagueid INT
-						  ,betstatus VARCHAR(50)
-						)
-
-	SELECT @ActionId		= CASE 
-								WHEN @Action = 'REFUND' THEN 107 
-								WHEN @Action = 'REFUND-HT' THEN 120 
-								WHEN @Action = 'REFUND-FT' THEN 106 
-								ELSE 0 
-							END
-		, @Mode				= CASE 
-								WHEN @Action = 'REFUND' AND @SettleAbandonedMatchIBCParlay =  1 THEN 'ABANDONED-1H'
-								WHEN @Action = 'REFUND-FT' AND @SettleAbandonedMatchIBCParlay =  2 THEN 'ABANDONED-2H'
-								ELSE @Action
-							END
+	INSERT INTO @tmpFGLGBettypes(bettype)
+	SELECT	f.BetType
+	FROM	dbo.f_Set_GetGroupBettypes() f
+	WHERE	f.IsUsedGoalRecordValue = 1
+	
+	INSERT INTO @tmpAutoBetRadarBettypes(bettype)
+	SELECT	f.BetType
+	FROM	dbo.f_Set_GetGroupBettypes() f
+	WHERE	f.GroupId = 8
 	
 	INSERT INTO @match ( matchid, matchcode, fth, fta, hth, hta, sporttype, leagueid, betstatus)
 	SELECT matchid
@@ -86,8 +106,8 @@ BEGIN
 			,@sporttype   	= m.sporttype
 			,@leagueid    	= m.leagueid
     FROM @match m
-
-    -- CHECK supported actions & sport type
+    
+     -- CHECK supported actions & sport type
 	IF(@Mode NOT IN ('REFUND', 'REFUND-HT','REFUND-FT','ABANDONED-1H','ABANDONED-2H') OR @sporttype IS NULL)
     BEGIN
         SELECT	@ErrCode = 1001001
@@ -116,19 +136,17 @@ BEGIN
         RETURN
     END
 	
-	-- checking validation
-	DECLARE @tblRunningAutoSettle TABLE (matchid INT, IsParlay BIT)
-	
+	-- checking validation	
 	IF @sporttype = 1
 	BEGIN
-		INSERT INTO @tblRunningAutoSettle(matchid, IsParlay)
-		SELECT @matchid, 0
+		INSERT INTO @tmpRunningAutoSettle(matchid)
+		SELECT @matchid
 		WHERE EXISTS (
 			SELECT TOP 1 1
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @MatchId
 					AND statusID = 0
-					AND bettype IN (SELECT bettype FROM dbo.[f_Set_GetGroupBettypes]() WHERE GroupId = 8)
+					AND bettype IN (SELECT bettype FROM @tmpAutoBetRadarBettypes)
 			)
 	
 		;WITH cteBetStatusM
@@ -141,22 +159,64 @@ BEGIN
 			FROM	dbo.bettransm WITH(NOLOCK)
 			WHERE	matchid = @MatchId
 					AND statusID = 0
-					AND bettype IN (SELECT BetType FROM dbo.[f_Set_GetGroupBettypes]() WHERE GroupId = 8)
+					AND bettype IN (SELECT bettype FROM @tmpAutoBetRadarBettypes)
 			GROUP BY matchid, bettype		
 		)
-		INSERT INTO @tblRunningAutoSettle(matchid, IsParlay)
-		SELECT	@matchid, 1
+		INSERT INTO @tmpRunningAutoSettle(matchid)
+		SELECT	@matchid
 		WHERE EXISTS (
 			SELECT TOP 1 1
 			FROM cteBetStatusM c
 			LEFT JOIN DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)
 				ON	c.matchid = r.matchid
 					AND r.ResourceId LIKE c.ResourceId
-			WHERE	r.ResultStatusId NOT IN (2,5)
+			WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		)
+		
+		;WITH cteBetStatusM
+		AS(
+			SELECT	bm.matchid
+					,CASE 
+						WHEN bm.bettype IN (14, 127) 
+							THEN CAST(bm.bettype AS VARCHAR) 
+									+ CASE 
+										WHEN RIGHT(bm.betteam,1) IN ('0', '1') THEN 'F'
+										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
+										ELSE ''
+									END 
+						ELSE '08'
+					END AS ResourceId
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				INNER JOIN @tmpFGLGBettypes bt
+					ON bm.bettype = bt.bettype
+			WHERE	bm.matchid = @MatchId
+					AND bm.statusID NOT BETWEEN 101 AND 102
+			GROUP BY bm.matchid
+					,CASE 
+						WHEN bm.bettype IN (14, 127) 
+							THEN CAST(bm.bettype AS VARCHAR) 
+									+ CASE 
+										WHEN RIGHT(bm.betteam,1) IN ('0', '1') THEN 'F'
+										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
+										ELSE ''
+									END 
+						ELSE '08'
+					END
+		)
+		INSERT INTO @tmpFGLGMatch(matchid)
+		SELECT	@matchid
+		WHERE EXISTS (
+			SELECT TOP 1 1
+			FROM	cteBetStatusM c
+				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+					ON	c.matchid = r.matchid
+						AND c.ResourceId = r.ResourceId
+			WHERE ISNULL(r.SettlementStatusId,0) = 0
+			GROUP BY c.matchid
+		)	
+		
 	END
 
-	DECLARE @tblRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50))
 	IF @sporttype = 2
 	BEGIN
 		;WITH cteBetstatus
@@ -198,7 +258,7 @@ BEGIN
 				INNER JOIN	@tmpBettypes f
 					ON c.bettype = f.BetType
 		)
-		INSERT INTO @tblRunningBAIO (matchid, QuarterX)
+		INSERT INTO @tmpRunningBAIO (matchid, QuarterX)
 		SELECT	c.matchid, c.QuarterX
 		FROM	cteResourceID c
 			LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
@@ -220,7 +280,7 @@ BEGIN
 		)
 		OR EXISTS (
 			SELECT TOP 1 1
-			FROM @tblRunningAutoSettle
+			FROM @tmpRunningAutoSettle
 		)		
 	)
 	BEGIN
@@ -228,20 +288,23 @@ BEGIN
 	END
 	
 	IF EXISTS (SELECT TOP 1 1
-					FROM @tblRunningBAIO
+					FROM @tmpRunningBAIO
 				)		
 	BEGIN
 		SELECT @NotKeyScoreList = @NotKeyScoreList 
 								+ m.matchcode +  '(' + STUFF((SELECT ',' + QuarterX 
-												FROM @tblRunningBAIO 
+												FROM @tmpRunningBAIO 
 												WHERE m.matchid = matchid 
 												FOR XML PATH('')),1,1,'') + ')' 						
 		FROM @match m
-			INNER JOIN @tblRunningBAIO t
+			INNER JOIN @tmpRunningBAIO t
 				ON	m.matchid = t.matchid		
 		GROUP BY m.matchid, m.matchcode
 	END
-
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpFGLGMatch)
+		SET @NotExecutedFGLG = @matchcode
+		
 	IF EXISTS (SELECT 1
 				FROM @match
 				WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1))
@@ -261,7 +324,7 @@ BEGIN
 			AND b.statusID = 1 -- waiting status
 		)
 	
-	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '')
+	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'This match is being calculated, except following matches ' 
@@ -270,11 +333,15 @@ BEGIN
 									ELSE ''
 								END
 							+ CASE when ISNULL(@NotAllowCalculating,'') <> ''
-									THEN  '(being calculated by another user): ' + @NotAllowCalculating
+									THEN  ' (being calculated by another user): ' + @NotAllowCalculating
 									ELSE ''
 								END 
 							+ CASE WHEN ISNULL(@HaveWaitingTicket, '') <> ''
-									THEN '(existing some PENDING tickets): ' + @HaveWaitingTicket
+									THEN ' (existing some PENDING tickets): ' + @HaveWaitingTicket
+									ELSE ''
+								END
+							+ CASE WHEN ISNULL(@NotExecutedFGLG, '') <> ''
+									THEN ' (need to be executed "Calc FGLG"): ' + @NotExecutedFGLG
 									ELSE ''
 								END
 		RETURN

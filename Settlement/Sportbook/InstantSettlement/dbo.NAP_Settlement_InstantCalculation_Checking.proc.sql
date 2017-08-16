@@ -1,11 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE bodb02
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
 ALTER PROCEDURE [dbo].[NAP_Settlement_InstantCalculation_Checking]
 	@MatchId			INT
 	, @InstantKey		INT
@@ -24,6 +17,7 @@ AS
 		- 20160930@Bobby: #65003 - Check validation of instant process 
 		- 20161031@Bobby: #66484 - Allow score [0-0] to do Inst.Calc
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
 	Param's Explanation:
 		- @Action: ['CAL']
@@ -55,6 +49,9 @@ BEGIN
 		, @InstantKeyValue	VARCHAR(50)
 		, @livehomescore	TINYINT
 		, @liveawayscore	TINYINT
+		
+		, @IsExistFGNG		BIT
+		, @IsExistHTFGNG	BIT
 		
 	CREATE TABLE #instantBettype (bettype SMALLINT)
 	
@@ -137,106 +134,120 @@ BEGIN
 			SELECT @ErrCode = 1001001
 			, @ErrMsg   = 'This match is invalid or disabled instant calculation setting!'
 		END
-        RETURN
     END
 	
-	--SET scores in 1H & 2H
-	SELECT @hScore1H	= CASE WHEN @CalculationType = 101 THEN @hScore ELSE @hthomescore END
-		, @aScore1H		= CASE WHEN @CalculationType = 101 THEN @aScore ELSE @htawayscore END 
-		, @hScore2H		= CASE WHEN @CalculationType = 102 THEN @hScore-@hScore1H ELSE 0 END
-		, @aScore2H		= CASE WHEN @CalculationType = 102 THEN @aScore-@aScore1H ELSE 0 END
-		, @GoalRecord	= CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END
-		, @FGNG			= CASE 
-							WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1'  
-							WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2'  
-							ELSE ''
-						END 
-		, @FGNG			= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
-							
-	BEGIN TRY
-		;WITH InstMatchResult AS (
-			SELECT TOP 1 
-				CAST(HomeValue AS TINYINT) AS HomeScore
-				,CAST(AwayValue AS TINYINT) AS AwayScore
-				,ISNULL(gc.GoalRecord, '') AS GoalRecord
-			FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH (NOLOCK)
-				OUTER APPLY (
-					SELECT TOP 1 HomeValue AS GoalRecord
-					FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK)
-					WHERE matchid 			= @MatchId
-						AND TypeId 			= 103 -- FGNG
-						AND IsConfirmed		= 1 -- completed
-					ORDER BY ProviderResultDetailId DESC
-				) AS gc
-			WHERE matchid 			= @MatchId
-				AND CalculationType = @CalculationType
-				AND StatusId		= 2 -- completed
-			ORDER BY AutoPayoutResultId DESC
-		) 
-		SELECT @totalGoalCheck 	= HomeScore + AwayScore
-			,@goalRecordCheck	= GoalRecord
-		FROM InstMatchResult
-		
-		-- CHECK any instant scores has been completed
-		SELECT @goalRecordCheck = CASE WHEN LEFT(@goalRecordCheck, 1) = ';' THEN SUBSTRING(@goalRecordCheck,2,LEN(@goalRecordCheck) - 1) ELSE @goalRecordCheck END
-		
-		-- CHECK for abandoned case
-		IF (
-			ISNULL(@totalGoalCheck, 0) > 0 -- check is first instant calculation or not
-			AND (
-				@totalGoal < @totalGoalCheck
-				OR LEFT(@GoalRecord, 1) <> LEFT(@goalRecordCheck, 1)
-			)
+	IF @ErrCode = 0
+	BEGIN
+		--SET scores in 1H & 2H
+		SELECT @hScore1H	= CASE WHEN @CalculationType = 101 THEN @hScore ELSE @hthomescore END
+			, @aScore1H		= CASE WHEN @CalculationType = 101 THEN @aScore ELSE @htawayscore END 
+			, @hScore2H		= CASE WHEN @CalculationType = 102 THEN @hScore-@hScore1H ELSE 0 END
+			, @aScore2H		= CASE WHEN @CalculationType = 102 THEN @aScore-@aScore1H ELSE 0 END
+			, @GoalRecord	= CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END
+			, @FGNG			= CASE 
+								WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1'  
+								WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2'  
+								ELSE ''
+							END 
+			, @FGNG			= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
+								
+		BEGIN TRY
+			;WITH InstMatchResult AS (
+				SELECT TOP 1 
+					CAST(HomeValue AS TINYINT) AS HomeScore
+					,CAST(AwayValue AS TINYINT) AS AwayScore
+					,ISNULL(gc.GoalRecord, '') AS GoalRecord
+				FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH (NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 HomeValue AS GoalRecord
+						FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK)
+						WHERE matchid 			= @MatchId
+							AND TypeId 			= 103 -- FGNG
+							AND IsConfirmed		= 1 -- completed
+						ORDER BY ProviderResultDetailId DESC
+					) AS gc
+				WHERE matchid 			= @MatchId
+					AND CalculationType = @CalculationType
+					AND StatusId		= 2 -- completed
+				ORDER BY AutoPayoutResultId DESC
+			) 
+			SELECT @totalGoalCheck 	= HomeScore + AwayScore
+				,@goalRecordCheck	= GoalRecord
+			FROM InstMatchResult
 			
-		)
-		BEGIN			
-			--select instant bettype
-			;WITH instantTicketCheck AS (
-				SELECT b.transid
-					, b.statusID
-					, ods.statusID AS statusCheck
-				FROM dbo.bettrans b WITH(NOLOCK)
-					CROSS APPLY [dbo].[f_Set_Instant_CalModds] (
-																b.bettype
-																, b.betteam
-																, b.hdp1
-																, b.hdp2
-																, @hScore1H
-																, @aScore1H
-																, @hScore2H
-																, @aScore2H
-																, @FGNG
-																, @CalculationType
-															) AS ods
-				WHERE b.matchid 	= @matchid 
-					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
-					AND EXISTS (SELECT TOP 1 1 FROM #instantBettype ib WHERE ib.bettype = b.bettype)
-					AND b.statusId IN (112, 113)
+			-- CHECK any instant scores has been completed
+			SELECT @goalRecordCheck = CASE WHEN LEFT(@goalRecordCheck, 1) = ';' THEN SUBSTRING(@goalRecordCheck,2,LEN(@goalRecordCheck) - 1) ELSE @goalRecordCheck END
+		
+			-- CHECK for abandoned case
+			IF (
+				ISNULL(@totalGoalCheck, 0) > 0 -- check is first instant calculation or not
+				AND (
+					@totalGoal < @totalGoalCheck
+					OR LEFT(@GoalRecord, 1) <> LEFT(@goalRecordCheck, 1)
+				)
+				
 			)
-			SELECT TOP(1) @instantCheck = 1
-			FROM instantTicketCheck
-			WHERE statusCheck 	<> statusID
-			
-			IF(@instantCheck > 0)
-			BEGIN
-				SELECT @ErrCode = 1001002
-					, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please contact CSD and ask CSD to uncalculate the wrong score first. Then, please try to execute instant calculation again.'
-
-				RETURN
+			BEGIN			
+				--select instant bettype
+				;WITH instantTicketCheck AS (
+					SELECT b.transid
+						, b.statusID
+						, ods.statusID AS statusCheck
+					FROM dbo.bettrans b WITH(NOLOCK)
+						CROSS APPLY [dbo].[f_Set_Instant_CalModds] (
+																	b.bettype
+																	, b.betteam
+																	, b.hdp1
+																	, b.hdp2
+																	, @hScore1H
+																	, @aScore1H
+																	, @hScore2H
+																	, @aScore2H
+																	, @FGNG
+																	, @CalculationType
+																) AS ods
+					WHERE b.matchid 	= @matchid 
+						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
+						AND EXISTS (SELECT TOP 1 1 FROM #instantBettype ib WHERE ib.bettype = b.bettype)
+						AND b.statusId IN (112, 113)
+				)
+				SELECT TOP(1) @instantCheck = 1
+				FROM instantTicketCheck
+				WHERE statusCheck 	<> statusID
+				
+				IF(@instantCheck > 0)
+				BEGIN
+					SELECT @ErrCode = 1001002
+						, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please contact CSD and ask CSD to uncalculate the wrong score first. Then, please try to execute instant calculation again.'
+				END
 			END
-		END
-		
-	END TRY
-	BEGIN CATCH 
-		SELECT @ErrCode = 1001003
-			, @ErrMsg   = ERROR_MESSAGE()
-
-		RETURN
-	END CATCH
+			
+		END TRY
+		BEGIN CATCH 
+			SELECT @ErrCode = 1001003
+				, @ErrMsg   = ERROR_MESSAGE()
+		END CATCH
+	END
 	
+	IF @ErrCode = 0
+	BEGIN	
+		;WITH cteBetTickets
+		AS (
+			SELECT	bettype
+			FROM	dbo.bettrans WITH(NOLOCK)
+			WHERE	matchid = @MatchId
+					AND bettype IN (14, 127)
+					AND statusID NOT IN (101, 102)
+					AND betteam IN ('1:1', '2:1', '0:0')
+			GROUP BY bettype
+		)
+		SELECT	@IsExistFGNG = MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END)
+				,@IsExistHTFGNG = MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END)
+		FROM	cteBetTickets
+	END
+	
+	SELECT	ISNULL(@IsExistFGNG,0) AS IsExistFGNG
+			,ISNULL(@IsExistHTFGNG,0) AS IsExistHTFGNG
+			,ISNULL(@GoalRecord,'') AS GoalRecord
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Settlement_InstantCalculation_Checking] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Settlement_InstantCalculation_Checking] TO [vnteam] AS [dbo]
 GO

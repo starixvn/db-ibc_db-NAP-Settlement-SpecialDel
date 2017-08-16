@@ -16,6 +16,7 @@ AS
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
 
 	Param's Explanation:		
@@ -33,6 +34,7 @@ BEGIN
 		, @resultDetail_cb 		VARCHAR(MAX) = NULL -- for corners bets
 		, @resultDetail_ss 		VARCHAR(MAX)
 		, @resultDetail_bb		VARCHAR(MAX) -- for basketball
+		, @resultDetail			VARCHAR(MAX)
 		, @SelectedSetCAL 		VARCHAR(50)
 		, @SelectedSetREFUND 	VARCHAR(50)
 		--ticket count
@@ -133,6 +135,11 @@ BEGIN
 			@mode 				= 'cornersBets'
 			,@matchid 			= @matchID
 			,@str_resultDetail 	= @resultDetail_cb OUTPUT
+		
+		EXEC dbo.NAP_Admin_Settlement_2 
+			@mode 				= 'all'
+			,@matchid 			= @matchID
+			,@str_resultDetail 	= @resultDetail OUTPUT
 	END
 	
 	IF @Sporttype = 5
@@ -203,6 +210,7 @@ BEGIN
 				,@resultDetail_cb	= @resultDetail_cb
 				,@resultDetail_ss	= @resultDetail_ss
 				,@resultDetail_bb	= @resultDetail_bb
+				,@resultDetail		= @resultDetail
 				,@IsRefundHT		= @IsRefundHT
 				,@ticketCount		= @ticketCountCAL OUTPUT
 				
