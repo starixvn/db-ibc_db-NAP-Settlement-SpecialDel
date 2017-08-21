@@ -35,7 +35,8 @@ AS
 		- 20170410@Kent: Add columns OriginalBetType, BetdaqId, ExtraInfo [Redmine:#72887]
 		- 20170414@Kent: Fix IBC to MBC [Redmine:#75009]  
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
-		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177] 
+		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
+		- 20170818@Kent: Re-Add columns OriginalBetType, ExtraInfo, BetdaqId And Add new column ActualStake [Redmine:#81868] 
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -84,6 +85,10 @@ CREATE TABLE #SpecialDeleteBets
 (
 	username VARCHAR(30),
 	bettype SMALLINT,
+	OriginalBetType SMALLINT,
+	ExtraInfo VARCHAR(1000),
+	BetdaqId BIGINT,
+	ActualStake MONEY,
 	transid BIGINT,
 	homeid INT,
 	awayid INT,
@@ -124,7 +129,7 @@ CREATE TABLE #SpecialDeleteBets
     SubLiveAwayScore SMALLINT  ,
     SubLiveIndicator BIT  ,
 	SubLeagueId INT  ,
-    SubSportType SMALLINT,          
+    SubSportType SMALLINT,         
 	SubTransDesc NVARCHAR(300)
 )
 
@@ -136,7 +141,11 @@ BEGIN
 	BEGIN				 
 		INSERT INTO #SpecialDeleteBets
 		SELECT	b.username,
-				b.bettype,		
+				b.bettype,				
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,						
 				CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
 				m.homeID,
 				m.awayID,
@@ -205,7 +214,11 @@ BEGIN
                     AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 		UNION ALL
 		SELECT	b.username,
-				b.gameID AS bettype,		
+				b.gameID AS bettype,				
+				b.gameID AS OriginalBetType,
+				NULL AS ExtraInfo,
+				NULL AS BetdaqId,
+				b.actual_stake AS ActualStake,						
 				b.translogid transID,
 				m.homeID,
 				m.awayID,
@@ -274,7 +287,11 @@ BEGIN
 	BEGIN	
 		INSERT INTO #SpecialDeleteBets
 		SELECT	b.username,
-				b.bettype,		
+				b.bettype,				
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,						
 				b.transid,
 				m.homeID,
 				m.awayID,
@@ -343,7 +360,11 @@ BEGIN
 						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 		UNION ALL
 		SELECT	b.username,
-				b.GameID AS bettype,		
+				b.GameID AS bettype,					
+				b.gameID AS OriginalBetType,
+				NULL AS ExtraInfo,
+				NULL AS BetdaqId,
+				b.actual_stake AS ActualStake,					
 				b.TranslogID transid,
 				m.homeID,
 				m.awayID,
@@ -412,7 +433,11 @@ BEGIN
 	BEGIN 	
 		INSERT INTO #SpecialDeleteBets
 		SELECT	b.username,
-				b.bettype,		
+				b.bettype,					
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,					
 				b.transid,
 				m.homeID,
 				m.awayID,
@@ -479,7 +504,11 @@ BEGIN
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 		UNION ALL
 		SELECT	b.username,
-				b.GameID AS bettype,		
+				b.GameID AS bettype,				
+				b.gameID AS OriginalBetType,
+				NULL AS ExtraInfo,
+				NULL AS BetdaqId,
+				b.actual_stake AS ActualStake,						
 				b.translogid AS transid,
 				m.homeID,
 				m.awayID,
@@ -551,7 +580,11 @@ BEGIN
 	BEGIN
 		INSERT INTO #SpecialDeleteBets		
 		SELECT	b.username,
-				b.bettype,	
+				b.bettype,				
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,					
 				b.transid,	
 				m.homeID,
 				m.awayID,
@@ -619,7 +652,11 @@ BEGIN
 	BEGIN	
 		INSERT INTO #SpecialDeleteBets	
 		SELECT	b.username,
-				b.bettype,	
+				b.bettype,				
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,					
 				b.transid,	
 				m.homeID,
 				m.awayID,
@@ -686,7 +723,11 @@ BEGIN
 	BEGIN
 		INSERT INTO #SpecialDeleteBets		
 		SELECT	b.username,
-				b.bettype,	
+				b.bettype,				
+				b.bettype AS OriginalBetType,
+				b.ExtraInfo,
+				b.BetdaqId,
+				b.actual_stake AS ActualStake,					
 				b.transid,	
 				m.homeID,
 				m.awayID,
@@ -749,7 +790,11 @@ BEGIN
 END 
 
 SELECT  username,
-		bettype,
+		bettype,		
+		OriginalBetType,
+		ExtraInfo,
+		BetdaqId,
+		ActualStake,		
 		transid,
 		homeid,
 		awayid,
