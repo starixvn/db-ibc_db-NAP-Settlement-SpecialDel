@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]  
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]  
 	@MatchID			INT,  
 	@Type				SMALLINT   = 0,    
 	@LiveHomeScore		SMALLINT   = NULL,  
@@ -76,12 +76,13 @@ CREATE PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	@Ip					VARCHAR(15)  = '',  
 	@Reason				NVARCHAR(500) ='',  
 	@Language			NVARCHAR(2)  = 'E',  
-	 
+	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
+
 	@ErrMsg				NVARCHAR(200) = '' OUTPUT,  
 	@ErrCode			INT    = 0  OUTPUT       
 AS  
 /*  
-	 Created by: Kathy  
+	 Created by: Paul  
 	 Date:   
 	 Task: Delete transaction of mix parlay bet in bettransm  
 	 DB: DBTXN/bodb02  
@@ -97,7 +98,10 @@ BEGIN
 	SET NOCOUNT ON  
    
 	DECLARE @LogData			NVARCHAR(500)  
-			,@avaiableProcess	BIT = 1 
+			,@avaiableProcess	BIT = 1
+			,@CustIds			VARCHAR(MAX) = ''
+
+	SET @NegativeBalanceUsers = ''
 			
 	CREATE TABLE #BetDelete (   
 		  refno			BIGINT,   
@@ -908,7 +912,22 @@ BEGIN
 				 @BalancePending = @tblDebitPending  
 				 ,@Type   = 1 -- Sports  
 
-		  
+			SELECT @CustIds = @CustIds +
+							  CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
+							  CONVERT(VARCHAR(20), b.custid)
+			FROM #BeforeUpd b
+				 INNER JOIN	#AfterUpd a ON a.custid = b.custid 
+			WHERE b.balance > a.balance
+
+			EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
+				@CustIds = @CustIds,
+				@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+			IF @NegativeBalanceUsers <> ''
+			BEGIN
+				SET @NegativeBalanceUsers = REPLACE(@NegativeBalanceUsers, ',', ', ')
+			END
+
 			DROP TABLE #BeforeUpd  
 			DROP TABLE #AfterUpd  
 		---********* End of calculate balance at bettrans table********---  
