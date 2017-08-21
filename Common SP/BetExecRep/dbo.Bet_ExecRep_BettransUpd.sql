@@ -8,7 +8,7 @@ AS
 	DB: DBTXN/BODB02
 	Revisions:
 		- 20160606@Bobby: Initialize
-		
+		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -86,7 +86,12 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL))
 
 	--UPDATE on replicas DB servers
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231','DB215')
+	IF (@@SERVERNAME IN (
+			'DB052','DB053','DB054' --PROD
+			,'SITDB052','SITDB053' 	--SIT
+			,'DB215','DB231'		--LOCAL,DEV
+		)
+	)
     BEGIN
 		UPDATE dbo.bettrans WITH(ROWLOCK, UPDLOCK)
 		SET winlost 		= s.winlost
