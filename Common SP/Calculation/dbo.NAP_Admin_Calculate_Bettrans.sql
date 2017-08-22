@@ -12,7 +12,7 @@ AS
 	DB: DBTXN/BODB02
 	Revisions:
 		- 20160606@Bobby: Initialize
-		
+		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 
 	Param's Explanation:
 		
@@ -65,7 +65,8 @@ BEGIN
 	BEGIN TRY
 		SELECT @strBetTicket = CONVERT(VARCHAR(MAX)
 									,(SELECT 
-											matchid 		AS '@mi'
+											recommend 		AS '@rec'
+											,matchid 		AS '@mi'
 											,custid  		AS '@ci'
 											,bettype 		AS '@bt'
 											,transid 		AS '@ti'
