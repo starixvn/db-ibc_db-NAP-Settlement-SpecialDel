@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @FMResults		VARCHAR(MAX)	= NULL
 	, @BAQuarter 		VARCHAR(100)	= NULL
 	, @TennisSet    	VARCHAR(100)	= NULL
-	, @BAResults		VARCHAR(MAX)	= NULL 
+	, @BAResults		VARCHAR(MAX)	= NULL
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -27,7 +27,7 @@ AS
 			   5: Used for Conner
 			   6: Used for Auto Settlement
 			   7: Used for Fast Market
-			   8: Used for Early Payout
+
 
 		- @FMResults: Fast Market result
 			+ Sample: '<b Id="221">
@@ -41,13 +41,6 @@ AS
 
 		- @TennisSet: Tennis result
 			+ Sample: '1,2,3,4,5,6'
-
-		- @BAResults: Early Payout result
-			+ Sample: '<Results>
-					   <Resource Id="603" HomeValue="H"/> 
-					   <Resource Id="604" HomeValue="H"/> 
-					   <Resource Id="Q1" HomeValue="30" AwayValue="40"/> 
-					 </Results>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -56,9 +49,9 @@ BEGIN
 		, @isTrading			BIT
 		, @isCheckBet			BIT
 		, @balanceType			TINYINT
-		, @bettypes				XML
 		
 	DECLARE @capturedBalance	TVP_BalanceWalletChange
+	DECLARE @Bettypes			TVP_Settle_Bettype
 	
 	SELECT @sportType			= 1 
 		, @isTrading			= 0
@@ -67,7 +60,7 @@ BEGIN
 		, @BAResults 			= ISNULL(@BAResults, '<Results />')
 	
 	--CHECK sportType, is trading bet ticket
-	IF(@Mode NOT IN(6,7,8))
+	IF(@Mode NOT IN(6,7))
 	BEGIN
 		SELECT TOP(1) @sportType 	= sportType
 			, @isTrading 			= ISNULL(trade.IsTrading, 0)
@@ -87,72 +80,67 @@ BEGIN
 	END
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
-							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
+							WHEN @sportType IN (2,5) OR @Mode IN (7) THEN 1 
 							ELSE 0 
 						END
 
 	--GET list bettype
-	SELECT @bettypes 	= (
-			SELECT f.GroupId 	AS '@GroupId'
-				, f.GroupName 	AS '@GroupName'
-				, f.Bettype 	AS '@Bettype'
-			FROM dbo.f_Set_GetGroupBettypes() AS f
-				LEFT JOIN dbo.f_Set_GetEarlyBettypes() AS fba
-				ON f.Bettype = fba.Bettype
-			WHERE 1 = CASE 
-					WHEN @Mode = 1 THEN --Auto Payout
-						CASE 
-							WHEN @Action = 'CAL-HT' AND f.GroupId IN (1) AND f.IsUsedGoalRecordValue = 0 THEN 1
-							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2) AND f.IsUsedGoalRecordValue = 0 THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 2 THEN --Manual CAL
-						CASE 
-							WHEN @Action = 'CAL' AND f.GroupId IN (1,2,3,4,5,6,7,10) THEN 1
-							WHEN @Action = 'CAL-HT' AND f.GroupId IN (1,3,5) THEN 1
-							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6,7,10) THEN 1
-							WHEN @Action = 'UNDO' AND f.IsAuto = 0 THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 3 THEN --Maunal REFUND
-						CASE 
-							WHEN @Action = 'CAL' AND f.IsAuto = 0 THEN 1
-							WHEN @Action = 'CAL-HT' AND f.Is3x30 = 1 THEN 1
-							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6,7) THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 4 THEN --FGLG
-						CASE 
-							WHEN @Action = 'CAL-HT' AND f.GroupId IN (3) THEN 1
-							WHEN @Action = 'CAL-FT' AND (f.GroupId IN (4) OR (f.GroupId = 2 AND f.IsUsedGoalRecordValue = 1)) THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 5 THEN --Conner
-						CASE 
-							WHEN @Action = 'CAL' AND f.GroupId IN (5,6) THEN 1
-							WHEN @Action = 'CAL-HT' AND f.GroupId IN (5) THEN 1
-							WHEN @Action = 'CAL-FT' AND f.GroupId IN (6) THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 6 THEN --Auto Settlement
-						CASE 
-							WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 8 THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 7 THEN --Fast Market
-						CASE 
-							WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 9 THEN 1
-							ELSE 0
-						END
-					WHEN @Mode = 8 THEN --Early Payout
-						CASE 
-							WHEN fba.Bettype > 0 THEN 1
-							ELSE 0
-						END
-					ELSE 0 
+	--SELECT @bettypes 	= (
+	INSERT INTO @Bettypes (GroupId, GroupName, Bettype)
+	SELECT f.GroupId 	AS '@GroupId'
+		, f.GroupName 	AS '@GroupName'
+		, f.Bettype 	AS '@Bettype'
+
+	FROM dbo.f_Set_GetGroupBettypes() AS f
+	WHERE 1 = CASE 
+			WHEN @Mode = 1 THEN --Auto Payout
+				CASE 
+					WHEN @Action = 'CAL-HT' AND f.GroupId IN (1) AND f.IsUsedGoalRecordValue = 0 THEN 1
+					WHEN @Action = 'CAL-FT' AND f.GroupId IN (2) AND f.IsUsedGoalRecordValue = 0 THEN 1
+					ELSE 0
 				END
-				FOR XML PATH ('r')
-		)
+			WHEN @Mode = 2 THEN --Manual CAL
+				CASE 
+					WHEN @Action = 'CAL' AND f.GroupId IN (1,2,3,4,5,6,7,10) THEN 1
+					WHEN @Action = 'CAL-HT' AND f.GroupId IN (1,3,5) THEN 1
+					WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6,7,10) THEN 1
+					WHEN @Action = 'UNDO' AND f.IsAuto = 0 THEN 1
+					ELSE 0
+				END
+			WHEN @Mode = 3 THEN --Maunal REFUND
+				CASE 
+					WHEN @Action = 'CAL' AND f.IsAuto = 0 THEN 1
+					WHEN @Action = 'CAL-HT' AND f.Is3x30 = 1 THEN 1
+					WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6,7) THEN 1
+					ELSE 0
+				END
+			WHEN @Mode = 4 THEN --FGLG
+				CASE 
+					WHEN @Action = 'CAL-HT' AND f.GroupId IN (3) THEN 1
+					WHEN @Action = 'CAL-FT' AND (f.GroupId IN (4) OR (f.GroupId = 2 AND f.IsUsedGoalRecordValue = 1)) THEN 1
+					ELSE 0
+				END
+			WHEN @Mode = 5 THEN --Conner
+				CASE 
+					WHEN @Action = 'CAL' AND f.GroupId IN (5,6) THEN 1
+					WHEN @Action = 'CAL-HT' AND f.GroupId IN (5) THEN 1
+					WHEN @Action = 'CAL-FT' AND f.GroupId IN (6) THEN 1
+					ELSE 0
+				END
+			WHEN @Mode = 6 THEN --Auto Settlement
+				CASE 
+					WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 8 THEN 1
+					ELSE 0
+				END
+			WHEN @Mode = 7 THEN --Fast Market
+				CASE 
+					WHEN @Action IN ('CAL', 'REFUND', 'UNDO') AND f.GroupId = 9 THEN 1
+					ELSE 0
+				END
+			ELSE 0 
+		END
+		-- 		FOR XML PATH ('r')
+		-- )
 	
 	
 	IF(@SportType > 0)
@@ -168,20 +156,18 @@ BEGIN
 			INSERT INTO @capturedBalance(
 				matchid
 				,custid
-				,balanceType
 				,walletType
 				,bonusId
 				,balance
 			)
 			SELECT matchid
 				, custid
-				, @balanceType
 				, WalletType
 				, BonusID
 				, balance 
 			FROM dbo.f_Settle_GetBalanceByBettype (
 				@MatchId
-				, @bettypes
+				, @Bettypes
 			)
 			--GET balance by trading bet
 			IF (@isTrading = 1)
@@ -189,56 +175,72 @@ BEGIN
 				INSERT INTO @capturedBalance(
 					matchid
 					,custid
-					,balanceType
 					,walletType
 					,bonusId
 					,balance
 				)
 				SELECT matchid
 					, custid
-					, @balanceType
 					, 2 AS WalletType
 					, 0 AS BonusID
 					, balance 
 				FROM dbo.f_Settle_GetBalanceByTradingBet (
 					@MatchId
-					, @bettypes
+					, @Bettypes
 				)
 			END
 		END
 		ELSE --Capturing Balance M2
 		BEGIN
-			INSERT INTO @capturedBalance(
-				matchid
-				,custid
-				,balanceType
-				,walletType
-				,bonusId
-				,balance
-			)
-			SELECT matchid
-				, custid
-				, @balanceType AS balanceType
-				, WalletType
-				, BonusID
-				, balance 
-			FROM dbo.f_Settle_GetBalanceByBettypeTicket (
-				@MatchId
-				, @bettypes
-				, @Mode
-				, @SportType
-				, @FMResults
-				, @BAQuarter
-				, @TennisSet
-				, @BAResults
-			)
+			IF(@Mode IN (2,3)) --Tennis & BAIO
+			BEGIN
+				INSERT INTO @capturedBalance(
+					matchid
+					,custid
+					,walletType
+					,bonusId
+					,balance
+				)
+				SELECT matchid
+					, custid
+					, WalletType
+					, BonusID
+					, balance 
+				FROM dbo.f_Settle_GetBalanceByBettypeBetId (
+					@MatchId
+					, @Bettypes
+					, @SportType
+					, @BAQuarter
+					, @TennisSet
+				)
+			END
+			ELSE IF (@Mode = 7)
+			BEGIN
+				INSERT INTO @capturedBalance(
+					matchid
+					,custid
+					,walletType
+					,bonusId
+					,balance
+				)
+				SELECT matchid
+					, custid
+					, WalletType
+					, BonusID
+					, balance 
+				FROM dbo.f_Settle_GetBalanceByFastMarket (
+					@MatchId
+					, @Bettypes
+					, @FMResults
+				)
+			END
 		END
 	END
 	
 	--OUTPUT captured balance
 	SELECT matchid
 		,custid
-		,balanceType
+		,@balanceType AS balanceType
 		,walletType
 		,bonusId
 		,SUM(balance) AS balance
