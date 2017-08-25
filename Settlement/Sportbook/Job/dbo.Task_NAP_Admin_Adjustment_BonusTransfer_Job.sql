@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE dbo.Task_NAP_Admin_Adjustment_BonusTransfer_Job
+ALTER PROCEDURE dbo.Task_NAP_Admin_Adjustment_BonusTransfer_Job
 AS
 /*
 	Created:20170503@Bobby.Nguyen
@@ -14,8 +14,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @actualrate		FLOAT
-		, @execRefno 		INT
+	DECLARE @execRefno 		INT
 		, @transCount 		INT
 		, @maxExecID		INT
 		, @batchExec		INT
@@ -39,12 +38,8 @@ BEGIN
 		, username			VARCHAR(30)
 		, currency			INT
 		, currencyName		VARCHAR(10)
+		, actualrate		FLOAT
 	)
-	
-	--GET actualrate
-	SELECT TOP(1) @actualrate = actualrate
-	FROM dbo.bettrans WITH(NOLOCK)
-	WHERE bettype < 20000
 	
 	SELECT @maxExecID 		= 0
 		, @batchExec		= 100
@@ -67,6 +62,7 @@ BEGIN
 			, ex.currency AS currencyName
 			, rec.[site]
 			, ci.srecommend
+			, ex.actualrate
 		INTO #tempAdjustment
 		FROM dbo.BonusAdjustmentTransfer AS trans WITH(NOLOCK)
 			INNER JOIN CustDB.dbo.Customer AS ci WITH(NOLOCK)
@@ -112,7 +108,7 @@ BEGIN
 						(dummy.custid, temp.dummyUsername, 1, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END)
 				) AS t(transferId, username, isDummy, isValidDummy)) AS a
 		)
-		INSERT INTO @tempTransfer (ExecID, custid, matchid, bonusID, TransDesc, transferId, actual_stake, winlost, isValidDummy, username, currency, currencyName)
+		INSERT INTO @tempTransfer (ExecID, custid, matchid, bonusID, TransDesc, transferId, actual_stake, winlost, isValidDummy, username, currency, currencyName, actualrate)
 		SELECT temp.ExecID
 			, temp.custid
 			, temp.matchid
@@ -120,19 +116,20 @@ BEGIN
 			, 'Bonus Adjustment - MatchID=' + CAST(temp.matchid AS VARCHAR(20)) AS TransDesc
 			, trans.transferId
 			, CASE 
-				WHEN trans.isDummy = 0 AND temp.bonus < 0 THEN ABS(temp.bonus) 
-				WHEN trans.isDummy = 1 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 0 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 1 AND temp.bonus < 0 THEN ABS(temp.bonus) 
 				ELSE 0 
 			END AS actual_stake
 			, CASE 
-				WHEN trans.isDummy = 1 AND temp.bonus < 0 THEN ABS(temp.bonus) 
-				WHEN trans.isDummy = 0 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 1 AND temp.bonus > 0 THEN ABS(temp.bonus) 
+				WHEN trans.isDummy = 0 AND temp.bonus < 0 THEN ABS(temp.bonus) 
 				ELSE 0 
 			END AS winlost
 			, trans.isValidDummy
 			, trans.username
 			, temp.currency
 			, temp.currencyName
+			, temp.actualrate
 		FROM #tempAdjustment AS temp
 			INNER JOIN tempCoupleTransfer AS trans
 			ON temp.custid = trans.custid
@@ -263,7 +260,7 @@ BEGIN
 			   ,0 AS [betcheck]
 			   ,NULL AS [checktime]
 			   ,NULL AS [oddsspread]
-			   ,@actualrate AS [actualrate]
+			   ,temp.actualrate AS [actualrate]
 			   ,0 AS [matchid]
 			   ,ci.[recommend]
 			   ,ci.[mrecommend]
