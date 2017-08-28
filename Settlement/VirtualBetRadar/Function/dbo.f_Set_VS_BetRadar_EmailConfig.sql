@@ -51,9 +51,9 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw'
-			, 'qa@starixsoft.com'
-			, 'qa@starixsoft.com'
+			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw' --deposit
 			, 'DBTRANS'
 			, 'PROD'
 		
@@ -62,7 +62,7 @@ RETURN (
 		-----------------------*/
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'bobby.nguyen@starixsoft.com', '', ''
+			, 'bobby.nguyen@starixsoft.com;csoneonone@enpine.com', '', ''
 			, 'DB230'
 			, 'DEV'
 			
@@ -80,7 +80,7 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixsoft.com;bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;johnson.nguyen@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw', '', ''
+			, 'bobby.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;jefferson.liu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 			
