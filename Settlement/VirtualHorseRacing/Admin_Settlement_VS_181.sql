@@ -15,12 +15,13 @@ AS
 	Revisions:
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
+		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
 
 */
 BEGIN
 SET NOCOUNT ON
 
-DECLARE @ActionID int, @Remark varchar(500) , @SportType tinyint
+DECLARE @ActionID int, @Remark varchar(500) , @SportType SMALLINT
 SELECT @ActionID = CASE @Action 
 		WHEN 'CAL' THEN 127 
 		WHEN 'Refund' THEN 128		
