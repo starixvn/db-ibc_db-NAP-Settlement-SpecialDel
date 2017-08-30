@@ -46,6 +46,7 @@ BEGIN
 		, @strBettypes VARCHAR(MAX)
 		, @strAutoBettypes VARCHAR(MAX)
 		, @avaiableProcess BIT
+		, @sportType INT
 
 	
 	--START Balance tables	
@@ -83,6 +84,7 @@ BEGIN
 		, @hta = htawayscore
 		, @goalrecord = goalrecord 
 		, @betstatus = betstatus 
+		, @sportType = sporttype
 	FROM DBPRO.BODB02.dbo.match WITH (NOLOCK)
 	WHERE matchid = @matchid
 		
@@ -114,6 +116,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
+		, @sportType		= @sportType
 		, @Action 			= @Action
 		, @Mode 			= 5 --@Mode corner
             
@@ -199,6 +202,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
+		, @sportType		= @sportType
 		, @Action 			= @Action
 		, @Mode 			= 5 --@Mode corner
 	

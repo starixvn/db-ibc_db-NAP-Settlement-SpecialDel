@@ -45,6 +45,7 @@ BEGIN
             ,@strBettypes               VARCHAR(MAX)   
             ,@strXML					VARCHAR(MAX)                             
 			, @avaiableProcess			BIT
+            , @sportType                INT
 			,@bettype_22				VARCHAR(20)
 			,@bettype_160				VARCHAR(20)
     
@@ -72,6 +73,7 @@ BEGIN
             ,@hta            = htawayscore
             ,@goalrecord    = goalrecord 
             ,@betstatus        = betstatus 
+            ,@sportType     = sportType
     FROM    DBPRO.BODB02.dbo.match WITH (NOLOCK)
     WHERE    matchid = @matchid
         
@@ -106,6 +108,7 @@ BEGIN
     )
     EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
         @MatchId 			= @matchId
+        , @sportType        = @sportType
         , @Action 			= @Action
         , @Mode 			= 6 --@Mode auto settlement
 		
@@ -262,6 +265,7 @@ BEGIN
     )
     EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
         @MatchId 			= @matchId
+        , @sportType        = @sportType
         , @Action 			= @Action
         , @Mode 			= 6 --@Mode auto settlement
 		

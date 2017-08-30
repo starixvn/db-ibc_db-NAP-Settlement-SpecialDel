@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @BAQuarter 		VARCHAR(100)	= NULL
 	, @TennisSet    	VARCHAR(100)	= NULL
 	, @BAResults		VARCHAR(MAX)	= NULL
+	, @ResourceIDs      VARCHAR(MAX)	= NULL 
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -28,6 +29,7 @@ AS
 			   5: Used for Conner
 			   6: Used for Auto Settlement
 			   7: Used for Fast Market
+			   8: Used for Early Payout
 
 
 		- @FMResults: Fast Market result
@@ -46,16 +48,20 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @isCheckBet	BIT
-		, @balanceType	TINYINT
+	DECLARE @isCheckBet		BIT
+		, @balanceType		TINYINT
+		, @xmlFMResults		XML
+		, @xmlBAResults		XML
+
 	
-	SELECT @FMResults 	= ISNULL(@FMResults, '<r />')
-		, @BAResults 	= ISNULL(@BAResults, '<Results />')
-		, @balanceType 	= 1 --default sportbook
+	SELECT @xmlFMResults 	= CAST(ISNULL(@FMResults, '<r />') AS XML)
+		, @xmlBAResults 	= CAST(ISNULL(@BAResults, '<Results />') AS XML)
+		, @balanceType 		= 1 --default sportbook
+		, @ResourceIDs		= ISNULL(@ResourceIDs, '')
 	
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
-							WHEN @sportType IN (2,5) OR @Mode IN (7) THEN 1 
+							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
 							ELSE 0 
 						END
 		
@@ -71,11 +77,12 @@ BEGIN
 			@MatchId
 			, @Mode
 			, @Action
+			, @ResourceIDs
 		)
 	END
 	ELSE --Capturing Balance M2
 	BEGIN
-		IF(@Mode IN (2,3)) --Tennis & BAIO
+		IF(@Mode IN (2,3,8)) --Tennis, BAIO & Early Payout
 		BEGIN
 			SELECT @matchid AS matchid
 				, custid
@@ -90,11 +97,11 @@ BEGIN
 				, @SportType
 				, @BAQuarter
 				, @TennisSet
+				, @xmlBAResults
 			)
 		END
-		ELSE IF (@Mode = 7)
+		ELSE IF (@Mode = 7) -- Fast Market
 		BEGIN
-			
 			SELECT @matchid AS matchid
 				, custid
 				,@balanceType AS balanceType
@@ -104,7 +111,7 @@ BEGIN
 			FROM dbo.f_Settle_GetBalanceByFastMarket (
 				@MatchId
 				, @Action
-				, @FMResults
+				, @xmlFMResults
 			)
 		END
 	END

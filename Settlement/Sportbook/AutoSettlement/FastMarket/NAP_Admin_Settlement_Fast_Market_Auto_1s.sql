@@ -55,6 +55,7 @@ BEGIN
 				,@XmlData XML
 				,@rowcount	INT
 				,@avaiableProcess BIT
+				,@sportType INT
 
 	
 	--START Balance tables	
@@ -78,6 +79,7 @@ BEGIN
 			,@fta = finalawayscore
 			,@hth = hthomescore
 			,@hta = htawayscore
+			,@sportType	= sportType
 	FROM	dbo.match WITH (NOLOCK)
 	WHERE	matchid = @matchid
 
@@ -140,6 +142,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
+		, @sportType		= @sportType
 		, @Action 			= @Action
 		, @Mode 			= 7 --@Mode fast market
 		, @FMResults		= @Results
@@ -179,6 +182,7 @@ BEGIN
 		)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 			= @matchId
+			, @sportType		= @sportType
 			, @Action 			= @Action
 			, @Mode 			= 7 --@Mode fast market
 			, @FMResults		= @Results
@@ -209,6 +213,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
+		, @sportType 		= @sporttype
 		, @Action 			= @Action
 		, @Mode 			= 7 --@Mode fast market
 		, @FMResults		= @Results

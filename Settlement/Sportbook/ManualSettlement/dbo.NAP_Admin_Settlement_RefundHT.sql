@@ -80,8 +80,16 @@ BEGIN
 		,@strRefundBettypes VARCHAR(MAX) 
 		,@matchdate DATETIME
 		,@avaiableProcess	BIT
-    
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+        ,@sportType INT
+
+    --START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables      
+
+    CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+
+    -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
 			,1 AS KeyId
@@ -100,8 +108,7 @@ BEGIN
 
         RETURN
 	END
-	
-	SELECT @ActionID = 110
+
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	dbo.f_Set_GetGroupBettypes ()
 	WHERE	Is3x30 = 1
@@ -115,34 +122,13 @@ BEGIN
 							
 	
 	SELECT @matchdate = eventdate
+        , @sporttype    = sporttype
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
 	
     SELECT @start = CURRENT_TIMESTAMP
-
-    /*CREATE TABLE #BalanceBefore (
-        custid INT PRIMARY KEY
-        ,balance MONEY
-        )
-
-    CREATE TABLE #BalanceAfter (
-        custid INT PRIMARY KEY
-        ,balance MONEY
-        )
-
-    CREATE TABLE #Balance (
-        custid INT PRIMARY KEY
-        ,balance MONEY
-        ,Increased BIT
-        )
-       
-    CREATE TABLE #tmpTrans (transid BIGINT)
-    
-    DECLARE @tblDebitPending TVP_BalanceList
-    DECLARE @tblCreditPending TVP_BalanceList
-
-    CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-	*/
+        , @ActionID = 110
+        , @Action = 'CAL-HT'
 
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
@@ -157,43 +143,9 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
+        , @sporttype        = @sporttype
 		, @Action 			= @Action
 		, @Mode 			= 3 --@Mode Manual Refund
-
-	/*INSERT INTO #tmpTrans (transid)
-	SELECT ISNULL(co.transid, b.transid) AS transid
-	FROM dbo.bettrans b WITH (ROWLOCK)
-		LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
-		ON b.matchid = co.matchid 
-			AND co.refno = b.transid 
-			AND co.bettype = 911 --CashOut tickets
-			
-	WHERE b.matchid = @matchid 
-		AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0
-		AND b.betdaqid = 0--bettrade or cashout tickets
-		
-    INSERT INTO #BalanceBefore
-    SELECT custid
-        ,SUM(winlost - actual_stake + playercomm)
-    FROM dbo.bettrans b WITH (ROWLOCK)
-    WHERE	matchid = @matchid 
-			AND 1 = CASE 
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
-						WHEN (b.bettype BETWEEN 901 AND 920) THEN  
-							CASE
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-								ELSE 0 
-							END
-						ELSE 0
-					END
-    GROUP BY b.custid*/
 
     IF @IsSettleAbandonedMatch = 1
         SELECT @IsExcludeBetdaq = 1
@@ -212,11 +164,6 @@ BEGIN
         EXEC dbo.NAP_Admin_CheckingProcess
             @isExistMatch		= 1
             , @IsReleased		= 1
-        
-        /*DELETE
-        FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-        WHERE KeyID = 1 AND KeyValue = @matchid
-        */
 
 		EXEC dbo.NAP_Admin_Settlement_Refund_All @matchid = @matchid
             ,@creator = @adminid
@@ -265,10 +212,6 @@ BEGIN
                 EXEC dbo.NAP_Admin_CheckingProcess
                     @isExistMatch		= 1
                     , @IsReleased		= 1
-				
-                /*DELETE
-				FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-				WHERE KeyID = 1 AND KeyValue = @matchid*/
 
 				RETURN
 			END
@@ -340,6 +283,7 @@ BEGIN
         )
         EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
             @MatchId 			= @matchId
+            , @sporttype        = @sporttype
             , @Action 			= @Action
             , @Mode 			= 3 --@Mode Manual Refund
             
@@ -349,90 +293,7 @@ BEGIN
             @BalanceWalletBefore	= @BalanceWalletBefore
             , @BalanceWalletAfter	= @BalanceWalletAfter
             , @ActionId				= @ActionID
-
-        /*INSERT INTO #BalanceAfter
-		SELECT	custid
-				,SUM(winlost - actual_stake + playercomm)
-		FROM	dbo.bettrans b WITH (ROWLOCK)
-		WHERE	matchid = @matchid 
-				AND 1 = CASE 
-							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
-							WHEN (b.bettype BETWEEN 901 AND 920) THEN  
-								CASE
-									WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-									WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-									WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-										CASE
-											WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-											WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-											ELSE 0
-										END
-									ELSE 0 
-								END
-							ELSE 0
-						END
-		GROUP BY b.custid
-		
-		INSERT INTO #Balance
-		SELECT b.custid
-			,a.balance - b.balance
-			,CASE 
-				WHEN a.balance > b.balance THEN 1
-				ELSE 0
-				END
-		FROM #BalanceBefore b
-			INNER JOIN #BalanceAfter a ON b.custid = a.custid
-		WHERE b.balance <> a.balance
-	    
-		INSERT INTO @tblDebitPending (custID, balance)
-		SELECT	custid, ABS(balance)
-		FROM	#Balance
-		WHERE	Increased = 0
-		
-		IF @@rowcount <> 0
-			EXEC dbo.Dot_BalancePendingDebitIns
-				@BalancePending = @tblDebitPending
-				,@Type			= 1 -- Sports
-	    
-		INSERT INTO @tblCreditPending (custID, balance)
-		SELECT	custid, balance
-		FROM	#Balance
-		WHERE	Increased = 1
-		
-		IF @@rowcount <> 0
-			EXEC dbo.Dot_BalancePendingCreditIns 
-				@BalancePending = @tblCreditPending
-				,@Type			= 1 -- Sports
-
-		----
-		-- Add Negative Balance into BalanceNegative table 
-		----
-		INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-			[ExecDate]
-			,[MatchID]
-			,[ActionID]
-			,[GroupID]
-			,[CustID]
-			,[Balance]
-			,[StatusID]
-			,[Remark]
-			)
-		SELECT GETDATE()
-			,@MatchID
-			,@ActionID
-			,1 -- Sportsbook Single bet Settlement 
-			,CustID
-			,Balance
-			,0
-			,NULL
-		FROM #Balance WITH (NOLOCK)
-		WHERE Increased = 0
-		
-		DROP TABLE #Balance
-		DROP TABLE #BalanceBefore
-		DROP TABLE #BalanceAfter*/
-
-	    
+  
 		SELECT	@ErrCode = 1001017 
 				,@ErrMsg = ERROR_MESSAGE()
 		
@@ -453,6 +314,7 @@ BEGIN
     )
     EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
         @MatchId 			= @matchId
+        , @sporttype        = @sporttype
         , @Action 			= @Action
         , @Mode 			= 3 --@Mode Manual Refund
 
@@ -461,88 +323,6 @@ BEGIN
         @BalanceWalletBefore	= @BalanceWalletBefore
         , @BalanceWalletAfter	= @BalanceWalletAfter
         , @ActionId				= @ActionID
-
-    /*INSERT INTO #BalanceAfter
-    SELECT custid
-        ,SUM(winlost - actual_stake + playercomm)
-    FROM dbo.bettrans b WITH (ROWLOCK)
-    WHERE	matchid = @matchid 
-			AND 1 = CASE
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1 
-						WHEN b.bettype BETWEEN 901 AND 920 THEN 
-							CASE 
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN (b.bettype BETWEEN 911 AND 914) THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-								ELSE 0 
-							END
-						ELSE 0
-					END
-    GROUP BY b.custid
-
-    -------------------------------------------------------------
-    ---                   compare BALANCE                     ---
-    ---------------------------VVVV------------------------------
-    INSERT INTO #Balance
-    SELECT b.custid
-        ,a.balance - b.balance
-        ,CASE 
-            WHEN a.balance > b.balance THEN 1
-            ELSE 0
-            END
-    FROM #BalanceBefore b
-        INNER JOIN #BalanceAfter a ON b.custid = a.custid
-    WHERE b.balance <> a.balance
-    
-    INSERT INTO @tblDebitPending (custID, balance)
-	SELECT	custid, ABS(balance)
-	FROM	#Balance
-	WHERE	Increased = 0
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingDebitIns
-			@BalancePending = @tblDebitPending
-			,@Type			= 1 -- Sports
-    
-    INSERT INTO @tblCreditPending (custID, balance)
-	SELECT	custid, balance
-	FROM	#Balance
-	WHERE	Increased = 1
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingCreditIns 
-			@BalancePending = @tblCreditPending
-			,@Type			= 1 -- Sports
-
-    ----
-    -- Add Negative Balance into BalanceNegative table 
-    ----
-    INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-        [ExecDate]
-        ,[MatchID]
-        ,[ActionID]
-        ,[GroupID]
-        ,[CustID]
-        ,[Balance]
-        ,[StatusID]
-        ,[Remark]
-        )
-    SELECT GETDATE()
-        ,@MatchID
-        ,@ActionID
-        ,1 -- Sportsbook Single bet Settlement 
-        ,CustID
-        ,Balance
-        ,0
-        ,NULL
-    FROM #Balance WITH (NOLOCK)
-    WHERE Increased = 0
-    */
 
     ---------------------------------------
     --  Betfair & Betdaq - Warning message:
