@@ -1,0 +1,280 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Sel]
+	@SubTransIds	 VARCHAR(MAX),
+	
+	@InvalidTransIds VARCHAR(MAX) = '' OUTPUT
+AS
+/*  
+	Created by: Kent
+	Date: 20170831
+	Task: 
+	DB: DBTXN/bodb02   
+	Original:     
+
+	Revisions:  				
+		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
+
+	Param's Explanation:		
+		- @SubTransIds : TransIds of sub parlay tickets
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @SubTickets_Count INT
+	
+	CREATE TABLE #tblSubTransIds (SubTransId BIGINT PRIMARY KEY)
+	
+	CREATE TABLE #tmpBettransm
+	(
+		Status NVARCHAR(10),
+		TransId BIGINT,
+		BetCheck NVARCHAR(50),
+		BetTeam NVARCHAR(10),
+		BetType SMALLINT,
+		Hdp1 SMALLMONEY,
+		Hdp2 SMALLMONEY,
+		Odds SMALLMONEY,
+		transdesc NVARCHAR(1000),
+		refno BIGINT,
+		custid INT,
+		matchid INT
+	)
+	
+	CREATE TABLE #tmpResult
+	(
+		Stake MONEY,
+		BetCheck NVARCHAR(50),
+		BetId BIGINT,
+		BetTeam NVARCHAR(10),
+		BetType SMALLINT,
+		CurrencyCode NVARCHAR(50),
+		Hdp1 SMALLMONEY,
+		Hdp2 SMALLMONEY,
+		IsLiveIndicator BIT,
+		LiveAwayScore SMALLINT,
+		LiveHomeScore SMALLINT,
+		Odds SMALLMONEY,
+		RefNo BIGINT,
+		Status NVARCHAR(10),
+		TransDate DATETIME,
+		TransDesc NVARCHAR(1000),
+		TransId BIGINT,
+		UserName NVARCHAR(50),
+		WinLost MONEY,
+		modds SMALLMONEY,
+		custid INT,
+		recommend INT,
+		mrecommend INT,
+		srecommend INT,
+		SubStatus NVARCHAR(10),
+		SubTransId BIGINT,
+		SubBetCheck NVARCHAR(50),
+		SubBetTeam NVARCHAR(10),
+		SubBetType SMALLINT,
+		SubHdp1 SMALLMONEY,
+		SubHdp2 SMALLMONEY,
+		SubOdds SMALLMONEY,
+		SubTransdesc NVARCHAR(1000),
+		matchid INT
+	) 
+	
+	SELECT @InvalidTransIds = ''
+		 , @SubTickets_Count = 0
+	
+	--> parse @SubTransIds
+	INSERT INTO #tblSubTransIds(SubTransId)
+	SELECT  DISTINCT val
+	FROM	dbo.f_SplitString(@SubTransIds, ',')
+	OPTION (maxrecursion 0)			
+	
+	-- get sub tickets
+	INSERT INTO #tmpBettransm(
+			Status
+           ,TransId
+           ,BetCheck
+           ,BetTeam
+           ,BetType
+           ,Hdp1
+           ,Hdp2
+           ,Odds
+           ,transdesc
+           ,refno
+           ,custid
+           ,matchid)
+	SELECT bm.Status
+		  ,bm.TransId
+		  ,bm.BetCheck
+		  ,bm.BetTeam
+		  ,bm.BetType
+		  ,bm.Hdp1
+		  ,bm.Hdp2
+		  ,bm.Odds	
+		  ,bm.transdesc
+		  ,bm.refno
+		  ,bm.custid
+		  ,bm.matchid			
+	FROM #tblSubTransIds t
+		 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
+				 ON t.SubTransId = bm.transid
+	WHERE bm.statusID NOT IN (101, 102) -- reject, void	
+	
+	SET @SubTickets_Count = @@ROWCOUNT				
+	
+	-- get main info for all searched sub tickets
+	INSERT INTO #tmpResult(
+			Stake
+           ,BetCheck
+           ,BetId
+           ,BetTeam
+           ,BetType
+           ,CurrencyCode
+           ,Hdp1
+           ,Hdp2
+           ,IsLiveIndicator
+           ,LiveAwayScore
+           ,LiveHomeScore
+           ,Odds
+           ,RefNo
+           ,Status
+           ,TransDate
+           ,TransDesc
+           ,TransId
+           ,UserName
+           ,WinLost
+           ,modds
+           ,custid
+           ,recommend
+           ,mrecommend
+           ,srecommend
+           
+           ,SubStatus
+           ,SubTransId
+           ,SubBetCheck
+           ,SubBetTeam
+           ,SubBetType
+           ,SubHdp1
+           ,SubHdp2
+           ,SubOdds
+           ,SubTransdesc
+           ,matchid)
+	SELECT b.Stake		  
+		  ,b.BetCheck
+		  ,b.BetId
+		  ,b.BetTeam
+		  ,b.BetType
+		  ,b.CurrencyName AS CurrencyCode
+		  ,b.Hdp1
+		  ,b.Hdp2		  
+		  ,b.LiveIndicator AS IsLiveIndicator
+		  ,b.LiveAwayScore
+		  ,b.LiveHomeScore
+		  ,b.Odds		   
+		  ,b.RefNo		  
+		  ,b.Status
+		  ,b.TransDate
+		  ,b.TransDesc
+		  ,b.TransId
+		  ,b.UserName
+		  ,(b.winlost - b.actual_stake) AS WinLost		  
+		  ,b.modds
+		  ,b.custid		  
+		  ,b.recommend
+		  ,b.mrecommend
+		  ,b.srecommend		  
+           
+		  ,bm.Status AS SubStatus
+		  ,bm.TransId AS SubTransId
+		  ,bm.BetCheck AS SubBetCheck
+		  ,bm.BetTeam AS SubBetTeam
+		  ,bm.BetType AS SubBetType
+		  ,bm.Hdp1 AS SubHdp1
+		  ,bm.Hdp2 AS SubHdp2
+		  ,bm.Odds AS SubOdds	
+		  ,bm.transdesc AS SubTransdesc
+		  ,bm.matchid			
+	FROM (SELECT TOP (@SubTickets_Count) * 
+		  FROM #tmpBettransm) bm
+		 INNER JOIN bettrans b WITH (NOLOCK) 
+				 ON b.refno = bm.refno 
+					AND b.custid = bm.custid
+	WHERE b.matchid = 2799
+	  AND b.bettype = 2799	  
+	  AND b.statusID NOT IN (101, 102) -- reject, void	
+	OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			    	  								 	
+	
+	SELECT  t.Stake
+		   ,m.AwayId
+		   ,t.BetCheck
+		   ,t.BetId
+		   ,t.BetTeam
+		   ,t.BetType
+		   ,t.CurrencyCode
+		   ,t.Hdp1
+		   ,t.Hdp2
+		   ,m.HomeId
+		   ,t.IsLiveIndicator
+		   ,t.LiveAwayScore
+		   ,t.LiveHomeScore
+		   ,t.Odds		   
+		   ,t.RefNo
+		   ,m.SportType
+		   ,t.Status
+		   ,t.TransDate
+		   ,t.TransDesc
+		   ,t.TransId
+		   ,t.UserName
+		   ,t.WinLost
+		   ,T2.GroupName
+		   ,ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral
+		   ,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
+		   ,m.leagueid
+		   ,t.modds
+           
+		   ,t.SubStatus
+		   ,t.SubTransId
+		   ,t.SubBetCheck
+		   ,t.SubBetTeam
+		   ,t.SubBetType
+		   ,t.SubHdp1
+		   ,t.SubHdp2
+		   ,t.SubOdds	
+		   ,t.SubTransdesc	   
+	FROM #tmpResult t					
+		 INNER JOIN match m WITH (NOLOCK)
+				 ON t.matchid = m.matchid		
+		 OUTER APPLY (SELECT CAST(CASE 
+									WHEN t.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) 
+											THEN 1
+									ELSE 0
+								  END AS BIT) as IsDeposit) AS T1
+		 OUTER APPLY (SELECT CASE 
+								WHEN T1.IsDeposit = 0  
+									 AND t.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
+									 AND t.username <> '12EU'  
+									 AND t.mrecommend NOT IN (105181, 118473, 105183)  
+									 AND t.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
+											THEN 'Credit'
+								WHEN T1.IsDeposit = 1  
+									 AND t.custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
+									 AND t.username <> '12EU'  
+									 AND t.mrecommend NOT IN (105181, 118473, 105183) 
+									 AND t.recommend NOT IN (11196380, 13423967) -- Foobet, 1E
+											THEN 'Deposit'																			
+								ELSE ''							
+							 END AS GroupName) AS T2		  
+	ORDER BY CASE
+				WHEN T2.GroupName = 'Credit'  THEN 0
+				WHEN T2.GroupName = 'Deposit' THEN 1				
+				ELSE 2				
+			 END ASC 
+			 
+	--> build @InvalidTransIds
+	SELECT @InvalidTransIds = @InvalidTransIds
+							  + CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END
+							  + CAST(SubTransId AS VARCHAR(100))
+	FROM #tblSubTransIds
+	WHERE SubTransId NOT IN (SELECT SubTransId FROM #tmpResult)			  
+	
+	SET NOCOUNT OFF		
+END
+GO
