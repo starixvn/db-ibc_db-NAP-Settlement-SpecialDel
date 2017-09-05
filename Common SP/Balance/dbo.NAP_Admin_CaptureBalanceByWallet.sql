@@ -77,8 +77,8 @@ BEGIN
 			@MatchId
 			, @Mode
 			, @Action
-			, @ResourceIDs
 		)
+		OPTION (MAXDOP 1)
 	END
 	ELSE --Capturing Balance M2
 	BEGIN
@@ -98,7 +98,9 @@ BEGIN
 				, @BAQuarter
 				, @TennisSet
 				, @xmlBAResults
+				, @ResourceIDs
 			)
+			OPTION (MAXDOP 1)
 		END
 		ELSE IF (@Mode = 7) -- Fast Market
 		BEGIN
@@ -113,6 +115,7 @@ BEGIN
 				, @Action
 				, @xmlFMResults
 			)
+			OPTION (MAXDOP 1)
 		END
 	END
 END
