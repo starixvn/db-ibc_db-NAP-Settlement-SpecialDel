@@ -29,6 +29,7 @@ AS
 
 	Revisions:		
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
+			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -205,7 +206,7 @@ BEGIN
 							WHEN f.GroupId IN (1,3,5,7) AND @IsRefundHT = 0 THEN 1 
 							ELSE 0
 						END
-					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype = 2) THEN 1
+					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype IN (2,5)) THEN 1
 					ELSE 0
 				END
 			AND f.GroupId NOT IN (8,9) --Exclude BetRadar, FM
@@ -382,7 +383,22 @@ BEGIN
 											END
 					WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
 					ELSE 0
-					END		
+					END	
+		AND 1 = CASE
+					WHEN @resultDetail_ss IS NULL THEN 1
+					WHEN @SelectedSetCAL LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
+					WHEN @SelectedSetCAL LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '802%' THEN 1 
+					WHEN @SelectedSetCAL LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '803%' THEN 1 
+					WHEN @SelectedSetCAL LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '804%' THEN 1 
+					WHEN @SelectedSetCAL LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '805%' THEN 1 
+					WHEN @SelectedSetCAL LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
+					WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype = 1324 AND betcheck LIKE '801%' THEN 1 
+					WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype = 1324 AND betcheck LIKE '802%' THEN 1 
+					WHEN @SelectedSetREFUND LIKE '%3%' AND bm.Bettype = 1324 AND betcheck LIKE '803%' THEN 1 
+					WHEN @SelectedSetREFUND LIKE '%4%' AND bm.Bettype = 1324 AND betcheck LIKE '804%' THEN 1 
+					WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype = 1324 AND betcheck LIKE '805%' THEN 1  
+					ELSE 0 
+				END 	
 	
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0

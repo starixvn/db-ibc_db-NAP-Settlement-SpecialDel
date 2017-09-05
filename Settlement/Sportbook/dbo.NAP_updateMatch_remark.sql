@@ -24,6 +24,7 @@ WITH RECOMPILE
 		- 20150418@Jamie: Manual Settlement Betradar phase 2 [Redmine: #27212]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]	
 		- 20170525@Kathy: Set calrefund = 1 when refund FT basketball  [Redmine:#77046]
+		- 20170901@Kathy: Update parlay info base on user action [Redmine:#82122]
 	Param's Explanation: 
 */
 AS
@@ -89,7 +90,7 @@ BEGIN
 	END
 	
 	-- Mix Parlay calculated
-	IF @command = 'M' AND (@SelectedSetCAL IS NULL OR @SelectedSetCAL LIKE '%6%')
+	IF @command = 'M'
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET multiple		= 1
@@ -99,7 +100,7 @@ BEGIN
 	END
 	
 	-- Mix Parlay Refund
-	IF @command = 'R' AND (@SelectedSetREFUND IS NULL OR @SelectedSetREFUND LIKE '%6%')
+	IF @command = 'R'
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET multiple		= 0

@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP] (
 	@MatchId 	INT
 	,@Creator 	INT
@@ -21,6 +15,7 @@ AS
 
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 		
 
 	Param's Explanation:		
@@ -182,7 +177,7 @@ BEGIN
 		--CHECK for CAL fisrt
 		IF(
 			@action IN ('REFUND-HT', 'ABANDONED-2H','REFUND-FT')
-		) OR (@SportType = 2 AND @Action = 'REFUND')
+		) OR (@SportType IN (2,5) AND @Action = 'REFUND')
 		BEGIN
 			/*IF(@action IN ('REFUND-HT')) --REFUND Is3x30 AND CAL the REST
 			BEGIN
@@ -239,6 +234,7 @@ BEGIN
 			,@mode				= @Action
 			,@IsRefundHT		= @IsRefundHT
 			,@resultDetail_bb	= @resultDetail_bb
+			,@resultDetail_ss	= @resultDetail_ss
 			,@ticketCount		= @ticketCountREFUND OUTPUT
 		
 		/*
@@ -417,8 +413,6 @@ BEGIN
 
 		EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
 				,@command = @command
-				,@SelectedSetCAL = @SelectedSetCAL
-				,@SelectedSetREFUND = @SelectedSetREFUND
 
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Refund_MP'
 			,@Matchid = @matchid

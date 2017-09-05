@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Refund] (
 	, @Mode				VARCHAR(20)
 	, @IsRefundHT		BIT
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
+	, @resultDetail_ss	VARCHAR(MAX) = NULL
 	, @TicketCount		INT = 0 OUTPUT
 	, @ErrCode 			INT = 0 OUTPUT
 	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
@@ -18,6 +19,7 @@ AS
 	Revisions:		
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
+		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND', 'REFUND-HT','REFUND-FT']
@@ -31,6 +33,8 @@ BEGIN
 	
 	DECLARE @basketball_ResourceIdsREFUND VARCHAR(MAX) = NULL
 			,@xmlbb XML
+			,@tennis_SelectedSetREFUND VARCHAR(50)
+			,@xmlss XML
 	
 	IF @resultDetail_bb IS NOT NULL
 	BEGIN
@@ -58,6 +62,16 @@ BEGIN
 									ELSE t.ResourceId
 								END AS ResourceId
 					) r					
+	END
+	
+	IF @resultDetail_ss IS NOT NULL
+	BEGIN
+		SET @xmlss = CONVERT(XML, @resultDetail_ss)    
+                
+        SELECT	TOP(1) 
+				@tennis_SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
+        FROM	@xmlss.nodes('/root/r') as [T](C) --T: table, C: column    
+        OPTION ( OPTIMIZE FOR ( @xmlss = NULL ) )    
 	END
 	
 	INSERT INTO #refundBettypes (bettype, groupId, GroupName, isEarly)
@@ -133,6 +147,16 @@ BEGIN
 											END
 					WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
 					ELSE 0 
+				END
+		AND 1 = CASE
+					WHEN @resultDetail_ss IS NULL THEN 1
+					WHEN @tennis_SelectedSetREFUND LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '801%' THEN 1  --Exclude 1324
+					WHEN @tennis_SelectedSetREFUND LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '802%' THEN 1
+					WHEN @tennis_SelectedSetREFUND LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '803%' THEN 1
+					WHEN @tennis_SelectedSetREFUND LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '804%' THEN 1
+					WHEN @tennis_SelectedSetREFUND LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '805%' THEN 1
+					WHEN @tennis_SelectedSetREFUND LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1    
+					ELSE 0
 				END
 
 	--GROUP BY bm.refno
