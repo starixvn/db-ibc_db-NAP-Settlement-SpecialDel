@@ -132,7 +132,7 @@ BEGIN
 			, temp.actualrate
 		FROM #tempAdjustment AS temp
 			INNER JOIN tempCoupleTransfer AS trans
-			ON temp.custid = trans.custid
+			ON temp.custid = trans.custid AND temp.ExecID = trans.ExecID
 			
 		--RAISE error with invalid dummy account
 		INSERT INTO @tempInvalidDummy (site, username, currencyName, isDummy)
