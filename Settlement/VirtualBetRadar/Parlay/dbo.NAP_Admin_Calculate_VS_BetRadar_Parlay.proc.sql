@@ -20,6 +20,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
+		- 20170829@Kathy: Change datatype of bettransm.TransId, sporttype [Redmine:#73545]
 		
 	Param's Explanation:
 		• @Mode:
@@ -46,7 +47,7 @@ BEGIN
 		, fta 			INT 
 		, hth 			INT 
 		, hta 			INT
-		, sporttype 	TINYINT
+		, sporttype 	SMALLINT
 		, matchdate 	SMALLDATETIME
 	)
 	
@@ -192,7 +193,7 @@ BEGIN
 		
 	DECLARE @_xml XML, @_sXML varchar(MAX)
 	DECLARE @subtable TABLE(
-		transid 		INT
+		transid 		BIGINT
 		,statuswinlost 	TINYINT
 		,statusID 		TINYINT
 		,matchdate		SMALLDATETIME

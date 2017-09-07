@@ -12,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20160606@Bobby: Initialize
+		- 20170829@Kathy: 	Change datatype of bettransm.TransId [Redmine:#73545]
 		
 	Param's Explanation:
  
@@ -49,7 +50,7 @@ BEGIN
 	IF @@ROWCOUNT = 0 RETURN	
 		
 	DECLARE @_xml XML, @_sXML varchar(MAX)
-	DECLARE @subtable TABLE(transid INT)
+	DECLARE @subtable TABLE(transid BIGINT)
 	
 	BEGIN TRY
 		WHILE (1 = 1)
