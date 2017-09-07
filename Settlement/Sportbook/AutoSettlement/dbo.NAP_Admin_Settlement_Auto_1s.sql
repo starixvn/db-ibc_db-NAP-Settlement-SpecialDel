@@ -111,6 +111,7 @@ BEGIN
         , @sportType        = @sportType
         , @Action 			= @Action
         , @Mode 			= 6 --@Mode auto settlement
+        , @ResourceIDs      = @ResourceIDs
 		
 
     SET @strXML = CAST((SELECT  BetType '@t'
@@ -268,7 +269,8 @@ BEGIN
         , @sportType        = @sportType
         , @Action 			= @Action
         , @Mode 			= 6 --@Mode auto settlement
-		
+		, @ResourceIDs      = @ResourceIDs
+        
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
     ---------------------------VVVV------------------------------

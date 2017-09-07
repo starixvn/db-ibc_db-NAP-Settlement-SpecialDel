@@ -57,11 +57,10 @@ BEGIN
 	SELECT @xmlFMResults 	= CAST(ISNULL(@FMResults, '<r />') AS XML)
 		, @xmlBAResults 	= CAST(ISNULL(@BAResults, '<Results />') AS XML)
 		, @balanceType 		= 1 --default sportbook
-		, @ResourceIDs		= ISNULL(@ResourceIDs, '')
 	
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
-							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
+							WHEN @sportType IN (2,5) OR @Mode IN (6,7,8) THEN 1 
 							ELSE 0 
 						END
 		
@@ -82,7 +81,7 @@ BEGIN
 	END
 	ELSE --Capturing Balance M2
 	BEGIN
-		IF(@Mode IN (2,3,8)) --Tennis, BAIO & Early Payout
+		IF(@Mode IN (2,3,6,8)) --Tennis, BAIO & Early Payout
 		BEGIN
 			SELECT @matchid AS matchid
 				, custid
