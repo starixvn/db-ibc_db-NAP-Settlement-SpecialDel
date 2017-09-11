@@ -234,16 +234,16 @@ BEGIN
 				LEFT JOIN (
 					SELECT bn.custid
 						, bn.bonusId
+						, st.BonusFlag
 					FROM @tempBonusStatus bn
 						INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
 						ON bn.bonusStatus 	= st.StatusID
-					WHERE st.BonusFlag = 1
 				) AS temp
 					ON b.custid 		= temp.custid
 						AND b.bonusID 	= temp.bonusID
 						
 			WHERE temp.custid IS NULL 	--Cash Wallet
-				OR temp.bonusID > 0		--countable bonus status
+				OR (temp.BonusFlag = 1 AND temp.bonusID > 0)		--countable bonus status
 			
 			GROUP BY b.matchid
 				, b.custid
