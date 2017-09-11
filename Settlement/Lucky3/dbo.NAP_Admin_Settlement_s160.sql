@@ -239,7 +239,7 @@ BEGIN
 				
 				SELECT	@strCustId = @strCustId + CAST(CustId AS VARCHAR) + ','
 				FROM	#tmpCustId
-				WHERE	Id BETWEEN @Id AND @Id + 4000
+				WHERE	Id BETWEEN @Id AND @Id + 500
 				
 				IF @@rowcount = 0 
 					BREAK
@@ -247,7 +247,7 @@ BEGIN
 				INSERT INTO #tmpSMAWinningShare (CustId, WinningShareCom, WinningShareSuper, WinningShareMaster, WinningShareAgent)
 				EXEC DBCUST.CustDB.dbo.NAP_Set_WinningShareSel @strCustId = @strCustId, @VendorID = 16
 				
-				SET @Id = @Id + 4000
+				SET @Id = @Id + 500
 			END
 			
 			SET @strCustSetting = CAST((SELECT	CustId '@id'
@@ -329,6 +329,7 @@ BEGIN
 				,0 AS modds
 		FROM	dbo.bettrans WITH(ROWLOCK)
 		WHERE	MatchId = @MatchId
+				AND bettype = 1600
 	END
 	
 	BEGIN TRY
