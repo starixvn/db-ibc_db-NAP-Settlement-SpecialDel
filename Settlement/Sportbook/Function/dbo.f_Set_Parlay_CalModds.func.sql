@@ -87,6 +87,7 @@ AS
     Revisions:
 			- 20170525@Kathy: Add logic for bettype 617 [Redmine:#77046]
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
+			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			
     Parameters Explanation:    
 	
@@ -103,14 +104,14 @@ RETURN (
 									   WHEN @betcheck = '803' THEN @homeScoreSet3
 									   WHEN @betcheck = '804' THEN @homeScoreSet4
 									   WHEN @betcheck = '805' THEN @homeScoreSet5
-									   ELSE NULL
+									   ELSE 0
 									END AS TotalGameHomeSetx
 			,CASE WHEN @betcheck = '801' THEN @awayScoreSet1
 								   WHEN @betcheck = '802' THEN @awayScoreSet2
 								   WHEN @betcheck = '803' THEN @awayScoreSet3
 								   WHEN @betcheck = '804' THEN @awayScoreSet4
 								   WHEN @betcheck = '805' THEN @awayScoreSet5
-								   ELSE NULL
+								   ELSE 0
 								   END   AS TotalGameAwaySetx
 			,CASE WHEN @bettype = 416 THEN SUBSTRING(@transdesc,0, CHARINDEX('/',@transdesc)) ELSE NULL END AS ExcludingHTChoice
 			,CASE WHEN @bettype = 416 THEN SUBSTRING(@transdesc,CHARINDEX('/',@transdesc)+1,LEN(@transdesc)) ELSE NULL END AS ExcludingFTChoice
