@@ -34,6 +34,7 @@ AS
 		- 20160722@Bobby: #61240 - Implement parent-child for PHAIO new 19 bet types
 		- 20170414@Kent: Fix IBC to MBC [Redmine:#75009]
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
+		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -260,6 +261,15 @@ BEGIN
 		SELECT 141, 443	--Highest Scoring Half Home Team 
 		UNION ALL
 		SELECT 142, 444	--Highest Scoring Half Away Team 
+		----------------------------------
+		UNION ALL
+		SELECT 401, 461	--Home Team Over/Under 
+		UNION ALL
+		SELECT 402, 462	--Away Team Over/Under 
+		UNION ALL
+		SELECT 403, 463	--1H Home Team Over/Under 
+		UNION ALL
+		SELECT 404, 464	--1H Away Team Over/Under
 
 	INSERT INTO #TmpBettrans
 	SELECT srecommend
