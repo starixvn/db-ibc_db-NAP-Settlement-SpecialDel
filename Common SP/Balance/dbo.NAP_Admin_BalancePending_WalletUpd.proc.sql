@@ -220,7 +220,7 @@ BEGIN
 	*/
 	IF (@ActionID > 0)
 	BEGIN 
-		WITH BalanceNegative AS (
+		WITH cteBalanceNegative AS (
 			SELECT
 				b.matchid
 				, b.custid
@@ -231,6 +231,9 @@ BEGIN
 				INNER JOIN @BalanceWalletAfter a 
 					ON b.matchid 		= a.matchid
 					AND b.custid 		= a.custid
+					AND b.walletType	= a.walletType
+					AND b.bonusID		= a.bonusID
+					AND b.balanceType	= a.balanceType 
 				LEFT JOIN (
 					SELECT bn.custid
 						, bn.bonusId
@@ -271,7 +274,7 @@ BEGIN
 				,Balance
 				,0
 				,NULL
-		FROM BalanceNegative bal
+		FROM cteBalanceNegative bal
 			LEFT JOIN dbo.f_Settle_NegativeBalance_ActionGroup() AS bg
 			ON bal.ActionId = bg.ActionId
 	END
