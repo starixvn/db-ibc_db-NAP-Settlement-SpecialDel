@@ -34,13 +34,13 @@ BEGIN
 			,@ActionId				TINYINT
 			,@FirstPrizeMaxCount	TINYINT
 			,@PrizeSettingId		INT
-			,@strMatchInfo			VARCHAR(MAX) = ''
-			,@strCustId				VARCHAR(8000) = ''
-			,@strCustSetting		VARCHAR(MAX) = ''
+			,@strMatchInfo			VARCHAR(MAX)
+			,@strCustId				VARCHAR(8000)
+			,@strCustSetting		VARCHAR(MAX)
 			,@batchCount			INT = 2000
-			,@xml					VARCHAR(MAX) = ''
-			,@balanceUpd			VARCHAR(MAX) = ''
-			,@balanceAcc			VARCHAR(MAX) = ''
+			,@xml					VARCHAR(MAX)
+			,@balanceUpd			VARCHAR(MAX)
+			,@balanceAcc			VARCHAR(MAX)
 			
 			,@oldFirstBall 			TINYINT
 			,@oldSecondBall			TINYINT
@@ -48,6 +48,8 @@ BEGIN
 	
 	DECLARE @BeforeUpd 	TVP_BalanceChange
 	DECLARE @AfterUpd 	TVP_BalanceChange	
+	
+	DECLARE @tmpBetTickets TVP_Settlement_BetTicket
 	
 	CREATE TABLE #tmpTicketResults (
 		TransId			BIGINT PRIMARY KEY
@@ -64,7 +66,6 @@ BEGIN
 		,StatusId		TINYINT
 		,modds			SMALLMONEY
 	)
-	DECLARE @tmpBetTickets TVP_Settlement_BetTicket
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
@@ -153,6 +154,12 @@ BEGIN
 							WHEN 'REFUND' THEN 193
 							WHEN 'UNDO' THEN 194
 						END
+			,@strMatchInfo = ''
+			,@strCustId = ''
+			,@strCustSetting = ''
+			,@xml = ''
+			,@balanceUpd = ''
+			,@balanceAcc = ''
 	
 	SELECT 	@oldFirstBall = FirstBall
 			,@oldSecondBall = SecondBall

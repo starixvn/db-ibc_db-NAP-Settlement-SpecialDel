@@ -54,6 +54,7 @@ BEGIN
 		,SecondBall			VARCHAR(2)
 		,ThirdBall			VARCHAR(2)
 		,HitCount			TINYINT
+		,WinlostDate		SMALLDATETIME
 	)
 	
 	CREATE TABLE #tmpVoidedTransId (TransId BIGINT)
@@ -118,6 +119,7 @@ BEGIN
 				,SecondBall
 				,ThirdBall
 				,HitCount
+				,WinlostDate
 			)
 			SELECT	matchid
 					,transid
@@ -147,7 +149,8 @@ BEGIN
 										ELSE 0
 									END
 							END
-					END AS HitCount		
+					END AS HitCount	
+					,b.winlostdate	
 			FROM	dbo.bettrans b WITH(ROWLOCK)		
 				CROSS APPLY (
 					SELECT  REPLACE(REPLACE(','+ b.transdesc + ',',' ',''),',0',',') transdesc -- remove space between numbers, remove 0 in front of 1 --> 9
@@ -212,6 +215,7 @@ BEGIN
 				,aDiscount
 				,sDiscount
 				,TransDesc
+				,WinlostDate
 			)
 			SELECT	t.MatchId
 					,t.TransId
@@ -249,6 +253,7 @@ BEGIN
 											END
 						ELSE NULL
 					END AS TransDesc
+					,t.WinlostDate
 			FROM	#tmpBettrans t
 				INNER JOIN dbo.Lucky3RefCombination i WITH(NOLOCK)
 					ON	t.livehomescore = i.BallCount
@@ -279,6 +284,7 @@ BEGIN
 					,Discount
 					,aDiscount
 					,sDiscount
+					,WinlostDate
 				)
 				SELECT	r.matchid
 						,r.transid
@@ -298,6 +304,7 @@ BEGIN
 						,0 AS Discount
 						,0 AS aDiscount
 						,0 AS sDiscount
+						,r.WinlostDate
 				FROM	dbo.BetLucky3Result r WITH(ROWLOCK)
 				WHERE	r.matchid = @matchid
 						AND r.Prize = 1
