@@ -47,6 +47,10 @@ RETURN (
             ,(151, 1, 1) -- Conner CAL
             ,(161, 1, 1) -- Conner FT
             ,(162, 1, 1) -- Conner HT
+			,(189, 1, 1) -- CAL Early Settlement
+			,(190, 1, 1) -- UNDO Early Settlement
+			,(191, 1, 1) -- REFUND Early Settlement
+			,(182, 1, 1) -- UNDO Instant Settlement
         ) AS t (ActionId, GroupId, IsActive)
     ) AS t ON t.GroupId = g.GroupId
   WHERE t.IsActive = 1
