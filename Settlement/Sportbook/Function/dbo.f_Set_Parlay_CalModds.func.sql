@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/SET QUOTED_IDENTIFIER ON
 ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	@bettype SMALLINT
 	, @betteam VARCHAR(50)
@@ -863,7 +863,17 @@ RETURN (
 						WHEN @betteam = 'o' THEN @fth - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @fth
 						ELSE -1 END
+				WHEN 461 THEN --Home Team Over/Under (dec)
+					CASE
+						WHEN @betteam = 'o' THEN @fth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fth
+						ELSE -1 END
 				WHEN 402 THEN --Away Team Over/Under
+					CASE
+						WHEN @betteam = 'o' THEN @fta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fta
+						ELSE -1 END
+				WHEN 462 THEN --Away Team Over/Under (dec)
 					CASE
 						WHEN @betteam = 'o' THEN @fta - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @fta
@@ -873,7 +883,17 @@ RETURN (
 						WHEN @betteam = 'o' THEN @hth - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @hth
 						ELSE -1 END
+				WHEN 463 THEN --1H Home Team Over/Under (dec)
+					CASE
+						WHEN @betteam = 'o' THEN @hth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @hth
+						ELSE -1 END
 				WHEN 404 THEN --1H Away Team Over/Under
+					CASE
+						WHEN @betteam = 'o' THEN @hta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @hta
+						ELSE -1 END
+				WHEN 464 THEN --1H Away Team Over/Under (dec)
 					CASE
 						WHEN @betteam = 'o' THEN @hta - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @hta
