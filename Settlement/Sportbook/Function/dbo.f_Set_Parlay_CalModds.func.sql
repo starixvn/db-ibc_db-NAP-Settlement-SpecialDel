@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/SET QUOTED_IDENTIFIER ON
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	@bettype SMALLINT
 	, @betteam VARCHAR(50)

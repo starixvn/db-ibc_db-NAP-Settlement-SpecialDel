@@ -11,6 +11,7 @@ AS
 	DB: DBTXN/BODB02  
 
 	Revisions:  
+		- 20170920@Kathy: get ticket information [Redmine:#83261]
 		
 	Param explanation:  
 		@strMatchIds: 	<root>
