@@ -148,11 +148,11 @@ BEGIN
 		,0
 		,0
 		,0
-		,0 AS IsMove
+		,m.IsMove
 	FROM(
 		 SELECT m.matchid, m.leagueid, m.sporttype, m.betstatus, m.eventstatus, m.eventdate, r.SettlementStatusID
 				,m.hthomescore, m.htawayscore, m.homeid, m.awayid, m.matchcode, m.kickofftime
-				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord
+				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord, 0 AS IsMove
 		 FROM	dbo.match m WITH (NOLOCK)
 			LEFT JOIN dbo.ResultDetail r WITH(NOLOCK)
 				ON m.matchid = r.MatchId AND r.ResourceId = '00'
@@ -160,7 +160,7 @@ BEGIN
 		UNION ALL
 		SELECT  m.matchid, m.leagueid, m.sporttype, m.betstatus, m.eventstatus, m.eventdate, r.SettlementStatusID
 				,m.hthomescore, m.htawayscore, m.homeid, m.awayid, m.matchcode, m.kickofftime
-				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord
+				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord, 1 AS IsMove
 		 FROM	dbo.match14 m WITH (NOLOCK)
 			LEFT JOIN dbo.ResultDetail14 r WITH(NOLOCK)
 				ON m.matchid = r.MatchId AND r.ResourceId = '00'
@@ -186,7 +186,7 @@ BEGIN
 				OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(m.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 			)
 	
-	SET @strBettypes = CAST((SELECT t.bettype
+	SET @strBettypes = CAST((SELECT t.bettype '@b'
 								FROM (VALUES(14),(127)) AS t(bettype)
 								FOR XML PATH ('bettype'), ROOT('root'), TYPE
 							) AS VARCHAR(8000)
@@ -233,7 +233,8 @@ BEGIN
 		FROM	#matchList m
 			INNER JOIN cteResults c
 				ON m.matchid = c.MatchId
-	
+		OPTION ( OPTIMIZE FOR ( @xmlResults = NULL ) )
+		
 		SELECT @MaxMatchId = MAX(matchid)
 		FROM	@tmpMatchId
 	END
@@ -406,14 +407,15 @@ BEGIN
 	FROM(
 			SELECT  MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
 			FROM	dbo.[ResultDetail] WITH (NOLOCK) 
+			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 0)
 			UNION ALL
 			SELECT	MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
 			FROM	dbo.ResultDetail14 WITH(NOLOCK)
+			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
 		) r
 	WHERE	(@Sporttype IN (2, 5)
 				OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
 			))
-			AND MatchID IN (SELECT MatchID FROM #matchList)
 			AND 1 = CASE
 						WHEN @Sporttype = 2 THEN CASE
 													WHEN LEN(ResourceId) = 2 THEN 1

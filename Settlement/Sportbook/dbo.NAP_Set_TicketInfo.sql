@@ -13,6 +13,20 @@ AS
 	Revisions:  
 		
 	Param explanation:  
+		@strMatchIds: 	<root>
+							<match m="" im="" />
+						</root>
+						(m: matchid, im: indicate this match is move to match14 or not)
+						
+						
+		@strBettypes:	<root>
+							<bettype b="" />
+						</root>
+		
+		@strResults:	<root>
+							<result m="" b="" e="" />
+						</root>
+						(m: matchid, b: bettype, e: indicate bettype is exist or not)
   
 */
 BEGIN
@@ -30,17 +44,20 @@ BEGIN
 	
 	INSERT INTO @tmpMatch (MatchId)
 	SELECT	T.C.value('@m', 'INT') AS MatchId
-	FROM	@xmlBettype.nodes('/root/matchid') AS T(C)
+	FROM	@xmlMatch.nodes('/root/match') AS T(C)
 	WHERE	T.C.value('@im', 'BIT') = 0
+	OPTION ( OPTIMIZE FOR ( @xmlMatch = NULL ) )
 	
 	INSERT INTO @tmpMatch14 (MatchId)
 	SELECT	T.C.value('@m', 'INT') AS MatchId
-	FROM	@xmlBettype.nodes('/root/matchid') AS T(C)
+	FROM	@xmlMatch.nodes('/root/match') AS T(C)
 	WHERE	T.C.value('@im', 'BIT') = 1
+	OPTION ( OPTIMIZE FOR ( @xmlMatch = NULL ) )
 	
 	INSERT INTO @tmpBettype (Bettype)
 	SELECT	T.C.value('@b', 'SMALLINT') AS MatchId
 	FROM	@xmlBettype.nodes('/root/bettype') AS T(C)
+	OPTION ( OPTIMIZE FOR ( @xmlBettype = NULL ) )
 	
 	SET  @strResults = CAST((
 					SELECT	t.matchid	AS '@m'
