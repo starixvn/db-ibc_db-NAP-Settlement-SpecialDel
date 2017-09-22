@@ -34,7 +34,6 @@ AS
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170424@Kent: Implement Concurrency Checking [Redmine:#72059]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
-		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -214,7 +213,6 @@ BEGIN
 	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
 	OPTION (maxrecursion 0)
 	
-	-- Get all licensees of MBCGroup
 	DELETE FROM #t_LicenseeNames WHERE LicenseeName = @MBCGroup_Name
 	IF @@ROWCOUNT > 0
 		INSERT INTO #t_LicenseeNames(LicenseeName)

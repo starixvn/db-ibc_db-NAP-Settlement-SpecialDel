@@ -21,7 +21,6 @@ AS
 		- 20170313@Kent: Integrate cash-out [Redmine:#72059]
 		- 20170418@Kent: Fix Returned Data Type For Bit Columns [Redmine:#75009]
 		- 20170417@Kent: Tune performance [Redmine:#72059]
-		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -99,7 +98,6 @@ BEGIN
 	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
 	OPTION (maxrecursion 0)		
 	
-	-- Get all licensees of MBCGroup
 	DELETE FROM #t_LicenseeNames WHERE LicenseeName = @MBCGroup_Name
 	IF @@ROWCOUNT > 0
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
