@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]    Script Date: 04/25/2016 09:31:50 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update] 
 	@MatchID			INT = 0,
 	@LicenseeNames		VARCHAR(MAX),
@@ -34,6 +28,7 @@ AS
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170424@Kent: Implement Concurrency Checking [Redmine:#72059]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -48,8 +43,10 @@ BEGIN
 		 , @ErrorMsg = ''  
 		 , @InvalidTransIds = ''
 	
+	-- Constant
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
-		  , @789y_Name	   VARCHAR(50) = '789y'		  
+		  , @789y_Name	   VARCHAR(50) = '789y'	
+		  , @y987_Name	   VARCHAR(50) = 'y987'	  
 		  , @VoidPatchSize INT = 100
 	
 	DECLARE @LogData					NVARCHAR(500) = ''
@@ -198,8 +195,10 @@ BEGIN
 	
 	CREATE TABLE #t_CustID_501(custid INT PRIMARY KEY)				
 	
-	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100))
+	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)	
+	
+	CREATE TABLE #t_UIRepresentativeLicenseeGroupNames(GroupName VARCHAR(100))
 	
 	CREATE TABLE #t_exchanges(exchangeid INT, currency NVARCHAR(50))
 	
@@ -208,19 +207,43 @@ BEGIN
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
 	
 	-------> Parse @LicenseeNames	
-	INSERT INTO #t_LicenseeNames(LicenseeName)
-	SELECT ss.val
+	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
+	SELECT ss.val AS LicenseeName, ss.val AS GroupName
 	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
 	OPTION (maxrecursion 0)
 	
-	DELETE FROM #t_LicenseeNames WHERE LicenseeName = @MBCGroup_Name
+	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
+	DELETE FROM #t_LicenseeNames 
+	OUTPUT DELETED.GroupName 
+			INTO #t_UIRepresentativeLicenseeGroupNames(GroupName)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name)
+	
 	IF @@ROWCOUNT > 0
-		INSERT INTO #t_LicenseeNames(LicenseeName)
-		SELECT [site]
-		FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
-		WHERE isLicensee = 0		   
-		  AND isActive = 1	
-		  AND [site] <> @789y_Name -- '789y' is treated as special licensee as 'MBC Group'
+	BEGIN
+		;WITH CTE_CreditSit AS
+		(
+			SELECT [site]
+			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
+			WHERE isLicensee = 0		  
+			  AND isActive = 1
+		)
+		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
+		SELECT cte.[site] AS LicenseeName, t.GroupName
+		FROM #t_UIRepresentativeLicenseeGroupNames AS t
+			 CROSS APPLY (
+							SELECT cte.[site]
+							FROM CTE_CreditSit cte
+							WHERE CASE
+										WHEN t.GroupName = @MBCGroup_Name 
+											 AND cte.[site] NOT IN (@789y_Name, @y987_Name) 
+													THEN 1
+										WHEN t.GroupName = @789y_Name 
+											 AND cte.[site] IN (@789y_Name, @y987_Name) 
+													THEN 1
+										ELSE 0
+								  END = 1
+						 ) AS cte
+	END						 
 	
 	-------> Parse @CurrencyIDs	  
 	INSERT INTO #t_exchanges(exchangeid, currency)
@@ -1871,10 +1894,5 @@ BEGIN
 			
 	SET NOCOUNT OFF
 END
-GO
-
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]  TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]  TO [vnteam] AS [dbo]
 GO
 			
