@@ -88,6 +88,7 @@ AS
 			- 20170525@Kathy: Add logic for bettype 617 [Redmine:#77046]
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
+			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 			
     Parameters Explanation:    
 	
