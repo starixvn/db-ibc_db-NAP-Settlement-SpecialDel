@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBACC-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
 USE [bodb02]
 GO
 
@@ -9,7 +9,7 @@ RETURN
 /*
 	Created: 20141016@Sophia
 	Task:	Get grouped bettype for primary - secondary bettypes
-	DB: DBAGE.bodb02, DBEXT.bodb02, DBACC.bodb02, DBTXN.bodb02
+	DB: DBAGE.bodb02, DBEXT.bodb02, DBACC.bodb02, DBPRO.bodb02
 	Remark: This function is used many sites (NAP, Alpha, ExtNAP, LRF, Special Delete)
  	
 	Revisions: 
