@@ -1,15 +1,4 @@
-USE [bodb_ACC]
-GO
-/****** Object:  StoredProcedure [dbo].[Acc_MailingListSel]    Script Date: 3/27/2017 5:18:40 AM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/15/2015 5:41:31 AM ******/
-/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/3/2015 8:47:38 AM ******/
-/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 9/3/2015 8:46:04 AM ******/
-/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 8/21/2015 9:11:20 AM ******/
-/****** Object:  Stored Procedure dbo.Acc_MailingListSel    Script Date: 8/21/2015 9:10:01 AM ******/
+/*<info serverAlias="DBACC-BODB_ACC" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_MailingListSel] 
 	@FuncID int = 287  -- [SpecialDeleteMailing]
 AS 
@@ -31,6 +20,7 @@ AS
 		- 20150615@Dominic: Add BetTrade's group RM:#36964
 		- 20170327@Kent: Integrate Cash-out [Redmine:#72059]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20170928@Johnson: sort by site [Redmine: #83985]
 */    
 BEGIN 
 
@@ -124,5 +114,7 @@ BEGIN
 	    FROM Acc_MailingList WITH(NOLOCK)  
 	    WHERE FuncID = @FuncID   
 	    and SiteId = 1000008
+		ORDER BY site ASC
 	END    
 END
+GO
