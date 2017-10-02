@@ -370,13 +370,13 @@ BEGIN
 								ELSE 0
 							END
 				,PlayerComm = p.Stake * r.PlayerDiscount
-				,Comm = p.Stake * p.Discount * (1 - r.aPositionTaking)
-				,aComm = p.Stake * p.aDiscount * (1 - r.aPositionTaking - r.mPositionTaking)
-				,sComm = p.Stake * p.sDiscount * (1 - r.aPositionTaking - r.mPositionTaking - r.sPositionTaking)
+				,Comm = p.Stake * ISNULL(p.Discount,0) * (1 - r.aPositionTaking)
+				,aComm = p.Stake * ISNULL(p.aDiscount,0) * (1 - r.aPositionTaking - r.mPositionTaking)
+				,sComm = p.Stake * ISNULL(p.sDiscount,0) * (1 - r.aPositionTaking - r.mPositionTaking - r.sPositionTaking)
 				
-				,sDiscount = p.sDiscount
-				,aDiscount = p.aDiscount
-				,Discount = p.Discount
+				,sDiscount = ISNULL(p.sDiscount,0)
+				,aDiscount = ISNULL(p.aDiscount,0)
+				,Discount = ISNULL(p.Discount,0)
 		FROM	dbo.BetLucky3Result r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN dbo.Lucky3PrizeSettingDetail l WITH(NOLOCK)
 				ON	r.Currency = l.ExchangeId
