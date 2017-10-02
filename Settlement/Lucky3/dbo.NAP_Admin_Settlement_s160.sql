@@ -337,6 +337,7 @@ BEGIN
 		FROM	dbo.bettrans WITH(ROWLOCK)
 		WHERE	MatchId = @MatchId
 				AND bettype = 1600
+				AND statusId NOT IN (101, 102)
 	END
 	
 	BEGIN TRY
