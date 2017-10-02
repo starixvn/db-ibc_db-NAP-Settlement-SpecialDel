@@ -22,10 +22,10 @@ AS
 		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
 
 	Param's Explanation:
-	• @Mode:
+	? @Mode:
 		CAL : All single BetTypes (HT-FT)
 		RECOVER : Re-settle single ticket
-	• @TicketInfos : 
+	? @TicketInfos : 
 		meaning : single transids (bettrans.transid)	
 		format xml : <root><r m="1234" t="2333" /></root>
 */
@@ -161,7 +161,7 @@ BEGIN
 				WinLost, aWinLost, mWinLost, sWinLost, 
 				PlayerComm, comm, acomm, scomm,
 				StatusID, ods.modds						
-			FROM dbo.bettrans b WITH(ROWLOCK)
+			FROM dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN #tblMatchResult mr 
 					ON b.matchid = mr.matchid
 				INNER JOIN @tempBettype AS temp
@@ -203,7 +203,7 @@ BEGIN
 					WinLost, aWinLost, mWinLost, sWinLost, 
 					PlayerComm, comm, acomm, scomm,
 					StatusID, ods.modds					
-			FROM dbo.bettrans b WITH(ROWLOCK)
+			FROM dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN #tblMatchResult mr 
 					ON b.matchid = mr.matchid
 				INNER JOIN #tblTicketInfos t 
