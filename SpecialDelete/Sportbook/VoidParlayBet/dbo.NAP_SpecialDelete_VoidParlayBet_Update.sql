@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	       
 	@Handicap			SMALLMONEY  = 9999,  -- 1, 3, 7, 8, 17, 153, 183, 1303, 1306, 1308, 21, 603, 604, 605, 606, 607: Handicap, Odd/Even, Over/Under...     
 	@Handicap155		SMALLMONEY  = 9999,  -- 155, 1316  
-	@Handicap178		SMALLMONEY		= 9999,		-- 178,197,198,204,205, 401, 402, 403, 404, 18
+	@Handicap178		SMALLMONEY		= 9999,		-- 178,197,198,204,205, 401, 402, 403, 404, 18, 461, 462, 463, 464
 	@Handicap609		SMALLMONEY	= 9999, -- 609,612,613,617
 	@OverUnder156		SMALLMONEY  = 9999,  -- 156, 1312 
 	@OverUnder610		SMALLMONEY	= 9999, -- 610,615,616 
@@ -33,7 +33,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	@BetTeam1317   		VARCHAR(120) = 'ALL',  -- 1317   
 	@BetTeam1318   		VARCHAR(3)  = 'ALL',  -- 1318    
 	@BetTeam1324   		VARCHAR(3)  = 'ALL',  -- 1324  
-	@BetTeam178			VARCHAR(10)		= 'ALL',	-- 178,197,198,204,205, 401, 402, 403, 404, 18: 2H Over/Under...
+	@BetTeam178			VARCHAR(10)		= 'ALL',	-- 178,197,198,204,205, 401, 402, 403, 404, 18, 461, 462, 463, 464: 2H Over/Under...
 	@BetTeam165    		VARCHAR(120) = 'ALL', -- 165,166  
 	@BetTeam159    		VARCHAR(120) = 'ALL', -- 159,179,406: All Exact Total Goals  
 	@BetTeam161    		VARCHAR(120) = 'ALL', -- 161,162,181,182, 407, 409, 412,429: All Exact Team Goals  
@@ -90,6 +90,7 @@ AS
    
 	 Revisions:  
 		- 20170814@Paul: Create new SP; Allow voiding settled tickets [Redmine:#81481]
+		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 
 	 Param's Explanation:   
    
@@ -250,7 +251,7 @@ BEGIN
 		FROM	#BetDelete AS r     
 			INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt 
 				ON	bt.val=r.bettype    
-		WHERE	r.bettype IN (178,197,198,204,205, 401, 402, 403, 404, 18) 
+		WHERE	r.bettype IN (178,197,198,204,205, 401, 402, 403, 404, 18, 461, 462, 463, 464) 
 				AND (hdp1<>@Handicap178-hdp2)
      
     
@@ -355,13 +356,13 @@ BEGIN
 
 	IF @BetTeam178=''    
 		DELETE	#BetDelete    
-		WHERE	bettype in (178,197,198,204,205, 401, 402, 403, 404, 18)
+		WHERE	bettype in (178,197,198,204,205, 401, 402, 403, 404, 18, 461, 462, 463, 464)
 	ELSE IF @BetTeam178<>'All'     
 		DELETE	r    
 		FROM	#BetDelete AS r      
 			LEFT JOIN dbo.strSplit(@BetTeam178,'^') AS b178 
 				ON	b178.val=r.org_betteam      
-		WHERE	r.bettype in (178,197,198,204,205, 401, 402, 403, 404, 18) 
+		WHERE	r.bettype in (178,197,198,204,205, 401, 402, 403, 404, 18, 461, 462, 463, 464) 
 				AND (b178.val IS NULL)	
 
 	IF @BetTeam165=''    
@@ -1095,6 +1096,4 @@ BEGIN
 	   
 	SET NOCOUNT OFF  
 END
-
-
 GO
