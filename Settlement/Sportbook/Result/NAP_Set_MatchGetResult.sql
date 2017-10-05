@@ -19,6 +19,7 @@ AS
 		- 20170209@Bobby: Add filtering Abandoned status [Redmine: #71284]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
+		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
 
 	Param explanation:  
 		@sporttype: show info of particular sport
@@ -29,23 +30,16 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @eventstatus NVARCHAR(50)
-		,@isRefund BIT
+	DECLARE @eventstatus	NVARCHAR(50)
+		,@isRefund			BIT
+		,@strMatchIds		VARCHAR(8000)
+		,@strBettypes		VARCHAR(8000)
+		,@strResults		VARCHAR(8000)
+		,@xmlResults		XML
+		,@MaxMatchId		INT
 
-	SELECT @eventstatus = CASE @statusid
-			WHEN 1 THEN 'running'
-			WHEN 2 THEN 'closed'
-			WHEN 3 THEN 'completed'
-			WHEN 6 THEN 'completed'
-			ELSE ''
-			END
-		,@isRefund = CASE @statusid
-			WHEN 4 THEN 1
-			WHEN 6 THEN 1
-			WHEN 0 THEN NULL
-			ELSE 0
-			END
-
+	DECLARE @tmpMatchId TABLE (matchid INT, isMove BIT)
+		
 	CREATE TABLE #matchList (
 		HalfTimeHomeScore INT
 		,HalfTimeAwayScore INT
@@ -79,15 +73,24 @@ BEGIN
 		,IsExistHTFGLG BIT
 		,WinOdds MONEY
 		,PlaceOdds MONEY
+		,isMove BIT
 		)
 
-	DECLARE @matchid VARCHAR(MAX)
-		,@betstatus VARCHAR(8000)
-		,@intDocHandle INT
-		,@rowcount INT
-		,@max_matchid INT
-	DECLARE @tmp_match TABLE (matchid INT)
-
+	SELECT @eventstatus = CASE @statusid
+			WHEN 1 THEN 'running'
+			WHEN 2 THEN 'closed'
+			WHEN 3 THEN 'completed'
+			WHEN 6 THEN 'completed'
+			ELSE ''
+			END
+		,@isRefund = CASE @statusid
+			WHEN 4 THEN 1
+			WHEN 6 THEN 1
+			WHEN 0 THEN NULL
+			ELSE 0
+			END
+		,@MaxMatchId = 0
+		
 	INSERT INTO #matchList
 	SELECT hthomescore
 		,htawayscore
@@ -145,9 +148,24 @@ BEGIN
 		,0
 		,0
 		,0
-	FROM dbo.match m WITH (NOLOCK)
+		,m.IsMove
+	FROM(
+		 SELECT m.matchid, m.leagueid, m.sporttype, m.betstatus, m.eventstatus, m.eventdate, r.SettlementStatusID
+				,m.hthomescore, m.htawayscore, m.homeid, m.awayid, m.matchcode, m.kickofftime
+				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord, 0 AS IsMove
+		 FROM	dbo.match m WITH (NOLOCK)
+			LEFT JOIN dbo.ResultDetail r WITH(NOLOCK)
+				ON m.matchid = r.MatchId AND r.ResourceId = '00'
+				
+		UNION ALL
+		SELECT  m.matchid, m.leagueid, m.sporttype, m.betstatus, m.eventstatus, m.eventdate, r.SettlementStatusID
+				,m.hthomescore, m.htawayscore, m.homeid, m.awayid, m.matchcode, m.kickofftime
+				,m.finalhomescore, m.finalawayscore, m.IsNeutral, m.GoalRecord, 1 AS IsMove
+		 FROM	dbo.match14 m WITH (NOLOCK)
+			LEFT JOIN dbo.ResultDetail14 r WITH(NOLOCK)
+				ON m.matchid = r.MatchId AND r.ResourceId = '00'
+	) m
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
-		LEFT JOIN dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = R.MatchId AND r.ResourceId='00'
 	WHERE	m.eventdate = @Date 
 			AND m.leagueID = CASE WHEN @LeagueID <> 0 THEN @LeagueID ELSE m.leagueID END 
 			AND m.sporttype = CASE WHEN @sporttype = 0 THEN m.sporttype ELSE @sporttype END 
@@ -164,83 +182,63 @@ BEGIN
 					)
 				) 
 				OR (m.sporttype <> 5 AND @isRefund = 0 AND ISNULL(betstatus, '') NOT LIKE 'Refund%' AND ISNULL(betstatus, '') NOT LIKE 'Abandoned%')
-				OR (m.sporttype = 5 AND @isRefund = 1 AND ISNULL(r.SettlementStatusID,0) BETWEEN 1 AND 3)
-				OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
+				OR (m.sporttype = 5 AND @isRefund = 1 AND ISNULL(m.SettlementStatusID,0) BETWEEN 1 AND 3)
+				OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(m.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 			)
-
-	SELECT @rowcount = 0
-		,@max_matchid = 0
-
+	
+	SET @strBettypes = CAST((SELECT t.bettype '@b'
+								FROM (VALUES(14),(127)) AS t(bettype)
+								FOR XML PATH ('bettype'), ROOT('root'), TYPE
+							) AS VARCHAR(8000)
+						)
+	
 	WHILE (1 = 1)
 	BEGIN
-		DELETE @tmp_match
+		DELETE @tmpMatchId
+		SET @strResults = NULL
 
-		INSERT INTO @tmp_match (matchid)
-		SELECT TOP 100 matchid
+		INSERT INTO @tmpMatchId (matchid)
+		SELECT TOP 200 matchid
 		FROM #matchList
-		WHERE matchid > @max_matchid
+		WHERE matchid > @MaxMatchId
 		ORDER BY matchid ASC
 
-		SELECT @rowcount = @@rowcount
+		IF @@rowcount = 0
+			BREAK
 
-		IF @rowcount = 0
-			BREAK;
+		SELECT @strMatchIds = CAST((
+									SELECT	matchid '@m'
+											,isMove '@im'
+									FROM	@tmpMatchId
+									FOR XML PATH('match'), ROOT('root'), TYPE
+									) AS VARCHAR(8000) )
 
-		SELECT @max_matchid = MAX(matchid)
-		FROM @tmp_match
-
-		SELECT @matchid = (
-				SELECT matchid
-				FROM @tmp_match
-				FOR XML PATH('match')
-					,ROOT('root')
-				)
-
-		-- FGLG
-		EXEC DBTXN.bodb02.dbo.NAP_Set_MatchBetStatusSel @matchid = @matchid
-			, @bettype = 14
-			,@betstatus = @betstatus OUTPUT
-
-		--Create an internal representation of the XML document.      
-		EXEC sp_xml_preparedocument @intDocHandle OUTPUT
-			,@betstatus
-
-		UPDATE m
-		SET IsExistFGLG = CASE 
-				WHEN rs.cnt = 0 OR rs.cnt IS NULL THEN 0
-				ELSE 1
-				END
-		FROM #matchList m
-			INNER JOIN @tmp_match t ON m.matchid = t.matchid
-			LEFT JOIN (
-			SELECT matchid
-				,cnt
-			FROM OPENXML(@intDocHandle, '/root/match', 2) WITH (matchid INT, cnt INT)
-			) rs ON m.matchid = rs.matchid
-
-		-- 1H FGLG
-		EXEC DBTXN.bodb02.dbo.NAP_Set_MatchBetStatusSel @matchid = @matchid
-			, @bettype = 127
-			,@betstatus = @betstatus OUTPUT
-
-		--Create an internal representation of the XML document.      
-		EXEC sp_xml_preparedocument @intDocHandle OUTPUT
-			,@betstatus
-
-		UPDATE m
-		SET IsExistHTFGLG = CASE 
-				WHEN rs.cnt = 0 OR rs.cnt IS NULL THEN 0
-				ELSE 1
-				END
-		FROM #matchList m
-			INNER JOIN @tmp_match t ON m.matchid = t.matchid
-			LEFT JOIN (
-			SELECT matchid
-				,cnt
-			FROM OPENXML(@intDocHandle, '/root/match', 2) WITH (matchid INT, cnt INT)
-			) rs ON m.matchid = rs.matchid
+		EXEC DBTXN.bodb02.dbo.NAP_Set_TicketInfo 
+			@strMatchIds = @strMatchIds
+			,@strBettypes = @strBettypes
+			,@strResults = @strResults OUTPUT
+		
+		SET @xmlResults = CAST(@strResults AS XML)
+		
+		;WITH cteResults
+		AS(
+			SELECT	T.C.value('@m', 'INT') AS MatchId
+					,T.C.value('@b', 'INT') AS Bettype
+					,T.C.value('@e', 'BIT') AS IsExist
+			FROM	@xmlResults.nodes('/root/result') AS T(C)
+		)
+		UPDATE m 
+			SET IsExistFGLG = CASE WHEN c.bettype = 14 AND c.IsExist = 1 THEN 1 ELSE 0 END
+				,IsExistHTFGLG = CASE WHEN c.bettype = 127 AND c.IsExist = 1 THEN 1 ELSE 0 END
+		FROM	#matchList m
+			INNER JOIN cteResults c
+				ON m.matchid = c.MatchId
+		OPTION ( OPTIMIZE FOR ( @xmlResults = NULL ) )
+		
+		SELECT @MaxMatchId = MAX(matchid)
+		FROM	@tmpMatchId
 	END
-
+	
 	-- outright table
 	INSERT INTO #matchList
 	SELECT o.IsFavor hthomescore --TF  
@@ -278,6 +276,7 @@ BEGIN
 		,0 AS IsExistHTFGLG
 		,o.Odds
 		,o.PlaceOdds
+		,0 as isMove
 	FROM dbo.outright o WITH (NOLOCK)
 		INNER JOIN league l WITH (NOLOCK) ON o.leagueid = l.leagueid
 	WHERE o.eventdate = @Date AND l.sporttype BETWEEN (CASE 
@@ -331,6 +330,7 @@ BEGIN
 		,0 AS IsExistHTFGLG
 		,o.WinOdds
 		,o.PlaceOdds
+		,0 AS IsMove
 	FROM VSOutright o WITH (NOLOCK)
 		INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
 		INNER JOIN league l WITH (NOLOCK) ON r.leagueid = l.leagueid
@@ -404,11 +404,18 @@ BEGIN
 						OR (@Sporttype = 2 AND LEN(ResourceId) = 2 AND SettlementStatusID = 0)
 							THEN 4 
 				   ELSE SettlementStatusID END AS SettlementStatusID
-	FROM	dbo.[ResultDetail] WITH (NOLOCK) 
+	FROM(
+			SELECT  MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+			FROM	dbo.[ResultDetail] WITH (NOLOCK) 
+			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 0)
+			UNION ALL
+			SELECT	MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+			FROM	dbo.ResultDetail14 WITH(NOLOCK)
+			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
+		) r
 	WHERE	(@Sporttype IN (2, 5)
 				OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
 			))
-			AND MatchID IN (SELECT MatchID FROM #matchList)
 			AND 1 = CASE
 						WHEN @Sporttype = 2 THEN CASE
 													WHEN LEN(ResourceId) = 2 THEN 1

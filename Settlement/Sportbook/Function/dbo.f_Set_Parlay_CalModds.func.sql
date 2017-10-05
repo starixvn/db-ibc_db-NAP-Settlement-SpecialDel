@@ -88,6 +88,7 @@ AS
 			- 20170525@Kathy: Add logic for bettype 617 [Redmine:#77046]
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
+			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 			
     Parameters Explanation:    
 	
@@ -863,7 +864,17 @@ RETURN (
 						WHEN @betteam = 'o' THEN @fth - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @fth
 						ELSE -1 END
+				WHEN 461 THEN --Home Team Over/Under (dec)
+					CASE
+						WHEN @betteam = 'o' THEN @fth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fth
+						ELSE -1 END
 				WHEN 402 THEN --Away Team Over/Under
+					CASE
+						WHEN @betteam = 'o' THEN @fta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fta
+						ELSE -1 END
+				WHEN 462 THEN --Away Team Over/Under (dec)
 					CASE
 						WHEN @betteam = 'o' THEN @fta - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @fta
@@ -873,7 +884,17 @@ RETURN (
 						WHEN @betteam = 'o' THEN @hth - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @hth
 						ELSE -1 END
+				WHEN 463 THEN --1H Home Team Over/Under (dec)
+					CASE
+						WHEN @betteam = 'o' THEN @hth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @hth
+						ELSE -1 END
 				WHEN 404 THEN --1H Away Team Over/Under
+					CASE
+						WHEN @betteam = 'o' THEN @hta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @hta
+						ELSE -1 END
+				WHEN 464 THEN --1H Away Team Over/Under (dec)
 					CASE
 						WHEN @betteam = 'o' THEN @hta - @hdp1
 						WHEN @betteam = 'u' THEN @hdp1 - @hta
