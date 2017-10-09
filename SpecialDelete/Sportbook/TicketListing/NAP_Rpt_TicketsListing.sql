@@ -193,7 +193,8 @@ BEGIN
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
-    FROM [dbo].[f_GroupBettype] () f		
+    FROM [dbo].[f_GroupBettype] () f
+    WHERE f.Bettype NOT IN (187, 179) 		
 
 	INSERT INTO #TmpBettrans
 	SELECT srecommend

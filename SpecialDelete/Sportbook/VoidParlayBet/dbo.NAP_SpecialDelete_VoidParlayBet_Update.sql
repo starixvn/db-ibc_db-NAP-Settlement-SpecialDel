@@ -17,8 +17,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	  
 	    
 	@BetTypes			VARCHAR(1000) = '',   
-	@BetTeam1378		VARCHAR(10) 	= 'ALL',	-- 1, 2, 3, 7, 8, 12, 17, 20, 153,157,168,183,185,191, 1301, 1303, 1305, 1306, 1308, 411, 501,432, 425, 21, 603, 604, 605, 606, 607: Handicap, Odd/Even, Over/Under...   
-	@BetTeam515			VARCHAR(10) 	= 'ALL',	-- 5,15,160,164,167,176,177,180,430
+	@BetTeam1378		VARCHAR(10) 	= 'ALL',	-- 1, 2, 3, 7, 8, 12, 17, 20, 153,157,168,183,185,191, 1301, 1303, 1305, 1306, 1308, 411, 501,432, 425, 21, 603, 604, 605, 606, 607, 25, 460: Handicap, Odd/Even, Over/Under...   
+	@BetTeam515			VARCHAR(10) 	= 'ALL',	-- 5,15,160,164,167,176,177,180,430, 458, 459, 22
 	@BetTeam430			VARCHAR(120)  = '',  -- 4, 30, 405: All Correct Scores  
 	@BetTeam6			VARCHAR(120)  = '',  -- 6, 126, 131, 132  
 	@BetTeam14    		VARCHAR(120)  = '',  
@@ -52,6 +52,12 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	@BetTeam614			VARCHAR(MAX) 	= 'ALL', -- 614
 	@BetTeam602			VARCHAR(MAX) 	= 'ALL', -- 602,608
 	@BetTeam601			VARCHAR(MAX) 	= 'ALL', -- 601
+	@BetTeam140			VARCHAR(MAX) 	= 'ALL', -- 140, 452, 442
+	@BetTeam448			VARCHAR(MAX) 	= 'ALL', -- 448
+	@BetTeam449			VARCHAR(MAX) 	= 'ALL', -- 449
+	@BetTeam450			VARCHAR(MAX) 	= 'ALL', -- 450
+	@BetTeam451			VARCHAR(MAX) 	= 'ALL', -- 451
+	@BetTeam416			VARCHAR(MAX) 	= 'ALL', -- 416
 	   	
 	@Quarter609			VARCHAR(10)		= 'ALL', -- 609,612,613,617				
 	@Quarter611			VARCHAR(10)		= 'ALL', -- 611			
@@ -66,7 +72,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	  
 	@Game1324			VARCHAR(3)  = 'ALL',  -- 1324   
 	  
-	@BetID160			TINYINT   = 100,  --160,164,180  
+	@BetID160			TINYINT   = 100,  --160,164,180, 22  
 	  
 	@TransIds			VARCHAR(MAX) ='',  
 	  
@@ -91,6 +97,7 @@ AS
 	 Revisions:  
 		- 20170814@Paul: Create new SP; Allow voiding settled tickets [Redmine:#81481]
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
+		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 
 	 Param's Explanation:   
    
@@ -226,7 +233,8 @@ BEGIN
 			INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt 
 				ON	bt.val=r.bettype  
 		WHERE	r.bettype IN (1, 2, 3, 7, 8, 12, 17, 20, 153,157,168,183,185,191, 1301, 1303, 1305, 1306, 1308,411,501,432, 425
-							, 21, 603, 604, 605, 606, 607) 
+							, 21, 603, 604, 605, 606, 607
+							, 25, 460) 
 				AND (r.org_betteam<>@betteam1378)
 
 	IF @BetTeam515 <> 'All'  
@@ -234,9 +242,45 @@ BEGIN
 		FROM	#BetDelete AS r   
 			INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt 
 				ON	bt.val=r.bettype  
-		WHERE	r.bettype in (5,15,160,164,167,176,177,180,430) 
+		WHERE	r.bettype in (5,15,160,164,167,176,177,180,430, 458, 459, 22) 
 				AND (r.org_betteam<>@betteam515)
 
+	IF @BetTeam140<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (140, 452, 442) AND (r.org_betteam<>@BetTeam140)
+	
+	IF @BetTeam448<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (448) AND (r.org_betteam<>@BetTeam448)
+	
+	IF @BetTeam449<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (449) AND (r.org_betteam<>@BetTeam449)
+	
+	IF @BetTeam450<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (450) AND (r.org_betteam<>@BetTeam450)
+	
+	IF @BetTeam451<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (451) AND (r.org_betteam<>@BetTeam451)
+	
+	IF @BetTeam416<>'All'  
+		DELETE r  
+		FROM #BetDelete AS r   
+		INNER JOIN dbo.strSplit(@BetTypes,'^') AS bt ON bt.val=r.bettype  
+		WHERE r.bettype in (416) AND (r.org_betteam<>@BetTeam416)
+	
 	IF @Handicap <> 9999  
 		DELETE	r  
 		FROM	#BetDelete AS r   
@@ -571,7 +615,12 @@ BEGIN
 		DELETE	r  
 		FROM	#BetDelete AS r  
 		WHERE	r.bettype = 180  
-				AND r.betcheck <> CAST((818000 + @BetID160) AS NVARCHAR(50))  
+				AND r.betcheck <> CAST((818000 + @BetID160) AS NVARCHAR(50)) 
+				
+		DELETE r
+		FROM #BetDelete AS r
+		WHERE r.bettype = 22
+		AND r.betcheck <> CAST((816000 + @BetID160) AS NVARCHAR(50))				 
 	END  
 
 	IF @Set1317 <> 'ALL'  
