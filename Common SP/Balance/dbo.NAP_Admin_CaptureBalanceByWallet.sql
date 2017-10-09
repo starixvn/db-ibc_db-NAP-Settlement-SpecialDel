@@ -205,7 +205,7 @@ BEGIN
 				, WalletType
 				, BonusID
 				, balance 
-			FROM dbo.f_Settle_GetBalanceByBettypeBetId (
+			FROM dbo.f_Set_GetBalanceByBettypeBetId (
 				@MatchId
 				, @Mode
 				, @Action
@@ -224,7 +224,7 @@ BEGIN
 				, WalletType
 				, BonusID
 				, balance 
-			FROM dbo.f_Settle_GetBalanceByFastMarket (
+			FROM dbo.f_Settle_GetBalanceFastMarket (
 				@MatchId
 				, @Action
 				, @xmlFMResults

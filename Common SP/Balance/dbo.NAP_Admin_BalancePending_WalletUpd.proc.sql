@@ -12,6 +12,7 @@ AS
 
 	Revisions:  
 		- 20170419@Bobby.nguyen: Initial
+		- 20171009@Kathy: Change column name of BonusAdjustmentTransfer [Redmine:#72789]
 
 	Param's Explanation:   
 		- @ActionId		  : INT 
@@ -19,6 +20,8 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @MatchId INT
 	
 	--FOR genneral wallet
 	DECLARE @GeneralBeforeUpd 	TVP_BalanceChange
@@ -34,9 +37,6 @@ BEGIN
 		, bonusID				INT
 		, bonusStatus			TINYINT
 	)
-	
-	--select '@BalanceWalletBefore' as [balance TVP], * FROM @BalanceWalletBefore
-	--select '@BalanceWalletAfter' as [balance TVP], * FROM @BalanceWalletAfter
 		
 	--GATHER customer bonus status
 	INSERT INTO @tempBonusStatus(custid, bonusID, bonusStatus)
@@ -48,8 +48,6 @@ BEGIN
 		ON bn.custid			= bal.custid
 			AND bn.BonusID		= bal.BonusID
 			AND bal.walletType	= 1 --Bonus Wallet
-	
-	--select '@tempBonusStatus', * from @tempBonusStatus
 
 	BEGIN --GATHER genneral balance
 		INSERT INTO @GeneralBeforeUpd (custid, balanceType, balance)
@@ -187,7 +185,7 @@ BEGIN
 			, MatchID
 			, BonusID
 			, StatusID
-			, Bonus
+			, Amount
 			, isTransferred
 		)
 		SELECT 
@@ -197,7 +195,7 @@ BEGIN
 			, bal.MatchID
 			, bal.bonusID
 			, bn.bonusStatus
-			, bal.balance AS Bonus
+			, bal.balance AS Amount
 			, 0 AS isTransferred
 		FROM @BonusWalletChange bal
 			INNER JOIN @tempBonusStatus bn
@@ -220,37 +218,20 @@ BEGIN
 	*/
 	IF (@ActionID > 0)
 	BEGIN 
-		WITH cteBalanceNegative AS (
+		SELECT TOP 1 @MatchId = matchid
+		FROM @BalanceWalletBefore
+
+		;WITH cteBalanceNegative AS (
 			SELECT
-				b.matchid
+				@MatchId AS matchId
 				, b.custid
 				, @ActionId AS ActionId
 				,SUM(a.balance - b.balance) AS balance
-				
-			FROM @BalanceWalletBefore b
-				INNER JOIN @BalanceWalletAfter a 
-					ON b.matchid 		= a.matchid
-					AND b.custid 		= a.custid
-					AND b.walletType	= a.walletType
-					AND b.bonusID		= a.bonusID
+			FROM @GeneralBeforeUpd b
+				INNER JOIN @GeneralAfterUpd a 
+					ON b.custid 		= a.custid
 					AND b.balanceType	= a.balanceType 
-				LEFT JOIN (
-					SELECT bn.custid
-						, bn.bonusId
-						, st.BonusFlag
-					FROM @tempBonusStatus bn
-						INNER JOIN dbo.f_Set_BonusWallet_StatusSel() st
-						ON bn.bonusStatus 	= st.StatusID
-				) AS temp
-					ON b.custid 		= temp.custid
-						AND b.bonusID 	= temp.bonusID
-						
-			WHERE temp.custid IS NULL 	--Cash Wallet
-				OR (temp.BonusFlag = 1 AND temp.bonusID > 0)		--countable bonus status
-			
-			GROUP BY b.matchid
-				, b.custid
-				
+			GROUP BY b.custid				
 			HAVING SUM(a.balance) < SUM(b.balance)
 		)
 		----
@@ -275,7 +256,7 @@ BEGIN
 				,0
 				,NULL
 		FROM cteBalanceNegative bal
-			LEFT JOIN dbo.f_Settle_NegativeBalance_ActionGroup() AS bg
+			LEFT JOIN dbo.f_Set_NegativeBalance_ActionGroup() AS bg
 			ON bal.ActionId = bg.ActionId
 	END
 END

@@ -10,6 +10,7 @@ AS
 	
     Revisions:
 		- 20170503@Bobby.Nguyen: Initial
+		- 20171009@Kathy: Change column name of BonusAdjustmentTransfer [Redmine:#72789]
 
     Parameters Explanation:   
 		@Mode:	- Adjustment
@@ -64,7 +65,7 @@ BEGIN
 				, ci.username
 				, trans.MatchID
 				, trans.BonusID
-				, trans.Bonus
+				, trans.Amount
 				, ci.currency
 				, ex.currency AS currencyName
 				, rec.[site]
@@ -123,13 +124,13 @@ BEGIN
 				, 'Bonus Adjustment - MatchID=' + CAST(temp.matchid AS VARCHAR(20)) AS TransDesc
 				, trans.transferId
 				, CASE 
-					WHEN trans.isDummy = 0 AND temp.bonus > 0 THEN ABS(temp.bonus) 
-					WHEN trans.isDummy = 1 AND temp.bonus < 0 THEN ABS(temp.bonus) 
+					WHEN trans.isDummy = 0 AND temp.Amount > 0 THEN ABS(temp.Amount) 
+					WHEN trans.isDummy = 1 AND temp.Amount < 0 THEN ABS(temp.Amount) 
 					ELSE 0 
 				END AS actual_stake
 				, CASE 
-					WHEN trans.isDummy = 1 AND temp.bonus > 0 THEN ABS(temp.bonus) 
-					WHEN trans.isDummy = 0 AND temp.bonus < 0 THEN ABS(temp.bonus) 
+					WHEN trans.isDummy = 1 AND temp.Amount > 0 THEN ABS(temp.Amount) 
+					WHEN trans.isDummy = 0 AND temp.Amount < 0 THEN ABS(temp.Amount) 
 					ELSE 0 
 				END AS winlost
 				, trans.isValidDummy
@@ -160,11 +161,12 @@ BEGIN
 			SELECT @transCount = @@ROWCOUNT
 			
 			UPDATE dbo.ref WITH (ROWLOCK)
-			SET @execRefno = refno = refno + @transCount
+			SET @execRefno = refno = refno  + @transCount
 			WHERE  refid='refno'
 			
-			UPDATE @transExecNo
-			SET @execRefno = refno = ((@execRefno-1) + 1), @execRefno = @execRefno - 1
+			UPDATE	 @transExecNo
+				SET	refno = (@execRefno - @transcount) + 1
+					,@transcount = @transcount - 1
 			--End generate refno 
 			
 			--INSERT batch adjustment into bettrans
@@ -260,7 +262,7 @@ BEGIN
 				   ,0 AS [liveindicator]
 				   ,NULL AS [betteam]
 				   ,temp.transferId AS [creator]
-				   ,execNo.[refno]
+				   ,execNo.[refno] + 100000000000 
 				   ,'s' AS [comstatus]
 				   ,CAST(CURRENT_TIMESTAMP AS DATE) AS [winlostdate]
 				   ,'i' AS [betfrom]

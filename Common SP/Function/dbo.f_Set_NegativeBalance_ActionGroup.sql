@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
-CREATE FUNCTION [dbo].[f_Settle_NegativeBalance_ActionGroup] ()
+CREATE FUNCTION [dbo].[f_Set_NegativeBalance_ActionGroup] ()
 RETURNS TABLE
 WITH SCHEMABINDING
 AS
