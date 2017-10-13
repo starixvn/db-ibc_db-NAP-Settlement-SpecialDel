@@ -36,6 +36,7 @@ AS
 		- 20170314@Kent: Integrate cash-out [Redmine:#72059]
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
+		- 20170725@Paul: Return CurrencyName [Redmine:#77175]	
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -111,6 +112,7 @@ BEGIN
 		,ExtraInfo		VARCHAR(1000)
 		,IsCashOutMemberTicket BIT DEFAULT 0
 		,MainCashoutId	BIGINT
+		,CurrencyName	NVARCHAR(50)
 	)
 	
 	IF(LEN(@TransIds) > 0)
@@ -186,7 +188,8 @@ BEGIN
 			,TransDesc		
 			,betdaqid
 			,username
-			,recommend			
+			,recommend		
+			,CurrencyName	
 		)
 		SELECT	
 			b.translogID AS GroupID
@@ -219,7 +222,8 @@ BEGIN
 			,b.transdesc
 			,-1 -- normal ticket
 			,username
-			,recommend					
+			,recommend		
+			,b.CurrencyName			
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 			ON b.translogid = temp.transid			
@@ -264,6 +268,7 @@ BEGIN
 			,oddsid
 			,ExtraInfo
 			,MainCashoutId
+			,CurrencyName
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -313,6 +318,7 @@ BEGIN
 						THEN b.transid
 				ELSE NULL
 			 END AS MainCashoutId
+			,b.CurrencyName
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -376,6 +382,7 @@ BEGIN
 						THEN b.transid
 				ELSE NULL
 			 END AS MainCashoutId
+			,b.CurrencyName
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid				
@@ -545,6 +552,7 @@ BEGIN
 			,showtime
 			,ExtraInfo			
 			,IsHideComm
+			,CurrencyName
 		)
 		SELECT	
 			main.transid
@@ -588,6 +596,7 @@ BEGIN
 			,main.showtime
 			,sub.ExtraInfo						
 			,1 AS IsHideComm
+			,main.CurrencyName
 		FROM CTE_LastTransBT sub WITH(NOLOCK)
 			INNER JOIN #Data main
 			ON	sub.refno 	= main.transid 
@@ -664,6 +673,7 @@ BEGIN
 			,ExtraInfo
 			,MainCashoutId
 			,IsHideComm
+			,CurrencyName
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -707,6 +717,7 @@ BEGIN
 				,sub911.ExtraInfo
 				,main.transid AS MainCashoutId
 				,1 AS IsHideComm
+				,sub911.CurrencyName
 		FROM #Data main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -762,7 +773,8 @@ BEGIN
 			,sporttype
 			,IsNeutral
 			,showtime	
-			,IsHideComm		
+			,IsHideComm	
+			,CurrencyName	
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -816,6 +828,7 @@ BEGIN
 				,sub911.IsNeutral
 				,sub911.showtime
 				,1 AS IsHideComm
+				,b.CurrencyName
 		FROM #Data sub911
 			 CROSS APPLY (
 							  SELECT b.*
@@ -907,7 +920,7 @@ BEGIN
 		,d.betdaqid
 		,d.ExtraInfo
 		,d.MainCashoutId
-		
+		,d.CurrencyName
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g
 		ON d.custid = g.custid
