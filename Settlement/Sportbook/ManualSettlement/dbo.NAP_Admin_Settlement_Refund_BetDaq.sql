@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetDaq]
 	@matchid int,
 	@creator int, 	
@@ -19,6 +20,7 @@ AS
 		- 20141030@Jamie: Sportting Solution Tennis Settlement [Redmine:#23034]
 		- 20150206@Jamie: Auto Settlement Betradar phase 2 [Redmine: #27212]
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
+		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
 
 	Param's Explanation:
 	• @matchid: matchid need to refund
@@ -37,99 +39,78 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (SELECT 1 FROM dbo.TempVariableNumber WHERE KeyID = 1 AND KeyValue = @matchid)
-	BEGIN
-		SELECT  @ErrCode = 1000000,
-				@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
-	DECLARE @Remark VARCHAR(500)
-			,@ActionID	INT
-			
-	SELECT	@ActionID = 126
-	 
-	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) VALUES (1, @matchid)
+	DECLARE @Remark				VARCHAR(500)
+			,@ActionID			INT
+			 ,@avaiableProcess	BIT
+			 ,@start			DATETIME
+			 ,@stop				DATETIME
 	
-	IF (@@Error = 0)
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @creator, 
-				@Matchid = @matchid, 
-				@KeyID = 1,
-				@ActionID = @ActionID, 
-				@Remark = 'ADD SUCCESS'
-		END TRY
-		BEGIN CATCH	
-			SELECT @Remark = 'ADD SUCCESS ErrMsg=' + left(error_message(), 400)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-			@UserID = @creator, 
-			@Matchid = @matchid, 
-			@KeyID = 1,
-			@ActionID = @ActionID, 
-			@Remark = @Remark
-		END CATCH
-	END
-	ELSE 
-	BEGIN
-		SELECT @ErrCode = 1000000, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
-	---
-
-	DECLARE	@start DATETIME, @stop DATETIME
-
-	SELECT	@start = CURRENT_TIMESTAMP
-
-	CREATE TABLE #BalanceBefore (custid int PRIMARY KEY, balance money)
-
-	CREATE TABLE #BalanceAfter (custid int PRIMARY KEY, balance money)
-
-	CREATE TABLE #Balance (custid int PRIMARY KEY, balance money, Increased bit)
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
 	
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #BalanceBefore (custid int PRIMARY KEY, balance money)
+	CREATE TABLE #BalanceAfter (custid int PRIMARY KEY, balance money)
+	CREATE TABLE #Balance (custid int PRIMARY KEY, balance money, Increased bit)
+	
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 
+	SELECT	@start = CURRENT_TIMESTAMP
+			,@ActionID = 126
+
+	-- check and not allow attempt to settlement same game while it's still not finish
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT	@matchid AS matchid
+			,1 AS KeyId
+
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN
+		SELECT    @ErrCode = 1000000
+                ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+        RETURN
+	END
 
 	INSERT INTO #BalanceBefore
 	SELECT	custid, SUM(winlost-actual_stake+playercomm)
 	FROM	dbo.bettrans with (rowlock)
 	WHERE 
-	(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
-		OR recommend = 1688156	)
-	AND matchid = @matchid
-	AND bettype NOT IN (14, 127) --Exclude FGLG, 1H FGLG
-	AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-	AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
-	AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
-	AND bettype NOT BETWEEN 1501 and 1599 -- Keno
-	AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217) --Auto bets BetRadar 2 
+			(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
+				OR recommend = 1688156	)
+			AND matchid = @matchid
+			AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
+			AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
+			AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
+			AND bettype NOT BETWEEN 1501 and 1599 -- Keno
+			AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217) --Auto bets BetRadar 2 
 
 
 	GROUP BY custid
 
-																EXEC dbo.NAP_Admin_Calculate_Main 
+	EXEC dbo.NAP_Admin_Calculate_Main 
 		 @matchid = @matchid
 		,@action = 'REFUND'
 		,@mode = 'BetDaq'
-
-	--EXEC dbo.NAP_Admin_Calculate_Refund_BetDaq @matchid = @matchid 
 
 	INSERT INTO #BalanceAfter	
 	SELECT	custid, SUM(winlost-actual_stake+playercomm)
 	FROM	dbo.bettrans with (rowlock)
 	WHERE 
-	(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
-		OR recommend = 1688156	)
-	AND matchid = @matchid
-	AND bettype NOT IN (14, 127) --Exclude FGLG, 1H FGLG
-	AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-	AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
-	AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
-	AND bettype NOT BETWEEN 1501 and 1599 -- Keno
-	AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217) --Auto bets BetRadar 2 
+			(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
+				OR recommend = 1688156	)
+			AND matchid = @matchid
+			AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
+			AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
+			AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
+			AND bettype NOT BETWEEN 1501 and 1599 -- Keno
+			AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217) --Auto bets BetRadar 2 
 
 	GROUP BY custid
 
@@ -140,11 +121,6 @@ BEGIN
 		INNER JOIN #BalanceAfter a ON b.custid = a.custid
 	WHERE b.balance <> a.balance
 
-	--INSERT INTO dbo.BalancePendingDebit (custid, balance)
-	--SELECT custid, ABS(balance)
-	--FROM #Balance
-	--WHERE Increased = 0
-	
 	INSERT INTO @tblDebitPending (custID, balance)
 	SELECT	custid, ABS(balance)
 	FROM	#Balance
@@ -154,11 +130,6 @@ BEGIN
 		EXEC dbo.Dot_BalancePendingDebitIns 
 			@BalancePending = @tblDebitPending
 			,@Type			= 1 -- Sports
-
-	--INSERT INTO dbo.BalancePendingCredit (custid, balance)
-	--SELECT custid, balance
-	--FROM #Balance
-	--WHERE Increased = 1
 
 	INSERT INTO @tblCreditPending (custID, balance)
 	SELECT	custid, balance
@@ -254,53 +225,10 @@ BEGIN
 	END CATCH
 	    
 	  
-	-----
-	DELETE FROM dbo.TempVariableNumber WITH (ROWLOCK,UPDLOCK)
-	WHERE KeyID = 1 AND KeyValue = @matchid   
-	IF (@@Error = 0)
-	BEGIN
-		BEGIN TRY	
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @creator,
-				@Matchid = @matchid, 
-				@KeyID = 1,
-				@ActionID = @ActionID, 
-				@Remark = 'DEL SUCCESS'
-		END TRY
-		BEGIN CATCH
-			SELECT @Remark = 'DEL SUCCESS ErrMsg=' + left(error_message(), 350)	
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @creator,
-				@Matchid = @matchid, 
-				@KeyID = 1,
-				@ActionID = @ActionID, 
-				@Remark = @Remark
-		END CATCH
-	END
-	ELSE
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @creator,
-				@Matchid = @matchid, 
-				@KeyID = 1,
-				@ActionID = @ActionID, 
-				@Remark = 'DEL FAILED'
-		END TRY
-		BEGIN CATCH
-			SELECT @Remark = 'DEL FAILED ErrMsg=' + left(error_message(), 350)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @creator,
-				@Matchid = @matchid, 
-				@KeyID = 1,
-				@ActionID = @ActionID, 
-				@Remark = @Remark
-		END CATCH
-	END
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @IsReleased		= 1
 END
 
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_BetDaq] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Refund_BetDaq] TO [vnteam] AS [dbo]

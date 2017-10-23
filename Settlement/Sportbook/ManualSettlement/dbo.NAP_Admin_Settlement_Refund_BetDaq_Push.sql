@@ -1,12 +1,4 @@
-
-SET QUOTED_IDENTIFIER ON 
-GO
-SET ANSI_NULLS ON 
-GO
-
-/****** Object:  Stored Procedure dbo.NAP_Admin_Settlement_Refund_BetDaq_Push    Script Date: 06/10/2015 11:21:40 AM ******/
-/****** Object:  Stored Procedure dbo.NAP_Admin_Settlement_Refund_BetDaq_Push    Script Date: 4/8/2015 1:48:15 AM ******/
-/****** Object:  Stored Procedure dbo.NAP_Admin_Settlement_Refund_BetDaq_Push    Script Date: 06/04/2015 1:01:55 PM ******/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push]
 	@MatchId int,
 	@AdminId int, 	
@@ -119,17 +111,4 @@ BEGIN
 	END
 END
 
-
 GO
-
-SET QUOTED_IDENTIFIER OFF 
-GO
-SET ANSI_NULLS ON 
-GO
-
-
-GO 
- GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push] TO [vnteam]
-GO 
- GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push] TO [bodbAdminNet]
-GO 
