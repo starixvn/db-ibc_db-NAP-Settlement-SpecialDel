@@ -1,2 +1,3 @@
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout.sql
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_29.sql
