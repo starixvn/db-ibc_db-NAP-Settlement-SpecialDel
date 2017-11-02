@@ -1,9 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_s161] 
 	@MatchId INT
 	,@IsLive BIT			= 0
@@ -27,6 +22,7 @@ AS
 		- 20140910@Kathy: Include range of NG bettypes ( 81-> 120)
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
+		- 20171031@Patrick: Reduce balance correction [Redmine: #85841]
 						   
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -101,6 +97,21 @@ BEGIN
 	SELECT @start = CURRENT_TIMESTAMP
 
 	DECLARE @MaxTransID BIGINT
+	
+
+	--//MB is running?
+	IF EXISTS (
+		SELECT 1 FROM dbo.SystemSettings WITH(NOLOCK)
+		WHERE VName = 'isMovingBet' AND VValue = '1'
+	)
+	BEGIN
+		-- waiting for releasing lock on bettrans table
+		SELECT @MaxTransID = MAX(transid)
+		FROM dbo.bettrans WITH(ROWLOCK)
+		WHERE matchid = @MatchId
+		
+		WAITFOR DELAY '00:00:02:000'
+	END
 
 	SELECT @MaxTransID = MAX(transid)
 	FROM dbo.bettrans WITH(NOLOCK)
@@ -127,6 +138,7 @@ BEGIN
 		WHERE matchid = @MatchId AND transid <= @MaxTransID
 		AND bettype BETWEEN 81 AND 120
 		GROUP BY custid, winlostdate, bettype
+
 	END
 
 	IF @IsLive = 1
@@ -145,7 +157,7 @@ BEGIN
 
 		IF @DrawSeq = 1 -- Cal-HT
 		BEGIN
-												EXEC dbo.NAP_Admin_Settlement_s161 @MatchId = @MatchId
+																																																EXEC dbo.NAP_Admin_Settlement_s161 @MatchId = @MatchId
 				,@Action = 'CAL-HT'
 				,@IP = @IP
 				,@AdminID = @AdminID
@@ -439,8 +451,3 @@ BEGIN
 	END
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_s161] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_s161] TO [Dot_Casino] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_s161] TO [vnteam] AS [dbo]
