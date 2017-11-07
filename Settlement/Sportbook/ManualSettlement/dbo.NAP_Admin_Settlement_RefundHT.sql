@@ -67,11 +67,7 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
-	
-    --START Balance tables	
-	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
-		, @BalanceWalletAfter			TVP_BalanceWalletChange
-	--END Balance tables      
+	   
 	DECLARE @Remark VARCHAR(500)
         ,@ActionID INT
         ,@start DATETIME
@@ -81,6 +77,7 @@ BEGIN
 		,@matchdate DATETIME
 		,@avaiableProcess	BIT
         ,@sportType INT
+		,@Action VARCHAR(20)
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange

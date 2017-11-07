@@ -310,6 +310,7 @@ BEGIN
 						ON temp.ExecID = execNo.ExecID
 							
 				WHERE temp.isValidDummy = 1
+				ORDER BY execNo.refno
 				
 				--UPDATE back to BonusAdjustmentTransfer
 				IF(@@ROWCOUNT > 0)
