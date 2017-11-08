@@ -32,6 +32,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
     ,@SelectedQuarter	VARCHAR(50)		= NULL
     ,@QuarterResult		VARCHAR(MAX)	= NULL
     
+    ,@ResourceResult	VARCHAR(MAX)	= NULL
+    
     ,@isExcludeCorner	BIT            	= 0 
     ,@action            VARCHAR(10)    	= 'CAL'
     ,@IP                VARCHAR(50)    	= ''
@@ -77,6 +79,7 @@ AS
 		- 20170522@Kathy: Correct balance for Tennis [Redmine:#76931]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#71355]
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -92,6 +95,11 @@ AS
         + @SelectedQuarter: the list of selected quarter for settlement basketball
 			'801,802,1H,803,804,2H,FT'
 		+ @QuarterResult: the result of each quarter bettype
+		
+		+ @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
  
 */
 BEGIN
@@ -123,7 +131,7 @@ BEGIN
         ,@isExistRunningCornerBet       BIT = 0
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
-        ,@strBettypes					VARCHAR(MAX)
+        ,@strBettypes					VARCHAR(MAX)		
         
     CREATE TABLE #tmpTrans (transid BIGINT, refno BIGINT)--tickets of bettrade and refno for CashOut tickets
     DECLARE @status TABLE (FTBet BIT, BetCount INT, InRunning INT)
@@ -711,7 +719,7 @@ BEGIN
             END
 
             IF @Sporttype = 1 AND LEFT(@Action, 3) = 'CAL'
-            BEGIN
+            BEGIN						
                 EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
                     @Command        = 'NAP_Admin_Settlement_1-CAL',
                     @MatchID        = @MatchID,
@@ -730,6 +738,7 @@ BEGIN
                     @htFCorner         = @htFCorner,
                     @htLCorner         = @htLCorner,
                     @isExcludeCorner = @isExcludeCorner,
+                    @ResourceResult	= @ResourceResult,
                     @Action            = @Action,
                     @IsAuto            = 0,
                     @creator        = @creator

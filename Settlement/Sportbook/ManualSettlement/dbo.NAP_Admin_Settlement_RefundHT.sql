@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT]
     ,@isExistHTLCorner                BIT    = 0 
     ,@isExistFTFCorner                BIT    = 0 
     ,@isExistFTLCorner                BIT    = 0  
+     ,@ResourceResult				VARCHAR(MAX)	= NULL
     ,@IP VARCHAR(15) = ''
     ,@ErrCode INT = 0 OUTPUT
     ,@ErrMsg NVARCHAR(200) = '' OUTPUT
@@ -42,6 +43,10 @@ AS
 		- 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [R
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
 		- 20170321@Bobby: #73407 - CashOut integration
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		
+    Param's Explanation:
+    • @matchid: matchid of match to Refund HT
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -49,44 +54,47 @@ AS
     • @IsSettleAbandonedMatch: Is Settlement for Betdaq ticket of Abandoned/postponed match or not
     • @IsExcludeBetfair: Is Exclude betfair tickets or not
     • @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
+    • @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
 
 */
 BEGIN
     SET NOCOUNT ON
-
-    -- check and not allow attempt to settlement same game while it's still not finish
-    IF EXISTS (
-            SELECT 1
-            FROM dbo.TempVariableNumber
-            WHERE KeyID = 1 AND KeyValue = @matchid
-            )
-    BEGIN
-        SELECT @ErrCode = 1000000
-            ,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-        RETURN
-    END
-
-    DECLARE @Remark VARCHAR(500)
+	
+	DECLARE @Remark VARCHAR(500)
         ,@ActionID INT
-
-    SELECT @ActionID = 110
-
-    INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) VALUES (1, @matchid)
-    IF (@@Error <> 0)
-    BEGIN
-        SELECT @ErrCode = 1000000
-            ,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-        RETURN
-    END
-
-    ---
-    DECLARE @start DATETIME
+        ,@start DATETIME
         ,@stop DATETIME
         ,@strBettypes VARCHAR(MAX) 
 		,@strRefundBettypes VARCHAR(MAX) 
 		,@matchdate DATETIME
+		,@avaiableProcess	BIT
+    
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	
+    -- check and not allow attempt to settlement same game while it's still not finish
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT	@matchid AS matchid
+			,1 AS KeyId
+
+    --check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN
+		SELECT    @ErrCode = 1000000
+                ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+        RETURN
+	END
+	
+	SELECT @ActionID = 110
 
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	dbo.f_Set_GetGroupBettypes ()
@@ -178,10 +186,10 @@ BEGIN
             WHERE matchid = @matchid AND betstatus LIKE '%Refund FT%'
             )
     BEGIN
-        -----
-        DELETE
-        FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-        WHERE KeyID = 1 AND KeyValue = @matchid
+        ------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
 
 		EXEC dbo.NAP_Admin_Settlement_Refund_All @matchid = @matchid
             ,@creator = @adminid
@@ -257,6 +265,7 @@ BEGIN
 			,@isExistHTFCorner    = @isExistHTFCorner
 			,@isExistHTLCorner    = @isExistHTLCorner
 			,@creator            = @adminid
+			,@ResourceResult = @ResourceResult
 
 		IF @Rowcount > 0
 		BEGIN
@@ -556,9 +565,9 @@ BEGIN
         END CATCH
     END
 
-    -----
-    DELETE
-    FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-    WHERE KeyID = 1 AND KeyValue = @matchid
+    ------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @IsReleased		= 1
 END
 GO

@@ -1,5 +1,4 @@
-USE [bodb02]
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_BetDaq] 
 	@matchid int
 AS
@@ -13,6 +12,7 @@ AS
 		- 20140909@Kathy: Exclude virtual racing (bettype 1237, 1238), outright (bettype 10, 31, 32, 33), keno (1501 -> 1599)
 		- 20141030@Jamie: Sportting Solution Tennis Settlement [Redmine:#23034]
 		- 20150422@Jamie: Settlement Betradar phase 2 [Redmine: #27212]
+		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
 */
 SET NOCOUNT ON
 
@@ -37,7 +37,7 @@ BEGIN
 			--AND [status] not in (N'Void', N'Reject')
 			AND statusID NOT IN (103,101,102)
 			AND ruben = 0 
-			AND bettype not IN (14, 127) --Exclude FGLG , 1H FGLG
+			--AND bettype not IN (14, 127) --Exclude FGLG , 1H FGLG
 			AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
 			AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis 
 			AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
@@ -51,4 +51,3 @@ BEGIN
 	END
 END
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_Refund_BetDaq] TO [vnteam] AS [dbo]

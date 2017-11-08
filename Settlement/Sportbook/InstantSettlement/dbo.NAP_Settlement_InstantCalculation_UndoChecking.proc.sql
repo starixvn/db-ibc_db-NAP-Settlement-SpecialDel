@@ -1,11 +1,4 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE bodb02
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
 ALTER PROCEDURE [dbo].[NAP_Settlement_InstantCalculation_UndoChecking]
 	@MatchId			INT
 	, @InstantCheck		INT = NULL
@@ -17,6 +10,7 @@ AS
 	Task: #68128 - Implement Uncalculate instant settlement process
 	DB: DBPRO/bodb02
 	Revisions:
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
 	Param's Explanation:
 
@@ -34,6 +28,7 @@ BEGIN
 		,@liveawayscore		INT
 		,@hScore			INT
 		,@aScore			INT
+		,@FirstGoalValue	VARCHAR(1)
 		
 	
 	SELECT @ErrCode			= 0
@@ -128,16 +123,26 @@ BEGIN
 		END
 	END
 	
+	IF @ErrCode = 0
+	BEGIN
+		SELECT 	@FirstGoalValue = HomeValue
+		FROM	dbo.ResultDetail WITH (NOLOCK)
+		WHERE	matchid = @MatchId
+				AND	1 = CASE 
+							WHEN @IsHT = 1 AND ResourceId = '127F' THEN 1
+							WHEN @IsHT = 1 AND ResourceId = '14F' THEN 1
+							WHEN @IsHT = 0 AND ResourceId = '14F' THEN 1
+							ELSE 0
+						END
+	END
+			
 	SELECT @homeScore 	AS HomeScore
 		,@awayScore 	AS AwayScore
 		,@goalRecord 	AS GoalRecord
 		,@IsHT  		AS IsHT
 		,@InstantKey	AS InstantKey
+		,ISNULL(@FirstGoalValue,'') AS FirstGoalValue
 	
 	RETURN
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Settlement_InstantCalculation_UndoChecking] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Settlement_InstantCalculation_UndoChecking] TO [vnteam] AS [dbo]
 GO

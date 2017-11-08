@@ -1,10 +1,4 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
   @Command						VARCHAR(100) 
  ,@MatchID						INT
@@ -32,6 +26,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
  ,@IsAuto						BIT			= 0 
  ,@creator						INT			= 0 
  ,@SDTRecord					TINYINT		= 0
+ ,@ResourceResult				VARCHAR(MAX) = NULL
 AS 
 /*
 	Created by: Jamie
@@ -45,43 +40,76 @@ AS
 		- 20150928@Johnson: update result of corner without single corner ticket [Redmine: #44415]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20161118@Bobby: #67551 - Update changes for refunding SDT - ABANDONED match
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
 	Param's Explanation: 
-		@Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
+		+ @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
+		+ @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
 */
 BEGIN
 	SET NOCOUNT ON 
-
+	 
 	DECLARE	@sporttype			INT
 		,@OtherInfo				VARCHAR(50)
 		,@GoalSequence			VARCHAR(50)
 		,@betstatus				NVARCHAR(50) 
 		,@SettlementStatusID	TINYINT 
-
-	SELECT	@sporttype 			= Sporttype 
-		,@GoalSequence 			= GoalRecord
-	FROM dbo.Match WITH (NOLOCK)
-	WHERE	MatchID = @MatchID
-
-	IF @sporttype <> 1 RETURN -- Apply for Soccer ONLY
-	 
-
+		,@ResultStatusID		TINYINT
+		,@xmlResourceResult		XML
+		
 	DECLARE @tmpResultDetail TABLE(
-			ResourceID		VARCHAR(20)
-		,HomeValue		VARCHAR(50)
-		,AwayValue		VARCHAR(50)
+			ResourceID				VARCHAR(20)
+			,HomeValue				VARCHAR(50)
+			,AwayValue				VARCHAR(50)
+			,ResultStatusId			TINYINT
+			,SettlementStatusId		TINYINT
+			,SourceType				BIT DEFAULT(0) -- 0: DB, 1: Web
 	)
-
+	
 	DECLARE	@tmpResourceIDs	TABLE(
 		 ID			INT IDENTITY(1,1)
 		,ResourceID	VARCHAR(20)
 	)
+	
+	SELECT	@sporttype 	= Sporttype 
+			,@GoalSequence	= GoalRecord
+			,@betstatus = betstatus
+	FROM	dbo.Match WITH (NOLOCK)
+	WHERE	MatchID = @MatchID
+	
+	IF @sporttype <> 1 RETURN -- Apply for Soccer ONLY
+
 	IF @ResourceIDs IS NOT NULL 
 	BEGIN
 		INSERT INTO @tmpResourceIDs(ResourceID)
 		SELECT	Val FROM dbo.StrSplit(@ResourceIDs,',') 
 	END 
+	
+	-- 14, 127, GoalRecord bettypes
+	IF @ResourceResult IS NOT NULL
+	BEGIN
+		SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
+		;WITH cteResourceResult
+		AS
+		(
+			SELECT	T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+					,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+					,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+					,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
+					,T.C.value('@ResultStatusId', 'TINYINT') AS ResultStatusId
+			FROM	@xmlResourceResult.nodes('/Results/Resource') AS T(C)
+		)
+		INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue, SettlementStatusId, ResultStatusId, SourceType)
+		SELECT	 ResourceId, HomeValue, AwayValue, SettlementStatusId, ResultStatusId, 1
+		FROM	cteResourceResult
+		WHERE	ResourceID IS NOT NULL
+		OPTION ( OPTIMIZE FOR ( @xmlResourceResult = NULL ) )	
+	END	
+	
 	IF @Command ='NAP_Admin_Settlement_Auto_1s-CAL'
 	BEGIN
 		IF @IsAuto = 1 
@@ -245,14 +273,10 @@ BEGIN
 	/* END - @Command = 'NAP_Admin_Settlement_Auto_1s-REFUND' */
 	ELSE IF @Command = 'NAP_Admin_Settlement_1-CAL'
 	BEGIN
-		SELECT	@GoalSequence = GoalRecord
-		FROM	Match WITH (NOLOCK) 
-		WHERE	MatchID = @MatchID
-
+		-- HalfTime
 		INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
-		-- HalfTime 
 		SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
-		UNION ALL 
+		UNION ALL
 		SELECT '05', CAST(@hthCorners AS VARCHAR(50)), CAST( @htaCorners AS VARCHAR(50)) WHERE @hthCorners IS NOT NULL AND @htaCorners IS NOT NULL AND @isExcludeCorner = 0
 		UNION ALL 
 		SELECT '207', @HTFCorner, NULL WHERE @HTFCorner IS NOT NULL AND @isExcludeCorner = 0
@@ -262,18 +286,18 @@ BEGIN
 		-- FullTime 
 		UNION ALL 
 		SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) WHERE @fth IS NOT NULL AND @fta IS NOT NULL 
-		UNION ALL 
+		UNION ALL  
 		SELECT '04', CAST(@fthCorners AS VARCHAR(50)), CAST( @ftaCorners AS VARCHAR(50)) WHERE @fthCorners IS NOT NULL AND @ftaCorners IS NOT NULL AND @isExcludeCorner = 0
 		UNION ALL 
 		SELECT '206', @FTFCorner, NULL WHERE @FTFCorner IS NOT NULL  AND @isExcludeCorner = 0
 		UNION ALL 
 		SELECT '208', @FTLCorner, NULL WHERE @FTLCorner IS NOT NULL  AND @isExcludeCorner = 0
-
-		UNION ALL 
-		SELECT '08', @GoalSequence,NULL WHERE @GoalSequence IS NOT NULL 
-
-		SELECT @SettlementStatusID = 4 -- Completed
-
+		
+		UPDATE @tmpResultDetail
+			SET SettlementStatusID = 4 -- Completed
+				,ResultStatusID = 5 -- Manual Settlement
+		WHERE	SourceType = 0
+		
 		MERGE	ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -281,8 +305,12 @@ BEGIN
 					TARGET.HomeValue			= SOURCE.HomeValue
 					,TARGET.AwayValue			= SOURCE.AwayValue  
 					,TARGET.OtherInfo			= NULL
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= @SettlementStatusID		-- Completed
+					,TARGET.ResultStatusID		= CASE 
+													WHEN TARGET.ResourceId = '01' AND @betstatus LIKE '%Refund HT%' THEN TARGET.ResultStatusID 
+													ELSE SOURCE.ResultStatusID END
+					,TARGET.SettlementStatusID	=  CASE 
+													WHEN TARGET.ResourceId = '01' AND @betstatus LIKE '%Refund HT%' THEN TARGET.SettlementStatusID 
+													ELSE SOURCE.SettlementStatusID END
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -305,8 +333,8 @@ BEGIN
 					,SOURCE.HomeValue
 					,SOURCE.AwayValue 
 					,NULL 
-					,5 -- Manual Settlement 
-					,@SettlementStatusID -- Completed
+					,SOURCE.ResultStatusID
+					,SOURCE.SettlementStatusID
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -325,7 +353,7 @@ BEGIN
 				,LastModifyBy		= @Creator 
 				,LastModifyDate		= GETDATE() 
 		WHERE	MatchID = @MatchID
-				AND ResourceID IN ('00','01','04','05','08','206','207','208','209')
+				AND ResourceID IN ('00','01','04','05','08','206','207','208','209','14F','14L','127F','127L')
 
 	END 
 	/* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
@@ -344,8 +372,6 @@ BEGIN
 		SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) 
 		UNION ALL 
 		SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
-		UNION ALL 
-		SELECT '08', @GoalSequence,NULL 
 		UNION ALL 
 		SELECT '04', '0', '0' WHERE @isExistTotalCorner = 1
 								OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
@@ -377,8 +403,11 @@ BEGIN
 										WHERE matchid = @matchid AND ResourceID = '209'
 								)
 
-		SELECT @SettlementStatusID = 1 -- Refund
-
+		UPDATE @tmpResultDetail
+			SET SettlementStatusID = 1 -- Refund
+				,ResultStatusID = 5 -- Manual Settlement
+		WHERE	SourceType = 0
+		
 		MERGE	ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -386,8 +415,8 @@ BEGIN
 					TARGET.HomeValue			= SOURCE.HomeValue
 					,TARGET.AwayValue			= SOURCE.AwayValue  
 					,TARGET.OtherInfo			= NULL
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= @SettlementStatusID	-- Refund
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -410,8 +439,8 @@ BEGIN
 					,SOURCE.HomeValue
 					,SOURCE.AwayValue 
 					,NULL 
-					,5 -- Manual Settlement 
-					,@SettlementStatusID -- Refund
+					,SOURCE.ResultStatusID -- Manual Settlement 
+					,SOURCE.SettlementStatusID -- Refund
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -472,10 +501,13 @@ BEGIN
 				SELECT 1 FROM ResultDetail WITH(NOLOCK)
 				WHERE matchid 		= @matchid 
 					AND ResourceID 	= '209'
-			)
-		UNION ALL 
-		SELECT '08', @GoalSequence, 'NA' 
-								
+			)					
+					
+		UPDATE @tmpResultDetail
+			SET SettlementStatusID = 5 -- ABANDONED 1H
+				,ResultStatusID = 5 -- Manual Settlement 	
+		WHERE SourceType = 0			
+							
 		MERGE	dbo.ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -483,8 +515,8 @@ BEGIN
 					TARGET.HomeValue			= CASE WHEN SOURCE.HomeValue  = 'NA' THEN TARGET.HomeValue ELSE SOURCE.HomeValue END
 					,TARGET.AwayValue			= CASE WHEN SOURCE.AwayValue  = 'NA' THEN TARGET.AwayValue ELSE SOURCE.AwayValue END
 					,TARGET.OtherInfo			= CASE WHEN SOURCE.ResourceID  = '01' THEN TARGET.OtherInfo ELSE NULL END
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= 5		-- ABANDONED 1H
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID		
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID		
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -507,8 +539,8 @@ BEGIN
 					,CASE WHEN SOURCE.HomeValue = 'NA' THEN NULL ELSE SOURCE.HomeValue END
 					,CASE WHEN SOURCE.AwayValue = 'NA' THEN NULL ELSE SOURCE.AwayValue END
 					,NULL 
-					,5 -- Manual Settlement 
-					,5 -- ABANDONED 1H
+					,SOURCE.ResultStatusID		
+					,SOURCE.SettlementStatusID
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -541,15 +573,9 @@ BEGIN
 		FROM	Match WITH (NOLOCK)
 		WHERE	MatchID = @MatchID
 
-		SELECT	@SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
-										   WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN 3 
-										   ELSE 3 END --Refund FT 
-
 		INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
 
 		SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) 
-		UNION ALL 
-		SELECT '08', @GoalSequence,NULL 
 		UNION ALL 
 		SELECT '04', '0', '0' WHERE @isExistTotalCorner = 1 
 								OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
@@ -565,6 +591,13 @@ BEGIN
 								OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
 										WHERE matchid = @matchid AND ResourceID = '208'
 								)
+		UPDATE @tmpResultDetail
+			SET SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
+										   WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN 3 
+										   ELSE 3 
+									   END --Refund FT 
+				,ResultStatusID = 5 -- Manual Settlement 	
+		WHERE SourceType = 0		
 
 		MERGE	ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
@@ -573,8 +606,8 @@ BEGIN
 					TARGET.HomeValue			= SOURCE.HomeValue
 					,TARGET.AwayValue			= SOURCE.AwayValue  
 					,TARGET.OtherInfo			= NULL
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= @SettlementStatusID	-- Refund/RefundFT
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID	-- Refund/RefundFT
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -597,8 +630,8 @@ BEGIN
 					,SOURCE.HomeValue
 					,SOURCE.AwayValue 
 					,NULL 
-					,5 -- Manual Settlement 
-					,@SettlementStatusID -- Refund/RefundFT
+					,SOURCE.ResultStatusID
+					,SOURCE.SettlementStatusID -- Refund/RefundFT
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -635,9 +668,12 @@ BEGIN
 				WHERE matchid 	= @matchid 
 				AND ResourceID 	= '208'
 			)
-		UNION ALL 
-		SELECT '08', @GoalSequence, 'NA'
 			
+		UPDATE @tmpResultDetail
+			SET	SettlementStatusID = 6 -- ABANDONED 2H								
+				,ResultStatusID = 5 -- Manual Settlement 
+		WHERE	SourceType = 0
+				
 		MERGE	dbo.ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -645,8 +681,8 @@ BEGIN
 					TARGET.HomeValue			= CASE WHEN SOURCE.HomeValue  = 'NA' THEN TARGET.HomeValue ELSE SOURCE.HomeValue END
 					,TARGET.AwayValue			= CASE WHEN SOURCE.AwayValue  = 'NA' THEN TARGET.AwayValue ELSE SOURCE.AwayValue END
 					,TARGET.OtherInfo			= CASE WHEN SOURCE.ResourceID  = '00' THEN TARGET.OtherInfo ELSE NULL END
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= 6		-- ABANDONED 2H
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID		
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID		
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -669,8 +705,8 @@ BEGIN
 					,CASE WHEN SOURCE.HomeValue = 'NA' THEN NULL ELSE SOURCE.HomeValue END
 					,CASE WHEN SOURCE.AwayValue = 'NA' THEN NULL ELSE SOURCE.AwayValue END
 					,NULL 
-					,5 -- Manual Settlement 
-					,6 -- ABANDONED 2H
+					,SOURCE.ResultStatusID		
+					,SOURCE.SettlementStatusID		
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -703,12 +739,7 @@ BEGIN
 		FROM	Match WITH (NOLOCK)
 		WHERE	MatchID = @MatchID
 
-		SELECT	@SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
-										   WHEN CHARINDEX('Refund HT;',@betstatus) > 0 THEN 2 
-										   ELSE 2 END --Refund HT 
-
 		INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
-
 		SELECT'01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50)) 
 		UNION ALL 
 		SELECT '05', '0', '0' WHERE @isExistTotalCorner = 1
@@ -725,7 +756,16 @@ BEGIN
 								OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
 										WHERE matchid = @matchid AND ResourceID = '209'
 								)
-
+		
+			
+		UPDATE @tmpResultDetail
+			SET	SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
+										   WHEN CHARINDEX('Refund HT;',@betstatus) > 0 THEN 2 
+										   ELSE 2 
+										   END --Refund HT 							
+				,ResultStatusID = 5 -- Manual Settlement 
+		WHERE	SourceType = 0
+		
 		MERGE	ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -733,8 +773,8 @@ BEGIN
 					TARGET.HomeValue			= SOURCE.HomeValue
 					,TARGET.AwayValue			= SOURCE.AwayValue  
 					,TARGET.OtherInfo			= NULL
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= @SettlementStatusID	-- Refund/RefundHT
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID		
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID	-- Refund/RefundHT
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -757,8 +797,8 @@ BEGIN
 					,SOURCE.HomeValue
 					,SOURCE.AwayValue 
 					,NULL 
-					,5 -- Manual Settlement 
-					,@SettlementStatusID -- Refund/RefundHT
+					,SOURCE.ResultStatusID
+					,SOURCE.SettlementStatusID -- Refund/RefundHT
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -768,15 +808,6 @@ BEGIN
 	/* END - @Command = 'NAP_Admin_Settlement_RefundHT' */
 	ELSE IF @Command ='NAP_Admin_Settlement_FGLG'
 	BEGIN
-		SELECT	@GoalSequence	= GoalRecord
-		FROM	Match WITH (NOLOCK)
-		WHERE	MatchID = @MatchID		
-
-		SELECT	@SettlementStatusID = 4 
-
-		INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
-		SELECT '08', @GoalSequence,NULL 
-
 		MERGE	ResultDetail AS TARGET
 		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
 		WHEN	MATCHED THEN				 
@@ -784,8 +815,8 @@ BEGIN
 					TARGET.HomeValue			= SOURCE.HomeValue
 					,TARGET.AwayValue			= SOURCE.AwayValue  
 					,TARGET.OtherInfo			= NULL
-					,TARGET.ResultStatusID		= 5		-- Manual Settlement 
-					,TARGET.SettlementStatusID	= @SettlementStatusID	-- Completed
+					,TARGET.ResultStatusID		= SOURCE.ResultStatusID
+					,TARGET.SettlementStatusID	= SOURCE.SettlementStatusID	-- Completed
 					,TARGET.LastModifyBy		= @Creator 
 					,TARGET.LastModifyDate		= GETDATE() 
 		WHEN	NOT MATCHED BY TARGET THEN 
@@ -808,8 +839,8 @@ BEGIN
 					,SOURCE.HomeValue
 					,SOURCE.AwayValue 
 					,NULL 
-					,5 -- Manual Settlement 
-					,@SettlementStatusID -- Completed
+					,SOURCE.ResultStatusID
+					,SOURCE.SettlementStatusID -- Completed
 					,@Creator
 					,GETDATE()
 					,@Creator
@@ -878,9 +909,68 @@ BEGIN
 				);	 
 	END 
 	/* END - @Command = 'NAP_Admin_Settlement_Corner-CAL' */
+	ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL'
+	BEGIN
+		IF @ResourceResult IS NULL
+			RETURN
+			
+		SELECT	@SettlementStatusID = 4
+				,@ResultStatusID = 5
+				
+		MERGE	ResultDetail AS TARGET
+		USING	@tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
+		WHEN	MATCHED THEN				 
+				UPDATE SET
+					TARGET.HomeValue			= SOURCE.HomeValue
+					,TARGET.AwayValue			= SOURCE.AwayValue  
+					,TARGET.OtherInfo			= NULL
+					,TARGET.ResultStatusID		= @ResultStatusID		
+					,TARGET.SettlementStatusID	= @SettlementStatusID
+					,TARGET.LastModifyBy		= @Creator 
+					,TARGET.LastModifyDate		= GETDATE() 
+		WHEN	NOT MATCHED BY TARGET THEN 
+				INSERT(
+					 MatchID
+					,ResourceID
+					,HomeValue
+					,AwayValue
+					,OtherInfo 
+					,ResultStatusID
+					,SettlementStatusID
+					,CreateBy
+					,CreateDate
+					,LastModifyBy
+					,LastModifyDate
+				)
+				VALUES(
+					 @MatchID
+					,SOURCE.ResourceID
+					,SOURCE.HomeValue
+					,SOURCE.AwayValue 
+					,NULL 
+					,@ResultStatusID
+					,@SettlementStatusID
+					,@Creator
+					,GETDATE()
+					,@Creator
+					,GETDATE()
+				);	 
+	END
+	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL' */
+	ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO'
+	BEGIN
+		UPDATE 	r  WITH (UPDLOCK,ROWLOCK)
+		SET		HomeValue			= t.HomeValue
+				,AwayValue			= t.AwayValue
+				,ResultStatusID		= t.ResultStatusID
+				,SettlementStatusID	= t.SettlementStatusID
+				,LastModifyBy		= @Creator 
+				,LastModifyDate		= GETDATE() 
+		FROM	dbo.ResultDetail r
+			INNER JOIN @tmpResultDetail t 
+				ON	r.ResourceID = t.ResourceID
+		WHERE	r.MatchID = @MatchID
+	END
+	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Result_Update_1s] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Result_Update_1s] TO [vnteam] AS [dbo]
 GO

@@ -50,6 +50,7 @@ AS
 		- 20161021@Kathy: Using new non-clustered index (match_bettype) to update BetParlayDetail [Redmine:#65990]
 		- 20161025@Kathy:  Avoid deadlock issue [Redmine:#65990]
 		- 20161121@Bobby: #67462 - Remove code SDT for parlay bet types 14,127 when doing refund single SDT
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
 	Param's Explanation:
 		
@@ -92,7 +93,7 @@ BEGIN
 
 				UPDATE b
 				SET @modds = CASE
-					WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' ) AND ISNULL(@FGLG2,'') <> '' ) THEN --just for betchoice FG and NG
+					WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' )  AND @correctscore <> '')  THEN --just for betchoice FG and NG
 						CASE WHEN (betteam = @correctscore OR betteam = @FGLG2)	THEN 1 ELSE -1 END
 					WHEN b.betteam NOT IN ('0:4', '4:0')
 						AND @bettype = 30 --1H Correct Score
@@ -412,7 +413,7 @@ BEGIN
 		BEGIN
 			UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
 			SET @modds = CASE 
-					WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' ) AND ISNULL(@FGLG2,'') <> '') THEN --just for betchoice FG and NG
+					WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' )  AND @correctscore <> '') THEN --just for betchoice FG and NG
 						CASE WHEN (betteam = @correctscore OR betteam = @FGLG2)	THEN 1 ELSE -1 END
 					WHEN betteam NOT IN ('0:4', '4:0') 
 						AND @bettype = 30 

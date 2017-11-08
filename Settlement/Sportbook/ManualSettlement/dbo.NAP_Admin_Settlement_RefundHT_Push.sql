@@ -1,21 +1,22 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push] 
     @MatchId                        INT
-    ,@AdminId                        INT
-    ,@IsExcludeBetdaq                BIT             = 0
+    ,@AdminId                       INT
+    ,@IsExcludeBetdaq               BIT             = 0
     ,@IsSettleAbandonedMatch        BIT             = 0
-    ,@IsExcludeBetfair                BIT             = 0
+    ,@IsExcludeBetfair              BIT             = 0
     ,@IsSettleAbandonedMatchBetFair BIT             = 0
-    ,@HalfTimeHome                    INT             = NULL
-    ,@HalfTimeAway                    INT             = NULL
-    ,@isExistTotalCorner            BIT                = 0 
-    ,@isExistHTFCorner                BIT                = 0 
-    ,@isExistHTLCorner                BIT                = 0 
-    ,@isExistFTFCorner                BIT                = 0 
-    ,@isExistFTLCorner                BIT                = 0
-    ,@IP                            VARCHAR(15)        = ''
-    ,@ErrCode                        INT                = 0        OUTPUT
-    ,@ErrMsg                        NVARCHAR(200)    = ''    OUTPUT
+    ,@HalfTimeHome                	INT             = NULL
+    ,@HalfTimeAway                	INT             = NULL
+    ,@isExistTotalCorner            BIT            	= 0 
+    ,@isExistHTFCorner            	BIT            	= 0 
+    ,@isExistHTLCorner            	BIT            	= 0 
+    ,@isExistFTFCorner            	BIT            	= 0 
+    ,@isExistFTLCorner            	BIT            	= 0
+    ,@ResourceResult				VARCHAR(MAX)	= NULL
+    ,@IP                            VARCHAR(15)   	= ''
+    ,@ErrCode                       INT           	= 0     OUTPUT
+    ,@ErrMsg                        NVARCHAR(200)   = ''    OUTPUT
 AS
 /*
     Created: 20130213@Kathy
@@ -30,6 +31,7 @@ AS
         - 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
 		- 20160905@Bobby: #63553 - Include FGLG (14,127) bet types
 		- 20170321@Bobby: #73407 - CashOut integration
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
     
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -37,6 +39,10 @@ AS
     • @IsSettleAbandonedMatch: Is Settlement for Betdaq ticket of Abandoned/postponed match or not
     • @IsExcludeBetfair: Is Exclude betfair tickets or not
     • @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
+	• @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
 
 */
 BEGIN
@@ -115,6 +121,8 @@ BEGIN
                                                                  + ', @isExistHTLCorner = ' + CONVERT(NVARCHAR(1), @isExistHTLCorner)
                                                                  + ', @isExistFTFCorner = ' + CONVERT(NVARCHAR(1), @isExistFTFCorner)
                                                                  + ', @isExistFTLCorner = ' + CONVERT(NVARCHAR(1), @isExistFTLCorner)
+                                                                 + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                                                     ELSE '''' + @ResourceResult + '''' END 
                                                                  + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                                                                  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                  + ', @ErrMsg = @ErrMsg OUTPUT'

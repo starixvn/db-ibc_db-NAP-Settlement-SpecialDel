@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push]
 	, @AwayScore		VARCHAR(50)
     , @Action			VARCHAR(10)
 	, @Mode				VARCHAR(10)
+	, @ResourceResult	VARCHAR(MAX)	= NULL
     , @IP				VARCHAR(15)     = ''
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
@@ -25,10 +26,15 @@ AS
 
     Revisions:
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
+		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
 		- @Mode: ['INST-HT', 'INST-FT']
+		- @ResourceResult
+					<Results>
+						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
+					</Results>
         
 */
 BEGIN
@@ -104,6 +110,10 @@ BEGIN
 							+ ', @InstantKey = ' + ISNULL(CONVERT(NVARCHAR(50), @InstantKey), 'NULL') + ''
 							+ ', @HomeScore = ''' + ISNULL(CONVERT(NVARCHAR(50), @HomeScore), 'NULL') + ''''
 							+ ', @AwayScore = ''' + ISNULL(CONVERT(NVARCHAR(50), @AwayScore), 'NULL') + ''''
+							+ ', @ResourceResult = ' + CASE 
+															WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                            ELSE '''' + @ResourceResult + '''' 
+														END 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
@@ -134,6 +144,10 @@ BEGIN
 							+ ', @InstantKey = ' + ISNULL(CONVERT(NVARCHAR(50), @InstantKey), 'NULL') + ''
 							+ ', @HomeScore = ''' + ISNULL(CONVERT(NVARCHAR(50), @HomeScore), 'NULL') + ''''
 							+ ', @AwayScore = ''' + ISNULL(CONVERT(NVARCHAR(50), @AwayScore), 'NULL') + ''''
+							+ ', @ResourceResult = ' + CASE 
+															WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                            ELSE '''' + @ResourceResult + '''' 
+														END 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'

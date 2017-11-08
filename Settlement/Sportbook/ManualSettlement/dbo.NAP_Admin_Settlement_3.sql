@@ -28,6 +28,7 @@ AS
        - 20160808@Kathy: BetTrade - changes for new commercial terms - add bettype 904 [Redmine:#61905]
 	   - 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
 	   - 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
+	   - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
        
     Param's Explanation:
     • @Mode:
@@ -92,7 +93,15 @@ BEGIN
             ,@strBettypes 			VARCHAR(MAX)
             
             ,@betcount_501			INT = 0
-	
+            ,@strResultDetail		VARCHAR(MAX)
+            ,@xmlResultDetail		XML
+			
+			-- for FGLG declaration
+			,@ht_fg 				VARCHAR(10)
+			,@ht_lg 				VARCHAR(10)
+			,@ft_fg 				VARCHAR(10)
+			,@ft_lg 				VARCHAR(10)
+			
     SELECT	@fth = FinalHomeScore
 			,@fta = FinalAwayScore
 			,@hth = HTHomeScore
@@ -104,59 +113,74 @@ BEGIN
 			,@matchCode = ISNULL(matchCode, '')
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
-	
-	BEGIN -- for FGLG declaration
-	DECLARE @FGLG1 				VARCHAR(10)
-		, @FGLG2 				VARCHAR(10)
-		, @FLString 			VARCHAR(10)
-		, @HT_FGLG1 			VARCHAR(10)
-		, @HT_FGLG2 			VARCHAR(10)
-		, @HT_FLString 			VARCHAR(10)
-		, @temp_betstatus 		NVARCHAR(50)
-		, @goaldiff				SMALLMONEY
-		
-	SELECT @FGLG1 			= ''
-		, @FGLG2 			= ''
-		, @HT_FGLG1 		= ''
-		, @HT_FGLG2 		= ''
-		, @temp_betstatus 	= @betstatus
-		, @goaldiff 		= 0
-	
-	IF CHARINDEX('1FL:', @temp_betstatus) > 0 
-	BEGIN
-		SELECT @HT_FLString = SUBSTRING(@temp_betstatus, CHARINDEX('1FL:',@temp_betstatus) + 4, 3)
-			, @temp_betstatus = REPLACE(@temp_betstatus, SUBSTRING(@temp_betstatus, CHARINDEX('1FL:', @temp_betstatus), 7),'')
-			, @HT_FGLG1 = CASE @HT_FLString WHEN '0-0' THEN '0:0'
-							ELSE LEFT(@HT_FLString, 1) + ':1' END
-			, @HT_FGLG2 = CASE @HT_FLString WHEN '0-0' THEN ''
-							ELSE RIGHT(@HT_FLString, 1) + ':2' END
-	END
-	IF CHARINDEX('FL:', @temp_betstatus) > 0
-	BEGIN
-		SELECT @FLString = SUBSTRING(@temp_betstatus, CHARINDEX('FL:',@temp_betstatus) + 3, 3)
-			, @FGLG1 = CASE @FLString WHEN '0-0' THEN '0:0'
-							ELSE LEFT(@FLString,1) + ':1' END
-			, @FGLG2 = CASE @FLString WHEN '0-0' THEN ''
-							ELSE RIGHT(@FLString,1) + ':2' END
-	END
-	END
     
 	IF @Sporttype = 1 
     BEGIN
-
-        SELECT  @fthCorners		= ISNULL(MAX(CASE WHEN ResourceID ='04' THEN HomeValue ELSE 0 END),0)
-                ,@ftaCorners    = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN AwayValue ELSE 0 END),0)
-                ,@hthCorners    = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN HomeValue ELSE 0 END),0)
-                ,@htaCorners    = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN AwayValue ELSE 0 END),0)
-                ,@FTFCorner    	= ISNULL(MAX(CASE WHEN ResourceID ='206' THEN HomeValue ELSE '' END),'')
-                ,@HTFCorner    	= ISNULL(MAX(CASE WHEN ResourceID ='207' THEN HomeValue ELSE '' END),'')
-                ,@FTLCorner    	= ISNULL(MAX(CASE WHEN ResourceID ='208' THEN HomeValue ELSE '' END),'')
-                ,@HTLCorner    	= ISNULL(MAX(CASE WHEN ResourceID ='209' THEN HomeValue ELSE '' END),'')
-        FROM    DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK)
-        WHERE   matchid = @matchid
-                AND ResourceID IN ('04','05','206','207','208','209')
-                AND SettlementStatusID = 4 
-
+		
+		EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
+			,@matchid = @MatchId
+			,@str_resultDetail = @strResultDetail OUTPUT
+			
+		SET @xmlResultDetail = CAST(@strResultDetail AS XML)
+		
+		;WITH cteResult
+		AS(
+			SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+					,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+					,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+			FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+		)
+		SELECT	@ht_fg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='127F' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:1'
+													WHEN HomeValue = 'A' THEN '2:1'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')		
+				,@ht_lg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='127L' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:2'
+													WHEN HomeValue = 'A' THEN '2:2'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')			
+				,@ft_fg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='14F' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:1'
+													WHEN HomeValue = 'A' THEN '2:1'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')		
+				,@ft_lg = ISNULL(MAX(CASE 
+										WHEN ResourceID ='14L' 
+											THEN CASE 
+													WHEN HomeValue = 'N' THEN '0:0'
+													WHEN HomeValue = 'H' THEN '1:2'
+													WHEN HomeValue = 'A' THEN '2:2'
+													ELSE ''
+												END
+											ELSE '' 
+									END),'')					
+				,@fthCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN HomeValue ELSE 0 END),0)
+				,@ftaCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN AwayValue ELSE 0 END),0)
+                ,@hthCorners = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN HomeValue ELSE 0 END),0)
+                ,@htaCorners = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN AwayValue ELSE 0 END),0)
+                ,@FTFCorner = ISNULL(MAX(CASE WHEN ResourceID ='206' THEN HomeValue ELSE '' END),'')
+                ,@HTFCorner = ISNULL(MAX(CASE WHEN ResourceID ='207' THEN HomeValue ELSE '' END),'')
+                ,@FTLCorner = ISNULL(MAX(CASE WHEN ResourceID ='208' THEN HomeValue ELSE '' END),'')
+                ,@HTLCorner = ISNULL(MAX(CASE WHEN ResourceID ='209' THEN HomeValue ELSE '' END),'')
+		FROM	cteResult r
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+		
         SELECT  @oddevenCorners		= ((@fthCorners + @ftaCorners)%2)
                 ,@oddevenCorners_ht = ((@hthCorners + @htaCorners)%2)
                 ,@totalCorners      = (@fthCorners + @ftaCorners)
@@ -356,16 +380,12 @@ BEGIN
         ,@htLCorner = @htLCorner
         ,@isRefundHT = @isRefundHT      
         ,@isExcludeCorner = @isExcludeCorner  
-		,@strBettypes	   = @strBettypes
-		
+		,@strBettypes	   = @strBettypes		
 		-- including FGLG
-		,@HT_FGLG1 = @HT_FGLG1
-		,@HT_FGLG2 = @HT_FGLG2
-		,@FGLG1 = @FGLG1
-		,@FGLG2 = @FGLG2
-		,@goaldiff = @goaldiff
-		
-		
+		,@ht_fg = @ht_fg
+		,@ht_lg = @ht_lg
+		,@ft_fg = @ft_fg
+		,@ft_lg = @ft_lg
 		-- using by service broker
 		,@CalledByBrokerService = 0 -- this one is called by NAP_Admin_Settlement_3 instead :)
 					   
