@@ -224,7 +224,7 @@ BEGIN
 				, WalletType
 				, BonusID
 				, balance 
-			FROM dbo.f_Settle_GetBalanceFastMarket (
+			FROM dbo.f_Set_GetBalanceFastMarket (
 				@MatchId
 				, @Action
 				, @xmlFMResults
