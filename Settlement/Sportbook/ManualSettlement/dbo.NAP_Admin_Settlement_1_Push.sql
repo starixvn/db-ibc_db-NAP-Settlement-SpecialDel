@@ -37,7 +37,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
-	,@ServiceCommand		NVARCHAR(1000)	= ''	OUTPUT
+	,@ServiceCommand		NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*    Creator: Kathy
     Date: 20140213
@@ -59,7 +59,8 @@ AS
         - 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
         - 20170522@Kathy: Correct checking waiting tickets for tennis [Redmine:#76931]
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
-		
+		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
+
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
 		
