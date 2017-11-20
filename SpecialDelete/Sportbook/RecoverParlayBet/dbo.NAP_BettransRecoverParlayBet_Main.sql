@@ -21,6 +21,7 @@ AS
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20170727@Kathy: Update statuswinlost, creator when recover [Redmine:#80135]
+		- 20171106@Kent: Implement Notifications Center [Redmine:#84330]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -135,9 +136,10 @@ BEGIN
 		SELECT t.transid
 		FROM dbo.bettransm b WITH(NOLOCK) 
 			INNER JOIN #tblRecoverBet t ON t.refno = b.refno
-			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid
-		WHERE m.eventstatus <> 'completed'
+			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid		
 		GROUP BY t.transid
+		HAVING COUNT(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE NULL END) -- count running subs for each main ticket
+			   = COUNT(*) -- count all subs for each main ticket
 
 		-- Get match list
 		SELECT	ROW_NUMBER() OVER (PARTITION BY t.transid ORDER BY m.eventdate DESC) AS RowNumber,
@@ -287,8 +289,11 @@ BEGIN
 
 		--transid is auto settled
 		SELECT @SettledMainTranIds = ''
-		SELECT  @SettledMainTranIds = @SettledMainTranIds + ',' + CONVERT(VARCHAR(20), transid) 
-		FROM	@tblMatchIds
+		SELECT  @SettledMainTranIds = @SettledMainTranIds + ',' + CONVERT(VARCHAR(20), b.transid) 
+		FROM	bettrans b (NOLOCK)
+				INNER JOIN #tblRecoverBet t
+						ON b.transid = t.transid
+		WHERE b.statusID IN (111, 112, 113, 103)						
 
 		SET @SettledMainTranIds = STUFF(@SettledMainTranIds,1,1,'')
 
