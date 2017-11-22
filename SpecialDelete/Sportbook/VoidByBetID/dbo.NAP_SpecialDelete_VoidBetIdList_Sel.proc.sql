@@ -36,7 +36,8 @@ AS
 		- 20170314@Kent: Integrate cash-out [Redmine:#72059]
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
-		- 20170725@Paul: Return CurrencyName [Redmine:#77175]	
+		- 20170725@Paul: Return CurrencyName [Redmine:#77175]
+		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]	
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -856,13 +857,13 @@ BEGIN
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 			,CASE 
 				WHEN (
-					d.recommend NOT IN (52466)
+					d.recommend NOT IN (52466, 5707545)
 					AND d.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 					AND s.custid IS NULL					
 				) THEN '0-Credit'
-				WHEN d.recommend IN (52466)	THEN '1-8RM'
+				WHEN d.recommend IN (52466, 5707545) THEN '1-8RM/BARM'
 				WHEN (
-					d.recommend NOT IN (52466)
+					d.recommend NOT IN (52466, 5707545)
 					AND d.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 					AND s.custid IS NOT NULL					
 				) THEN '2-Deposit'
@@ -921,6 +922,8 @@ BEGIN
 		,d.ExtraInfo
 		,d.MainCashoutId
 		,d.CurrencyName
+		,FollowInfo.transid AS followedId
+		,FollowInfo.Username AS followedUsername
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g
 		ON d.custid = g.custid
@@ -928,6 +931,10 @@ BEGIN
 								WHEN d.betfrom = 'p' THEN '4-Phone Betting'
 								ELSE g.GroupName
 							END AS GroupName) AS T
+		OUTER APPLY (SELECT TOP 1 transid, username
+					 FROM bettrans (NOLOCK)
+					 WHERE transid = d.betid					   
+					   AND T.GroupName = '1-8RM/BARM') AS FollowInfo						
 		
 	WHERE NOT EXISTS (
 			SELECT TOP 1 1 
