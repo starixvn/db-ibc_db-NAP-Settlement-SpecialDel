@@ -28,6 +28,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170609@Kathy: Early settlement for BAIO [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
 		
 	Param's Explanation:		
 		
@@ -101,33 +102,31 @@ BEGIN
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @match WHERE sporttype = 1)
 	BEGIN
-		INSERT INTO @tblRunningAutoSettle
-		SELECT matchid
-		FROM	dbo.bettrans WITH(NOLOCK)
-		WHERE	matchid IN (SELECT matchid FROM @match)
-				AND statusID = 0
-				AND bettype IN (SELECT bettype FROM @tmpAutoBetRadarBettypes)
-		GROUP BY matchid
-	
 		;WITH cteBetStatusM
 		AS(
 			SELECT	matchid
 					,CASE 
-						WHEN BetType IN (160,164,169,180,216) THEN CAST(BetType AS VARCHAR(20)) + '__'
+						WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
+						--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
 						ELSE CAST(BetType AS VARCHAR(20))
 					END AS ResourceId
 			FROM	dbo.bettransm WITH(NOLOCK)
 			WHERE	matchid IN (SELECT matchid FROM @match)
 					AND statusID = 0
 					AND bettype IN (SELECT BetType FROM @tmpAutoBetRadarBettypes)
-			GROUP BY matchid, bettype		
+			GROUP BY matchid
+					,CASE 
+						WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
+						--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
+						ELSE CAST(BetType AS VARCHAR(20))
+					END		
 		)
 		INSERT INTO @tblRunningAutoSettle (matchid)
 		SELECT	c.matchid
 		FROM	cteBetStatusM c
 			LEFT JOIN DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)
 				ON	c.matchid = r.matchid
-					AND r.ResourceId LIKE c.ResourceId
+					AND r.ResourceId = c.ResourceId
 		WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		
 		;WITH cteFGLGBettypes
@@ -177,14 +176,6 @@ BEGIN
 	BEGIN
 		;WITH cteBetstatus
 		AS(
-			SELECT	b.matchid
-					,b.bettype
-					,CAST(b.betid AS NVARCHAR(50)) betid
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid IN (SELECT matchid FROM @match)
-					AND b.statusID = 0
-			GROUP BY b.matchid, b.bettype, b.betid
-			UNION ALL
 			SELECT	bm.matchid
 					,bm.bettype
 					,bm.betcheck
@@ -197,17 +188,17 @@ BEGIN
 		AS(
 			SELECT c.matchid
 					,CASE 
-						WHEN f.isEarly = 1 OR c.bettype IN (605, 617) THEN CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(c.betid, 2, LEN(c.betid)), '')
+						WHEN f.isEarly = 1 OR c.bettype IN (605, 617) THEN CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(c.betcheck, 2, LEN(c.betcheck)), '')
 						WHEN f.GroupName = 'FT' THEN '00'
 						WHEN f.GroupName = '1H' THEN '01'
 						WHEN f.GroupName = '2H' THEN '02'
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betid,3,1)
+						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
 						ELSE NULL
 					END AS ResourceID
 					,CASE 
 						WHEN f.isEarly = 1 THEN 'Early Settle'
 						WHEN f.GroupName IN ('FT', '1H', '2H') THEN f.GroupName
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betid,3,1)
+						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
 						ELSE NULL
 					END AS QuarterX
 			FROM	cteBetstatus c
