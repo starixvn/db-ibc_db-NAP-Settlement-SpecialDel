@@ -116,7 +116,6 @@ BEGIN
          @IsExistFGLG = 0
         ,@IsHTOnly = 0
         ,@IsLive = 0
-        ,@IsSettleAbandonedMatchIBC = 0
 		,@SettleAbandonedMatchIBCParlay = 0
         ,@IsExistHTFGLG = 0
         ,@isExistTotalCorner    = 0
@@ -688,7 +687,7 @@ BEGIN
 		WHERE    MatchID = @MatchID 
 				AND (@Sporttype = 5 
 						OR(    @Sporttype = 1 
-							AND ResourceID IN ('04','05','206','207','208','209') -- Corners Bettype
+							AND ResourceID IN ('00','01','04','05','206','207','208','209') -- Corners Bettype
 						)
 				)
 	END
