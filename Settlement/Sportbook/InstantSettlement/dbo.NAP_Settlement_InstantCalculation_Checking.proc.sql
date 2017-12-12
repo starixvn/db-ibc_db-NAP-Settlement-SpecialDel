@@ -18,6 +18,7 @@ AS
 		- 20161031@Bobby: #66484 - Allow score [0-0] to do Inst.Calc
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
 		
 	Param's Explanation:
 		- @Action: ['CAL']
@@ -169,7 +170,7 @@ BEGIN
 				WHERE matchid 			= @MatchId
 					AND CalculationType = @CalculationType
 					AND StatusId		= 2 -- completed
-				ORDER BY AutoPayoutResultId DESC
+				ORDER BY ModifiedDate DESC
 			) 
 			SELECT @totalGoalCheck 	= HomeScore + AwayScore
 				,@goalRecordCheck	= GoalRecord
