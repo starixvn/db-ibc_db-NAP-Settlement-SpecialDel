@@ -29,6 +29,7 @@ AS
 	   - 20160824@Bobby: #62921 - Include FGLG (14,127) bet types
 	   - 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 	   - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+	   - 20171211@Kathy: Do not calculate bettype 22 with old format (betteam:h,a) [Redmine:#80947]
        
     Param's Explanation:
     • @Mode:
@@ -276,18 +277,6 @@ BEGIN
 			SET @index = @index + 1
 		END
 	END			
-	
-    IF EXISTS (
-            SELECT	transid
-            FROM	dbo.bettrans WITH (NOLOCK)
-            WHERE	matchid = @matchid 
-					AND bettype = 22
-            ) AND LEN(@GoalRecord) <> @TotalGoal
-    BEGIN
-        RAISERROR ('Goal record is not consistent with the score, please correct Goal record before calculating.', 16, 1)
-
-        RETURN
-    END
 	
 	--using this way to avoid more param @betcount
 	;WITH cteBettypes
