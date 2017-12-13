@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -32,6 +36,7 @@ AS
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -55,7 +60,7 @@ BEGIN
 		,@FTLCorner         VARCHAR(10)    = NULL 
 		,@HTFCorner         VARCHAR(10)    = NULL 
 		,@HTLCorner         VARCHAR(10)    = NULL
-	
+		
 	DECLARE
 		@homeScoreSet1         tinyint
         ,@homeScoreSet2         tinyint
@@ -95,6 +100,12 @@ BEGIN
         ,@ExtraNextGoal            VARCHAR(MAX)= NULL
         ,@GoalScorerAnytime        VARCHAR(MAX)= NULL
         ,@FirstGoalMethod			VARCHAR(2) = NULL
+        
+        ,@scorediff			SMALLINT = 0
+		,@totalgoal			SMALLINT = 0
+		,@oddeven			SMALLINT = 0
+		,@totalht			SMALLINT = 0
+		,@totalgoal_2H		SMALLINT = 0
         ,@ResourceIDsCAL        VARCHAR(MAX)= NULL
         ,@ResourceIDsREFUND        VARCHAR(MAX)= NULL
         
@@ -139,11 +150,18 @@ BEGIN
 	SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@GoalSequence, @home_firstteam2goals + 1) ELSE 0 END
 	SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@GoalSequence, @away_firstteam2goals + 1) ELSE 0 END    
 	
+	
 	DECLARE @WinFromBehind NVARCHAR(1)
 			,@curHome INT = 0
 			,@curAway INT = 0
 			,@index INT = 1
 			
+	SET @totalgoal = @fth + @fta
+    SET @scorediff = @fth - @fta
+    SET @oddeven = (@fth + @fta) % 2
+    SET @totalht = (@hth + @hta)
+    SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)
+            
 	IF (@fth <> @fta) AND (@fth + @fta) > 2
 	BEGIN
 		WHILE (@index <= LEN(REPLACE(@GoalSequence,';','')))
@@ -241,26 +259,10 @@ BEGIN
 												END
 											ELSE '' 
 									END),'')			
-				,@ft_fg = ISNULL(MAX(CASE 
-										WHEN ResourceID ='14F' 
-											THEN CASE 
-													WHEN HomeValue = 'N' THEN '0:0'
-													WHEN HomeValue = 'H' THEN '1:1'
-													WHEN HomeValue = 'A' THEN '2:1'
-													ELSE ''
-												END
-											ELSE '' 
-									END),'')		
-				,@ft_lg = ISNULL(MAX(CASE 
-										WHEN ResourceID ='14L' 
-											THEN CASE 
-													WHEN HomeValue = 'N' THEN '0:0'
-													WHEN HomeValue = 'H' THEN '1:2'
-													WHEN HomeValue = 'A' THEN '2:2'
-													ELSE ''
-												END
-											ELSE '' 
-									END),'')					
+				
+				,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
+				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')	
+							
 		FROM	cteResult r
 		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
 		
@@ -541,6 +543,12 @@ BEGIN
 						, ref.HomeValue
 						, ref.QXHome					
 						, ref.QXAway
+						, @totalgoal
+						, @scorediff
+						, @oddeven
+						, @totalht
+						, @totalgoal_2H
+						
 					) AS odds
 				WHERE b.matchId = @matchId
 			) AS b FOR XML AUTO
@@ -571,5 +579,7 @@ BEGIN
 	
 	RETURN
 END
-
 GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_Calculate] TO [bodbAdminNet]
+GO
+

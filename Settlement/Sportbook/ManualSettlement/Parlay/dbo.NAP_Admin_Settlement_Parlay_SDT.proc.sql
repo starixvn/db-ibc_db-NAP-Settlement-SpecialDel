@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_SDT] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -10,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_SDT] (
 	, @sportType		SMALLINT
 	, @betstatus		NVARCHAR(50)
 	, @goalRecord		VARCHAR(50)	
+	, @resultDetail		VARCHAR(MAX) = NULL
 	, @ticketCount		INT = 0 OUTPUT
 	, @IsRefundHT		BIT  = 0
 	, @ErrCode 			INT = 0 OUTPUT
@@ -23,7 +28,7 @@ AS
 
 	Revisions:		
 		- 20170719@Kathy: add metadata
-		
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
@@ -47,10 +52,17 @@ BEGIN
 		
 		, @totalConner		TINYINT
 		, @totalConner1H 	TINYINT
-	
+		
+		, @ft_fg 			VARCHAR(10)
+		, @ft_lg 			VARCHAR(10)
+		, @ht_fg 			VARCHAR(10)
+		, @ht_lg 			VARCHAR(10)
+		
+		, @xmlResultDetail		XML
+		
 	DECLARE @rsQuery			NVARCHAR(MAX)
 	
-	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY, IsDetermined BIT)
+	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
 	CREATE TABLE #tmpResultDetail (
 		ResourceID 			VARCHAR(20)
 		, HomeValue 		VARCHAR(50)
@@ -71,7 +83,48 @@ BEGIN
 		, @ftFCorner		= ''
 		, @htFCorner		= ''
 		, @ticketCount		= 0
+		
 	
+	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
+	
+	;WITH cteResult
+	AS(
+		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+				,T.c.value('./@ssId','TINYINT') AS SettlementStatusID
+		FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+	)
+	SELECT	
+			-- for bettype 127 only: 1H
+			@ht_fg = ISNULL(MAX(CASE 
+									WHEN ResourceID ='127F' 
+										THEN CASE 
+												WHEN HomeValue = 'N' THEN '0:0'
+												WHEN HomeValue = 'H' THEN '1:1'
+												WHEN HomeValue = 'A' THEN '2:1'
+												ELSE ''
+											END
+										ELSE '' 
+								END),'')		
+			,@ht_lg = ISNULL(MAX(CASE 
+									WHEN ResourceID ='127L' 
+										THEN CASE 
+												WHEN HomeValue = 'N' THEN '0:0'
+												WHEN HomeValue = 'H' THEN '1:2'
+												WHEN HomeValue = 'A' THEN '2:2'
+												ELSE ''
+											END
+										ELSE '' 
+								END),'')			
+			-- for bettype 14 (FT) , 448, 454: 
+			,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
+			,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')	
+						
+	FROM	cteResult r
+	WHERE r.SettlementStatusID = 4
+	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+		
 	SET @rsQuery = '
 		INSERT INTO #tmpResultDetail(ResourceID, HomeValue, AwayValue)	
 		SELECT ResourceID, HomeValue, AwayValue
@@ -103,9 +156,8 @@ BEGIN
 		, @ftaCorners			= CASE WHEN @IsHT = 1 THEN @htaCorners 	ELSE @ftaCorners END
 		, @ftFCorner			= CASE WHEN @IsHT = 1 THEN @htFCorner 	ELSE @ftFCorner END
 	
-	INSERT INTO #SDTBettypes (bettype, IsDetermined)
+	INSERT INTO #SDTBettypes (bettype)
 	SELECT f.BetType
-		, f.IsDetermined
 	FROM dbo.f_Set_GetGroupBettypes() f
 	WHERE 1 = CASE 
 				WHEN @IsHT = 1 THEN 1
@@ -118,7 +170,8 @@ BEGIN
 				ELSE 0
 			END
 		AND f.IsAuto = 0 --Exclude BetRadar, FM
-	
+		
+		
 	BEGIN --SDT Process
 		DECLARE @tempBatch TABLE (refno BIGINT)
 		DECLARE @tempRefno TABLE (refno BIGINT)
@@ -178,6 +231,7 @@ BEGIN
 								, @aScore2H
 								, b.transdesc
 								, @IsHT
+								
 							)
 							WHERE modds IS NOT NULL
 							UNION ALL
@@ -204,7 +258,12 @@ BEGIN
 								b.bettype
 								, b.betteam
 								, @GoalRecord
+								, @ht_fg
+								, @ht_lg
+								, @ft_fg
+								, @ft_lg
 								, @IsHT
+								
 							)
 							WHERE modds IS NOT NULL
 						)  AS odds
@@ -243,4 +302,6 @@ BEGIN
 	
 	RETURN
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_SDT] TO [bodbAdminNet]
 GO

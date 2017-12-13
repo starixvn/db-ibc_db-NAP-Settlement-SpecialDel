@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelCompleted] 
 	@Date DATETIME
 	, @SportType 	SMALLINT = 0
@@ -34,6 +38,8 @@ AS
 		- 20161013@Bobby: #65002 - Update changes for Instant Calculation 
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -48,6 +54,8 @@ BEGIN
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
+	
+	CREATE TABLE #BettypeFGLG  (bettype SMALLINT, GroupID SMALLINT)
 	
 	DECLARE @SqlQuery VARCHAR(4000)
 	SET @SqlQuery = ''
@@ -88,19 +96,28 @@ BEGIN
 		AND IsCalculating IN (1, 0)
 	GROUP BY matchid
 
+	INSERT INTO #BettypeFGLG (bettype,GroupID)
+	SELECT BetType,GroupID
+	FROM dbo.f_Set_GetGroupBettypes()
+	WHERE IsFGLG = 1
+	
 	;WITH BetStatus AS (
 		SELECT b.matchid
 			, COUNT(b.matchid) AS BetCount
-			, SUM(CASE WHEN bettype = 14 THEN 1	ELSE 0 END) AS cntFGLG
-			, SUM(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS cntHTFGLG
+			
+			, SUM(CASE WHEN fglg.GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
+			, SUM(CASE WHEN fglg.GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
+			
 		FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype)
+			LEFT JOIN #BettypeFGLG fglg WITH (NOLOCK) ON fglg.bettype = b.bettype
+			
 		WHERE EXISTS (SELECT TOP 1 1 FROM #DataTmp m WHERE b.matchid = m.MatchId) 
 			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
-			AND bettype NOT BETWEEN 1501 and 1599 -- Keno
-			AND bettype NOT BETWEEN 901 AND 910
+			AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
+			AND b.bettype NOT BETWEEN 901 AND 910
 			AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
 			AND b.bettype <> 500 -- Charged commission
-			AND bettype NOT BETWEEN 801 AND 899--Metric Gaming
+			AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
 			AND winlostdate = @Date
 		GROUP BY b.matchid
 	)
@@ -175,5 +192,8 @@ BEGIN
 			)
 
 	DROP TABLE #DataTmp
+	DROP TABLE #BettypeFGLG
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelCompleted] TO [bodbAdminNet]
 GO

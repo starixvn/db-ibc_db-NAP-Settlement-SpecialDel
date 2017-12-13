@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Refund] (
 	@MatchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -207,4 +211,6 @@ BEGIN
 	DROP TABLE #refundBettypes
 	RETURN
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_Refund] TO [bodbAdminNet]
 GO

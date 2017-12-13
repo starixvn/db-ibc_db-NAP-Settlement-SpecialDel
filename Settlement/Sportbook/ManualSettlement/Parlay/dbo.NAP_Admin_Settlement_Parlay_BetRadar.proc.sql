@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_BetRadar] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -15,6 +19,7 @@ AS
 
 	Revisions:		
 		- 20170328@Bobby: #74203 - Update modds alias column
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
@@ -48,6 +53,7 @@ BEGIN
 		,@GoalScorerAnytime		VARCHAR(MAX)=''
 		
 		,@FirstGoalMethod		VARCHAR(2) =''
+		,@TimeFirstGoal			VARCHAR(10)=''
 			
 	DECLARE	@tmpResultDetail TABLE(
 		 MatchID				INT
@@ -64,7 +70,10 @@ BEGIN
 	
 	INSERT INTO #autoBettypes (bettype, ResourceId)
 	SELECT f.bettype
-		,CAST(f.bettype AS VARCHAR(20)) + '%' AS  ResourceId
+		,CASE 
+			WHEN f.bettype = 22 THEN CAST('160' AS VARCHAR(20)) + '%'
+			ELSE CAST(f.bettype AS VARCHAR(20)) + '%' 
+		END AS  ResourceId
 	FROM dbo.f_Set_GetGroupBettypes() AS f 
 	WHERE f.GroupId 	= 8 
 		
@@ -75,7 +84,8 @@ BEGIN
 		,AwayValue
 		,SettlementStatusID
 	)
-	SELECT rs.MatchID
+	SELECT DISTINCT
+		rs.MatchID
 		,rs.ResourceID
 		,rs.HomeValue
 		,rs.AwayValue
@@ -104,9 +114,11 @@ BEGIN
 			,@PlayerSentOffAway1H	= ISNULL(MAX(CASE WHEN ResourceID='215' THEN AwayValue ELSE '' END),'') --AwayValue
 
 			,@GoalScorerFirst		= ISNULL(MAX(CASE WHEN ResourceID='217' THEN HomeValue ELSE '' END),'')
+			
 			,@FirstGoalMethod		= ISNULL(MAX(CASE WHEN ResourceID='424' THEN HomeValue ELSE '' END),'')
+			,@TimeFirstGoal			= ISNULL(MAX(CASE WHEN ResourceID='455' THEN HomeValue ELSE '' END),'')
+			
 	FROM	@tmpResultDetail
-	
 	SELECT @NextGoal				= @NextGoal + CASE WHEN ResourceID LIKE '160__' THEN ResourceID + HomeValue +',' ELSE '' END 
 		,@ExtraNextGoal				= @ExtraNextGoal +  CASE WHEN ResourceID LIKE '164__' THEN ResourceID + HomeValue +',' ELSE '' END 
 		,@NextGoalTime15Min			= @NextGoalTime15Min + CASE WHEN ResourceID LIKE '169__' THEN ResourceID + HomeValue +',' ELSE '' END 
@@ -184,8 +196,8 @@ BEGIN
 							, @NextGoalTime15Min
 							, @ExtraNextGoal
 							, @GoalScorerAnytime
-					
 							, @FirstGoalMethod
+							, @TimeFirstGoal
 							, @IsHT
 						)  AS odds
 				WHERE b.matchid = @matchid 
@@ -215,3 +227,4 @@ BEGIN
 	
 END
 GO
+

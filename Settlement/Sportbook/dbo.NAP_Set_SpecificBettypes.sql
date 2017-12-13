@@ -1,4 +1,8 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE dbo.NAP_Set_SpecificBettypes
 	@Type VARCHAR(10) 
 	,@Action VARCHAR(20)
@@ -37,4 +41,8 @@ BEGIN
 						
 	
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Set_SpecificBettypes] TO [bodbAdminNet]
+GO
+GRANT VIEW DEFINITION ON [dbo].[NAP_Set_SpecificBettypes] TO [vnteam] 
 GO

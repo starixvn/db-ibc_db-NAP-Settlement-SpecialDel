@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_901]
 	@matchid INT,	
 	@ResourceIDs VARCHAR(MAX)=NULL,
@@ -19,7 +23,8 @@ AS
 			- 20161108@Kathy: Settlement for new server [Redmine:#66849]
 			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
-		
+			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			
 		Parameter's Explanation:
 	*/
 BEGIN
@@ -27,7 +32,11 @@ BEGIN
 	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 	
 	DECLARE @tmpBettype TABLE(bettype INT)
-	
+ 
+	DECLARE @bettype_22 VARCHAR(20), @bettype_160 VARCHAR(20)
+    SET @bettype_22 = '22'
+    SET @bettype_160 = '160'
+    
 	IF OBJECT_ID('tempdb..#tmp') IS NOT NULL
 	begin
 			drop table #tmp
@@ -45,7 +54,7 @@ BEGIN
 			INSERT INTO @tmpBettype(bettype)
 					SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
 				UNION SELECT 5 UNION SELECT 6 UNION SELECT 16 UNION SELECT 17
-				UNION SELECT 18 UNION SELECT 22 UNION SELECT 157 UNION SELECT 177 
+				UNION SELECT 18 UNION SELECT 157 UNION SELECT 177 
 				UNION SELECT 178 UNION SELECT 183 UNION SELECT 184 
 		END
 		IF @mode IN ('REFUND-HT','REFUND') AND @ResourceIDs IS NULL
@@ -60,6 +69,9 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 				SELECT 160 UNION SELECT 180
+				UNION ALL SELECT 22
+				
+				
 		END
 	END
 	--Refund FGLG
@@ -74,6 +86,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 				SELECT 14
+				
 		END		
 	END
 	
@@ -86,14 +99,16 @@ BEGIN
 		AND statusid NOT IN (101,102)
 		AND betdaqid = 0--indicate tickets belong to bettrade
 		AND ExtraInfo IS NULL
-		AND 1 = CASE WHEN @ResourceIDs IS NOT NULL 
-						AND Bettype IN (160,180) AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-					WHEN @ResourceIDs IS NULL AND bettype NOT IN (160,180) THEN 1
+		AND 1 = CASE 
+					WHEN @ResourceIDs IS NOT NULL AND Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
+					WHEN @ResourceIDs IS NOT NULL AND Bettype IN (160,180) AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
+					WHEN @ResourceIDs IS NULL AND bettype NOT IN (160,180,22) THEN 1
 					ELSE 0 
 				END
 		AND 1 = CASE WHEN @IsSettleAbandonedMatchIBC = 1 
 						AND statusID IN (112, 113) THEN 0
 				ELSE 1 END
+		
 		AND 1= CASE WHEN bettype IN (14,127) 
 						AND right(betteam, 1) = CASE WHEN @LGOnly = 1 THEN '2' ELSE right(betteam, 1) END 
 					THEN 1 

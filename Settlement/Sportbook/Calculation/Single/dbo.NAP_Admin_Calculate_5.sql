@@ -1,6 +1,15 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_5] @matchid INT
 	,@bettype SMALLINT
-	,@whowin SMALLMONEY
+	,@whowin SMALLMONEY = 0
+	,@hth SMALLMONEY = 0
+	,@hta SMALLMONEY = 0
+	,@fth SMALLMONEY = 0
+	,@fta SMALLMONEY = 0
 	,@betcount INT = 0
 AS
 /*
@@ -15,6 +24,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20160613@Patrick: Reduce escalation lock when updating large amount of data [Redmine: #56550]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
 */
 BEGIN
@@ -51,12 +61,29 @@ BEGIN
 			SET @affectedagents = @@rowcount
 
 			UPDATE b WITH(ROWLOCK, UPDLOCK)
-			SET @modds = CASE
-				WHEN betteam = '1' AND @whowin > 0 THEN 1
-				WHEN betteam = '2' AND @whowin < 0 THEN 1
-				WHEN betteam = 'X' AND @whowin = 0 THEN 1
-				ELSE -1
-				END,
+			SET @modds = CASE 
+							WHEN bettype = 459 THEN CASE
+														WHEN betteam = '1' AND @hth - livehomescore > @hta - liveawayscore THEN 1
+														WHEN betteam = '2' AND @hth - livehomescore < @hta - liveawayscore THEN 1
+														WHEN betteam = 'X' AND @hth - livehomescore = @hta - liveawayscore THEN 1
+														ELSE -1
+													END
+							  WHEN bettype = 458 THEN CASE
+														WHEN betteam = '1' AND @fth - livehomescore > @fta - liveawayscore THEN 1
+														WHEN betteam = '2' AND @fth - livehomescore < @fta - liveawayscore THEN 1
+														WHEN betteam = 'X' AND @fth - livehomescore = @fta - liveawayscore THEN 1
+														ELSE -1
+													END
+							  ELSE 	
+								CASE
+									WHEN betteam = '1' AND @whowin > 0 THEN 1
+									WHEN betteam = '2' AND @whowin < 0 THEN 1
+									WHEN betteam = 'X' AND @whowin = 0 THEN 1
+									ELSE -1
+								END
+						END		
+				,
+				
 				modds = @modds,
 				@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 				WHEN '0' THEN 1
@@ -68,30 +95,30 @@ BEGIN
 				ELSE 1 END,
 			
 				WinLost = CASE
-					WHEN @modds >  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end)
-					WHEN @modds =  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * 0.5
+					WHEN @modds >  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end)
+					WHEN @modds =  0.25	THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * 0.5
 					WHEN @modds =  0	THEN actual_stake
 					WHEN @modds = -0.25	THEN actual_stake * 0.5
 					WHEN @modds < -0.25	THEN 0
 					END,
 
 				aWinLost = CASE
-					WHEN @modds >  0.25	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -apositiontaking
-					WHEN @modds =  0.25	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -apositiontaking * 0.5
+					WHEN @modds >  0.25	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -apositiontaking
+					WHEN @modds =  0.25	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -apositiontaking * 0.5
 					WHEN @modds =  0	THEN 0
 					WHEN @modds = -0.25	THEN actual_stake * apositiontaking * 0.5
 					WHEN @modds < -0.25	THEN actual_stake * apositiontaking
 					END,
 				mWinLost = CASE
-					WHEN @modds >  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -mpositiontaking
-					WHEN @modds =  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -mpositiontaking * 0.5
+					WHEN @modds >  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -mpositiontaking
+					WHEN @modds =  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -mpositiontaking * 0.5
 					WHEN @modds =  0    	THEN 0
 					WHEN @modds = -0.25 	THEN actual_stake * mpositiontaking * 0.5
 					WHEN @modds < -0.25 	THEN actual_stake * mpositiontaking
 					END,
 				sWinLost = CASE
-					WHEN @modds >  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -spositiontaking
-					WHEN @modds =  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430) then odds-1 else odds end) end) * -spositiontaking * 0.5
+					WHEN @modds >  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -spositiontaking
+					WHEN @modds =  0.25 	THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,15,16,167,177,1205,430,459,458) then odds-1 else odds end) end) * -spositiontaking * 0.5
 					WHEN @modds =  0    	THEN 0
 					WHEN @modds = -0.25 	THEN actual_stake * spositiontaking * 0.5
 					WHEN @modds < -0.25 	THEN actual_stake * spositiontaking
@@ -178,11 +205,26 @@ BEGIN
 
 			UPDATE b
 			SET @modds = CASE 
-					WHEN betteam = '1' AND @whowin > 0 THEN 1
-					WHEN betteam = '2' AND @whowin < 0 THEN 1
-					WHEN betteam = 'X' AND @whowin = 0 THEN 1
-					ELSE - 1
-					END
+							WHEN bettype = 459 THEN CASE
+														WHEN betteam = '1' AND @hth - livehomescore > @hta - liveawayscore THEN 1
+														WHEN betteam = '2' AND @hth - livehomescore < @hta - liveawayscore THEN 1
+														WHEN betteam = 'X' AND @hth - livehomescore = @hta - liveawayscore THEN 1
+														ELSE -1
+													END
+							  WHEN bettype = 458 THEN CASE
+														WHEN betteam = '1' AND @fth - livehomescore > @fta - liveawayscore THEN 1
+														WHEN betteam = '2' AND @fth - livehomescore < @fta - liveawayscore THEN 1
+														WHEN betteam = 'X' AND @fth - livehomescore = @fta - liveawayscore THEN 1
+														ELSE -1
+													END
+							  ELSE 	
+								CASE
+									WHEN betteam = '1' AND @whowin > 0 THEN 1
+									WHEN betteam = '2' AND @whowin < 0 THEN 1
+									WHEN betteam = 'X' AND @whowin = 0 THEN 1
+									ELSE -1
+								END
+						END		
 				,modds = @modds
 				,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 					WHEN '0' THEN 1
@@ -198,14 +240,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							)
 					WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * 0.5
@@ -217,14 +259,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - apositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - apositiontaking * 0.5
@@ -236,14 +278,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - mpositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - mpositiontaking * 0.5
@@ -255,14 +297,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - spositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430) THEN odds - 1
+									WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - spositiontaking * 0.5
@@ -326,3 +368,4 @@ BEGIN
 END
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_5] TO [vnteam] AS [dbo]
+GO

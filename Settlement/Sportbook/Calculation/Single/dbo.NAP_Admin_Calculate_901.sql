@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
  ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_901]
 	@matchid INT,	
 	@action	VARCHAR(30)= '',
@@ -18,6 +22,7 @@
 			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
 			- 20170411@Bobby: 74819 - Correct Bettrade condition for auto bettypes
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
+			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			
 		Parameter's Explantion:
 	*/
@@ -38,10 +43,10 @@ BEGIN
 		IF @mode IN ('CAL','CAL-FT')
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
-						SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
-				UNION SELECT 5 UNION SELECT 6 UNION SELECT 16 UNION SELECT 17
-				UNION SELECT 18 UNION SELECT 22 UNION SELECT 157 UNION SELECT 177 
-				UNION SELECT 178 UNION SELECT 183 UNION SELECT 184
+						SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
+				UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 16 UNION ALL SELECT 17
+				UNION ALL SELECT 18 UNION ALL SELECT 157 UNION ALL SELECT 177 
+				UNION ALL SELECT 178 UNION ALL SELECT 183 UNION ALL SELECT 184
 			
 			--for match 3x30 dont touch 2H bettypes refunded				
 			DELETE @tmpBettype
@@ -51,8 +56,8 @@ BEGIN
 		IF @Mode IN ('CAL-HT', 'CAL')
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
-					SELECT 7 UNION SELECT 8 UNION SELECT 12 UNION SELECT 15
-				UNION SELECT 30 UNION SELECT 126
+			SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 12 UNION ALL SELECT 15
+			UNION ALL SELECT 30 UNION ALL SELECT 126
 		END
 	END
 	IF @action = 'CAL-FGLG'
@@ -71,20 +76,25 @@ BEGIN
 	IF @action = 'CAL-AUTO'
 	BEGIN
 		INSERT INTO @tmpBettype(bettype)
-				SELECT 160 UNION SELECT 180
+				SELECT 160 UNION ALL SELECT 180
+				-- BETTRADE
+				UNION ALL SELECT 22
+			
 	END
 	
 	--this case for un-calculating refund tickets to previous status
 	IF @mode = 'UNDO'
 	BEGIN
 		INSERT INTO @tmpBettype(bettype)
-					SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
+		
+			SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
 			UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 
 			UNION SELECT 12 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 
 			UNION SELECT 17 UNION SELECT 18	UNION SELECT 22 
 			UNION SELECT 30 UNION SELECT 126 UNION SELECT 127
 			UNION SELECT 157 UNION SELECT 160 UNION SELECT 177 UNION SELECT 178 
 			UNION SELECT 180 UNION SELECT 183 UNION SELECT 184 
+			
 	END
 	
 	--get main tickets which have been sold to bettrade
@@ -94,9 +104,9 @@ BEGIN
 	WHERE b.bettype IN (SELECT bettype FROM @tmpBettype)
 		AND b.matchid = @matchid
 		AND 1 = CASE 
-					WHEN @ResourceIDs IS NULL AND b.Bettype NOT IN (160,180)  THEN 1 --manual page
+					WHEN @ResourceIDs IS NULL AND b.Bettype NOT IN (160,180,22)  THEN 1 --manual page
 					WHEN (@ResourceIDs IS NOT NULL 
-						AND b.Bettype IN (160,180) 
+						AND b.Bettype IN (160,180,22) 
 						AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs) > 0) THEN 1 
 					WHEN (@ResourceIDs IS NOT NULL 
 						AND CHARINDEX(',' +CAST(b.bettype AS VARCHAR(10)) + ',', ',' + @ResourceIDs + ',') > 0) THEN 1

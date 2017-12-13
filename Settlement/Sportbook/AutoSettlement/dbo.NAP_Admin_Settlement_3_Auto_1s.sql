@@ -1,4 +1,9 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Auto_1s] 
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Auto_1s] 
   @MatchID		INT
  ,@ResourceIDs	VARCHAR(MAX)	= '' 
  ,@Mode			VARCHAR(6)		= 'CAL'
@@ -11,6 +16,7 @@ AS
 	
 	Revisions:
 		- 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
 	Param's Explanation:
 */	
@@ -42,6 +48,7 @@ BEGIN
 			,@GoalScorerAnytime		VARCHAR(MAX)=''
 			
 			,@FirstGoalMethod		VARCHAR(2) =''
+			,@TimeFirstGoal			VARCHAR(10)=''
 
 	DECLARE	@tmpResourceIDs TABLE(
 		ResourceID	VARCHAR(20)
@@ -50,6 +57,14 @@ BEGIN
 	INSERT INTO @tmpResourceIDs(ResourceID,Bettype)
 	SELECT val, CAST(LEFT(val,3) AS INT) FROM strSplit(@ResourceIDs,',')
 
+	IF EXISTS (SELECT 1 FROM @tmpResourceIDs WHERE Bettype = 160)
+	BEGIN
+		INSERT INTO @tmpResourceIDs (ResourceID,Bettype)
+		SELECT ResourceID , 22
+		FROM @tmpResourceIDs
+		WHERE Bettype = 160
+		
+	END
 	DECLARE	@tmpResultDetail TABLE(
 		 MatchID			INT
 		,ResourceID			VARCHAR(20)
@@ -109,6 +124,9 @@ BEGIN
 
 			,@GoalScorerFirst		= ISNULL(MAX(CASE WHEN ResourceID='217' THEN HomeValue ELSE '' END),'')
 			,@FirstGoalMethod		= ISNULL(MAX(CASE WHEN ResourceID='424' THEN HomeValue ELSE '' END),'')
+			
+			,@TimeFirstGoal			= ISNULL(MAX(CASE WHEN ResourceID='455' THEN HomeValue ELSE '' END),'')
+			
 	FROM	@tmpResultDetail
 	WHERE	MatchID = @MatchID 
 			AND ResourceID IN (SELECT ResourceID FROM @tmpResourceIDs)
@@ -148,6 +166,7 @@ BEGIN
 				,@GoalScorerAnytime		= @GoalScorerAnytime
 				,@GoalScorerFirst		= @GoalScorerFirst
 				,@FirstGoalMethod		= @FirstGoalMethod
+				,@TimeFirstGoal			= @TimeFirstGoal
 				,@strBettypes			= @strBettypes
 				,@CalledByBrokerService = 0	
 
@@ -156,3 +175,4 @@ GO
 GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_3_Auto_1s] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_3_Auto_1s] TO [vnteam] AS [dbo]
+GO

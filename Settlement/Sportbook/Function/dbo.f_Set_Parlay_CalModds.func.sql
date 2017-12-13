@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	@bettype SMALLINT
 	, @betteam VARCHAR(50)
@@ -75,7 +79,11 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @HomeValue		VARCHAR(50) = NULL
 	, @QXHome				INT = NULL
 	, @QXAway				INT = NULL
-	
+	, @scorediff SMALLINT = 0
+	, @totalgoal SMALLINT = 0
+	, @oddeven SMALLINT = 0
+	, @totalht SMALLINT = 0
+    , @totalgoal_2H SMALLINT = 0
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -89,6 +97,7 @@ AS
 			- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
+			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			
     Parameters Explanation:    
 	
@@ -1351,8 +1360,20 @@ RETURN (
 						 WHEN CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 0
 						 ELSE -1 END        
 				WHEN 14 THEN 
-					CASE 
-						WHEN (@betteam = @FGLG1 OR @betteam = @FGLG2) THEN 1
+					CASE WHEN (@betteam = (CASE 
+												WHEN @FGLG1 = 'N' THEN '0:0'
+												WHEN @FGLG1 = 'H' THEN '1:1'
+												WHEN @FGLG1 = 'A' THEN '2:1'
+												ELSE ''
+											END) 
+							OR @betteam =(CASE 
+											WHEN @FGLG2 = 'N' THEN '0:0'
+											WHEN @FGLG2 = 'H' THEN '1:2'
+											WHEN @FGLG2 = 'A' THEN '2:2'
+											ELSE ''
+										END) 
+								) THEN 1
+								
 						ELSE - 1
 					END
 				WHEN 127 THEN 
@@ -1360,6 +1381,8 @@ RETURN (
 						WHEN (@betteam = @HT_FGLG1 OR @betteam = @HT_FGLG2) THEN 1
 						ELSE - 1
 					END
+				
+					
 				WHEN 601 THEN -- FT Winning Margin 14 Way
 					CASE 
 						WHEN @betteam = 'H1-2' AND (@fth - @fta) BETWEEN 1 AND 2 THEN 1
@@ -1498,6 +1521,129 @@ RETURN (
 						WHEN @betteam = @HomeValue THEN 1
 						ELSE -1
 					END
+				
+				-- 453: 1H 3-Way Handicap
+				WHEN 453 THEN 
+							CASE
+								WHEN @betteam = '1' AND ((@hth - @hdp1) - (@hta - @hdp2)) > 0  THEN 1
+								WHEN @betteam = '2' AND ((@hth - @hdp1) - (@hta - @hdp2)) < 0  THEN 1
+								WHEN @betteam = 'x' AND ((@hth - @hdp1) - (@hta - @hdp2)) = 0  THEN 1
+								ELSE - 1
+							END								
+				
+				--456:	1H Both Teams To Score / Result
+				WHEN 456 THEN 
+							CASE
+								WHEN @betteam = (CASE 
+													WHEN @hth > 0 AND @hta > 0 THEN CASE 
+																						WHEN @hth > @hta THEN 'YH'
+																						WHEN @hth < @hta THEN 'YA'
+																						ELSE 'YD'
+																					END
+													ELSE CASE 
+															WHEN @hth > @hta THEN 'NH'
+															WHEN @hth < @hta THEN 'NA'
+															ELSE 'ND'
+														 END
+													END) THEN 1
+                                ELSE -1
+                            END
+                -- 457: 1H Both Teams To Score / Total Goals
+                WHEN 457 THEN 
+							CASE
+								WHEN @betteam = (CASE WHEN @hth > 0 AND @hta > 0 THEN 'Y' ELSE 'N' END
+												+  CASE 
+														WHEN @hth + @hta > @hdp1 THEN  'O'
+														WHEN @hth + @hta < @hdp1 THEN	'U'
+														ELSE NULL 
+													END )
+												THEN 1
+                                 ELSE -1
+                             END
+                 -- 459:	1H Asian 1X2
+                 WHEN 459 THEN 
+							CASE
+									WHEN @betteam = '1' AND @hth - @livehomescore > @hta - @liveawayscore THEN 1
+									WHEN @betteam = '2' AND @hth - @livehomescore < @hta - @liveawayscore THEN 1
+									WHEN @betteam = 'X' AND @hth - @livehomescore = @hta - @liveawayscore THEN 1
+									ELSE -1
+								END
+				
+				-- 458: FT	Asia 1X2
+                 WHEN 458 THEN 
+							CASE
+									WHEN @betteam = '1' AND @fth - @livehomescore > @fta - @liveawayscore THEN 1
+									WHEN @betteam = '2' AND @fth - @livehomescore < @fta - @liveawayscore THEN 1
+									WHEN @betteam = 'X' AND @fth - @livehomescore = @fta - @liveawayscore THEN 1
+									ELSE -1
+								END
+				--448: Last Team To Score								
+				WHEN 448 THEN 
+					CASE WHEN (@betteam =(CASE 
+											WHEN @FGLG2 = 'N' THEN 'NG'
+											ELSE @FGLG2
+										END) 
+								) THEN 1
+						ELSE - 1
+					END
+				--449:	Double Chance & Total Goals
+				WHEN 449 THEN 
+							CASE 
+								WHEN @betteam = '1XO' AND @ScoreDiff >= 0 AND @totalgoal - @hdp1 > 0 THEN 1
+								WHEN @betteam = '1XU' AND @ScoreDiff >= 0 AND @totalgoal - @hdp1 < 0 THEN 1
+								WHEN @betteam = '12O' AND @ScoreDiff <> 0 AND @totalgoal - @hdp1 > 0 THEN 1
+								WHEN @betteam = '12U' AND @ScoreDiff <> 0 AND @totalgoal - @hdp1 < 0 THEN 1
+								WHEN @betteam = '2XO' AND @ScoreDiff <= 0 AND @totalgoal - @hdp1 > 0 THEN 1
+								WHEN @betteam = '2XU' AND @ScoreDiff <= 0 AND @totalgoal - @hdp1 < 0 THEN 1
+								ELSE -1 
+							END
+				--450: Odd/Even & Total Goals
+				WHEN 450 THEN	
+							CASE 
+								WHEN @betteam = 'OO' AND @oddeven = 1 AND @totalgoal > @hdp1 THEN 1
+								WHEN @betteam = 'OU' AND @oddeven = 1 AND @totalgoal < @hdp1 THEN 1
+								WHEN @betteam = 'EO' AND @oddeven = 0 AND @totalgoal > @hdp1 THEN 1
+								WHEN @betteam = 'EU' AND @oddeven = 0 AND @totalgoal < @hdp1 THEN 1
+								ELSE -1
+							 END
+				--451: Both Teams To Score / Double Chance
+				WHEN 451 THEN 
+							CASE
+								WHEN @betteam = 'Y1X' AND (@fth > 0  AND @fta > 0) AND @ScoreDiff >= 0 THEN 1
+								WHEN @betteam = 'Y12' AND (@fth > 0  AND @fta > 0) AND @ScoreDiff <> 0 THEN 1
+								WHEN @betteam = 'Y2X' AND (@fth > 0  AND @fta > 0) AND @ScoreDiff <= 0 THEN 1
+								WHEN @betteam = 'N1X' AND (@fth = 0  OR @fta = 0)  AND @ScoreDiff >= 0 THEN 1
+								WHEN @betteam = 'N12' AND (@fth = 0  OR @fta = 0)  AND @ScoreDiff <> 0 THEN 1
+								WHEN @betteam = 'N2X' AND (@fth = 0  OR @fta = 0)  AND @ScoreDiff <= 0 THEN 1
+								ELSE -1
+							END				 	
+				--452: Highest Scoring Half (2 Way)
+				WHEN 452 THEN
+							CASE
+								WHEN @betteam = '1H' AND @totalht > @totalgoal_2H THEN 1
+								WHEN @betteam = '2H' AND @totalht < @totalgoal_2H THEN 1
+								WHEN @totalht = @totalgoal_2H THEN 0
+								ELSE -1
+							END
+				--460: Which Team Will Win By 5+ Goals
+				WHEN 460 THEN CASE
+								WHEN @betteam = 'H' AND @ScoreDiff >= 5  THEN 1
+								WHEN @betteam = 'A' AND @ScoreDiff <= -5 THEN 1
+								ELSE -1
+							END	 														 						
+				--454: Double Chance & First Team To Score	
+                WHEN 454 THEN CASE
+								WHEN @betteam = '1XH' AND @ScoreDiff >= 0 AND @FGLG1 = 'H' THEN 1
+								WHEN @betteam = '12H' AND @ScoreDiff <> 0 AND @FGLG1 = 'H' THEN 1
+								WHEN @betteam = '2XH' AND @ScoreDiff <= 0 AND @FGLG1 = 'H' THEN 1
+								
+								WHEN @betteam = '1XA' AND @ScoreDiff >= 0 AND @FGLG1 = 'A' THEN 1
+								WHEN @betteam = '12A' AND @ScoreDiff <> 0 AND @FGLG1 = 'A' THEN 1
+								WHEN @betteam = '2XA' AND @ScoreDiff <= 0 AND @FGLG1 = 'A' THEN 1
+								WHEN @betteam = 'NG'  AND @FGLG1 = 'N' THEN 1
+								ELSE -1
+							END
+										
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
@@ -104,10 +108,11 @@ BEGIN
 	END
 
 	-- check waiting ticket
-				EXEC NAP_Admin_Settlement_Checking
+	EXEC NAP_Admin_Settlement_Checking
 		@MatchId = @MatchId
 		,@Action = @Action
 		,@Mode = 'CAL-AUTO'
+		,@ResourceIDs = @ResourceIDs
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
 	IF @ErrCode <> 0
@@ -180,3 +185,7 @@ BEGIN
 
 END
 GO 
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Auto_1s_Push] TO [bodbAdminNet]
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Auto_1s_Push] TO [Dot_CoreAPI]
+GO
