@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
@@ -30,7 +34,8 @@ AS
 	   - 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 	   - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 	   - 20171211@Kathy: Do not calculate bettype 22 with old format (betteam:h,a) [Redmine:#80947]
-       
+	   - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+
     Param's Explanation:
     • @Mode:
         CAL : All BetTypes
@@ -131,7 +136,9 @@ BEGIN
 					,T.c.value('./@away','VARCHAR(50)') AS AwayValue
 			FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
 		)
-		SELECT	@ht_fg = ISNULL(MAX(CASE 
+		SELECT	
+				-- for bettype 127 only
+				@ht_fg = ISNULL(MAX(CASE 
 										WHEN ResourceID ='127F' 
 											THEN CASE 
 													WHEN HomeValue = 'N' THEN '0:0'
@@ -151,26 +158,11 @@ BEGIN
 												END
 											ELSE '' 
 									END),'')			
-				,@ft_fg = ISNULL(MAX(CASE 
-										WHEN ResourceID ='14F' 
-											THEN CASE 
-													WHEN HomeValue = 'N' THEN '0:0'
-													WHEN HomeValue = 'H' THEN '1:1'
-													WHEN HomeValue = 'A' THEN '2:1'
-													ELSE ''
-												END
-											ELSE '' 
-									END),'')		
-				,@ft_lg = ISNULL(MAX(CASE 
-										WHEN ResourceID ='14L' 
-											THEN CASE 
-													WHEN HomeValue = 'N' THEN '0:0'
-													WHEN HomeValue = 'H' THEN '1:2'
-													WHEN HomeValue = 'A' THEN '2:2'
-													ELSE ''
-												END
-											ELSE '' 
-									END),'')					
+												
+				-- for bettype 14,448
+				,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
+				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
+											
 				,@fthCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN HomeValue ELSE 0 END),0)
 				,@ftaCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN AwayValue ELSE 0 END),0)
                 ,@hthCorners = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN HomeValue ELSE 0 END),0)
@@ -285,7 +277,7 @@ BEGIN
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-HT', 'CAL') 
 				AND 1 = CASE 
-							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (1,5) THEN 1 
+							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (1,5)  THEN 1 
 							WHEN @IsAutoCalculatePage = 0 AND GroupId IN (1,3,5) THEN 1 
 							ELSE 0 END -- HT + HT Corner + HT FGLG
 				AND 1 = CASE
@@ -297,7 +289,7 @@ BEGIN
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-FT', 'CAL') 
 				AND 1 = CASE 
-							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (2,6) THEN 1 
+							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (2,6)  THEN 1 
 							WHEN @IsAutoCalculatePage = 0 AND GroupId IN (2,4,6) THEN 1 
 							ELSE 0 END -- FT, FT Corner + FT FGLG
 				AND 1 = CASE
@@ -398,3 +390,6 @@ BEGIN
 		END
 END
 GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_3] TO [bodbAdminNet]
+GO
+

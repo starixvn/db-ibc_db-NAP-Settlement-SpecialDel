@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
   @Command						VARCHAR(100) 
  ,@MatchID						INT
@@ -973,4 +977,6 @@ BEGIN
 	END
 	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Result_Update_1s] TO [bodbAdminNet]
 GO

@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP] (
 	@MatchId 	INT
 	,@Creator 	INT
@@ -76,6 +80,7 @@ BEGIN
 		,@GoalRecord		VARCHAR(50)		
 		,@IsRefundHT		BIT
 		
+		
 	SELECT	TOP(1)
 		@matchdate 		= eventdate
 		,@SportType 	= SportType
@@ -94,6 +99,7 @@ BEGIN
 							WHEN @betstatus LIKE 'Refund HT%' THEN 1 
 							ELSE 0 
 						END
+		
 	FROM dbo.Match WITH(ROWLOCK)
 	WHERE matchid = @matchid
 	
@@ -174,7 +180,7 @@ BEGIN
 		--CHECK Auto-Bettype first if any
 		IF (@IsBetRadar = 1)
 		BEGIN		
-			EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar
+			EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar -- Early 22, 455
 				@MatchId			= @MatchId
 				,@matchdate			= @matchdate
 				,@Mode				= @Action
@@ -232,6 +238,7 @@ BEGIN
 				,@betstatus 		= @betstatus
 				,@GoalRecord 		= @GoalRecord
 				,@IsRefundHT		= @IsRefundHT
+				,@resultDetail		= @resultDetail
 				,@ticketCount		= @ticketCountSDT OUTPUT
 		END
 
@@ -475,3 +482,5 @@ BEGIN
 	RETURN
 END	
 GO 
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_MP] TO [bodbAdminNet]
+GO

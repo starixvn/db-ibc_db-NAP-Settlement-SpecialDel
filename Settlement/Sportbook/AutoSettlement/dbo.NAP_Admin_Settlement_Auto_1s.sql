@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
      @AdminID                        INT                = 148        -- calculated by system (default)
     ,@MatchID                        INT
@@ -23,26 +27,32 @@ AS
         - 20160525@Kathy: Change the main Parlay Settlement SP
         - 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
         - 20170215@Kathy: Get list bettypes with xml format [Redmine:#71372]
+        - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 
     Param's Explanation:
 */    
 BEGIN
     SET NOCOUNT ON 
-    DECLARE     @start                        DATETIME
-            ,@stop                        DATETIME
-            ,@fth                        INT
-            ,@fta                        INT
-            ,@hth                        INT
-            ,@hta                        INT
+    DECLARE     @start                  DATETIME
+            ,@stop                      DATETIME
+            ,@fth                       INT
+            ,@fta                       INT
+            ,@hth                       INT
+            ,@hta                       INT
             ,@goalrecord                VARCHAR(50)
-            ,@betstatus                    VARCHAR(50) 
-            ,@ActionID                    INT
-            ,@Remark                    VARCHAR(500)
-            ,@LogData                    NVARCHAR(300)
-            ,@strAutoBetRadarBettypes    VARCHAR(MAX)
-            ,@strBettypes                VARCHAR(MAX)   
+            ,@betstatus                 VARCHAR(50) 
+            ,@ActionID                  INT
+            ,@Remark					VARCHAR(500)
+            ,@LogData                   NVARCHAR(300)
+            ,@strAutoBetRadarBettypes   VARCHAR(MAX)
+            ,@strBettypes               VARCHAR(MAX)   
             ,@strXML					VARCHAR(MAX)                             
-
+			,@bettype_22				VARCHAR(20)
+			,@bettype_160				VARCHAR(20)
+    
+    SET @bettype_22 = '22'
+    SET @bettype_160 = '160'
+		
     CREATE TABLE #tmpTrans (transid BIGINT)
 
     SELECT    @start = CURRENT_TIMESTAMP
@@ -100,13 +110,16 @@ BEGIN
     FROM    dbo.f_Set_GetGroupBettypes() f 
     WHERE   f.GroupId = 8 -- auto betradar
     
-    SET @strXML = (SELECT  BetType 'r/@t'
-					FROM	dbo.f_Set_GetGroupBettypes()			
-					WHERE	GroupId = 8
-					FOR XML PATH ('root')
-				)	
-    
-    INSERT INTO #BalanceBefore
+    SET @strXML = CAST((SELECT  BetType '@t'
+								,GroupId '@g'
+								,GroupName '@n'
+						FROM	dbo.f_Set_GetGroupBettypes()			
+						WHERE	GroupId = 8
+						FOR XML PATH ('r'), ROOT('root'), TYPE
+							) AS VARCHAR(MAX))
+							
+							
+    INSERT INTO #BalanceBefore (custid,balance)
     SELECT     b.custid
             ,SUM(b.winlost - b.actual_stake + b.playercomm)
     FROM    dbo.bettrans b WITH (ROWLOCK)
@@ -115,6 +128,13 @@ BEGIN
                         WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBetRadarBettypes + ',') > 0 THEN 1 
                         ELSE 0 
                     END
+             AND 1 = CASE 
+						WHEN b.bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
+						WHEN b.bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
+						WHEN b.bettype NOT IN (160,164,169,180,22) THEN 1 
+						ELSE 0 
+					END
+                       
     GROUP BY b.custid
     --===
     --^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -125,13 +145,13 @@ BEGIN
             @MatchID            = @MatchID,
             @ResourceIDs        = @ResourceIDs, 
             @Results            = @Results,
-            @IsAuto                = @IsAuto,
+            @IsAuto             = @IsAuto,
             @creator            = @AdminID             
 
         EXEC dbo.NAP_Admin_Settlement_3_Auto_1s 
              @matchid        = @matchid
             ,@ResourceIDs    = @ResourceIDs
-            ,@mode            = @action                        
+            ,@mode           = @action                        
 
     END
     ELSE IF @action = 'UNDO'
@@ -260,6 +280,12 @@ BEGIN
                         WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBetRadarBettypes + ',') > 0 THEN 1 
                         ELSE 0 
                     END
+            AND 1 = CASE 
+						WHEN b.bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
+						WHEN b.bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
+						WHEN b.bettype NOT IN (160,164,169,180,22) THEN 1 
+						ELSE 0 
+					END        
     GROUP BY b.custid
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
@@ -390,4 +416,8 @@ BEGIN
     WHERE KeyID = 1 
     AND KeyValue = @matchid
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Auto_1s] TO [bodbAdminNet]
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Auto_1s] TO [Dot_CoreAPI]
 GO

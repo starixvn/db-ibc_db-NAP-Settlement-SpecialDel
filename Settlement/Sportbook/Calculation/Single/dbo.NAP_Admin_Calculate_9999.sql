@@ -8,10 +8,14 @@ GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999] 
     @matchid INT
     ,@bettype SMALLINT
-    ,@fth    INT = NULL
-    ,@fta    INT = NULL
-    ,@hth    INT = NULL
-    ,@hta    INT = NULL
+    ,@fth    INT = NULL -- Fulltime of Home
+    ,@fta    INT = NULL -- Fulltime of Away
+    ,@hth    INT = NULL -- 1H of Home
+    ,@hta    INT = NULL -- 1H of Away
+    
+    ,@totalht INT = 0
+    ,@totalgoal_2H INT = 0
+    
     ,@betcount INT = 0
     ,@IsSettleAbandonedMatchIBC BIT = 0 -- IBC
     ,@IsSettleAbandonedMatch BIT = 0 -- BetDaq
@@ -31,6 +35,8 @@ AS
         - 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
         - 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20161118@Bobby: #67462 - Implement SDT for Over/Under bettypes full winlost
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+
         
 */
 BEGIN
@@ -53,14 +59,39 @@ BEGIN
         ,@htbetteam NVARCHAR(10)
         ,@ftbetteam NVARCHAR(10)
     
-    SELECT @fth2H     = @fth - @hth
-        ,@fta2H     = @fta - @hta
+    SELECT @fth2H = @fth - @hth
+        ,@fta2H	= @fta - @hta
+        ,@totalht = @hth + @hta
     
     IF @bettype NOT IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152, 189, 190, 416, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444)
     BEGIN        
         IF @IsSettleAbandonedMatchIBC = 0 AND @IsSettleAbandonedMatchBetFair = 0 AND @IsSettleAbandonedMatch = 0
         BEGIN
             SET @result = CASE @bettype 
+						
+						WHEN 456 THEN CASE 
+                                        WHEN @hth > 0 AND @hta > 0 THEN CASE 
+                                                                            WHEN @hth > @hta THEN 'YH'
+                                                                            WHEN @hth < @hta THEN 'YA'
+                                                                            ELSE 'YD'
+                                                                        END
+                                        ELSE CASE 
+                                                WHEN @hth > @hta THEN 'NH'
+                                                WHEN @hth < @hta THEN 'NA'
+                                                ELSE 'ND'
+                                             END
+                                  END
+                                     
+                         WHEN 457 THEN CASE
+                                            WHEN @hth > 0 AND @hta > 0 THEN 'Y'
+                                            ELSE 'N'            
+                                      END
+                                                                                      
+                        WHEN 452 THEN CASE
+											WHEN @totalht > @totalgoal_2H THEN '1H'
+											WHEN @totalht < @totalgoal_2H THEN '2H'
+										END	
+
                         WHEN 417 THEN CASE 
                                             WHEN @fth > 0 AND @fta > 0 THEN CASE 
                                                                                 WHEN @fth > @fta THEN 'YH'
@@ -126,7 +157,7 @@ BEGIN
                     
             UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
             SET        @modds = CASE 
-                                WHEN bettype IN (417, 419, 420, 421, 445, 446, 447) THEN CASE
+                                WHEN bettype IN (417, 419, 420, 421, 445, 446, 447,456) THEN CASE
                                                                                             WHEN betteam = @result THEN 1
                                                                                             ELSE -1
                                                                                          END
@@ -137,7 +168,25 @@ BEGIN
                                                                                 ELSE NULL 
                                                                                 END THEN 1
                                                             ELSE -1
-                                                        END     
+                                                        END
+                                
+                                 --457: 1H Both Teams To Score / Total Goals
+                                WHEN bettype = 457 THEN CASE
+															WHEN betteam = CASE 
+                                                                                WHEN @hth + @hta > hdp1 THEN @result + 'O'
+                                                                                WHEN @hth + @hta < hdp1 THEN @result + 'U'
+                                                                                ELSE NULL 
+                                                                            END THEN 1
+                                                            ELSE -1
+                                                        END
+                                                        
+                                --452: Highest Scoring Half (2 Way)
+                                WHEN bettype = 452 THEN CASE
+															WHEN @totalht = @totalgoal_2H THEN 0
+															WHEN betteam = @result THEN 1
+															ELSE -1
+														END	
+														                            
                                 ELSE - 1
                             END
                     ,@commWinRate = CASE comstatus
@@ -154,71 +203,81 @@ BEGIN
                         WHEN @modds > 0 THEN actual_stake + stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447) THEN odds - 1
+                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447,456,457,452) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
                             )
+                        WHEN @modds = 0 THEN actual_stake
                         WHEN @modds < 0 THEN 0
                         END
                     ,aWinLost = CASE 
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447) THEN odds - 1
+                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447,456,457,452) THEN odds - 1
                                         ELSE odds
                                         END
                                 END
                                 ) * - apositiontaking
+                        WHEN @modds = 0 THEN 0
                         WHEN @modds < 0 THEN actual_stake * apositiontaking
                         END
                     ,mWinLost = CASE 
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447) THEN odds - 1
+                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447,456,457,452) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
                                 ) * - mpositiontaking
+                        WHEN @modds = 0 THEN 0
                         WHEN @modds < 0 THEN actual_stake * mpositiontaking
                         END
                     ,sWinLost = CASE 
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447) THEN odds - 1
+                                        WHEN bettype IN (417, 418, 419, 420, 421, 445, 446, 447,456,457,452) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
                                 ) * - spositiontaking
+                        WHEN @modds = 0 THEN 0
                         WHEN @modds < 0 THEN actual_stake * spositiontaking
                         END
                     ,PlayerComm = CASE 
                         WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
                         WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
+                        WHEN @modds = 0 THEN 0
                         END
                     ,Comm = CASE 
                         WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
                         WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+                        WHEN @modds = 0 THEN 0
                         END
                     ,aComm = CASE 
                         WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
                         WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+                        WHEN @modds = 0 THEN 0
                         END
                     ,sComm = CASE 
                         WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
                         WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+                        WHEN @modds = 0 THEN 0
                         END
                     ,STATUS = CASE 
                         WHEN @modds > 0 THEN 'WON'
+                        WHEN @modds = 0 THEN 'DRAW'
                         WHEN @modds < 0 THEN 'LOSE'
                         END
                     ,StatusID = CASE 
                         WHEN @modds > 0 THEN 112 --WON
+                        WHEN @modds = 0 THEN 111 --DRAW
                         WHEN @modds < 0 THEN 113 --LOSE
                         END
-                    ,ruben = 1    
+                    ,ruben = 1   
             WHERE    matchid = @matchid            
                     AND bettype = @bettype    
                     AND statusID NOT IN (101, 102)
@@ -229,6 +288,36 @@ BEGIN
         BEGIN
             UPDATE bettrans WITH(ROWLOCK, UPDLOCK)
                 SET @modds = CASE 
+                                
+                                --456: 1H Both Teams To Score / Result
+                                WHEN bettype = 456 THEN CASE
+															WHEN LEFT(betteam,1) = 'N' THEN CASE
+																								WHEN @hth > 0 AND @hta > 0 THEN -1
+																								ELSE NULL
+																							END
+															ELSE NULL
+														END
+								--457: 1H Both Teams To Score / Total Goals
+								WHEN bettype = 457 THEN CASE
+															
+															WHEN  LEFT(betteam,1) = 'N' AND @hth > 0 AND @hta > 0 THEN -1
+															WHEN  RIGHT(betteam,1) = 'U' AND @hth + @hta > hdp1 THEN -1
+																												
+															WHEN betteam ='YO' AND @hth > 0 AND @hta > 0 AND @hth + @hta > hdp1 THEN 1
+																									
+															ELSE NULL
+														END
+																				
+								--452: Highest Scoring Half (2 Way)
+								WHEN bettype = 452 THEN CASE
+                                                            WHEN @IsHTCal = 1 THEN CASE
+																						WHEN betteam = '1H' AND @totalht < @totalgoal_2H THEN -1
+																						WHEN betteam = '2H' AND @totalht < @totalgoal_2H THEN 1
+																						ELSE NULL
+																					END	
+                                                            ELSE NULL
+                                                          END  
+																				
                                 WHEN bettype = 417 THEN CASE
 															WHEN LEFT(betteam,1) = 'N' THEN CASE
 																								WHEN @fth > 0 AND @fta > 0 THEN -1
@@ -432,7 +521,7 @@ BEGIN
                         WHEN @modds > 0 THEN actual_stake + stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417,418,419,420,421,445,446,447) THEN odds - 1
+                                        WHEN bettype IN (417,418,419,420,421,445,446,447,456,452,457) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
@@ -444,7 +533,7 @@ BEGIN
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417,418,419,420,421,445,446,447) THEN odds - 1
+                                        WHEN bettype IN (417,418,419,420,421,445,446,447,456,452,457) THEN odds - 1
                                         ELSE odds
                                         END
                                 END
@@ -456,7 +545,7 @@ BEGIN
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417,418,419,420,421,445,446,447) THEN odds - 1
+                                        WHEN bettype IN (417,418,419,420,421,445,446,447,456,452,457) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
@@ -468,7 +557,7 @@ BEGIN
                         WHEN @modds > 0 THEN stake * (CASE 
                                 WHEN odds < 0 THEN 1
                                 ELSE CASE 
-                                        WHEN bettype IN (417,418,419,420,421,445,446,447) THEN odds - 1
+                                        WHEN bettype IN (417,418,419,420,421,445,446,447,456,452,457) THEN odds - 1
                                         ELSE odds 
                                         END
                                 END
@@ -1130,15 +1219,8 @@ BEGIN
                 END 
     END
 END
-
-
-
-
-
-
-
-
-
-
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_9999] TO [vnteam] AS [dbo]
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Calculate_9999] TO [bodbAdminNet]
+GO

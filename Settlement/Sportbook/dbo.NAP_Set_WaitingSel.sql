@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
@@ -26,6 +30,7 @@ AS
 		- 20170208@Bobby: Correct IsMissingAutoResult case [Remine:#67952]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170613@Kathy: Early Settlement [Redmine:#77835]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 	
 	Param's explanation:  
 		
@@ -54,6 +59,10 @@ BEGIN
 		,IsExistAutoBettypesParlay 		BIT
 		,IsRunningAutoBettypes			BIT
 		,IsRunningAutoBettypesParlay	BIT
+		
+		,IsWaitingAutoBettypes			BIT
+		,IsWaitingAutoBettypesParlay	BIT
+		
 		,IsMissingAutoResult			BIT
 		,IsExistFastMarket				BIT
 		,IsRunningFastMarket			BIT
@@ -64,13 +73,13 @@ BEGIN
 		,IsRunningEarlyBettypesParlay	BIT
 	)
 	
-	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT)
+	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsFGLG BIT)
 	
 	CREATE TABLE #tblResultDetail (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusID TINYINT, SettlementStatusID TINYINT)
 	
 	CREATE INDEX IX_ResultDetail ON #tblResultDetail (matchid, ResourceId)
 	
-	CREATE TABLE #tblBetStatus (matchid INT, bettype SMALLINT, isRunning INT, groupId TINYINT ,IsParlay	 BIT)
+	CREATE TABLE #tblBetStatus (matchid INT, bettype SMALLINT, isRunning INT, IsWaiting INT, groupId TINYINT ,IsParlay	 BIT, IsFGLG BIT)
 	
 	;WITH SingleTicket AS (
 		SELECT matchid, MIN(IsCalculating) AS IsCalculating
@@ -91,8 +100,9 @@ BEGIN
 	)
 	
 	INSERT INTO @TempMatch(MatchId, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
-		, IsExistAutoBettypes, IsExistAutoBettypesParlay, IsRunningAutoBettypes, IsRunningAutoBettypesParlay, IsMissingAutoResult
-		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay
+		, IsExistAutoBettypes, IsExistAutoBettypesParlay, IsRunningAutoBettypes, IsRunningAutoBettypesParlay
+		, IsWaitingAutoBettypes ,IsWaitingAutoBettypesParlay
+		, IsMissingAutoResult , IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 		, sg.IsCalculating AS SingleStatus
@@ -105,6 +115,10 @@ BEGIN
 		, 0 AS IsExistAutoBettypesParlay
 		, 0 AS IsRunningAutoBettypes
 		, 0 AS IsRunningAutoBettypesParlay
+		
+		, 0 AS IsWaitingAutoBettypes 
+		, 0 AS IsWaitingAutoBettypesParlay 
+		
 		, 0 AS IsMissingAutoResult
 		, 0 AS IsExistFastMarket
 		, 0 AS IsRunningFastMarket
@@ -118,19 +132,22 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tblBettype (bettype, ResourceId, GroupId)
+		INSERT INTO #tblBettype (bettype, ResourceId, GroupId,IsFGLG)
 		SELECT	BetType
 				,CASE 
+					WHEN BetType = 22 THEN '160__'
 					WHEN BetType IN (160,164,169,180,216) OR GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
 					ELSE CAST(BetType AS VARCHAR(20))
 				END AS ResourceId
 				,GroupId
+				,IsFGLG
 		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	GroupId IN (3,4,8,9)
+		WHERE	GroupId IN (3,4,8,9) OR IsUsedGoalRecordValue = 1
 		UNION ALL
 		SELECT	bettype
 				,'' AS ResourceId -- not used for BAIO
 				,10 AS GroupId
+				, 0 AS IsFGLG
 		FROM	dbo.f_Set_GetEarlyBettypes()
 		
 		SELECT @MinBettype = MIN(bettype)
@@ -163,12 +180,15 @@ BEGIN
 						ON m.MatchId = rs.matchId
 		END
 		
-		INSERT INTO #tblBetStatus (matchid, bettype, isRunning, groupId, IsParlay)
-		SELECT  b.matchid, b.bettype, MAX(isRunning), bt.GroupId, 0
+		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG)
+		SELECT  b.matchid, b.bettype, MAX(isRunning),MAX(isWaiting), bt.GroupId, 0,bt.IsFGLG
 		FROM	#tblBettype bt
 			INNER JOIN
 			(
-				SELECT	b.matchid, b.bettype, SUM(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) isRunning
+				SELECT	b.matchid, b.bettype
+					, SUM(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) isRunning
+					, SUM(CASE WHEN b.statusID = 1 THEN 1 ELSE 0 END) isWaiting
+					
 				FROM	dbo.bettrans b WITH (NOLOCK)
 				WHERE	EXISTS (SELECT TOP 1 1 FROM @TempMatch t WHERE t.matchid = b.matchid)
 						AND b.statusID NOT BETWEEN 101 AND 102
@@ -176,14 +196,16 @@ BEGIN
 				GROUP BY b.matchid, b.bettype
 			)b
 				ON b.bettype = bt.bettype
-		GROUP BY b.matchid, b.bettype, bt.GroupId
+		GROUP BY b.matchid, b.bettype, bt.GroupId,bt.IsFGLG
 
-		INSERT INTO #tblBetStatus (matchid, bettype, isRunning, groupId, IsParlay)
-		SELECT  bm.matchid, bm.bettype, MAX(bm.isRunning), bt.GroupId, 1
+		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG)
+		SELECT  bm.matchid, bm.bettype, MAX(bm.isRunning),MAX(bm.IsWaiting), bt.GroupId, 1,bt.IsFGLG
 		FROM	#tblBettype bt
 			INNER JOIN
 				(
-					SELECT	bm.matchid, bm.bettype, SUM(CASE WHEN bm.statusID = 0 THEN 1 ELSE 0 END) isRunning
+					SELECT	bm.matchid, bm.bettype
+						, SUM(CASE WHEN bm.statusID = 0 THEN 1 ELSE 0 END) isRunning
+						, SUM(CASE WHEN bm.statusID = 1 THEN 1 ELSE 0 END) IsWaiting
 					FROM	dbo.bettransm bm WITH (NOLOCK)
 					WHERE	EXISTS (SELECT TOP 1 1 FROM @TempMatch t WHERE t.matchid = bm.matchid)
 							AND bm.statusID NOT BETWEEN 101 AND 102
@@ -191,17 +213,23 @@ BEGIN
 					GROUP BY bm.matchid, bm.bettype
 				)bm
 				ON bm.bettype = bt.bettype
-		GROUP BY bm.matchid, bm.bettype, bt.GroupId
+		GROUP BY bm.matchid, bm.bettype, bt.GroupId,bt.IsFGLG
 
 		;WITH cteBetStatus
 		AS(
 			SELECT matchid
-				,MAX(CASE WHEN groupId = 3 THEN 1 ELSE 0 END) AS IsExistHTFGLG
-				,MAX(CASE WHEN groupId = 4 THEN 1 ELSE 0 END) AS IsExistFGLG
+				,MAX(CASE WHEN groupId IN (1,3) AND IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistHTFGLG
+				,MAX(CASE WHEN groupId IN (2,4) AND IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistFGLG
+				
 				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistAutoBettypes
 				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 THEN 1 ELSE 0 END) AS IsExistAutoBettypesParlay
+				
 				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningAutoBettypes
 				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningAutoBettypesParlay
+				
+				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingAutoBettypes
+				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingAutoBettypesParlay
+				
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistFastMarket
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningFastMarket
 				,MAX(CASE WHEN groupId = 10 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistEarlyBettypes
@@ -218,6 +246,10 @@ BEGIN
 			,IsExistAutoBettypesParlay = CASE WHEN tt.IsExistAutoBettypesParlay > 0 THEN 1 ELSE 0 END
 			,IsRunningAutoBettypes = CASE WHEN tt.IsRunningAutoBettypes > 0 THEN 1 ELSE 0 END
 			,IsRunningAutoBettypesParlay = CASE WHEN tt.IsRunningAutoBettypesParlay > 0 THEN 1 ELSE 0 END
+			
+			,IsWaitingAutoBettypes = CASE WHEN tt.IsWaitingAutoBettypes > 0 THEN 1 ELSE 0 END
+			,IsWaitingAutoBettypesParlay = CASE WHEN tt.IsWaitingAutoBettypesParlay >  0 THEN 1 ELSE 0 END
+			
 			,IsExistFastMarket = CASE WHEN tt.IsExistFastMarket > 0 THEN 1 ELSE 0 END
 			,IsRunningFastMarket = CASE WHEN tt.IsRunningFastMarket > 0 THEN 1 ELSE 0 END
 			,IsExistEarlyBettypes = CASE WHEN tt.IsExistEarlyBettypes > 0 THEN 1 ELSE 0 END
@@ -270,13 +302,14 @@ BEGIN
 		, IsExistHTFGLG
 		, tm.SingleStatus AS IsCalculatingSingle
 		, tm.ParlayStatus AS IsCalculatingMP
-		, CASE WHEN tm.SettlementStatusID IS NULL AND tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay = 0 THEN 'N/A'
-				WHEN tm.SettlementStatusID = 0 OR tm.IsRunningAutoBettypes > 0 THEN 'Running'
-				WHEN ISNULL(tm.IsMissingAutoResult,0) > 0 AND tm.IsRunningAutoBettypesParlay > 0 THEN 'Parlay Running'
-				WHEN tm.SettlementStatusID > 0 
-					OR (tm.IsExistAutoBettypes > 0 AND tm.IsRunningAutoBettypes = 0)
-					OR (tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay > 0 AND tm.IsRunningAutoBettypesParlay = 0) THEN 'Completed'
-			ELSE '' END AS AutoSettleResultStatus
+		, CASE WHEN  tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay = 0 THEN 'N/A'
+				WHEN tm.IsRunningAutoBettypes = 1 THEN 'Running'
+				WHEN tm.IsWaitingAutoBettypes = 1 THEN 'Waiting'
+				WHEN IsExistAutoBettypes = 0  AND tm.IsRunningAutoBettypesParlay = 1 THEN 'Parlay Running'
+				WHEN IsExistAutoBettypes = 0  AND tm.IsWaitingAutoBettypesParlay = 1 THEN 'Parlay Waiting'
+				WHEN (tm.IsExistAutoBettypes > 0 AND tm.IsRunningAutoBettypes = 0)
+					OR (tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay > 0 AND tm.IsRunningAutoBettypesParlay = 0) THEN 'Completed'				
+				ELSE '' END AS AutoSettleResultStatus
 		, CASE
 			WHEN tm.IsExistFastMarketResult = 0 AND tm.IsExistFastMarket = 0 THEN 'N/A'
 			WHEN tm.IsRunningFastMarket > 0 THEN 'Running'
@@ -327,4 +360,6 @@ BEGIN
 	END
 
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Set_WaitingSel] TO [bodbAdminNet]
 GO

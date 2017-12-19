@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	@AdminId 						INT
 	,@MatchId 						INT
@@ -19,7 +23,8 @@ AS
 		- 20170609@Kathy: Early settlement for BAIO [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
-
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]	
+	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
 		- @SettleAbandonedMatchIBCParlay: TINYINT
@@ -43,9 +48,15 @@ BEGIN
 		,@sqlCommand			NVARCHAR(1000)
 		,@IsExistNetPosition	BIT = 0
 		,@Mode					VARCHAR(20)
-
+		,@IsEarlyMatch			BIT = 0
+		,@bettype_22			VARCHAR(20)
+		,@bettype_160			VARCHAR(20)
+    
+    SET @bettype_22 = '22'
+    SET @bettype_160 = '160'
+    
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
-	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY, GroupID INT, IsFGLG BIT)
 	DECLARE @tmpAutoBetRadarBettypes TABLE (bettype SMALLINT PRIMARY KEY)
 	
 	DECLARE @tmpRunningAutoSettle TABLE (matchid INT)
@@ -79,8 +90,8 @@ BEGIN
 	SELECT	f.BetType, f.GroupId, f.GroupName, (SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	
-	INSERT INTO @tmpFGLGBettypes(bettype)
-	SELECT	f.BetType
+	INSERT INTO @tmpFGLGBettypes(bettype,GroupID,IsFGLG)
+	SELECT	f.BetType,f.GroupId,f.IsFGLG
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.IsUsedGoalRecordValue = 1
 	
@@ -141,22 +152,17 @@ BEGIN
 	BEGIN
 		;WITH cteBetStatusM
 		AS (
-			SELECT	matchid
-				,CASE 
-					WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
-					--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
-					ELSE CAST(BetType AS VARCHAR(20))
-				END AS ResourceId
+			SELECT DISTINCT matchid
+					,CASE 
+						WHEN Bettype = 22 THEN ISNULL(REPLACE(SUBSTRING(betcheck, 2, LEN(betcheck)),@bettype_22,@bettype_160), '')
+						WHEN Bettype IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck, 2, LEN(betcheck)), '')
+						ELSE CONVERT(VARCHAR(20),bettype)
+					END AS ResourceId
 			FROM	dbo.bettransm WITH(NOLOCK)
 			WHERE	matchid = @MatchId
 					AND statusID = 0
 					AND bettype IN (SELECT bettype FROM @tmpAutoBetRadarBettypes)
-			GROUP BY matchid
-					,CASE 
-						WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
-						--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
-						ELSE CAST(BetType AS VARCHAR(20))
-					END	
+				
 		)
 		INSERT INTO @tmpRunningAutoSettle(matchid)
 		SELECT	@matchid
@@ -173,6 +179,8 @@ BEGIN
 		AS(
 			SELECT	bm.matchid
 					,CASE 
+						WHEN bm.bettype = 448 THEN '14L'
+						WHEN bm.bettype IN (415,454,172) THEN '14F'
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -189,6 +197,8 @@ BEGIN
 					AND bm.statusID NOT BETWEEN 101 AND 102
 			GROUP BY bm.matchid
 					,CASE 
+						WHEN bm.bettype = 448 THEN '14L'
+						WHEN bm.bettype IN (415,454,172) THEN '14F'
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -209,7 +219,14 @@ BEGIN
 						AND c.ResourceId = r.ResourceId
 			WHERE ISNULL(r.SettlementStatusId,0) = 0
 			GROUP BY c.matchid
-		)	
+		)
+		
+		IF EXISTS (SELECT TOP 1 1
+					FROM @tmpRunningAutoSettle)
+			BEGIN
+				SET @IsEarlyMatch = 1
+			END		
+					
 		
 	END
 
@@ -272,7 +289,7 @@ BEGIN
 		)		
 	)
 	BEGIN
-		SELECT @NotKeyScoreList = @matchcode
+		SELECT @NotKeyScoreList = @matchcode + (CASE WHEN @IsEarlyMatch = 1 THEN '(Early Settle)' ELSE '' END)
 	END
 	
 	IF EXISTS (SELECT TOP 1 1
@@ -359,3 +376,5 @@ BEGIN
 	END
 END
 GO 
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_MP_Push] TO [bodbAdminNet]
+GO

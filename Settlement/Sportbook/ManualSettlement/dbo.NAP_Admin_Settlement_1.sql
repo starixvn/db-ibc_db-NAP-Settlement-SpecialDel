@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1] 
     @creator			INT
     ,@matchid			INT
@@ -1345,3 +1349,9 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 END
 GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1] TO [bodbAdminNet]
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1] TO [Dot_Member]
+GO
+
+

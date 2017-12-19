@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Push] (
 	@MatchIds VARCHAR(4000)
 	,@AdminId INT
@@ -29,6 +33,7 @@ AS
 		- 20170609@Kathy: Early settlement for BAIO [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		
 	Param's Explanation:		
 		
@@ -42,7 +47,9 @@ BEGIN
 			,@NotExecutedFGLG VARCHAR(200)
 			,@procName nvarchar(50)	
 			,@matchid int
-		
+			,@bettype_22 VARCHAR(20)
+			,@bettype_160 VARCHAR(20)
+			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
 	
@@ -62,7 +69,10 @@ BEGIN
 			,@procName = OBJECT_NAME(@@procid)
 			,@subErrCode = 0
 			,@subErrMsg = ''
-			
+	
+	SET @bettype_22 = '22'
+    SET @bettype_160 = '160'
+    
 	INSERT INTO @match ( matchid, matchcode, fth, fta, hth, hta, betstatus, sporttype)
 	SELECT DISTINCT matchid
 			,matchcode
@@ -104,29 +114,24 @@ BEGIN
 	BEGIN
 		;WITH cteBetStatusM
 		AS(
-			SELECT	matchid
+			SELECT	DISTINCT matchid
 					,CASE 
-						WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
-						--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
+						WHEN Bettype = 22 THEN ISNULL(REPLACE(SUBSTRING(betcheck, 2, LEN(betcheck)),@bettype_22,@bettype_160), '')
+						WHEN Bettype IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck, 2, LEN(betcheck)), '')
 						ELSE CAST(BetType AS VARCHAR(20))
 					END AS ResourceId
+						
 			FROM	dbo.bettransm WITH(NOLOCK)
 			WHERE	matchid IN (SELECT matchid FROM @match)
 					AND statusID = 0
 					AND bettype IN (SELECT BetType FROM @tmpAutoBetRadarBettypes)
-			GROUP BY matchid
-					,CASE 
-						WHEN BetType IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck,2,LEN(betcheck)),'')
-						--WHEN bettype = 216 THEN CAST(BetType AS VARCHAR(20)) + ISNULL(SUBSTRING(betteam,2,LEN(betteam)),'')
-						ELSE CAST(BetType AS VARCHAR(20))
-					END		
+					
 		)
+		
 		INSERT INTO @tblRunningAutoSettle (matchid)
 		SELECT	c.matchid
 		FROM	cteBetStatusM c
-			LEFT JOIN DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)
-				ON	c.matchid = r.matchid
-					AND r.ResourceId = c.ResourceId
+			LEFT JOIN DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)	ON	c.matchid = r.matchid AND r.ResourceId = c.ResourceId
 		WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		
 		;WITH cteFGLGBettypes
@@ -134,6 +139,10 @@ BEGIN
 			SELECT	bm.matchid
 					,m.matchcode
 					,CASE 
+						WHEN bm.bettype = 448 THEN '14L'
+						
+						WHEN bm.bettype IN (415,454,172) THEN '14F'
+						
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -152,6 +161,10 @@ BEGIN
 			GROUP BY bm.matchid
 					,m.matchcode
 					,CASE 
+						WHEN bm.bettype = 448 THEN '14L'
+						
+						WHEN bm.bettype IN (415,454,172) THEN '14F'
+						
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -225,7 +238,9 @@ BEGIN
 					FROM @tblRunningBAIO
 				)					
 	BEGIN
-		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode + ','
+		
+		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode 
+									+  (CASE WHEN matchid IN (SELECT matchid FROM @tblRunningAutoSettle) THEN '(Early Settle)' ELSE '' END) + ','
 		FROM @match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
 			OR matchid IN (SELECT matchid FROM @tblRunningAutoSettle)
@@ -384,6 +399,8 @@ BEGIN
 		END
 	END
 END
-
-
 GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_MP_Push] TO [bodbAdminNet]
+GO
+
+

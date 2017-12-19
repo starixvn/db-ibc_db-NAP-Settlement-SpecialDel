@@ -1,4 +1,8 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchGetResult] 
 	@Date DATETIME
 	,@LeagueID INT = 0
@@ -20,7 +24,8 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
-
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		
 	Param explanation:  
 		@sporttype: show info of particular sport
 		@LeagueID: = 0: show info of all leagues    	
@@ -75,7 +80,14 @@ BEGIN
 		,PlaceOdds MONEY
 		,isMove BIT
 		)
-
+	
+	CREATE TABLE #BettypeFGLG  (bettype SMALLINT, GroupID SMALLINT)
+	
+	INSERT INTO #BettypeFGLG (bettype,GroupID)
+	SELECT BetType,GroupID
+	FROM dbo.f_Set_GetGroupBettypes()
+	WHERE IsFGLG = 1
+	
 	SELECT @eventstatus = CASE @statusid
 			WHEN 1 THEN 'running'
 			WHEN 2 THEN 'closed'
@@ -91,7 +103,9 @@ BEGIN
 			END
 		,@MaxMatchId = 0
 		
-	INSERT INTO #matchList
+	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore,IsCalculated,IsMultiCaled,IsRefund,IsCalRefund,matchid,leagueid,homeid,awayid,matchcode,kickofftime,finalhomescore,finalawayscore 
+		,betstatus, eventstatus, Foddsstatus, sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime,IsHalfTimeCal,calculate,isPending,isUndecided,IsKeyscore 
+		,IsExistFGLG,IsExistHTFGLG,WinOdds,PlaceOdds,isMove)
 	SELECT hthomescore
 		,htawayscore
 		,ISNULL(mr.calculate, 0) IsCalculated
@@ -228,11 +242,11 @@ BEGIN
 			FROM	@xmlResults.nodes('/root/result') AS T(C)
 		)
 		UPDATE m 
-			SET IsExistFGLG = CASE WHEN c.bettype = 14 AND c.IsExist = 1 THEN 1 ELSE 0 END
-				,IsExistHTFGLG = CASE WHEN c.bettype = 127 AND c.IsExist = 1 THEN 1 ELSE 0 END
+			SET IsExistFGLG = CASE WHEN fglg.GroupID IN (2,4) AND c.IsExist = 1 THEN 1 ELSE 0 END
+				,IsExistHTFGLG = CASE WHEN fglg.GroupID IN (1,3) AND c.IsExist = 1 THEN 1 ELSE 0 END
 		FROM	#matchList m
-			INNER JOIN cteResults c
-				ON m.matchid = c.MatchId
+			INNER JOIN cteResults c	ON m.matchid = c.MatchId
+			LEFT JOIN #BettypeFGLG fglg WITH (NOLOCK) ON fglg.bettype = c.Bettype
 		OPTION ( OPTIMIZE FOR ( @xmlResults = NULL ) )
 		
 		SELECT @MaxMatchId = MAX(matchid)
@@ -431,3 +445,6 @@ BEGIN
 	DROP TABLE #matchList
 END
 GO
+GRANT EXECUTE ON [dbo].[NAP_Set_MatchGetResult] TO [bodbAdminNet]
+GO
+

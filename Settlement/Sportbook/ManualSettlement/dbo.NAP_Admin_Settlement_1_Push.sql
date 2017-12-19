@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push] 
      @AdminId               INT
     ,@Matchid               INT
@@ -263,4 +267,6 @@ BEGIN
 			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
     END
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_Push] TO [bodbAdminNet]
 GO

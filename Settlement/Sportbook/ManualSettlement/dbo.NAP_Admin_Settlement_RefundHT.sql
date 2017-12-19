@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT] 
 	@matchid INT
     ,@adminid INT
@@ -570,4 +574,6 @@ BEGIN
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 END
+GO
+GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_RefundHT] TO [bodbAdminNet]
 GO

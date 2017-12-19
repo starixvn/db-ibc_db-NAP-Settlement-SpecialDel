@@ -1,4 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push] 
     @MatchId                        INT
     ,@AdminId                       INT
@@ -90,7 +94,7 @@ BEGIN
     END
     
     -- check waiting ticket
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                EXEC NAP_Admin_Settlement_Checking
+    EXEC NAP_Admin_Settlement_Checking
         @MatchId = @MatchId
         ,@Action = @Action
         ,@Mode = 'REFUND'
