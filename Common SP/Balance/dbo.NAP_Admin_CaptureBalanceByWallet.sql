@@ -215,6 +215,7 @@ BEGIN
 				, @xmlBAResults
 				, @ResourceIDs
 			)
+			OPTION (maxrecursion 0)
 		END
 		ELSE IF (@Mode = 7) -- Fast Market
 		BEGIN
