@@ -36,6 +36,7 @@ AS
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		- 20170718@Paul: Integrate Lucky 3 [Redmine:#77175]
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
+		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -193,7 +194,8 @@ BEGIN
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
-    FROM [dbo].[f_GroupBettype] () f		
+    FROM [dbo].[f_GroupBettype] () f
+    WHERE f.Bettype NOT IN (187, 179) 		
 
 	INSERT INTO #TmpBettrans
 	SELECT srecommend
