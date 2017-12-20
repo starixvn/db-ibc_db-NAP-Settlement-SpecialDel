@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="0"></info>*/
-ALTER PROCEDURE dbo.Task_NAP_Admin_Adjustment_BonusTransfer_Job
+ALTER PROCEDURE [dbo].[Task_NAP_Admin_Adjustment_BonusTransfer_Job]
 	@Mode			VARCHAR(10) = 'Adjustment'
 	,@CleanUpDate	DATE = NULL
 AS
@@ -47,6 +47,15 @@ BEGIN
 			, currency			INT
 			, currencyName		VARCHAR(10)
 			, actualrate		FLOAT
+		)
+
+		DECLARE @tempCoupleTransfer TABLE (
+			ExecID			BIGINT
+			,custid			INT
+			,transferId		INT
+			,username		NVARCHAR(50)
+			,isDummy		BIT
+			,isValidDummy	BIT
 		)
 		
 		SELECT @maxExecID 		= 0
@@ -102,20 +111,21 @@ BEGIN
 						FROM CustDB.dbo.Customer srec WITH(NOLOCK)
 						WHERE srec.custid = temp.srecommend
 					) AS dummy
-			),tempCoupleTransfer AS (	
-				SELECT temp.ExecID, temp.custid
-					, a.transferId, a.username, a.isDummy, a.isValidDummy
-				FROM tempDummyCust AS temp
-					LEFT JOIN CustDB.dbo.Customer dummy WITH(NOLOCK)
-						ON temp.dummyUsername 	= dummy.username 
-							AND dummy.roleid 	= 1
-					OUTER APPLY (
-						SELECT transferId, username, isDummy,isValidDummy
-						FROM ( VALUES
-							(temp.custid, temp.username, 0, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END),
-							(dummy.custid, temp.dummyUsername, 1, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END)
-					) AS t(transferId, username, isDummy, isValidDummy)) AS a
 			)
+			INSERT INTO @tempCoupleTransfer (ExecID, custid, transferId, username, isDummy, isValidDummy)
+			SELECT temp.ExecID, temp.custid
+				, a.transferId, a.username, a.isDummy, a.isValidDummy
+			FROM tempDummyCust AS temp
+				LEFT JOIN CustDB.dbo.Customer dummy WITH(NOLOCK)
+					ON temp.dummyUsername 	= dummy.username 
+						AND dummy.roleid 	= 1
+				OUTER APPLY (
+					SELECT transferId, username, isDummy,isValidDummy
+					FROM ( VALUES
+						(temp.custid, temp.username, 0, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END),
+						(dummy.custid, temp.dummyUsername, 1, CASE WHEN dummy.custid > 0 THEN 1 ELSE 0 END)
+				) AS t(transferId, username, isDummy, isValidDummy)) AS a
+			
 			INSERT INTO @tempTransfer (ExecID, custid, matchid, bonusID, TransDesc, transferId, actual_stake, winlost, isValidDummy, username, currency, currencyName, actualrate)
 			SELECT temp.ExecID
 				, temp.custid
@@ -139,7 +149,7 @@ BEGIN
 				, temp.currencyName
 				, temp.actualrate
 			FROM #tempAdjustment AS temp
-				INNER JOIN tempCoupleTransfer AS trans
+				INNER JOIN @tempCoupleTransfer AS trans
 				ON temp.custid = trans.custid AND temp.ExecID = trans.ExecID
 				
 			--RAISE error with invalid dummy account
@@ -426,4 +436,5 @@ BEGIN
 	END
 	RETURN
 END
+
 GO

@@ -35,7 +35,6 @@ RETURN (
             ,(111, 1, 1) --Refund FT
             ,(157, 1, 1) -- AutoPayout CAL-HT
             ,(158, 1, 1) -- AutoPayout CAL-FT
-            ,(108, 1, 1) -- FGLG CAL
             ,(163, 1, 1) -- FGLG CAL-FT
             ,(164, 1, 1) -- FGLG CAL-HT
             ,(148, 1, 1) -- Auto CAL

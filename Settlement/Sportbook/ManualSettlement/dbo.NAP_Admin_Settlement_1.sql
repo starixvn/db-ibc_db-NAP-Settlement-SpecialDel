@@ -137,7 +137,8 @@ BEGIN
         ,@isExistRunningCornerBet       BIT = 0
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
-        ,@strBettypes					VARCHAR(MAX)		
+        ,@strBettypes					VARCHAR(MAX)	
+		,@IsRefundHT					BIT	
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -163,8 +164,11 @@ BEGIN
 											WHEN 'UNDO'	THEN 103
                                         END
 
+			,@IsRefundHT			= 0
+
     SELECT  @sporttype        = m.sporttype
             ,@goalrecord_old    = ISNULL(m.goalrecord, '')
+			,@IsRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
     FROM    dbo.match m WITH(NOLOCK)
     WHERE    m.matchid = @matchid
 
@@ -336,6 +340,7 @@ BEGIN
             , @Mode 			= 2 --@Mode Manual Settlement
             , @TennisSet		= @SelectedSet
             , @BAQuarter		= @SelectedQuarter
+			, @IsRefundHT		= @IsRefundHT
 
         SELECT @TotalAccount = @@ROWCOUNT
 
@@ -701,6 +706,7 @@ BEGIN
             , @Mode 			= 2 --@Mode Manual Settlement
             , @TennisSet		= @SelectedSet
             , @BAQuarter		= @SelectedQuarter
+			, @IsRefundHT		= @IsRefundHT
     END --IF @SkipBalanceUpdate = 0
 
     -------------------------------------------------------------

@@ -37,6 +37,8 @@ BEGIN
 		, bonusID				INT
 		, bonusStatus			TINYINT
 	)
+	
+	DECLARE @tmpBalanceNegative TABLE (CustId INT, Balance MONEY)
 		
 	--GATHER customer bonus status
 	INSERT INTO @tempBonusStatus(custid, bonusID, bonusStatus)
@@ -221,19 +223,17 @@ BEGIN
 		SELECT TOP 1 @MatchId = matchid
 		FROM @BalanceWalletBefore
 
-		;WITH cteBalanceNegative AS (
-			SELECT
-				@MatchId AS matchId
-				, b.custid
-				, @ActionId AS ActionId
-				,SUM(a.balance - b.balance) AS balance
-			FROM @GeneralBeforeUpd b
-				INNER JOIN @GeneralAfterUpd a 
-					ON b.custid 		= a.custid
-					AND b.balanceType	= a.balanceType 
-			GROUP BY b.custid				
-			HAVING SUM(a.balance) < SUM(b.balance)
-		)
+		INSERT INTO @tmpBalanceNegative(CustId, Balance)
+		SELECT
+			b.custid
+			,SUM(a.balance - b.balance) AS balance
+		FROM @GeneralBeforeUpd b
+			INNER JOIN @GeneralAfterUpd a 
+				ON b.custid 		= a.custid
+				AND b.balanceType	= a.balanceType 
+		GROUP BY b.custid				
+		HAVING SUM(a.balance) < SUM(b.balance)
+		
 		----
 		-- Add Negative Balance into BalanceNegative table 
 		----
@@ -248,16 +248,16 @@ BEGIN
 				,[Remark]
 		)
 		SELECT GETDATE()
-				,MatchID
+				,@MatchID
 				,@ActionId
 				,ISNULL(bg.GroupID,1) AS GroupID -- Negative balance defined group Id
 				,CustID
 				,Balance
 				,0
 				,NULL
-		FROM cteBalanceNegative bal
+		FROM @tmpBalanceNegative bal
 			LEFT JOIN dbo.f_Set_NegativeBalance_ActionGroup() AS bg
-			ON bal.ActionId = bg.ActionId
+			ON bg.ActionId = @ActionId
 	END
 END
 GO
