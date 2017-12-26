@@ -84,6 +84,7 @@ AS
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#71355]
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20171226@Kathy: Clear data in table AutoPayoutResult if match has been undo [Redmine:#86890]
 		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -556,6 +557,13 @@ BEGIN
                     @Command            = 'NAP_Admin_Settlement_1-UNDO',
                     @MatchID            = @MatchID,
                     @creator            = @creator 
+
+				EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
+					@MatchId = @matchid
+					,@TypeId = NULL
+					,@StatusId = NULL 
+					,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
+
             END
             ELSE IF @sporttype = 2 -- basketball
             BEGIN
