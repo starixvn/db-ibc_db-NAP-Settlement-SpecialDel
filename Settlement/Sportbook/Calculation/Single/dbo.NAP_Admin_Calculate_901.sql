@@ -23,6 +23,7 @@ GO
 			- 20170411@Bobby: 74819 - Correct Bettrade condition for auto bettypes
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 2017803@Kathy: PHAIO 3 - Using betid 822xx for bettype 22 [Redmine:#80947]
 			
 		Parameter's Explantion:
 	*/
@@ -30,11 +31,17 @@ BEGIN
 	SET NOCOUNT ON
 	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 	
-	DECLARE @statusID INT
-			,@winlost MONEY
+	DECLARE @statusID		INT
+			,@winlost		MONEY
+
+			,@bettype_22	VARCHAR(20)
+			,@bettype_160	VARCHAR(20)
 	
 	DECLARE @tmpBettype TABLE(bettype INT)
 	CREATE TABLE #tmp (transid BIGINT)
+
+	SET @bettype_22 = '22'
+    SET @bettype_160 = '160'
 	
 	--get list bettype with each action & mode
 	--recover refund tickets to previous status
@@ -105,8 +112,10 @@ BEGIN
 		AND b.matchid = @matchid
 		AND 1 = CASE 
 					WHEN @ResourceIDs IS NULL AND b.Bettype NOT IN (160,180,22)  THEN 1 --manual page
+					WHEN @ResourceIDs IS NOT NULL 
+						AND Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
 					WHEN (@ResourceIDs IS NOT NULL 
-						AND b.Bettype IN (160,180,22) 
+						AND b.Bettype IN (160,180) 
 						AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs) > 0) THEN 1 
 					WHEN (@ResourceIDs IS NOT NULL 
 						AND CHARINDEX(',' +CAST(b.bettype AS VARCHAR(10)) + ',', ',' + @ResourceIDs + ',') > 0) THEN 1
