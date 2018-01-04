@@ -1,4 +1,6 @@
-﻿ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_BySite]
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+
+ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_BySite]
   @Site		VARCHAR(50) = 'Haifa'
  ,@isTest	BIT			= 0
 
@@ -13,6 +15,8 @@ AS
 		- 20131108@Elodie: Splitting bodb02 into CustDB (call custInfo, exchange by link database)
 		- 20150120@Jamie: Edit the definition of @isTest 
 		- 20150316@Elodie: Support Negative Balance function for all licensee [Red:#30840]
+		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
+		
 	Param's Explanation: 
 		@isTest: 0: Real Currency; 1: UUS Currency 
 	
@@ -39,6 +43,10 @@ BEGIN
 						 WHEN @isTest = 1 AND e.exchangeID = 20 THEN 1 
 						 ELSE 0 
 						 END  
+			AND 1= CASE WHEN h.GroupID IN (1,2) 
+							AND h.ActionID IN (SELECT actionid FROM dbo.f_Set_NegativeBalance_ActionGroup()) THEN 1
+						WHEN h.GroupID NOT IN (1,2) THEN 1
+						ELSE 0 END
 			
 	ORDER BY	  h.LogID ASC
 				, h.MatchID ASC

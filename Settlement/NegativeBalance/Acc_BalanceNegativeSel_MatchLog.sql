@@ -13,7 +13,8 @@ AS
 		- 20140304@Elodie: Retreive settlement log for outright
 		- 20150918@Elodie: Get Log Action Name by Chinese langague [Red:#43705]
 		- 20170629@Bobby: 78882 - Add groupid = 7
-		- 
+		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
+		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
 
@@ -188,7 +189,11 @@ BEGIN
 									WHEN l.Remark LIKE '%Multiple%' THEN  REPLACE(REPLACE(la.ActionNameEN, 'VS BetRadar', ''), 'All', 'Mix Parlay All') 
 									ELSE REPLACE(la.ActionNameEN, 'VS BetRadar', '') --remove product name
 								END
+							
+							WHEN l.ActionID IN (157,158) THEN REPLACE(la.ActionNameEN,'Auto Payout - ','')
+							
 							ELSE la.ActionNameEN 
+							
 						END AS ActionNameEN
 						,CASE 
 							WHEN l.ActionId IN (187,188) THEN 
@@ -213,6 +218,10 @@ BEGIN
 							END
 						ELSE 1
 					END
+			AND 1 = CASE WHEN @GroupID IN (1,2) AND l.ActionID IN (SELECT actionid FROM dbo.f_Set_NegativeBalance_ActionGroup()) THEN 1 
+						WHEN @GroupID = 7 THEN 1
+						ELSE 0 END
+			
 		ORDER BY	l.LogID ASC 	
 	END
 	ELSE IF @GroupID = 3
