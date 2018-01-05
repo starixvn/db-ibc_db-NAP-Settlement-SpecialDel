@@ -234,7 +234,7 @@ BEGIN
 				, CASE WHEN l.ActionID = 137 AND cast(l.Remark as INT) > 1 THEN 'DeadHeat(' + l.Remark + ')' ELSE '' END AS Remark
 		FROM	bodb_CustomerLog.dbo.UserLog_SettleOutright l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
-		WHERE	l.MatchID = @MatchID and l.ActionID IN (137,141,139)
+		WHERE	l.MatchID = @MatchID and l.ActionID IN (137,145,139)
 		ORDER BY	l.LogID ASC 	
 	END
 END 
