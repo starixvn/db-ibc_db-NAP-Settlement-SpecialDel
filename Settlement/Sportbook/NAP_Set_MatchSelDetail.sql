@@ -53,6 +53,7 @@ AS
 		- 20170525@Kathy: Not allow to cal FT basketball when have tickets of bettype 603 and quarters has not been calculated [Redmine:#77046]
 		- 20170609@Kathy: Remove "early settled" bettypes from Calculation popup [Redmine:#77835]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20171201@Kathy: Remove the checkbox "Settle determined tickets" on Refund popup page [Redmine:#86890]
 		
 */
 BEGIN
@@ -61,7 +62,6 @@ BEGIN
     DECLARE @IsExistFGLG			BIT
         ,@IsHTOnly					BIT
         ,@IsLive					BIT
-        ,@IsSettleAbandonedMatchIBC BIT
 		,@SettleAbandonedMatchIBCParlay TINYINT
         ,@sporttype					SMALLINT
         ,@IsExistHTFGLG				BIT
@@ -116,7 +116,6 @@ BEGIN
          @IsExistFGLG = 0
         ,@IsHTOnly = 0
         ,@IsLive = 0
-        ,@IsSettleAbandonedMatchIBC = 0
 		,@SettleAbandonedMatchIBCParlay = 0
         ,@IsExistHTFGLG = 0
         ,@isExistTotalCorner    = 0
@@ -497,37 +496,6 @@ BEGIN
     
 	IF @IsRefundPage = 1
 	BEGIN
-		IF (@sporttype = 1
-			AND @eventstatus = 'running'
-			AND (
-				EXISTS (
-					SELECT TOP 1 1
-					FROM dbo.bettrans b WITH (NOLOCK)
-						INNER JOIN @tmpBettypes f
-
-							ON b.bettype = f.BetType
-					WHERE   f.IsDetermined = 1
-							AND f.GroupId <> 8
-							AND b.matchid = @matchid 
-							AND b.statusID NOT IN (101, 102, 103) 
-							AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156)
-				)
-				OR	EXISTS (
-					SELECT TOP 1 1
-					FROM dbo.bettransm b WITH (NOLOCK)
-					INNER JOIN @tmpBettypes f
-							ON b.bettype = f.BetType
-					WHERE   f.IsDetermined = 1
-							AND f.GroupId <> 8
-						AND matchid = @matchid 
-						AND statusID NOT IN (101, 102, 103) 
-				)
-			)
-		)
-		BEGIN
-			SELECT @IsSettleAbandonedMatchIBC = 1
-		END
-	
 		-- Check for SDT parlay bettype
 		IF(EXISTS (
 				SELECT TOP 1 1 
@@ -587,7 +555,6 @@ BEGIN
         ,ISNULL(@IsHTOnly,0) AS IsHTOnly
 		,ISNULL(@isExistBettrade,0)  AS IsExistBettrade
         ,ISNULL(@IsLive,0) AS IsLive
-        ,ISNULL(@IsSettleAbandonedMatchIBC,0) AS IsSettleAbandonedMatchIBC
         ,@TennisStatusSet1    AS TennisStatusSet1
         ,@TennisStatusSet2    AS TennisStatusSet2
         ,@TennisStatusSet3    AS TennisStatusSet3
@@ -720,11 +687,9 @@ BEGIN
 		WHERE    MatchID = @MatchID 
 				AND (@Sporttype = 5 
 						OR(    @Sporttype = 1 
-							AND ResourceID IN ('04','05','206','207','208','209') -- Corners Bettype
+							AND ResourceID IN ('00','01','04','05','206','207','208','209') -- Corners Bettype
 						)
 				)
 	END
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelDetail] TO [bodbAdminNet]
 GO

@@ -47,6 +47,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170606@Bobby: 77720 - Implement BetRadar VS League & Nation
 		- 20171011@Kathy: Correct GoalRecord value when do instant + cal HT [Redmine:#81308]
+		- 20171212@Kathy: Change on Refund page [Redmine:#86890]
 		
 	Parameters Explanation:    
 	
@@ -242,7 +243,7 @@ BEGIN
 		
 		SELECT @Sporttype = sporttype
 			,@betstatus = CASE 
-									WHEN CHARINDEX('Refund HT',betstatus) > 0 THEN 
+									WHEN CHARINDEX('Refund HT',betstatus) > 0 OR CHARINDEX('Refund;', betstatus) > 0 THEN 
 										'Refund;' + CASE 
 											WHEN CHARINDEX('Refund;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund;','')
 											WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund FT;','')
