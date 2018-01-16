@@ -268,6 +268,7 @@ BEGIN
 			,b.bettype
 			,b.liveindicator
 			,b.statusid
+		OPTION (RECOMPILE)	
 	END
 	ELSE -- For Others
 	BEGIN
