@@ -57,9 +57,9 @@ BEGIN
 
 	SET @p_bettypes = @BetTypes
 
-	---- If number game then don't care @livetype , so set @LiveType to zero
-	IF @Type = 1 or @Type = 2
-		SELECT @LiveType = 0
+	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type <> 0
+		SELECT @LiveType = 2
 
 	SELECT CustID 
 	INTO #CustIDs
