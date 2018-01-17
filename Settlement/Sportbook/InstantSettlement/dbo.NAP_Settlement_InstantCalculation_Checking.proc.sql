@@ -19,9 +19,10 @@ AS
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
+		- 20180115@Benjamin: Checking before Settlement in Auto-Instant process [Redmine:#86964]
 		
 	Param's Explanation:
-		- @Action: ['CAL']
+		- @Action: ['CAL'],['CAL-AUTOINST'] 
 		- @Mode: ['INST-HT', 'INST-FT']
 
 */
@@ -53,10 +54,120 @@ BEGIN
 		
 		, @IsExistFGNG		BIT
 		, @IsExistHTFGNG	BIT
-		
+
 	CREATE TABLE #instantBettype (bettype SMALLINT)
 	
 	SET @InstantKeyValue		= CAST(@InstantKey AS VARCHAR(50))
+		
+	/* AUTO-INSTANT ONLY*/
+	IF @Action='CAL-AUTOINST'  
+	BEGIN
+		--[1]: The auto setting is turned off
+		IF EXISTS 
+		(SELECT TOP 1 1
+		FROM dbo.match m WITH (NOLOCK) 
+		WHERE m.sporttype = 1
+			AND m.AutoSetting NOT IN (2,3) -- AutoInstant: OFF
+			AND m.matchid = @MatchId)
+			
+		BEGIN
+			SELECT @ErrCode = 1001032, @ErrMsg = ('Cannot execute Auto Instant calculate due to setting turned off')
+			RETURN
+		END
+
+
+		--[2]: Already calculated manually instant
+		IF EXISTS 
+		(SELECT TOP 1 1
+		FROM DBPRO.bodb02.dbo.ProviderResultDetail d WITH(NOLOCK)
+		  INNER JOIN dbo.Match m WITH (NOLOCK)
+			ON m.matchid = d.matchid
+		WHERE d.MatchId = @MatchId
+			AND CHARINDEX('hedge', m.matchcode) = 0
+			AND d.ProviderResultDetailID = @InstantKey   
+			AND m.AutoSetting IN (2,3)  
+			AND EXISTS (SELECT TOP 1 1
+					 FROM DBPRO.bodb02.dbo.AutoPayoutResult p WITH(NOLOCK) 
+					 WHERE p.MatchId = d.MatchId 
+						AND p.CalculationType IN (101,102,103)  --Instant Type
+						AND p.HomeValue = d.HomeValue
+						AND p.AwayValue = d.AwayValue
+						AND p.StatusId <> 0)) --Waiting/Completed/Failed
+		BEGIN
+			SELECT @ErrCode = 1001029, @ErrMsg = ('Score ('+@HomeScore+'-'+@AwayScore+') has already calculated manually')
+			RETURN
+		END
+
+		--[3]: HT/FT calculation is completed
+		IF EXISTS 
+		(SELECT TOP 1 1
+		FROM DBPRO.bodb02.dbo.ProviderResultDetail d WITH(NOLOCK)
+		  INNER JOIN dbo.Match m WITH (NOLOCK)
+			ON m.matchid = d.matchid
+		WHERE d.MatchId = @MatchId
+			AND CHARINDEX('hedge', m.matchcode) = 0
+			AND d.ProviderResultDetailID = @InstantKey   
+			AND m.AutoSetting IN (2,3)
+			AND EXISTS (SELECT TOP 1 1
+					 FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
+					 WHERE r.MatchId = d.MatchId 
+					 AND r.ResourceID IN (01,00)   --HT/FT
+					 AND r.ResultStatusID IN (2,5) --Auto settled/Manually settled
+					 AND r.SettlementStatusID = 4)  --Completed 
+		)
+		BEGIN
+			SELECT @ErrCode = 1001025, @ErrMsg = ('HT/FT has already calculated')
+			RETURN
+		END
+
+
+		--[4]: Undecided/Pending status
+		IF EXISTS 
+		(SELECT TOP 1 1
+		FROM dbo.match m WITH (NOLOCK)
+		 INNER JOIN dbo.match_remark mr WITH (NOLOCK)
+		   ON m.matchid = mr.matchid
+		WHERE m.sporttype = 1
+			AND 2 & m.AutoSetting = 2
+			AND m.matchid = @MatchId
+			AND CHARINDEX('hedge', m.matchcode) = 0
+			AND (mr.isPending =1 OR mr.isUnDecided=1))
+
+		BEGIN
+			SELECT @ErrCode = 1001030, @ErrMsg = ('Undecided/Pending')
+			RETURN
+		END
+
+
+		--[5]: Wrong score
+		IF EXISTS 
+		(SELECT TOP 1 1
+		FROM DBPRO.bodb02.dbo.ProviderResultDetail d WITH(NOLOCK)
+		  INNER JOIN dbo.Match m WITH (NOLOCK)
+			ON m.matchid = d.matchid
+		  INNER JOIN dbo.match_remark mr WITH (NOLOCK)
+			ON m.matchid = mr.matchid
+		WHERE d.MatchId = @MatchId
+			AND d.ProviderResultDetailID = @InstantKey   
+			AND m.AutoSetting IN (2,3)
+			AND mr.isPending =0 
+			AND mr.isUnDecided=0
+			AND CHARINDEX('hedge', m.matchcode) = 0
+			AND EXISTS (SELECT TOP 1 1
+					 FROM DBPRO.bodb02.dbo.AutoPayoutResult p WITH(NOLOCK) 
+					 WHERE p.MatchId = d.MatchId 
+						AND p.CalculationType IN (101,102,103)  --Instant Type
+						AND (p.HomeValue > d.HomeValue OR p.AwayValue > d.AwayValue) --Current home score < Previous home score or Current away score < Previous away score
+						AND p.StatusId <> 0)) 
+		BEGIN
+			SELECT @ErrCode = 1001031, @ErrMsg = ('Detect score changed')
+			RETURN
+		END
+
+
+	END
+	/*END AUTO-INSTANT ONLY*/
+		
 	
 	SELECT
 		@HomeScore			= ps.HomeValue
