@@ -79,8 +79,8 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @HomeValue		VARCHAR(50) = NULL
 	, @QXHome				INT = NULL
 	, @QXAway				INT = NULL
-	, @scorediff SMALLINT = 0
 	, @totalgoal SMALLINT = 0
+	, @scorediff SMALLINT = 0
 	, @oddeven SMALLINT = 0
 	, @totalht SMALLINT = 0
     , @totalgoal_2H SMALLINT = 0
@@ -98,6 +98,7 @@ AS
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 20180123@Helen: Hotfix - match 3x30 - Just change position of input params totalgoal & scorediff of this function ONLY [Redmine:#89388]
 			
     Parameters Explanation:    
 	
