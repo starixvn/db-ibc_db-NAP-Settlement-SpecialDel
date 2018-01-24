@@ -1,11 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
 ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @MatchId INT
 	, @sqlCommand VARCHAR(1024)
@@ -21,12 +14,26 @@ AS
 	
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
+		-20180124@Benjamin: Add @IsAutoInst parameter for Auto Instant [Redmine:#86964]
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @TypeId TINYINT, @Remark VARCHAR(500), @Mode TINYINT, @ActionId INT
-		, @fth INT, @fta INT, @hth INT, @hta INT, @goalrecord NVARCHAR(50), @betstatus NVARCHAR(50)
+	DECLARE 
+		@TypeId TINYINT
+		, @Remark VARCHAR(500)
+		, @Mode TINYINT
+		, @ActionId INT
+		, @fth INT
+		, @fta INT
+		, @hth INT
+		, @hta INT
+		, @goalrecord NVARCHAR(50)
+		, @betstatus NVARCHAR(50)
+		, @IsAutoInst INT
+		
+	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END
 
+	
 	SELECT @Mode = CASE 
 						WHEN CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) > 0 THEN 7
 						WHEN (
@@ -95,6 +102,9 @@ BEGIN
 	
 	END
 	
+
+	SELECT @actionid = CASE WHEN @IsAutoInst = 1 THEN 197 ELSE @actionid END
+
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			, @matchid = @matchid

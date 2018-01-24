@@ -8,8 +8,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation]
 	, @AwayScore		VARCHAR(50)
 	, @ResourceResult	VARCHAR(MAX) = NULL
 	, @IP				VARCHAR(15)
-	, @ErrCode			INT				= 0		OUTPUT
-	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	, @IsAutoInst		INT 		   = 0
+	, @ErrCode			INT		   = 0	OUTPUT
+	, @ErrMsg			NVARCHAR(200)= ''	OUTPUT
 AS
 /*    
 	Creator: 20161004@Bobby
@@ -22,14 +23,15 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180709@Helen: Enhance Performance for Instant Calculation - [Redmine: 98608]
-		
+		- 20180123@Benjamin: Add @IsAutoInst parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
+    
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
         - @ResourceResult
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
-        
+        - @IsAutoInst: 1-Auto Instant 0-Manual Instant
 */
 BEGIN
 	SET NOCOUNT ON
@@ -68,7 +70,8 @@ BEGIN
 		, @FGLGCheck					TINYINT
 		, @FLValue 						VARCHAR(50)
 		, @betstatusOld					VARCHAR(50)
-
+		, @Source						VARCHAR(50) = 'Soccerway'
+		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
 	
@@ -80,7 +83,7 @@ BEGIN
 	SET @InstKeyValue		= CAST(@InstantKey AS VARCHAR(50))
 	
 	SELECT
-		@HomeScore			= ps.HomeValue
+		@HomeScore		= ps.HomeValue
 		, @AwayScore		= ps.AwayValue
 		, @GoalRecord		= ISNULL(fgng.GoalRecord, '')
 	FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK) 
@@ -88,7 +91,7 @@ BEGIN
 			SELECT HomeValue AS GoalRecord
 			FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK) 
 			WHERE MatchId 			= @MatchId
-				AND TypeId			= 103 --FGNG
+				AND TypeId		= 103 --FGNG
 				AND AwayValue 		= @InstKeyValue
 				
 		) AS fgng
@@ -96,7 +99,7 @@ BEGIN
 	
 	SELECT @start					= CURRENT_TIMESTAMP
 		, @TicketCount				= 0
-		, @TotalAccount				= 0
+		, @TotalAccount			= 0
 		, @TotalAccount_Updated		= 0
 		, @Action					= 'CAL-INST'
 		, @CalculationType 			= CASE @Mode
@@ -104,11 +107,19 @@ BEGIN
 										WHEN 'INST-FT' THEN 102
 										ELSE 0
 									END
-		, @ActionLogId				= CASE @CalculationType
+		/*, @ActionLogId				= CASE @CalculationType
 										WHEN 101 THEN 178
 										WHEN 102 THEN 179
 										END
-		, @isExistMatch				= 1
+		*/										
+
+		, @ActionLogId				= CASE WHEN @CalculationType = 101 AND @IsAutoInst = 0 THEN 178
+									  WHEN @CalculationType = 102 AND @IsAutoInst = 0 THEN 179
+									  WHEN @CalculationType = 101 AND @IsAutoInst = 1 THEN 195
+									  WHEN @CalculationType = 102 AND @IsAutoInst = 1 THEN 196									  
+								  END
+										
+		, @isExistMatch			= 1
 		, @hScore					= CAST(@HomeScore AS INT)
 		, @aScore					= CAST(@AwayScore AS INT)
 		, @FGLGCheck				= 0
@@ -126,16 +137,16 @@ BEGIN
 	
 	--SET scores in 1H & 2H
 	SELECT @hScore1H	= CASE WHEN @CalculationType = 101 THEN @hScore ELSE ISNULL(@hthomescore, 0) END
-		, @aScore1H		= CASE WHEN @CalculationType = 101 THEN @aScore ELSE ISNULL(@htawayscore,0) END 
-		, @hScore2H		= CASE WHEN @CalculationType = 102 THEN @hScore-@hScore1H ELSE 0 END
-		, @aScore2H		= CASE WHEN @CalculationType = 102 THEN @aScore-@aScore1H ELSE 0 END
+		, @aScore1H	= CASE WHEN @CalculationType = 101 THEN @aScore ELSE ISNULL(@htawayscore,0) END 
+		, @hScore2H	= CASE WHEN @CalculationType = 102 THEN @hScore-@hScore1H ELSE 0 END
+		, @aScore2H	= CASE WHEN @CalculationType = 102 THEN @aScore-@aScore1H ELSE 0 END
 		, @GoalRecord	= CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END
-		, @FGNG			= CASE 
-							WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1'  
-							WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2'  
-							ELSE ''
-								END 
-		, @FGNG			= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
+		, @FGNG		= CASE 
+						  WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1'  
+						  WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2'  
+						  ELSE ''
+					  END 
+		, @FGNG		= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
 		, @FGLGCheck	= 0
 	
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -146,7 +157,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= @isExistMatch
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrCode		= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
 
 	IF(@sporttype IS NULL OR  @ErrCode <> 0 OR @avaiableProcess = 0) RETURN
@@ -155,17 +166,17 @@ BEGIN
 	INSERT INTO @instantBettype (bettype)
 	SELECT bettype
 	FROM dbo.f_Set_Instant_GetBettypes()
-	WHERE 1	= 	CASE 
-					WHEN @CalculationType = 101 AND InstantType & 1 = 1 THEN 1
-					WHEN @CalculationType = 102 AND InstantType & 2 = 2 THEN 1
-					ELSE 0 
-				END
+	WHERE 1	= CASE 
+				WHEN @CalculationType = 101 AND InstantType & 1 = 1 THEN 1
+				WHEN @CalculationType = 102 AND InstantType & 2 = 2 THEN 1
+				ELSE 0 
+			  END
 	
 	--do instant calculation per batch of tickets
 	DECLARE @strInstantTicket	VARCHAR(MAX)
 		, @batchCount			INT
 		, @batchRowCount		INT
-		, @startBatchNo			INT
+		, @startBatchNo		INT
 	
 	DECLARE @tempAccountBalance TABLE (custid INT, IsUpdated BIT)
 	DECLARE @tempInstantBatch 	TABLE (
@@ -446,10 +457,24 @@ BEGIN
 		+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
 	EXEC dbo.WriteLog_UserLog @UserID = @creator, @Doing = @LogData
-			
+	
+	IF @IsAutoInst = 0		
+	BEGIN
 	SELECT @Remark ='NAP: Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_Updated, 0) AS VARCHAR(20)) + '/' +	CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))
+
+	END
+
+
+	IF @IsAutoInst = 1 
+	BEGIN
+	SELECT @Remark ='NAP: Source:' + @Source + (CASE WHEN @ErrCode > 0  THEN 'Failed: ' + @ErrMsg ELSE '' END)	
+							+' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+							+ ' Bal:' + CAST(ISNULL(@TotalAccount_Updated, 0) AS VARCHAR(20)) + '/' +	CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))	
+	END
+							
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 			, @Matchid			= @matchid

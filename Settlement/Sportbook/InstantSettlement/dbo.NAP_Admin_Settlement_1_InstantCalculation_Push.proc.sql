@@ -1,26 +1,28 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push] 
 	@AdminId 			INT
     , @MatchId			INT
-	, @InstantKey		INT
+    , @InstantKey		INT
     , @HomeScore		VARCHAR(50)
-	, @AwayScore		VARCHAR(50)
+    , @AwayScore		VARCHAR(50)
     , @Action			VARCHAR(10)
-	, @Mode				VARCHAR(10)
-	, @ResourceResult	VARCHAR(MAX)	= NULL
+    , @Mode			VARCHAR(10)
+    , @ResourceResult	VARCHAR(MAX)	= NULL
     , @IP				VARCHAR(15)     = ''
+    , @IsAutoInst		INT			 = 0
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
 /*    
-	Creator: 20161004@Bobby
+    Creator: 20161004@Bobby
     Task: Implement Instant Calculation
     DB: DBTXN/BODB02
-	Original:
+    Original:
 
     Revisions:
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20180123@Benjamin: Add @IsAutoInst parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
@@ -29,7 +31,7 @@ AS
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
-        
+		- @IsAutoInst: 1-Auto Instant 0-Manual Instant
 */
 BEGIN
     SET NOCOUNT ON
@@ -40,7 +42,7 @@ BEGIN
 		, @procName 		NVARCHAR(128)
 		, @sqlCommand 		NVARCHAR(1000)
 		, @CalculationType	TINYINT
-		, @InstantCompleted	BIT
+		, @InstantCompleted	BIT		
 	
 	SELECT @CalculationType	= CASE 
 								WHEN @Mode = 'INST-HT' THEN 101
@@ -57,12 +59,12 @@ BEGIN
 	IF(@Action = 'CAL')
 	BEGIN
 		EXEC dbo.NAP_Settlement_InstantCalculation_Checking 
-		@MatchId 			= @MatchId
-		, @InstantKey		= @InstantKey
-		, @Action 			= @Action
-		, @Mode				= @Mode
-        , @ErrCode 			= @ErrCode OUTPUT
-        , @ErrMsg 			= @ErrMsg OUTPUT
+		@MatchId 			 = @MatchId
+		, @InstantKey		 = @InstantKey
+		, @Action 		 = @Action
+		, @Mode			 = @Mode
+	    , @ErrCode 		 = @ErrCode OUTPUT
+		, @ErrMsg 		 = @ErrMsg OUTPUT
 	END
 	ELSE IF (@Action = 'UNDO')
 	BEGIN
@@ -108,22 +110,40 @@ BEGIN
 															WHEN @ResourceResult IS NULL THEN 'NULL'
                                                             ELSE '''' + @ResourceResult + '''' 
 														END 
-                            + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+					   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+					   + ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
                                                          
-	
-		--insert into table AutoPayoutResult
+	IF (@IsAutoInst = 0)
+	   BEGIN
+		--insert into table AutoPayoutResult in Manual Instant
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
 			@MatchId 		= @matchid
 			, @SourceId 	= 100
-			, @TypeId 		= @CalculationType
+			, @TypeId 	= @CalculationType
 			, @InstantKey	= @InstantKey
 			, @HomeValue 	= @HomeScore
 			, @AwayValue 	= @AwayScore
 			, @StatusId 	= 1 --waiting
-			, @ErrCode 		= @ErrCode OUTPUT
+			, @ErrCode 	= @ErrCode OUTPUT
 			, @ErrMsg		= @ErrMsg OUTPUT
+		END
+	ELSE	
+		BEGIN 
+			--insert into table AutoPayoutResult in Auto Instant
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
+				@MatchId 		= @matchid
+				, @SourceId 	= 5 --Soccerway
+				, @TypeId 	= @CalculationType
+				, @InstantKey	= @InstantKey
+				, @HomeValue 	= @HomeScore
+				, @AwayValue 	= @AwayScore
+				, @StatusId 	= 1 --waiting
+				, @ErrCode 	= @ErrCode OUTPUT
+				, @ErrMsg		= @ErrMsg OUTPUT
+		END
+
 		
 		IF @ErrCode <> 0
 		BEGIN
