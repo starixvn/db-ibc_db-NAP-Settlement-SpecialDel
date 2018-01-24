@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListing] 
 	@MatchId			INT
 	,@LicenseeId		INT
-	,@BetTypes			VARCHAR(1000)	= ''
-	,@BetTypesLive		VARCHAR(1000)	= ''
+	,@BetTypes			VARCHAR(1000)	= ''	
 	,@LiveType			SMALLINT 		= 2
 	,@LiveHomeScore		SMALLINT 		= NULL
 	,@LiveAwayScore		SMALLINT 		= NULL
@@ -11,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListing]
 	,@ToTransdate		DATETIME 		= NULL
 	,@Type				SMALLINT 		= 0
 	,@SecondAcceptFlag	TINYINT			= 0
+	,@BallSequence		VARCHAR(200)	= ''
 	,@ErrCode			INT				= 0 OUTPUT
 	,@ErrMsg			VARCHAR(1000)	= '' OUTPUT
 WITH RECOMPILE
@@ -37,6 +37,7 @@ AS
 		- 20170718@Paul: Integrate Lucky 3 [Redmine:#77175]
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
+		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -51,8 +52,7 @@ AS
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
 	  + -1: Filter by IBC sites (Non-Licensee sites)
-	- @BetTypes: String of bettype for Sportsbook, Virtual sports and for Dead Ball - Number game, Live casino
-	- @BetTypesLive: String of bettype ONLY for Live - Number game 
+	- @BetTypes: String of bettype for Sportsbook, Virtual sports and for Dead Ball - Number game, Live casino	 
 	- @LiveType: Combo Type, used only for Sportsbook
 		0: Dead ball
 		1: Live ball
@@ -87,9 +87,9 @@ BEGIN
 
 	SET @sporttype = 0
 
-	---- If number game or virtual sports, live casino then don't care @livetype , so set @LiveType to zero
-	IF @Type = 1 OR @Type = 2
-		SELECT @LiveType = 0
+	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type <> 0
+		SELECT @LiveType = 2
 
 	----Show match description
 	SELECT @matchcode	= matchcode
@@ -185,7 +185,12 @@ BEGIN
 		,matchid		INT
 		,cnt			INT
 		)
-
+		
+	CREATE TABLE #TmpBallSequence (	
+		Seq			TINYINT
+	)
+	
+	
 	DECLARE @tmpConsolidatedBettypes TABLE (
 		parentid	INT
 		,typeid		INT
@@ -196,102 +201,162 @@ BEGIN
 		 , f.Bettype AS typeid
     FROM [dbo].[f_GroupBettype] () f
     WHERE f.Bettype NOT IN (187, 179) 		
-
-	INSERT INTO #TmpBettrans
-	SELECT srecommend
-		,bettype
-		,liveindicator
-		,statusID
-		,matchid
-		,COUNT(transid) cnt
-	FROM (
-	SELECT srecommend
-		,bettype
-		,liveindicator
-		,statusID
-		,matchid
-		,transid
-	FROM bettrans WITH (NOLOCK)
-	WHERE matchid = @MatchId
-		AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-		AND (
-			(
-				bettype IN (
-					SELECT CONVERT(INT, val)
-					FROM dbo.strSplit(@BetTypes, ',')
-					)
-				AND CASE 
-				WHEN @LiveType <> 2 THEN liveindicator
-				ELSE 0 END = CASE 
-				WHEN @LiveType <> 2 THEN @LiveType
-				ELSE 0 END
-				AND livehomescore = CASE 
-				WHEN @LiveHomeScore IS NOT NULL
-					AND @LiveType = 1 THEN @LiveHomeScore
-				ELSE livehomescore END
-				AND liveawayscore = CASE 
-				WHEN @LiveAwayScore IS NOT NULL
-					AND @LiveType = 1 THEN @LiveAwayScore
-				ELSE liveawayscore END
-				AND transdate BETWEEN CASE 
-							WHEN @FromTransdate IS NOT NULL
-								AND @LiveType = 1 THEN @FromTransdate
-							ELSE transdate
-							END
-					AND CASE 
-							WHEN @ToTransdate IS NOT NULL
-								AND @LiveType = 1 THEN @ToTransdate
-							ELSE transdate
-							END
-				)
-			OR (
-				bettype IN (
-					SELECT CONVERT(INT, val)
-					FROM dbo.strSplit(@BetTypesLive, ',')
-					)
-				AND liveindicator = 1
-				)
-			)
-		AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-			WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
-			WHEN 1 THEN 0
-			WHEN 2 THEN 1
-			END
-	UNION ALL
-	SELECT bl.srecommend
-		,bl.GameID bettype
-		,bl.liveindicator
-		,bl.statusID
-		,bl.EventID matchid
-		,bl.translogid transid
-	FROM translog bl WITH (NOLOCK)
-		LEFT JOIN bettrans b WITH(NOLOCK) ON bl.gameid = b.bettype AND b.matchid = bl.eventid AND b.custid = bl.Custid AND bl.translogid = b.refno
-	WHERE EventID = @MatchId
-		AND GameID IN (
-					801,803,804,805,806 -- MEtric Gaming SUper Live
-					)
-		AND bl.statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-		AND GameID IN (
-					SELECT CONVERT(INT, val)
-					FROM dbo.strSplit(@BetTypes, ',')
-					)
-		AND b.refno IS NULL
-		AND CASE 
-				WHEN @LiveType <> 2 THEN bl.liveindicator
-				ELSE 0 END = CASE 
-				WHEN @LiveType <> 2 THEN @LiveType
-				ELSE 0 
-			END	) tmp	
-	GROUP BY srecommend
-		,matchid
-		,bettype
-		,liveindicator
-		,statusid
 	
-
-
-
-
+	IF @Type = 1 -- FOR Number Game Only
+	BEGIN
+		INSERT INTO #TmpBallSequence(Seq)
+		SELECT  val
+		FROM	dbo.f_SplitString(@BallSequence, ',')
+		OPTION (maxrecursion 0)	
+	
+		INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
+		SELECT b.srecommend
+			,b.bettype
+			,b.liveindicator
+			,b.statusID
+			,b.matchid
+			,COUNT(b.transid) cnt
+		FROM dbo.bettrans b WITH (NOLOCK)
+			LEFT JOIN [dbo].[bingoBall] bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
+			OUTER APPLY (SELECT BallSequence 
+						FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+						WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+						) AS BS_tmp
+						
+		WHERE b.matchid = @MatchId
+			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
+			AND (			
+					bettype IN (
+						SELECT CONVERT(INT, val)
+						FROM dbo.strSplit(@BetTypes, ',')
+						)
+					AND CASE 
+					WHEN @LiveType <> 2 THEN liveindicator
+					ELSE 0 END = CASE 
+					WHEN @LiveType <> 2 THEN @LiveType
+					ELSE 0 END
+					AND livehomescore = CASE 
+					WHEN @LiveHomeScore IS NOT NULL
+						AND @LiveType = 1 THEN @LiveHomeScore
+					ELSE livehomescore END
+					AND liveawayscore = CASE 
+					WHEN @LiveAwayScore IS NOT NULL
+						AND @LiveType = 1 THEN @LiveAwayScore
+					ELSE liveawayscore END
+					AND transdate BETWEEN CASE 
+								WHEN @FromTransdate IS NOT NULL
+									AND @LiveType = 1 THEN @FromTransdate
+								ELSE transdate
+								END
+						AND CASE 
+								WHEN @ToTransdate IS NOT NULL
+									AND @LiveType = 1 THEN @ToTransdate
+								ELSE transdate
+								END				
+				)
+			AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+				WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+				WHEN 1 THEN 0
+				WHEN 2 THEN 1
+				END
+			AND EXISTS (SELECT TOP 1 1
+						 FROM #TmpBallSequence WITH (NOLOCK)
+						 WHERE Seq = BS_tmp.BallSequence)
+			
+		GROUP BY b.srecommend
+			,b.matchid
+			,b.bettype
+			,b.liveindicator
+			,b.statusid
+		OPTION (RECOMPILE)	
+	END
+	ELSE -- For Others
+	BEGIN
+		INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
+		SELECT srecommend
+			,bettype
+			,liveindicator
+			,statusID
+			,matchid
+			,COUNT(transid) cnt
+		FROM (
+			SELECT b.srecommend
+				,b.bettype
+				,b.liveindicator
+				,b.statusID
+				,b.matchid
+				,b.transid
+			FROM dbo.bettrans b WITH (NOLOCK)
+			WHERE b.matchid = @MatchId
+				AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
+				AND (			
+						bettype IN (
+							SELECT CONVERT(INT, val)
+							FROM dbo.strSplit(@BetTypes, ',')
+							)
+						AND CASE 
+						WHEN @LiveType <> 2 THEN liveindicator
+						ELSE 0 END = CASE 
+						WHEN @LiveType <> 2 THEN @LiveType
+						ELSE 0 END
+						AND livehomescore = CASE 
+						WHEN @LiveHomeScore IS NOT NULL
+							AND @LiveType = 1 THEN @LiveHomeScore
+						ELSE livehomescore END
+						AND liveawayscore = CASE 
+						WHEN @LiveAwayScore IS NOT NULL
+							AND @LiveType = 1 THEN @LiveAwayScore
+						ELSE liveawayscore END
+						AND transdate BETWEEN CASE 
+									WHEN @FromTransdate IS NOT NULL
+										AND @LiveType = 1 THEN @FromTransdate
+									ELSE transdate
+									END
+							AND CASE 
+									WHEN @ToTransdate IS NOT NULL
+										AND @LiveType = 1 THEN @ToTransdate
+									ELSE transdate
+									END				
+					)
+				AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+					WHEN 1 THEN 0
+					WHEN 2 THEN 1
+					END
+					
+			UNION ALL
+			
+			SELECT bl.srecommend
+				,bl.GameID bettype
+				,bl.liveindicator
+				,bl.statusID
+				,bl.EventID matchid
+				,bl.translogid transid
+			FROM translog bl WITH (NOLOCK)
+				LEFT JOIN bettrans b WITH(NOLOCK) ON bl.gameid = b.bettype AND b.matchid = bl.eventid AND b.custid = bl.Custid AND bl.translogid = b.refno
+			WHERE EventID = @MatchId
+				AND GameID IN (
+							801,803,804,805,806 -- MEtric Gaming SUper Live
+							)
+				AND bl.statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
+				AND GameID IN (
+							SELECT CONVERT(INT, val)
+							FROM dbo.strSplit(@BetTypes, ',')
+							)
+				AND b.refno IS NULL
+				AND CASE 
+						WHEN @LiveType <> 2 THEN bl.liveindicator
+						ELSE 0 END = CASE 
+						WHEN @LiveType <> 2 THEN @LiveType
+						ELSE 0 
+					END	
+		) tmp	
+		GROUP BY srecommend
+			,matchid
+			,bettype
+			,liveindicator
+			,statusid
+	END
 
 	----## Direct Licensee
 	IF @LicenseeID <> 0
@@ -637,5 +702,7 @@ BEGIN
 		,LiveIndicator
 
 	DROP TABLE #TmpBettrans
+	DROP TABLE #TmpBallSequence
+	
 END
 GO

@@ -2,15 +2,15 @@
 ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListingDetail]
 	@MatchId INT,
 	@LicenseeName VARCHAR(1000) = 'ALL',
-	@BetTypes VARCHAR(1000) = '', 
-	@BetTypesLive VARCHAR(1000) = '',
+	@BetTypes VARCHAR(1000) = '',	
 	@LiveType SMALLINT = 2,	
 	@LiveHomeScore smallint = NULL,
     @LiveAwayScore smallint = NULL,
     @FromTransdate Datetime = NULL,
 	@ToTransdate Datetime = NULL,
 	@Type SMALLINT = 0,
-    @SecondAcceptFlag tinyint = 0
+    @SecondAcceptFlag tinyint = 0,
+    @BallSequence VARCHAR(200)	= ''
 WITH RECOMPILE
 AS
 
@@ -37,6 +37,7 @@ AS
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		- 20170818@Kent: Re-Add columns OriginalBetType, ExtraInfo, BetdaqId And Add new column ActualStake [Redmine:#81868] 
+		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -47,8 +48,7 @@ AS
 		5: Virtual sports betradar
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
-	- @BetTypes: String of bettype for Sportsbook, virtual sports and for Dead Ball - Number game, Live casino
-	- @BetTypesLive: String of bettype ONLY for Live - Number game 
+	- @BetTypes: String of bettype for Sportsbook, virtual sports and for Dead Ball - Number game, Live casino	 
 	- @LiveType: Combo Type, used only for Sportsbook
 		0: Dead ball
 		1: Live ball
@@ -65,778 +65,1054 @@ AS
    Example:    exec NAP_Rpt_TicketsListingDetail @MatchId=4626986,@LicenseeName='IBC',@BetTypes='1101,1102',@BetTypesLive='',@LiveType=0,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=2,@SecondAcceptFlag=0
 	
 */
-SET NOCOUNT ON 
+BEGIN
+	SET NOCOUNT ON 
 
-DECLARE @p_bettypes VARCHAR(1000) 
-DECLARE @p_bettypesLive VARCHAR(1000) 
+	DECLARE @p_bettypes VARCHAR(1000)
 
-SET @p_bettypes = @BetTypes 
-SET @p_bettypesLive = @BetTypesLive
+	SET @p_bettypes = @BetTypes
 
----- If number game then don't care @livetype , so set @LiveType to zero
-IF @Type = 1 or @Type = 2
-	SELECT @LiveType = 0
-
-SELECT CustID 
-INTO #CustIDs
-FROM DBLIC.bodb_Licensee.dbo.LicenseeCust WITH (NOLOCK)
-
-CREATE TABLE #SpecialDeleteBets 
-(
-	username VARCHAR(30),
-	bettype SMALLINT,
-	OriginalBetType SMALLINT,
-	ExtraInfo VARCHAR(1000),
-	BetdaqId BIGINT,
-	ActualStake MONEY,
-	transid BIGINT,
-	homeid INT,
-	awayid INT,
-	hdp1 SMALLMONEY, 
-	hdp2 SMALLMONEY,
-	odds MONEY,
-	status NVARCHAR(10),
-	stake MONEY,
-	transdate DATETIME, 
-	betteam NVARCHAR(10),
-	betcheck NVARCHAR(50),
-	livehomescore SMALLINT, 
-	liveawayscore SMALLINT,
-	IsLiveIndicator BIT,
-	ISNeutral BIT,
-	OddsType INT, 
-	CurrencyName NVARCHAR(100),
-	winlost MONEY,
-	betid BIGINT,
-	IsParlay BIT,
-	SecAcceptFlag BIT,		
-	refno BIGINT,
-	TransDesc NVARCHAR(300),
-	SportType SMALLINT,
-	MOdds SMALLMONEY,	
+	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
+	IF @Type <> 0
+		SELECT @LiveType = 2
 	
-	SubTransID BIGINT ,
-	SubBetType INT  ,
-	SubHomeID INT  ,
-    SubAwayID INT   ,
-    SubHdp1 SMALLMONEY  , 
-    SubHdp2 SMALLMONEY  ,
-    SubOdds MONEY   ,
-	SubStake MONEY,
-    SubBetTeam NVARCHAR(20), 
-    SubBetCheck NVARCHAR(50), 
-    SubLiveHomeScore SMALLINT  ,
-    SubLiveAwayScore SMALLINT  ,
-    SubLiveIndicator BIT  ,
-	SubLeagueId INT  ,
-    SubSportType SMALLINT,         
-	SubTransDesc NVARCHAR(300)
-)
+	SELECT CustID 
+	INTO #CustIDs
+	FROM DBLIC.bodb_Licensee.dbo.LicenseeCust WITH (NOLOCK)
+	
+	CREATE TABLE #TmpBallSequence 
+	(	
+		Seq	TINYINT
+	)
 
-----***** bettype <> 9 (because bettype = 9 then matchID = 9)****----
-IF @p_bettypes <> '9' AND @BetTypes <> '29' AND @BetTypes <> '2799' AND @BetTypes <> '9,29,2799'
-BEGIN	
-	----Direct Licensee
-	IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'ALL' 
-	BEGIN				 
-		INSERT INTO #SpecialDeleteBets
-		SELECT	b.username,
-				b.bettype,				
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,						
-				CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
-				m.homeID,
-				m.awayID,
-				convert(float, b.hdp1) as hdp1, 
-				convert(float, b.hdp2) as hdp2, 
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END  as status,
-				b.stake,
-				b.transdate,		
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.OddsType,
-				b.CurrencyName,
-				(winlost-actual_stake )as winlost,
-				b.betid,
-				0 as IsParlay,
-				ISNULL(SecAcceptFlag,0) SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.sporttype,
-				b.MOdds,				
+	CREATE TABLE #SpecialDeleteBets 
+	(
+		username VARCHAR(30),
+		bettype SMALLINT,
+		OriginalBetType SMALLINT,
+		ExtraInfo VARCHAR(1000),
+		BetdaqId BIGINT,
+		ActualStake MONEY,
+		transid BIGINT,
+		homeid INT,
+		awayid INT,
+		hdp1 SMALLMONEY, 
+		hdp2 SMALLMONEY,
+		odds MONEY,
+		status NVARCHAR(10),
+		stake MONEY,
+		transdate DATETIME, 
+		betteam NVARCHAR(10),
+		betcheck NVARCHAR(50),
+		livehomescore SMALLINT, 
+		liveawayscore SMALLINT,
+		IsLiveIndicator BIT,
+		ISNeutral BIT,
+		OddsType INT, 
+		CurrencyName NVARCHAR(100),
+		winlost MONEY,
+		betid BIGINT,
+		IsParlay BIT,
+		SecAcceptFlag BIT,		
+		refno BIGINT,
+		TransDesc NVARCHAR(300),
+		SportType SMALLINT,
+		MOdds SMALLMONEY,
+		BallSequence TINYINT,	
+		
+		SubTransID BIGINT ,
+		SubBetType INT  ,
+		SubHomeID INT  ,
+		SubAwayID INT   ,
+		SubHdp1 SMALLMONEY  , 
+		SubHdp2 SMALLMONEY  ,
+		SubOdds MONEY   ,
+		SubStake MONEY,
+		SubBetTeam NVARCHAR(20), 
+		SubBetCheck NVARCHAR(50), 
+		SubLiveHomeScore SMALLINT  ,
+		SubLiveAwayScore SMALLINT  ,
+		SubLiveIndicator BIT  ,
+		SubLeagueId INT  ,
+		SubSportType SMALLINT,         
+		SubTransDesc NVARCHAR(300)
+	)
+
+	
+	INSERT INTO #TmpBallSequence(Seq)
+	SELECT  val
+	FROM	dbo.f_SplitString(@BallSequence, ',')
+	OPTION (maxrecursion 0)
+
+	----***** bettype <> 9 (because bettype = 9 then matchID = 9)****----
+	IF @p_bettypes <> '9' AND @BetTypes <> '29' AND @BetTypes <> '2799' AND @BetTypes <> '9,29,2799'
+	BEGIN	
+		----Direct Licensee
+		IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'ALL' 
+		BEGIN
+			IF @Type = 1 -- Number Game
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,				
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,						
+						CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END  as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.sporttype,
+						b.MOdds,
+						BS_tmp.BallSequence AS BallSequence,				
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK) 
+					INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
+					LEFT JOIN [dbo].[bingoBall] bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
+					OUTER APPLY (SELECT BallSequence 
+								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								) AS BS_tmp
+				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper WITH(NOLOCK) where site = @LicenseeName)
+							AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+							AND b.matchid = @MatchId 
+			 	   			AND
+								(							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+													AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END														 
+								) 
+							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+							AND EXISTS (SELECT TOP 1 1
+										FROM #TmpBallSequence WITH (NOLOCK)
+										WHERE Seq = BS_tmp.BallSequence)
+				OPTION	(RECOMPILE)
+			END
+			ELSE
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,				
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,						
+						CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END  as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.sporttype,
+						b.MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK) 
+					INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
+				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper WITH(NOLOCK) WHERE site = @LicenseeName)
+							AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+							AND b.matchid = @MatchId 
+			 	   			AND
+								(							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+													AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END														 
+								) 
+							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+							
+				UNION ALL
+				SELECT	b.username,
+						b.gameID AS bettype,				
+						b.gameID AS OriginalBetType,
+						NULL AS ExtraInfo,
+						NULL AS BetdaqId,
+						b.actual_stake AS ActualStake,						
+						b.translogid transID,
+						m.homeID,
+						m.awayID,
+						0 AS hdp1, 
+						0 as hdp2, 
+						b.odds,
+						b.status,
+						b.stake,
+						b.transdate,		
+						NULL betteam,
+						NULL betcheck,
+						NULL livehomescore,
+						NULL liveawayscore,
+						b.liveindicator liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.custom1 AS OddsType,
+						b.CurrencyName,
+						- b.actual_stake as winlost,
+						NULL AS betid,
+						0 IsParlay,
+						NULL SecAcceptFlag,
+						b.translogid refno,
+						b.TransDesc,
+						m.SportType,
+						NULL AS MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		translog b WITH (NOLOCK) 
+				INNER JOIN  match m WITH (NOLOCK) on b.eventid = m.matchid 	
+				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype		
+				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
+							AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.eventid = @MatchId 
+			 	   			AND
+								(   
+									(
+										b.gameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+										AND CASE WHEN @LiveType <> 2 THEN b.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+										 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+										 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+										 --AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+										--			AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END  
+									)
+								) 
 				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		Bettrans b WITH (NOLOCK) 
-		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
-		WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-					AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-					AND b.matchid = @MatchId 
-			 	   	AND
-						(   
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-												AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END  
-							)
-							 OR
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypesLive,','))
-								AND b.liveindicator = 1
-							)
-						) 
-                    AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-		UNION ALL
-		SELECT	b.username,
-				b.gameID AS bettype,				
-				b.gameID AS OriginalBetType,
-				NULL AS ExtraInfo,
-				NULL AS BetdaqId,
-				b.actual_stake AS ActualStake,						
-				b.translogid transID,
-				m.homeID,
-				m.awayID,
-				0 AS hdp1, 
-				0 as hdp2, 
-				b.odds,
-				b.status,
-				b.stake,
-				b.transdate,		
-				NULL betteam,
-				NULL betcheck,
-				NULL livehomescore,
-				NULL liveawayscore,
-				b.liveindicator liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.custom1 AS OddsType,
-				b.CurrencyName,
-				- b.actual_stake as winlost,
-				NULL AS betid,
-				0 IsParlay,
-				NULL SecAcceptFlag,
-				b.translogid refno,
-				b.TransDesc,
-				m.SportType,
-				NULL AS MOdds,				
+			END	
+		END
+
+		---IBC 
+		IF @LicenseeName = 'MBC'  
+		BEGIN
+			IF @Type = 1 -- Number Game
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,				
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,						
+						b.transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.SportType,
+						b.MOdds,
+						BS_tmp.BallSequence AS BallSequence,			
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK) 
+					INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
+					LEFT JOIN [dbo].[bingoBall] bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
+					OUTER APPLY (SELECT BallSequence 
+								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								) AS BS_tmp
+								
+				WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
+							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
+							AND b.matchid = @MatchId 
+							AND (							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+													 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END												 
+								)
+								AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+							
+							AND EXISTS (SELECT TOP 1 1
+										FROM #TmpBallSequence WITH (NOLOCK)
+										WHERE Seq = BS_tmp.BallSequence)
+										
+				OPTION	(RECOMPILE)
 				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		translog b WITH (NOLOCK) 
-		INNER JOIN  match m WITH (NOLOCK) on b.eventid = m.matchid 	
-		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype		
-		WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-					AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-					AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
-					AND b.eventid = @MatchId 
-			 	   	AND
-						(   
-							(
-								b.gameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								AND CASE WHEN @LiveType <> 2 THEN b.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 --AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-								--			AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END  
-							)
-						) 
-		ORDER BY transID
+			END
+			ELSE
+			BEGIN
+				
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,				
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,						
+						b.transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.SportType,
+						b.MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK) 
+				INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
+				WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
+							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
+							AND b.matchid = @MatchId 
+							AND (							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+													 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END												 
+								)
+								AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+				
+				UNION ALL
+				SELECT	b.username,
+						b.GameID AS bettype,					
+						b.gameID AS OriginalBetType,
+						NULL AS ExtraInfo,
+						NULL AS BetdaqId,
+						b.actual_stake AS ActualStake,					
+						b.TranslogID transid,
+						m.homeID,
+						m.awayID,
+						0 as hdp1, 
+						0 as hdp2, 
+						b.odds,
+						b.status,
+						b.stake,
+						b.transdate,		
+						NULL betteam,
+						NULL betcheck,
+						NULL livehomescore,
+						NULL liveawayscore,
+						b.liveindicator liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.custom1 AS OddsType,
+						b.CurrencyName,
+						- b.actual_stake as winlost,
+						NULL AS betid,
+						0 as IsParlay,
+						NULL SecAcceptFlag,
+						b.translogid refno,
+						b.TransDesc,
+						m.SportType,
+						NULL AS MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		Translog b WITH (NOLOCK) 
+				INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 
+				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype			
+				WHERE				
+							B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
+							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
+							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.EventID = @MatchId 
+							AND
+								(   
+									(
+										b.GameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+										 --AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+										 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+										 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+										 --AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+											--			 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
+									)
+								)
+								
+				OPTION	(RECOMPILE)
+			END	
+		END
+
+		---ALL
+		IF @LicenseeName= 'ALL' 
+		BEGIN 
+			IF @Type = 1 -- Number Game
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,					
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,					
+						b.transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END  as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.SportType,
+						b.MOdds,
+						BS_tmp.BallSequence AS BallSequence,				
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK)
+					INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
+					LEFT JOIN [dbo].[bingoBall] bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
+					OUTER APPLY (SELECT BallSequence 
+								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								) AS BS_tmp
+				WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
+							AND b.matchid = @MatchId 
+							AND	(							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+														AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END													 
+								)
+							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+							AND EXISTS (SELECT TOP 1 1
+										FROM #TmpBallSequence WITH (NOLOCK)
+										WHERE Seq = BS_tmp.BallSequence)
+										
+				OPTION	(RECOMPILE)
+			END
+			ELSE
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
+											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
+											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
+				SELECT	b.username,
+						b.bettype,					
+						b.bettype AS OriginalBetType,
+						b.ExtraInfo,
+						b.BetdaqId,
+						b.actual_stake AS ActualStake,					
+						b.transid,
+						m.homeID,
+						m.awayID,
+						convert(float, b.hdp1) as hdp1, 
+						convert(float, b.hdp2) as hdp2, 
+						b.odds,
+						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+							 ELSE b.status 
+							 END  as status,
+						b.stake,
+						b.transdate,		
+						b.betteam,
+						b.betcheck,
+						b.livehomescore,
+						b.liveawayscore,
+						b.liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.OddsType,
+						b.CurrencyName,
+						(winlost-actual_stake )as winlost,
+						b.betid,
+						0 as IsParlay,
+						ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+						b.refno,
+						b.TransDesc,
+						m.SportType,
+						b.MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		bettrans b WITH (NOLOCK)
+				INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
+				WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
+							AND b.matchid = @MatchId 
+							AND	(							
+									b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+									 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+									 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+									 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+									 AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+														AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END													 
+								)
+							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+							
+				UNION ALL
+				SELECT	b.username,
+						b.GameID AS bettype,				
+						b.gameID AS OriginalBetType,
+						NULL AS ExtraInfo,
+						NULL AS BetdaqId,
+						b.actual_stake AS ActualStake,						
+						b.translogid AS transid,
+						m.homeID,
+						m.awayID,
+						0 as hdp1, 
+						0as hdp2, 
+						b.odds,
+						b.status,
+						b.stake,
+						b.transdate,		
+						NULL betteam,
+						NULL betcheck,
+						NULL livehomescore,
+						NULL liveawayscore,
+						b.liveindicator liveindicator, 
+						isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+						b.custom1 AS OddsType,
+						b.CurrencyName,
+						- b.actual_stake as winlost,
+						NULL AS betid,
+						0 as IsParlay,
+						NULL SecAcceptFlag,
+						b.translogid refno,
+						b.TransDesc,
+						m.SportType,
+						NULL AS MOdds,
+						NULL AS BallSequence,				
+						
+						NULL AS SubTransID,
+						NULL AS SubBetType,
+						NULL AS SubHomeID,
+						NULL AS SubAwayID,
+						NULL AS SubHdp1, 
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						NULL AS SubStake,
+						NULL AS SubBetTeam, 
+						NULL AS SubBetCheck, 
+						NULL AS SubLiveHomeScore,
+						NULL AS SubLiveAwayScore,
+						NULL AS SubLiveIndicator,
+						NULL AS SubLeagueId,
+						NULL AS SubSportType,          
+						NULL AS SubTransDesc
+				FROM		Translog b WITH (NOLOCK)
+				INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 	
+				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno	AND b.gameid = bs.bettype	
+				WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
+							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.EventID = @MatchId 
+							AND	(   
+									(
+										b.GameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+										 --AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+										 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+										 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
+										 --AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
+											--				AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
+									)
+								)
+				
+				OPTION	(RECOMPILE)
+			END	
+		END			
 	END
 
-	---IBC 
-	IF @LicenseeName = 'MBC'  
-	BEGIN	
-		INSERT INTO #SpecialDeleteBets
-		SELECT	b.username,
-				b.bettype,				
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,						
-				b.transid,
-				m.homeID,
-				m.awayID,
-				convert(float, b.hdp1) as hdp1, 
-				convert(float, b.hdp2) as hdp2, 
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END as status,
-				b.stake,
-				b.transdate,		
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.OddsType,
-				b.CurrencyName,
-				(winlost-actual_stake )as winlost,
-				b.betid,
-				0 as IsParlay,
-				ISNULL(SecAcceptFlag,0) SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.SportType,
-				b.MOdds,				
-				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		Bettrans b WITH (NOLOCK) 
-		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
-		WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
-					AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
-					AND b.matchid = @MatchId 
-					AND
-						(   
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-												 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
-							)
-							 OR
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypesLive,','))
-								AND b.liveindicator = 1
-							)
-						)
+	----******* If list of bettype include 9 *******
+	IF charindex('9', @p_bettypes , 1) <> 0 
+	   OR charindex('2799', @p_bettypes , 1) <> 0  
+	BEGIN 
+		---Licensee
+		IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'ALL' 
+		BEGIN
+			INSERT INTO #SpecialDeleteBets		
+			SELECT	b.username,
+					b.bettype,				
+					b.bettype AS OriginalBetType,
+					b.ExtraInfo,
+					b.BetdaqId,
+					b.actual_stake AS ActualStake,					
+					b.transid,	
+					m.homeID,
+					m.awayID,
+					b.hdp1,
+					b.hdp2,
+					b.odds,
+					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						 ELSE b.status 
+						 END  as status,
+					b.stake,
+					b.transdate,
+					b.betteam,
+					b.betcheck,
+					b.livehomescore,
+					b.liveawayscore,
+					b.liveindicator as IsLiveIndicator,
+					isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+					0 as OddsType,
+					b.CurrencyName,
+					(b.winlost-b.actual_stake )as winlost,
+					b.betid,
+					1 as IsParlay,
+					0 SecAcceptFlag,
+					b.refno,
+					b.TransDesc,
+					m.SportType,
+					b.MOdds,
+					NULL AS BallSequence,				
+					
+					bm.transid SubTransID,
+					bm.bettype SubBetType,
+					m.homeid SubHomeID,
+					m.awayid SubAwayID,
+					convert(float, bm.hdp1) as SubHdp1, 
+					convert(float, bm.hdp2) as SubHdp2, 				  
+					bm.odds as SubOdds, 				
+					bm.stake SubStake,						
+					bm.betteam SubBetTeam,
+					bm.betcheck as SubBetCheck,
+					bm.livehomescore SubLiveHomeScore,
+					bm.liveawayscore SubLiveAwayScore,
+					bm.liveindicator SubLiveIndicator,
+					m.leagueid  as SubLeagueId ,
+					m.sporttype as SubSportType,				
+					bm.transdesc SubTransDesc
+			FROM	bettransm bm WITH (NOLOCK)	
+			INNER JOIN  Bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
+			INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
+			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
+			WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
+						AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+						AND b.bettype IN(9,29,2799) AND b.matchID IN (9,29,2799)
+						AND bm.matchid = @MatchId 
+						AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+						AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+						AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+						AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
+										 AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-		UNION ALL
-		SELECT	b.username,
-				b.GameID AS bettype,					
-				b.gameID AS OriginalBetType,
-				NULL AS ExtraInfo,
-				NULL AS BetdaqId,
-				b.actual_stake AS ActualStake,					
-				b.TranslogID transid,
-				m.homeID,
-				m.awayID,
-				0 as hdp1, 
-				0 as hdp2, 
-				b.odds,
-				b.status,
-				b.stake,
-				b.transdate,		
-				NULL betteam,
-				NULL betcheck,
-				NULL livehomescore,
-				NULL liveawayscore,
-				b.liveindicator liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.custom1 AS OddsType,
-				b.CurrencyName,
-				- b.actual_stake as winlost,
-				NULL AS betid,
-				0 as IsParlay,
-				NULL SecAcceptFlag,
-				b.translogid refno,
-				b.TransDesc,
-				m.SportType,
-				NULL AS MOdds,				
-				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		Translog b WITH (NOLOCK) 
-		INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 
-		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype			
-		WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
-					AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
-					AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
-					AND b.EventID = @MatchId 
-					AND
-						(   
-							(
-								b.GameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								 --AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 --AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-									--			 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
-							)
-						)
-		ORDER BY transID
-	END
+						AND (b.betid = 0 OR b.betid IS NULL)
+		END
+		ELSE 
+		
+		---IBC
+		IF @LicenseeName= 'MBC'  
+		BEGIN	
+			INSERT INTO #SpecialDeleteBets	
+			SELECT	b.username,
+					b.bettype,				
+					b.bettype AS OriginalBetType,
+					b.ExtraInfo,
+					b.BetdaqId,
+					b.actual_stake AS ActualStake,					
+					b.transid,	
+					m.homeID,
+					m.awayID,
+					b.hdp1,
+					b.hdp2,
+					b.odds,
+					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						 ELSE b.status 
+						 END  as status,
+					b.stake,
+					b.transdate,
+					b.betteam,
+					b.betcheck,
+					b.livehomescore,
+					b.liveawayscore,
+					b.liveindicator as IsLiveIndicator,
+					isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+					0 as OddsType,
+					b.CurrencyName,
+					(b.winlost-b.actual_stake )as winlost,
+					b.betid,
+					1 as IsParlay,
+					0 SecAcceptFlag,
+					b.refno,
+					b.TransDesc,
+					m.SportType,
+					b.MOdds,
+					NULL AS BallSequence,				
+					
+					bm.transid SubTransID,
+					bm.bettype SubBetType,
+					m.homeid SubHomeID,
+					m.awayid SubAwayID,
+					convert(float, bm.hdp1) as SubHdp1, 
+					convert(float, bm.hdp2) as SubHdp2, 				  
+					bm.odds as SubOdds, 				
+					bm.stake SubStake,						
+					bm.betteam SubBetTeam,
+					bm.betcheck SubBetCheck,
+					bm.livehomescore SubLiveHomeScore,
+					bm.liveawayscore SubLiveAwayScore,
+					bm.liveindicator SubLiveIndicator,
+					m.leagueid  as SubLeagueId,
+					m.sporttype as SubSportType,				
+					bm.transdesc SubTransDesc
+			FROM	Bettrans b WITH (NOLOCK) 
+			INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
+			INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
+			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
+			WHERE		b.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
+						AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+						AND b.bettype IN (9,29,2799) AND b.matchID IN (9,29,2799)
+						AND bm.matchid = @MatchId 	 
+						AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+						AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+						AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+						AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
+										 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
+						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+						AND (b.betid = 0 OR b.betid IS NULL)
+			OPTION	(RECOMPILE)			
+		END 
 
-	---ALL
-	IF @LicenseeName= 'ALL' 
-	BEGIN 	
-		INSERT INTO #SpecialDeleteBets
-		SELECT	b.username,
-				b.bettype,					
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,					
-				b.transid,
-				m.homeID,
-				m.awayID,
-				convert(float, b.hdp1) as hdp1, 
-				convert(float, b.hdp2) as hdp2, 
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END  as status,
-				b.stake,
-				b.transdate,		
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.OddsType,
-				b.CurrencyName,
-				(winlost-actual_stake )as winlost,
-				b.betid,
-				0 as IsParlay,
-				ISNULL(SecAcceptFlag,0) SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.SportType,
-				b.MOdds,				
-				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		Bettrans b WITH (NOLOCK)
-		INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
-		WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
-					AND b.matchid = @MatchId 
-					AND	(   
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								 AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-													AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
-							)
-							 OR
-							(
-								b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypesLive,','))
-								AND b.liveindicator = 1
-							)
-						)
-					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-		UNION ALL
-		SELECT	b.username,
-				b.GameID AS bettype,				
-				b.gameID AS OriginalBetType,
-				NULL AS ExtraInfo,
-				NULL AS BetdaqId,
-				b.actual_stake AS ActualStake,						
-				b.translogid AS transid,
-				m.homeID,
-				m.awayID,
-				0 as hdp1, 
-				0as hdp2, 
-				b.odds,
-				b.status,
-				b.stake,
-				b.transdate,		
-				NULL betteam,
-				NULL betcheck,
-				NULL livehomescore,
-				NULL liveawayscore,
-				b.liveindicator liveindicator, 
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				b.custom1 AS OddsType,
-				b.CurrencyName,
-				- b.actual_stake as winlost,
-				NULL AS betid,
-				0 as IsParlay,
-				NULL SecAcceptFlag,
-				b.translogid refno,
-				b.TransDesc,
-				m.SportType,
-				NULL AS MOdds,				
-				
-				NULL AS SubTransID,
-				NULL AS SubBetType,
-				NULL AS SubHomeID,
-				NULL AS SubAwayID,
-				NULL AS SubHdp1, 
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubStake,
-				NULL AS SubBetTeam, 
-				NULL AS SubBetCheck, 
-				NULL AS SubLiveHomeScore,
-				NULL AS SubLiveAwayScore,
-				NULL AS SubLiveIndicator,
-				NULL AS SubLeagueId,
-				NULL AS SubSportType,          
-				NULL AS SubTransDesc
-		FROM		Translog b WITH (NOLOCK)
-		INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 	
-		LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno	AND b.gameid = bs.bettype	
-		WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
-					AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
-					AND b.EventID = @MatchId 
-					AND	(   
-							(
-								b.GameID IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-								 --AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-								 --AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-								 --AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-								 --AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-									--				AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
-							)
-						)
-		ORDER BY transID
-	END			
-END
-
-----******* If list of bettype include 9 *******
-IF charindex('9', @p_bettypes , 1) <> 0 
-   OR charindex('2799', @p_bettypes , 1) <> 0  
-BEGIN 
-	---Licensee
-	IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'ALL' 
-	BEGIN
-		INSERT INTO #SpecialDeleteBets		
-		SELECT	b.username,
-				b.bettype,				
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,					
-				b.transid,	
-				m.homeID,
-				m.awayID,
-				b.hdp1,
-				b.hdp2,
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END  as status,
-				b.stake,
-				b.transdate,
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator as IsLiveIndicator,
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				0 as OddsType,
-				b.CurrencyName,
-				(b.winlost-b.actual_stake )as winlost,
-				b.betid,
-				1 as IsParlay,
-				0 SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.SportType,
-				b.MOdds,				
-				
-				bm.transid SubTransID,
-				bm.bettype SubBetType,
-				m.homeid SubHomeID,
-				m.awayid SubAwayID,
-				convert(float, bm.hdp1) as SubHdp1, 
-				convert(float, bm.hdp2) as SubHdp2, 				  
-				bm.odds as SubOdds, 				
-				bm.stake SubStake,						
-				bm.betteam SubBetTeam,
-				bm.betcheck as SubBetCheck,
-				bm.livehomescore SubLiveHomeScore,
-				bm.liveawayscore SubLiveAwayScore,
-				bm.liveindicator SubLiveIndicator,
-				m.leagueid  as SubLeagueId ,
-				m.sporttype as SubSportType,				
-				bm.transdesc SubTransDesc
-		FROM	bettransm bm WITH (NOLOCK)	
-		INNER JOIN  Bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
-		INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
-		WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
-					AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
-					AND b.bettype IN(9,29,2799) AND b.matchID IN (9,29,2799)
-					AND bm.matchid = @MatchId 
-					AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-					AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-					AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-					AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
-									 AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (b.betid = 0 OR b.betid IS NULL)
-	END
-	ELSE 
-	
-	---IBC
-	IF @LicenseeName= 'MBC'  
-	BEGIN	
-		INSERT INTO #SpecialDeleteBets	
-		SELECT	b.username,
-				b.bettype,				
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,					
-				b.transid,	
-				m.homeID,
-				m.awayID,
-				b.hdp1,
-				b.hdp2,
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END  as status,
-				b.stake,
-				b.transdate,
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator as IsLiveIndicator,
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				0 as OddsType,
-				b.CurrencyName,
-				(b.winlost-b.actual_stake )as winlost,
-				b.betid,
-				1 as IsParlay,
-				0 SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.SportType,
-				b.MOdds,				
-				
-				bm.transid SubTransID,
-				bm.bettype SubBetType,
-				m.homeid SubHomeID,
-				m.awayid SubAwayID,
-				convert(float, bm.hdp1) as SubHdp1, 
-				convert(float, bm.hdp2) as SubHdp2, 				  
-				bm.odds as SubOdds, 				
-				bm.stake SubStake,						
-				bm.betteam SubBetTeam,
-				bm.betcheck SubBetCheck,
-				bm.livehomescore SubLiveHomeScore,
-				bm.liveawayscore SubLiveAwayScore,
-				bm.liveindicator SubLiveIndicator,
-				m.leagueid  as SubLeagueId,
-				m.sporttype as SubSportType,				
-				bm.transdesc SubTransDesc
-		FROM	Bettrans b WITH (NOLOCK) 
-		INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
-		INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
-		WHERE		b.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
-					AND b.statusID NOT IN (101,102) --('Void', 'Reject')
-					AND b.bettype IN (9,29,2799) AND b.matchID IN (9,29,2799)
-					AND bm.matchid = @MatchId 	 
-					AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-					AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-					AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-					AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
-									 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (b.betid = 0 OR b.betid IS NULL)
+		---ALL
+		IF @LicenseeName= 'ALL'  
+		BEGIN
+			INSERT INTO #SpecialDeleteBets		
+			SELECT	b.username,
+					b.bettype,				
+					b.bettype AS OriginalBetType,
+					b.ExtraInfo,
+					b.BetdaqId,
+					b.actual_stake AS ActualStake,					
+					b.transid,	
+					m.homeID,
+					m.awayID,
+					b.hdp1,
+					b.hdp2,
+					b.odds,
+					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						 ELSE b.status 
+						 END  as status,
+					b.stake,
+					b.transdate,
+					b.betteam,
+					b.betcheck,
+					b.livehomescore,
+					b.liveawayscore,
+					b.liveindicator as IsLiveIndicator,
+					isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+					0 as OddsType,
+					b.CurrencyName,
+					(b.winlost-b.actual_stake )as winlost,
+					b.betid,
+					1 as IsParlay,
+					0 SecAcceptFlag,
+					b.refno,
+					b.TransDesc,
+					m.SportType,
+					b.MOdds,
+					NULL AS BallSequence,				
+					
+					bm.transid SubTransID,
+					bm.bettype SubBetType,
+					m.homeid SubHomeID,
+					m.awayid SubAwayID,
+					convert(float, bm.hdp1) as SubHdp1, 
+					convert(float, bm.hdp2) as SubHdp2, 				  
+					bm.odds as SubOdds, 				
+					bm.stake SubStake,						
+					bm.betteam SubBetTeam,
+					bm.betcheck SubBetCheck,
+					bm.livehomescore SubLiveHomeScore,
+					bm.liveawayscore SubLiveAwayScore,
+					bm.liveindicator SubLiveIndicator,
+					m.leagueid  as SubLeagueId ,
+					m.sporttype as SubSportType,				
+					bm.transdesc SubTransDesc
+			FROM	Bettrans b WITH (NOLOCK)	
+			INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
+			INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
+			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
+			WHERE		b.statusID NOT IN (101,102)--('Void', 'Reject')
+						AND b.bettype IN (9,29,2799) AND b.matchID IN (9,29,2799) 
+						AND bm.matchID = @MatchId
+						AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+						AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+						AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+						AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
+										 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
+						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+						AND (b.betid = 0 OR b.betid IS NULL)
+			
+		END 		
 	END 
 
-	---ALL
-	IF @LicenseeName= 'ALL'  
-	BEGIN
-		INSERT INTO #SpecialDeleteBets		
-		SELECT	b.username,
-				b.bettype,				
-				b.bettype AS OriginalBetType,
-				b.ExtraInfo,
-				b.BetdaqId,
-				b.actual_stake AS ActualStake,					
-				b.transid,	
-				m.homeID,
-				m.awayID,
-				b.hdp1,
-				b.hdp2,
-				b.odds,
-				CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					 ELSE b.status 
-					 END  as status,
-				b.stake,
-				b.transdate,
-				b.betteam,
-				b.betcheck,
-				b.livehomescore,
-				b.liveawayscore,
-				b.liveindicator as IsLiveIndicator,
-				isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				0 as OddsType,
-				b.CurrencyName,
-				(b.winlost-b.actual_stake )as winlost,
-				b.betid,
-				1 as IsParlay,
-				0 SecAcceptFlag,
-				b.refno,
-				b.TransDesc,
-				m.SportType,
-				b.MOdds,				
-				
-				bm.transid SubTransID,
-				bm.bettype SubBetType,
-				m.homeid SubHomeID,
-				m.awayid SubAwayID,
-				convert(float, bm.hdp1) as SubHdp1, 
-				convert(float, bm.hdp2) as SubHdp2, 				  
-				bm.odds as SubOdds, 				
-				bm.stake SubStake,						
-				bm.betteam SubBetTeam,
-				bm.betcheck SubBetCheck,
-				bm.livehomescore SubLiveHomeScore,
-				bm.liveawayscore SubLiveAwayScore,
-				bm.liveindicator SubLiveIndicator,
-				m.leagueid  as SubLeagueId ,
-				m.sporttype as SubSportType,				
-				bm.transdesc SubTransDesc
-		FROM	Bettrans b WITH (NOLOCK)	
-		INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.strSplit(@BetTypes,',') t ON b.bettype = t.val
-		INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
-		WHERE		b.statusID NOT IN (101,102)--('Void', 'Reject')
-					AND b.bettype IN (9,29,2799) AND b.matchID IN (9,29,2799) 
-					AND bm.matchID = @MatchId
-					AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-					AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-					AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-					AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
-									 AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (b.betid = 0 OR b.betid IS NULL)
-	END 		
-END 
-
-SELECT  username,
-		bettype,		
-		OriginalBetType,
-		ExtraInfo,
-		BetdaqId,
-		ActualStake,		
-		transid,
-		homeid,
-		awayid,
-		hdp1, 
-		hdp2,
-		odds,
-		status,
-		stake,
-		transdate, 
-		betteam,
-		betcheck,
-		livehomescore, 
-		liveawayscore,
-		IsLiveIndicator,
-		ISNeutral,
-		OddsType, 
-		CurrencyName,
-		winlost,
-		betid,
-		IsParlay,
-		SecAcceptFlag,		
-		refno,
-		TransDesc,
-		SportType,
-		MOdds,			
-		
-		SubTransID,
-		SubBetType,
-		SubHomeID,
-		SubAwayID,
-		SubHdp1, 
-		SubHdp2,
-		SubOdds,
-		SubStake,
-		SubBetTeam, 
-		SubBetCheck, 
-		SubLiveHomeScore,
-		SubLiveAwayScore,
-		SubLiveIndicator,
-		SubLeagueId,
-		SubSportType,          
-		SubTransDesc 
-FROM #SpecialDeleteBets
-		 
+	SELECT  username,
+			bettype,		
+			OriginalBetType,
+			ExtraInfo,
+			BetdaqId,
+			ActualStake,		
+			transid,
+			homeid,
+			awayid,
+			hdp1, 
+			hdp2,
+			odds,
+			status,
+			stake,
+			transdate, 
+			betteam,
+			betcheck,
+			livehomescore, 
+			liveawayscore,
+			IsLiveIndicator,
+			ISNeutral,
+			OddsType, 
+			CurrencyName,
+			winlost,
+			betid,
+			IsParlay,
+			SecAcceptFlag,		
+			refno,
+			TransDesc,
+			SportType,
+			MOdds,
+			BallSequence,			
+			
+			SubTransID,
+			SubBetType,
+			SubHomeID,
+			SubAwayID,
+			SubHdp1, 
+			SubHdp2,
+			SubOdds,
+			SubStake,
+			SubBetTeam, 
+			SubBetCheck, 
+			SubLiveHomeScore,
+			SubLiveAwayScore,
+			SubLiveIndicator,
+			SubLeagueId,
+			SubSportType,          
+			SubTransDesc 
+	FROM #SpecialDeleteBets
+	ORDER BY transid
+	
+	DROP TABLE #SpecialDeleteBets
+	DROP TABLE #TmpBallSequence
+	DROP TABLE #CustIDs	
+END			 
 GO
