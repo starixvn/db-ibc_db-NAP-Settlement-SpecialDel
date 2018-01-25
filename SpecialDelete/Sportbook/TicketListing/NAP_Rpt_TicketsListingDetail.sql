@@ -44,6 +44,8 @@ AS
 		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
+		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
@@ -86,6 +88,26 @@ BEGIN
 	FROM DBLIC.bodb_Licensee.dbo.LicenseeCust WITH (NOLOCK)
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
+
+	SELECT 'match' AS [matchtype]
+	  , matchid
+	  , sporttype
+	  , homeid
+	  , awayid
+	  , isNeutral
+	INTO #T_Match
+	FROM match (NOLOCK)
+	WHERE matchid = @MatchId
+	UNION ALL
+	SELECT 'match3rd' AS [matchtype]
+		  , match3rdid AS matchid
+		  , sporttype
+		  , homeid
+		  , awayid
+		  , NULL AS isNeutral
+	FROM match3rd (NOLOCK)
+	WHERE match3rdid = @MatchId
+
 
 	CREATE TABLE #TmpBallSequence 
 	(	
@@ -269,7 +291,7 @@ BEGIN
 						b.ExtraInfo,
 						b.BetdaqId,
 						b.actual_stake AS ActualStake,						
-						CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
+						CASE WHEN b.Bettype IN (801,803,804,805,806,1004) THEN b.refno ELSE b.transid END transid,
 						m.homeID,
 						m.awayID,
 						convert(float, b.hdp1) as hdp1, 
@@ -319,8 +341,11 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		Bettrans b WITH (NOLOCK) 
-				INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
-				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
+					INNER JOIN  #T_Match m WITH (NOLOCK) ON CASE 
+													WHEN b.bettype = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype 		
+				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)			
 							AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
 			 	   			AND
@@ -351,7 +376,7 @@ BEGIN
 						b.status,
 						b.stake,
 						b.transdate,		
-						NULL betteam,
+						b.custom3 AS betteam,
 						NULL betcheck,
 						NULL livehomescore,
 						NULL liveawayscore,
@@ -390,11 +415,14 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		translog b WITH (NOLOCK) 
-				INNER JOIN  match m WITH (NOLOCK) on b.eventid = m.matchid 	
+				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
+													WHEN b.gameID = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype 	
 				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype		
 				WHERE		b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 							AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.gameid IN (801,803,804,805,806,1004) AND bs.refno IS NULL
 							AND b.eventid = @MatchId 
 			 	   			AND
 								(   
@@ -561,7 +589,10 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		Bettrans b WITH (NOLOCK) 
-				INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
+				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
+													WHEN b.bettype = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype
 				WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
@@ -593,7 +624,7 @@ BEGIN
 						b.status,
 						b.stake,
 						b.transdate,		
-						NULL betteam,
+						b.custom3 AS betteam,
 						NULL betcheck,
 						NULL livehomescore,
 						NULL liveawayscore,
@@ -632,11 +663,14 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		Translog b WITH (NOLOCK) 
-				INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 
+				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
+													WHEN b.gameID = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype 
 				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype			
 				WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
-							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.gameid IN (801,803,804,805,806,1004) AND bs.refno IS NULL
 							AND b.EventID = @MatchId 
 							AND
 								(   
@@ -799,7 +833,10 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		Bettrans b WITH (NOLOCK)
-				INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
+				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
+													WHEN b.bettype = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype 		
 				WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
 							AND b.matchid = @MatchId 
 							AND	(   
@@ -829,7 +866,7 @@ BEGIN
 						b.status,
 						b.stake,
 						b.transdate,		
-						NULL betteam,
+						b.custom3 AS betteam,
 						NULL betcheck,
 						NULL livehomescore,
 						NULL liveawayscore,
@@ -868,10 +905,13 @@ BEGIN
 						NULL AS SubSportType,          
 						NULL AS SubTransDesc
 				FROM		Translog b WITH (NOLOCK)
-				INNER JOIN  match m WITH (NOLOCK) on b.EventID = m.matchid 	
+				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
+													WHEN b.gameID = 1004 THEN 'match3rd'
+													ELSE 'match' 
+											    END = m.matchtype 	
 				LEFT JOIN bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno	AND b.gameid = bs.bettype	
 				WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
-							AND b.gameid IN (801,803,804,805,806) AND bs.refno IS NULL
+							AND b.gameid IN (801,803,804,805,806,1004) AND bs.refno IS NULL
 							AND b.EventID = @MatchId 
 							AND	(   
 									(
