@@ -1,15 +1,15 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation] 
 	@Creator 			INT
-	, @MatchId			INT
-	, @Mode				VARCHAR(10) = 'INST-HT'
+	, @MatchId		INT
+	, @Mode			VARCHAR(10) = 'INST-HT'
 	, @InstantKey		INT
 	, @HomeScore		VARCHAR(50)
 	, @AwayScore		VARCHAR(50)
 	, @ResourceResult	VARCHAR(MAX) = NULL
-	, @IP				VARCHAR(15)
-	, @IsAutoInst		INT 		   = 0
-	, @ErrCode			INT		   = 0	OUTPUT
+	, @IP			VARCHAR(15)
+	, @IsAutoInst		BIT 		   = 0
+	, @ErrCode		INT		   = 0	OUTPUT
 	, @ErrMsg			NVARCHAR(200)= ''	OUTPUT
 AS
 /*    
@@ -37,19 +37,19 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @start						DATETIME
-		, @stop							DATETIME
-		, @LogData						NVARCHAR(300)
+		, @stop						DATETIME
+		, @LogData					NVARCHAR(300)
 		, @eventstatus					NVARCHAR(50)
 		, @betstatus					NVARCHAR(50)
 		, @sporttype					SMALLINT
 		, @ticketCount					INT	
 		, @Remark						VARCHAR(500)
 		, @ActionLogId					INT
-		, @TotalAccount					INT
+		, @TotalAccount				INT
 		, @TotalAccount_Updated			INT
 		, @Action						VARCHAR(20)
 		------------------------------------
-		, @isExistMatch					BIT
+		, @isExistMatch				BIT
 		, @avaiableProcess				BIT
 		, @CalculationType				TINYINT
 		, @hthomescore					TINYINT
@@ -58,18 +58,18 @@ BEGIN
 		, @finalawayscore				TINYINT
 		, @hScore						TINYINT
 		, @aScore						TINYINT
-		, @hScore1H						TINYINT
-		, @aScore1H						TINYINT
-		, @hScore2H						TINYINT
-		, @aScore2H						TINYINT
+		, @hScore1H					TINYINT
+		, @aScore1H					TINYINT
+		, @hScore2H					TINYINT
+		, @aScore2H					TINYINT
 		, @fromTransId					BIGINT
 		, @toTransId					BIGINT
-		, @FGNG							VARCHAR(50)
+		, @FGNG						VARCHAR(50)
 		, @GoalRecord					VARCHAR(50)
-		, @InstKeyValue					VARCHAR(50)
+		, @InstKeyValue				VARCHAR(50)
 		, @FGLGCheck					TINYINT
-		, @FLValue 						VARCHAR(50)
-		, @betstatusOld					VARCHAR(50)
+		, @FLValue 					VARCHAR(50)
+		, @betstatusOld				VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
@@ -470,7 +470,7 @@ BEGIN
 	IF @IsAutoInst = 1 
 	BEGIN
 	SELECT @Remark ='NAP: Source:' + @Source + (CASE WHEN @ErrCode > 0  THEN 'Failed: ' + @ErrMsg ELSE '' END)	
-							+' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_Updated, 0) AS VARCHAR(20)) + '/' +	CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))	
 	END

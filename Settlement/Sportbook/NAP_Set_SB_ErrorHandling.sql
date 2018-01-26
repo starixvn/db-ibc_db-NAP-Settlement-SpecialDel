@@ -1,8 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @MatchId INT
-	, @sqlCommand VARCHAR(1024)
-	
+	, @sqlCommand VARCHAR(1024)	
 	, @ErrMsg VARCHAR(500)
 	, @AdminId INT
 	, @IP VARCHAR(20)
@@ -14,7 +13,7 @@ AS
 	
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
-		-20180124@Benjamin: Add @IsAutoInst parameter for Auto Instant [Redmine:#86964]
+		-20180124@Benjamin: Add @IsAutoInst variable for Auto Instant [Redmine:#86964]
 */
 BEGIN
 	SET NOCOUNT ON

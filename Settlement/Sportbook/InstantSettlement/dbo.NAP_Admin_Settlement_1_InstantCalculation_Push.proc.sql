@@ -7,9 +7,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation_Push]
     , @AwayScore		VARCHAR(50)
     , @Action			VARCHAR(10)
     , @Mode			VARCHAR(10)
-    , @ResourceResult	VARCHAR(MAX)	= NULL
+    , @ResourceResult	VARCHAR(MAX)	 = NULL
     , @IP				VARCHAR(15)     = ''
-    , @IsAutoInst		INT			 = 0
+    , @IsAutoInst		BIT			 = 0
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -22,7 +22,7 @@ AS
     Revisions:
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
-		- 20180123@Benjamin: Add @IsAutoInst parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
+		- 20180123@Benjamin: Add @IsAutoInst parameter and @SourceINT variable for Determine Manual Instant/Auto Instant [Redmine:#86964]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
@@ -36,19 +36,20 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-    DECLARE	@matchcode 		NVARCHAR(50)
+    DECLARE @matchcode 	NVARCHAR(50)
 		, @sporttype 		INT
 		, @leagueid 		INT
 		, @procName 		NVARCHAR(128)
 		, @sqlCommand 		NVARCHAR(1000)
 		, @CalculationType	TINYINT
-		, @InstantCompleted	BIT		
+		, @InstantCompleted	BIT	
+		, @SourceINT 		INT  --5-Auto Instant 100-Manual Instant
 	
 	SELECT @CalculationType	= CASE 
 								WHEN @Mode = 'INST-HT' THEN 101
 								WHEN @Mode = 'INST-FT' THEN 102
 								ELSE 0
-							END
+						  END
 	SELECT @sporttype 	= m.sporttype
 		, @leagueid 	= m.leagueid
 		, @matchcode	= m.matchcode
@@ -63,7 +64,7 @@ BEGIN
 		, @InstantKey		 = @InstantKey
 		, @Action 		 = @Action
 		, @Mode			 = @Mode
-	    , @ErrCode 		 = @ErrCode OUTPUT
+	     , @ErrCode 		 = @ErrCode OUTPUT
 		, @ErrMsg 		 = @ErrMsg OUTPUT
 	END
 	ELSE IF (@Action = 'UNDO')
@@ -110,17 +111,18 @@ BEGIN
 															WHEN @ResourceResult IS NULL THEN 'NULL'
                                                             ELSE '''' + @ResourceResult + '''' 
 														END 
-					   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
-					   + ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
+							+ ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+							+ ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
                                                          
-	IF (@IsAutoInst = 0)
+	   SELECT @SourceINT = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END
+	   
 	   BEGIN
-		--insert into table AutoPayoutResult in Manual Instant
+		--insert into table AutoPayoutResult in Instant
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
 			@MatchId 		= @matchid
-			, @SourceId 	= 100
+			, @SourceId 	= @SourceINT
 			, @TypeId 	= @CalculationType
 			, @InstantKey	= @InstantKey
 			, @HomeValue 	= @HomeScore
@@ -128,21 +130,7 @@ BEGIN
 			, @StatusId 	= 1 --waiting
 			, @ErrCode 	= @ErrCode OUTPUT
 			, @ErrMsg		= @ErrMsg OUTPUT
-		END
-	ELSE	
-		BEGIN 
-			--insert into table AutoPayoutResult in Auto Instant
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
-				@MatchId 		= @matchid
-				, @SourceId 	= 5 --Soccerway
-				, @TypeId 	= @CalculationType
-				, @InstantKey	= @InstantKey
-				, @HomeValue 	= @HomeScore
-				, @AwayValue 	= @AwayScore
-				, @StatusId 	= 1 --waiting
-				, @ErrCode 	= @ErrCode OUTPUT
-				, @ErrMsg		= @ErrMsg OUTPUT
-		END
+		END	
 
 		
 		IF @ErrCode <> 0
