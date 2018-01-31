@@ -43,4 +43,4 @@ BEGIN
 	ORDER BY LogId
 
 END
-
+GO
