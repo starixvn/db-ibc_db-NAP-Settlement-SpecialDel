@@ -469,7 +469,7 @@ BEGIN
 
 	IF @IsAutoInst = 1 
 	BEGIN
-	SELECT @Remark ='NAP: Source:' + @Source + (CASE WHEN @ErrCode > 0  THEN 'Failed: ' + @ErrMsg ELSE '' END)	
+	SELECT @Remark ='NAP: Source:' + @Source + (CASE WHEN @ErrCode > 0  THEN ' Failed: ' + @ErrMsg ELSE '' END)	
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_Updated, 0) AS VARCHAR(20)) + '/' +	CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))	
