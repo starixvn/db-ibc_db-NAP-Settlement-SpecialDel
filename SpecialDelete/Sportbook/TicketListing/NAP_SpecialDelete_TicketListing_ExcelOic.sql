@@ -1,4 +1,8 @@
 ﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_NULLS ON
+GO
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@MatchId INT,
 	@LicenseeName VARCHAR(1000) = 'ALL',
@@ -23,6 +27,7 @@ AS
 	Revisions:			
 		- 20171106@Kent: Implement Notifications Center [Redmine:#84330] 
 		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
+		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -94,9 +99,8 @@ BEGIN
 				SELECT	b.username,									
 						b.transid 
 				FROM		bettrans b WITH (NOLOCK) 				
-					LEFT JOIN dbo.bingoBall bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
 					OUTER APPLY (SELECT BallSequence 
-								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
 								) AS BS_tmp
 								
@@ -173,9 +177,8 @@ BEGIN
 				SELECT	b.username,										
 						b.transid				
 				FROM		bettrans b WITH (NOLOCK) 
-					LEFT JOIN dbo.bingoBall bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
 					OUTER APPLY (SELECT BallSequence 
-								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
 								) AS BS_tmp	 	
 				WHERE		B.recommend NOT IN (SELECT CustID FROM #CustIDs WITH (NOLOCK) ) 
@@ -248,9 +251,8 @@ BEGIN
 				SELECT	b.username,									
 						b.transid				
 				FROM		bettrans b WITH (NOLOCK)
-					LEFT JOIN dbo.bingoBall bb WITH (NOLOCK) ON bb.matchid = b.matchid AND bb.Number = b.betid AND b.bettype IN (85, 86, 87, 89, 90)
 					OUTER APPLY (SELECT BallSequence 
-								FROM dbo.f_SD_GetBallSequence (b.bettype,b.betteam,b.betid,bb.Seq)
+								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
 								) AS BS_tmp
 										 		
@@ -391,4 +393,6 @@ BEGIN
 	DROP TABLE #CustIDs
 	
 END			 
+GO
+GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic] TO [bodbAdminNet]
 GO
