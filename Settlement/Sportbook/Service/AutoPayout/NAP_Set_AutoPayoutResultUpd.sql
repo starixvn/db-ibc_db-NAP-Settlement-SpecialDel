@@ -14,7 +14,7 @@ AS
 	Revisions:
 		- 20160930@Bobby: #65003 - Implement Instant Calculation
 		- 20171226@Kathy: Clear data if match has been undo [Redmine:#86890]
-		- 20180123@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
+		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		
 	Param's Explanation:
 		- @StatusId: 0: New

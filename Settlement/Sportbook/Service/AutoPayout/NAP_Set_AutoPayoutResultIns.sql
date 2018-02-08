@@ -18,7 +18,7 @@ AS
 	Revisions:
 		- 20160930@Bobby: #65003 - Implement Instant Calculation
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
-		- 20180123@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
+		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		
 	Param's Explanation:
 		@TypeId:
@@ -106,6 +106,4 @@ BEGIN
 		RETURN
 	END
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_AutoPayoutResultIns] TO [bodbAdminNet] AS [dbo]
 GO
