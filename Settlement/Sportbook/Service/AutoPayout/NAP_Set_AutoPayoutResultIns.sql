@@ -1,10 +1,4 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	@MatchId 		INT
 	, @SourceId 	TINYINT
@@ -24,6 +18,7 @@ AS
 	Revisions:
 		- 20160930@Bobby: #65003 - Implement Instant Calculation
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
+		- 20180123@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		
 	Param's Explanation:
 		@TypeId:
@@ -31,13 +26,16 @@ AS
 		+ 2: AutoPayout - 2H
 		+ 101: InstantCalculation - 1H
 		+ 102: InstantCalculation - 2H
+		@SourceId:
+		+ 5: AutoInstant (Soccerway)
+		+ 100: Suspender
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @StatusIdCheck 		TINYINT
-		, @AutoPayoutResultId 	INT
-		, @InstKeyValue			VARCHAR(50)
+		 , @AutoPayoutResultId 	INT
+		 , @InstKeyValue		VARCHAR(50)
 	
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
 	
@@ -46,6 +44,7 @@ BEGIN
 	FROM dbo.AutoPayoutResult WITH(NOLOCK) 
 	WHERE MatchId = @MatchId 
 		AND CalculationType = @TypeId
+		AND SourceId = @SourceID
 		AND 1 = CASE 
 					WHEN @TypeId IN (1, 2) THEN 1
 					WHEN @TypeId IN (101, 102) THEN 

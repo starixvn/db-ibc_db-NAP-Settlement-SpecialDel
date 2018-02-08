@@ -71,6 +71,7 @@ BEGIN
 		, @FLValue 					VARCHAR(50)
 		, @betstatusOld				VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
+		, @SourceID					TINYINT
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
@@ -370,8 +371,9 @@ BEGIN
 		RETURN
 	END
 		
+	SELECT @SourceID = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END	
 	--UPDATE back to AutoPayoutResult
-	EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @CalculationType, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+	EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @CalculationType, @StatusId = 2, @IsIncludedUpdateMatch = 1, @SourceID = @SourceID --Completed
 	
 	;WITH cteFGLGTicket
 	AS
