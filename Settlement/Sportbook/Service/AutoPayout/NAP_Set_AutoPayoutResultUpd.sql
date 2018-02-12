@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultUpd 
-	@MatchId 					INT
-	, @TypeId 					TINYINT
+	  @MatchId 				INT
+	, @TypeId 				TINYINT
 	, @StatusId 				TINYINT
 	, @IsIncludedUpdateMatch 	BIT = 0
 	, @IsUndoMatch				BIT = 0	
-	, @SourceId 	TINYINT = 0
+	, @SourceId 				TINYINT = NULL
 AS
 /*
 	Creator: 20160310@Patrick
@@ -45,7 +45,7 @@ BEGIN
 			FROM dbo.AutoPayoutResult rs WITH(NOLOCK)
 			WHERE MatchId		  = @MatchId 
 		 	  AND CalculationType = @TypeId
-			  AND SourceID =  @SourceId
+			  AND SourceID		  =  ISNULL(@SourceId, SourceID)
 			  AND StatusId IN (0, 1) --is waiting/calculating
 				
 			UPDATE TOP(1) rs

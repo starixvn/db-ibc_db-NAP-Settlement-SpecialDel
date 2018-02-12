@@ -18,19 +18,20 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE 
-		@TypeId TINYINT
-		, @Remark VARCHAR(500)
-		, @Mode TINYINT
-		, @ActionId INT
-		, @fth INT
-		, @fta INT
-		, @hth INT
-		, @hta INT
+		@TypeId	    TINYINT
+		, @Remark	    VARCHAR(500)
+		, @Mode	    TINYINT
+		, @ActionId   INT
+		, @fth	    INT
+		, @fta	    INT
+		, @hth	    INT
+		, @hta	    INT
 		, @goalrecord NVARCHAR(50)
-		, @betstatus NVARCHAR(50)
+		, @betstatus  NVARCHAR(50)
 		, @IsAutoInst INT
-		
-	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END
+		, @SourceId   TINYINT
+		 
+	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
 
 	
 	SELECT @Mode = CASE 
@@ -72,19 +73,22 @@ BEGIN
 	--Auto payout
 	IF @Mode IN (5,6)
 	BEGIN
-		SELECT @TypeId = CASE 
-							WHEN @Action = 'CAL-HT' THEN 1
+		SELECT @TypeId = CASE    WHEN @Action = 'CAL-HT' THEN 1
 							WHEN @Action = 'CAL-FT' THEN 2
 							WHEN @Action = 'INST-HT' THEN 101
 							WHEN @Action = 'INST-FT' THEN 102
-						ELSE -1 END
+							ELSE -1 
+					  END,
+			  @SourceId = CASE  WHEN @IsAutoInst = 1 THEN 5 ELSE 100 END
 
 		--update status for autopayout result
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @MatchId
 			, @TypeId = @TypeId
 			, @StatusId = 3 --failed
 			, @IsIncludedUpdateMatch = 0
+			, @SourceId = @SourceId
 	END
+	
 	--Instant Calculation
 	IF @Mode = 6
 	BEGIN	
@@ -101,8 +105,11 @@ BEGIN
 	
 	END
 	
-
-	SELECT @actionid = CASE WHEN @IsAutoInst = 1 THEN 197 ELSE @actionid END
+	--Begin: #86964
+	SELECT @actionid = CASE WHEN (@IsAutoInst = 1 AND @Action = 'INST-HT') THEN 197 	
+							WHEN (@IsAutoInst = 1 AND @Action = 'INST-FT') THEN 198
+							ELSE @actionid END
+    --End: #86964								
 
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId

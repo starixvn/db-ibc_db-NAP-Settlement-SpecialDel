@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation] 
+ALTER PROCEDURE dbo.NAP_Admin_Settlement_1_InstantCalculation
 	@Creator 			INT
 	, @MatchId		INT
 	, @Mode			VARCHAR(10) = 'INST-HT'
@@ -9,8 +9,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_InstantCalculation]
 	, @ResourceResult	VARCHAR(MAX) = NULL
 	, @IP			VARCHAR(15)
 	, @IsAutoInst		BIT 		   = 0
+	, @SourceID		TINYINT	   = NULL
 	, @ErrCode		INT		   = 0	OUTPUT
 	, @ErrMsg			NVARCHAR(200)= ''	OUTPUT
+	
 AS
 /*    
 	Creator: 20161004@Bobby
@@ -23,7 +25,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180709@Helen: Enhance Performance for Instant Calculation - [Redmine: 98608]
-		- 20180123@Benjamin: Add @IsAutoInst parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
+		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
     
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -71,7 +73,7 @@ BEGIN
 		, @FLValue 					VARCHAR(50)
 		, @betstatusOld				VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
-		, @SourceID					TINYINT
+		
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
@@ -371,7 +373,8 @@ BEGIN
 		RETURN
 	END
 		
-	SELECT @SourceID = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END	
+	SELECT @SourceID = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END
+	
 	--UPDATE back to AutoPayoutResult
 	EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @CalculationType, @StatusId = 2, @IsIncludedUpdateMatch = 1, @SourceID = @SourceID --Completed
 	

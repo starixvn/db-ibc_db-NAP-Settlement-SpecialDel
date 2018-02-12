@@ -22,13 +22,13 @@ AS
 		
 	Param's Explanation:
 		@TypeId:
-		+ 1: AutoPayout - 1H
-		+ 2: AutoPayout - 2H
-		+ 101: InstantCalculation - 1H
-		+ 102: InstantCalculation - 2H
+		    + 1: AutoPayout - 1H
+		    + 2: AutoPayout - 2H
+		    + 101: InstantCalculation - 1H
+		    + 102: InstantCalculation - 2H
 		@SourceId:
-		+ 5: AutoInstant (Soccerway)
-		+ 100: Suspender
+		    + 5: AutoInstant (Soccerway)
+		    + 100: Suspender
 */
 BEGIN
 	SET NOCOUNT ON
@@ -46,11 +46,12 @@ BEGIN
 		AND CalculationType = @TypeId
 		AND SourceId = @SourceID
 		AND 1 = CASE 
-					WHEN @TypeId IN (1, 2) THEN 1
-					WHEN @TypeId IN (101, 102) THEN 
-						CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 ELSE 0 END
-					ELSE 0 
-				END
+				WHEN @TypeId IN (1, 2) THEN 1
+				WHEN @TypeId IN (101, 102) THEN 
+				    CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 
+				    ELSE 0 END
+				ELSE 0 
+			   END
 
 	IF ( @TypeId IN (1, 2) AND @AutoPayoutResultId > 0 ) --Auto Payout
 	BEGIN
