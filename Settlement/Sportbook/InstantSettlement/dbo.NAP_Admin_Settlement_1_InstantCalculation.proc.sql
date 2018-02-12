@@ -73,7 +73,7 @@ BEGIN
 		, @FLValue 					VARCHAR(50)
 		, @betstatusOld				VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
-		, @SourceID					TINYINT
+		
 		
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
