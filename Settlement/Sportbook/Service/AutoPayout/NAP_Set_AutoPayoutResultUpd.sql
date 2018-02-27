@@ -36,6 +36,21 @@ BEGIN
 		FROM	dbo.AutoPayoutResult WITH(ROWLOCK, UPDLOCK)
 		WHERE matchid = @MatchId
 		  AND CalculationType IN (101, 102)
+		
+		--#90796 Begin modify
+		--Auto Setting to OFF Instant for Get minium Risk Meeting #91094
+		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 ELSE AutoSetting END)
+		WHERE matchid = @MatchId
+		
+		--Update Confirmed =1 in ProviderResultDetail
+		UPDATE dbo.ProviderResultDetail WITH(ROWLOCK,UPDLOCK)
+		SET IsConfirmed = 1		
+		WHERE MatchId = @MatchId
+		
+		--#90796 End modify
+
+
 	END
 	ELSE
 	BEGIN
