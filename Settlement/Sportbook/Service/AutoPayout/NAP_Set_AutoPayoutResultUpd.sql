@@ -47,7 +47,7 @@ BEGIN
 		UPDATE dbo.ProviderResultDetail WITH(ROWLOCK,UPDLOCK)
 		SET IsConfirmed = 1		
 		WHERE MatchId = @MatchId
-		
+		  AND SourceID = 100 --Instant only
 		--#90796 End modify
 
 
