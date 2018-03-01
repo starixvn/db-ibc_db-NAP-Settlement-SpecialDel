@@ -35,9 +35,10 @@ AS
 		- 20170302@Kent: Fix show time for virtual sport [Redmine:#72475]
 		- 20170314@Kent: Integrate cash-out [Redmine:#72059]
 		- 20170417@Kent: Tune performance [Redmine:#72059]
-		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
+		- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]	
 		- 20170725@Paul: Return CurrencyName [Redmine:#77175]
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]	
+		- 20170503@Kent: Integrate bonus [Redmine:#72790]	
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -71,7 +72,7 @@ BEGIN
 		GroupID			BIGINT
 		,bettype		INT
 		,OriginalBetType SMALLINT
-		,transid		BIGINT PRIMARY KEY
+		,transid		BIGINT
 		,betid			BIGINT
 		,refno			BIGINT
 		,matchcode		NVARCHAR(50)
@@ -114,7 +115,22 @@ BEGIN
 		,IsCashOutMemberTicket BIT DEFAULT 0
 		,MainCashoutId	BIGINT
 		,CurrencyName	NVARCHAR(50)
+		,WalletType		TINYINT
+		,RefCode		BIGINT
+		,BonusID		INT
+		,MainTransId	BIGINT
 	)
+	
+	CREATE TABLE #tmpRefCodeSummary (
+		 RefCode	BIGINT
+		 ,custid	INT
+		 ,matchid	INT
+		 ,bettype	SMALLINT
+		 ,transid	BIGINT
+	)
+
+	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
+	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 	
 	IF(LEN(@TransIds) > 0)
 	BEGIN
@@ -270,6 +286,9 @@ BEGIN
 			,ExtraInfo
 			,MainCashoutId
 			,CurrencyName
+			,WalletType
+			,RefCode
+			,BonusID
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -320,6 +339,9 @@ BEGIN
 				ELSE NULL
 			 END AS MainCashoutId
 			,b.CurrencyName
+			,b.WalletType
+			,b.RefCode
+			,b.BonusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -384,6 +406,9 @@ BEGIN
 				ELSE NULL
 			 END AS MainCashoutId
 			,b.CurrencyName
+			,b.WalletType
+			,b.RefCode
+			,b.BonusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid				
@@ -403,8 +428,136 @@ BEGIN
 	WHERE EXISTS (SELECT TOP 1 1
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)				    					    				    					    
+				    AND sub911.transid = t.refno)				    	
 	
+	-- update MainTransId
+	IF EXISTS (SELECT TOP 1 1 FROM #Data WHERE refno IS NOT NULL)
+	BEGIN
+		UPDATE sub
+		SET MainTransId = main.transid
+		FROM #Data main
+			 INNER JOIN #Data sub
+					 ON main.RefCode = sub.RefCode	
+						AND main.transid <> sub.transid					
+						AND main.custid = sub.custid
+						AND main.matchid = sub.matchid
+						AND main.bettype = sub.bettype											
+		WHERE main.WalletType = 1			
+	  
+		-- Insert more bonus or cash ticket in case only one ticket appears in #Data	
+		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
+		SELECT RefCode, custid, matchid, bettype
+			 , MAX(transid) AS transid
+		FROM #Data
+		WHERE	RefCode IS NOT NULL
+		GROUP BY RefCode, custid, matchid, bettype
+		HAVING COUNT(*) = 1
+		
+		IF @@ROWCOUNT > 0
+		BEGIN
+			INSERT INTO #Data (
+					GroupID			
+					,bettype		
+					,transid		
+					,betid			
+					,refno		
+					,hdp1			
+					,hdp2			
+					,odds			
+					,finalodds		
+					,finalodds2		
+					,OddsType		
+					,STATUS			
+					,comstatus		
+					,stake							
+					,transdate		
+					,betteam		
+					,betcheck		
+					,liveindicator	
+					,modds			
+					,custid						
+					,livehomescore	
+					,liveawayscore					
+					,betfrom		
+					,matchid					
+					,winlost		
+					,commission					
+					,winlostdate	
+					,TransDesc		
+					,betdaqid
+					,username
+					,recommend
+					,IsHideComm
+					,oddsid			
+					,ExtraInfo
+					,MainCashoutId			
+					,WalletType
+					,RefCode
+					,BonusID
+					,MainTransId
+				)
+				SELECT	
+					b.refno AS GroupId
+					,b.bettype
+					,b.transid
+					,isnull(b.BetID, 0) AS BetID
+					,b.refno			
+					,b.hdp1
+					,b.hdp2
+					,b.odds
+					,0 finalodds
+					,0 finalodds2
+					,b.OddsType
+					,CASE 
+						WHEN b.STATUS = 'running'
+							AND IsNull(b.SecAcceptFlag, 0) = 1
+							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+						END AS STATUS
+					,CASE 
+						WHEN b.comstatus = '1' THEN 1
+						ELSE 0
+						END AS comstatus
+					,b.stake				
+					,b.transdate
+					,b.betteam
+					,b.betcheck
+					,b.liveindicator
+					,b.modds
+					,b.custid
+					,b.livehomescore
+					,b.liveawayscore				
+					,b.betfrom
+					,b.matchid				
+					,(b.winlost - b.actual_stake) winlost
+					,b.playercomm AS commission				
+					,b.winlostdate
+					,b.transdesc
+					,b.betdaqid
+					,b.username
+					,b.recommend			
+					,0 AS IsHideComm
+					,b.oddsid
+					,b.ExtraInfo
+					,CASE
+						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+								THEN b.transid
+						ELSE NULL
+					 END AS MainCashoutId
+					,b.WalletType
+					,b.RefCode
+					,b.BonusID
+					,t.transid AS MainTransId	
+			FROM #tmpRefCodeSummary t
+				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
+						 ON b.RefCode = t.RefCode
+							AND b.transid <> t.transid					
+							AND b.custid = t.custid
+							AND b.matchid = t.matchid
+							AND b.bettype = t.bettype
+			WHERE b.statusID NOT IN (101,102 ) -- reject, void		
+		END	    			    				    					    				    					    
+	END
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
@@ -497,6 +650,10 @@ BEGIN
 				, sub.bettype
 				, sub.betdaqid
 				, sub.ExtraInfo
+				, sub.WalletType
+				, sub.RefCode
+				, sub.BonusID
+				, main.transid AS MainTransId
 				, ROW_NUMBER() OVER (PARTITION  BY sub.refno ORDER BY sub.transId DESC ) AS BTNo 
 				
 			FROM dbo.bettrans sub WITH(NOLOCK)
@@ -554,6 +711,10 @@ BEGIN
 			,ExtraInfo			
 			,IsHideComm
 			,CurrencyName
+			,WalletType
+			,RefCode
+			,BonusID
+			,MainTransId
 		)
 		SELECT	
 			main.transid
@@ -598,6 +759,10 @@ BEGIN
 			,sub.ExtraInfo						
 			,1 AS IsHideComm
 			,main.CurrencyName
+			,sub.WalletType
+			,sub.RefCode
+			,sub.BonusID
+			,sub.MainTransId
 		FROM CTE_LastTransBT sub WITH(NOLOCK)
 			INNER JOIN #Data main
 			ON	sub.refno 	= main.transid 
@@ -622,7 +787,7 @@ BEGIN
 					
 		WHERE main.betdaqid = 0 -- main ticket is BTrade
 		  AND main.extrainfo is null
-	END		
+	END				
 	
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP 1 1 
@@ -675,6 +840,10 @@ BEGIN
 			,MainCashoutId
 			,IsHideComm
 			,CurrencyName
+			,WalletType
+			,RefCode
+			,BonusID
+			,MainTransId
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -719,6 +888,10 @@ BEGIN
 				,main.transid AS MainCashoutId
 				,1 AS IsHideComm
 				,sub911.CurrencyName
+				,sub911.WalletType
+				,sub911.RefCode
+				,sub911.BonusID
+				,main.transid AS MainTransId
 		FROM #Data main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -776,6 +949,10 @@ BEGIN
 			,showtime	
 			,IsHideComm	
 			,CurrencyName	
+			,WalletType
+			,RefCode
+			,BonusID
+			,MainTransId	
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -830,6 +1007,10 @@ BEGIN
 				,sub911.showtime
 				,1 AS IsHideComm
 				,b.CurrencyName
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,sub911.MainTransId
 		FROM #Data sub911
 			 CROSS APPLY (
 							  SELECT b.*
@@ -840,7 +1021,7 @@ BEGIN
 								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
 						 ) AS b
 		WHERE sub911.bettype = 911
-	END			     
+	END				     
 		
 	-- UPDATE SiteName
 	;WITH CustSiteName AS (
@@ -922,7 +1103,9 @@ BEGIN
 		,d.ExtraInfo
 		,d.MainCashoutId
 		,d.CurrencyName
-		,FollowInfo.transid AS followedId
+		,d.WalletType	    
+	    ,d.MainTransId
+	    ,FollowInfo.transid AS followedId
 		,FollowInfo.Username AS followedUsername
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g
@@ -934,7 +1117,7 @@ BEGIN
 		OUTER APPLY (SELECT TOP 1 transid, username
 					 FROM bettrans (NOLOCK)
 					 WHERE transid = d.betid					   
-					   AND T.GroupName = '1-8RM/BARM') AS FollowInfo						
+					   AND T.GroupName = '1-8RM/BARM') AS FollowInfo							
 		
 	WHERE NOT EXISTS (
 			SELECT TOP 1 1 
@@ -947,8 +1130,15 @@ BEGIN
 		AND d.recommend 	NOT IN (13423967) --OneExchange
 		
 	ORDER BY T.GroupName
-		,ISNULL(d.MainCashoutId, d.GroupId)
-		,d.transid	
+		   , ISNULL(d.MainTransId, d.transid)
+		   , CASE 
+				WHEN d.BonusID IS NOT NULL
+						THEN CASE 
+								WHEN d.MainTransId IS NULL THEN 1
+								ELSE 2 
+							 END
+				ELSE d.transid
+			 END	
 
 	-- invalid trans
 	SELECT @InvalidTransIds = '', @MovedTransIds = ''

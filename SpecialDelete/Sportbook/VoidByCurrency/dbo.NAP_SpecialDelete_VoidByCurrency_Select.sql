@@ -16,6 +16,7 @@ AS
 		- 20170418@Kent: Fix Returned Data Type For Bit Columns [Redmine:#75009]
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
+		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -73,7 +74,11 @@ BEGIN
 			IsCashOutMemberTicket BIT DEFAULT 0,
 			MainCashoutId		BIGINT,	
 			matchid				INT,
-			custid				INT,		
+			custid				INT,
+			WalletType			TINYINT,
+			RefCode				BIGINT,
+			BonusID				INT,
+			MainTransId			BIGINT,		
 			
 			SubTransId			BIGINT,
 			SubBetCheck			NVARCHAR(50),
@@ -83,7 +88,17 @@ BEGIN
 			SubHdp2				SMALLMONEY,
 			SubOdds				MONEY,
 			SubStatus			NVARCHAR(10)
-		)			
+	)	
+
+	CREATE TABLE #tmpRefCodeSummary (
+		 RefCode	BIGINT
+		 ,custid	INT
+		 ,bettype	SMALLINT
+		 ,transid	BIGINT
+	)
+
+	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)			
+	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 				
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
@@ -185,7 +200,10 @@ BEGIN
 					IsBetTrade,	
 					ExtraInfo,
 					MainCashoutId,
-					custid,													
+					custid,	
+					WalletType,
+					RefCode,
+					BonusID,												
 					
 					SubTransId,
 					SubBetCheck,
@@ -238,7 +256,10 @@ BEGIN
 							THEN b.transid
 					ELSE NULL
 				END AS MainCashoutId,
-				b.custid,							
+				b.custid,
+				b.WalletType,
+				b.RefCode,
+				b.BonusID,							
 				
 				b.TransId AS SubTransId,
 				NULL AS SubBetCheck,
@@ -278,8 +299,157 @@ BEGIN
 		WHERE EXISTS (SELECT TOP 1 1
 					  FROM bettrans sub911 (NOLOCK)
 					  WHERE sub911.bettype = 911
-						AND sub911.transid = t.refno)															
+						AND sub911.transid = t.refno)				
 		
+		-- update MainTransId
+		IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
+		BEGIN
+			UPDATE sub
+			SET MainTransId = main.transid
+			FROM #SpecialDeleteBets main
+				 INNER JOIN #SpecialDeleteBets sub
+						 ON main.RefCode = sub.RefCode
+							AND main.transid <> sub.transid	
+							AND main.custid = sub.custid
+							AND main.bettype = sub.bettype
+			WHERE main.WalletType = 1
+		  
+			-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets
+			INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, transid)
+			SELECT RefCode, custid, bettype
+				 , MAX(transid) AS transid
+			FROM #SpecialDeleteBets
+			WHERE	RefCode IS NOT NULL
+			GROUP BY RefCode, custid, bettype
+			HAVING COUNT(*) = 1
+		
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO #SpecialDeleteBets(
+							GroupID,
+							Stake,
+							AwayId,
+							BetCheck,
+							BetId,
+							BetTeam,
+							BetType,
+							CurrencyCode,
+							Creator,					
+							Hdp1,
+							Hdp2,
+							HomeId,
+							IsLiveIndicator,
+							IsNeutral,
+							IsSecondAcceptFlag,
+							LiveAwayScore,
+							LiveHomeScore,
+							Odds,
+							IsMixParlay,
+							OddsType,
+							RefNo,
+							SportType,
+							Status,
+							TransDate,
+							TransDesc,
+							TransId,
+							UserName,
+							NetWinLost,
+							srecommend,
+							GroupName,
+							betdaqid,
+							IsBetTrade,
+							ExtraInfo,
+							MainCashoutId,
+							custid,
+							WalletType,
+							RefCode,
+							BonusID,
+							MainTransId,					
+					
+							SubTransId,
+							SubBetCheck,
+							SubBetTeam,
+							SubBetType,
+							SubHdp1,
+							SubHdp2,
+							SubOdds,
+							SubStatus	
+						)
+				SELECT 	b.transid AS GroupID,
+						b.Stake,
+						m.AwayId,
+						b.BetCheck,
+						b.BetId,
+						b.BetTeam,
+						b.BetType,
+						te.currency AS CurrencyCode,
+						b.Creator,				
+						b.Hdp1,
+						b.Hdp2,
+						m.HomeId,
+						b.LiveIndicator AS IsLiveIndicator,
+						ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+						b.SecAcceptFlag AS IsSecondAcceptFlag,
+						b.LiveAwayScore,
+						b.LiveHomeScore,
+						b.Odds,
+						0 AS IsMixParlay,
+						b.OddsType,
+						b.RefNo,
+						m.SportType,
+						CASE 
+							WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP 
+								THEN 'waiting'
+							ELSE b.status 
+						END AS STATUS,
+						b.TransDate,
+						b.TransDesc,
+						b.TransId,
+						b.UserName,
+						b.WinLost - b.actual_stake AS NetWinLost,
+						b.srecommend,
+						tl.GroupName AS GroupName,
+						b.betdaqid,	
+						CASE WHEN b.betdaqid = 0 THEN 1 ELSE 0 END AS IsBetTrade,				
+						b.ExtraInfo,
+						CASE
+							WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+									THEN b.transid
+							ELSE NULL
+						END AS MainCashoutId,				
+						b.custid,
+						b.WalletType,
+						b.RefCode,
+						b.BonusID,
+						t.transid AS MainTransId,			
+				
+						b.TransId AS SubTransId,
+						NULL AS SubBetCheck,
+						NULL AS SubBetTeam,
+						NULL AS SubBetType,
+						NULL AS SubHdp1,
+						NULL AS SubHdp2,
+						NULL AS SubOdds,
+						b.status AS SubStatus
+				FROM #tmpRefCodeSummary t
+					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
+							 ON b.RefCode = t.RefCode
+								AND b.transid <> t.transid
+								AND b.matchid = @MatchId
+								AND b.custid = t.custid
+								AND b.bettype = t.bettype
+					 INNER JOIN #t_exchanges te WITH (NOLOCK)
+							 ON b.currency = te.exchangeid 			 
+					 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+							 ON b.recommend = c.custid
+					 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
+							 ON tl.LicenseeName = c.site
+					 INNER JOIN match m WITH (NOLOCK)
+							 ON b.matchid = m.matchid
+				WHERE b.statusID NOT IN (101,102 ) -- reject, void		
+			END  	  																					
+		END
+
 		IF EXISTS (SELECT TOP 1 1
 				   FROM #SpecialDeleteBets
 				   WHERE betdaqid	= 0
@@ -298,6 +468,10 @@ BEGIN
 						sub.status,
 						sub.bettype,
 						sub.ExtraInfo,
+						sub.WalletType,
+						sub.RefCode,
+						sub.BonusID,
+						main.transid AS MainTransId,
 						ROW_NUMBER() OVER (PARTITION  BY sub.refno ORDER BY sub.transId DESC ) AS BTNo				
 				FROM #SpecialDeleteBets main
 					 INNER JOIN bettrans sub WITH (NOLOCK)
@@ -342,7 +516,11 @@ BEGIN
 						GroupName,
 						betdaqid,					
 						IsBetTrade,
-						ExtraInfo,											
+						ExtraInfo,	
+						WalletType,
+						RefCode,
+						BonusID,
+						MainTransId,										
 						
 						SubTransId,
 						SubBetCheck,
@@ -386,7 +564,11 @@ BEGIN
 					main.GroupName,
 					sub.betdaqid,
 					CAST(1 AS BIT) AS IsBetTrade,
-					sub.ExtraInfo AS ExtraInfo,									
+					sub.ExtraInfo AS ExtraInfo,	
+					sub.WalletType,
+					sub.RefCode,
+					sub.BonusID,
+					sub.MainTransId,								
 					
 					sub.TransId AS SubTransId,
 					NULL AS SubBetCheck,
@@ -453,7 +635,11 @@ BEGIN
 						IsBetTrade,
 						ExtraInfo,
 						MainCashoutId,
-						matchid,						
+						matchid,
+						WalletType,
+						RefCode,
+						BonusID,
+						MainTransId,						
 						
 						SubTransId,
 						SubBetCheck,
@@ -499,7 +685,11 @@ BEGIN
 					CAST(0 AS BIT) AS IsBetTrade,
 					sub911.ExtraInfo AS ExtraInfo,
 					main.transid AS MainCashoutId,
-					sub911.matchid,					
+					sub911.matchid,
+					sub911.WalletType,
+					sub911.RefCode,
+					sub911.BonusID,
+					main.transid AS MainTransId,					
 					
 					sub911.TransId AS SubTransId,
 					NULL AS SubBetCheck,
@@ -556,7 +746,11 @@ BEGIN
 					IsBetTrade,	
 					ExtraInfo,
 					IsCashOutMemberTicket,
-					MainCashoutId,								
+					MainCashoutId,
+					WalletType,
+					RefCode,
+					BonusID,
+					MainTransId,								
 					
 					SubTransId,
 					SubBetCheck,
@@ -606,7 +800,11 @@ BEGIN
 				CAST(0 AS BIT) AS IsBetTrade,
 				b.ExtraInfo,	
 				1 AS IsCashOutMemberTicket,
-				sub911.MainCashoutId AS MainCashoutId,					
+				sub911.MainCashoutId AS MainCashoutId,
+				b.WalletType,
+				b.RefCode,
+				b.BonusID,
+				sub911.MainTransId,					
 				
 				b.TransId AS SubTransId,
 				NULL AS SubBetCheck,
@@ -777,7 +975,9 @@ BEGIN
 		s.SoldId,
 		s.betdaqid,
 		s.ExtraInfo,
-		s.MainCashoutId,		
+		s.MainCashoutId,
+		s.WalletType,			
+		s.MainTransId,		
 		
 		s.SubTransId,
 		s.SubBetCheck,
@@ -802,8 +1002,15 @@ BEGIN
 		     END ASC
 		   , s.GroupName ASC
 		   , s.IsMixParlay ASC
-		   , ISNULL(s.MainCashoutId, s.GroupId) ASC									 
-		   , s.TransId ASC							 
+		   , ISNULL(s.MainTransId, s.transid) ASC									 
+		   , CASE 
+				WHEN s.BonusID IS NOT NULL
+						THEN CASE 
+								WHEN s.MainTransId IS NULL THEN 1
+								ELSE 2 
+							 END
+				ELSE s.transid
+			 END							 
 			
 	SET NOCOUNT OFF
 END
