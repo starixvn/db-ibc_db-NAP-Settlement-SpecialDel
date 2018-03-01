@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
 	,@Action	VARCHAR(20)
 	,@Results	VARCHAR(MAX)
@@ -25,6 +19,7 @@ AS
 	Revisions:
 			- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
 			- 20170123@Kathy: Checking auto settlement FM setting of match before settling  [Redmine:#69949]
+			- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
 			
 	Param's Explanation:
 		- @Result = '<BetTypes>
@@ -266,8 +261,3 @@ BEGIN
 	
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] TO [Dot_Admin] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] TO [vnteam] AS [dbo]

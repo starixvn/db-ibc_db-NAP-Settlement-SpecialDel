@@ -1,27 +1,18 @@
-USE bodb02
-GO
-
---/****** Object:  UserDefinedTableType [dbo].[BalanceList]    Script Date: 3/1/2016 9:05:16 AM ******/
---CREATE TYPE [dbo].[TVP_BalanceChange] AS TABLE(
---	custid INT
---	, balance MONEY
---	, balanceType TINYINT
---)
---GO
-
-ALTER PROCEDURE [dbo].[NAP_Admin_BalancePendingIns]
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+CREATE PROCEDURE [dbo].[NAP_Admin_BalancePendingIns]
 	@BeforeUpd	TVP_BalanceChange	READONLY
 	,@AfterUpd	TVP_BalanceChange	READONLY
 AS
-/* Created by: Bobby  
- Task:  VOID BY BET ID (Running & Settled tickets)  
- DB: DBTXN/bodb02  
- Original:   
-   
- Revisions:  
-  
- Param's Explanation:   
-	 
+/* 
+	Created by: Bobby  
+	Task:  VOID BY BET ID (Running & Settled tickets)  
+	DB: DBTXN/bodb02  
+	Original:   
+	   
+	Revisions:  
+		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
+		
+	Param's Explanation:   	 
 */
 BEGIN
 	SET NOCOUNT ON

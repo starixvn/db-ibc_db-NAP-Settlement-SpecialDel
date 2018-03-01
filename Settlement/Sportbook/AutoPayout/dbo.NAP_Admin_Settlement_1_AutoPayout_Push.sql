@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] 
 	@AdminId 		INT
     , @MatchId		INT
@@ -27,6 +23,7 @@ AS
 		- 20170313@Kathy: Remove @betstatus, @goalrecord [Redmine:#73218]
 		- 20170314@Kathy: Not allow to process Auto Payout HT/FT if keyscore calculated HT/FT manually [Redmine:#73218]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
+		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
 		
     Param's Explanation:
         
@@ -143,6 +140,4 @@ BEGIN
     END
 END
 GO
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push] TO [bodbAdminNet]
-GO
+

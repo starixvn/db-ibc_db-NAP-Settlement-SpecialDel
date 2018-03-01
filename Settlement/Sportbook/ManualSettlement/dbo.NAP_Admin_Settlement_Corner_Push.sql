@@ -1,7 +1,4 @@
-﻿
-USE bodb02
-GO
-
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Corner_Push] @AdminId INT
 	, @Matchid				INT
 	, @fthCorners			SMALLINT		= NULL
@@ -25,6 +22,7 @@ AS
 	Revisions:		
 		- 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
 		- 20160317@Patrick: Auto payout [Redmine: #53262]
+		- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
 		
 	Param's Explanation:
 
@@ -119,7 +117,4 @@ BEGIN
 	END
 END
 GO 
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Corner_Push] TO [vnteam]
-GO 
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Corner_Push] TO [bodbAdminNet]
-GO 
+

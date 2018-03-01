@@ -1,12 +1,5 @@
-﻿USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_Admin_Settlement_Corner]    Script Date: 09/27/2016 14:21:25 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Corner] @AdminId INT
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Corner] @AdminId INT
 	, @Matchid				INT
 	, @fthCorners			SMALLINT		= NULL
 	, @ftaCorners			SMALLINT		= NULL
@@ -31,16 +24,38 @@ AS
 		- 20160315@Patrick: Auto payout [Redmine: #53262]
 		- 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20160311@Kathy: Exclude Fast Market [Redmine:#56367]
+		- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
 		
 	Param's Explanation:
 
 */
 BEGIN
 	SET NOCOUNT ON 
-	DECLARE	 @start DATETIME, @stop DATETIME, @eventstatus NVARCHAR(50), @fth INT, @fta INT, @hth INT
-		, @hta INT, @goalrecord VARCHAR(50), @betstatus VARCHAR(50), @ActionID INT, @Remark VARCHAR(500), @LogData NVARCHAR(300)		
-		,@strBettypes VARCHAR(MAX)	
-		,@strAutoBettypes VARCHAR(MAX)	
+	DECLARE @start DATETIME
+		, @stop DATETIME
+		, @eventstatus NVARCHAR(50)
+		, @fth INT
+		, @fta INT
+		, @hth INT
+		, @hta INT
+		, @goalrecord VARCHAR(50)
+		, @betstatus VARCHAR(50)
+		, @ActionID INT
+		, @Remark VARCHAR(500)
+		, @LogData NVARCHAR(300)
+		, @strBettypes VARCHAR(MAX)
+		, @strAutoBettypes VARCHAR(MAX)
+		, @avaiableProcess BIT
+		, @sportType INT
+
+	
+	--START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables
+	
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	
 
 	SELECT @start = CURRENT_TIMESTAMP
 	SELECT @ActionID = CASE WHEN @Action = 'CAL' THEN 151 
@@ -69,49 +84,42 @@ BEGIN
 		, @hta = htawayscore
 		, @goalrecord = goalrecord 
 		, @betstatus = betstatus 
+		, @sportType = sporttype
 	FROM DBPRO.BODB02.dbo.match WITH (NOLOCK)
 	WHERE matchid = @matchid
 		
 	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (SELECT 1 
-				FROM dbo.TempVariableNumber t WITH(NOLOCK)
-				WHERE t.KeyID = 1 AND t.KeyValue = @matchid)
-	BEGIN
-		SELECT @ErrCode = 1000000
-			, @ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-
-	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue)
-	VALUES (1, @matchid)
-
-	IF @@ERROR > 0
-	BEGIN
-		SELECT @ErrCode = 1000000
-			, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-							+ LEFT(ERROR_MESSAGE(), 400)
-		RETURN
-
-	END
+	INSERT INTO #tblMatchProcess (matchid, KeyID)
+	SELECT @matchId AS matchid
+		, 1 AS KeyID
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+	
+	--CHECK avaiable process
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceBefore (custid INT PRIMARY KEY, balance MONEY)
-
-	--===
-	INSERT INTO #BalanceBefore
-	SELECT b.custid, SUM(b.winlost - b.actual_stake + b.playercomm)
-	FROM dbo.bettrans b WITH (ROWLOCK)
-	WHERE b.matchid = @MatchId 
-			AND 1 = CASE
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
-						ELSE 0
-					END
-	GROUP BY b.custid
-
-	--===
+	INSERT INTO @BalanceWalletBefore (
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @sportType		= @sportType
+		, @Action 			= @Action
+		, @Mode 			= 5 --@Mode corner
+            
 	--^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	IF @Action IN ('CAL', 'CAL-FT', 'CAL-HT')
 	BEGIN
@@ -184,64 +192,25 @@ BEGIN
 	-------------------------------------------------------------
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceAfter (custid INT PRIMARY KEY, balance MONEY)
+	INSERT INTO @BalanceWalletAfter (
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @sportType		= @sportType
+		, @Action 			= @Action
+		, @Mode 			= 5 --@Mode corner
 	
-	INSERT INTO #BalanceAfter
-	SELECT b.custid, SUM(b.winlost - b.actual_stake + b.playercomm)
-	FROM dbo.bettrans b WITH (ROWLOCK)
-	WHERE b.matchid = @MatchId 
-			AND 1 = CASE
-						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strBettypes + ',') > 0 THEN 1
-						ELSE 0
-					END
-	GROUP BY b.custid
-
-	-------------------------------------------------------------
-	---                   compare BALANCE                     ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
-	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList
-	
-	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-
-	INSERT INTO #Balance
-	SELECT b.custid
-		, a.balance - b.balance
-		, CASE WHEN a.balance > b.balance THEN 1 ELSE 0	END
-	FROM #BalanceBefore b
-		INNER JOIN #BalanceAfter a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-	
-	INSERT INTO @tblDebitPending (custID, balance)
-	SELECT custid, ABS(balance)
-	FROM #Balance
-	WHERE Increased = 0
-	
-	IF @@ROWCOUNT <> 0
-		EXEC dbo.Dot_BalancePendingDebitIns @BalancePending = @tblDebitPending, @Type = 1 -- Sports
-			
-	INSERT INTO @tblCreditPending (custID, balance)
-	SELECT custid, balance
-	FROM #Balance
-	WHERE Increased = 1
-	
-	IF @@ROWCOUNT <> 0
-		EXEC dbo.Dot_BalancePendingCreditIns @BalancePending = @tblCreditPending, @Type = 1 -- Sports
-
-	----
-	-- Add Negative Balance into BalanceNegative table 
-	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
-	SELECT GETDATE(), @MatchID, @ActionID, 1/*Sportsbook Single bet Settlement*/, CustID, Balance, 0, NULL
-	FROM #Balance WITH(NOLOCK)
-	WHERE Increased = 0
-
-	---------------------------------------------------
-	DROP TABLE #Balance
-	DROP TABLE #BalanceBefore
-	DROP TABLE #BalanceAfter
-
+	-- Compare Balance
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		@BalanceWalletBefore	= @BalanceWalletBefore
+		, @BalanceWalletAfter	= @BalanceWalletAfter
+		, @ActionId				= @ActionID
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
@@ -299,14 +268,11 @@ BEGIN
 			, @IP				= @ip
 	END CATCH
 
-	--
-	DELETE
-	FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
-	WHERE KeyID = 1 AND KeyValue = @matchid
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @IsReleased		= 1
 	
+	DROP TABLE #tblMatchProcess	
 END
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Corner] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_Corner] TO [vnteam] AS [dbo]

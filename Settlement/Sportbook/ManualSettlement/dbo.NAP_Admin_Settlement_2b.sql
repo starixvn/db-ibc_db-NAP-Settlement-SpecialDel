@@ -15,6 +15,7 @@ AS
     
     Revisions:
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
+		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -38,9 +39,12 @@ BEGIN
             ,@xml				XML
             ,@strEarlyBettypes	VARCHAR(MAX) 
             ,@strResourceIds	VARCHAR(MAX)	
+			,@sportType 		INT
     
-    DECLARE @BeforeUpd 			TVP_BalanceChange
-			,@AfterUpd 			TVP_BalanceChange                       
+    --START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables             
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT)
@@ -59,6 +63,7 @@ BEGIN
             ,@fta            = finalawayscore
             ,@hth            = hthomescore
             ,@hta            = htawayscore     
+			,@sportType		= sportType
     FROM    DBPRO.BODB02.dbo.match WITH (NOLOCK)
     WHERE    matchid = @matchid
         
@@ -101,21 +106,24 @@ BEGIN
 	SELECT	@strEarlyBettypes = COALESCE(@strEarlyBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM	@tmpResultDetail
 	GROUP BY bettype	
-    -------------------------------------------------------------
+    
+	-------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------
-    INSERT INTO @BeforeUpd(custid, balance, balanceType)
-	SELECT	b.custid
-			,SUM(b.winlost - b.actual_stake + b.playercomm)
-			,1 -- sportbook
-	FROM	dbo.bettrans b WITH (ROWLOCK)
-		CROSS APPLY (
-			SELECT CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId		
-		) r
-	WHERE	b.matchid = @MatchId
-			AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strEarlyBettypes + ',') > 0
-			AND CHARINDEX(',' + CAST(r.ResourceId AS VARCHAR) + ',', ',' + @strResourceIds + ',') > 0       
-	GROUP BY b.custid
+	INSERT INTO @BalanceWalletBefore (
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @sportType		= @sportType
+		, @Action 			= @Action
+		, @Mode 			= 8 --@Mode Baseketball Early payout
+		, @BAResults		= @QuarterResult
    
 	BEGIN TRY
 		IF @Action='CAL'
@@ -189,47 +197,28 @@ BEGIN
     -------------------------------------------------------------
     ---         CAPTURE value BALANCE after settlement        ---
     ---------------------------VVVV------------------------------
-    INSERT INTO @AfterUpd(custid, balance, balanceType)
-	SELECT	b.custid
-		,SUM(b.winlost - b.actual_stake + b.playercomm)
-		,1 -- sportbook
-	FROM	dbo.bettrans b WITH (ROWLOCK)
-	CROSS APPLY (
-		SELECT CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId		
-	) r
-	WHERE	b.matchid = @matchid
-			AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strEarlyBettypes + ',') > 0
-			AND CHARINDEX(',' + CAST(r.ResourceId AS VARCHAR) + ',', ',' + @strResourceIds + ',') > 0       
-	GROUP BY b.custid
+	INSERT INTO @BalanceWalletAfter (
+		matchid
+		, custid
+		, balanceType
+		, WalletType
+		, BonusID
+		, balance
+	)
+	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+		@MatchId 			= @matchId
+		, @sportType		= @sportType
+		, @Action 			= @Action
+		, @Mode 			= 8 --@Mode Baseketball Early payout
+		, @BAResults		= @QuarterResult
 
-	---INSERT data into pending balance table   
-	EXEC [dbo].[NAP_Admin_BalancePendingIns]
-		@BeforeUpd	 = @BeforeUpd
-		, @AfterUpd	 = @AfterUpd	
-	   
-    INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-        [ExecDate]
-        ,[MatchID]
-        ,[ActionID]
-        ,[GroupID]
-        ,[CustID]
-        ,[Balance]
-        ,[StatusID]
-        ,[Remark]
-        )
-    SELECT GETDATE()
-        ,@MatchID
-        ,@ActionID
-        ,1 -- Sportsbook Single bet Settlement 
-        ,b.CustID
-        ,a.Balance - b.balance
-        ,0
-        ,NULL
-    FROM @BeforeUpd b
-		INNER JOIN @AfterUpd a
-			ON b.custid = a.custid
-    WHERE a.balance < b.balance
-    
+	-- Compare and update pending balance with error case
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		@BalanceWalletBefore	= @BalanceWalletBefore
+		, @BalanceWalletAfter	= @BalanceWalletAfter
+		, @ActionId				= @ActionID
+
+        
     --Exit process with ERROR
 	IF(@ErrCode <> 0) 
 	BEGIN

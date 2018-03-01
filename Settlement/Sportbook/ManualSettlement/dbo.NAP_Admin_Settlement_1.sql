@@ -85,7 +85,8 @@ AS
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171226@Kathy: Clear data in table AutoPayoutResult if match has been undo [Redmine:#86890]
-		
+		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
+
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
         + @GameResult: Game result for Set(s) of Tennis Sport 
@@ -136,18 +137,15 @@ BEGIN
         ,@isExistRunningCornerBet       BIT = 0
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
-        ,@strBettypes					VARCHAR(MAX)		
-        
-    CREATE TABLE #tmpTrans (transid BIGINT, refno BIGINT)--tickets of bettrade and refno for CashOut tickets
+        ,@strBettypes					VARCHAR(MAX)	
+		,@IsRefundHT					BIT	
+
+    --START Balance tables	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+		, @BalanceWalletAfter			TVP_BalanceWalletChange
+	--END Balance tables    
+    
     DECLARE @status TABLE (FTBet BIT, BetCount INT, InRunning INT)
-    
-    CREATE TABLE #BalanceBefore (custid INT PRIMARY KEY, balance MONEY)
-    CREATE TABLE #BalanceAfter (custid INT PRIMARY KEY, balance MONEY)    
-    CREATE TABLE #Balance (custid INT PRIMARY KEY, balance MONEY, Increased BIT)
-    CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-    
-    DECLARE @tblDebitPending TVP_BalanceList
-    DECLARE @tblCreditPending TVP_BalanceList
     
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
     
@@ -166,8 +164,11 @@ BEGIN
 											WHEN 'UNDO'	THEN 103
                                         END
 
+			,@IsRefundHT			= 0
+
     SELECT  @sporttype        = m.sporttype
             ,@goalrecord_old    = ISNULL(m.goalrecord, '')
+			,@IsRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
     FROM    dbo.match m WITH(NOLOCK)
     WHERE    m.matchid = @matchid
 
@@ -324,171 +325,25 @@ BEGIN
     ---------------------------VVVV------------------------------
     IF @SkipBalanceUpdate = 0
     BEGIN
-        IF @Action IN ('CAL', 'CAL-FT')
-        BEGIN
-            INSERT INTO #tmpTrans(transid)
-            SELECT ISNULL(co.transid, b.transid) AS transid
-            FROM dbo.bettrans b WITH(NOLOCK)
-				LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
-				ON b.matchid = co.matchid 
-					AND co.refno = b.transid 
-					AND co.bettype = 911 --CashOut tickets
-				
-            WHERE    b.matchid = @matchid 
-                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                    AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                    AND b.betdaqid = 0--bettrade and cashout tickets
-                    AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
+        INSERT INTO @BalanceWalletBefore (
+            matchid
+            , custid
+            , balanceType
+            , walletType
+            , bonusId
+            , balance
+        )
+        EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+            @MatchId 			= @matchId
+            , @sportType 	    = @sporttype
+            , @Action 			= @Action
+            , @Mode 			= 2 --@Mode Manual Settlement
+            , @TennisSet		= @SelectedSet
+            , @BAQuarter		= @SelectedQuarter
+			, @IsRefundHT		= @IsRefundHT
 
-            INSERT INTO #BalanceBefore
-            SELECT    b.custid
-                    ,SUM(b.winlost - b.actual_stake + b.playercomm)
-            FROM    dbo.bettrans b WITH (ROWLOCK)
-				LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-            WHERE    b.matchid = @matchid 
-                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                    AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                    AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming                    
-                    AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-                    AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-					AND 1 = CASE -- basketball
-								WHEN @SelectedQuarter IS NULL THEN 1
-								WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-								WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-								ELSE 0
-							END
-					AND 1 = CASE -- tennis
-								WHEN @SelectedSet IS NULL THEN 1
-								WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-								WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-									THEN CASE 
-											WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-											WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-											WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-											WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-											WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-										ELSE 0
-									END
-								ELSE 0
-							END
-            GROUP BY b.custid
+        SELECT @TotalAccount = @@ROWCOUNT
 
-            SET @TotalAccount = @@ROWCOUNT
-        END
-        ELSE IF @Action = 'CAL-HT'
-        BEGIN            
-            INSERT INTO #tmpTrans(transid)
-            SELECT ISNULL(co.transid, b.transid) AS transid
-            FROM dbo.bettrans b WITH(NOLOCK)
-				LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
-				ON b.matchid = co.matchid 
-					AND co.refno = b.transid 
-					AND co.bettype = 911 --CashOut tickets
-					
-            WHERE    b.matchid = @matchid 
-                    AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0
-					AND b.betdaqid = 0--bettrade and CashOut tickets
-
-            INSERT INTO #BalanceBefore
-            SELECT    b.custid
-                    ,SUM(b.winlost - b.actual_stake + b.playercomm)
-            FROM    dbo.bettrans b WITH (ROWLOCK)
-            WHERE    b.matchid = @matchid 
-                    AND (
-						CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0
-						OR 1 = CASE 
-                                --WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN (b.bettype BETWEEN 911 AND 914) THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-					)
-            GROUP BY b.custid
-
-            SET @TotalAccount = @@ROWCOUNT
-        END
-        ELSE IF @Action = 'UNDO'
-        BEGIN
-            INSERT INTO #tmpTrans(transid)
-            SELECT ISNULL(co.transid, b.transid) AS transid
-            FROM dbo.bettrans b WITH(NOLOCK)
-				LEFT JOIN dbo.bettrans co WITH(NOLOCK) 
-				ON b.matchid = co.matchid 
-					AND co.refno = b.transid 
-					AND co.bettype = 911 --CashOut tickets
-					
-            WHERE    b.matchid = @matchid
-                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                    AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-					AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-                    AND b.betdaqid = 0--bettrade tickets
-            
-            INSERT INTO #BalanceBefore
-            SELECT    b.custid
-                    ,SUM(b.winlost - b.actual_stake + b.playercomm)
-            FROM    dbo.bettrans b WITH (ROWLOCK)
-				LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-            WHERE    b.matchid = @matchid
-                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                    AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                    AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-                    AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-                    AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-					AND 1 = CASE -- basketball
-								WHEN @SelectedQuarter IS NULL THEN 1
-								WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-								WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-								ELSE 0
-							END
-					AND 1 = CASE -- tennis
-								WHEN @SelectedSet IS NULL THEN 1
-								WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-								WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-									THEN CASE 
-											WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-											WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-											WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-											WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-											WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-										ELSE 0
-									END
-								ELSE 0
-							END
-            GROUP BY b.custid
-            
-            SET @TotalAccount = @@ROWCOUNT
-        END
-                --===
     END --IF @SkipBalanceUpdate = 0
             --^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     BEGIN TRY
@@ -801,182 +656,29 @@ BEGIN
         -- Capture Balance incase of failure
         IF @SkipBalanceUpdate = 0
         BEGIN
-            IF @Action IN ('CAL', 'CAL-FT')
-            BEGIN
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)	
-					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-                WHERE    b.matchid = @matchid 
-                        AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                        AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                        AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-                        AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-                        AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						AND 1 = CASE -- basketball
-									WHEN @SelectedQuarter IS NULL THEN 1
-									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-									ELSE 0
-								END
-						AND 1 = CASE -- tennis
-									WHEN @SelectedSet IS NULL THEN 1
-									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-										THEN CASE 
-												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-											ELSE 0
-										END
-									ELSE 0
-								END
-                GROUP BY b.custid
-            END
-            ELSE IF @Action = 'CAL-HT'
-            BEGIN
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
-                WHERE    b.matchid = @matchid
-                        AND (
-							CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0
-							OR 1 = CASE 
-                                --WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN (b.bettype BETWEEN 911 AND 914) THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-						)
-						
-                GROUP BY b.custid
-            END
-            ELSE IF @Action = 'UNDO'
-            BEGIN
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
-					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-                WHERE    b.matchid = @matchid
-                        AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                        AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                        AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming 
-                        AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-                        AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						AND 1 = CASE -- basketball
-									WHEN @SelectedQuarter IS NULL THEN 1
-									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-									ELSE 0
-								END
-						AND 1 = CASE -- tennis
-									WHEN @SelectedSet IS NULL THEN 1
-									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-										THEN CASE 
-												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-											ELSE 0
-										END
-									ELSE 0
-								END
-                GROUP BY b.custid
-            END
+            INSERT INTO @BalanceWalletAfter (
+                matchid
+                , custid
+                , balanceType
+                , walletType
+                , bonusId
+                , balance
+            )
+            EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+                @MatchId 			= @matchId
+                , @sportType 	    = @sporttype
+                , @Action 			= @Action
+                , @Mode 			= 2 --@Mode Manual Settlement
+                , @TennisSet		= @SelectedSet
+                , @BAQuarter		= @SelectedQuarter
         END --IF @SkipBalanceUpdate = 0
         
-        -- Compare Balance
-        INSERT INTO #Balance
-        SELECT    b.custid
-                ,a.balance - b.balance
-                ,CASE 
-                    WHEN a.balance > b.balance THEN 1
-                    ELSE 0
-                    END
-        FROM    #BalanceBefore b
-            INNER JOIN #BalanceAfter a 
-                ON    b.custid = a.custid
-        WHERE    b.balance <> a.balance
-        
-        INSERT INTO @tblDebitPending (custID, balance)
-        SELECT    custid, ABS(balance)
-        FROM    #Balance
-        WHERE    Increased = 0
-        
-        IF @@rowcount <> 0
-            EXEC dbo.Dot_BalancePendingDebitIns 
-                @BalancePending = @tblDebitPending
-                ,@Type            = 1 -- Sports
-        
-        INSERT INTO @tblCreditPending (custID, balance)
-        SELECT    custid, balance
-        FROM    #Balance
-        WHERE    Increased = 1
-        
-        IF @@rowcount <> 0
-            EXEC dbo.Dot_BalancePendingCreditIns 
-                @BalancePending = @tblCreditPending
-                ,@Type            = 1 -- Sports
-                
-        -- Add Negative Balance into BalanceNegative table 
-        INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-                [ExecDate]
-                ,[MatchID]
-                ,[ActionID]
-                ,[GroupID]
-                ,[CustID]
-                ,[Balance]
-                ,[StatusID]
-                ,[Remark]
-            )
-        SELECT    GETDATE()
-                ,@MatchID
-                ,@ActionID
-                ,1 -- Sportsbook Single bet Settlement 
-                ,CustID
-                ,Balance
-                ,0
-                ,NULL
-        FROM    #Balance WITH(NOLOCK)
-        WHERE    Increased = 0
-				
+        -- Compare and update pending balance with error case
+        EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+            @BalanceWalletBefore	= @BalanceWalletBefore
+            , @BalanceWalletAfter	= @BalanceWalletAfter
+            , @ActionId				= @ActionID
+
         SELECT    @ErrCode = 1001017 
                 ,@ErrMsg = ERROR_MESSAGE()
         
@@ -989,196 +691,46 @@ BEGIN
 
     IF @SkipBalanceUpdate = 0
     BEGIN
-        IF @Action IN ('CAL', 'CAL-FT')
-            BEGIN
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
-					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-                WHERE    b.matchid = @matchid 
-                        AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                        AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                        AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-                        AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-                        AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						AND 1 = CASE -- basketball
-									WHEN @SelectedQuarter IS NULL THEN 1
-									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-									ELSE 0
-								END
-						AND 1 = CASE -- tennis
-									WHEN @SelectedSet IS NULL THEN 1
-									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-										THEN CASE 
-												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-											ELSE 0
-										END
-									ELSE 0
-								END
-                GROUP BY b.custid
-            END
-            ELSE IF @Action = 'CAL-HT'
-            BEGIN
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
-                WHERE   b.matchid = @matchid 
-						AND (
-							CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0
-							OR 1 = CASE 
-                                --WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN (b.bettype BETWEEN 911 AND 914) THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-                                ELSE 0 
-                            END
-						)
-                GROUP BY b.custid
-            END
-            ELSE IF @Action = 'UNDO'
-            BEGIN                
-                INSERT INTO #BalanceAfter
-                SELECT    b.custid
-                        ,SUM(b.winlost - b.actual_stake + b.playercomm)
-                FROM    dbo.bettrans b WITH (ROWLOCK)
-					LEFT JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-                WHERE    b.matchid = @matchid
-                        AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
-                        AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-                        AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-                        AND 1 = CASE 
-                                WHEN (b.bettype NOT BETWEEN 901 AND 920) THEN 1
-								WHEN (b.bettype IN(904,914)) THEN 1 --BT & CashOut WL sharing
-								WHEN (b.bettype BETWEEN 901 AND 904 AND b.refno IN (SELECT transid FROM #tmpTrans)) THEN 1 --BT transaction
-								WHEN b.bettype BETWEEN 911 AND 914 THEN --CashOut transaction
-									CASE
-										WHEN b.bettype = 911 AND b.transid IN (SELECT transid FROM #tmpTrans) THEN 1
-										WHEN b.bettype <> 911 AND b.refno IN (SELECT transid FROM #tmpTrans) THEN 1
-										ELSE 0
-									END
-									ELSE 0
-								END
-						AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-						AND 1 = CASE -- basketball
-									WHEN @SelectedQuarter IS NULL THEN 1
-									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, 2H, FT
-									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
-									ELSE 0
-								END
-						AND 1 = CASE -- tennis
-									WHEN @SelectedSet IS NULL THEN 1
-									WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-									WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-										THEN CASE 
-												WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-												WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-												WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-												WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-												WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-											ELSE 0
-										END
-                                ELSE 0 
-                            END
-                        
-                GROUP BY b.custid
-            END
+        INSERT INTO @BalanceWalletAfter (
+                matchid
+                , custid
+                , balanceType
+                , walletType
+                , bonusId
+                , balance
+        )
+        EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+            @MatchId 			= @matchId
+            , @sportType 	    = @sporttype
+            , @Action 			= @Action
+            , @Mode 			= 2 --@Mode Manual Settlement
+            , @TennisSet		= @SelectedSet
+            , @BAQuarter		= @SelectedQuarter
+			, @IsRefundHT		= @IsRefundHT
     END --IF @SkipBalanceUpdate = 0
 
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
     ---------------------------VVVV------------------------------
 
-    INSERT INTO #Balance
-    SELECT    b.custid
-            ,a.balance - b.balance
-            ,CASE 
-                WHEN a.balance > b.balance THEN 1
-                ELSE 0
-                END
-    FROM    #BalanceBefore b
-        INNER JOIN #BalanceAfter a 
-            ON    b.custid = a.custid
-    WHERE    b.balance <> a.balance
+    SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custid)
+    FROM @BalanceWalletAfter a
+        INNER JOIN @BalanceWalletBefore b 
+        ON     a.matchid            = b.matchid
+                AND a.custid        = b.custid
+                AND a.balanceType   = b.balanceType
+                AND a.walletType    = b.walletType
+                AND a.bonusId       = b.bonusId
+                
 
-    SET @TotalAccount_BalanceUpdate = @@ROWCOUNT
+    WHERE a.balance <> b.balance
 
-    INSERT INTO @tblDebitPending (custID, balance)
-    SELECT    custid, ABS(balance)
-    FROM    #Balance
-    WHERE    Increased = 0
-    
-    IF @@rowcount <> 0
-        EXEC dbo.Dot_BalancePendingDebitIns 
-            @BalancePending = @tblDebitPending
-            ,@Type            = 1 -- Sports
-    
-    INSERT INTO @tblCreditPending (custID, balance)
-    SELECT    custid, balance
-    FROM    #Balance
-    WHERE    Increased = 1
-    
-    IF @@rowcount <> 0
-        EXEC dbo.Dot_BalancePendingCreditIns 
-            @BalancePending = @tblCreditPending
-            ,@Type            = 1 -- Sports
-    ----
-    -- Add Negative Balance into BalanceNegative table 
-    ----
-    INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-        [ExecDate]
-        ,[MatchID]
-        ,[ActionID]
-        ,[GroupID]
-        ,[CustID]
-        ,[Balance]
-        ,[StatusID]
-        ,[Remark]
-        )
-    SELECT GETDATE()
-        ,@MatchID
-        ,@ActionID
-        ,1 -- Sportsbook Single bet Settlement 
-        ,CustID
-        ,Balance
-        ,0
-        ,NULL
-    FROM #Balance WITH(NOLOCK)
-    WHERE Increased = 0
+    -- Compare and update pending balance
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+		@BalanceWalletBefore	= @BalanceWalletBefore
+		, @BalanceWalletAfter	= @BalanceWalletAfter
+		, @ActionId				= @ActionID
 
-    ---------------------------------------------------
-    DROP TABLE #Balance
-
-    DROP TABLE #BalanceBefore
-
-    DROP TABLE #BalanceAfter
-    
-    DROP TABLE #tmpTrans
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
     ---------------------------VVVV------------------------------
