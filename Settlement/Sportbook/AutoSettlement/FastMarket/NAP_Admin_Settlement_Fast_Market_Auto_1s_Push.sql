@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
 	,@Action	VARCHAR(20)
 	,@Results	VARCHAR(MAX)
+	,@EventCounters VARCHAR(MAX) = NULL
 
 	,@IsAuto	BIT				= 0
 	,@AdminId	INT				= 0
@@ -20,15 +21,36 @@ AS
 			- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
 			- 20170123@Kathy: Checking auto settlement FM setting of match before settling  [Redmine:#69949]
 			- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
+			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 			
 	Param's Explanation:
-		- @Result = '<BetTypes>
+		- @Result: 
+			Format:	 '<BetTypes>
 							<BetType Id="">
 								<Item Position="" Result="" />
 								<Item Position="" Result="" />
 							</BetType>
 	
 						</BetTypes>'
+
+	    - @EventCounters: 221CNT02 - Goals
+						 221CNT03 - Corners
+						 221CNT04 - Free Kicks
+						 221CNT05 - Goal Kicks
+						 221CNT06 - Throw Ins
+						 221CNT08 - Penalties
+
+			Format:		'<EventCounters>
+								<EventCounter Id="221CNT02">
+									<Item Position="0" Result="2" />
+									<Item Position="1" Result="1" />
+								</EventCounter>
+								<EventCounter Id="221CNT03">
+									<Item Position="0" Result="4" />
+									<Item Position="1" Result="2" />
+								</EventCounter>
+								...
+							</EventCounters>'
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -42,6 +64,7 @@ BEGIN
 			,@rowcount		INT = 0
 			,@subErrMsg		VARCHAR(MAX) = ''
 			,@AutoSetting	TINYINT
+			,@xmlEventCounter	XML
 			
 	DECLARE @tblData TABLE (
 		bettype					SMALLINT
@@ -91,6 +114,7 @@ BEGIN
 	
 			
 	SET @xmlData = CONVERT(XML, @Results)
+	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
@@ -204,6 +228,24 @@ BEGIN
 					FOR XML PATH('b'), ROOT ('r'), TYPE
 				) AS VARCHAR(MAX))		
 	
+	;WITH cteEventCounter
+	AS (
+		SELECT T.C.value('@Id', 'VARCHAR(20)') AS 'Id'
+			,X.C.value('@Position','TINYINT') AS Position
+			,X.C.value('@Result','TINYINT') AS Result
+		FROM	@xmlEventCounter.nodes('/EventCounters/EventCounter') AS T(C)
+			CROSS APPLY C.nodes('Item') AS X(C)
+	)
+	SELECT @EventCounters = CAST((SELECT   Id '@Id'
+			,(	SELECT	Position AS '@p'
+						,Result AS '@r'
+				FROM	cteEventCounter 
+				WHERE	Id = c.Id 
+				FOR XML PATH('r'), TYPE)
+	FROM	cteEventCounter c
+	GROUP BY Id
+	FOR XML PATH('e'), ROOT('r'), TYPE)  AS VARCHAR(MAX))
+
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId = @MatchId
 		,@xmlData = @Results
 		,@Action = @Action
@@ -225,6 +267,10 @@ BEGIN
 			,@sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @Results = ''' + CONVERT(VARCHAR(MAX), @Results) + ''''
+															+ CASE 
+																WHEN @EventCounters IS NULL THEN ''
+																ELSE ', @EventCounters = ''' + @EventCounters + '''' 
+															END
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 															+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''

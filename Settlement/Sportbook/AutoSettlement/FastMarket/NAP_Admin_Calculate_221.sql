@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Calculate_221 @matchid INT
 	, @result VARCHAR(MAX)
 	, @action VARCHAR(20)
@@ -17,6 +11,7 @@ AS
 
     Revisions:
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
+		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 
     Param's Explanation:
 
@@ -70,29 +65,29 @@ BEGIN
 							ELSE 1 END
 	        
 			, WinLost = CASE 
-				WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END)
-				WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * 0.5
+				WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END)
+				WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * 0.5
 				WHEN @modds = 0 THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
 				WHEN @modds < -0.25 THEN 0
 			END
 			, aWinLost = CASE 
-				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -apositiontaking
-				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
+				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -apositiontaking
+				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -apositiontaking * 0.5
 				WHEN @modds = 0 THEN 0
 				WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
 				WHEN @modds < -0.25 THEN actual_stake * apositiontaking
 			END
 			, mWinLost = CASE
-				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -mpositiontaking
-				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
+				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -mpositiontaking
+				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -mpositiontaking * 0.5
 				WHEN @modds = 0 THEN 0
 				WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
 				WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
 				END
 			, sWinLost = CASE
-				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -spositiontaking
-				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (221,222,223,224,225) THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
+				WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -spositiontaking
+				WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE odds - 1 END) * -spositiontaking * 0.5
 				WHEN @modds = 0 THEN 0
 				WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
 				WHEN @modds < -0.25 THEN actual_stake * spositiontaking
@@ -180,4 +175,3 @@ BEGIN
 	END
 END
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_221] TO [vnteam] AS [dbo]
