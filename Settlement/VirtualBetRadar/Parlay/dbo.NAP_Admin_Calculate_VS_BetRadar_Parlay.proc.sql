@@ -21,6 +21,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		- 20170829@Kathy: Change datatype of bettransm.TransId, sporttype [Redmine:#73545]
+		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
 		
 	Param's Explanation:
 		• @Mode:
@@ -37,6 +38,7 @@ BEGIN
 		  , @xmlTicket		XML
 	DECLARE @IgnoreList 	VARCHAR(200)
 	DECLARE @tempRefno 		TABLE (refno BIGINT)
+	DECLARE @ResourceResult	VARCHAR(200) = ''
 	
 	CREATE TABLE #tblTicketInfos (matchid int, transid BIGINT)
 	
@@ -49,6 +51,7 @@ BEGIN
 		, hta 			INT
 		, sporttype 	SMALLINT
 		, matchdate 	SMALLDATETIME
+		, ResourceResult VARCHAR(MAX)
 	)
 	
 	CREATE TABLE #TempData (
@@ -61,7 +64,17 @@ BEGIN
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'
-		
+	
+	IF @SportType = 193
+	BEGIN
+		SELECT	 @ResourceResult = @ResourceResult + RIGHT(ResourceID,2) + Custom1 + ',' 
+		FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH (NOLOCK)
+		WHERE	MatchID = @MatchID 
+			AND SettlementStatusID = 4
+			AND ResourceID LIKE '2809__'
+		OPTION (maxrecursion 0)
+	END		
+	
 	IF @mode = 'CAL'
 	BEGIN
 		--CONVERT refno
@@ -74,48 +87,99 @@ BEGIN
 
 		IF @@ROWCOUNT = 0 RETURN
 
-		--SELECT perlay tickets
-		INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
-		SELECT bm.transid
-			, CASE 
-					WHEN ods.modds > 0.25 THEN 2 -- WON
-					WHEN ods.modds = 0.25 THEN 1 -- Half WON
-					WHEN ods.modds = 0 THEN 0 -- DRAW
-					WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
-					WHEN ods.modds < -0.25 THEN 4 -- LOSE
-					ELSE bm.statuswinlost
-				END AS statuswinlost
-			, CASE 
-					WHEN ods.modds = 0 THEN 111 --DRAW
-					WHEN ods.modds > 0 THEN 112 --WON
-					WHEN ods.modds < 0 THEN 113 --LOSE
-					ELSE bm.statusID
-				END AS statusID	
-			, @matchdate							
-		FROM dbo.bettransm bm WITH(ROWLOCK)
-			INNER JOIN @tempRefno temp 
-				ON bm.refno = temp.refno
-			INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
-				ON bm.bettype = f.bettype
-			OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds] (
-				bm.bettype 			
-				, bm.betteam 			
-				, bm.hdp1 			
-				, bm.hdp2 			
-				, bm.livehomescore	
-				, bm.liveawayscore	
-				, @fth				
-				, @fta				
-				, @hth				
-				, @hta
-				, f.CalMode
-				, bm.transdesc
-			) AS ods
-		WHERE bm.matchid = @MatchId
-		  AND f.SportType = @SportType
-		  AND bm.statusID NOT IN (101,102) --void/reject
+		IF @SportType = 193 -- BASKETBALL
+		BEGIN
+			--SELECT perlay tickets
+			INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
+			SELECT bm.transid
+				, CASE 
+						WHEN ods.modds > 0.25 THEN 2 -- WON
+						WHEN ods.modds = 0.25 THEN 1 -- Half WON
+						WHEN ods.modds = 0 THEN 0 -- DRAW
+						WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
+						WHEN ods.modds < -0.25 THEN 4 -- LOSE
+						ELSE bm.statuswinlost
+					END AS statuswinlost
+				, CASE 
+						WHEN ods.modds = 0 THEN 111 --DRAW
+						WHEN ods.modds > 0 THEN 112 --WON
+						WHEN ods.modds < 0 THEN 113 --LOSE
+						ELSE bm.statusID
+					END AS statusID	
+				, @matchdate							
+			FROM dbo.bettransm bm WITH(ROWLOCK)
+				INNER JOIN @tempRefno temp 
+					ON bm.refno = temp.refno
+				INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+					ON bm.bettype = f.bettype
+				OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds_193] (
+					bm.bettype 			
+					, bm.betteam 			
+					, bm.hdp1 			
+					, bm.hdp2 			
+					, bm.livehomescore	
+					, bm.liveawayscore	
+					, @fth				
+					, @fta				
+					, @hth				
+					, @hta
+					, f.CalMode
+					, bm.betcheck
+					, @ResourceResult
+				) AS ods
+			WHERE bm.matchid = @MatchId
+			  AND f.SportType = @SportType
+			  AND bm.statusID NOT IN (101,102) --void/reject
 		  
-		IF @@ROWCOUNT = 0 RETURN		
+		   IF @@ROWCOUNT = 0 RETURN	
+			
+		END
+		ELSE -- SOCCER
+		BEGIN
+			--SELECT perlay tickets
+			INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
+			SELECT bm.transid
+				, CASE 
+						WHEN ods.modds > 0.25 THEN 2 -- WON
+						WHEN ods.modds = 0.25 THEN 1 -- Half WON
+						WHEN ods.modds = 0 THEN 0 -- DRAW
+						WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
+						WHEN ods.modds < -0.25 THEN 4 -- LOSE
+						ELSE bm.statuswinlost
+					END AS statuswinlost
+				, CASE 
+						WHEN ods.modds = 0 THEN 111 --DRAW
+						WHEN ods.modds > 0 THEN 112 --WON
+						WHEN ods.modds < 0 THEN 113 --LOSE
+						ELSE bm.statusID
+					END AS statusID	
+				, @matchdate							
+			FROM dbo.bettransm bm WITH(ROWLOCK)
+				INNER JOIN @tempRefno temp 
+					ON bm.refno = temp.refno
+				INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+					ON bm.bettype = f.bettype
+				OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds] (
+					bm.bettype 			
+					, bm.betteam 			
+					, bm.hdp1 			
+					, bm.hdp2 			
+					, bm.livehomescore	
+					, bm.liveawayscore	
+					, @fth				
+					, @fta				
+					, @hth				
+					, @hta
+					, f.CalMode
+					, bm.transdesc
+				) AS ods
+			WHERE bm.matchid = @MatchId
+			  AND f.SportType = @SportType
+			  AND bm.statusID NOT IN (101,102) --void/reject
+			
+			IF @@ROWCOUNT = 0 RETURN	  
+		END  
+			
 	END	
 	ELSE IF @Mode = 'RECOVER'
 	BEGIN
@@ -129,9 +193,8 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xmlTicket = NULL ))
 
 		IF @@ROWCOUNT = 0 RETURN
-
 		-- build match list
-		INSERT INTO #tblMatchResult(matchid, fth, fta, hth, hta, sporttype, matchdate)
+		INSERT INTO #tblMatchResult(matchid, fth, fta, hth, hta, sporttype, matchdate,ResourceResult)
 		SELECT matchid
 			, FinalHomeScore
 			, FinalAwayScore
@@ -139,9 +202,20 @@ BEGIN
 			, HTAwayScore
 			, sporttype
 			, eventdate
-		FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
+			, STUFF(Result.ResouceResult,1,1,'') AS ResouceResult
+		FROM DBPRO.BODB02.dbo.Match m WITH (NOLOCK)
+			OUTER APPLY (SELECT  ',' + RIGHT(ResourceID,2) + Custom1 
+							FROM	DBPRO.bodb02.dbo.ResultDetail3rd m1 WITH (NOLOCK)
+							WHERE	m1.MatchID = m.matchid 
+									AND m1.SettlementStatusID = 4
+									AND m1.ResourceId LIKE '2809__'
+									AND m.sporttype = 193
+							FOR XML PATH ('')		
+							) AS Result (ResouceResult)
+							
 		WHERE matchid IN (SELECT DISTINCT matchid FROM #tblTicketInfos)
-	
+			
+
 		IF @@ROWCOUNT = 0 RETURN
 
 		--SELECT perlay tickets
@@ -185,8 +259,57 @@ BEGIN
 				, bm.transdesc
 			) AS ods
 		WHERE bm.statusID NOT IN (101,102) --void/reject	
+			AND mr.sporttype IN (190,191,192)
+			
+		IF EXISTS (SELECT 1 FROM #tblMatchResult WHERE sporttype = 193 )
+		BEGIN
+			--SELECT perlay tickets
+			INSERT INTO #TempData(transid, statuswinlost, statusID, matchdate)
+			SELECT bm.transid
+				, CASE 
+						WHEN ods.modds > 0.25 THEN 2 -- WON
+						WHEN ods.modds = 0.25 THEN 1 -- Half WON
+						WHEN ods.modds = 0 THEN 0 -- DRAW
+						WHEN ods.modds = -0.25 THEN 3 -- Half LOSE
+						WHEN ods.modds < -0.25 THEN 4 -- LOSE
+						ELSE bm.statuswinlost
+					END AS statuswinlost
+				, CASE 
+						WHEN ods.modds = 0 THEN 111 --DRAW
+						WHEN ods.modds > 0 THEN 112 --WON
+						WHEN ods.modds < 0 THEN 113 --LOSE
+						ELSE bm.statusID
+					END AS statusID	
+				, mr.matchdate							
+			FROM dbo.bettransm bm WITH(ROWLOCK)
+				INNER JOIN #tblTicketInfos temp 
+					ON bm.transid = temp.transid
+				INNER JOIN #tblMatchResult mr 
+					ON bm.matchid = mr.matchid
+				INNER JOIN dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+					ON bm.bettype = f.bettype
+					   AND mr.sporttype = f.SportType
+				OUTER APPLY [dbo].[f_Set_VS_BetRadar_CalModds_193] (
+					bm.bettype 			
+					, bm.betteam 			
+					, bm.hdp1 			
+					, bm.hdp2 			
+					, bm.livehomescore	
+					, bm.liveawayscore	
+					, mr.fth				
+					, mr.fta				
+					, mr.hth				
+					, mr.hta
+					, f.CalMode
+					, bm.betcheck
+					, mr.ResourceResult
+				) AS ods
+			WHERE bm.statusID NOT IN (101,102) --void/reject	
+				AND mr.sporttype = 193
+		END
 		
-		IF @@ROWCOUNT = 0 RETURN		
+		IF NOT EXISTS (SELECT TOP 1 1 FROM #TempData)
+			RETURN
 	END
 	ELSE
 		RETURN

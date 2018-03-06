@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Sel]
 	@SubTransIds	 VARCHAR(MAX),
-	
 	@InvalidTransIds VARCHAR(MAX) = '' OUTPUT
 AS
 /*  
@@ -13,7 +12,8 @@ AS
 
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
-
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
 */
@@ -238,7 +238,8 @@ BEGIN
 		   ,t.SubHdp1
 		   ,t.SubHdp2
 		   ,t.SubOdds	
-		   ,t.SubTransdesc	   
+		   ,t.SubTransdesc	
+		   ,m.matchcode   
 	FROM #tmpResult t					
 		 INNER JOIN match m WITH (NOLOCK)
 				 ON t.matchid = m.matchid		
