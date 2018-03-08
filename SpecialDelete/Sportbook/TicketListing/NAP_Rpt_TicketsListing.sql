@@ -45,6 +45,7 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -200,14 +201,6 @@ BEGIN
 
 		RETURN
 	END
-	ELSE
-		SELECT @matchcode	AS matchcode
-			,@homeid		AS homeid
-			,@awayid		AS awayid
-			,convert(VARCHAR(12), @eventdate, 107) AS eventdate
-			,@MatchId		AS matchid
-			,@IsNeutral		AS IsNeutral
-			,@showtime		AS showtime
 
 	---------
 	DECLARE @TmpTotal TABLE (
