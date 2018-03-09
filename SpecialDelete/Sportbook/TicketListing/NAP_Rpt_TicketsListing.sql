@@ -15,8 +15,6 @@ ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListing]
 	,@Type				SMALLINT 		= 0
 	,@SecondAcceptFlag	TINYINT			= 0
 	,@BallSequence		VARCHAR(200)	= ''
-	,@ErrCode			INT				= 0 OUTPUT
-	,@ErrMsg			VARCHAR(1000)	= '' OUTPUT
 WITH RECOMPILE
 AS
 /*	Created by: Elodie
