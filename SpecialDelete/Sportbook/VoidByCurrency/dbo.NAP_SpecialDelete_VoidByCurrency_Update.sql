@@ -31,6 +31,7 @@ AS
 		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -2050,6 +2051,7 @@ BEGIN
 				s.betdaqid,
 				s.ExtraInfo,
 				s.MainCashoutId,
+				s.RefCode,
 				
 				s.SubTransId,
 				s.SubBetCheck,

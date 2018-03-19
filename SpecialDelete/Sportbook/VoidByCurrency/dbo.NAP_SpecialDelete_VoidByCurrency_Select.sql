@@ -17,6 +17,8 @@ AS
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
+		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -978,6 +980,7 @@ BEGIN
 		s.MainCashoutId,
 		s.WalletType,			
 		s.MainTransId,		
+		s.RefCode,
 		
 		s.SubTransId,
 		s.SubBetCheck,

@@ -45,6 +45,8 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -1304,7 +1306,8 @@ BEGIN
 			MOdds,
 			BallSequence,
 			WalletType,			
-			
+			RefCode,
+
 			SubTransID,
 			SubBetType,
 			SubHomeID,
