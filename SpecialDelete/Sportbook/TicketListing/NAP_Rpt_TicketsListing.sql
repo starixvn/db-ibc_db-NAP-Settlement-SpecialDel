@@ -44,6 +44,7 @@ AS
 		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
+		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -54,6 +55,8 @@ AS
 		4: Metric Gaming Super Live
 		5: Virtual sports betradar
 		6: Lucky 3
+		7: Bull fighting
+		
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -98,15 +101,38 @@ BEGIN
 		SELECT @LiveType = 2
 
 	----Show match description
+	;WITH T_MatchInfo AS
+	(
+		SELECT matchcode
+			 , homeid
+			 , awayid
+			 , eventdate
+			 , IsNeutral
+			 , sporttype
+			 , showtime
+		FROM match WITH (NOLOCK)
+		WHERE matchid = @MatchId
+		  AND @Type <> 7
+		UNION All
+		SELECT NULL AS matchcode
+		     , homeid
+			 , awayid
+			 , eventdate
+			 , NULL AS IsNeutral
+			 , sporttype
+			 , NULL AS showtime
+		FROM match3rd WITH (NOLOCK)
+		WHERE match3rdid = @MatchId
+		  AND @Type = 7
+	)	  
 	SELECT @matchcode	= matchcode
-		,@homeid 		= homeid
-		,@awayid 		= awayid
-		,@eventdate 	= eventdate
-		,@IsNeutral 	= IsNeutral
-		,@sporttype 	= sporttype
-		,@showtime		= showtime
-	FROM match WITH (NOLOCK)
-	WHERE matchid = @MatchId
+		 , @homeid 		= homeid
+		 , @awayid 		= awayid
+		 , @eventdate 	= eventdate
+		 , @IsNeutral 	= IsNeutral
+		 , @sporttype 	= sporttype
+		 , @showtime	= showtime
+	FROM T_MatchInfo
 
 	IF ISNULL(@sporttype, 0) = 0 
 	   OR ( 
@@ -117,6 +143,7 @@ BEGIN
 			AND @sporttype NOT BETWEEN 180 AND 186
 			AND @sporttype NOT BETWEEN 190 AND 199
 			AND @sporttype <> 160
+			AND @sporttype <> 207
 		  )
 	BEGIN
 		SET @ErrCode = 1
@@ -162,6 +189,14 @@ BEGIN
 	BEGIN
 		SET @ErrCode = 6
 		SET @ErrMsg = 'This MatchID is not Lucky 3.'
+
+		RETURN
+	END
+	ELSE IF @sporttype <> 207
+		AND @Type = 7
+	BEGIN
+		SET @ErrCode = 7
+		SET @ErrMsg = 'This MatchID is not Bull Fighting.'
 
 		RETURN
 	END
@@ -365,7 +400,7 @@ BEGIN
 			LEFT JOIN bettrans b WITH(NOLOCK) ON bl.gameid = b.bettype AND b.matchid = bl.eventid AND b.custid = bl.Custid AND bl.translogid = b.refno
 		WHERE EventID = @MatchId
 			AND GameID IN (
-						801,803,804,805,806 -- MEtric Gaming SUper Live
+							801,803,804,805,806,1004 -- MEtric Gaming SUper Live -- MEtric Gaming SUper Live
 						)
 			AND bl.statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpBettypes t WHERE t.bettype = bl.gameID)

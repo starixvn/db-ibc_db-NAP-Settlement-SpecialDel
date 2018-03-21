@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_CustNegativeBalance_Sel]     Script Date: 10/20/2016 17:53:17 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_CustNegativeBalance_Sel] 	
 	@CustIds			  VARCHAR(MAX)	= '',
     @NegativeBalanceUsers VARCHAR(MAX) OUTPUT
@@ -16,6 +10,7 @@ AS
 
 	Revisions: 		
 		- 20161026@Kent: Check negative balance after recovering voided Parlay tickets [Redmine:#65531]
+		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -49,7 +44,7 @@ BEGIN
 		SELECT	tl.custid, tl.Username, 0, tl.actual_stake, 0
 		FROM	dbo.translog tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @CustList)
-				AND tl.statusID = 0	
+				AND tl.statusID IN (0, 1)	
 		UNION ALL
 		SELECT	custid, Username, winlost, actual_stake ,playercomm
 		FROM	dbo.bettransRnG WITH(NOLOCK)
@@ -85,11 +80,6 @@ BEGIN
 		LEFT JOIN @BalNetPositionTmp tt ON bal.CustId = tt.CustId
 	WHERE (c.credit + bal.balance + ISNULL(tt.Balance, 0)) < 0	
 END
-GO
-
-GRANT EXECUTE ON [dbo].[NAP_CustNegativeBalance_Sel]  TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_CustNegativeBalance_Sel]  TO [vnteam] AS [dbo]
 GO
 
 

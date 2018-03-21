@@ -39,6 +39,7 @@ AS
 		- 20170725@Paul: Return CurrencyName [Redmine:#77175]
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]	
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]	
+		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -1107,6 +1108,7 @@ BEGIN
 	    ,d.MainTransId
 	    ,FollowInfo.transid AS followedId
 		,FollowInfo.Username AS followedUsername
+		,d.RefCode
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g
 		ON d.custid = g.custid
