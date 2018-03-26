@@ -1,7 +1,9 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_MatchInfo_Select] 
 	@matchID INT = 0,
-	@transid BIGINT = 0,	
+	@transid BIGINT = 0,
+	@Type INT = 0,
+	@IsMatch3rd BIT = 0,	
 	@Language VARCHAR(2) = 'E'
 AS
 /*
@@ -36,19 +38,40 @@ BEGIN
 		FROM dbo.Outright AS MATCH WITH (NOLOCK)
 		WHERE MATCH.orid = @matchID
 	ELSE
-		SELECT 
-				match.matchid,
-				match.homeid,
-				match.awayid,
-				match.matchcode, 
-				match.eventdate, 
-				match.leagueid,
-				isnull(match.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-				showtime,
-				match.kickofftime,
-				match.sporttype
-			FROM dbo.match AS match WITH (NOLOCK) 
-			WHERE match.matchid = @matchID
+	BEGIN
+		IF @IsMatch3rd = 1
+		BEGIN
+			SELECT 
+					match.Match3rdId AS matchid,
+					match.homeid,
+					match.awayid,
+					NULL AS matchcode, 
+					match.eventdate, 
+					match.League3rdId leagueid,
+					NULL AS IsNeutral,
+					NULL AS showtime,
+					NULL AS kickofftime,
+					match.sporttype
+				FROM dbo.Match3rd AS match WITH (NOLOCK) 
+				WHERE match.Match3rdId = @matchID
+		END
+		ELSE
+		BEGIN
+			SELECT 
+					match.matchid,
+					match.homeid,
+					match.awayid,
+					match.matchcode, 
+					match.eventdate, 
+					match.leagueid,
+					isnull(match.isNeutral, CONVERT(BIT,0)) as IsNeutral,
+					showtime,
+					match.kickofftime,
+					match.sporttype
+				FROM dbo.match AS match WITH (NOLOCK) 
+				WHERE match.matchid = @matchID
+		END		
+	END		
 
 END
 GO
