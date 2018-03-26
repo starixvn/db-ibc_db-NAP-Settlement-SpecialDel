@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_MatchInfo_Select] 
 	@matchID INT = 0,
 	@transid BIGINT = 0,
-	@Type INT = 0,
 	@IsMatch3rd BIT = 0,	
 	@Language VARCHAR(2) = 'E'
 AS
