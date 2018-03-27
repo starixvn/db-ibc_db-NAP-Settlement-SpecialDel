@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_801]
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_801]
 	@matchid				INT,
 	@bettype				INT,
 	@bettypeTime			VARCHAR(100)	= '',
@@ -1172,18 +1173,8 @@ BEGIN
 		DROP TABLE #tmpTransUnc
 	END
 END
-
-
-
-
-
-
-
-
-
-
-
 GO
 GRANT EXECUTE ON [dbo].[NAP_Admin_Calculate_801] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_801] TO [vnteam] AS [dbo]
+GO
