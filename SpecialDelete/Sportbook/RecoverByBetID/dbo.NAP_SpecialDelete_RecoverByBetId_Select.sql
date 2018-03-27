@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20170720@Paul: Create new [RedmineID: #77175]
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 
 */
 
@@ -41,7 +42,7 @@ BEGIN
 		livehomescore	SMALLINT,
 		liveawayscore	SMALLINT,
 		betid			BIGINT,
-		transdesc		NVARCHAR(300),
+		transdesc		NVARCHAR(1000),
 		sporttype		SMALLINT,
 		homeid			INT,
 		awayid			INT,

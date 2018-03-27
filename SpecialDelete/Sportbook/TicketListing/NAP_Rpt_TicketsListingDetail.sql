@@ -46,7 +46,7 @@ AS
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
-
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -146,7 +146,7 @@ BEGIN
 		IsParlay BIT,
 		SecAcceptFlag BIT,		
 		refno BIGINT,
-		TransDesc NVARCHAR(300),
+		TransDesc NVARCHAR(1000),
 		SportType SMALLINT,
 		MOdds SMALLMONEY,
 		BallSequence TINYINT,	
@@ -171,7 +171,7 @@ BEGIN
 		SubLiveIndicator BIT  ,
 		SubLeagueId INT  ,
 		SubSportType SMALLINT,         
-		SubTransDesc NVARCHAR(300)
+		SubTransDesc NVARCHAR(1000)
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (

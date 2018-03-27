@@ -17,6 +17,7 @@ AS
 	Revisions: 		
 		- 20161011@Kent: Select main voided Parlay tickets [Redmine:#65531]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 
 	Param's Explanation:			
 			- @BetType:
@@ -50,7 +51,7 @@ BEGIN
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY						
 		,betcheck				NVARCHAR(50)
-		,transdesc				NVARCHAR(200)
+		,transdesc				NVARCHAR(1000)
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @before_yesterday DATETIME	

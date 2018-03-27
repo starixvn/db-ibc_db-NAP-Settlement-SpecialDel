@@ -35,7 +35,8 @@ AS
 		- 20170814@Paul: Create new SP; Allow voiding settled tickets [Redmine:#81481]
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
-
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		
 	 Param's Explanation:   
 		@BetTypes : 
 		'<BetTypes>
@@ -88,7 +89,7 @@ BEGIN
 		  org_betteam	NVARCHAR(10),   
 		  statusID		INT,    
 		  betcheck		NVARCHAR(50),  
-		  transdesc		NVARCHAR(200),  
+		  transdesc		NVARCHAR(1000),  
 		  creator		INT,      
 		  mainbettype	SMALLINT,  
 		  maintransid	BIGINT  ,

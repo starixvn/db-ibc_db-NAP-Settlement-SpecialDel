@@ -19,6 +19,8 @@ AS
 		Revisions:
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
 			- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
+			- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+			
 		Parameter's Explanation:
 		* @Result = <Result>
 						<Row GameResult="7" OtherInfo="6:10"/>
@@ -90,7 +92,7 @@ BEGIN
 					[statusID] [tinyint] ,
 					[balance] [money] ,
 					[Username] [nvarchar](50) ,
-					[transdesc] [nvarchar](300) ,
+					[transdesc] [nvarchar](1000) ,
 					[productID] [int] ,
 					[gameID] [int] ,
 					[eventID] [int] ,

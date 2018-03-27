@@ -32,6 +32,7 @@ AS
 			  - 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 			  - 20160401@Bobby: #55354 - Update changes for new message structure
 			  - 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+			  - 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 			  
 	Param's Explanation:
 
@@ -96,7 +97,7 @@ BEGIN
 		Stake				MONEY,
 		CurrencyName		VARCHAR(10),
 		betid				BIGINT,
-		transdesc			NVARCHAR(300),
+		transdesc			NVARCHAR(1000),
 		creatorName			VARCHAR(30),
 		site				VARCHAR(10),
 		username2			VARCHAR(50)

@@ -20,6 +20,7 @@ AS
 		- 20161019@Kent: Recover sub voided Parlay tickets [Redmine:#65531]
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 	
 	Param's Explanation:			
 			- @BetType:
@@ -55,7 +56,7 @@ BEGIN
 		,SubHdp1				SMALLMONEY   
 		,SubHdp2				SMALLMONEY
 		,matchid				INT	
-		,SubTransDesc			NVARCHAR(200)
+		,SubTransDesc			NVARCHAR(1000)
 		,SubLivehomescore		SMALLINT 
 		,SubLiveawayscore		SMALLINT 
 		,SubLiveindicator		BIT
