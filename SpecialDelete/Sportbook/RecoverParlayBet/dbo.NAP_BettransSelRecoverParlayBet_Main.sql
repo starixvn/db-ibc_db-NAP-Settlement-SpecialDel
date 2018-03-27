@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_BettransSelRecoverParlayBet_Main]     Script Date: 10/11/2016 11:30:25 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
 	@BetType		VARCHAR(20) = 'all'
 	,@TransIds		VARCHAR(MAX)	= ''
@@ -188,4 +182,4 @@ GO
 GRANT EXECUTE ON [dbo].[NAP_BettransSelRecoverParlayBet_Main] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_BettransSelRecoverParlayBet_Main] TO [vnteam] AS [dbo]
-
+GO

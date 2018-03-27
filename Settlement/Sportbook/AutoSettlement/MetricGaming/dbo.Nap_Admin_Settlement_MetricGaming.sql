@@ -22,7 +22,7 @@ AS
 		
 		Revisions:
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
-			- 20180327@Helen:  Add deployment info in the first of SP
+			- 20180327@Helen:  Add deployment info in the first of SP [Redmine: #92810]
 			
 		Parameter's Explantion:
 			-@Result = <Result>

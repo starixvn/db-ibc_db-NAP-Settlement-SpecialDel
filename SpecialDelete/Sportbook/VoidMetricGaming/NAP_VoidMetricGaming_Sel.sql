@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Sel]
 	@MatchId			INT,
 	@BetTypes			VARCHAR(1000)	= '',		
@@ -242,10 +243,9 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 
 	SET NOCOUNT OFF
-/*
-*/
 END
 GO
 GRANT EXECUTE ON [dbo].[NAP_VoidMetricGaming_Sel] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_VoidMetricGaming_Sel] TO [vnteam] AS [dbo]
+GO

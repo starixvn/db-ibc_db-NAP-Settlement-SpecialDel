@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Del]
 	@MatchId			INT,
 	@BetTypes			VARCHAR(1000)	= '',		
@@ -816,3 +817,4 @@ GO
 GRANT EXECUTE ON [dbo].[NAP_VoidMetricGaming_Del] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_VoidMetricGaming_Del] TO [vnteam] AS [dbo]
+GO
