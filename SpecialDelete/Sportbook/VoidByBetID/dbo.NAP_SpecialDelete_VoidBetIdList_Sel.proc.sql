@@ -40,6 +40,7 @@ AS
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]	
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]	
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -106,7 +107,7 @@ BEGIN
 		,commission		MONEY
 		,showtime		NVARCHAR(50)
 		,winlostdate	SMALLDATETIME
-		,TransDesc		NVARCHAR(300)
+		,TransDesc		NVARCHAR(1000)
 		,betdaqid		BIGINT
 		,SoldId			BIGINT
 		,recommend		INT

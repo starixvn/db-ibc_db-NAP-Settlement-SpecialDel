@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_801]
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_801]
 	@matchid				INT,
 	@bettype				INT,
 	@bettypeTime			VARCHAR(100)	= '',
@@ -19,6 +20,8 @@ AS
 		Revisions:
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
 			- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
+			- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+			
 		Parameter's Explanation:
 		* @Result = <Result>
 						<Row GameResult="7" OtherInfo="6:10"/>
@@ -90,7 +93,7 @@ BEGIN
 					[statusID] [tinyint] ,
 					[balance] [money] ,
 					[Username] [nvarchar](50) ,
-					[transdesc] [nvarchar](300) ,
+					[transdesc] [nvarchar](1000) ,
 					[productID] [int] ,
 					[gameID] [int] ,
 					[eventID] [int] ,
@@ -1170,18 +1173,8 @@ BEGIN
 		DROP TABLE #tmpTransUnc
 	END
 END
-
-
-
-
-
-
-
-
-
-
-
 GO
 GRANT EXECUTE ON [dbo].[NAP_Admin_Calculate_801] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_801] TO [vnteam] AS [dbo]
+GO

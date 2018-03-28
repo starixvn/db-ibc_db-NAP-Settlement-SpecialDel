@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Sel]
 	@MatchId			INT,
 	@BetTypes			VARCHAR(1000)	= '',		
@@ -18,7 +19,8 @@ BEGIN
 		- 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 		- 20160401@Bobby: #55354 - Update changes for new message structure
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
-	
+		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		
 	Explanation's Param:
 
 
@@ -50,7 +52,7 @@ BEGIN
 		recommend			INT, 
 		SecAcceptFlag		BIT,
 		betid				BIGINT,
-		transdesc			NVARCHAR(300)
+		transdesc			NVARCHAR(1000)
 	)
 	DECLARE @Event801Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event801Tbl(Custom1)
@@ -241,10 +243,9 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 
 	SET NOCOUNT OFF
-/*
-*/
 END
 GO
 GRANT EXECUTE ON [dbo].[NAP_VoidMetricGaming_Sel] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_VoidMetricGaming_Sel] TO [vnteam] AS [dbo]
+GO

@@ -1,5 +1,4 @@
-USE [bodb02]
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MetricGaming] 
 	@MatchId					INT
 	,@Bettype					INT
@@ -23,6 +22,8 @@ AS
 		
 		Revisions:
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
+			- 20180327@Helen:  Add deployment info in the first of SP [Redmine: #92810]
+			
 		Parameter's Explantion:
 			-@Result = <Result>
 							<Row GameResult="7" OtherInfo="6:10"/>
@@ -431,9 +432,8 @@ BEGIN
 
 END
 
-
-
 GO
 GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_MetricGaming] TO [bodbAdminNet] AS [dbo]
 GO
 GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_MetricGaming] TO [vnteam] AS [dbo]
+GO
