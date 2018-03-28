@@ -46,7 +46,9 @@ AS
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -130,6 +132,7 @@ BEGIN
 		hdp1 SMALLMONEY, 
 		hdp2 SMALLMONEY,
 		odds MONEY,
+		oddsspread MONEY,
 		status NVARCHAR(10),
 		stake MONEY,
 		transdate DATETIME, 
@@ -203,7 +206,7 @@ BEGIN
 		BEGIN
 			IF @Type = 1 -- Number Game
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -219,6 +222,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END  as status,
@@ -283,7 +287,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -299,6 +303,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END  as status,
@@ -375,6 +380,7 @@ BEGIN
 						0 AS hdp1, 
 						0 as hdp2, 
 						b.odds,
+						0 AS oddsspread,
 						b.status,
 						b.stake,
 						b.transdate,		
@@ -446,7 +452,7 @@ BEGIN
 		BEGIN
 			IF @Type = 1 -- Number Game
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -462,6 +468,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END as status,
@@ -531,7 +538,7 @@ BEGIN
 			ELSE
 			BEGIN
 				
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -547,6 +554,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END as status,
@@ -623,6 +631,7 @@ BEGIN
 						0 as hdp1, 
 						0 as hdp2, 
 						b.odds,
+						0 AS oddsspread,
 						b.status,
 						b.stake,
 						b.transdate,		
@@ -695,7 +704,7 @@ BEGIN
 		BEGIN 
 			IF @Type = 1 -- Number Game
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence,SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -711,6 +720,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END  as status,
@@ -775,7 +785,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,OriginalBetType,ExtraInfo,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, SubTransID,SubBetType,SubHomeID,SubAwayID,SubHdp1,SubHdp2
 											,SubOdds,SubStake,SubBetTeam,SubBetCheck,SubLiveHomeScore,SubLiveAwayScore,SubLiveIndicator,SubLeagueId,SubSportType,SubTransDesc)
@@ -791,6 +801,7 @@ BEGIN
 						convert(float, b.hdp1) as hdp1, 
 						convert(float, b.hdp2) as hdp2, 
 						b.odds,
+						b.oddsspread,
 						CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							 ELSE b.status 
 							 END  as status,
@@ -865,6 +876,7 @@ BEGIN
 						0 as hdp1, 
 						0as hdp2, 
 						b.odds,
+						0 AS oddsspread,
 						b.status,
 						b.stake,
 						b.transdate,		
@@ -1052,6 +1064,7 @@ BEGIN
 					b.hdp1,
 					b.hdp2,
 					b.odds,
+					b.oddsspread,
 					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 						 ELSE b.status 
 						 END  as status,
@@ -1131,6 +1144,7 @@ BEGIN
 					b.hdp1,
 					b.hdp2,
 					b.odds,
+					b.oddsspread,
 					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 						 ELSE b.status 
 						 END  as status,
@@ -1210,6 +1224,7 @@ BEGIN
 					b.hdp1,
 					b.hdp2,
 					b.odds,
+					b.oddsspread,
 					CASE WHEN b.status = 'running' AND IsNull(b.SecAcceptFlag, 0) = 1 and IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 						 ELSE b.status 
 						 END  as status,
@@ -1285,6 +1300,7 @@ BEGIN
 			hdp1, 
 			hdp2,
 			odds,
+			oddsspread,
 			status,
 			stake,
 			transdate, 

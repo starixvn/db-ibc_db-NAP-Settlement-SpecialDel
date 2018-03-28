@@ -40,6 +40,7 @@ AS
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]	
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]	
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		
 	Param's Explanation:
@@ -83,6 +84,7 @@ BEGIN
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY
 		,odds			MONEY
+		,oddsspread 	MONEY DEFAULT 0
 		,finalodds		MONEY
 		,finalodds2		MONEY
 		,OddsType		TINYINT
@@ -184,7 +186,8 @@ BEGIN
 			,refno	
 			,hdp1			
 			,hdp2			
-			,odds			
+			,odds
+			,oddsspread
 			,finalodds		
 			,finalodds2		
 			,OddsType		
@@ -219,6 +222,7 @@ BEGIN
 			,0 hdp1
 			,0 hdp2
 			,b.odds
+			,0 AS oddsspread
 			,0 finalodds
 			,0 finalodds2
 			,b.custom1 OddsType
@@ -259,7 +263,8 @@ BEGIN
 			,refno		
 			,hdp1			
 			,hdp2			
-			,odds			
+			,odds
+			,oddsspread			
 			,finalodds		
 			,finalodds2		
 			,OddsType		
@@ -301,6 +306,7 @@ BEGIN
 			,b.hdp1
 			,b.hdp2
 			,b.odds
+			,b.oddsspread
 			,0 finalodds
 			,0 finalodds2
 			,b.OddsType
@@ -365,6 +371,7 @@ BEGIN
 			,b.hdp1
 			,b.hdp2
 			,b.odds
+			,b.oddsspread
 			,0 finalodds
 			,0 finalodds2
 			,b.OddsType
@@ -679,7 +686,8 @@ BEGIN
 			,refno		
 			,hdp1			
 			,hdp2			
-			,odds			
+			,odds	
+			,oddsspread			
 			,finalodds		
 			,finalodds2		
 			,OddsType		
@@ -728,6 +736,7 @@ BEGIN
 			,main.hdp1
 			,main.hdp2
 			,main.odds
+			,main.oddsspread
 			,main.finalodds
 			,main.finalodds2
 			,main.OddsType
@@ -807,7 +816,8 @@ BEGIN
 			,refno		
 			,hdp1			
 			,hdp2			
-			,odds			
+			,odds	
+			,oddsspread			
 			,finalodds		
 			,finalodds2		
 			,OddsType		
@@ -856,6 +866,7 @@ BEGIN
 				,main.hdp1
 				,main.hdp2
 				,main.odds
+				,main.oddsspread
 				,main.finalodds
 				,main.finalodds2
 				,main.OddsType
@@ -914,7 +925,8 @@ BEGIN
 			,refno		
 			,hdp1			
 			,hdp2			
-			,odds			
+			,odds
+			,oddsspread			
 			,finalodds		
 			,finalodds2		
 			,OddsType		
@@ -965,6 +977,7 @@ BEGIN
 				,b.hdp1
 				,b.hdp2
 				,b.odds
+				,b.oddsspread
 				,0 finalodds
 				,0 finalodds2
 				,b.OddsType
@@ -1072,6 +1085,7 @@ BEGIN
 		,d.hdp1
 		,d.hdp2
 		,d.odds
+		,d.oddsspread
 		,d.finalodds
 		,d.finalodds2
 		,d.OddsType

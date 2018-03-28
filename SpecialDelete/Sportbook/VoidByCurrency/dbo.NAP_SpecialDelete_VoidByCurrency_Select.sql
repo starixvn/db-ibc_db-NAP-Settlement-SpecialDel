@@ -18,6 +18,7 @@ AS
 		- 20170922@Kent: Void Parlay Bet & Support New site [Redmine:#54340]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 
 	
 	Param's Explanation:			
@@ -57,6 +58,7 @@ BEGIN
 			LiveAwayScore		SMALLINT,
 			LiveHomeScore		SMALLINT,
 			Odds				MONEY,
+			Oddsspread 			MONEY,
 			IsMixParlay			BIT,
 			OddsType			INT,
 			RefNo				BIGINT,
@@ -186,6 +188,7 @@ BEGIN
 					LiveAwayScore,
 					LiveHomeScore,
 					Odds,
+					Oddsspread,
 					IsMixParlay,
 					OddsType,
 					RefNo,
@@ -234,6 +237,7 @@ BEGIN
 				b.LiveAwayScore,
 				b.LiveHomeScore,
 				b.Odds,
+				b.Oddsspread,
 				0 AS IsMixParlay,
 				b.OddsType,
 				b.RefNo,
@@ -504,6 +508,7 @@ BEGIN
 						LiveAwayScore,
 						LiveHomeScore,
 						Odds,
+						Oddsspread,
 						IsMixParlay,
 						OddsType,
 						RefNo,
@@ -552,6 +557,7 @@ BEGIN
 					main.LiveAwayScore,
 					main.LiveHomeScore,
 					main.Odds,
+					main.Oddsspread,
 					main.IsMixParlay,
 					main.OddsType,
 					sub.RefNo,
@@ -621,6 +627,7 @@ BEGIN
 						LiveAwayScore,
 						LiveHomeScore,
 						Odds,
+						oddsspread,
 						IsMixParlay,
 						OddsType,
 						RefNo,
@@ -671,6 +678,7 @@ BEGIN
 					main.LiveAwayScore,
 					main.LiveHomeScore,
 					main.Odds,
+					main.oddsspread,
 					main.IsMixParlay,
 					main.OddsType,
 					sub911.RefNo,
@@ -732,6 +740,7 @@ BEGIN
 					LiveAwayScore,
 					LiveHomeScore,
 					Odds,
+					oddsspread,
 					IsMixParlay,
 					OddsType,
 					RefNo,
@@ -782,6 +791,7 @@ BEGIN
 				b.LiveAwayScore,
 				b.LiveHomeScore,
 				b.Odds,
+				b.oddsspread,
 				0 AS IsMixParlay,
 				b.OddsType,
 				b.RefNo,
@@ -853,6 +863,7 @@ BEGIN
 					LiveAwayScore,
 					LiveHomeScore,
 					Odds,
+					oddsspread,
 					IsMixParlay,
 					OddsType,
 					RefNo,
@@ -894,6 +905,7 @@ BEGIN
 				sub.LiveAwayScore,
 				sub.LiveHomeScore,
 				main.Odds,
+				main.oddsspread,
 				1 AS IsMixParlay,
 				main.OddsType,
 				main.RefNo,
@@ -962,6 +974,7 @@ BEGIN
 		s.LiveAwayScore,
 		s.LiveHomeScore,
 		s.Odds,
+		s.oddsspread,
 		s.IsMixParlay,
 		CASE WHEN s.bettype = 501 AND T1.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket,
 		s.OddsType,
