@@ -18,7 +18,8 @@ AS
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
-
+		- 20180406@Helen: add filter by bettype for sport 181->185 to avoid the same value in table VSOutright (orid) and bettrans (oddsid) [Redmind:93183]
+		
 	Param's Explanation:			
 		- @TicketType:		
 		'Single': Single ticket
@@ -290,7 +291,8 @@ BEGIN
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
 		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		  				  			  				
-		
+		  AND b.bettype IN (1231,1232,1233,1237,1238)		
+		  
 		--> build @InvalidTransIds, @MovedTransIds				
 		;WITH t_invalid AS
 		(
