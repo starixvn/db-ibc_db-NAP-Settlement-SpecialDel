@@ -11,7 +11,7 @@ AS
     Revisions:
 		- 20170503@Bobby.Nguyen: Initial
 		- 20171009@Kathy: Change column name of BonusAdjustmentTransfer [Redmine:#72789]
-
+		- 20180326@Kathy: Change bonus transfer bettypeId [Redmine:#92592]
     Parameters Explanation:   
 		@Mode:	- Adjustment
 				- CleanUp
@@ -60,7 +60,7 @@ BEGIN
 		
 		SELECT @maxExecID 		= 0
 			, @batchExec		= 100
-			, @bettype			= 22027
+			, @bettype			= 22201
 			
 		WHILE (1=1)
 		BEGIN
