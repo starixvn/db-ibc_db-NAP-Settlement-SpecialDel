@@ -1,4 +1,5 @@
 SpecialDelete/VirtualBetradar/VoidSubParlayBet/dbo.NAP_SpecialDelete_VoidParlaySubVSBetRadar_Sel.sql
 SpecialDelete/VirtualBetradar/VoidSubParlayBet/dbo.NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd.sql
 SpecialDelete/VirtualBetradar/RecoverBet/dbo.NAP_SpecialDelete_RecoverVSBetRadar_Upd.sql
+SpecialDelete/VirtualBetradar/RecoverBet/dbo.NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd.sql
 
