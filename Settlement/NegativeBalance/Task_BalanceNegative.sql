@@ -14,40 +14,132 @@ AS
 		- 20150917@Elodie: Support Negative Balance function for all licensee [Red:#43705]
 		- 20151126@Elodie: Remove BetTrade accounts in Negative Balance process [Red:#36480]
 		- 20170604@Bobby: Remove dummy accounts from table CustDB-TradeCust [Red:#36480]
+		- 20180326@Kathy: Enhancememnt for WC [Redmine:#89132]
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpRecommend (custid INT PRIMARY KEY, site VARCHAR(50))
-	CREATE TABLE #tmpBalanceLic (custid INT PRIMARY KEY, balance MONEY)
-	DECLARE @tmpMatch TABLE (MatchID INT PRIMARY KEY)
+	DECLARE @BatchCount INT
 
-	INSERT INTO #tmpRecommend (custid, site)
-	SELECT c.custid, c.site
-	FROM DBLIC.bodb_licensee.dbo.LicenseeCust lc
-		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = lc.custid
-	--WHERE licenseeid IN (1, 2, 3, 9, 12, 14) -- '12Bet', 'asiabet88', 'mansion88', 'Mayfair', 'Haifa', 'Bodog'
-					
-	INSERT INTO @tmpMatch (MatchID)
-	SELECT DISTINCT MatchID
-	FROM dbo.BalanceNegative bn WITH (NOLOCK)
-		INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON bn.CustID = c.custid
-	WHERE StatusID = 0 
-		AND c.roleid = 1
-		AND c.recommend IN (SELECT custid FROM #tmpRecommend)																			
+	DECLARE @tmpMatch TABLE (MatchId INT PRIMARY KEY, MinExecId BIGINT, MaxExecId BIGINT)
+	DECLARE @tmpAffectedCustId	TABLE (CustId INT, Recommend INT, Site VARCHAR(50))
+	
+	CREATE TABLE #tmpMemberBalance (CustId INT, Balance MONEY, Site VARCHAR(50))
+	CREATE TABLE #tmpMemberBalanceNegative (custid INT PRIMARY KEY, balance MONEY, Site VARCHAR(50))
+	CREATE TABLE #tmpAllRecommend (Recommend INT PRIMARY KEY)		
+	CREATE TABLE #tmpAllCustomer (CustId INT PRIMARY KEY)
 
-	IF @@ROWCOUNT > 0 -- found some matches
+	SET @BatchCount = 2000
+
+	INSERT INTO @tmpMatch (MatchId, MinExecId, MaxExecId)
+	SELECT	MatchID, MIN(ExecId), MAX(ExecID)
+	FROM	dbo.BalanceNegative bn WITH(NOLOCK)
+	WHERE	bn.StatusID = 0
+	GROUP BY MatchID
+
+	IF @@ROWCOUNT = 0
+		RETURN
+
+	INSERT INTO #tmpAllRecommend (Recommend)
+	SELECT	lc.custid
+	FROM	DBLIC.bodb_licensee.dbo.LicenseeCust lc WITH(NOLOCK)
+	GROUP BY lc.custid
+
+	INSERT INTO @tmpAffectedCustId(CustId, Recommend)
+	SELECT	c.custid, c.recommend
+	FROM	@tmpMatch m
+		INNER JOIN dbo.BalanceNegative bn WITH(NOLOCK)
+			ON m.MatchId = bn.MatchID
+		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+			ON c.custid = bn.CustID
+		INNER JOIN #tmpAllRecommend r
+			ON c.recommend = r.Recommend
+	WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
+			AND bn.StatusID = 0
+			AND c.roleid = 1
+	GROUP by c.custid, c.recommend
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId)
 	BEGIN
-		-- turn to use bettrans in realtime
-		INSERT INTO #tmpBalanceLic (CustID, Balance)
-		SELECT b.custid, SUM(winlost - actual_stake + playercomm)
-		FROM bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON b.CustID = c.custid
-		WHERE c.roleid = 1 AND c.recommend IN (SELECT custid FROM #tmpRecommend)								
-		GROUP BY b.custid
-		HAVING SUM(winlost - actual_stake + playercomm) < 0 -- negative balance
+		UPDATE	t
+			SET Site = c.site
+		FROM	@tmpAffectedCustId t
+			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+				ON t.recommend = c.custid
 
-		IF @@ROWCOUNT <> 0 
+		-- turn to use bettrans in realtime
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
+		FROM	@tmpAffectedCustId c
+			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				ON b.custid = c.CustId	
+		WHERE	1 = CASE 
+						WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
+						ELSE 1
+					END
+		GROUP BY b.CustId, c.Site
+
+		-- translog
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT tl.custid, SUM(0 - tl.actual_stake) AS Balance, c.Site
+		FROM	@tmpAffectedCustId c
+			INNER JOIN dbo.translog tl WITH(NOLOCK)
+				ON tl.custid = c.CustId
+		WHERE	tl.statusID BETWEEN 0 AND 1
+		GROUP BY tl.custid, c.Site
+
+		-- bettransRnG
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	br.custid, SUM(br.winlost - br.actual_stake + br.playercomm) AS Balance, c.Site
+		FROM	@tmpAffectedCustId c
+			INNER JOIN dbo.bettransRnG br WITH(NOLOCK)
+				ON	br.custid = c.CustId
+		WHERE	br.IsSum = 0
+		GROUP BY br.custid, c.Site
+
+		-- bettransLC
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	lc.custid, SUM(lc.winlost - lc.actual_stake + lc.playercomm) AS Balance, c.Site
+		FROM	@tmpAffectedCustId c
+			INNER JOIN dbo.bettransLC lc WITH(NOLOCK)
+				ON	lc.custid = c.CustId
+		WHERE	lc.IsSum = 0
+		GROUP BY lc.custid, c.Site
+
+		-- BonusAdjustmentTransfer
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	aj.CustID, SUM(Amount) AS Balance, c.Site
+		FROM	dbo.BonusAdjustmentTransfer aj WITH(NOLOCK)
+			INNER JOIN @tmpAffectedCustId c 
+				ON aj.CustID = c.CustId
+		WHERE	aj.isTransferred = 0
+		GROUP BY aj.CustID, c.Site
+		
+		-- BalNetPosition
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	bn.CustID, SUM(bn.Credit - bn.Debit) AS Balance, c.Site
+		FROM	dbo.BalNetPosition bn WITH(NOLOCK)
+			INNER JOIN @tmpAffectedCustId c
+				ON bn.CustID = c.CustId
+		GROUP BY	bn.CustID, c.Site
+		
+		INSERT INTO #tmpMemberBalanceNegative (CustID, Balance, Site)
+		SELECT	c.custid, SUM(c.balance), c.Site
+		FROM	#tmpMemberBalance c
+		GROUP BY c.custid, c.Site
+		HAVING SUM(c.Balance) < 0 -- negative balance
+
+		-- Bettrade
+		DELETE	t
+		FROM	#tmpMemberBalanceNegative t
+		WHERE	EXISTS (SELECT TOP 1 1 FROM DBCUST.CustDB.dbo.BetTradeCust btc WITH(NOLOCK) WHERE btc.CustId = t.CustId)
+
+		-- Others dummy
+		DELETE	t
+		FROM	#tmpMemberBalanceNegative t
+		WHERE	EXISTS (SELECT TOP 1 1 FROM DBCUST.CustDB.dbo.TradeCust tc WITH(NOLOCK) WHERE tc.CustId = t.CustId)
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpMemberBalanceNegative) 
 		BEGIN
 			INSERT INTO dbo.BalanceNegativeHistory(
 				LogDate
@@ -70,48 +162,68 @@ BEGIN
 					, bn.GroupID
 					, bn.CustID
 					, bn.Balance
-					, t.balance
+					, t.balance AS TotalBalance
 					, 0
-					, ag.site
+					, t.site
 					, bn.Remark 
-			FROM	#tmpBalanceLic t WITH (NOLOCK)
-					INNER JOIN dbo.BalanceNegative bn WITH (NOLOCK) ON t.custID = bn.CustID 
-					INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON bn.CustID = c.custid
-					INNER JOIN #tmpRecommend ag ON c.recommend = ag.custid
-			WHERE	bn.MatchID IN (SELECT MatchID FROM @tmpMatch ) 
-					AND bn.StatusID = 0 AND c.roleid = 1						
-					AND NOT EXISTS (SELECT 1 FROM DBCUST.CustDB.dbo.BetTradeCust WHERE CustID = bn.CustID)	--Bettrade
-					AND NOT EXISTS (SELECT 1 FROM DBCUST.CustDB.dbo.TradeCust WHERE CustID = bn.CustID)	--Others dummy
+			FROM	dbo.BalanceNegative bn WITH (NOLOCK) 
+					INNER JOIN @tmpMatch m	
+						ON bn.MatchID = m.MatchId
+					INNER JOIN #tmpMemberBalanceNegative t WITH (NOLOCK)
+						ON t.custID = bn.CustID 
+			WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
+					AND bn.StatusID = 0
 		END
-
-		UPDATE dbo.BalanceNegative WITH(UPDLOCK,ROWLOCK)
-		SET StatusID = 1
-		WHERE MatchID IN (SELECT MatchID FROM @tmpMatch ) 
-			AND StatusID = 0 
-		
-		DROP TABLE #tmpBalanceLic
 	END
 
 	-- Remove Credit Customer out BalanceNegative
-	SELECT distinct CustID
-	INTO #TempCustomer
-	FROM dbo.BalanceNegative WITH (NOLOCK)
+	INSERT INTO #tmpAllCustomer (CustId)
+	SELECT	DISTINCT CustID
+	FROM	dbo.BalanceNegative bn WITH (NOLOCK)
+		INNER JOIN @tmpMatch m	
+			ON bn.MatchID = m.MatchId
+	WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
+			AND bn.StatusID = 0
 	
-	IF @@ROWCOUNT > 0
+	-- delete deposit member
+	DELETE t
+	FROM	#tmpAllCustomer t
+	WHERE	EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId c WHERE t.CustId = c.CustId)
+	
+	WHILE( 1 = 1)
 	BEGIN
-		DELETE #TempCustomer
-		WHERE CustID IN (	SELECT custid
-							FROM CustDB.dbo.custinfo WITH (NOLOCK)
-							WHERE Recommend IN (SELECT custid FROM #tmpRecommend)
-								AND roleid = 1
-							)		
-			
-		DELETE dbo.BalanceNegative
-		FROM #TempCustomer c
-		WHERE dbo.BalanceNegative.CustID = c.CustID
+		-- delete credit member
+		DELETE	TOP (@BatchCount) bn
+		FROM	dbo.BalanceNegative bn --WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpMatch m
+				ON bn.MatchID = m.MatchId
+		WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
+				AND bn.StatusID = 0
+				AND	EXISTS (SELECT TOP 1 1 FROM #tmpAllCustomer t WHERE t.CustID = bn.CustID)
+
+		IF @@ROWCOUNT < @BatchCount
+			BREAK
+	END
+
+	-- update statusid 
+	WHILE (1 = 1)
+	BEGIN
+		UPDATE	TOP (@BatchCount) bn --WITH(UPDLOCK,ROWLOCK)
+			SET StatusID = 1
+		FROM	dbo.BalanceNegative bn 
+			INNER JOIN @tmpMatch m 
+				ON m.MatchId = bn.MatchID
+		WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
+				AND StatusID = 0 
+
+		IF @@ROWCOUNT < @BatchCount
+			BREAK
 	END
 	
-	DROP TABLE #TempCustomer
-	DROP TABLE #tmpRecommend
+	DROP TABLE #tmpMemberBalance
+	DROP TABLE #tmpMemberBalanceNegative
+	DROP TABLE #tmpAllRecommend
+	DROP TABLE #tmpAllCustomer
 END
 GO
+
