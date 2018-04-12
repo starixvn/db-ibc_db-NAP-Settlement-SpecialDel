@@ -70,7 +70,7 @@ BEGIN
 			 SET ResultStatusID = @ResultStatusID
 				,SettlementStatusID = @SettlementStatusID
 		FROM ResultDetail3rd RD WITH (ROWLOCK,UPDLOCK) 
-		WHERE MatchID = @MatchID 
+		WHERE RD.VendorID = 17 AND RD.GameID = 0 AND RD.MatchID = @MatchID 
 		
 		INSERT INTO ResultDetail3rd (VendorID, MatchID, GameID,ResourceId, Custom1, Custom2, ResultStatusID, SettlementStatusID, CreateBy, CreateDate, LastModifyBy, LastModifyDate)
 		SELECT 17, @matchid,0, RD_tmp.ResourceId, CASE WHEN RD_tmp.ResourceId IN ('00','01') THEN '0' ELSE '' END, CASE WHEN RD_tmp.ResourceId IN ('00','01') THEN '0' ELSE '' END
@@ -78,7 +78,7 @@ BEGIN
 		FROM @tmpResourceIds RD_tmp
 		WHERE  NOT EXISTS (SELECT TOP 1 1 
 							FROM ResultDetail3rd RD WITH (NOLOCK) 
-							WHERE  RD.VendorID = 17 
+							WHERE  RD.VendorID = 17 AND RD.GameID = 0
 								AND RD.MatchID = @MatchID 
 								AND RD.ResourceId = RD_tmp.ResourceId)
 								
@@ -96,8 +96,8 @@ BEGIN
 				INNER JOIN @tmpResult tr
 					ON tr.ResourceId = t.ResourceId
 		) AS SOURCE
-			ON	TARGET.ResourceId = SOURCE.ResourceId
-				AND TARGET.MatchId = @matchid
+			ON	TARGET.VendorID = 17 AND TARGET.GameID = 0 AND TARGET.MatchId = @matchid
+				AND TARGET.ResourceId = SOURCE.ResourceId
 		WHEN	MATCHED THEN
 			UPDATE SET Custom1 = SOURCE.HomeValue
 				,Custom2 = SOURCE.AwayValue
