@@ -32,6 +32,7 @@ AS
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
+		- 20180301@Benjamin: Add oddsspread and Remove DateTime - Fast Markets Phase 2 [Redmine:#90667]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -101,6 +102,7 @@ BEGIN
 			LiveAwayScore		SMALLINT,
 			LiveHomeScore		SMALLINT,
 			Odds				MONEY,			
+			Oddsspread 			MONEY,
 			OddsType			INT,
 			RefNo				BIGINT,
 			SportType			SMALLINT,
@@ -344,7 +346,8 @@ BEGIN
 						IsNeutral,						
 						LiveAwayScore,
 						LiveHomeScore,
-						Odds,						
+						Odds,
+						Oddsspread,						
 						OddsType,
 						RefNo,
 						SportType,
@@ -396,7 +399,8 @@ BEGIN
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
 					b.LiveAwayScore,
 					b.LiveHomeScore,
-					b.Odds,					
+					b.Odds,	
+					b.Oddsspread,					
 					b.OddsType,
 					b.RefNo,
 					m.SportType,
@@ -739,7 +743,8 @@ BEGIN
 							IsNeutral,						
 							LiveAwayScore,
 							LiveHomeScore,
-							Odds,						
+							Odds,		
+							Oddsspread,							
 							OddsType,
 							RefNo,
 							SportType,
@@ -791,7 +796,8 @@ BEGIN
 						tmpmain.IsNeutral,						
 						tmpmain.LiveAwayScore,
 						tmpmain.LiveHomeScore,
-						tmpmain.Odds,						
+						tmpmain.Odds,
+						tmpmain.Oddsspread,						
 						tmpmain.OddsType,
 						sub.RefNo,
 						tmpmain.SportType,
@@ -862,7 +868,8 @@ BEGIN
 							IsNeutral,						
 							LiveAwayScore,
 							LiveHomeScore,
-							Odds,						
+							Odds,	
+							Oddsspread,							
 							OddsType,
 							RefNo,
 							SportType,
@@ -928,7 +935,8 @@ BEGIN
 						tmpmain.IsNeutral,						
 						tmpmain.LiveAwayScore,
 						tmpmain.LiveHomeScore,
-						tmpmain.Odds,						
+						tmpmain.Odds,
+						tmpmain.Oddsspread,						
 						tmpmain.OddsType,
 						sub.RefNo,
 						tmpmain.SportType,
@@ -995,7 +1003,8 @@ BEGIN
 						IsNeutral,						
 						LiveAwayScore,
 						LiveHomeScore,
-						Odds,						
+						Odds,
+						Oddsspread,						
 						OddsType,
 						RefNo,
 						SportType,
@@ -1049,7 +1058,8 @@ BEGIN
 						ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
 						b.LiveAwayScore,
 						b.LiveHomeScore,
-						b.Odds,					
+						b.Odds,	
+						b.Oddsspread,						
 						b.OddsType,
 						b.RefNo,
 						m.SportType,
@@ -1150,7 +1160,8 @@ BEGIN
 						IsNeutral,						
 						LiveAwayScore,
 						LiveHomeScore,
-						Odds,						
+						Odds,
+						Oddsspread,						
 						OddsType,
 						RefNo,
 						SportType,
@@ -1194,7 +1205,8 @@ BEGIN
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
 					sub.LiveAwayScore,
 					sub.LiveHomeScore,
-					main.Odds,					
+					main.Odds,
+					main.Oddsspread,					
 					main.OddsType,
 					main.RefNo,
 					m.SportType,
@@ -2017,6 +2029,7 @@ BEGIN
 				s.LiveAwayScore,
 				s.LiveHomeScore,
 				s.Odds,
+				s.oddsspread,
 				s.IsMixParlay,
 				s.OddsType,
 				s.RefNo,
@@ -2067,8 +2080,7 @@ BEGIN
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)							
 				END AS IsItSupport,
-				s.betfrom,
-				CURRENT_TIMESTAMP AS [DateTime],
+				s.betfrom,				
 				s.WalletType			
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
