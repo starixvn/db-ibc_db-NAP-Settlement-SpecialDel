@@ -81,6 +81,7 @@ BEGIN
 	BEGIN
 		UPDATE dbo.AutoPayoutResult WITH(ROWLOCK,UPDLOCK)
 		SET StatusId = @StatusId
+		  , ModifiedDate = GETDATE()
 		WHERE AutoPayoutResultId = @AutoPayoutResultId
 	END
 	ELSE
