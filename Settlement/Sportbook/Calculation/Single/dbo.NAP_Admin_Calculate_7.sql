@@ -20,6 +20,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20160425@Patrick: Reduce escalation lock when updating large amount of data [Redmine: #56550]
 		- 20160507@Patrick: Use Option Force Order & limit scanning on bettrans table incase merge join for batchNo n > 1 to reduce lock escalation [Redmine: #58464]
+		- 20180419@Benjamin: Adding New Bettypes: 466 for Asian 1x2 [Redmine:#93654]
 
 */
 BEGIN
@@ -95,8 +96,8 @@ BEGIN
                 ELSE 1 END,
             
             WinLost = CASE
-                WHEN @modds >  0.25    THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end)
-                WHEN @modds =  0.25    THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * 0.5
+                WHEN @modds >  0.25    THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end)
+                WHEN @modds =  0.25    THEN actual_stake + stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * 0.5
                 WHEN @modds =  0 AND bettype <> 303    THEN actual_stake
                 WHEN @modds =  0 AND bettype = 303    THEN CASE 
                                                             WHEN oddsspread = 0 THEN actual_stake
@@ -108,8 +109,8 @@ BEGIN
                 END, 
             
             aWinLost = CASE
-                WHEN @modds >  0.25    THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -apositiontaking
-                WHEN @modds =  0.25    THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -apositiontaking * 0.5
+                WHEN @modds >  0.25    THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -apositiontaking
+                WHEN @modds =  0.25    THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -apositiontaking * 0.5
                 WHEN @modds =  0 AND bettype <> 303    THEN 0
                 WHEN @modds =  0 AND bettype = 303    THEN CASE 
                                                             WHEN oddsspread = 0 THEN 0
@@ -120,8 +121,8 @@ BEGIN
                 WHEN @modds < -0.25    THEN actual_stake * apositiontaking
                 END,
             mWinLost = CASE
-                WHEN @modds >  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -mpositiontaking
-                WHEN @modds =  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -mpositiontaking * 0.5
+                WHEN @modds >  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -mpositiontaking
+                WHEN @modds =  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -mpositiontaking * 0.5
                 WHEN @modds =  0 AND bettype <> 303        THEN 0
                 WHEN @modds =  0 AND bettype = 303        THEN CASE 
                                                                 WHEN oddsspread = 0 THEN 0
@@ -132,8 +133,8 @@ BEGIN
                 WHEN @modds < -0.25     THEN actual_stake * mpositiontaking
                 END,
             sWinLost = CASE
-                WHEN @modds >  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -spositiontaking
-                WHEN @modds =  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6) then odds-1 else odds end) end) * -spositiontaking * 0.5
+                WHEN @modds >  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -spositiontaking
+                WHEN @modds =  0.25     THEN stake * (case when odds<0 then 1 else (case when bettype in (4,5,6,466) then odds-1 else odds end) end) * -spositiontaking * 0.5
                 WHEN @modds =  0 AND bettype <> 303       THEN 0
                 WHEN @modds =  0 AND bettype = 303       THEN CASE 
                                                                 WHEN oddsspread = 0 THEN 0
@@ -272,14 +273,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							)
 					WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * 0.5
@@ -296,14 +297,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - apositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - apositiontaking * 0.5
@@ -320,14 +321,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - mpositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - mpositiontaking * 0.5
@@ -344,14 +345,14 @@ BEGIN
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - spositiontaking
 					WHEN @modds = 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6) THEN odds - 1
+									WHEN bettype IN (4, 5, 6,466) THEN odds - 1
 									ELSE odds END
 									) END
 							) * - spositiontaking * 0.5
