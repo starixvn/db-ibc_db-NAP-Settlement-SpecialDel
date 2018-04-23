@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 USE [bodb02]
 GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7] @matchid INT
@@ -450,4 +451,3 @@ BEGIN
 END
 
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_7] TO [vnteam] AS [dbo]

@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 USE [bodb02]
 GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_1] 
@@ -481,6 +482,4 @@ BEGIN
     END
 END
 
-
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_1] TO [vnteam] AS [dbo]
