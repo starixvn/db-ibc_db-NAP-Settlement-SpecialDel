@@ -10,3 +10,4 @@ Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_RefundHT_Push.sql
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout.sql
 Settlement\Sportbook\NAP_Set_MatchSelDetail.sql
+Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
