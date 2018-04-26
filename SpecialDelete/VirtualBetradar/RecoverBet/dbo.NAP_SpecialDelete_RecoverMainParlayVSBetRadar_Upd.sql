@@ -18,7 +18,8 @@ AS
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
-
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -305,7 +306,7 @@ BEGIN
 				,@strRefnos 		= @strRefnos
 				,@matchdate			= @matchdate
 				,@IsBalance			= 0
-				,@CWLBettype		= 2701
+				,@CWLBettype		= 1201
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg			= @ErrMsg OUTPUT
 			

@@ -21,7 +21,8 @@ AS
 
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]			
-
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		
 	Param's Explanation:				
 		- @TransIds : Main transids.				
 */
@@ -309,7 +310,7 @@ BEGIN
 			, @strRefnos 		= @strRefnos
 			, @matchdate		= @matchdate
 			, @IsBalance		= 0
-			, @CWLBettype		= 2701
+			, @CWLBettype		= 1201
 			, @ErrCode			= @ErrCode OUTPUT
 			, @ErrMsg			= @ErrMsg OUTPUT																							
 					

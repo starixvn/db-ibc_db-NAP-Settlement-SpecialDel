@@ -15,8 +15,6 @@ ALTER PROCEDURE [dbo].[NAP_Rpt_TicketsListing]
 	,@Type				SMALLINT 		= 0
 	,@SecondAcceptFlag	TINYINT			= 0
 	,@BallSequence		VARCHAR(200)	= ''
-	,@ErrCode			INT				= 0 OUTPUT
-	,@ErrMsg			VARCHAR(1000)	= '' OUTPUT
 WITH RECOMPILE
 AS
 /*	Created by: Elodie
@@ -45,6 +43,7 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -100,116 +99,6 @@ BEGIN
 	IF @Type <> 0
 		SELECT @LiveType = 2
 
-	----Show match description
-	;WITH T_MatchInfo AS
-	(
-		SELECT matchcode
-			 , homeid
-			 , awayid
-			 , eventdate
-			 , IsNeutral
-			 , sporttype
-			 , showtime
-		FROM match WITH (NOLOCK)
-		WHERE matchid = @MatchId
-		  AND @Type <> 7
-		UNION All
-		SELECT NULL AS matchcode
-		     , homeid
-			 , awayid
-			 , eventdate
-			 , NULL AS IsNeutral
-			 , sporttype
-			 , NULL AS showtime
-		FROM match3rd WITH (NOLOCK)
-		WHERE match3rdid = @MatchId
-		  AND @Type = 7
-	)	  
-	SELECT @matchcode	= matchcode
-		 , @homeid 		= homeid
-		 , @awayid 		= awayid
-		 , @eventdate 	= eventdate
-		 , @IsNeutral 	= IsNeutral
-		 , @sporttype 	= sporttype
-		 , @showtime	= showtime
-	FROM T_MatchInfo
-
-	IF ISNULL(@sporttype, 0) = 0 
-	   OR ( 
-			@sporttype > 99 
-			AND @sporttype <> 154 
-			AND @sporttype <> 161 
-			AND @sporttype <> 162 
-			AND @sporttype NOT BETWEEN 180 AND 186
-			AND @sporttype NOT BETWEEN 190 AND 199
-			AND @sporttype <> 160
-			AND @sporttype <> 207
-		  )
-	BEGIN
-		SET @ErrCode = 1
-		SET @ErrMsg = 'Invalid MatchID.'
-
-		RETURN
-	END
-	ELSE IF @sporttype > 99
-		AND @sporttype <> 154
-		AND @Type IN (0,4)
-	BEGIN
-		SET @ErrCode = 2
-		SET @ErrMsg = 'This MatchID is not sportsbook.'
-
-		RETURN
-	END
-	ELSE IF @sporttype <> 161
-		AND @Type = 1
-	BEGIN
-		SET @ErrCode = 3
-		SET @ErrMsg = 'This MatchID is not number game.'
-
-		RETURN
-	END
-	ELSE IF @sporttype NOT BETWEEN 180 AND 186
-		AND @Type = 2
-	BEGIN
-		SET @ErrCode = 4
-		SET @ErrMsg = 'This MatchID is not virtual sports.'
-
-		RETURN
-	END
-	ELSE IF @sporttype NOT BETWEEN 190 AND 199
-		AND @Type = 5
-	BEGIN
-		SET @ErrCode = 5
-		SET @ErrMsg = 'This MatchID is not virtual sports betradar.'
-
-		RETURN
-	END	
-	ELSE IF @sporttype <> 160
-		AND @Type = 6
-	BEGIN
-		SET @ErrCode = 6
-		SET @ErrMsg = 'This MatchID is not Lucky 3.'
-
-		RETURN
-	END
-	ELSE IF @sporttype <> 207
-		AND @Type = 7
-	BEGIN
-		SET @ErrCode = 7
-		SET @ErrMsg = 'This MatchID is not Bull Fighting.'
-
-		RETURN
-	END
-	ELSE
-		SELECT @matchcode	AS matchcode
-			,@homeid		AS homeid
-			,@awayid		AS awayid
-			,convert(VARCHAR(12), @eventdate, 107) AS eventdate
-			,@MatchId		AS matchid
-			,@IsNeutral		AS IsNeutral
-			,@showtime		AS showtime
-
-	---------
 	DECLARE @TmpTotal TABLE (
 		OrderNo			INT
 		,TotalTrans		BIGINT

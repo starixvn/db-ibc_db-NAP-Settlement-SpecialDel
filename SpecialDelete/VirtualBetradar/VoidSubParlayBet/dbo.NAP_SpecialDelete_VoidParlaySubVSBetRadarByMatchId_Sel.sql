@@ -11,7 +11,8 @@ AS
 
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
-
+		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		
 	Param's Explanation:		
 		
 */
@@ -61,7 +62,8 @@ BEGIN
 		   ,bm.Hdp1 AS SubHdp1
 		   ,bm.Hdp2 AS SubHdp2
 		   ,bm.Odds AS SubOdds	
-		   ,bm.transdesc AS SubTransdesc	   
+		   ,bm.transdesc AS SubTransdesc
+		   ,m.matchcode	   
 	FROM bettrans b WITH (NOLOCK) 
 		 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
 				 ON b.refno = bm.refno 

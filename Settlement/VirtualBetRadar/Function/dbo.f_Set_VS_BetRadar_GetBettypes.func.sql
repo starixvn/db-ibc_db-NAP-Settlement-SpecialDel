@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" selecters="vnteam" isFunction="1" isNested="1"></info>*/
-CREATE FUNCTION [dbo].[f_Set_VS_BetRadar_GetBettypes] ()
+ALTER FUNCTION [dbo].[f_Set_VS_BetRadar_GetBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
 AS
@@ -10,7 +10,8 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20160606@Bobby: Initialize
-    
+		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
+		
 	Columns Explanation:    
 		- @CalMode: TINYINT [1:HT,2:FT]
     
@@ -31,7 +32,7 @@ RETURN (
 		UNION ALL SELECT 2705, 190, 2
 		UNION ALL SELECT 2706, 190, 1
 		UNION ALL SELECT 2707, 190, 2
-		
+				
 		--single bettype VS Nation
 		UNION ALL SELECT 2701, 191, 2
 		UNION ALL SELECT 2702, 191, 1
@@ -41,8 +42,27 @@ RETURN (
 		UNION ALL SELECT 2706, 191, 1
 		UNION ALL SELECT 2707, 191, 2
 		
-		--mix-parlay
-		UNION ALL SELECT 2799, 190, 1
+		-- VS Soccer World CUP
+		UNION ALL SELECT 2701, 192, 2
+		UNION ALL SELECT 2702, 192, 1
+		UNION ALL SELECT 2703, 192, 2
+		UNION ALL SELECT 2704, 192, 1
+		UNION ALL SELECT 2705, 192, 2
+		UNION ALL SELECT 2706, 192, 1
+		UNION ALL SELECT 2707, 192, 2
+				
+		-- VS Basketball
+		UNION ALL SELECT 2801, 193, 2
+		UNION ALL SELECT 2802, 193, 1
+		UNION ALL SELECT 2803, 193, 2
+		UNION ALL SELECT 2804, 193, 1
+		UNION ALL SELECT 2805, 193, 2
+		UNION ALL SELECT 2806, 193, 1
+		UNION ALL SELECT 2807, 193, 2
+		UNION ALL SELECT 2808, 193, 1
+		UNION ALL SELECT 2809, 193, 2
+		UNION ALL SELECT 2811, 193, 2
+		UNION ALL SELECT 2812, 193, 2
 		
 	) AS vs
 )
