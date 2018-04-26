@@ -35,6 +35,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20180426@Helen: Improve Performance [Redmine:89978]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -57,22 +58,19 @@ BEGIN
 		AND IsCalculating IN (1, 0)
 	GROUP BY matchid
 
-	CREATE TABLE #DataTmp (MatchId INT, leagueid INT, hthomescore INT, htawayscore INT, IsCalculated BIT
+	DECLARE @DataTmp TABLE (MatchId INT PRIMARY KEY, leagueid INT, hthomescore INT, htawayscore INT, IsCalculated BIT
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT)
 	
-	CREATE TABLE #BettypeFGLG  (bettype SMALLINT, GroupID SMALLINT)
+	DECLARE @BettypeFGLG TABLE (bettype SMALLINT, GroupID SMALLINT)
+	
+	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT )
 	
 	DECLARE @SqlQuery VARCHAR(4000)
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
-	INSERT INTO #DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
-		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
-		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
-		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, AutoSetting, AutoSetting_League)
 	SELECT *
 	FROM OPENQUERY(DBPRO, ''SELECT m.MatchId, m.leagueid, m.hthomescore, m.htawayscore, mr.calculate
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
@@ -96,32 +94,58 @@ BEGIN
 						ELSE 1 END
 				END'')'
 
-	--select @SqlQuery as '@SqlQuery'
+	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
+		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
+		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
+		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
+		, IsPending, IsUndecided, AutoSetting, AutoSetting_League)
 	EXEC (@SqlQuery)
 	
-	INSERT INTO #BettypeFGLG (bettype,GroupID)
+	INSERT INTO @BettypeFGLG (bettype,GroupID)
 	SELECT BetType,GroupID
 	FROM dbo.f_Set_GetGroupBettypes()
 	WHERE IsFGLG = 1
 	
-		
-	;WITH BetStatus AS (
-		SELECT b.matchid
-			, COUNT(b.matchid) betcount
-			, SUM(CASE WHEN fglg.GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
-			, SUM(CASE WHEN fglg.GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
-		FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype)
-			LEFT JOIN #BettypeFGLG fglg WITH (NOLOCK) ON fglg.bettype = b.bettype
-		WHERE EXISTS (SELECT TOP 1 1 FROM #DataTmp m WHERE b.matchid = m.MatchId)
-			AND b.bettype <= 19000
+	;WITH Match_cte AS (
+		SELECT 
+			 m.matchid
+			, b.bettype
+		FROM @DataTmp m 
+			CROSS APPLY (SELECT matchid, bettype FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) WHERE b.matchid = m.MatchId) b
+		WHERE b.bettype <= 19000
 			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
 			AND b.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
 			AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
 			AND b.bettype NOT BETWEEN 901 AND 910 --bettrade
 			AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
 			AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
-		GROUP BY b.matchid
+		GROUP BY  m.matchid	, b.bettype
 	)
+	
+	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
+	SELECT b.matchid
+		, 0 AS betcount
+		, SUM(CASE WHEN GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
+		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
+	FROM Match_cte b  
+		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
+	GROUP BY b.matchid
+		
+	UPDATE b
+		SET b.betcount = Betcount_tmp.betcount
+	FROM @BetStatus b 
+		CROSS APPLY (
+			SELECT COUNT_BIG (1) AS betcount 
+			FROM bettrans bet WITH(NOLOCK, INDEX = CIX_matchid_bettype) 
+			WHERE bet.matchid = b.matchid
+				AND bet.bettype <= 19000
+				AND bet.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
+				AND bet.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
+				AND bet.bettype NOT BETWEEN 1501 and 1599 -- Keno
+				AND bet.bettype NOT BETWEEN 901 AND 910 --bettrade
+				AND bet.bettype NOT BETWEEN 801 AND 899--Metric Gaming
+				AND bet.bettype NOT BETWEEN 911 AND 920--cashout tickets
+		)Betcount_tmp
 	
 	SELECT m.matchid
 		, m.leagueid
@@ -166,9 +190,9 @@ BEGIN
 		, CASE WHEN b.cntHTFGLG = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
 		, t.seqS AS IsCalculatingSingle
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
-		FROM #DataTmp m
-			INNER JOIN BetStatus b ON m.matchid = b.matchid
-			LEFT JOIN @tblSingle t ON m.matchid = t.matchid
+	FROM @DataTmp m
+		INNER JOIN @BetStatus b ON m.matchid = b.matchid
+		LEFT JOIN @tblSingle t ON m.matchid = t.matchid
 	ORDER BY eventstatus, matchcode
 	
 	-- Get BASKETBALL RESULT 
@@ -180,12 +204,10 @@ BEGIN
 			, SettlementStatusID
 	FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
 	WHERE	@Sporttype IN (0, 2)
-			AND EXISTS (SELECT TOP 1 1 FROM #DataTmp m WHERE rs.MatchId = m.MatchId)
+			AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
 			AND (ResourceId LIKE 'Q[1-4]' 
 				OR ResourceId IN ('00','01','OT') -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
 			)
-	DROP TABLE #DataTmp
-	DROP TABLE #BettypeFGLG
 	
 END
 GO
