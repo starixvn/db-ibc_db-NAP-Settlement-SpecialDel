@@ -35,7 +35,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-		- 20180426@Helen: Improve Performance [Redmine:89978]
+		- 20180426@Helen: Improve Performance [Redmine:#89132]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -43,7 +43,9 @@ BEGIN
 	IF @sporttype NOT IN (1, 2, 3, 32) RETURN
 
 	DECLARE @HTOverStartMins INT, @HTOverEndMins INT
-
+	
+	DECLARE @Matchid_tmp INT = 1
+	
 	SELECT @LeagueID = CASE WHEN @isReLoad = 1 THEN ISNULL(@LeagueID, 0) 
 						ELSE 0	END -- reload partial; search on LeagueID, not reload: get all leagues
 		, @HTOverStartMins = CASE WHEN @sporttype = 1 THEN 40 ELSE 25 END
@@ -109,44 +111,33 @@ BEGIN
 	;WITH Match_cte AS (
 		SELECT 
 			 m.matchid
-			, b.bettype
+			, tmp.bettype
+			, tmp.betcount
 		FROM @DataTmp m 
-			CROSS APPLY (SELECT matchid, bettype FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) WHERE b.matchid = m.MatchId) b
-		WHERE b.bettype <= 19000
-			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
-			AND b.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
-			AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-			AND b.bettype NOT BETWEEN 901 AND 910 --bettrade
-			AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-			AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
-		GROUP BY  m.matchid	, b.bettype
+			CROSS APPLY (SELECT 
+							TOP(2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
+							b.matchid, b.bettype, COUNT_BIG(1) as betcount  
+						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
+						WHERE 	b.matchid = M.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
+							AND b.bettype <= 19000
+							AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
+							AND b.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
+							AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
+							AND b.bettype NOT BETWEEN 901 AND 910 --bettrade
+							AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
+							AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
+						GROUP BY  b.matchid	, b.bettype
+						) AS tmp
 	)
-	
 	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
 	SELECT b.matchid
-		, 0 AS betcount
+		, SUM (betcount) AS betcount
 		, SUM(CASE WHEN GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
 		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
 	GROUP BY b.matchid
-		
-	UPDATE b
-		SET b.betcount = Betcount_tmp.betcount
-	FROM @BetStatus b 
-		CROSS APPLY (
-			SELECT COUNT_BIG (1) AS betcount 
-			FROM bettrans bet WITH(NOLOCK, INDEX = CIX_matchid_bettype) 
-			WHERE bet.matchid = b.matchid
-				AND bet.bettype <= 19000
-				AND bet.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
-				AND bet.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
-				AND bet.bettype NOT BETWEEN 1501 and 1599 -- Keno
-				AND bet.bettype NOT BETWEEN 901 AND 910 --bettrade
-				AND bet.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-				AND bet.bettype NOT BETWEEN 911 AND 920--cashout tickets
-		)Betcount_tmp
-	
+			
 	SELECT m.matchid
 		, m.leagueid
 		, hthomescore AS HalfTimeHomeScore
