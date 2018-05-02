@@ -38,8 +38,8 @@ AS
 		- 20161013@Bobby: #65002 - Update changes for Instant Calculation 
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
-		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#89132]
-		- 20180426@Helen: Improve Performance [Redmine:89978]
+		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20180426@Helen: Improve Performance [Redmine:89132]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -109,10 +109,11 @@ BEGIN
 			 m.matchid
 			, tmp.bettype
 			, tmp.betcount
+			, tmp.winlostdate
 		FROM @DataTmp m 
 			CROSS APPLY (SELECT 
-								TOP(2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
-								b.matchid, b.bettype, COUNT_BIG(1) as betcount 
+								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
+								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount 
 						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
 						WHERE b.matchid = m.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
 								AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
@@ -121,8 +122,7 @@ BEGIN
 								AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
 								AND b.bettype <> 500 -- Charged commission
 								AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-								AND b.winlostdate = @Date
-						GROUP BY  b.matchid	, b.bettype
+						GROUP BY  b.matchid	, b.bettype,b.winlostdate
 					) AS tmp
 	)
 	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
@@ -132,6 +132,7 @@ BEGIN
 		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
+	WHERE  winlostdate = @Date
 	GROUP BY b.matchid
 	
 	SELECT m.matchid
