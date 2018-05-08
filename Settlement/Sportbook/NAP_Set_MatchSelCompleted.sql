@@ -39,7 +39,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-		
+		- 20180426@Helen: Improve Performance [Redmine:89132]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -49,22 +49,21 @@ BEGIN
 	SELECT @LeagueID = CASE WHEN @isReLoad = 1 THEN ISNULL(@LeagueID, 0)
 						ELSE 0 END -- reload partial; search on LeagueID, not reload: get all leagues
 
-	CREATE TABLE #DataTmp (MatchId INT, leagueid INT, hthomescore INT, htawayscore INT, IsCalculated BIT
+	DECLARE @DataTmp TABLE (MatchId INT PRIMARY KEY, leagueid INT, hthomescore INT, htawayscore INT, IsCalculated BIT
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
 	
-	CREATE TABLE #BettypeFGLG  (bettype SMALLINT, GroupID SMALLINT)
+	DECLARE @Matchid_tmp INT = 1
+	
+	DECLARE @BettypeFGLG TABLE  (bettype SMALLINT, GroupID SMALLINT)
+	
+	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT )
 	
 	DECLARE @SqlQuery VARCHAR(4000)
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
-	INSERT INTO #DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
-		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
-		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
-		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, AutoSetting, AutoSetting_League, ConfirmFT)
 	SELECT *
 	FROM OPENQUERY(DBPRO, ''SELECT m.MatchId, m.leagueid, m.hthomescore, m.htawayscore, mr.calculate
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
@@ -85,7 +84,11 @@ BEGIN
 						ELSE 1 END
 				END'')'
 
-	--select @SqlQuery as '@SqlQuery'
+	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
+		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
+		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
+		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
+		, IsPending, IsUndecided, AutoSetting, AutoSetting_League, ConfirmFT)
 	EXEC (@SqlQuery)
 
 	DECLARE @tblSingle TABLE (matchid INT, seqS INT)
@@ -96,32 +99,42 @@ BEGIN
 		AND IsCalculating IN (1, 0)
 	GROUP BY matchid
 
-	INSERT INTO #BettypeFGLG (bettype,GroupID)
+	INSERT INTO @BettypeFGLG (bettype,GroupID)
 	SELECT BetType,GroupID
 	FROM dbo.f_Set_GetGroupBettypes()
 	WHERE IsFGLG = 1
 	
-	;WITH BetStatus AS (
-		SELECT b.matchid
-			, COUNT(b.matchid) AS BetCount
-			
-			, SUM(CASE WHEN fglg.GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
-			, SUM(CASE WHEN fglg.GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
-			
-		FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype)
-			LEFT JOIN #BettypeFGLG fglg WITH (NOLOCK) ON fglg.bettype = b.bettype
-			
-		WHERE EXISTS (SELECT TOP 1 1 FROM #DataTmp m WHERE b.matchid = m.MatchId) 
-			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
-			AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-			AND b.bettype NOT BETWEEN 901 AND 910
-			AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
-			AND b.bettype <> 500 -- Charged commission
-			AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-			AND winlostdate = @Date
-		GROUP BY b.matchid
+	;WITH Match_cte AS (
+		SELECT 
+			 m.matchid
+			, tmp.bettype
+			, tmp.betcount
+			, tmp.winlostdate
+		FROM @DataTmp m 
+			CROSS APPLY (SELECT 
+								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
+								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount 
+						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
+						WHERE b.matchid = m.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
+								AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
+								AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
+								AND b.bettype NOT BETWEEN 901 AND 910
+								AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
+								AND b.bettype <> 500 -- Charged commission
+								AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
+						GROUP BY  b.matchid	, b.bettype,b.winlostdate
+					) AS tmp
 	)
-
+	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
+	SELECT b.matchid
+		, SUM(betcount) AS betcount
+		, SUM(CASE WHEN GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
+		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
+	FROM Match_cte b  
+		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
+	WHERE  winlostdate = @Date
+	GROUP BY b.matchid
+	
 	SELECT m.matchid
 		, m.leagueid
 		, hthomescore AS HalfTimeHomeScore
@@ -170,8 +183,8 @@ BEGIN
 		, b.BetCount
 		, t.seqS AS IsCalculatingSingle
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
-	FROM #DataTmp m
-		INNER JOIN BetStatus b ON m.matchid = b.matchid
+	FROM @DataTmp m
+		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.custinfo ht WITH (NOLOCK) ON m.ConfirmHT > 0 AND m.ConfirmHT = ht.custid
 		LEFT JOIN CustDB.dbo.custinfo ft WITH (NOLOCK) ON m.ConfirmFT > 0 AND m.ConfirmFT = ft.custid
 		LEFT JOIN @tblSingle t ON t.matchid = m.matchid
@@ -186,13 +199,11 @@ BEGIN
 			, SettlementStatusID
 	FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
 	WHERE	@Sporttype IN (0, 2, 5)
-			AND EXISTS (SELECT TOP 1 1 FROM #DataTmp m WHERE rs.MatchId = m.MatchId)
+			AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
 			AND (ResourceId LIKE '0[0-5]' -- Tennis
 				OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
 			)
-
-	DROP TABLE #DataTmp
-	DROP TABLE #BettypeFGLG
+	
 END
 GO
 GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelCompleted] TO [bodbAdminNet]
