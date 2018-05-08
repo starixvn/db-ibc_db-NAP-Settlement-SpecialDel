@@ -622,7 +622,7 @@ BEGIN
 				,r.hdp1 AS SubHdp1
 				,r.hdp2 AS SubHdp2
 				,r.odds AS SubOdds
-				,r.betteam as SubBetteam
+				,r.betteam AS SubBetteam
 				,r.betcheck AS SubBetCheck
 				,1 AS IsMixParlay
 				-----------------------------  

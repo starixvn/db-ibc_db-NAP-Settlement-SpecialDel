@@ -1564,16 +1564,12 @@ BEGIN
 			,al.oddsspread
 			,al.OddsType
 			,al.transdate
-			,al.bettype AS BetTypeId
 			,al.OriginalBetType
 			,al.betfrom
 			,al.refno
 			,al.betteam
 			,al.betcheck
-			,al.hdp1 AS Handicap1
-			,al.hdp2 AS Handicap2
 			,al.betfrom
-			,al.IsLiveIndicator AS IsLive
 			,al.livehomescore
 			,al.liveawayscore
 			,al.Stake
@@ -1593,6 +1589,10 @@ BEGIN
 			,al.MainCashoutId
 			,al.WalletType
 			,al.RefCode
+			,al.bettype AS BetTypeId
+			,al.hdp1 AS Handicap1
+			,al.hdp2 AS Handicap2
+			,al.IsLiveIndicator AS IsLive
 			,al.NetWinLost AS WinLost
 			-----------------------------
 			,ci.currency
