@@ -1,4 +1,14 @@
-Settlement\Sportbook\InstantSettlement\dbo.NAP_Admin_Settlement_1_InstantCalculation_Push.proc.sql
-
-
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1_Push.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_3.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Refund_All.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Refund_All_Push.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_RefundFT.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_RefundFT_Push.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_RefundHT.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_RefundHT_Push.sql
+Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql
+Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout.sql
+Settlement\Sportbook\NAP_Set_MatchSelDetail.sql
+Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
 
