@@ -631,8 +631,6 @@ BEGIN
 				,b.srecommend
 				,ci.Username
 				,ci.username2
-				,ci.username AS CustUserName
-				,ci.username2 as CustUserName2
 				,ag.UserName AS AgUserName
 				,ma.UserName AS MagUserName
 				,su.Username AS SagUserName

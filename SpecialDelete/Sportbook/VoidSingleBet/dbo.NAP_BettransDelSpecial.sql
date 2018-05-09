@@ -1573,17 +1573,14 @@ BEGIN
 			,al.livehomescore
 			,al.liveawayscore
 			,al.Stake
+			,ci.currency
 			,al.CurrencyName
 			,al.status
 			,al.SecAcceptFlag
 			,al.betid
 			,al.grouptransid
 			,al.transid
-			,al.TransDesc
-			,al.custid
-			,al.recommend
-			,al.mrecommend
-			,al.srecommend
+			,al.TransDesc			
 			,al.betdaqid
 			,al.ExtraInfo
 			,al.MainCashoutId
@@ -1595,7 +1592,10 @@ BEGIN
 			,al.IsLiveIndicator AS IsLive
 			,al.NetWinLost AS WinLost
 			-----------------------------
-			,ci.currency
+			,al.custid
+			,al.recommend
+			,al.mrecommend
+			,al.srecommend
 			,ci.username
 			,ci.username2
 			,ci.username AS CustUserName

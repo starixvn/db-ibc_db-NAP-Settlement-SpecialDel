@@ -35,6 +35,7 @@ AS
 			  - 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 			  - 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 			  - 20180507@Benjamin: Correct Ruben, actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
+			  - 20180509@Alan: Change result for new template email [Redmine:#93296]
 			  
 	Param's Explanation:
 
@@ -97,7 +98,7 @@ BEGIN
 		livehomescore 		SMALLINT, 
 		liveawayscore 		SMALLINT,
 		Stake				MONEY,
-		CurrencyName		VARCHAR(10),
+		CurrencyName		VARCHAR(50),
 		betid				BIGINT,
 		transdesc			NVARCHAR(1000),
 		creatorName			VARCHAR(30),
@@ -723,21 +724,16 @@ BEGIN
 				INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid
 			
 		)
-		SELECT	b.custid
-			,b.actual_stake winlost
+		SELECT	b.custid			
 			,b.odds
 			,b.OddsType
-			,b.transdate
-			,b.bettype
+			,b.transdate			
 			,b.betfrom
-			,b.transid
+			,b.refno AS TransId
 			,b.refno
 			,b.betteam
-			,b.betcheck
-			,b.hdp1
-			,b.hdp2
-			,b.betfrom
-			,b.isLiveIndicator
+			,b.betcheck			
+			,b.betfrom			
 			,b.livehomescore
 			,b.liveawayscore
 			,b.stake
@@ -745,17 +741,20 @@ BEGIN
 			,b.STATUS
 			,b.SecAcceptFlag
 			,b.betid
-			,b.transdesc
-			,b.recommend
-			,b.mrecommend
-			,b.srecommend
+			,b.transdesc			
+			,b.isLiveIndicator AS IsLive
+			,b.bettype AS BetTypeId
+			,b.hdp1 AS Handicap1
+			,b.hdp2 AS Handicap2
+			,b.actual_stake AS winlost
+			
 			-----------------------------
 			,ci.currency
 			,ci.username
 			,ci.username2
-			,cr.username AS creator
-			,ci.username AS CustUserName
-			,ci.username2 as CustUserName2
+			,b.recommend
+			,b.mrecommend
+			,b.srecommend
 			,ag.UserName AS AgUserName
 			,ma.UserName AS MagUserName
 			,su.Username AS SagUserName
@@ -769,18 +768,11 @@ BEGIN
 			,@isITAdmin	AS IsITSupport
 			
 		FROM #BetDelete b WITH (NOLOCK)
-			INNER JOIN CTE_CustInfo ci WITH(NOLOCK)
-				ON b.custid = ci.custid
-			INNER JOIN CTE_CustInfo cr WITH(NOLOCK)
-				ON b.creator = cr.custid	
-			INNER JOIN CTE_CustInfo ag WITH(NOLOCK)
-				ON b.recommend = ag.custid
-			INNER JOIN CTE_CustInfo ma WITH(NOLOCK)
-				ON b.mrecommend = ma.custid
-			INNER JOIN CTE_CustInfo su WITH(NOLOCK)
-				ON b.srecommend = su.custid
-			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) 
-				ON b.srecommend = s.custid
+			INNER JOIN CTE_CustInfo ci WITH(NOLOCK)	ON b.custid = ci.custid	
+			INNER JOIN CTE_CustInfo ag WITH(NOLOCK)	ON b.recommend = ag.custid
+			INNER JOIN CTE_CustInfo ma WITH(NOLOCK)	ON b.mrecommend = ma.custid
+			INNER JOIN CTE_CustInfo su WITH(NOLOCK)	ON b.srecommend = su.custid
+			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK)	ON b.srecommend = s.custid
 		
 		ORDER BY b.transid
 		
