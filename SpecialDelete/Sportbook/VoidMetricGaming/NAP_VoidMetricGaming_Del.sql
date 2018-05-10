@@ -34,6 +34,7 @@ AS
 			  - 20160401@Bobby: #55354 - Update changes for new message structure
 			  - 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 			  - 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+			  - 20180507@Benjamin: Correct Ruben, actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 			  
 	Param's Explanation:
 
@@ -463,13 +464,15 @@ BEGIN
 			   ,b.EventID
 			   ,b.[recommend]
 			   ,b.[mrecommend]
-			   ,1 [ruben]
+			   --,1 [ruben] #94603
+			   ,0 [ruben]
 			   ,CASE WHEN ISNULL(b.custom3,'') = '' THEN NULL ELSE CAST(b.custom3 AS BIGINT) END [betid]
 			   ,NULL [statuswinlost]
 			   ,0 [modds]
 			   ,b.GameID [bettype]
 			   ,NULL [betdaqid]
-			   ,b.[actual_stake]
+			   --,b.[actual_stake] #94603
+			   ,0 [actual_stake]
 			   ,b.[currency]
 			   ,b.[ip]
 			   ,b.[transdesc]
@@ -574,8 +577,8 @@ BEGIN
 			
 		-- STEP 2 : Update
 		UPDATE	main
-			SET actual_stake = tl.actual_stake
-				,winlost = tl.actual_stake
+			SET actual_stake = tl.actual_stake 
+				,winlost = tl.actual_stake 			
 				,ruben = 1
 				,statuswinlost = 6
 				,creator = @UserID
