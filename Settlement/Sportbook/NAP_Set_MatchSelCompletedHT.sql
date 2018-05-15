@@ -36,7 +36,7 @@ AS
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180426@Helen: Improve Performance [Redmine:#89132]
-		- 20180510@Benjamin: Incorporate 4 new Sports - Kabaddi(47), Futsal (49), Sport 56[Redmine:#94608]
+		- 20180510@Benjamin: Incorporate new Sports: Kabaddi(47), Futsal (49), Sport 56[Redmine:#94608]
 		
 */
 BEGIN
