@@ -77,6 +77,7 @@ BEGIN
 		refno				BIGINT,
 		custid				INT, 
 		actual_stake		MONEY,
+		winlost				MONEY,
 		recommend			INT, 
 		mrecommend			INT, 
 		srecommend			INT, 
@@ -159,6 +160,7 @@ BEGIN
 			,refno			
 			,custid			
 			,actual_stake	
+			,winlost
 			,recommend		
 			,mrecommend		
 			,srecommend		
@@ -187,6 +189,7 @@ BEGIN
 			,b.refno
 			,custid
 			,b.actual_stake
+			,b.winlost - b.actual_stake
 			,recommend
 			,mrecommend
 			,srecommend
@@ -254,8 +257,8 @@ BEGIN
 	INSERT INTO #BetDelete(
 			transid			
 			,refno			
-			,custid			
-			,actual_stake	
+			,custid
+			,actual_stake
 			,recommend		
 			,mrecommend		
 			,srecommend		
@@ -724,16 +727,16 @@ BEGIN
 				INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid
 			
 		)
-		SELECT	b.custid			
+		SELECT	b.custid
 			,b.odds
 			,b.OddsType
-			,b.transdate			
+			,b.transdate
 			,b.betfrom
 			,b.refno AS TransId
 			,b.refno
 			,b.betteam
-			,b.betcheck			
-			,b.betfrom			
+			,b.betcheck
+			,b.betfrom
 			,b.livehomescore
 			,b.liveawayscore
 			,b.stake
@@ -741,13 +744,12 @@ BEGIN
 			,b.STATUS
 			,b.SecAcceptFlag
 			,b.betid
-			,b.transdesc			
+			,b.transdesc
+			,b.winlost	
 			,b.isLiveIndicator AS IsLive
 			,b.bettype AS BetTypeId
 			,b.hdp1 AS Handicap1
 			,b.hdp2 AS Handicap2
-			,b.actual_stake AS winlost
-			
 			-----------------------------
 			,ci.currency
 			,ci.username
