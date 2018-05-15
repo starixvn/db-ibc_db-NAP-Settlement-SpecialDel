@@ -55,7 +55,7 @@ BEGIN
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
 	
-	DECLARE @Matchid_tmp INT = 1
+	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
 	
 	DECLARE @BettypeFGLG TABLE  (bettype SMALLINT, GroupID SMALLINT)
 	
@@ -64,6 +64,7 @@ BEGIN
 	DECLARE @SqlQuery VARCHAR(4000)
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
+	
 	SELECT *
 	FROM OPENQUERY(DBPRO, ''SELECT m.MatchId, m.leagueid, m.hthomescore, m.htawayscore, mr.calculate
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
@@ -110,7 +111,7 @@ BEGIN
 			, tmp.bettype
 			, tmp.betcount
 			, tmp.winlostdate
-		FROM @DataTmp m 
+		FROM (SELECT TOP (@n) * FROM @DataTmp ) m 
 			CROSS APPLY (SELECT 
 								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
 								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount 
@@ -134,6 +135,7 @@ BEGIN
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
 	WHERE  winlostdate = @Date
 	GROUP BY b.matchid
+	OPTION (OPTIMIZE FOR (@n = 1))	
 	
 	SELECT m.matchid
 		, m.leagueid
