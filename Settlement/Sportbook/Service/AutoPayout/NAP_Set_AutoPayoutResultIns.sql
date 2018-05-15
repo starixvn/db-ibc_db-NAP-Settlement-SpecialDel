@@ -48,10 +48,10 @@ BEGIN
 		SET IsConfirmed = 1
 		FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
 		WHERE rs.MatchId	  = @MatchId 
-		  AND rs.HomeValue	  = @HomeValue
-		  AND rs.AwayValue	  = @AwayValue
-		  AND rs.IsConfirmed  = 0
+		  AND ((rs.HomeValue  = @HomeValue AND rs.AwayValue = @AwayValue) 
+		    OR (rs.AwayValue  = @InstKeyValue))
 		  AND rs.SourceID     = 100
+		  AND rs.IsConfirmed  = 0
 	   END
 
 	ELSE
