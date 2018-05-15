@@ -7,6 +7,7 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	, @AwayValue 	VARCHAR(50)
 	, @StatusId 	TINYINT
 	, @InstantKey		INT = NULL
+	, @IsInstCalculated		BIT = 0
 	, @ErrCode 		INT = 0 OUTPUT
 	, @ErrMsg NVARCHAR(200) = '' OUTPUT
 	
@@ -19,6 +20,7 @@ AS
 		- 20160930@Bobby: #65003 - Implement Instant Calculation
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
+		- 20180515@Benjamin: Added @IsInstCalculated: Score has already Inst calc before [Redmine:#86964]
 		
 	Param's Explanation:
 		@TypeId:
@@ -38,7 +40,24 @@ BEGIN
 		 , @InstKeyValue		VARCHAR(50)
 	
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
-	
+
+	--#86964
+	IF @IsInstCalculated = 1
+	   BEGIN
+	   	UPDATE rs
+		SET IsConfirmed = 1
+		FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
+		WHERE rs.MatchId	  = @MatchId 
+		  AND rs.HomeValue	  = @HomeValue
+		  AND rs.AwayValue	  = @AwayValue
+		  AND rs.IsConfirmed  = 0
+		  AND rs.SourceID     = 100
+	   END
+
+	ELSE
+	   BEGIN
+	--#86964
+
 	SELECT TOP 1 @AutoPayoutResultId = AutoPayoutResultId
 		, @StatusIdCheck = StatusId 
 	FROM dbo.AutoPayoutResult WITH(NOLOCK) 
@@ -102,6 +121,8 @@ BEGIN
 			)
 	END
 	
+	END --#86964
+
 	IF @@ERROR <> 0
 	BEGIN
 		SELECT @ErrCode = 1001022, @ErrMsg = 'Failed to insert result detail.'
