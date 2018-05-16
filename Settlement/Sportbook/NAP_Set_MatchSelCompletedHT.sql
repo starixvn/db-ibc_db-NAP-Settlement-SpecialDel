@@ -113,7 +113,7 @@ BEGIN
 			 m.matchid
 			, tmp.bettype
 			, tmp.betcount
-		FROM  (SELECT TOP (@n) * FROM @DataTmp ) m 
+		FROM  (SELECT TOP (@n) matchid FROM @DataTmp ) m 
 			CROSS APPLY (SELECT 
 							TOP(2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
 							b.matchid, b.bettype, COUNT_BIG(1) as betcount  
