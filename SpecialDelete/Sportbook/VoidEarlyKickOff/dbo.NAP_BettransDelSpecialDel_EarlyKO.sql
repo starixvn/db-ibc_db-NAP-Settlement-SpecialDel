@@ -1223,14 +1223,42 @@ BEGIN
 				,b.BonusID 
 				,sub911.MainTransId
 			FROM #CashOutSubTicket sub911
-				 CROSS APPLY (
-								  SELECT b.*
-								  FROM dbo.bettrans b WITH (NOLOCK)
-								  WHERE b.refno = sub911.transid
-								    AND b.matchid = sub911.matchid
-									AND b.bettype = sub911.OriginalBetType									
-									AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-							 ) AS b			
+				 CROSS APPLY ( 
+					SELECT b.transid
+						,b.refno
+						,b.betid  
+						,b.stake  
+						,b.odds  
+						,b.oddsspread
+						,b.custid  
+						,b.recommend  
+						,b.mrecommend  
+						,b.srecommend  
+						,b.betfrom  
+						,b.STATUS  
+						,b.statusID  
+						,b.creator  
+						,b.Bettype    
+						,b.betdaqid  
+						,b.oddstype  
+						,b.transdate  
+						,b.betteam      
+						,b.hdp1  
+						,b.hdp2  
+						,b.CurrencyName  
+						,b.betcheck  
+						,b.transdesc 
+						,b.ExtraInfo
+						,b.awinlost
+						,b.WalletType
+						,b.RefCode
+						,b.BonusID 
+						FROM dbo.bettrans b WITH (NOLOCK)
+						WHERE b.refno = sub911.transid
+						AND b.matchid = sub911.matchid
+						AND b.bettype = sub911.OriginalBetType
+						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+					) AS b
 			
 			-- insert 912,913
 			INSERT INTO #CashOutSubTicket(transid

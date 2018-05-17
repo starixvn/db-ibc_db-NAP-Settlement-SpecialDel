@@ -979,7 +979,7 @@ BEGIN
 					,b.statusID
 					,b.STATUS
 					,b.SecAcceptFlag
-					,b.creator								
+					,b.creator
 					,b.hdp1
 					,b.hdp2
 					,b.bettype
@@ -1008,14 +1008,47 @@ BEGIN
 					,sub911.MainTransId
 					,b.WinLost - b.actual_stake AS NetWinLost
 			FROM #CashOutSubTicket sub911
-				 CROSS APPLY (
-								  SELECT b.*
-								  FROM dbo.bettrans b WITH (NOLOCK)
-								  WHERE b.refno = sub911.transid
-								    AND b.matchid = sub911.matchid
-									AND b.bettype = sub911.OriginalBetType									
-									AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-							 ) AS b										 
+				 CROSS APPLY ( 
+					SELECT b.transid
+						,b.custid
+						,b.recommend
+						,b.mrecommend
+						,b.srecommend
+						,b.betfrom
+						,b.statusID
+						,b.STATUS
+						,b.SecAcceptFlag
+						,b.creator
+						,b.hdp1
+						,b.hdp2
+						,b.bettype
+						,b.betteam
+						,b.betcheck
+						,b.odds
+						,b.oddsspread
+						,b.oddstype
+						,b.transdate
+						,b.liveindicator
+						,b.livehomescore
+						,b.liveawayscore
+						,b.stake
+						,b.CurrencyName
+						,b.betid
+						,b.betdaqid
+						,b.refno
+						,b.ExtraInfo
+						,b.awinlost
+						,b.WalletType
+						,b.RefCode
+						,b.BonusID
+						,b.WinLost
+						,b.actual_stake
+						FROM dbo.bettrans b WITH (NOLOCK)
+						WHERE b.refno = sub911.transid
+						AND b.matchid = sub911.matchid
+						AND b.bettype = sub911.OriginalBetType
+						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+					) AS b
 			
 			
 			-- insert 912,913

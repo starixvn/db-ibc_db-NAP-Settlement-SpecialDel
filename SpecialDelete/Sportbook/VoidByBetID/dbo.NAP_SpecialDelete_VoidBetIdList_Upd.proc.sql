@@ -1303,14 +1303,53 @@ BEGIN
 				,b.BonusID
 				,sub911.MainTransId
 		FROM #CashOutTransActive sub911
-			 CROSS APPLY (
-								  SELECT b.*
-								  FROM dbo.bettrans b WITH (NOLOCK)
-								  WHERE b.refno = sub911.transid
-								    AND b.matchid = sub911.matchid
-									AND b.bettype = sub911.OriginalBetType									
-									AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-							 ) AS b			 
+			 CROSS APPLY ( 
+				SELECT b.transid
+					,b.matchid
+					,b.bettype
+					,b.betid
+					,b.stake
+					,b.odds
+					,b.oddsspread
+					,b.refno
+					,b.betfrom
+					,b.statusID
+					,b.betdaqid
+					,b.status
+					,b.oddstype
+					,b.transdate
+					,b.betteam
+					,b.betcheck
+					,b.hdp1
+					,b.hdp2
+					,b.livehomescore
+					,b.liveawayscore
+					,b.liveindicator
+					,b.winlost
+					,b.actual_stake
+					,b.playercomm
+					,b.currency
+					,b.transdesc
+					,b.custid
+					,b.creator
+					,b.recommend
+					,b.mrecommend
+					,b.srecommend
+					,b.winlostdate
+					,b.oddsid
+					,b.ExtraInfo
+					,b.awinlost
+					,b.modds
+					,b.CurrencyName
+					,b.WalletType
+					,b.RefCode
+					,b.BonusID
+					FROM dbo.bettrans b WITH (NOLOCK)
+					WHERE b.refno = sub911.transid
+					AND b.matchid = sub911.matchid
+					AND b.bettype = sub911.OriginalBetType
+					AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+				) AS b			 
 		
 		--Insert multiple cash-out transaction (912,913)
 		INSERT INTO #CashOutTransActive(bettype, transId, matchid, sporttype

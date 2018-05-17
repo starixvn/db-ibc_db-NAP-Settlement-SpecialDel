@@ -1109,13 +1109,48 @@ BEGIN
 						NULL AS SubOdds
 				FROM #CashOutTransActive sub911					 
 					 CROSS APPLY (
-									  SELECT b.*
-									  FROM dbo.bettrans b WITH (NOLOCK)
-									  WHERE b.refno = sub911.transid
-										AND b.matchid = sub911.matchid
-										AND b.bettype = sub911.OriginalBetType									
-										AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-								 ) AS b					
+						SELECT b.Stake,
+							b.BetCheck,
+							b.BetId,
+							b.BetTeam,
+							b.BetType,
+							b.Currency,
+							b.Creator,
+							b.Hdp1,
+							b.Hdp2,
+							b.LiveIndicator,
+							b.LiveAwayScore,
+							b.LiveHomeScore,
+							b.Odds,	
+							b.Oddsspread,
+							b.OddsType,
+							b.RefNo,
+							b.status,
+							b.TransDate,
+							b.TransDesc,
+							b.TransId,
+							b.UserName,
+							b.WinLost,
+							b.actual_stake,
+							b.betfrom,
+							b.srecommend,
+							b.mrecommend,
+							b.recommend,
+							b.custid,
+							b.playercomm,
+							b.betdaqid,
+							b.ExtraInfo,
+							b.awinlost,
+							b.WalletType,
+							b.RefCode,
+							b.BonusID,
+							b.matchid
+						FROM dbo.bettrans b WITH (NOLOCK)
+						WHERE b.refno = sub911.transid
+						AND b.matchid = sub911.matchid
+						AND b.bettype = sub911.OriginalBetType
+						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+					) AS b					
 					 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 ON b.recommend = c.custid					
 					 LEFT JOIN (SELECT [site] AS LicenseeName
