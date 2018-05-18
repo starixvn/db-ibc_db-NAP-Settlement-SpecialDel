@@ -44,7 +44,7 @@ BEGIN
 
 	DECLARE @HTOverStartMins INT, @HTOverEndMins INT
 	
-	DECLARE @Matchid_tmp INT = 1
+	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
 	
 	SELECT @LeagueID = CASE WHEN @isReLoad = 1 THEN ISNULL(@LeagueID, 0) 
 						ELSE 0	END -- reload partial; search on LeagueID, not reload: get all leagues
@@ -113,7 +113,7 @@ BEGIN
 			 m.matchid
 			, tmp.bettype
 			, tmp.betcount
-		FROM @DataTmp m 
+		FROM  (SELECT TOP (@n) matchid FROM @DataTmp ) m 
 			CROSS APPLY (SELECT 
 							TOP(2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
 							b.matchid, b.bettype, COUNT_BIG(1) as betcount  
@@ -137,6 +137,7 @@ BEGIN
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
 	GROUP BY b.matchid
+	OPTION (OPTIMIZE FOR (@n = 1))	
 			
 	SELECT m.matchid
 		, m.leagueid
