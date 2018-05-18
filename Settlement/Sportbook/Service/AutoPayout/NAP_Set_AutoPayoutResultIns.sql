@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
+ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns_xpre
 	@MatchId 		INT
 	, @SourceId 	TINYINT
 	, @TypeId 		TINYINT
@@ -114,7 +114,7 @@ BEGIN
 		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
 	END
 	
-	IF (@TypeId IN (101, 102) ) AND @StatusId (1,2) --Update IsConfirmed when: Manual/Auto Settle process
+	IF (@TypeId IN (101, 102) ) AND @StatusId IN (1,2) --Update IsConfirmed when: Manual/Auto Settle process
 	BEGIN
 		UPDATE rs
 		SET IsConfirmed = 1
