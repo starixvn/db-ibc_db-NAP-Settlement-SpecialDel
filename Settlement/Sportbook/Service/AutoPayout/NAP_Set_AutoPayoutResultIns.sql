@@ -30,7 +30,12 @@ AS
 		    + 102: InstantCalculation - 2H
 		@SourceId:
 		    + 5: AutoInstant (Soccerway)
-		    + 100: Suspender
+		    + 100: Info Site
+						
+		@IsInstCalculated:
+			+ 0: Did not Calculated yet 
+			+ 1: Already Calculated
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -109,7 +114,7 @@ BEGIN
 		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
 	END
 	
-	IF (@TypeId IN (101, 102) ) AND @SourceId = 100 --Update IsConfirmed=1 in Manal and IsCalculated Only
+	IF (@TypeId IN (101, 102) ) AND @StatusId (1,2) --Update IsConfirmed when: Manual/Auto Settle process
 	BEGIN
 		UPDATE rs
 		SET IsConfirmed = 1
