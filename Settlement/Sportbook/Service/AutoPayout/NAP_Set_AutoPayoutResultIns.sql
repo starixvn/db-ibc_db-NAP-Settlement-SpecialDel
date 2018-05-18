@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns_xpre
+ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	@MatchId 		INT
 	, @SourceId 	TINYINT
 	, @TypeId 		TINYINT
