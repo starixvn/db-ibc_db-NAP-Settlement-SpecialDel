@@ -42,7 +42,7 @@ BEGIN
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
 
 	--#86964
-	IF @IsInstCalculated = 1
+	IF @IsInstCalculated = 1 AND @SourceId = 5 
 	   BEGIN
 	   	UPDATE rs
 		SET IsConfirmed = 1
@@ -109,7 +109,7 @@ BEGIN
 		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
 	END
 	
-	IF (@TypeId IN (101, 102) )
+	IF (@TypeId IN (101, 102) ) AND @SourceId = 100 --Update IsConfirmed=1 in Manal and IsCalculated Only
 	BEGIN
 		UPDATE rs
 		SET IsConfirmed = 1
