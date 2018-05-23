@@ -8,6 +8,7 @@ AS
 	DB: DBTXN/BODB02
 	Revisions:
 		- 20170426@bobby.nguyen: Initial
+		- 20180523@Kathy: Add StatusId = 8 [Redmine:#91460]
 			
 	Parameters Explanation:	
 		- @BonusFlag: TINYINT
@@ -25,6 +26,7 @@ RETURN (
 		UNION ALL SELECT 6, 1 --approved
 		UNION ALL SELECT 1, 2 --expired
 		UNION ALL SELECT 3, 2 --cancelled
+		UNION ALL SELECT 8, 1 --calculating
 )
 GO
 
