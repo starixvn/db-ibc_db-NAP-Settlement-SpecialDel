@@ -9,6 +9,7 @@ AS
 	Revisions: 		
 		- 20170412@Kent: Get all licensee [Redmine:#75009]		
 		- 20180131@Kathy: Update licensees list for China Market [Redmine:#90158]
+		- 20180523@Alan: Update licensees list for China Market [Redmine:#95675]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -89,6 +90,8 @@ BEGIN
 		  , ('Sunrise', @China_GroupName)
 		  , ('AK318', @China_GroupName)
 		  , ('Holey', @China_GroupName)
+		  , ('Xinbo', @China_GroupName)
+		  , ('WM8888', @China_GroupName)
 		
 	;WITH LicenseeList AS
 	(     
