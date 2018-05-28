@@ -11,6 +11,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20180528@Benjamin: Add "SourceID = 100" to filter correct score from Suspender[Redmine:#86964]
 		
 	Param's Explanation:
 
@@ -97,6 +98,7 @@ BEGIN
 			FROM dbo.ProviderResultDetail rs WITH(NOLOCK)
 			WHERE rs.matchid = @MatchId
 				AND rs.TypeId BETWEEN 101 AND 102
+				AND rs.SourceID = 100
 			ORDER BY ProviderResultDetailId DESC
 		)
 		SELECT @ErrCode		= 1001003
