@@ -12,6 +12,7 @@ AS
 		- 20170503@Bobby.Nguyen: Initial
 		- 20171009@Kathy: Change column name of BonusAdjustmentTransfer [Redmine:#72789]
 		- 20180326@Kathy: Change bonus transfer bettypeId [Redmine:#92592]
+		- 20180529@Kathy: Change email list on production [Redmine:#92592]
     Parameters Explanation:   
 		@Mode:	- Adjustment
 				- CleanUp
@@ -410,8 +411,8 @@ BEGIN
 			SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 			
 			EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-				, @recipients			 = 'qa@starixsoft.com'
-				--, @recipients			 = 'patrick.pham@starixsoft.com;lukas.luu@starixsoft.com;daniel.truong@starixsoft.com;billy.bui@starixsoft.com;bobby.nguyen@starixsoft.com'
+				--, @recipients			 = 'qa@starixsoft.com'
+				, @recipients			 = 'patrick.pham@starixsoft.com;lukas.luu@starixsoft.com;daniel.truong@starixsoft.com;billy.bui@starixsoft.com;'
 				, @copy_recipients		 = ''
 				, @blind_copy_recipients = ''
 				, @subject				 = @subject
