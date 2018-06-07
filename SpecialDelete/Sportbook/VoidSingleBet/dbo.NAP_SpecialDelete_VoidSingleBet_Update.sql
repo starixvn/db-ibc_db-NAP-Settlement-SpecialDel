@@ -1911,14 +1911,21 @@ BEGIN
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	------------------***** End of Special Delete *****------------------
-		SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
-				+ ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' 
-				+ CONVERT(VARCHAR(20), @ToTransId) + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) 
-				+ ' reason: ' + @Reason
-				
+		IF(@FromTransId > 0)
+		BEGIN
+			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
+						+ ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) 
+						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason
+		END
+		ELSE
+		BEGIN
+			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
+						+ ' from ' + CONVERT(VARCHAR(25), @FromTransdate) + ' to ' + CONVERT(VARCHAR(25), @ToTransdate) 
+						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason
+		END				
 		EXEC WriteLog_UserLog 
 			@UserID = @UserID
-			,@Doing = @LogData													
+			,@Doing = @LogData
 		
 		-- CHECK IT GROUP or NOT ?   
 		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group
