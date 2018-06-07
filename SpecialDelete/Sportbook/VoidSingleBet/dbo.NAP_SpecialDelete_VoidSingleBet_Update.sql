@@ -1362,7 +1362,7 @@ BEGIN
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
 				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
 		FROM	dbo.bettransm AS b WITH (nolock)  
-			INNER JOIN #BetDelete AS r ON r.transid=b.transid
+			INNER JOIN #BetDelete AS r ON r.SubTransId=b.transid
 
 		-- 1.5.  BackUp bettransm tickets into zzzbettransm
 		INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
@@ -1372,7 +1372,7 @@ BEGIN
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
 				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
 		FROM	dbo.bettransm AS b WITH (nolock)  
-			INNER JOIN #BetDelete AS r ON r.transid=b.transid   
+			INNER JOIN #BetDelete AS r ON r.SubTransId=b.transid   
 
 		-- Capture balance before updating Bettrans
 		INSERT INTO @BeforeUpd (matchid, custid, balanceType, BonusID, WalletType, balance)
