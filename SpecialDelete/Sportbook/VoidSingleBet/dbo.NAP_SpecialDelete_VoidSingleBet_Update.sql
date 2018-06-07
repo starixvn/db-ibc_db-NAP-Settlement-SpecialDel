@@ -245,10 +245,7 @@ BEGIN
 		MainTransId			BIGINT
 	) -- store 911,912,913		
 	
-	DECLARE @Remark			VARCHAR(500)
-			,@KeyID			INT
-			,@eventdate		DATETIME --Check settled Date
-			,@LogData		NVARCHAR(500)
+	DECLARE @LogData NVARCHAR(500)
 			,@CountTransId	INT
 	
 	SELECT @ErrCode = 0
@@ -1809,18 +1806,18 @@ BEGIN
 			)   
 			BEGIN 
 				BEGIN TRY  
-					DECLARE @transids_29 VARCHAR(MAX) = '' ,@refnos_29  VARCHAR(MAX) = ''  
+					DECLARE @transids_29 VARCHAR(MAX) = '' ,@refnos_29  VARCHAR(MAX) = '' 
 				   
 					SELECT	@transids_29 = @transids_29 + CONVERT(VARCHAR(20), transid) + ','  
 					FROM	#BetDelete  
 					WHERE	bettype = 29  
-					GROUP BY transid  
-				  
+					GROUP BY transid
+					
 					EXEC dbo.NAP_Admin_Calculate_MP_broker   
 						@matchid = @matchid  
 						,@matchdate = @matchdate  
 						,@strXML = @transids_29  
-						,@mode  = 'PRECAL-29'  		   
+						,@mode  = 'PRECAL-29'
 				END TRY  
 				BEGIN CATCH   
 					SELECT @ErrCode = 100, @ErrMsg = ERROR_MESSAGE()  
@@ -1832,7 +1829,7 @@ BEGIN
 
 				--Get data before update  
 				INSERT INTO @BeforeUpdSP (matchid, custid, balanceType, BonusID, WalletType, balance)  
-				SELECT @MatchId AS matchid, b.custid, 1 AS balanceType, 0 AS BonusID, 2 AS WalletType, SUM(b.winlost - b.actual_stake + b.playercomm) balance  					 
+				SELECT @MatchId AS matchid, b.custid, 1 AS balanceType, 0 AS BonusID, 2 AS WalletType, SUM(b.winlost - b.actual_stake + b.playercomm) balance
 				FROM dbo.bettrans b WITH (NOLOCK)  
 				 INNER JOIN #BetDeletem r ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
@@ -1840,8 +1837,15 @@ BEGIN
 
 				--Settlement System parlay (changed balance)  
 				BEGIN TRY  
+					SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
+					FROM #BetDelete  
+					WHERE Bettype = 29 
+						AND (statusID IS NULL OR statusID <> 102) 
+					GROUP BY refno, transid
+					SET @refnos_29 = STUFF(@refnos_29,1,1,'')
+
 					EXEC dbo.NAP_Admin_Calculate_MP_broker  
-					@matchdate = @eventdate  
+					@matchdate = @matchdate  
 					,@strXML = @refnos_29  
 					,@mode  = '29'  
 				END TRY  
@@ -1856,7 +1860,7 @@ BEGIN
 					 , 1 AS balanceType
 					 , 0 AS BonusID
 					 , 2 AS WalletType
-					 , SUM(b.winlost - b.actual_stake + b.playercomm) balance  					 
+					 , SUM(b.winlost - b.actual_stake + b.playercomm) balance
 				FROM dbo.bettrans b WITH (NOLOCK)  
 					INNER JOIN #BetDeletem r ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
@@ -1874,8 +1878,8 @@ BEGIN
 		--> Capture balance after update	
 		INSERT INTO @afterUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM dbo.bettrans b WITH (ROWLOCK)			 					 	  
-		WHERE transid IN (SELECT transid FROM #BetDelete)				
+		FROM dbo.bettrans b WITH (ROWLOCK)
+		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID
 
 		SET @NegativeBalanceUsers = ''
@@ -1885,10 +1889,10 @@ BEGIN
 		WHERE b.balance > a.balance	
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT		
+			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 		 
 		------ releasing SD process
-		EXEC dbo.NAP_Admin_CheckingProcess			
+		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistSingle
 			,@isExistParlay = @isExistParlay 
 			,@IsReleased	= 1
