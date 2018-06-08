@@ -232,7 +232,6 @@ BEGIN
 		livehomescore 		SMALLINT, 
 		liveawayscore 		SMALLINT,
 		creator				INT,
-		creatorName			VARCHAR(30),
 		Stake				MONEY,
 		CurrencyName		VARCHAR(10),
 		IsDeposit			BIT DEFAULT (0),
@@ -1116,9 +1115,6 @@ BEGIN
 	SET username = CASE WHEN ci.IsExisted IS NOT NULL THEN ci.username
 						ELSE al.username
 				   END
-	   ,creatorName = CASE WHEN cr.IsExisted IS NOT NULL THEN cr.username
-						ELSE al.creatorName
-					  END 
 	   ,SportType = CASE WHEN ci.IsExisted IS NOT NULL AND cr.IsExisted IS NOT NULL THEN @SportType
 						ELSE al.SportType
 					END
@@ -1153,8 +1149,7 @@ BEGIN
 			   ,s.hdp2		
 			   ,s.IsLiveIndicator
 			   ,s.livehomescore
-			   ,s.liveawayscore
-			   ,s.creatorName AS creator		
+			   ,s.liveawayscore	
 			   ,s.Stake		
 			   ,s.CurrencyName
 			   ,s.IsDeposit	
@@ -1219,7 +1214,6 @@ BEGIN
 			   ,s.IsLiveIndicator
 			   ,s.livehomescore
 			   ,s.liveawayscore
-			   ,s.creatorName AS creator	
 			   ,s.Stake		
 			   ,s.CurrencyName
 			   ,s.IsDeposit	
@@ -1275,8 +1269,7 @@ BEGIN
 			   ,s.hdp2		
 			   ,s.IsLiveIndicator
 			   ,s.livehomescore
-			   ,s.liveawayscore
-			   ,s.creatorName AS creator		
+			   ,s.liveawayscore	
 			   ,s.Stake		
 			   ,s.CurrencyName
 			   ,s.IsDeposit	
@@ -1343,8 +1336,7 @@ BEGIN
 			   ,s.hdp2		
 			   ,s.IsLiveIndicator
 			   ,s.livehomescore
-			   ,s.liveawayscore
-			   ,s.creatorName AS creator	
+			   ,s.liveawayscore	
 			   ,s.Stake		
 			   ,s.CurrencyName
 			   ,s.IsDeposit	
@@ -1455,7 +1447,6 @@ BEGIN
 			,s.IsLiveIndicator
 			,s.livehomescore
 			,s.liveawayscore
-			,s.creator	
 			,s.Stake		
 			,s.CurrencyName
 			,s.IsDeposit	

@@ -152,7 +152,6 @@ BEGIN
 		username2			VARCHAR(50),
 		SecAcceptFlag		BIT, 
 		creator				INT,
-		creatorName			VARCHAR(30), 
 		hdp1 				SMALLMONEY,  
 		hdp2 				SMALLMONEY,
 		bettype 			SMALLINT,
@@ -1302,7 +1301,7 @@ BEGIN
 		--> capture Before Balance Update
 		INSERT INTO #BeforeUpd (custid, balance)  
 		SELECT	b.custid ,SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
-		FROM dbo.bettrans b WITH (ROWLOCK)
+		FROM dbo.bettrans b WITH (NOLOCK)
 		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID	
 		
@@ -1876,16 +1875,16 @@ BEGIN
 		END  
 				
 		--> Capture balance after update	
-		INSERT INTO @afterUpd(custid, balance)
+		INSERT INTO #AfterUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM dbo.bettrans b WITH (ROWLOCK)
+		FROM dbo.bettrans b WITH (NOLOCK)
 		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID
 
 		SET @NegativeBalanceUsers = ''
 		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
-		FROM @beforeUpd b
-			 INNER JOIN	@afterUpd a ON a.custid = b.custid
+		FROM #BeforeUpd b
+			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
 		WHERE b.balance > a.balance	
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
@@ -1902,18 +1901,7 @@ BEGIN
 			@Mode = 'Original' 
 			,@Action = 'Void'
 			,@IsReleased = 1	
-
-		--> Get list of customer name with negative balance
-		SET @NegativeBalanceUsers = ''
-		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
-		FROM @beforeUpd b
-			 INNER JOIN	@afterUpd a ON a.custid = b.custid
-		WHERE b.balance > a.balance				
 			
-		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
-			@CustIds = @CustIds,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
 	------------------***** End of Special Delete *****------------------
 		IF(@FromTransId > 0)
 		BEGIN
