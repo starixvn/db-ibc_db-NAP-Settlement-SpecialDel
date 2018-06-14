@@ -313,7 +313,8 @@ BEGIN
 					OR (tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay > 0 AND tm.IsRunningAutoBettypesParlay = 0) THEN 'Completed'				
 				ELSE '' END AS AutoSettleResultStatus
 		, CASE
-			WHEN tm.IsExistFastMarketResult = 0 AND tm.IsExistFastMarket = 0 THEN 'N/A'
+			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 0 THEN 'N/A'
+			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 1 THEN 'No Ticket'
 			WHEN tm.IsRunningFastMarket > 0 THEN 'Running'
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
