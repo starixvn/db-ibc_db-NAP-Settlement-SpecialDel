@@ -4,8 +4,6 @@
 *.org
 *.orig
 *.original
-*.*test*
-*.*UAT*
 *.bk
 *.backup
 *.del
