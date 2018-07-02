@@ -39,7 +39,7 @@ BEGIN
 		SELECT @winlostdate = CONVERT(CHAR(10),GETDATE(),111)
 	END
 	
-	SELECT transid, actual_stake, stake, odds, comstatus, modds, betteam
+	SELECT transid, actual_stake, stake, odds, comstatus, modds
 		, apositiontaking, mpositiontaking, spositiontaking, playerdiscount,discount, adiscount, sdiscount
 		, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm, StatusID
 		, ruben, STATUS, winlostdate, statuswinlost
@@ -161,7 +161,7 @@ BEGIN
 						,status '@s'
 						,winlostdate '@wld'
 						,statuswinlost '@swd'
-						,ruben 'r' 
+						,ruben '@r' 
 					FROM @subtable
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				)
