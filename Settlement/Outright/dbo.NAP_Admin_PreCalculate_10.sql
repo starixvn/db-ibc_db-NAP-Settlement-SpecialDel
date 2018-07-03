@@ -47,7 +47,8 @@ BEGIN
 	FROM dbo.bettrans WITH(ROWLOCK)	
 	WHERE matchid = @matchid 
 		AND bettype = 10
-	
+		AND statusID NOT IN (101, 102)
+		
 	IF @Action='UNDO'
 	BEGIN
 		--Unsettle tickets
@@ -67,9 +68,6 @@ BEGIN
 	END 
 	ELSE IF @Action = 'CAL'
 	BEGIN
-		
-		DELETE #Outright_TempData WHERE statusID IN (101, 102) -- 101:reject, 102:void
-		
 		IF (@status='won')
 		BEGIN
 			UPDATE #Outright_TempData
