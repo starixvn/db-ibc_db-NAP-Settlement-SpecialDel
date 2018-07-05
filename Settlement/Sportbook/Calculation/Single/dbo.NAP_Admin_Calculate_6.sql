@@ -1,11 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_Admin_Calculate_6]    Script Date: 03/22/2016 11:08:39 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.Admin_Calculate_6    Script Date: 2/26/2014 6:01:44 PM ******/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_6] @matchid INT
 	,@bettype SMALLINT
 	,@totalgoal INT

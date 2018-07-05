@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999] 
     @matchid INT
     ,@bettype SMALLINT
@@ -36,7 +30,7 @@ AS
         - 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20161118@Bobby: #67462 - Implement SDT for Over/Under bettypes full winlost
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-		- 20180705@Helen: applying batch by batch for settlement [Redmine:#97842]
+		- 20180704@Helen: Prevent lock escalation on Bettrans [Redmine:#89132]
 
         
 */
