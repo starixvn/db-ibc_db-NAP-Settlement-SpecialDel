@@ -701,7 +701,6 @@ BEGIN
 						ELSE statusID
 						END
 					,ruben = CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
-				--FROM	dbo.bettrans b 
 				FROM	@tmpBatch r
 						INNER JOIN dbo.bettrans b 
 							ON	r.BatchNo = @BatchNo
