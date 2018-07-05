@@ -380,9 +380,19 @@ BEGIN
 			END    
 			ELSE -- settle determined
 			BEGIN
-				
-				UPDATE b
-				SET @modds = CASE 
+				WHILE @BatchNo > 0
+				BEGIN
+					SELECT	@MinCustId = MAX(MinCustId)
+							,@MaxCustId = MAX(MaxCustId)
+							,@MinTransId = MAX(MinTransId)
+							,@MaxTransId = MAX(MaxTransId)
+							,@TransIdOfMinCust = MAX(TransIdOfMinCust)
+							,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
+					FROM	@tmpBatch
+					WHERE	BatchNo = @BatchNo
+					
+					UPDATE b
+						SET @modds = CASE 
                                 
 								--456: 1H Both Teams To Score / Result
 								WHEN bettype = 456 THEN CASE
@@ -691,19 +701,39 @@ BEGIN
 						ELSE statusID
 						END
 					,ruben = CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
-				FROM	dbo.bettrans b 
+				--FROM	dbo.bettrans b 
+				FROM	@tmpBatch r
+						INNER JOIN dbo.bettrans b 
+							ON	r.BatchNo = @BatchNo
+								AND r.CustId = b.recommend
+						CROSS APPLY (
+							SELECT CASE
+										WHEN r.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+										WHEN r.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+										WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+										ELSE 0
+									END AS IsCalculated
+						)i
+					
+					
 				WHERE   matchid = @matchid    
 						AND bettype = @bettype
 						AND statusID NOT IN (101, 102)
+						AND i.IsCalculated = 1
 						AND 1 = CASE 
 									WHEN @IsSettleAbandonedMatch = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
 									WHEN @IsSettleAbandonedMatchBetFair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
 									WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
 									ELSE 0
 								END
+					
+					SET @BatchNo = @BatchNo - 1
+
+					WAITFOR DELAY '00:00:00:010'		
+				END				
 			END
 		END
-		ELSE
+		ELSE -- other bettypes: normal + determined
 		BEGIN
 			SELECT @csHT =  CASE WHEN @hth + @hta >= 4 THEN '4+' 
 							 ELSE CAST(@hth AS nvarchar(10)) + ':' + CAST(@hta AS nvarchar(10))
@@ -1632,10 +1662,22 @@ BEGIN
 	             END
 	                                
 			END    
-			ELSE -- settled determined
+			ELSE --DBTRANS - settled determined
 			BEGIN
-				UPDATE b
-				SET @modds = CASE 
+				 -- process batch by batch
+	            WHILE @BatchNo > 0
+				BEGIN
+					SELECT	@MinCustId = MAX(MinCustId)
+							,@MaxCustId = MAX(MaxCustId)
+							,@MinTransId = MAX(MinTransId)
+							,@MaxTransId = MAX(MaxTransId)
+							,@TransIdOfMinCust = MAX(TransIdOfMinCust)
+							,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
+					FROM	@tmpBatch
+					WHERE	BatchNo = @BatchNo
+					
+					UPDATE b
+						SET @modds = CASE 
                                 
 								--456: 1H Both Teams To Score / Result
 								WHEN bettype = 456 THEN CASE
@@ -1944,20 +1986,39 @@ BEGIN
 						ELSE statusID
 						END
 					,ruben = CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
-			FROM	dbo.bettrans b
-			WHERE   matchid = @matchid    
-					AND bettype = @bettype
-					AND statusID NOT IN (101, 102)
-					AND 1 = CASE 
-								WHEN @IsSettleAbandonedMatch = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
-								WHEN @IsSettleAbandonedMatchBetFair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
-								WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
-								ELSE 0
-							END
+				--FROM	dbo.bettrans b
+				FROM	@tmpBatch c
+							INNER JOIN dbo.bettrans b
+								ON	c.BatchNo = @BatchNo
+									AND c.CustId = b.custid
+							CROSS APPLY (
+								SELECT CASE
+											WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+											WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+											WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+											ELSE 0
+										END AS IsCalculated
+							)i
+							
+				WHERE   matchid = @matchid    
+						AND bettype = @bettype
+						AND statusID NOT IN (101, 102)
+						AND i.IsCalculated = 1
+						AND 1 = CASE 
+									WHEN @IsSettleAbandonedMatch = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
+									WHEN @IsSettleAbandonedMatchBetFair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
+									WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
+									ELSE 0
+								END
+					
+					SET @BatchNo = @BatchNo - 1
+
+					WAITFOR DELAY '00:00:00:010'			
+				END	
 						
 			END
 		END
-		ELSE
+		ELSE  -- DBTRANS - other bettypes: normal + determined
 		BEGIN
 			SELECT @csHT =  CASE WHEN @hth + @hta >= 4 THEN '4+' 
 							 ELSE CAST(@hth AS nvarchar(10)) + ':' + CAST(@hta AS nvarchar(10))
@@ -2594,6 +2655,7 @@ BEGIN
 									) THEN 1                       
 								 ELSE 0
 							END
+				
 				SET @BatchNo = @BatchNo - 1
 
 				WAITFOR DELAY '00:00:00:010'
