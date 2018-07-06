@@ -39,7 +39,7 @@ BEGIN
     
     IF @betcount = 0 AND @@servername NOT LIKE N'DBIOM%' RETURN
 
-    IF @@servername IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
+    IF @@servername IN ('DB04', 'DB042', 'DB043', 'DB044', 'SITDB04', 'SITDB042','SITDB043', 'SITDB044') RETURN
 
     DECLARE @modds MONEY
         ,@commWinRate SMALLMONEY
