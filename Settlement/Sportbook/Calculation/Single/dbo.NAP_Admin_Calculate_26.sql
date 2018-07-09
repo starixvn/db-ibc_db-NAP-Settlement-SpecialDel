@@ -259,6 +259,16 @@ BEGIN
 		
 			WHILE @BatchNo > 0
 			BEGIN
+				
+				SELECT	@MinCustId = MAX(MinCustId)
+						,@MaxCustId = MAX(MaxCustId)
+						,@MinTransId = MAX(MinTransId)
+						,@MaxTransId = MAX(MaxTransId)
+						,@TransIdOfMinCust = MAX(TransIdOfMinCust)
+						,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
+				FROM	@tmpBatch
+				WHERE	BatchNo = @BatchNo
+				
 				UPDATE b
 					SET @modds = CASE 
 							WHEN betteam = 'b' AND (@fth > 0 AND @fta > 0) THEN 1
