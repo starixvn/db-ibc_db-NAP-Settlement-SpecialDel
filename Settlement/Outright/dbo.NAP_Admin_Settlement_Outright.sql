@@ -18,6 +18,7 @@ AS
 	
 	Revision: 
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
+		- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 		
 	Param's Explanation:
 		+ @Action	= CAL | UNDO | REFUND
@@ -119,7 +120,7 @@ BEGIN
 		and bettype = 10
 	Group by custid
 	
-		EXEC dbo.NAP_Admin_Calculate_10 
+		EXEC dbo.NAP_Admin_PreCalculate_10 
 		 @MatchID = @MatchID
 		,@Status = @Status
 		,@Action = @Action
