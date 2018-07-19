@@ -25,7 +25,11 @@ BEGIN
 			,@commLostRate SMALLMONEY
 	
 	DECLARE @IgnoreList VARCHAR(200)
-	SET @IgnoreList = 'DB04,DB042,DB043,DB044'
+	
+	IF @Action='UNDO'
+		SET @IgnoreList = 'DB04,DB043,DB044'
+	ELSE
+		SET @IgnoreList = 'DB04,DB042,DB043,DB044'
 	
 	DECLARE @_xml XML, @_sXML VARCHAR(MAX)
 		,@createdDate DATETIME
