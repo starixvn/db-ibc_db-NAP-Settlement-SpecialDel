@@ -41,6 +41,7 @@ AS
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20161118@Bobby: #67551 - Update changes for refunding SDT - ABANDONED match
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
+		- 20180720@Vicky: Refund FT without Settle Determined [Redmine:#92859]
 		
 	Param's Explanation: 
 		+ @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
