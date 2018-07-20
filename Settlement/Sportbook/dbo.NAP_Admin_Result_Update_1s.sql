@@ -447,6 +447,7 @@ BEGIN
 					,GETDATE()
 				);	 
 	END 
+	/* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
 	ELSE IF @Command ='NAP_Admin_Settlement_Refund_All_NotSDT'
     BEGIN
         SELECT   @fth           = finalhomescore
@@ -504,7 +505,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END 
-	/* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
+	/* END - @Command = 'NAP_Admin_Settlement_Refund_All_NotSDT' */
 	ELSE IF @Command ='NAP_Admin_Settlement_Refund_All-ABANDONED'
 	BEGIN
 		
