@@ -447,6 +447,63 @@ BEGIN
 					,GETDATE()
 				);	 
 	END 
+	ELSE IF @Command ='NAP_Admin_Settlement_Refund_All_NotSDT'
+    BEGIN
+        SELECT   @fth           = finalhomescore
+                ,@fta           = finalawayscore
+                ,@hth           = hthomescore
+                ,@hta           = htawayscore 
+                ,@GoalSequence  = GoalRecord
+        FROM    Match WITH (NOLOCK)
+        WHERE   MatchID = @MatchID
+
+        INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
+        SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)))
+
+        UPDATE @tmpResultDetail
+        SET    SettlementStatusID = 1 -- Refund
+               ,ResultStatusID = 5    -- Manual Settlement
+        WHERE   SourceType = 0
+        
+        MERGE   ResultDetail AS TARGET
+        USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
+        WHEN    MATCHED THEN                 
+                UPDATE SET
+                    TARGET.HomeValue            = SOURCE.HomeValue
+                    ,TARGET.AwayValue           = SOURCE.AwayValue  
+                    ,TARGET.OtherInfo           = NULL
+                    ,TARGET.ResultStatusID      = SOURCE.ResultStatusID
+                    ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID
+                    ,TARGET.LastModifyBy        = @Creator 
+                    ,TARGET.LastModifyDate      = GETDATE() 
+        WHEN    NOT MATCHED BY TARGET THEN 
+                INSERT(
+                     MatchID
+                    ,ResourceID
+                    ,HomeValue
+                    ,AwayValue
+                    ,OtherInfo 
+                    ,ResultStatusID
+                    ,SettlementStatusID
+                    ,CreateBy
+                    ,CreateDate
+                    ,LastModifyBy
+                    ,LastModifyDate
+                )
+                VALUES(
+                     @MatchID
+                    ,SOURCE.ResourceID
+                    ,SOURCE.HomeValue
+                    ,SOURCE.AwayValue 
+                    ,NULL 
+                    ,SOURCE.ResultStatusID -- Manual Settlement 
+                    ,SOURCE.SettlementStatusID -- Refund
+                    ,@Creator
+                    ,GETDATE()
+                    ,@Creator
+                    ,GETDATE()
+                );   
+    END 
 	/* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
 	ELSE IF @Command ='NAP_Admin_Settlement_Refund_All-ABANDONED'
 	BEGIN
@@ -594,6 +651,7 @@ BEGIN
 		UPDATE @tmpResultDetail
 			SET SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
 										   WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN 3 
+										   WHEN @IsSettleAbandonedMatchIBC = 0 THEN 
 										   ELSE 3 
 									   END --Refund FT 
 				,ResultStatusID = 5 -- Manual Settlement 	
