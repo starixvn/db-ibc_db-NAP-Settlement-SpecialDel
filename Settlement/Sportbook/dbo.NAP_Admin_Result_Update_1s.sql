@@ -651,7 +651,6 @@ BEGIN
 		UPDATE @tmpResultDetail
 			SET SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
 										   WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN 3 
-										   WHEN @IsSettleAbandonedMatchIBC = 0 THEN 
 										   ELSE 3 
 									   END --Refund FT 
 				,ResultStatusID = 5 -- Manual Settlement 	
