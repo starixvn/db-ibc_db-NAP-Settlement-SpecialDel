@@ -17,10 +17,11 @@ AS
     DB: DBTXN/BODB02
 	Original:
 
-    Revisions:        
+    Revisions:
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20180709@Helen: Enhance Performance for Instant Calculation - [Redmine: 98608]
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -72,8 +73,9 @@ BEGIN
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint)
+	
 	DECLARE @instantBettype TABLE (bettype SMALLINT)
-	DECLARE @tempInstantRow TABLE (batchNo INT PRIMARY KEY, fromTransId BIGINT, toTransId BIGINT)
 	
 	SET @InstKeyValue		= CAST(@InstantKey AS VARCHAR(50))
 	
@@ -170,9 +172,7 @@ BEGIN
 		transid 				BIGINT
 		, modds 				MONEY
 		, custid 				INT
-		, winlost 				MONEY
-		, actual_stake 			MONEY
-		, playercomm 			MONEY
+		, balance				MONEY
 		, bettype 				SMALLINT
 		, BonusID 				INT
 		, WalletType 			TINYINT
@@ -181,39 +181,33 @@ BEGIN
 	SELECT @batchCount			= 1000 
 		,@startBatchNo			= 1
 
-	--prepare Inst.CAL by batch
-	INSERT INTO @tempInstantRow (batchNo, fromTransId, toTransId)
-	SELECT batchNo
-		, MIN(transid) AS fromTransId
-		, MAX(transid) AS toTransId
-	FROM (
-		SELECT transid
-			, batchNo = (
-				ROW_NUMBER() OVER (
-					ORDER BY rn
-					) + 1
-				) / 2
-		FROM (
-			SELECT transid
-				, rn = ROW_NUMBER() OVER (
-					ORDER BY transid
-					)
-				, rn_rev = ROW_NUMBER() OVER (
-					ORDER BY transid DESC
-					)
-			FROM dbo.bettrans b WITH (NOLOCK)
-			WHERE matchid = @matchid
-				AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
-				AND EXISTS(SELECT TOP 1 1 FROM @instantBettype WHERE bettype = b.bettype)
-				AND b.statusID = 0
-		) x
-		WHERE rn % @batchcount = 0 -- toTransId
-			OR (rn - 1) % @batchcount = 0 -- fromTransId
-			OR rn_rev = 1 --maxTransId
-	) AS t
-	GROUP BY batchNo
-	ORDER BY batchNo
-				
+	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType)
+	SELECT TransID = b.transid
+		,MOdds = ods.modds
+		,CustID = b.custid
+		,Balance = b.winlost - b.actual_stake + b.playercomm
+		,BetType = b.bettype
+		,BonusID = CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
+		,WalletType = ISNULL(b.WalletType, 2) -- Cash Wallet as default
+	FROM dbo.bettrans b WITH(NOLOCK)
+		OUTER APPLY [dbo].[f_Set_Instant_CalModds](
+												b.bettype
+												, b.betteam
+												, b.hdp1
+												, b.hdp2
+												, @hScore1H
+												, @aScore1H
+												, @hScore2H
+												, @aScore2H
+												, @FGNG
+												, @CalculationType
+											) AS ods
+	WHERE matchid = @matchid
+		AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
+		AND EXISTS(SELECT TOP 1 1 FROM @instantBettype WHERE bettype = b.bettype)
+		AND b.statusId IN (0)
+		AND ods.modds IS NOT NULL
+
 	--DO loop Inst.CAL
 	WHILE (1=1)
 	BEGIN 
@@ -224,65 +218,33 @@ BEGIN
 			DELETE @BalanceWalletBefore
 			DELETE @BalanceWalletAfter
 			
-			SELECT @fromTransId 	= NULL
-				, @toTransId		= NULL
-			
-			SELECT 
-				@fromTransId 		= r.fromTransId
-				, @toTransId 		= r.toTransId
-			FROM @tempInstantRow AS r
-			WHERE r.batchNo 		= @startBatchNo
-			
-			IF( @fromTransId IS NULL OR @toTransId IS NULL ) BREAK
-			
-			SET @startBatchNo += 1
-			
-			INSERT INTO @tempInstantBatch (transid, modds, custid, winlost, actual_stake, playercomm, bettype, BonusID, WalletType)
-			SELECT TOP (@batchCount)
-				b.transid
-				, ods.modds
-				, b.custid
-				, b.winlost
-				, b.actual_stake
-				, b.playercomm
-				, b.bettype
-				, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusID
-				, ISNULL(b.WalletType, 2) -- Cash Wallet as default
-			FROM dbo.bettrans b WITH(NOLOCK)
-				OUTER APPLY [dbo].[f_Set_Instant_CalModds](
-														b.bettype
-														, b.betteam
-														, b.hdp1
-														, b.hdp2
-														, @hScore1H
-														, @aScore1H
-														, @hScore2H
-														, @aScore2H
-														, @FGNG
-														, @CalculationType
-													) AS ods
-			WHERE matchid = @matchid
-				AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
-				AND EXISTS(SELECT TOP 1 1 FROM @instantBettype WHERE bettype = b.bettype)
-				AND b.statusId IN (0)
-				AND b.transid BETWEEN @fromTransId AND @toTransId
-				AND ods.modds IS NOT NULL
-				
+			DELETE T
+			OUTPUT deleted.TransID, deleted.MOdds,deleted.CustID, deleted.Balance, deleted.BetType, deleted.BonusID, deleted.WalletType	
+			INTO @tempInstantBatch(transid, modds, custid, balance, bettype, BonusID, WalletType)
+			FROM (SELECT TOP (@batchCount) *
+				  FROM #temp_bettrans 
+				  ORDER BY custid
+				 ) AS T
+				 
 			--GATHER string transid to do Inst.CAL
-			SELECT @batchRowCount		= @@ROWCOUNT
-				, @ticketCount			+= @batchRowCount
-				, @strInstantTicket		= CAST((SELECT b.transid AS t
+			SELECT @batchRowCount = @@ROWCOUNT
+					
+			IF @batchRowCount = 0 BREAK -- no more to run
+			
+			/* for debug
+			SET @startBatchNo = @startBatchNo + 1
+			PRINT 'BATCH:' + CONVERT(VARCHAR, @startBatchNo)
+			*/
+			
+			SET @ticketCount += @batchRowCount
+			SET @strInstantTicket = CAST((SELECT b.transid AS t
 												,b.modds AS m 
 											FROM @tempInstantBatch b
 											FOR XML AUTO) AS VARCHAR(MAX)
 										)
-			
+										
 			IF(@strInstantTicket IS NOT NULL) 
 			BEGIN
-				
-				--SELECT @FGLGCheck = MAX(CASE WHEN bettype = 127 AND @FGLGCheck & 1 = 0 THEN 1 ELSE @FGLGCheck END)
-				--	, @FGLGCheck += MAX(CASE WHEN bettype = 14 AND @FGLGCheck & 2 = 0 THEN 2 ELSE 0 END)
-				--FROM @tempInstantBatch
 				
 				-------------------------------------------------------------
 				---        CAPTURE value BALANCE before settlement        ---
@@ -300,7 +262,7 @@ BEGIN
 					,1 -- Sports
 					, b.bonusID
 					, b.walletType
-					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+					, SUM(b.balance) AS balance
 				FROM @tempInstantBatch AS b
 				GROUP BY b.custid
 					, b.bonusID
@@ -524,7 +486,8 @@ BEGIN
 		, @IsReleased		= 1
 	
 	DROP TABLE #tblMatchProcess
-	
+	DROP TABLE #temp_bettrans
+		
 	RETURN;
 END
 
