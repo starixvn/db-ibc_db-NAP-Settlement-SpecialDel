@@ -36,6 +36,7 @@ AS
 		- 20170918@Kent: Add New Bettypes Decimal Only 461, 462, 463, 464 [Redmine:#83255]
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		- 20180507@Alan: Change result for new template email - Delete Creator, Match Outright [Redmine:#93296]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -550,27 +551,15 @@ BEGIN
 		   
 		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData  
 		 
-		--after delete, return all deleted tickets with additional information for mailing    
-		IF EXISTS(SELECT 1 FROM #tblBetType WHERE Id = 10)  --@bettype = 10  
-		BEGIN  
-			SELECT	MATCH.teamid AS homeid,  
-					0 AS awayid,  
-					MATCH.matchcode,  
-					MATCH.eventdate,  
-					MATCH.leagueid,  
-					GETDATE() AS DATETIME,  
-					CONVERT(BIT,0) AS IsNeutral  
-					FROM Outright AS MATCH WITH (NOLOCK)  
-					WHERE MATCH.orid = @matchID  
-		END     
-		ELSE  
+		--after delete, return all deleted tickets with additional information for mailing  
+		-- Return Match Info
 		BEGIN  
 			SELECT MATCH.homeid,  
 					MATCH.awayid,  
 					MATCH.matchcode,  
 					MATCH.eventdate,  
 					MATCH.leagueid,  
-					GETDATE() AS DATETIME,  
+					MATCH.sporttype,
 					ISNULL(MATCH.isNeutral, CONVERT(BIT,0)) AS IsNeutral  
 			FROM	MATCH WITH (NOLOCK)  
 			WHERE	MATCH.matchid = @matchID  
@@ -607,57 +596,44 @@ BEGIN
 			INNER JOIN CTE_CustIdAll ca 
 				ON	ci.custid = ca.custid  
 		)  
-		SELECT	b.transid,  
-				r.transid AS SubTransID,  
-				r.refno,  
-				b.custid,  
-				b.transdate,     
-				b.stake,  
-				b.winlost-b.actual_stake AS winlost,  
-				b.odds,     
-				b.OddsType,    
-				b.bettype,  
-				b.status,  
-				b.spositiontaking,  
-				b.mpositiontaking,  
-				b.apositiontaking,      
-				b.currency,    
-				b.CurrencyName AS CurrencyCode
-				,r.bettype AS SubBettype  
-				,m.homeid AS SubHomeId  
-				,m.awayid AS SubAwayId  
-				,r.hdp1 AS SubHdp1  
-				,r.hdp2 AS SubHdp2  
-				,b.hdp1  
-				,b.hdp2  
-				,r.odds AS SubOdds  
-				,r.betfrom  
-				,r.betteam as SubBetteam  
-				,b.betteam  
-				,r.livehomescore AS SubLiveHomeScore  
-				,r.liveawayscore AS SubLiveAwayScore  
-				,r.liveindicator AS SubLiveIndicator  
-				,m.leagueid  
-				,m.sporttype AS SubSportType  
-				,m.isNeutral  
-				,m.matchID  
-				,m.matchCode  
-				,b.betcheck  
-				,r.betcheck AS SubBetCheck  
-				,b.modds  
-				,r.transdesc  
-				,b.recommend  
-				,b.mrecommend  
-				,b.srecommend  
+		SELECT	b.transid
+				,b.custid
+				,b.transdate
+				,b.stake
+				,b.odds
+				,b.OddsType
+				,b.status
+				,b.currency
+				,b.CurrencyName
+				,b.betteam
+				,b.betcheck
+				,b.modds AS MasterOdds
+				,b.bettype AS BetTypeId
+				,b.hdp1 AS Handicap1
+				,b.hdp2 AS Handicap2
+				,b.winlost-b.actual_stake AS winlost
+				,r.refno
+				,r.betfrom
+				,r.transdesc
+				,r.livehomescore
+				,r.liveawayscore
+				,r.liveindicator AS IsLive
+				,r.bettype AS SubBettype
+				,r.hdp1 AS SubHdp1
+				,r.hdp2 AS SubHdp2
+				,r.odds AS SubOdds
+				,r.betteam AS SubBetteam
+				,r.betcheck AS SubBetCheck
+				,1 AS IsMixParlay
 				-----------------------------  
-				,ci.Username  
-				,ci.username2  
-				,cr.username AS creator   
-				,ci.username AS CustUserName  
-				,ci.username2 as CustUserName2  
-				,ag.UserName AS AgUserName  
-				,ma.UserName AS MagUserName  
-				,su.Username AS SagUserName  
+				,b.recommend
+				,b.mrecommend
+				,b.srecommend
+				,ci.Username
+				,ci.username2
+				,ag.UserName AS AgUserName
+				,ma.UserName AS MagUserName
+				,su.Username AS SagUserName
 				---------------------------------------  
 				,CASE   
 				WHEN b.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair'   
@@ -671,9 +647,7 @@ BEGIN
 			INNER JOIN #BetDelete AS r WITH(NOLOCK)   
 				ON	b.custid = r.custid AND b.refno = r.refno  
 			INNER JOIN CTE_CustInfo ci WITH(NOLOCK)  
-				ON	b.custid = ci.custid  
-			INNER JOIN CTE_CustInfo cr WITH(NOLOCK)  
-				ON	b.creator = cr.custid   
+				ON	b.custid = ci.custid   
 			INNER JOIN CTE_CustInfo ag WITH(NOLOCK)  
 				ON	b.recommend = ag.custid  
 			INNER JOIN CTE_CustInfo ma WITH(NOLOCK)  
@@ -681,18 +655,7 @@ BEGIN
 			INNER JOIN CTE_CustInfo su WITH(NOLOCK)  
 				ON	b.srecommend = su.custid  
 			LEFT JOIN custdb.dbo.Dep_CustSuper s with(nolock)
-				ON	b.srecommend = s.custid  
-			OUTER APPLY (  
-				SELECT	m.homeid  
-						,m.awayid  
-						,m.leagueid  
-						,m.sporttype  
-						,m.isNeutral  
-						,m.matchID  
-						,m.matchCode  
-				FROM	dbo.match AS m WITH(NOLOCK)   
-				WHERE	m.matchid = @MatchID  
-			) AS m  
+				ON	b.srecommend = s.custid   
 		WHERE	b.matchid  IN (9,29)   
 				AND b.bettype  IN (9,29)  
 		ORDER BY b.transid   

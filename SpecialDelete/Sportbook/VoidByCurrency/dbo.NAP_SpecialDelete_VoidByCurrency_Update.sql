@@ -33,6 +33,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread and Remove DateTime - Fast Markets Phase 2 [Redmine:#90667]
+		- 20180509@Alan: Change result for new template email [Redmine:#93296]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -83,7 +84,6 @@ BEGIN
 	
 	CREATE TABLE #SpecialDeleteBets (
 			id					INT IDENTITY,
-	
 			GroupID				BIGINT,
 			Stake				MONEY,
 			AwayId				INT,
@@ -92,6 +92,7 @@ BEGIN
 			BetTeam				NVARCHAR(10),
 			BetType				SMALLINT,
 			OriginalBetType		SMALLINT,
+			Currency			TINYINT,
 			CurrencyCode		NVARCHAR(50),
 			Creator				INT,			
 			Hdp1				SMALLMONEY,
@@ -337,6 +338,7 @@ BEGIN
 						BetId,
 						BetTeam,
 						BetType,
+						Currency,
 						CurrencyCode,
 						Creator,						
 						Hdp1,
@@ -390,6 +392,7 @@ BEGIN
 					b.BetId,
 					b.BetTeam,
 					b.BetType,
+					b.currency,
 					te.currency AS CurrencyCode,
 					b.Creator,					
 					b.Hdp1,
@@ -485,6 +488,7 @@ BEGIN
 							BetId,
 							BetTeam,
 							BetType,
+							Currency,
 							CurrencyCode,
 							Creator,						
 							Hdp1,
@@ -538,6 +542,7 @@ BEGIN
 						b.BetId,
 						b.BetTeam,
 						b.BetType,
+						b.currency,
 						te.currency AS CurrencyCode,
 						b.Creator,					
 						b.Hdp1,
@@ -734,6 +739,7 @@ BEGIN
 							BetTeam,
 							BetType,
 							OriginalBetType,
+							Currency,
 							CurrencyCode,
 							Creator,						
 							Hdp1,
@@ -787,6 +793,7 @@ BEGIN
 						tmpmain.BetTeam,
 						sub.BetType,
 						tmpmain.BetType AS OriginalBetType,
+						tmpmain.Currency,
 						tmpmain.CurrencyCode,
 						tmpmain.Creator,						
 						tmpmain.Hdp1,
@@ -859,6 +866,7 @@ BEGIN
 							BetTeam,
 							BetType,
 							OriginalBetType,
+							Currency,
 							CurrencyCode,
 							Creator,						
 							Hdp1,
@@ -926,6 +934,7 @@ BEGIN
 						tmpmain.BetTeam,
 						sub.BetType,
 						tmpmain.BetType AS OriginalBetType,
+						tmpmain.Currency,
 						tmpmain.CurrencyCode,
 						tmpmain.Creator,						
 						tmpmain.Hdp1,
@@ -994,6 +1003,7 @@ BEGIN
 						BetTeam,
 						BetType,
 						OriginalBetType,
+						Currency,
 						CurrencyCode,
 						Creator,						
 						Hdp1,
@@ -1032,7 +1042,6 @@ BEGIN
 						RefCode,
 						BonusID,
 						MainTransId,
-						
 						SubTransId,
 						SubBetCheck,
 						SubBetTeam,
@@ -1049,6 +1058,7 @@ BEGIN
 						b.BetTeam,
 						b.BetType,
 						sub911.OriginalBetType,
+						b.Currency,
 						te.currency AS CurrencyCode,
 						b.Creator,					
 						b.Hdp1,
@@ -1075,7 +1085,8 @@ BEGIN
 						b.mrecommend,
 						b.recommend,
 						b.custid,
-						b.winlost - b.actual_stake + b.playercomm AS balance,
+						b.winlost - b.actual_stake 
+						+ b.playercomm AS balance,
 						b.betdaqid,
 						CAST(0 AS BIT) AS IsBetTrade,					
 						b.transid AS BettradeGroupID,
@@ -1087,7 +1098,6 @@ BEGIN
 						b.RefCode,
 						b.BonusID,
 						sub911.MainTransId,
-						
 						b.TransId AS SubTransId,
 						NULL AS SubBetCheck,
 						NULL AS SubBetTeam,
@@ -1097,13 +1107,48 @@ BEGIN
 						NULL AS SubOdds
 				FROM #CashOutTransActive sub911					 
 					 CROSS APPLY (
-									  SELECT b.*
-									  FROM dbo.bettrans b WITH (NOLOCK)
-									  WHERE b.refno = sub911.transid
-										AND b.matchid = sub911.matchid
-										AND b.bettype = sub911.OriginalBetType									
-										AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-								 ) AS b					
+						SELECT b.Stake,
+							b.BetCheck,
+							b.BetId,
+							b.BetTeam,
+							b.BetType,
+							b.Currency,
+							b.Creator,
+							b.Hdp1,
+							b.Hdp2,
+							b.LiveIndicator,
+							b.LiveAwayScore,
+							b.LiveHomeScore,
+							b.Odds,	
+							b.Oddsspread,
+							b.OddsType,
+							b.RefNo,
+							b.status,
+							b.TransDate,
+							b.TransDesc,
+							b.TransId,
+							b.UserName,
+							b.WinLost,
+							b.actual_stake,
+							b.betfrom,
+							b.srecommend,
+							b.mrecommend,
+							b.recommend,
+							b.custid,
+							b.playercomm,
+							b.betdaqid,
+							b.ExtraInfo,
+							b.awinlost,
+							b.WalletType,
+							b.RefCode,
+							b.BonusID,
+							b.matchid
+						FROM dbo.bettrans b WITH (NOLOCK)
+						WHERE b.refno = sub911.transid
+						AND b.matchid = sub911.matchid
+						AND b.bettype = sub911.OriginalBetType
+						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+					) AS b					
 					 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 ON b.recommend = c.custid					
 					 LEFT JOIN (SELECT [site] AS LicenseeName
@@ -1151,6 +1196,7 @@ BEGIN
 						BetId,
 						BetTeam,
 						BetType,
+						Currency,
 						CurrencyCode,
 						Creator,						
 						Hdp1,
@@ -1180,8 +1226,7 @@ BEGIN
 						balance,
 						betdaqid,
 						IsBetTrade,						
-						BettradeGroupID,
-						
+						BettradeGroupID,						
 						SubTransId,
 						SubBetCheck,
 						SubBetTeam,
@@ -1196,6 +1241,7 @@ BEGIN
 					main.BetId,
 					main.BetTeam,
 					main.BetType,
+					main.currency,
 					te.currency AS CurrencyCode,
 					main.Creator,					
 					main.Hdp1,
@@ -1225,8 +1271,7 @@ BEGIN
 					main.winlost - main.actual_stake + main.playercomm AS balance,
 					main.betdaqid,
 					CAST(0 AS BIT) AS IsBetTrade,					
-					main.transid AS BettradeGroupID,
-					
+					main.transid AS BettradeGroupID,					
 					sub.transid AS SubTransId,
 					sub.betcheck AS SubBetCheck,
 					sub.betteam AS SubBetTeam,
@@ -1239,7 +1284,6 @@ BEGIN
 						 ON t.transid = sub.transid
 				 INNER JOIN match m WITH (NOLOCK)
 						 ON sub.matchid = m.matchid
-						 
 				INNER JOIN bettrans main WITH (NOLOCK)
 						 ON sub.refno = main.refno
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
@@ -2019,80 +2063,75 @@ BEGIN
 				s.BetCheck,
 				s.BetId,
 				s.BetTeam,
-				s.BetType,
 				s.OriginalBetType,
-				s.CurrencyCode,				
-				s.Hdp1,
-				s.Hdp2,				
-				s.IsLiveIndicator,
+				s.Currency,
+				s.CurrencyCode AS CurrencyName,	
 				s.IsNeutral,				
 				s.LiveAwayScore,
 				s.LiveHomeScore,
 				s.Odds,
 				s.oddsspread,
-				s.IsMixParlay,
 				s.OddsType,
 				s.RefNo,
-				s.SportType,
 				s.Status,
 				s.TransDate,
 				s.TransDesc,
 				s.TransId,
-				s.UserName,
-				s.NetWinLost AS WinLost,				
-				CASE 
-					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-					ELSE s.site 
-				END AS EmailGroup,
 				s.site,
-				CASE
-					WHEN EXISTS (SELECT d.custid 
-								 FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) 
-								 WHERE d.custid = s.srecommend)
-							THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)
-				END AS IsDeposit,
-				s.custid,
-				s.recommend,
-				ac.username AS AgUserName,
-				s.mrecommend,
-				mc.username AS MagUserName,
-				s.srecommend,
-				sc.username AS SagUserName,
 				s.IsBetTrade,
 				CASE WHEN s.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut,
 				s.betdaqid,
 				s.ExtraInfo,
 				s.MainCashoutId,
 				s.RefCode,
-				
-				s.SubTransId,
-				s.SubBetCheck,
-				s.SubBetTeam,
+				s.betfrom,
+				s.WalletType,
+				s.IsLiveIndicator AS IsLive,
+				s.BetType AS BetTypeId,
+				s.Hdp1 AS Handicap1,
+				s.Hdp2 AS Handicap2,
+				s.NetWinLost AS WinLost,
+
+				s.IsMixParlay,
 				s.SubBetType,
 				s.SubHdp1,
 				s.SubHdp2,
 				s.SubOdds,
-								
+				s.SubBetTeam,
+				s.SubBetCheck,
+				-----------------------
+				s.custid,
+				s.UserName,
+				ci.username2,
+				s.recommend,
+				s.mrecommend,
+				s.srecommend,
+				ac.username AS AgUserName,
+				mc.username AS MagUserName,
+				sc.username AS SagUserName,
+				-----------------------
+				CASE
+					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
+					ELSE s.site
+				END AS EmailGroup,
 				CASE
 					WHEN T2.a IS NOT NULL 
 						 AND @UserIDNotInITGroup = 0
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)							
 				END AS IsItSupport,
-				s.betfrom,				
-				s.WalletType			
+				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
+							
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
 				SELECT CAST(1 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Parlay
-			 ) s			 
-			 LEFT JOIN CustDB.dbo.Customer sc WITH(NOLOCK)
-					 ON s.srecommend = sc.custid
-			 LEFT JOIN CustDB.dbo.Customer mc WITH(NOLOCK)
-					 ON s.mrecommend = mc.custid
-			 LEFT JOIN CustDB.dbo.Customer ac WITH(NOLOCK)
-					 ON s.recommend = ac.custid
+			 ) s
+			 INNER JOIN CustDB.dbo.Customer ci WITH(NOLOCK) ON s.custid = ci.custid
+			 LEFT JOIN CustDB.dbo.Customer sc WITH(NOLOCK) ON s.srecommend = sc.custid
+			 LEFT JOIN CustDB.dbo.Customer mc WITH(NOLOCK) ON s.mrecommend = mc.custid
+			 LEFT JOIN CustDB.dbo.Customer ac WITH(NOLOCK) ON s.recommend = ac.custid
+			 LEFT JOIN custdb.dbo.Dep_CustSuper dc with(nolock) ON s.srecommend = dc.custid  
 			 OUTER APPLY (SELECT CASE
 									WHEN sc.currency <> 20 
 										 AND sc.roleid = 4 

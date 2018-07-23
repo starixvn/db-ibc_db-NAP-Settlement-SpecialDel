@@ -24,6 +24,7 @@ AS
 
 	Revisions:		
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
+		- 20180508@Alan: Change result for new template email [Redmine:#93296]
 
 	Param's Explanation: Special bet delete option		
 	*/
@@ -44,9 +45,9 @@ BEGIN
 		username varchar(30),
 		username2 varchar(50),
 		odds MONEY,
+		OddsType TINYINT,
 		transdate datetime, 
-		creator varchar(30),
-		Stake money,
+		Stake MONEY,
 		currency tinyint,
 		IsDeposit bit,
 		site varchar(10),
@@ -58,7 +59,13 @@ BEGIN
 		MagUserName varchar(30),
 		AgUserName varchar(30),
 		CurrencyName nvarchar(30), 
-		betfrom nvarchar(1)
+		betfrom nvarchar(1),
+		BetTeam NVARCHAR(10),
+		BetCheck NVARCHAR(50),
+		Handicap1 MONEY,
+		Handicap2 MONEY,
+		BetTypeId SMALLINT,
+		WinLost MONEY
 	)							
 	
 	DECLARE  @KeyID			INT			
@@ -128,8 +135,8 @@ BEGIN
 		 username,
 		 username2,
 		 odds,
+		 OddsType,
 		 transdate,	
-		 creator,
 		 stake,
 		 currency, 
 		 IsDeposit,
@@ -142,15 +149,21 @@ BEGIN
 		 MagUserName,
 		 AgUserName,
 		 CurrencyName,
-		 betfrom)
+		 betfrom,
+		 BetTeam,
+		 BetCheck,
+		 Handicap1,
+		 Handicap2,
+		 BetTypeId,
+		 WinLost)
 	SELECT 
 		b.transid,
 		b.custid, 
 		b.username,
 		c.username2,
 		b.odds,
-		b.transdate,	
-		cr.username as creator,
+		b.oddstype,
+		b.transdate,
 		stake,
 		b.currency, 
 		CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
@@ -163,15 +176,20 @@ BEGIN
 		ma.UserName AS MagUserName,
 		ag.UserName AS AgUserName,				
 		b.CurrencyName,
-		b.betfrom	
+		b.betfrom,
+		b.betteam,
+		b.betcheck,
+		b.hdp1 AS Handicap1,
+		b.hdp2 AS Handicap2,
+		b.bettype AS BetTypeId,
+		b.winlost - b.actual_stake AS WinLost
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
-		 INNER JOIN bettrans b WITH (NOLOCK) ON t.transid = b.transid
+		 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		 INNER JOIN custDB.dbo.customer sa WITH (NOLOCK) ON b.srecommend = sa.custid			
 		 INNER JOIN custDB.dbo.customer ma WITH (NOLOCK) ON b.mrecommend = ma.custid
-		 INNER JOIN custDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid		 		 
-		 INNER JOIN custDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator	
+		 INNER JOIN custDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 		 INNER JOIN outright o WITH(NOLOCK) ON b.matchid = o.orid
-		 INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.custid		 		
+		 INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.custid
 	WHERE	
 		b.bettype = 10
 		and b.statusID NOT IN (101,102)
@@ -281,18 +299,17 @@ BEGIN
 			,@Doing = @LogData	
 		
 		-- Match info	
-		SELECT MATCH.teamid AS homeid,
+		SELECT m.teamid AS homeid,
 			0 AS awayid,
-			MATCH.matchcode,
-			MATCH.eventdate,
-			MATCH.leagueid,
-			GETDATE() AS DATETIME,
+			m.matchcode,
+			m.eventdate,
+			m.leagueid,
+			l.sporttype,
 			CONVERT(BIT,0) AS IsNeutral,
 			CAST(1 AS BIT) AS IsOutright
-		FROM
-			Outright AS MATCH WITH (NOLOCK)
-		WHERE 
-			MATCH.orid = @OutrightID															
+		FROM	Outright AS m WITH (NOLOCK)
+				INNER JOIN League AS l ON m.leagueid = l.leagueid
+		WHERE	m.orid = @OutrightID															
 		
 		-- CHECK IT GROUP or NOT ?   
 		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group
