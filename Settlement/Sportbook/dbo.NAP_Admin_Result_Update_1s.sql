@@ -371,39 +371,61 @@ BEGIN
         INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
 
         SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) 
-        UNION ALL 
-        SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
-        UNION ALL 
-        SELECT '04', '0', '0' WHERE @isExistTotalCorner = 1
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '04'
-                                ) 
-        UNION ALL 
-        SELECT '05', '0', '0' WHERE @isExistTotalCorner = 1 
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '05'
-                                )
-        UNION ALL 
-        SELECT '206', 'N', NULL WHERE @isExistFTFCorner = 1 
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '206'
-                                )
-        UNION ALL 
-        SELECT '207', 'N', NULL WHERE @isExistHTFCorner = 1 
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '207'
-                                )
-        UNION ALL 
-        SELECT '208', 'N', NULL WHERE @isExistFTLCorner = 1 
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '208'
-                                )   
-        UNION ALL 
-        SELECT '209', 'N', NULL WHERE @isExistHTLCorner = 1 
-                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
-                                        WHERE matchid = @matchid AND ResourceID = '209'
-                                )
-
+        IF @Action = 'CAL-FT'
+        BEGIN
+	       INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
+	       SELECT '04', '0', '0' WHERE @isExistTotalCorner = 1
+                                    OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+                                            WHERE matchid = @matchid AND ResourceID = '04'
+                                    ) 
+           UNION ALL 
+           SELECT '206', 'N', NULL WHERE @isExistFTFCorner = 1 
+                                    OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+                                            WHERE matchid = @matchid AND ResourceID = '206'
+                                    )
+           UNION ALL 
+           SELECT '208', 'N', NULL WHERE @isExistFTLCorner = 1 
+                                    OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+                                            WHERE matchid = @matchid AND ResourceID = '208'
+                                    )
+	    END
+	    ELSE
+	    BEGIN
+		    INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
+		    
+	        SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
+	        UNION ALL 
+	        SELECT '04', '0', '0' WHERE @isExistTotalCorner = 1
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '04'
+	                                ) 
+	        UNION ALL 
+	        SELECT '05', '0', '0' WHERE @isExistTotalCorner = 1 
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '05'
+	                                )
+	        UNION ALL 
+	        SELECT '206', 'N', NULL WHERE @isExistFTFCorner = 1 
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '206'
+	                                )
+	        UNION ALL 
+	        SELECT '207', 'N', NULL WHERE @isExistHTFCorner = 1 
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '207'
+	                                )
+	        UNION ALL 
+	        SELECT '208', 'N', NULL WHERE @isExistFTLCorner = 1 
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '208'
+	                                )   
+	        UNION ALL 
+	        SELECT '209', 'N', NULL WHERE @isExistHTLCorner = 1 
+	                                OR EXISTS (SELECT 1 FROM ResultDetail WITH(NOLOCK)
+	                                        WHERE matchid = @matchid AND ResourceID = '209'
+	                                )
+        END
+        
         UPDATE @tmpResultDetail
             SET SettlementStatusID = 1 -- Refund
                 ,ResultStatusID = 5 -- Manual Settlement
@@ -449,64 +471,7 @@ BEGIN
                 );   
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
-    ELSE IF @Command ='NAP_Admin_Settlement_Refund_All_NotSDT'
-    BEGIN
-        SELECT   @fth           = finalhomescore
-                ,@fta           = finalawayscore
-                ,@hth           = hthomescore
-                ,@hta           = htawayscore 
-                ,@GoalSequence  = GoalRecord
-        FROM    Match WITH (NOLOCK)
-        WHERE   MatchID = @MatchID
-
-        INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
-        SELECT '00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50))
-
-        UPDATE @tmpResultDetail
-        SET    SettlementStatusID = 1 -- Refund
-               ,ResultStatusID = 5    -- Manual Settlement
-        WHERE   SourceType = 0
-        
-        MERGE   ResultDetail AS TARGET
-        USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
-        WHEN    MATCHED THEN                 
-                UPDATE SET
-                    TARGET.HomeValue            = SOURCE.HomeValue
-                    ,TARGET.AwayValue           = SOURCE.AwayValue  
-                    ,TARGET.OtherInfo           = NULL
-                    ,TARGET.ResultStatusID      = SOURCE.ResultStatusID
-                    ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID
-                    ,TARGET.LastModifyBy        = @Creator 
-                    ,TARGET.LastModifyDate      = GETDATE() 
-        WHEN    NOT MATCHED BY TARGET THEN 
-                INSERT(
-                     MatchID
-                    ,ResourceID
-                    ,HomeValue
-                    ,AwayValue
-                    ,OtherInfo 
-                    ,ResultStatusID
-                    ,SettlementStatusID
-                    ,CreateBy
-                    ,CreateDate
-                    ,LastModifyBy
-                    ,LastModifyDate
-                )
-                VALUES(
-                     @MatchID
-                    ,SOURCE.ResourceID
-                    ,SOURCE.HomeValue
-                    ,SOURCE.AwayValue 
-                    ,NULL 
-                    ,SOURCE.ResultStatusID -- Manual Settlement 
-                    ,SOURCE.SettlementStatusID -- Refund
-                    ,@Creator
-                    ,GETDATE()
-                    ,@Creator
-                    ,GETDATE()
-                );   
-    END 
-    /* END - @Command = 'NAP_Admin_Settlement_Refund_All_NotSDT' */
+    
     ELSE IF @Command ='NAP_Admin_Settlement_Refund_All-ABANDONED'
     BEGIN
         
