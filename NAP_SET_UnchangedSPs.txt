@@ -1,5 +1,4 @@
 Settlement\Sportbook\InstantSettlement\dbo.NAP_Admin_Settlement_1_InstantCalculation_Push.proc.sql
-Settlement\Sportbook\Service\AutoPayout\NAP_Set_AutoPayoutResultUpd.sql
-Settlement\Sportbook\Service\AutoPayout\NAP_Set_AutoPayoutResultIns.sql
+
 
 
