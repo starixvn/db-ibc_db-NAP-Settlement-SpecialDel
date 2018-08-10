@@ -229,7 +229,7 @@ BEGIN
 				IF(@instantCheck > 0)
 				BEGIN
 					SELECT @ErrCode = 1001002
-						, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please contact CSD and ask CSD to uncalculate the wrong score first. Then, please try to execute instant calculation again.'
+						, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please arrange to uncalculate instant calculation with the wrong score first. Then, please try to execute instant calculation again.'
 				END
 			END
 			
