@@ -18,7 +18,8 @@ AS
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
-
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -743,12 +744,8 @@ BEGIN
 									+ CAST(matchid AS VARCHAR(100))
 		FROM CTE_CompletedMatch							
 		
-		--> Return data to web		
-		IF EXISTS (SELECT TOP 1 1 
-				   FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-				   WHERE a.GroupID = 1 
-					 AND a.custid = @UserID) -- Check UserID in IT group		
-			SET @isITAdmin = 1
+		--> Return data to web	
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 				
 		SELECT  r.Stake,
 				r.AwayId,

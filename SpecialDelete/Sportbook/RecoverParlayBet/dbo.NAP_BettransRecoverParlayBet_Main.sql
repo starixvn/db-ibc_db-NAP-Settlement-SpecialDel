@@ -22,7 +22,8 @@ AS
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20170727@Kathy: Update statuswinlost, creator when recover [Redmine:#80135]
 		- 20171106@Kent: Implement Notifications Center [Redmine:#84330]
-
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
 		EXEC NAP_BettransRecoverParlayBet_Main @BetType = 'All', @TransIds = '10094287060761,10094287060762,10094287060763,10094287060764', @UserID = 8, @ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
@@ -296,13 +297,9 @@ BEGIN
 		WHERE b.statusID IN (111, 112, 113, 103)						
 
 		SET @SettledMainTranIds = STUFF(@SettledMainTranIds,1,1,'')
-
-		IF EXISTS (SELECT TOP 1 1 
-				   FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-				   WHERE a.GroupID = 1
-					 AND a.custid  = @UserID)
-			SELECT @IsITAdmin = 1
-
+		
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+		
 		SELECT	CASE WHEN c.currency <> 20 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
 				,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITAdmin = 0 )THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
 				,CASE WHEN c.currency = 20 AND @IsITAdmin = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"

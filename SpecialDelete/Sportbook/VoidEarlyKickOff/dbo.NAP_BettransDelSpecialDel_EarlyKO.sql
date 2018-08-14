@@ -81,7 +81,7 @@ Revisions:
 	- 20180301@Benjamin: Add oddsspread and Remove DateTime Column- Fast Markets Phase 2 [Redmine:#90667]
 	- 20180507@Benjamin: Correct actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 	- 20180508@Alan: Change result for new template email - Delete Creator [Redmine:#93296]
-	
+	- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -2320,12 +2320,9 @@ BEGIN
 		-- Output new message structure  
 		DECLARE @isITAdmin BIT   
 
-		-- CHECK IT GROUP or NOT ?     
-		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group  
-		BEGIN    
-			SELECT @isITAdmin = 1     
-		END      
-
+		-- CHECK IT GROUP or NOT ? 
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+		    
 		;WITH CTE_CustIdAll AS (  
 			SELECT DISTINCT t.custid  
 			FROM #BetDelete b  

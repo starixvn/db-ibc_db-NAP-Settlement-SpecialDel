@@ -20,6 +20,7 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -407,11 +408,7 @@ BEGIN
 		WHERE b.statusID IN (111, 112, 113, 103)	
 			
 		--> Return data to web
-		IF EXISTS (SELECT TOP 1 1 
-					FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-					WHERE a.GroupID = 1 
-						AND a.custid = @UserID) -- Check UserID in IT group		
-			SET @isITAdmin = 1
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 					
 		SELECT  r.Stake,
 				r.AwayId,
