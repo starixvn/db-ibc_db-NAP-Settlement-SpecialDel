@@ -1,15 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
 ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @MatchId INT
-	, @sqlCommand VARCHAR(1024)
-	
+	, @sqlCommand VARCHAR(1024)	
 	, @ErrMsg VARCHAR(500)
 	, @AdminId INT
 	, @IP VARCHAR(20)
@@ -21,12 +13,27 @@ AS
 	
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
+		-20180124@Benjamin: Add @IsAutoInst variable for Auto Instant [Redmine:#86964]
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @TypeId TINYINT, @Remark VARCHAR(500), @Mode TINYINT, @ActionId INT
-		, @fth INT, @fta INT, @hth INT, @hta INT, @goalrecord NVARCHAR(50), @betstatus NVARCHAR(50)
+	DECLARE 
+		@TypeId	    TINYINT
+		, @Remark	    VARCHAR(500)
+		, @Mode	    TINYINT
+		, @ActionId   INT
+		, @fth	    INT
+		, @fta	    INT
+		, @hth	    INT
+		, @hta	    INT
+		, @goalrecord NVARCHAR(50)
+		, @betstatus  NVARCHAR(50)
+		, @IsAutoInst INT
+		, @SourceId   TINYINT
+		 
+	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
 
+	
 	SELECT @Mode = CASE 
 						WHEN CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) > 0 THEN 7
 						WHEN (
@@ -66,19 +73,22 @@ BEGIN
 	--Auto payout
 	IF @Mode IN (5,6)
 	BEGIN
-		SELECT @TypeId = CASE 
-							WHEN @Action = 'CAL-HT' THEN 1
+		SELECT @TypeId = CASE    WHEN @Action = 'CAL-HT' THEN 1
 							WHEN @Action = 'CAL-FT' THEN 2
 							WHEN @Action = 'INST-HT' THEN 101
 							WHEN @Action = 'INST-FT' THEN 102
-						ELSE -1 END
+							ELSE -1 
+					  END,
+			  @SourceId = CASE  WHEN @IsAutoInst = 1 THEN 5 ELSE 100 END
 
 		--update status for autopayout result
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @MatchId
 			, @TypeId = @TypeId
 			, @StatusId = 3 --failed
 			, @IsIncludedUpdateMatch = 0
+			, @SourceId = @SourceId
 	END
+	
 	--Instant Calculation
 	IF @Mode = 6
 	BEGIN	
@@ -95,6 +105,12 @@ BEGIN
 	
 	END
 	
+	--Begin: #86964
+	SELECT @actionid = CASE WHEN (@IsAutoInst = 1 AND @Action = 'INST-HT') THEN 197 	
+							WHEN (@IsAutoInst = 1 AND @Action = 'INST-FT') THEN 198
+							ELSE @actionid END
+    --End: #86964								
+
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			, @matchid = @matchid

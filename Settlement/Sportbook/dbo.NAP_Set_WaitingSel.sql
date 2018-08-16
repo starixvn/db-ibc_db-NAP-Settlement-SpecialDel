@@ -31,6 +31,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170613@Kathy: Early Settlement [Redmine:#77835]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
 	
 	Param's explanation:  
 		
@@ -292,6 +293,7 @@ BEGIN
 		, ISNULL(mr.IsHTCal, 0) AS IsHalfTimeCal
 		, ISNULL(mr.isPending, 0) AS IsPending
 		, ISNULL(mr.isUndecided, 0) AS IsUndecided
+		, ISNULL(m.AutoSetting, 0) AS AutoSetting
 		,CASE 
 			WHEN (betstatus LIKE 'Abandoned 1H%' AND (hthomescore IS NOT NULL AND htawayscore IS NOT NULL)) THEN 1
 			WHEN (betstatus LIKE 'Abandoned 2H%' AND (finalhomescore IS NOT NULL AND finalawayscore IS NOT NULL)) THEN 1
@@ -311,7 +313,8 @@ BEGIN
 					OR (tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay > 0 AND tm.IsRunningAutoBettypesParlay = 0) THEN 'Completed'				
 				ELSE '' END AS AutoSettleResultStatus
 		, CASE
-			WHEN tm.IsExistFastMarketResult = 0 AND tm.IsExistFastMarket = 0 THEN 'N/A'
+			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 0 THEN 'N/A'
+			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 1 THEN 'No Ticket'
 			WHEN tm.IsRunningFastMarket > 0 THEN 'Running'
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket

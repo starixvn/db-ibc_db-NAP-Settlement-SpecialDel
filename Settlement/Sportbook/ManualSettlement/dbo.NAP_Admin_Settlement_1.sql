@@ -86,6 +86,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171226@Kathy: Clear data in table AutoPayoutResult if match has been undo [Redmine:#86890]
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
+		- 20180419@Benjamin: Add ISNULL(@hth,0),ISNULL(@hta,0) IN @LogData [Redmine:#86964]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -755,8 +756,8 @@ BEGIN
     SELECT @LogData = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
                                                         + ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) 
                                                         + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-                                                        + ' HT:' + CAST(@hth AS NVARCHAR(10)) 
-                                                        + '-' + CAST(@hta AS NVARCHAR(10)) 
+                                                        + ' HT:' + CAST(ISNULL(@hth,0) AS NVARCHAR(10)) 
+                                                        + '-' + CAST(ISNULL(@hta,0) AS NVARCHAR(10)) 
                                                         + ' GoalRecord:' + ISNULL(@goalrecord, '') 
                                                         + '(Old:' + @goalrecord_old + ') Remark(' + @betstatus + ')' 
 

@@ -19,6 +19,8 @@ AS
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
+		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
+
 		
 	Param's Explanation:
 		- @Action: ['CAL']
@@ -35,6 +37,7 @@ BEGIN
 		, @goalRecordCheck	VARCHAR(50)
 		, @isPending		BIT
 		, @isUnDecided		BIT
+		, @isCalculatedHT	BIT
 		, @instantCheck		BIT
 		, @CalculationType	TINYINT
 		, @hScore			TINYINT
@@ -53,7 +56,7 @@ BEGIN
 		
 		, @IsExistFGNG		BIT
 		, @IsExistHTFGNG	BIT
-		
+
 	CREATE TABLE #instantBettype (bettype SMALLINT)
 	
 	SET @InstantKeyValue		= CAST(@InstantKey AS VARCHAR(50))
@@ -100,6 +103,7 @@ BEGIN
 		, @leagueid   		= m.leagueid
 		, @isPending		= ISNULL(mr.isPending, 0)
 		, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
+		, @isCalculatedHT   = ISNULL(mr.IsHTCal, 0)
 		, @hthomescore		= ISNULL(hthomescore, 0)
 		, @htawayscore		= ISNULL(htawayscore, 0)
 		, @livehomescore	= ISNULL(m.livehomescore,0)
@@ -117,6 +121,7 @@ BEGIN
 		OR CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
 		OR @isPending 	= 1
 		OR @isUnDecided = 1
+		OR (@Mode = 'INST-FT' AND @isCalculatedHT = 0)
 		OR (@hScore > @livehomescore OR  @aScore > @liveawayscore)
 	)
     BEGIN
@@ -124,6 +129,11 @@ BEGIN
 		BEGIN
 			SELECT @ErrCode = 1001004
 			, @ErrMsg   = 'The selected match is a hedge match. Therefore, it cannot be instantly calculated.'
+		END
+		ELSE IF(@Mode = 'INST-FT' AND @isCalculatedHT = 0)
+		BEGIN
+			SELECT @ErrCode = 1001003
+			, @ErrMsg   = 'Cannot execute FT instant calculation due to HT process (auto/manual) has not done yet.'
 		END
 		ELSE IF(@hScore > @livehomescore OR  @aScore > @liveawayscore)
 		BEGIN
@@ -219,7 +229,7 @@ BEGIN
 				IF(@instantCheck > 0)
 				BEGIN
 					SELECT @ErrCode = 1001002
-						, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please contact CSD and ask CSD to uncalculate the wrong score first. Then, please try to execute instant calculation again.'
+						, @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please arrange to uncalculate instant calculation with the wrong score first. Then, please try to execute instant calculation again.'
 				END
 			END
 			

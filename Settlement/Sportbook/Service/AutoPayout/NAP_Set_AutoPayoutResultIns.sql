@@ -1,10 +1,4 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	@MatchId 		INT
 	, @SourceId 	TINYINT
@@ -13,6 +7,7 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	, @AwayValue 	VARCHAR(50)
 	, @StatusId 	TINYINT
 	, @InstantKey		INT = NULL
+	, @IsInstCalculated		BIT = 0
 	, @ErrCode 		INT = 0 OUTPUT
 	, @ErrMsg NVARCHAR(200) = '' OUTPUT
 	
@@ -24,34 +19,63 @@ AS
 	Revisions:
 		- 20160930@Bobby: #65003 - Implement Instant Calculation
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
+		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
+		- 20180515@Benjamin: Added @IsInstCalculated: Score has already Inst calc before [Redmine:#86964]
 		
 	Param's Explanation:
 		@TypeId:
-		+ 1: AutoPayout - 1H
-		+ 2: AutoPayout - 2H
-		+ 101: InstantCalculation - 1H
-		+ 102: InstantCalculation - 2H
+		    + 1: AutoPayout - 1H
+		    + 2: AutoPayout - 2H
+		    + 101: InstantCalculation - 1H
+		    + 102: InstantCalculation - 2H
+		@SourceId:
+		    + 5: AutoInstant (Soccerway)
+		    + 100: Info Site
+						
+		@IsInstCalculated:
+			+ 0: Did not Calculated yet 
+			+ 1: Already Calculated
+
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @StatusIdCheck 		TINYINT
-		, @AutoPayoutResultId 	INT
-		, @InstKeyValue			VARCHAR(50)
+		 , @AutoPayoutResultId 	INT
+		 , @InstKeyValue		VARCHAR(50)
 	
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
-	
+
+	--#86964
+	IF @IsInstCalculated = 1 AND @SourceId = 5 
+	   BEGIN
+	   	UPDATE rs
+		SET IsConfirmed = 1
+		FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
+		WHERE rs.MatchId	  = @MatchId 
+		  AND ((rs.HomeValue  = @HomeValue AND rs.AwayValue = @AwayValue) 
+		    OR (rs.AwayValue  = @InstKeyValue))
+		  AND rs.SourceID     = 100
+		  AND rs.IsConfirmed  = 0
+	   END
+
+	ELSE
+	   BEGIN
+	--#86964
+
 	SELECT TOP 1 @AutoPayoutResultId = AutoPayoutResultId
 		, @StatusIdCheck = StatusId 
 	FROM dbo.AutoPayoutResult WITH(NOLOCK) 
 	WHERE MatchId = @MatchId 
 		AND CalculationType = @TypeId
+		AND SourceId = @SourceID
 		AND 1 = CASE 
-					WHEN @TypeId IN (1, 2) THEN 1
-					WHEN @TypeId IN (101, 102) THEN 
-						CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 ELSE 0 END
-					ELSE 0 
-				END
+				WHEN @TypeId IN (1, 2) THEN 1
+				WHEN @TypeId IN (101, 102) THEN 
+				    CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 
+				    ELSE 0 END
+				ELSE 0 
+			   END
 
 	IF ( @TypeId IN (1, 2) AND @AutoPayoutResultId > 0 ) --Auto Payout
 	BEGIN
@@ -81,6 +105,7 @@ BEGIN
 	BEGIN
 		UPDATE dbo.AutoPayoutResult WITH(ROWLOCK,UPDLOCK)
 		SET StatusId = @StatusId
+		  , ModifiedDate = GETDATE()
 		WHERE AutoPayoutResultId = @AutoPayoutResultId
 	END
 	ELSE
@@ -89,7 +114,7 @@ BEGIN
 		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
 	END
 	
-	IF (@TypeId IN (101, 102) )
+	IF (@TypeId IN (101, 102) ) AND @StatusId IN (1,2) --Update IsConfirmed when: Manual/Auto Settle process
 	BEGIN
 		UPDATE rs
 		SET IsConfirmed = 1
@@ -101,12 +126,12 @@ BEGIN
 			)
 	END
 	
+	END --#86964
+
 	IF @@ERROR <> 0
 	BEGIN
 		SELECT @ErrCode = 1001022, @ErrMsg = 'Failed to insert result detail.'
 		RETURN
 	END
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_AutoPayoutResultIns] TO [bodbAdminNet] AS [dbo]
 GO
