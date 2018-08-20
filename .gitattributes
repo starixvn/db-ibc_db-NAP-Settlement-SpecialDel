@@ -11,3 +11,4 @@
 .gitignore text
 *.md text
 *.sql diff
+*.vcproj	eol=crlf
