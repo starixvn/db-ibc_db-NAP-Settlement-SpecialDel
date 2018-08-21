@@ -67,6 +67,7 @@ AS
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180426@Alan: Allow void single and parlay tickets [Redmine:#93167]
+		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
 
 
 	Explanation's Param:
@@ -679,7 +680,6 @@ BEGIN
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
-			WHERE b.statusID NOT IN (101, 102)
 		END
 	END
 
