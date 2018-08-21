@@ -80,7 +80,7 @@ AS
 				set @p12=0
 				declare @p13 varchar(1000)
 				set @p13=''
-								exec NAP_Rpt_TicketsListing @MatchId=4626986,@LicenseeID=0,@BetTypes='1101,1102',@BetTypesLive='',@LiveType=2,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=3,@SecondAcceptFlag=0,@ErrCode=@p12 output,@ErrMsg=@p13 output
+				exec NAP_Rpt_TicketsListing @MatchId=4626986,@LicenseeID=0,@BetTypes='1101,1102',@BetTypesLive='',@LiveType=2,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=3,@SecondAcceptFlag=0,@ErrCode=@p12 output,@ErrMsg=@p13 output
 				select @p12, @p13		
 */
 BEGIN
@@ -253,9 +253,8 @@ BEGIN
 			AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
 				WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 				WHEN 1 THEN 0
-				WHEN 2 THEN 1
-				END
-			AND (@Quarter = 'All' OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
+				WHEN 2 THEN 1 END
+			AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
 		UNION ALL
 		SELECT bl.translogid transid 
 			,bl.srecommend
@@ -308,7 +307,7 @@ BEGIN
 							AND b.matchid = @MatchId
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype
-							AND (@Quarter = 'All' OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
+							AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
 			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
 
 		END
@@ -401,7 +400,7 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
@@ -463,7 +462,7 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -533,7 +532,7 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
 			GROUP BY s.site
 				,bm.liveindicator
 				,b.bettype
@@ -562,6 +561,6 @@ BEGIN
 
 	DROP TABLE #TmpBettrans
 	DROP TABLE #TmpBallSequence
-	
+	DROP TABLE #tmpRefCodeSummary
 END
 GO
