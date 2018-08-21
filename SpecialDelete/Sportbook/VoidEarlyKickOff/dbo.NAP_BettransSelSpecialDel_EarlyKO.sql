@@ -54,6 +54,7 @@ AS
 	- 20180306@Kathy: get Refcode value [Redmine:#91461]
 	- 20180301@Benjamin: Add oddsspread and Bettype 226, 227 - Fast Markets Phase 2 [Redmine:#90667]
 	- 20181004@Alan: Add new column SettlementStatus [102423]
+	- 20180821@Alan: Incorporate ESports 2.0 [99448]
 
 					  
  Param's Explanation:
@@ -324,16 +325,11 @@ BEGIN
 	/*
 		filter for [Set] (+ [Quarter])
 		[Set] : 8xx; 1324 : 8xxyy
-		[Quarter] : 80X; 613 : 80XYY
-		
-		filter for Game : Only handle for bettype 1324
-		 
-		filter for BetOption : Only handle for bettypes 221 -> 227
-		 
-		filter for [Value]
-		
-		filter for TimeInterval
-		 
+		[Quarter] : 80X; 613 : 80XYY		
+		filter for Game : Only handle for bettype 1324		 
+		filter for BetOption : Only handle for bettypes 221 -> 227		 
+		filter for [Value]		
+		filter for TimeInterval		 
 		filter for Goal
 	*/			
 	BEGIN		
@@ -357,7 +353,7 @@ BEGIN
 					  WHERE tp.Id = s.bettype
 						AND CASE
 								WHEN tp.Game = 'ALL' THEN 1
-								WHEN (tp.Game = '13' AND RIGHT(s.betid, 2) >= 13) 
+								WHEN (tp.Game LIKE '>%' AND RIGHT(s.betid, 2) > RIGHT(tp.Game, 2)) 
 									 OR (RIGHT(s.betid, 2) = tp.Game)
 										THEN 1											
 								ELSE 0

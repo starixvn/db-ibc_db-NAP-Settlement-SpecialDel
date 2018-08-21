@@ -70,6 +70,7 @@ AS
 		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
 		- 20171029@Alan: Return Licensees Name [103474]
 		- 20181003@Alan: Add new column SettlementStatus [102423]
+		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -710,7 +711,7 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game = '13' AND b.FilterGame >= 13) OR (b.FilterGame = tp.Game)))
+			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
