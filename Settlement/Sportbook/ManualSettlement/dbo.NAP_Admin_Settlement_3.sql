@@ -35,6 +35,7 @@ AS
 	   - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 	   - 20171211@Kathy: Do not calculate bettype 22 with old format (betteam:h,a) [Redmine:#80947]
 	   - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+	   - 20180510@Benjamin: Incorporate new Sports: Sepak Takraw(48)[Redmine:#94608]
 
     Param's Explanation:
     • @Mode:
@@ -180,7 +181,7 @@ BEGIN
                 ,@totalCorners_ht   = (@hthCorners + @htaCorners)
     END 
 
-    IF @SportType IN (6, 9, 30) -- Tennis/VolleyBall/Badminton/Squash : get TotalGamesPlayed
+    IF @SportType IN (6, 9, 30, 48) -- Tennis/VolleyBall/Badminton/Squash/Sepak Takraw : get TotalGamesPlayed
     BEGIN
         EXEC dbo.NAP_Admin_Settlement_2 @betstatus = @betstatus
             ,@Total = @TennisTotal OUTPUT
@@ -198,23 +199,23 @@ BEGIN
     END
 
     SELECT @oddeven = CASE 
-                            WHEN @sporttype IN (6, 9, 30) AND @TennisTotal > 0 THEN @TennisTotal % 2
+                            WHEN @sporttype IN (6, 9, 30, 48) AND @TennisTotal > 0 THEN @TennisTotal % 2
                             ELSE ((@fth + @fta) % 2)
 							END
         ,@oddevenht = ((@hth + @hta) % 2)
         ,@oddevenhome = CASE 
-							WHEN @sporttype IN (6, 9, 30) AND @T_Home > 0 THEN @T_Home % 2
+							WHEN @sporttype IN (6, 9, 30, 48) AND @T_Home > 0 THEN @T_Home % 2
 							ELSE ((@fth ) % 2)
 							END
         ,@oddevenhome_ht = @hth % 2
         ,@oddevenaway = CASE 
-                            WHEN @sporttype IN (6, 9, 30) AND @T_Away > 0 THEN @T_Away % 2
+                            WHEN @sporttype IN (6, 9, 30, 48) AND @T_Away > 0 THEN @T_Away % 2
                             ELSE ((@fta) % 2)
 							END
         ,@oddevenaway_ht = @hta % 2
         ,@oddeven_2H = ((@fth + @fta - @hth - @hta)%2)
         ,@totalgoal = CASE 
-							WHEN @sporttype IN (6, 9, 30) AND @TennisTotal > 0 THEN @TennisTotal
+							WHEN @sporttype IN (6, 9, 30, 48) AND @TennisTotal > 0 THEN @TennisTotal
 							ELSE (@fth + @fta)
 							END
         ,@totalht = (@hth + @hta)
