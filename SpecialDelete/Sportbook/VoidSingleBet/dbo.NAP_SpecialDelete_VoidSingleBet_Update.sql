@@ -83,7 +83,8 @@ AS
 		- 20180301@Benjamin: Add oddsspread and Remove DateTime column - Fast Markets Phase 2 [Redmine:#90667]
 		- 201800516Alan: Allow void single and parlay tickets [Redmine:#93167]
 		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
-
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
 		  + 0: All tickets
@@ -1920,10 +1921,7 @@ BEGIN
 			,@Doing = @LogData
 		
 		-- CHECK IT GROUP or NOT ?   
-		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group
-		BEGIN  
-			SELECT @isITAdmin = 1   
-		END  		
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 		
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid

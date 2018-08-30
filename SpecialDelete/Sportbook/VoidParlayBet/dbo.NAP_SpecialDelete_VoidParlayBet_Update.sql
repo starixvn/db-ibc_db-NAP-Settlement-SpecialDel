@@ -37,6 +37,7 @@ AS
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180507@Alan: Change result for new template email - Delete Creator, Match Outright [Redmine:#93296]
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -568,12 +569,8 @@ BEGIN
 		-- Output new message structure  
 		DECLARE @isITAdmin BIT   
 
-		-- CHECK IT GROUP or NOT ?     
-		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group  
-		BEGIN    
-			SELECT @isITAdmin = 1     
-		END      
-
+		-- CHECK IT GROUP or NOT ?   
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)  
 		
 		;WITH CTE_CustIdAll 
 		AS (  

@@ -65,6 +65,7 @@ AS
 	  - 20180305@Helen: Betradar VS2 - [Redmine:90153]
 	  - 20180507@Benjamin: Correct Ruben, actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 	  - 20180509@Alan: Change result for new template email [Redmine:#93296]
+	  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 	
 	 Param's Explanation:   
 	*/
@@ -2590,10 +2591,7 @@ BEGIN
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
 	
 	-- CHECK IT GROUP or NOT ?   
-	IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group
-	BEGIN  
-		SELECT @isITAdmin = 1   
-	END  				
+	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 	
 	--- BETS: return all additional information for mailing 
 	;WITH CTE_CustIdAll AS (

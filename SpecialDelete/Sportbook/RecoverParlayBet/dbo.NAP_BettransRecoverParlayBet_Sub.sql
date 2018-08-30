@@ -21,7 +21,8 @@ AS
 		- 20161221@Kathy: Release lock after recovering tickets [Redmine:#68960]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
-	
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Param's Explanation:			
 			- @BetType:
 			'all': All
@@ -42,7 +43,6 @@ BEGIN
 		   ,@SubTransIds		VARCHAR(MAX) = ''
 		   ,@CustIds			VARCHAR(MAX) = ''
 		   ,@AvaiableProcess	BIT
-		   ,@UserIDNotInITGroup BIT
 		   ,@RowNumber			BIGINT
 	
 	DECLARE @tblRecoverBet TABLE (
@@ -415,12 +415,10 @@ BEGIN
 			 @Doing = @LogData 
 			 
 		--> Data for sending mail: Rule R1 + Rule R2 + Rule R3 + Rule R4
-		SET @UserIDNotInITGroup = 0
-		IF NOT EXISTS (SELECT TOP 1 1 
-					   FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-					   WHERE a.GroupID = 1
-					  	 AND a.custid = @UserID)
-			SET @UserIDNotInITGroup = 1	
+		
+		DECLARE @IsITAdmin BIT = 0
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+			
 		SELECT	t.SubTransID     
 				 ,t.SubBetCheck  
 				 ,t.SubOdds      
@@ -454,20 +452,20 @@ BEGIN
 				 ,CASE
 					WHEN T2.a IS NOT NULL 
 						 OR (T3.a IS NOT NULL 
-							 AND @UserIDNotInITGroup = 1 -- Check UserID not in IT group
+							 AND @IsITAdmin = 0  -- Check UserID not in IT group
 							)
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)
 				  END AS IsCsd
 				 ,CASE
 					WHEN T3.a IS NOT NULL 
-						 AND @UserIDNotInITGroup = 0
+						 AND @IsITAdmin = 1 
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)
 				  END AS IsItQa
 				 ,CASE
 					WHEN T2.a IS NOT NULL 
-						 AND @UserIDNotInITGroup = 0
+						 AND @IsITAdmin = 1 
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)							
 				  END AS IsItSupport

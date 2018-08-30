@@ -21,6 +21,7 @@ AS
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]			
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -443,12 +444,8 @@ BEGIN
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			
 		--> Return data to web
-		IF EXISTS (SELECT TOP 1 1 
-					FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-					WHERE a.GroupID = 1 
-						AND a.custid = @UserID) -- Check UserID in IT group		
-			SET @isITAdmin = 1		
-			
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+		
 		SELECT  r.Stake,
 				r.AwayId,
 				r.BetCheck,

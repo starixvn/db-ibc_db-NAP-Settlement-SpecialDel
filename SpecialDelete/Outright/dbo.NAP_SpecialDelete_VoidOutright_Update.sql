@@ -25,7 +25,8 @@ AS
 	Revisions:		
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 		- 20180508@Alan: Change result for new template email [Redmine:#93296]
-
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Param's Explanation: Special bet delete option		
 	*/
 BEGIN
@@ -312,10 +313,7 @@ BEGIN
 		WHERE	m.orid = @OutrightID															
 		
 		-- CHECK IT GROUP or NOT ?   
-		IF EXISTS (SELECT TOP 1 1 FROM DBPOLICY.bodb02.dbo.accCustomer_1 a WHERE a.GroupID = 1 AND a.custid = @UserID) -- Check UserID in IT group
-		BEGIN  
-			SELECT @isITAdmin = 1   
-		END  		
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 		
 		;WITH CTE_OriginResult AS 
 		(

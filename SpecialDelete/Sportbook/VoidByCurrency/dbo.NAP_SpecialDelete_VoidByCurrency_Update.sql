@@ -34,7 +34,8 @@ AS
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread and Remove DateTime - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180509@Alan: Change result for new template email [Redmine:#93296]
-	
+		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -57,7 +58,6 @@ BEGIN
 	DECLARE @LogData					NVARCHAR(500) = ''
 		  , @GeneralErrMsg				NVARCHAR(200) = 'Unable to void these tickets'
 		  , @CurrencyCodes				VARCHAR(MAX)
-		  , @UserIDNotInITGroup			BIT
 		  , @SearchSingle				BIT = 0
 		  , @CountSingle				INT = 0
 		  , @SearchParlay				BIT = 0
@@ -2053,12 +2053,9 @@ BEGIN
 			 @Doing = @LogData			
 			 
 		-------> Data for sending mail
-		SET @UserIDNotInITGroup = 0
-		IF NOT EXISTS (SELECT TOP 1 1 
-					   FROM DBPOLICY.bodb02.dbo.accCustomer_1 a 
-					   WHERE a.GroupID = 1
-				  		 AND a.custid = @UserID)
-			SET @UserIDNotInITGroup = 1		
+		DECLARE @IsITAdmin BIT = 0
+		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+		
 		SELECT  s.Stake,				
 				s.BetCheck,
 				s.BetId,
@@ -2116,7 +2113,7 @@ BEGIN
 				END AS EmailGroup,
 				CASE
 					WHEN T2.a IS NOT NULL 
-						 AND @UserIDNotInITGroup = 0
+						 AND @IsITAdmin = 1
 								THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)							
 				END AS IsItSupport,
