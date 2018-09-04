@@ -1,5 +1,4 @@
-USE [bodb02]
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_1] 
      @matchid INT
     ,@bettype                SMALLINT
@@ -35,6 +34,7 @@ AS
 		- 20160425@Patrick: Reduce escalation lock when updating large amount of data [Redmine: #56550]
 		- 20160507@Patrick: Use Option Force Order & limit scanning on bettrans table incase merge join for batchNo n > 1 to reduce lock escalation [Redmine: #58464]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
+		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
         
 */
 BEGIN
@@ -49,7 +49,10 @@ BEGIN
 	
     IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 
-    IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231','DB215')
+    IF @@SERVERNAME IN ('DB052', 'DB053',
+			'SITDB052', 'SITDB053',
+			'DB215', 'DB215\SQLSERVER2008R2',
+			'DB231', 'DB231\SQLSERVER2008R2')
     BEGIN
         DECLARE @affectedagents INT
 
@@ -479,7 +482,4 @@ BEGIN
 		DROP TABLE #tempCust
     END
 END
-
-
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_1] TO [vnteam] AS [dbo]

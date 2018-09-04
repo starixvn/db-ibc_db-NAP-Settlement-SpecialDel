@@ -34,6 +34,7 @@ AS
 		- 20170227@Bobby: #72205 - Implement SDT half WON-LOSE for bettype Over/Under
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
+		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -249,7 +250,7 @@ BEGIN
 												END
 						  END
 						  
-        IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231')
+        IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
         BEGIN
             DECLARE @affectedagents INT
     

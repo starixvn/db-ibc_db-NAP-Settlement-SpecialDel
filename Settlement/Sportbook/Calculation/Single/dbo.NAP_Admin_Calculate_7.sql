@@ -1,5 +1,4 @@
-USE [bodb02]
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7] @matchid INT
     ,@bettype SMALLINT
     ,@hth SMALLMONEY
@@ -20,6 +19,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20160425@Patrick: Reduce escalation lock when updating large amount of data [Redmine: #56550]
 		- 20160507@Patrick: Use Option Force Order & limit scanning on bettrans table incase merge join for batchNo n > 1 to reduce lock escalation [Redmine: #58464]
+		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 
 */
 BEGIN
@@ -34,30 +34,7 @@ BEGIN
         ,@commLostRate SMALLMONEY
         ,@RemoteCount INT
 
-    ----- LAS settlement 
-    --IF @@SERVERNAME IN ('DB052', 'DB054', 'DB231') AND EXISTS (
-    --        SELECT *
-    --        FROM sys.databases
-    --        WHERE NAME = 'LASDB'
-    --        )
-    --BEGIN
-    --    DECLARE @LASCommand NVARCHAR(1000)
-    --        ,@createdDate DATETIME
-
-    --    SELECT @LASCommand = 'EXEC [dbo].[Admin_Calculate_7] @matchid = ' + CONVERT(NVARCHAR(10), @matchid) + ', @bettype = ' + CONVERT(NVARCHAR(10), @bettype) + ', @hth = ' + CONVERT(NVARCHAR(10), @hth) + ', @hta = ' + CONVERT(NVARCHAR(10), @hta) + ', @betcount = ' + CONVERT(NVARCHAR(10), @betcount)
-    --        ,@createdDate = GETDATE()
-
-    --    EXEC LASDB.[dbo].[Las_GeneratingSettlementCommand] @SPName = 'Admin_Calculate_7'
-    --        ,@SQLCommand = @LASCommand
-    --        ,@CreatedDate = @createdDate
-    --        ,@StatusID = 0 -- waiting
-    --        ,@MatchID = @matchid
-    --        ,@Bettype = @bettype
-    --        ,@Status = 'waiting'
-    --        ,@BetCount = @betcount
-    --END
-
-    IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231', 'DB215')
+    IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
     BEGIN
         DECLARE @affectedagents INT
     
@@ -449,4 +426,3 @@ BEGIN
 END
 
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_7] TO [vnteam] AS [dbo]

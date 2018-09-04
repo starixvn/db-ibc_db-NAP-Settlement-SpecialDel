@@ -14,6 +14,7 @@ AS
 
     Revisions:
 		 - 20170613@Kathy: Early Settlement [Redmine:#77835] 
+		 - 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		 
     Param's Explanation:
 
@@ -256,7 +257,7 @@ BEGIN
 							ELSE 0
 						END
 					
-		IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231','DB215')
+		IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
 		BEGIN
 			DECLARE @affectedagents INT
 

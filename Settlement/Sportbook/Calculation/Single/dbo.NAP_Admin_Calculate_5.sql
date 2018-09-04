@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_5] @matchid INT
 	,@bettype SMALLINT
 	,@whowin SMALLMONEY = 0
@@ -25,6 +21,7 @@ AS
 		- 20160613@Patrick: Reduce escalation lock when updating large amount of data [Redmine: #56550]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 
 */
 BEGIN
@@ -38,7 +35,7 @@ BEGIN
 		,@commWinRate SMALLMONEY
 		,@commLostRate SMALLMONEY
 
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054','DB231','DB215')
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
 	BEGIN
 		DECLARE @affectedagents INT
 
@@ -366,6 +363,4 @@ BEGIN
 		DROP TABLE #tempCust
 	END
 END
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_5] TO [vnteam] AS [dbo]
 GO
