@@ -34,6 +34,7 @@ AS
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180709@Kathy: Prevent lock escalation on Bettrans [Redmine:#89132]
+		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 
 */
 BEGIN
@@ -71,7 +72,7 @@ BEGIN
 		
 	SET	@BatchCount = 2000
 
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'SITDB052', 'SITDB053', 'SITDB054', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
 	BEGIN
 		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
 		SELECT	BatchNo
