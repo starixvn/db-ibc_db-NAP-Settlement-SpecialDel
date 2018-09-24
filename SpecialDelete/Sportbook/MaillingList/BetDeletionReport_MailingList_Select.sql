@@ -21,7 +21,6 @@ SET NOCOUNT ON
 	   ,L.RegisteredLicenseeName AS site
 	   ,STUFF(ToList.ContactEmail, 1, 1, '') AS ToList
 	   ,STUFF(CcList.ContactEmail, 1, 1, '') AS CcList
-	   ,(SELECT TOP 1 BccList FROM EmailConfiguration(NOLOCK)) AS BccList
 	   ,CASE
 			WHEN STUFF(ToList.ContactEmail, 1, 1, '') <> '' OR
 				STUFF(CcList.ContactEmail, 1, 1, '') <> '' THEN CAST(1 AS BIT)
@@ -74,71 +73,7 @@ SET NOCOUNT ON
 	WHERE L.LicenseeStatusId = 3
 	AND L.RegisteredLicenseeName IS NOT NULL
 	AND LCA.CategoryId = 10
-
-	UNION ALL
-	SELECT SiteId, '12EU', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000000
-
-	UNION ALL 
-	SELECT SiteId, 'IT QA', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000001
-
-	UNION ALL 
-	SELECT SiteId, 'IT Support', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000002
-
-	UNION ALL 
-	SELECT SiteId, 'Foobet', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000003
-
-	UNION ALL
-	SELECT SiteId, 'CSD Recovery', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000004
-
-	UNION ALL
-	SELECT SiteId, 'BetFair', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000005
-
-	UNION ALL
-	SELECT SiteId, 'OneExchange', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000006
-		
-	UNION ALL
-	SELECT SiteId, 'BetTrade', ToList, CcList, BccList,
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe  
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)
-	WHERE FuncID = @FuncID 
-	and SiteId = 1000007
-		
-	UNION ALL  
-	SELECT SiteId, 'Cash Out', ToList, CcList, BccList,  
-		CASE WHEN tolist IS NOT NULL OR cclist IS NOT NULL OR bcclist IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END isavailabe    
-	FROM DBACC.BODB_ACC.dbo.Acc_MailingList WITH(NOLOCK)  
-	WHERE FuncID = @FuncID   
-	and SiteId = 1000008
-	ORDER BY site ASC
-	
+	ORDER BY site ASC	
 SET NOCOUNT OFF
 END
 GO
