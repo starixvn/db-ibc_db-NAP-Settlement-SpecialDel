@@ -22,7 +22,8 @@ ALTER PROCEDURE [dbo].[Dot_Msg_SetMessage]
 	@MatchId int = 0,
 	@IsBatch bit = 0,
 	@MsgContentsType tinyint = 0,
-	@BetTransId varchar(2000) = NULL -- remove when admin lanuch batchmessage
+	@BetTransId varchar(2000) = NULL, -- remove when admin lanuch batchmessage
+	@MessageIDOutput INT = NULL OUTPUT
 	/*	
 	Created by: VinhTruong
 	Task : insert/update special and normal message
@@ -92,6 +93,7 @@ BEGIN
 			IsBatch = @IsBatch,
 			MsgContentsType = @MsgContentsType --set default values Normal Data 
 		WHERE MessageId = @MessageId;
+		SELECT @MessageIDOutput = @MessageId
 		SELECT @MessageID AS MessageId;
 	END
 	ELSE
@@ -114,6 +116,9 @@ BEGIN
 			   @MsgContentsType
 				);
 		
-		SELECT SCOPE_IDENTITY() AS MessageId;
+		SELECT @MessageId = SCOPE_IDENTITY();
+
+		SELECT @MessageIDOutput = @MessageId
+		SELECT @MessageId AS MessageId;
 	END
 END
