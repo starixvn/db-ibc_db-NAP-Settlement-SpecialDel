@@ -1,5 +1,4 @@
-USE bodb_Message
-GO
+/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet,Dot_Admin" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_BatchMessage_Upload]
 	@XMLMessage			XML
 	, @CreatorId		INT		
@@ -11,6 +10,7 @@ AS
 	DB: DBMSG.bodb_Message
 	
 	Revisions: 
+		- 20160317@Bobby: Init Upload bacth message
 	
 	Param's explanation:
 		- @BatchMessage: XML.format(N'<Messages><Item MessageId="123" TargetId="345" TargetName="XZX" BetTransId="123,321,456,..." /></Messages>')
@@ -66,13 +66,3 @@ BEGIN
 	RETURN
 	
 END
-
-
-
-
-GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_BatchMessage_Upload] TO [bodbAdminNet]
-GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_BatchMessage_Upload] TO [Dot_Admin]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_BatchMessage_Upload] TO [vnteam]
