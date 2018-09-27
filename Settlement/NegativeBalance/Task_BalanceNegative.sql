@@ -15,6 +15,7 @@ AS
 		- 20151126@Elodie: Remove BetTrade accounts in Negative Balance process [Red:#36480]
 		- 20170604@Bobby: Remove dummy accounts from table CustDB-TradeCust [Red:#36480]
 		- 20180326@Kathy: Enhancememnt for WC [Redmine:#89132]
+		- 20180927@Sophia: Migrate bodb_Licensee from DB052 to DBCUST [redmine: #99855]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -42,7 +43,7 @@ BEGIN
 
 	INSERT INTO #tmpAllRecommend (Recommend)
 	SELECT	lc.custid
-	FROM	DBLIC.bodb_licensee.dbo.LicenseeCust lc WITH(NOLOCK)
+	FROM	DBCUST.bodb_licensee.dbo.LicenseeCust lc WITH(NOLOCK)
 	GROUP BY lc.custid
 
 	INSERT INTO @tmpAffectedCustId(CustId, Recommend)
