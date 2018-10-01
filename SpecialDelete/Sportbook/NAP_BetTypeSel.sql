@@ -123,8 +123,7 @@ BEGIN
         INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = o.matchid
         INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.typeid
         LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE m.matchid = @matchid
-        AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
+        WHERE m.matchid = @matchid AND m.sporttype = 43
         
         IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) AND (@mode IN (2,3))
         BEGIN
