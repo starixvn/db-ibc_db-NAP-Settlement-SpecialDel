@@ -32,6 +32,7 @@ AS
 		- 20170613@Kathy: Early Settlement [Redmine:#77835]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
+		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 	
 	Param's explanation:  
 		
@@ -284,22 +285,12 @@ BEGIN
 		, ISNULL(mr.multiple, 0) AS IsMultiCaled
 		, ISNULL(mr.refund, 0) AS IsRefund
 		, ISNULL(mr.calrefund, 0) AS IsCalRefund
-		, CASE WHEN m.betstatus LIKE 'Refund FT%' THEN 'Refund FT'  
-				WHEN m.betstatus LIKE 'Refund HT%' THEN 'Refund HT'  
-				WHEN m.betstatus LIKE 'Refund%' THEN 'Refund'  
-			ELSE m.eventstatus END AS eventstatus
-		, ISNULL(mr.SettlementStatus135, 0) AS SettlementStatus135
+		, m.eventstatus
 		, ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		, ISNULL(mr.IsHTCal, 0) AS IsHalfTimeCal
 		, ISNULL(mr.isPending, 0) AS IsPending
 		, ISNULL(mr.isUndecided, 0) AS IsUndecided
 		, ISNULL(m.AutoSetting, 0) AS AutoSetting
-		,CASE 
-			WHEN (betstatus LIKE 'Abandoned 1H%' AND (hthomescore IS NOT NULL AND htawayscore IS NOT NULL)) THEN 1
-			WHEN (betstatus LIKE 'Abandoned 2H%' AND (finalhomescore IS NOT NULL AND finalawayscore IS NOT NULL)) THEN 1
-			WHEN (hthomescore IS NOT NULL AND htawayscore IS NOT NULL AND finalhomescore IS NOT NULL AND finalawayscore IS NOT NULL) THEN 1
-			ELSE 0
-		END IsKeyscore
 		, IsExistFGLG
 		, IsExistHTFGLG
 		, tm.SingleStatus AS IsCalculatingSingle

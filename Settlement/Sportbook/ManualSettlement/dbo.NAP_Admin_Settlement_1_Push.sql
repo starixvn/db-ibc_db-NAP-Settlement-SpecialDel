@@ -65,6 +65,7 @@ AS
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
 		- 20170421@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -92,6 +93,7 @@ BEGIN
 			,@procName          	NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsExistNetPosition	BIT = 0		
+			,@IsUnderSettlement		BIT
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -214,6 +216,24 @@ BEGIN
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
+				,@IsUnderSettlement = CASE
+										WHEN @Action = 'UNDO' 
+											THEN CASE 
+													WHEN @sporttype NOT IN (2,5) THEN 0
+													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 0
+													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%' THEN 0
+													ELSE NULL
+												END
+										WHEN @Action IN ('CAL', 'CAL-FT') 
+											THEN CASE
+													WHEN @sporttype NOT IN (2,5) THEN 1
+													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 1
+													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%'	THEN 1
+													ELSE NULL
+												END
+										ELSE NULL
+									END
+
 
     IF (@SelectedSet IS NOT NULL AND @SelectedSet NOT LIKE '%6%')   -- Tennis 
     BEGIN
@@ -223,6 +243,16 @@ BEGIN
 	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
 		SET	@IsExistNetPosition = 1 
 		
+	-- add new status "Under Settlement" for a match
+	IF @IsUnderSettlement IS NOT NULL 
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
+			@Matchid		= @Matchid
+			,@Type			= 3
+			,@IsEnabled		= @IsUnderSettlement 
+			,@AdminId		= @AdminId
+	END
+
     IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY

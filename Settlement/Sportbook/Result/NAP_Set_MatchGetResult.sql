@@ -1,13 +1,9 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchGetResult] 
-	@Date DATETIME
-	,@LeagueID INT = 0
+	@Date		DATETIME
+	,@LeagueID	INT = 0
 	,@sporttype SMALLINT = 0
-	,@statusid TINYINT = 0
+	,@statusid	TINYINT = 0
 AS
 /*  
 	Created by: Kathy  
@@ -25,11 +21,12 @@ AS
 		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		
 	Param explanation:  
 		@sporttype: show info of particular sport
 		@LeagueID: = 0: show info of all leagues    	
-		@statusid: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6: abandoned   
+		@statusid: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6: abandoned, 7: Result Pending, 8: Under Settlement
   
 */
 BEGIN
@@ -46,39 +43,34 @@ BEGIN
 	DECLARE @tmpMatchId TABLE (matchid INT, isMove BIT)
 		
 	CREATE TABLE #matchList (
-		HalfTimeHomeScore INT
-		,HalfTimeAwayScore INT
-		,IsCalculated BIT
-		,IsMultiCaled BIT
-		,IsRefund BIT
-		,IsCalRefund BIT
-		,matchid INT
-		,leagueid INT
-		,homeid INT
-		,awayid INT
-		,matchcode NVARCHAR(50)
-		,kickofftime DATETIME
-		,finalhomescore INT
-		,finalawayscore INT
-		,betstatus NVARCHAR(50)
-		,eventstatus NVARCHAR(50)
-		,Foddsstatus VARCHAR(10)
-		,sporttype TINYINT
-		,IsNeutral BIT
-		,eventdate DATETIME
-		,goalrecord VARCHAR(50)
-		,suspenderHalfTime NVARCHAR(50)
-		,suspenderFullTime NVARCHAR(50)
-		,IsHalfTimeCal BIT
-		,calculate BIT
-		,isPending BIT
-		,isUndecided BIT
-		,IsKeyscore BIT
-		,IsExistFGLG BIT
-		,IsExistHTFGLG BIT
-		,WinOdds MONEY
-		,PlaceOdds MONEY
-		,isMove BIT
+		HalfTimeHomeScore		INT
+		,HalfTimeAwayScore		INT
+		,IsCalculated			BIT
+		,IsMultiCaled			BIT
+		,IsRefund				BIT
+		,IsCalRefund			BIT
+		,matchid				INT
+		,leagueid				INT
+		,homeid					INT
+		,awayid					INT
+		,matchcode				NVARCHAR(50)
+		,kickofftime			DATETIME
+		,finalhomescore			INT
+		,finalawayscore			INT
+		,betstatus				NVARCHAR(50)
+		,eventstatus			NVARCHAR(50)
+		,sporttype				TINYINT
+		,IsNeutral				BIT
+		,eventdate				DATETIME
+		,goalrecord				VARCHAR(50)
+		,suspenderHalfTime		NVARCHAR(50)
+		,suspenderFullTime		NVARCHAR(50)
+		,IsHalfTimeCal			BIT
+		,calculate				BIT
+		,SettlementStatus		TINYINT
+		,IsExistFGLG			BIT
+		,IsExistHTFGLG			BIT
+		,isMove					BIT
 		)
 	
 	CREATE TABLE #BettypeFGLG  (bettype SMALLINT, GroupID SMALLINT)
@@ -104,8 +96,8 @@ BEGIN
 		,@MaxMatchId = 0
 		
 	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore,IsCalculated,IsMultiCaled,IsRefund,IsCalRefund,matchid,leagueid,homeid,awayid,matchcode,kickofftime,finalhomescore,finalawayscore 
-		,betstatus, eventstatus, Foddsstatus, sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime,IsHalfTimeCal,calculate,isPending,isUndecided,IsKeyscore 
-		,IsExistFGLG,IsExistHTFGLG,WinOdds,PlaceOdds,isMove)
+		,betstatus, eventstatus, sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime,IsHalfTimeCal,calculate,SettlementStatus
+		,IsExistFGLG,IsExistHTFGLG,isMove)
 	SELECT hthomescore
 		,htawayscore
 		,ISNULL(mr.calculate, 0) IsCalculated
@@ -121,15 +113,7 @@ BEGIN
 		,m.finalhomescore
 		,m.finalawayscore
 		,m.betstatus
-		,CASE 
-			WHEN m.betstatus LIKE 'Refund FT%' THEN 'Refund FT'
-			WHEN m.betstatus LIKE 'Refund HT%' THEN 'Refund HT'
-			WHEN m.betstatus LIKE 'Refund%' THEN 'Refund'
-			WHEN m.betstatus LIKE 'Abandoned 1H%' THEN 'Abandoned 1H'
-			WHEN m.betstatus LIKE 'Abandoned 2H%' THEN 'Abandoned 2H'
-			ELSE m.eventstatus
-		END AS eventstatus
-		,'' AS Foddsstatus
+		,m.eventstatus
 		,m.sporttype
 		,ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		,m.eventdate
@@ -152,14 +136,7 @@ BEGIN
 			END suspenderFT
 		,ISNULL(mr.IsHTCal, 0) AS IsHTCal
 		,ISNULL(mr.calculate, 0) AS calculate
-		,ISNULL(mr.isPending, 0) AS isPending
-		,ISNULL(mr.isUndecided, 0) AS isUndecided 
-		,CASE 
-			WHEN hthomescore IS NOT NULL AND htawayscore IS NOT NULL AND finalhomescore IS NOT NULL AND finalawayscore IS NOT NULL THEN 1
-			ELSE 0
-			END IsKeyscore
-		,0
-		,0
+		,ISNULL(mr.SettlementStatus, 0) AS SettlementStatus
 		,0
 		,0
 		,m.IsMove
@@ -199,7 +176,14 @@ BEGIN
 				OR (m.sporttype = 5 AND @isRefund = 1 AND ISNULL(m.SettlementStatusID,0) BETWEEN 1 AND 3)
 				OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(m.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 			)
-	
+			AND 1 = CASE
+						WHEN @StatusId = 0 THEN 1
+						WHEN @StatusId = 7 AND ISNULL(mr.SettlementStatus,0) & 1 > 0 THEN 1
+						WHEN @StatusId = 8 AND ISNULL(mr.SettlementStatus,0) & 1 = 0 AND ISNULL(mr.SettlementStatus,0) & 2 > 0 AND m.eventstatus <> 'Completed' THEN 1
+						WHEN @StatusId NOT IN (7,8) AND ISNULL(mr.SettlementStatus,0) & 3 = 0 THEN 1
+						ELSE 0
+					END
+
 	SET @strBettypes = CAST((SELECT t.bettype '@b'
 								FROM (VALUES(14),(127)) AS t(bettype)
 								FOR XML PATH ('bettype'), ROOT('root'), TYPE
@@ -274,7 +258,6 @@ BEGIN
 			ELSE ISNULL(CONVERT(VARCHAR(2), placing), 5)
 			END betstatus --Placing  
 		,o.oddsstatus eventstatus
-		,o.Foddsstatus
 		,l.sporttype
 		,0 IsNeutral
 		,o.eventdate
@@ -283,13 +266,9 @@ BEGIN
 		,'' AS suspenderFT
 		,0 AS IsHTCal
 		,0 AS calculate
-		,0 AS isPending
-		,0 AS isUndecided
-		,0 AS IsKeyscore
+		,0 AS SettlementStatus
 		,0 AS IsExistFGLG
 		,0 AS IsExistHTFGLG
-		,o.Odds
-		,o.PlaceOdds
 		,0 as isMove
 	FROM dbo.outright o WITH (NOLOCK)
 		INNER JOIN league l WITH (NOLOCK) ON o.leagueid = l.leagueid
@@ -323,12 +302,8 @@ BEGIN
 		,0 finalhomescore
 		,0 finalawayscore
 		,o.placing betstatus --Placing  
-		--,o.eventstatus 
-		,CASE 
-			WHEN r.betstatus LIKE 'Refund%' THEN 'Refund'
-			ELSE o.eventstatus
-			END eventstatus
-		,o.IsFavor Foddsstatus
+		,o.eventstatus
+		--,o.IsFavor Foddsstatus
 		,r.sporttype
 		,0 IsNeutral
 		,o.eventdate
@@ -337,13 +312,12 @@ BEGIN
 		,'' AS suspenderFT
 		,0 AS IsHTCal
 		,0 AS calculate
-		,0 AS isPending
-		,0 AS isUndecided 
-		,0 AS IsKeyscore
+		,0 AS SettlementStatus
+		--,0 AS IsKeyscore
 		,0 AS IsExistFGLG
 		,0 AS IsExistHTFGLG
-		,o.WinOdds
-		,o.PlaceOdds
+		--,o.WinOdds
+		--,o.PlaceOdds
 		,0 AS IsMove
 	FROM VSOutright o WITH (NOLOCK)
 		INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
@@ -376,7 +350,7 @@ BEGIN
 		,m.finalawayscore
 		,m.betstatus
 		,m.eventstatus
-		,m.Foddsstatus
+		--,m.Foddsstatus
 		,m.sporttype
 		,m.IsNeutral
 		,m.eventdate
@@ -385,13 +359,14 @@ BEGIN
 		,m.suspenderFullTime
 		,m.IsHalfTimeCal
 		,m.calculate
-		,m.isPending
-		,m.isUndecided
-		,m.IsKeyscore
+		,m.SettlementStatus
+		--,m.isPending
+		--,m.isUndecided
+		--,m.IsKeyscore
 		,m.IsExistFGLG
 		,m.IsExistHTFGLG
-		,m.WinOdds
-		,m.PlaceOdds
+		--,m.WinOdds
+		--,m.PlaceOdds
 	FROM #matchList m
 	ORDER BY CASE eventstatus WHEN 'completed' THEN 1 WHEN 'Refund' THEN 1 ELSE 0 END
 			,eventdate
@@ -444,7 +419,5 @@ BEGIN
 
 	DROP TABLE #matchList
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_MatchGetResult] TO [bodbAdminNet]
 GO
 

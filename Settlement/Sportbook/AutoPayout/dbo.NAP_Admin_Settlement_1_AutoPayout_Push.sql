@@ -24,7 +24,8 @@ AS
 		- 20170314@Kathy: Not allow to process Auto Payout HT/FT if keyscore calculated HT/FT manually [Redmine:#73218]
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
-		
+		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
+
     Param's Explanation:
         
 */
@@ -36,7 +37,12 @@ BEGIN
 		RETURN --not supported
 	END
 
-    DECLARE	@matchcode NVARCHAR(50), @sporttype INT, @leagueid INT, @procName NVARCHAR(50), @sqlCommand NVARCHAR(MAX)
+    DECLARE	@matchcode			NVARCHAR(50)
+			,@sporttype			INT
+			,@leagueid			INT
+			,@procName			NVARCHAR(50)
+			,@sqlCommand		NVARCHAR(MAX)
+			,@IsUnderSettlement	BIT
 			
     SELECT @matchcode = m.matchcode
 		, @sporttype  = m.sporttype
@@ -114,6 +120,20 @@ BEGIN
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
+		,@IsUnderSettlement = CASE
+								WHEN @Action = 'CAL-FT' THEN 1
+								ELSE NULL
+							END
+
+	-- add new status "Under Settlement" for a match
+	IF @IsUnderSettlement IS NOT NULL
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
+			@Matchid		= @Matchid
+			,@Type			= 3
+			,@IsEnabled		= @IsUnderSettlement 
+			,@AdminId		= @AdminId
+	END
 
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
     BEGIN
