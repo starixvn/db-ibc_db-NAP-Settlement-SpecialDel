@@ -1,5 +1,5 @@
 SpecialDelete/NumberGame/dbo.NAP_BettransDelSpecial_NumberGame.sql
-SpecialDelete/Sportbook/dbo.NAP_BettransDelSpecialDel_EarlyKO.sql
+SpecialDelete/Sportbook/VoidEarlyKickOff/dbo.NAP_BettransDelSpecialDel_EarlyKO.sql
 SpecialDelete/Sportbook/dbo.NAP_BettransRecoverBet.sql
 SpecialDelete/NumberGame/dbo.NAP_BettransRecoverBet_NumberGame.sql
 SpecialDelete/Sportbook/VoidMetricGaming/NAP_VoidMetricGaming_Del.sql
