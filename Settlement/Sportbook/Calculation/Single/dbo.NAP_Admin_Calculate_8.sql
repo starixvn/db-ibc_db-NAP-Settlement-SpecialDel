@@ -250,7 +250,7 @@ BEGIN
 												END
 						  END
 						  
-        IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+        IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
         BEGIN
             DECLARE @affectedagents INT
     

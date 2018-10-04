@@ -25,6 +25,7 @@ AS
 		- 20170321@Bobby: #73407 - CashOut integration
 		- 20180122@Kathy: Prevent lock escalation on Bettrans [Redmine:#89132]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
+		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -71,7 +72,7 @@ BEGIN
 	FROM @xml.nodes('/root/r') AS T(c)
 	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
 	
-    IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+    IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
 	BEGIN
 		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
 		SELECT	BatchNo

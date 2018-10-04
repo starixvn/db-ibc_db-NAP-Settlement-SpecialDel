@@ -20,6 +20,7 @@ AS
 		- 20151209@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20180704@Helen: Prevent lock escalation on Bettrans [Redmine:#89132]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
+		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 */
 BEGIN
 	IF @betcount = 0 AND @@SERVERNAME NOT LIKE N'DBIOM%' RETURN
@@ -215,7 +216,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+		IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
 		BEGIN	
 			INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
 			SELECT	BatchNo

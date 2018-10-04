@@ -35,6 +35,7 @@ AS
 		- 20160507@Patrick: Use Option Force Order & limit scanning on bettrans table incase merge join for batchNo n > 1 to reduce lock escalation [Redmine: #58464]
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
+		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
         
 */
 BEGIN
@@ -49,10 +50,10 @@ BEGIN
 	
     IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 
-    IF @@SERVERNAME IN ('DB052', 'DB053',
-			'SITDB052', 'SITDB053',
-			'DB215', 'DB215\SQLSERVER2008R2',
-			'DB231', 'DB231\SQLSERVER2008R2')
+    IF @@SERVERNAME IN ('DB052',
+			'SITDB052',
+			'DB215',
+			'DB231')
     BEGIN
         DECLARE @affectedagents INT
 
