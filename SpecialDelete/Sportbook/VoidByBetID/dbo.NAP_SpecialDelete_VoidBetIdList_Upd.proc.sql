@@ -68,6 +68,7 @@ AS
 	  - 20180509@Alan: Change result for new template email [Redmine:#93296]
 	  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 	  - 20181017@Alan: Write log new reason chinese simplified [102918]
+	  - 20181004@Alan: Add new column SettlementStatus [102423]
 	
 	 Param's Explanation:   
 	*/
@@ -2624,7 +2625,7 @@ BEGIN
 		,b.matchcode
 		,b.eventdate
 		,b.leagueid		
-		,IsNeutral
+		,b.IsNeutral
 		,b.showtime
 		,b.OriginalBetType
 		,b.odds
@@ -2660,6 +2661,7 @@ BEGIN
 		,b.BetType AS BetTypeId
 		,b.Hdp1 AS Handicap1
 		,b.Hdp2 AS Handicap2
+		,m.SettlementStatus
 		--------------------
 		,ci.username
 		,ci.username2
@@ -2681,6 +2683,7 @@ BEGIN
 		,CASE WHEN b.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut
 
 	FROM	#BetDelete b
+		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
 		LEFT JOIN #CTE_CustInfo cr WITH(NOLOCK) ON b.creator = cr.custid	
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON b.recommend = ag.custid

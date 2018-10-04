@@ -19,6 +19,7 @@ AS
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
+		- 20181004@Alan: Add new column SettlementStatus [102423]
 
 	
 	Param's Explanation:			
@@ -164,7 +165,10 @@ BEGIN
 	ELSE IF @TicketType = 'SingleTicket'
 		SET @SearchSingle = 1
 	ELSE IF @TicketType = 'ParlayTicket'
-		SET @SearchParlay = 1			   
+		SET @SearchParlay = 1		
+		
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	   
 	
 	--> single
 	IF @SearchSingle = 1
@@ -1002,7 +1006,8 @@ BEGIN
 		s.SubHdp1,
 		s.SubHdp2,
 		s.SubOdds,
-		s.SubStatus					
+		s.SubStatus,
+		@SettlementStatus AS SettlementStatus
 	FROM #SpecialDeleteBets s					 
 		 CROSS APPLY (SELECT CASE
 									WHEN EXISTS (SELECT d.custid 

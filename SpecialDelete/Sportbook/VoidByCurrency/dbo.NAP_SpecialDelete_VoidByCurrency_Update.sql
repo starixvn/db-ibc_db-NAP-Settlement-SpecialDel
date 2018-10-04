@@ -37,6 +37,7 @@ AS
 		- 20180509@Alan: Change result for new template email [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
+		- 20181004@Alan: Add new column SettlementStatus [102423]
 		
 	Param's Explanation:			
 			- @TicketType:
@@ -227,6 +228,9 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
+
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
 	
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
@@ -2099,6 +2103,7 @@ BEGIN
 				s.SubOdds,
 				s.SubBetTeam,
 				s.SubBetCheck,
+				@SettlementStatus AS SettlementStatus,
 				-----------------------
 				s.custid,
 				s.UserName,
