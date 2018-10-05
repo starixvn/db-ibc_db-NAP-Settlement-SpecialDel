@@ -70,7 +70,7 @@ SET NOCOUNT ON
 			ORDER BY T.ContactEmail
 			FOR XML PATH ('')) AS CcList (ContactEmail)
 
-	WHERE L.LicenseeStatusId = 3
+	WHERE L.LicenseeStatusId IN (2, 3)
 	AND L.RegisteredLicenseeName IS NOT NULL
 	AND LCA.CategoryId = 10
 	ORDER BY site ASC	
