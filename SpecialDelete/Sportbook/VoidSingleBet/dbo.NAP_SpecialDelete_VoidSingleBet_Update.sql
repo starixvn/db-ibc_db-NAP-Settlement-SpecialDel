@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@MatchId				INT,
 	
@@ -84,6 +84,7 @@ AS
 		- 201800516Alan: Allow void single and parlay tickets [Redmine:#93167]
 		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20181002@Alan: Exclude BetTrade and Cash Out tickets when check negative balance [102212] 
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -137,6 +138,7 @@ BEGIN
 	CREATE TABLE #tblTransIdSolds (grouptransid BIGINT, transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
+	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 
@@ -1299,12 +1301,20 @@ BEGIN
 			WHERE IsCashOutMemberTicket = 1								
 		END
 
-		--> capture Before Balance Update
-		INSERT INTO #BeforeUpd (custid, balance)  
-		SELECT	b.custid ,SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
+		--> capture Before Balance Update		
+		INSERT INTO #NegativeBalance (transid)  
+		SELECT	b.transid
+		FROM  #BetDelete b WITH (NOLOCK)
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete sub911 (NOLOCK)
+					  WHERE sub911.bettype = 911 AND sub911.transid = b.refno) -- exclude Cash out
+			AND CASE WHEN b.betdaqid = 0 AND b.extrainfo IS NULL THEN 0 ELSE 1 END = 1 -- exclude BT member
+
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #BetDelete)
-		GROUP BY b.CustID	
+		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+		GROUP BY b.CustID
+
 		
 		-- Step 1: Backup into zzzbettrans
 		-- 1.1. Backup normal, main bettrade, main cash-out, cash-out member bet ticket
@@ -2023,9 +2033,17 @@ BEGIN
 	DROP TABLE #tblTransIds
 	DROP TABLE #tblTransIdSolds
 	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblCashOutProcess
+	DROP TABLE #CashOutSubTicket
 	DROP TABLE #BetDelete
+	DROP TABLE #BetDeletem
 	DROP TABLE #BeforeUpd  
 	DROP TABLE #AfterUpd 
+	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #NegativeBalance
+	DROP TABLE #CTE_CustInfo
+	DROP TABLE #CustIdList
+	DROP TABLE #CustList
 	
 END
 GO
