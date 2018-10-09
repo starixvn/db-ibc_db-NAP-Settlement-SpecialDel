@@ -8,7 +8,8 @@ AS
 	DB: DBOIC.bodb_OIC
 
 	Revisions:   
-		- 20180919@Alan: Get Mailing List From OIC [88509]	
+		- 20180919@Alan: Get Mailing List From OIC [88509]
+		- 20181009@Alan: Exclude Status Soft Launch and Dont add CcList from EmailConfiguration [102917]
 */
 
 BEGIN 
@@ -61,16 +62,12 @@ SET NOCOUNT ON
 				SELECT ult.Email
 				FROM dbo.UserInfo ui WITH (NOLOCK)
 					INNER JOIN dbo.UserLicenseeType ult WITH (NOLOCK) ON ui.UserId = ult.UserId
-				WHERE ui.PositionId = 3
-					AND L.LicenseeTypeId = ult.LicenseeTypeId
-
-				UNION
-				SELECT CcList
-				FROM dbo.EmailConfiguration WITH (NOLOCK)) AS T
+				WHERE ui.PositionId = 3 AND L.LicenseeTypeId = ult.LicenseeTypeId
+			) AS T
 			ORDER BY T.ContactEmail
 			FOR XML PATH ('')) AS CcList (ContactEmail)
 
-	WHERE L.LicenseeStatusId IN (2, 3)
+	WHERE L.LicenseeStatusId = 3
 	AND L.RegisteredLicenseeName IS NOT NULL
 	AND LCA.CategoryId = 10
 	ORDER BY site ASC	
