@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20180627@Alan: Mapping China Markets Option for Void By Currency [97393]
 		- 20180824@Alan: Get LicenseeName from RegisteredLicenseeName [100481]
+		- 20181010@Alan: Include Test Licensee with status is soft launch [102917]
 */
 BEGIN
 SET NOCOUNT ON
@@ -39,7 +40,7 @@ SET NOCOUNT ON
 	   ,CASE WHEN IsChineseMarketOnly = 1 THEN @China_GroupName
 			ELSE @Asia_GroupName END AS GroupName
 	FROM dbo.Licensee WITH(NOLOCK)
-	WHERE LicenseeStatusId = 3 AND RegisteredLicenseeName IS NOT NULL
+	WHERE LicenseeStatusId IN (2, 3) AND RegisteredLicenseeName IS NOT NULL
 
 	SELECT Id ,Name ,GroupName
 	FROM #LicenseeGroupInfo
