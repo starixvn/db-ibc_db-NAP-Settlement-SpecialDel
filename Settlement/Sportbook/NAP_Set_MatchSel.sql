@@ -41,7 +41,7 @@ AS
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 5: Completed (Running Corner), 6: Abandoned, 7: Result Pending, 8: Under Settlement
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6: Abandoned, 7: Result Pending, 8: Under Settlement
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -96,7 +96,6 @@ BEGIN
 								WHEN @statusid = 1 THEN 'running'
 								WHEN @statusid = 2 THEN 'closed'
 								WHEN @statusid IN (3, 6) THEN 'completed'
-								WHEN @statusid = 5 THEN 'running'
 								ELSE ''
 							END
 			,@isRefund = CASE 
@@ -525,30 +524,6 @@ BEGIN
 					  END
 		END			
 	END
-	
-	IF @StatusID = 5 AND @MatchCode = '' -- ignore filter if search by matchid/matchcode
-	BEGIN
-		CREATE TABLE #tmpCornerBets(
-		 MatchID		INT
-		,SettlementStatusID	TINYINT
-		)
-		
-		INSERT INTO #tmpCornerBets(MatchID,SettlementStatusID)
-		SELECT	MatchID, MIN(SettlementStatusID)
-		FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
-		WHERE	@Sporttype IN(0,1)
-				AND MatchID IN (SELECT MatchID FROM #matchList)
-				AND ResourceID IN ('04','05','206','207','208','209')			
-		GROUP BY MatchID 
-
-		
-		DELETE FROM #matchList
-		WHERE	MatchID NOT IN (
-			SELECT	MatchID
-			FROM	#tmpCornerBets
-			WHERE	SettlementStatusID = 0
-		)
-	END 
 
 	SELECT	m.HalfTimeHomeScore
 			,m.HalfTimeAwayScore

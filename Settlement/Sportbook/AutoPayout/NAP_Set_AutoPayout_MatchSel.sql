@@ -43,7 +43,7 @@ AS
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 5: Completed (Running Corner), 6:Abandoned, 7: Result Pending, 8: Under Settlement
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6:Abandoned, 7: Result Pending, 8: Under Settlement
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -82,7 +82,6 @@ BEGIN
 								WHEN @statusid = 1 THEN 'running'
 								WHEN @statusid = 2 THEN 'closed'
 								WHEN @statusid IN (3,6) THEN 'completed'
-								WHEN @statusid = 5 THEN 'running'
 								ELSE ''	END
 			, @isRefund = CASE 
 							WHEN @statusid IN (4,6) THEN 1
@@ -446,31 +445,6 @@ BEGIN
 	INTO #tempmatch
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
-		
-	IF @StatusID = 5 AND @MatchCode = '' -- ignore filter if search by matchid/matchcode
-	BEGIN
-		
-		;WITH CTE_MatchConner  AS (
-			SELECT t.MatchID
-			FROM #tempBettrans t 
-				INNER JOIN dbo.f_Set_GetGroupBettypes() bt 
-				ON t.bettype = bt.bettype
-			WHERE bt.GroupId IN (5,6)
-			GROUP BY t.matchid 
-		),tmpCornerBets AS (
-			SELECT m.matchId
-				, rs.SettlementStatusID
-			FROM CTE_MatchConner m
-				CROSS APPLY (
-					SELECT MIN(rs.SettlementStatusID) AS SettlementStatusID
-					FROM DBPRO.bodb02.dbo.ResultDetail rs WITH (NOLOCK)
-					WHERE rs.matchId = m.matchId 
-					AND rs.ResourceID IN ('04','05','206','207','208','209')
-				) AS rs
-		)
-		DELETE FROM #matchList
-		WHERE MatchID NOT IN (SELECT MatchID FROM tmpCornerBets WHERE SettlementStatusID = 0)
-	END
 
 	;WITH PayoutResult AS (
 		SELECT t.MatchId
