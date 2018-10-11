@@ -85,7 +85,7 @@ BEGIN
 								ELSE ''	END
 			, @isRefund = CASE 
 							WHEN @statusid IN (4,6) THEN 1
-							WHEN @statusid = 0 THEN NULL
+							WHEN @statusid IN (0, 7, 8) THEN NULL
 							ELSE 0 
 						END
 			, @UncalOnly = CASE WHEN @filterBy IN (3, 1) THEN 1
@@ -95,7 +95,7 @@ BEGIN
 
 		--ignore event status if selecting filterby
 		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 )
-			SELECT @eventstatus = '', @isRefund = NULL
+			SELECT @eventstatus = '', @isRefund = NULL, @StatusId = 0
 	END
 
 	CREATE TABLE #matchList (
@@ -268,7 +268,13 @@ BEGIN
 					WHEN @matchcode <> '' THEN 1
 					WHEN @StatusId = 7 AND ISNULL(mr.SettlementStatus,0) & 1 > 0 THEN 1
 					WHEN @StatusId = 8 AND ISNULL(mr.SettlementStatus,0) & 1 = 0 AND ISNULL(mr.SettlementStatus,0) & 2 > 0 AND m.eventstatus <> 'Completed' THEN 1
-					WHEN @StatusId NOT IN (7,8) AND ISNULL(mr.SettlementStatus,0) & 3 = 0 THEN 1
+					WHEN @StatusId NOT IN (7,8) 
+							THEN CASE
+									WHEN ISNULL(mr.SettlementStatus,0) & 1 = 1 THEN 0
+									WHEN ISNULL(mr.SettlementStatus,0) & 2 = 0 THEN 1
+									WHEN m.eventstatus = 'Completed' THEN 1
+									ELSE 0
+								END										
 					ELSE 0
 				END
 

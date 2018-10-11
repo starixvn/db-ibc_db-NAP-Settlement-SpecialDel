@@ -91,6 +91,8 @@ BEGIN
 			WHEN 4 THEN 1
 			WHEN 6 THEN 1
 			WHEN 0 THEN NULL
+			WHEN 7 THEN NULL
+			WHEN 8 THEN NULL
 			ELSE 0
 			END
 		,@MaxMatchId = 0
@@ -180,7 +182,13 @@ BEGIN
 						WHEN @StatusId = 0 THEN 1
 						WHEN @StatusId = 7 AND ISNULL(mr.SettlementStatus,0) & 1 > 0 THEN 1
 						WHEN @StatusId = 8 AND ISNULL(mr.SettlementStatus,0) & 1 = 0 AND ISNULL(mr.SettlementStatus,0) & 2 > 0 AND m.eventstatus <> 'Completed' THEN 1
-						WHEN @StatusId NOT IN (7,8) AND ISNULL(mr.SettlementStatus,0) & 3 = 0 THEN 1
+						WHEN @StatusId NOT IN (7,8) 
+								THEN CASE
+										WHEN ISNULL(mr.SettlementStatus,0) & 1 = 1 THEN 0
+										WHEN ISNULL(mr.SettlementStatus,0) & 2 = 0 THEN 1
+										WHEN m.eventstatus = 'Completed' THEN 1
+										ELSE 0
+									END										
 						ELSE 0
 					END
 
