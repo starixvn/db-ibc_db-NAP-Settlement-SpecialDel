@@ -21,6 +21,7 @@ AS
 	Revisions:
 		- 20151208@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
+		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		
 		
 */
@@ -37,7 +38,7 @@ BEGIN
 
 	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+	IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
 	BEGIN
 		DECLARE @affectedagents INT
 

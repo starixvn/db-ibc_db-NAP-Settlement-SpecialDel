@@ -22,6 +22,7 @@ AS
 		- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
+		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 
 */
 BEGIN
@@ -35,7 +36,7 @@ BEGIN
 		,@commWinRate SMALLMONEY
 		,@commLostRate SMALLMONEY
 
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'SITDB052', 'SITDB053', 'DB231', 'DB215', 'DB231\SQLSERVER2008R2', 'DB215\SQLSERVER2008R2')
+	IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
 	BEGIN
 		DECLARE @affectedagents INT
 
