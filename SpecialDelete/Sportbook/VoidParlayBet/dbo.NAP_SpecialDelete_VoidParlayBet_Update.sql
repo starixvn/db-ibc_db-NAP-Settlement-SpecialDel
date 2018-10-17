@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	, @UserPassword			NVARCHAR(50)
 	, @Ip					VARCHAR(15)		= ''
 	, @Reason				NVARCHAR(500)	=''
+	, @ReasonSC				NVARCHAR(500)	=''
 	, @Language				NVARCHAR(2)		= 'E'
 	, @NegativeBalanceUsers	VARCHAR(MAX)	= '' OUTPUT
 
@@ -38,6 +39,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180507@Alan: Change result for new template email - Delete Creator, Match Outright [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -548,7 +550,7 @@ BEGIN
 			, @IsReleased  = 1 
 
 		SELECT	@LogData ='Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete'   
-		  + ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason 
+		  + ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
 		   
 		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData  
 		 

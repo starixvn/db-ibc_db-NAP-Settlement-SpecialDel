@@ -11,7 +11,8 @@ ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Del]
     @UserPassword		NVARCHAR(50),
     @UserID				INT,
     @IP					VARCHAR(15)		= '',
-    @Reason				NVARCHAR(500)	= '',	
+    @Reason				NVARCHAR(500)	= '',
+	@ReasonSC			NVARCHAR(500)	= '',
 	@SecondAcceptFlag	TINYINT			= 0 ,
     
 	@TransIds			VARCHAR(MAX) 	,
@@ -37,6 +38,7 @@ AS
 			  - 20180507@Benjamin: Correct Ruben, actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 			  - 20180509@Alan: Change result for new template email [Redmine:#93296]
 			  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+			  - 20181017@Alan: Write log new reason chinese simplified [102918]
 			  
 	Param's Explanation:
 
@@ -678,7 +680,7 @@ BEGIN
 
 		SELECT @LogData ='void MG bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
 				+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) 
-				+ ' reason: ' + @Reason
+				+ ' reason: ' + @Reason + ' - ' + @ReasonSC
 
 		EXEC WriteLog_UserLog 
 			@UserID = @UserID

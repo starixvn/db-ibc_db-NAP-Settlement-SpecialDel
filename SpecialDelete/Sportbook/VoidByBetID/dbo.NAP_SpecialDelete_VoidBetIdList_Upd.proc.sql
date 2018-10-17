@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@UserId			INT = 0 -- custid of Admin
 	,@IP				VARCHAR(15)
 	,@Reason			NVARCHAR(500) = ''
+	,@ReasonSC			NVARCHAR(500) = ''
 	
 	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT -- invalid trans of BTrade
 	,@ErrCode			INT = 0 OUTPUT
@@ -66,6 +67,7 @@ AS
 	  - 20180507@Benjamin: Correct Ruben, actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 	  - 20180509@Alan: Change result for new template email [Redmine:#93296]
 	  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+	  - 20181017@Alan: Write log new reason chinese simplified [102918]
 	
 	 Param's Explanation:   
 	*/
@@ -2587,7 +2589,8 @@ BEGIN
 		  , @Action = 'Void' 
 		  , @IsReleased = 1		
 	
-	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username + 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  
+	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
+		+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
 	
 	-- CHECK IT GROUP or NOT ?   

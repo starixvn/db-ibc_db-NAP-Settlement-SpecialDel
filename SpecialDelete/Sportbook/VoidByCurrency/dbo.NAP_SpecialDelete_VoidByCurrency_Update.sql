@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 	@UserName			NVARCHAR(50),
 	@UserPassword		NVARCHAR(50),  
 	@Reason				NVARCHAR(500) = '',  
+	@ReasonSC			NVARCHAR(500) = '',
 	@IP					VARCHAR(15)  = '',  
 	@ErrorMsg			NVARCHAR(200) = '' OUTPUT,  
 	@ErrorCode			INT  = 0  OUTPUT,
@@ -35,6 +36,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread and Remove DateTime - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180509@Alan: Change result for new template email [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		
 	Param's Explanation:			
 			- @TicketType:
@@ -293,7 +295,8 @@ BEGIN
 	FROM #t_exchanges
 	
 	-------> Build @LogData	
-	SET @LogData = 'Void currency transaction for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for ' + @LicenseeNames + ' ' + @CurrencyCodes + ' IP=' + @IP + ' reason: ' + @Reason
+	SET @LogData = 'Void currency transaction for matchid ' + CONVERT(VARCHAR(20), @matchid) 
+		+ ' for ' + @LicenseeNames + ' ' + @CurrencyCodes + ' IP=' + @IP + ' reason: ' + @Reason + ' - ' + @ReasonSC
 		
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
