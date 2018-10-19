@@ -10,7 +10,7 @@ AS
 	Date: 20181015
 	Task: Happy 5 - Settlement 
 	DB: DBTXN/BODB02
-	 
+	
 	Revisions:
 		- 20181015@Vicky: Happy 5 - Settlement  [Redmine:#102844]
 		

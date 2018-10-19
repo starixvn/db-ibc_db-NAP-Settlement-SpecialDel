@@ -25,7 +25,7 @@ BEGIN
 	FROM dbo.f_SplitString(@matchIds, ',')
 	OPTION (maxrecursion 0)
 			
-	SELECT	b.matchid 
+	SELECT	b.matchid
 			,b.Seq
 			,b.Number
 	FROM	dbo.[BingoBall] b WITH (NOLOCK)

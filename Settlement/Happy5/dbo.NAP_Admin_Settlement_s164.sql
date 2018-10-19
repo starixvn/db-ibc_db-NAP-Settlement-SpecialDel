@@ -9,10 +9,10 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 AS
 /*
 	Created by: Vicky.phan
-	Date: 20181015 
+	Date: 20181015
 	Task: change the result of Happy 5 
 	DB: DBTXN/BODB02
-	 
+	
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
@@ -63,7 +63,7 @@ BEGIN
 	SELECT	@matchid AS matchid, 1 AS KeyID
 	----------------------------------------------------------------------------------------------
 	
-			 
+			
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch = 1

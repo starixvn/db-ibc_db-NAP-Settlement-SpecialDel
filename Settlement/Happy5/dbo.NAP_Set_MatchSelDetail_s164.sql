@@ -12,7 +12,7 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
 	Param's Explanation:	
-				 
+				
 */
 BEGIN
 	SET NOCOUNT ON

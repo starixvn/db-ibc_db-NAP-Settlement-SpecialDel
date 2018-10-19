@@ -18,7 +18,7 @@ AS
 		
 	Param's Explanation:	
 		@Status: All, Completed, Refund, Closed
-			 	
+				
 */
 BEGIN
 	SET NOCOUNT ON
