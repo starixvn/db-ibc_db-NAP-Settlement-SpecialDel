@@ -9,7 +9,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 AS
 /*
 	Created by: Vicky.phan
-	Date: 20181015
+	Date: 20181015 
 	Task: change the result of Happy 5 
 	DB: DBTXN/BODB02
 	
