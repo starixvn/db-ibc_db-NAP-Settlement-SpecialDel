@@ -49,10 +49,6 @@ RETURN (
 			,(190, 1, 1) -- UNDO Early Settlement
 			,(191, 1, 1) -- REFUND Early Settlement
 			,(182, 1, 1) -- UNDO Instant Settlement
-			
-			,(152,1,1) -- Calculate Super Live
-			,(153,1,1) -- Undo Super Live
-			,(154,1,1) -- Refund Super Live
 			-- Parlay
 			,(104, 2, 1) -- Calculate Mix Parlay
 			,(105, 2, 1) -- Undo Mix Parlay Settlement
