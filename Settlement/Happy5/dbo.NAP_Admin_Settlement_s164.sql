@@ -12,7 +12,7 @@ AS
 	Date: 20181015 
 	Task: change the result of Happy 5 
 	DB: DBTXN/BODB02
-	
+	 
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
