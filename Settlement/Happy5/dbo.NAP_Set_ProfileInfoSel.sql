@@ -12,7 +12,7 @@ AS
 	DB: DBTXN/BODB02
 	
 	Revisions:
-		- 20181015@Vicky: Happy 5 - Settlement  [Redmine:#102844]
+		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
 */
 BEGIN
