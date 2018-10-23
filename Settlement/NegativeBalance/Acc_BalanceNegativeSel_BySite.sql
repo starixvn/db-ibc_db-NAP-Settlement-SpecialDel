@@ -26,7 +26,11 @@ BEGIN
 
 	DECLARE @BalanceNegative TABLE (LogID bigint, LogDate datetime, MatchID int, GroupID tinyint, CustID int, Username varchar(30), TotalBalance money, CurrencyName nvarchar(50), [site] varchar(50), CustomInfo1 nvarchar(200), Username2 varchar(50))
 	DECLARE @RowCnt int
-
+	
+	/*CHIT CODE ON SIT FOR Haifa Site */
+	IF @Site='Haifa'
+	RETURN
+	
 	INSERT INTO @BalanceNegative (LogID, LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, [site], Username2)
 	SELECT	  h.LogID
 			, h.LogDate
@@ -57,33 +61,33 @@ BEGIN
 				, c.Username ASC
 	
 	SET @RowCnt=@@ROWCOUNT
-
-	IF @RowCnt>0 and @Site='Haifa'
-	BEGIN
-		SELECT  h.LogID	
-			, h.LogDate
-			, h.MatchID
-			, h.GroupID
-			, h.CustID
-			, h.Username
-			, h.TotalBalance
-			, h.CurrencyName
-			, h.Site
-			, CASE WHEN bin.CustomInfo1 IS NULL THEN h.username2 ELSE bin.CustomInfo1 END AS CustomInfo1
-		FROM @BalanceNegative h
-			LEFT JOIN DBDEPBBIN.bbin.dbo.Customer bin WITH (NOLOCK) ON h.CustID = bin.IBCCustID
-		ORDER BY h.LogID ASC
-				, h.MatchID ASC
-				, h.Username ASC
-	END
-	ELSE
-	BEGIN
+	
+	--IF @RowCnt>0 and @Site='Haifa'
+	--BEGIN
+	--	SELECT  h.LogID	
+	--		, h.LogDate
+	--		, h.MatchID
+	--		, h.GroupID
+	--		, h.CustID
+	--		, h.Username
+	--		, h.TotalBalance
+	--		, h.CurrencyName
+	--		, h.Site
+	--		, CASE WHEN bin.CustomInfo1 IS NULL THEN h.username2 ELSE bin.CustomInfo1 END AS CustomInfo1
+	--	FROM @BalanceNegative h
+	--		LEFT JOIN DBDEPBBIN.bbin.dbo.Customer bin WITH (NOLOCK) ON h.CustID = bin.IBCCustID
+	--	ORDER BY h.LogID ASC
+	--			, h.MatchID ASC
+	--			, h.Username ASC
+	--END
+	--ELSE
+	--BEGIN
 		SELECT	LogID, LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, Site, username2 AS CustomInfo1
 		FROM @BalanceNegative
 		ORDER BY LogID ASC
 				, MatchID ASC
 				, Username ASC
-	END
+	--END
 END
 GO
 GRANT EXECUTE ON [dbo].[Acc_BalanceNegativeSel_BySite] TO [bodbAdminNet] AS [dbo]
