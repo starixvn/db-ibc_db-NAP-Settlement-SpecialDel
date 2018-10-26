@@ -42,7 +42,7 @@ BEGIN
 	DECLARE @tmpBetTickets 			TVP_Settlement_BetTicket
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	DECLARE @tmpResultDetail TABLE (pfID INT, ResourceID VARCHAR(20), Bettype SMALLINT, Result1 VARCHAR(50), Result2 VARCHAR(50), OddsType SMALLINT)
+	DECLARE @tmpResultDetail TABLE (pfID INT, ResourceID VARCHAR(20), Bettype SMALLINT, Result1 VARCHAR(50), Result2 VARCHAR(50), OddsType SMALLINT, isSourceFromDB BIT)
 	----------------------------------------------------------------------------------------------
 	
 	SELECT	@StartTime = GETDATE()
@@ -79,30 +79,26 @@ BEGIN
 		RETURN
 	END
 	
-	-------------------------------------------parse XML and add more info--------------------
-	INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType)
-	EXEC dbo.[NAP_Set_ProfileInfoSel] @Sporttype = @Sporttype
+	-------------------------------------------parse XML and add more info----------------------------------
+	INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
+	EXEC dbo.[NAP_Set_Resource_Parsing] @Sporttype = @Sporttype
 									,@MatchID  = @MatchID
 									,@Action   = @Action
+									,@ErrCode = @ErrCode OUTPUT
+									,@ErrMsg = @ErrMsg OUTPUT
 	
 	SELECT   @strBettype   = 	(SELECT Bettype  AS '@bt'
 								FROM @tmpResultDetail
 								FOR XML PATH('r'), ROOT( 'root' ))
 
+		
 	SELECT @existsFinalRound = 1
 	FROM @tmpResultDetail
 	WHERE ResourceID = '00'
-	-----------------------------------------------------------------------------------------
+	----------------------------------------------------------------------------------------------------------
 	
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail) 
-		BEGIN
-			SELECT	@ErrCode = 1000001
-					,@ErrMsg	= 'Ball number is required.'
-	
-			
-		END
 		
 		IF @ErrCode IS NOT NULL AND @ErrCode > 0
 		BEGIN
@@ -139,6 +135,10 @@ BEGIN
 		  		AND	b.statusID NOT IN (103, 101, 102)
 		END 
 		
+		SELECT @MaxTransID = MAX(transid)
+		FROM #tmpTransID
+			
+		
 		--//MB is running?
 		IF EXISTS (
 			SELECT 1 FROM dbo.SystemSettings WITH(NOLOCK)
@@ -153,7 +153,7 @@ BEGIN
 		END	
 	
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-						@Command			= 'profile'
+						@Command			= 'profile_bingoball'
 						,@Action			= @Action
 						,@MatchID			= @matchid
 						,@creator			= @AdminId
@@ -350,6 +350,18 @@ BEGIN
 		,@Doing = @doing
 		
 	BEGIN TRY
+		IF @Action LIKE 'CAL'
+		BEGIN
+			SET @Remark = ''
+			SELECT @Remark = @Remark + ', Ball' +ResourceID + '(' + Result1 + ')'
+			FROM @tmpResultDetail
+			WHERE ISNULL(isSourceFromDB,0) = 1
+			
+			SELECT @Remark = 'Result: ' + SUBSTRING(@Remark, 2, LEN(@Remark))  + '<br/> ' 
+				    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+				            + ' - MaxTransID: ' + CAST(ISNULL(@MaxTransID, 0) AS VARCHAR(20));
+		END
+			            
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 			,@Matchid = @matchid
 			,@ActionID = @ActionID

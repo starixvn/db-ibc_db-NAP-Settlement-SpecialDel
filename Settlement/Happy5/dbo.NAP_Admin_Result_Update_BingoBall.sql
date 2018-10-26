@@ -3,9 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_BingoBall]
 	@MatchID			INT
 	,@Sporttype			SMALLINT
 	,@Resources			VARCHAR(MAX) 
-	,@ErrCode 			INT 			= 0 OUTPUT
-	,@ErrMsg 			NVARCHAR(200) 	= '' OUTPUT
-
 AS 
 /*
 	Created: 20181018@Vicky
@@ -31,14 +28,7 @@ BEGIN
 
     DECLARE @tblSelectedRID TABLE (ResourceID TINYINT, Result TINYINT)
     DECLARE @handle INT
-    ---------------------------------------------------------------------------- 
-    IF @MatchID IS NULL OR @Sporttype IS NULL OR @Resources IS NULL OR @Resources = ''
-    BEGIN
-	    SELECT @ErrCode = 1000002
-	    	  ,@ErrMsg = 'Data is not valid'
-	   	RETURN
-    END 
-    
+     
     ----------------------------------------------------------------------------
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @Resources
@@ -51,29 +41,7 @@ BEGIN
         ) tbl
     EXEC sp_xml_removedocument @handle
     
-    ------------------------VALIDATE--------------------------------------------
-    IF @Sporttype = 164
-    BEGIN
-	    SELECT @ErrCode = 1000002
-	    		,@ErrMsg = 'Ball number must be from 1 to 20'
-	    FROM @tblSelectedRID
-	    WHERE Result < 1 OR Result > 20
-	    	
-	    SELECT @ErrCode = 1000002
-	    		,@ErrMsg = 'Data is not valid'
-	    FROM @tblSelectedRID
-	    HAVING COUNT(*) <> 5
-	    
-	    SELECT @ErrCode = 1000002
-	    		,@ErrMsg = 'Duplicate ball numbers'
-	    FROM @tblSelectedRID
-	    GROUP BY Result
-	    HAVING COUNT(Result) > 1
-    END 
-
-    IF @ErrCode <> 0
-    	RETURN
-    	
+    
     ----------------------------------------------------------------------------
     --Insert and update BingoBall
     MERGE dbo.BingoBall TARGET
@@ -88,7 +56,6 @@ BEGIN
     WHEN NOT MATCHED BY TARGET THEN
         INSERT (MatchId,  Seq,        		 Number,        UpdateTime, 	   SportType,  isTest)
         VALUES (@matchid, SOURCE.ResourceId, SOURCE.Result, CURRENT_TIMESTAMP, @Sporttype, 0);
-    
     
 END 
 GO

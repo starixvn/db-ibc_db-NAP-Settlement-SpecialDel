@@ -3,7 +3,7 @@ ALTER PROCEDURE dbo.NAP_Set_MatchSel_s164
 	@FromDate		DATETIME
 	,@ToDate		DATETIME
 	,@MatchCode 	NVARCHAR(50) 	= ''
-	,@Status		TINYINT 		= 0
+	,@Status		VARCHAR(200) 	= ''
 	,@Sporttype		TINYINT
 AS
 /*
@@ -25,42 +25,60 @@ BEGIN
 	
 	DECLARE @MatchId		INT
 			,@EventStatus	NVARCHAR(50)
-			,@IsRefund		BIT
+			,@IsRefund	BIT				= 0
+	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
 	
+	-------------------------------------------------------------------------------------------------
 	SET @MatchCode = ISNULL(@MatchCode,'')
 	
 	IF @MatchCode <> ''
-	BEGIN
-		SET @MatchId = CASE WHEN ISNUMERIC(@MatchCode) = 1 THEN CAST(@MatchCode AS INT) ELSE NULL END
+	BEGIN 
+		BEGIN TRY 
+			SET @MatchId = CASE WHEN ISNUMERIC(@MatchCode) = 1 THEN CAST(@MatchCode AS INT) ELSE NULL END
+		END TRY  
+		BEGIN CATCH
+			SET @MatchId = NULL
+		END CATCH
+		
 		SET @EventStatus = NULL
 	END
-		
-	SELECT @EventStatus = CASE
-							WHEN @Status = 1 THEN 'running'
-							WHEN @Status = 2 THEN 'closed'
-							WHEN @Status IN (3,4) THEN 'completed'
-							ELSE NULL
-							END
-			,@IsRefund = CASE 
-							WHEN @Status = 4 THEN 1 
-							WHEN @Status <> 0 THEN 0
-							ELSE NULL END
-		
+	
+	----------check status
+	INSERT INTO @tblEventStatus(EventStatus)
+	SELECT Val 
+	FROM dbo.f_SplitString(@Status, ',')
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @tblEventStatus HAVING COUNT(*) > 1) --@Status = All
+	BEGIN
+		SET @IsRefund = NULL
+	END
+	ELSE 
+	BEGIN
+		UPDATE @tblEventStatus
+		SET EventStatus = 'completed'
+			,@IsRefund = 1
+		WHERE EventStatus = 'refund'
+	END
+	------------end check status
+	
+	--------------------------------------------------------------------------------------------------------
 	SELECT	m.matchid
 			,m.matchcode
 			,m.leagueid
 			,m.kickofftime
 			,m.eventdate
 			,m.eventstatus 
+			,m.betstatus
 	FROM	dbo.[match] m WITH (NOLOCK)
 	WHERE	m.sporttype = @Sporttype
 			AND m.eventdate BETWEEN @FromDate AND @ToDate
-			AND (@EventStatus IS NULL OR m.eventstatus = @EventStatus )
+			AND m.eventstatus IN (SELECT DISTINCT EventStatus FROM @tblEventStatus)
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)		
 			AND ( @IsRefund IS NULL 
 				OR (@IsRefund = 0 AND ISNULL(m.betstatus,'') NOT LIKE 'Refund%')
 				OR (@IsRefund = 1 AND ISNULL(m.betstatus,'') LIKE 'Refund%')
 			)
 	ORDER BY m.Matchid
+	
 END
 GO

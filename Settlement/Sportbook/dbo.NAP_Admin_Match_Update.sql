@@ -19,8 +19,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @isExcludeCorner            BIT = 0,
     @isExistRunningCornerBet    BIT = 0,
     @RowCount                   INT = 0 OUTPUT,
-    @Creator                    INT = 0,
-    @IsFinalRound               BIT = NULL
+	@Creator 					INT = 0,
+	@IsFinalRound               BIT = NULL
 )
 AS
 /*
@@ -555,6 +555,29 @@ BEGIN
         WHERE   matchid = @matchid
     END
     --END: 77720
+	
+     IF @Command = 'profile_bingoball'
+    BEGIN
+		DECLARE @eventstatus VARCHAR(20)
+		IF @IsFinalRound = 1
+		BEGIN
+			IF @action = 'REFUND'
+           		SELECT @eventstatus        = N'Completed'
+	                   ,@betstatus         = N'Refund'
+	                   
+	        IF @action = 'CAL'
+	        	SELECT @eventstatus		   = N'Completed'
+	        		   ,@betstatus         = N''
+
+        END
+		
+        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET eventstatus     = COALESCE(@eventstatus, eventstatus)
+                ,betstatus      = COALESCE(@betstatus, '')
+                ,changetime     = GETDATE()
+                ,settletime     = GETDATE()
+        WHERE   matchid = @matchid
+    END
 
     IF @Command = 'profile'
     BEGIN
@@ -593,5 +616,6 @@ BEGIN
 		
         
     END
+
 END
 GO
