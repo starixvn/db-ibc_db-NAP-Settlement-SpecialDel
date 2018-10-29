@@ -367,8 +367,8 @@ BEGIN
 		FROM @tmpResultDetail
 		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
 		
-		SELECT @Remark =  CASE WHEN @remarkOldValue IS NOT NULL THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
-						+ CASE WHEN @remarkNewValue IS NOT NULL THEN 'New Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+		SELECT @Remark =  CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
+						+ CASE WHEN @remarkNewValue <> '' THEN 'New Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
 			    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
 			            

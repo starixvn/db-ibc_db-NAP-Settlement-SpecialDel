@@ -561,11 +561,11 @@ BEGIN
 		DECLARE @eventstatus VARCHAR(20)
 		
 		IF @action = 'REFUND'
-       		SELECT @eventstatus        = N'Completed'
-                   ,@betstatus         = N'Refund'
+       		SELECT @eventstatus        = N'completed'
+                   ,@betstatus         = N'refund'
                    
         IF @action = 'CAL'
-        	SELECT @eventstatus		   = N'Completed'
+        	SELECT @eventstatus		   = N'completed'
         		   ,@betstatus         = N''
 
 
