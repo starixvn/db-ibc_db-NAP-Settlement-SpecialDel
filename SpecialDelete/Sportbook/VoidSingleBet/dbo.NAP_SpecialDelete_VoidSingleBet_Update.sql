@@ -18,7 +18,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
     @UserPassword			NVARCHAR(50),
     @UserID					INT,
     @IP						VARCHAR(15)		= '',
-    @Reason					NVARCHAR(500)	= '',	
+    @Reason					NVARCHAR(500)	= '',
+	@ReasonSC				NVARCHAR(500)	= '',
 	@SecondAcceptFlag		TINYINT			= 0 ,
     
 	@TransIds				VARCHAR(MAX)	= '',
@@ -85,6 +86,7 @@ AS
 		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181002@Alan: Exclude BetTrade and Cash Out tickets when check negative balance [102212] 
+		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -264,8 +266,8 @@ BEGIN
 						AND custid = @UserID
 						AND roleid>=5)
 	BEGIN
-		SELECT @LogData ='fail to void bet for matchid ' + CONVERT(VARCHAR(20), 
-			@MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @Reason
+		SELECT @LogData ='fail to void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId)
+		 + ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @Reason
 			
 		EXEC WriteLog_UserLog 
 			@UserID = @UserID, 
@@ -1918,13 +1920,13 @@ BEGIN
 		BEGIN
 			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
 						+ ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) 
-						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason
+						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
 		END
 		ELSE
 		BEGIN
 			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
 						+ ' from ' + CONVERT(VARCHAR(25), @FromTransdate) + ' to ' + CONVERT(VARCHAR(25), @ToTransdate) 
-						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason
+						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
 		END				
 		EXEC WriteLog_UserLog 
 			@UserID = @UserID

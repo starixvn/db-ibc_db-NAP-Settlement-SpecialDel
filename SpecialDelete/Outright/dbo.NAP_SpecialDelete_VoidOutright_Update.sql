@@ -8,7 +8,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidOutright_Update]
     , @UserPassword			NVARCHAR(50)
     , @UserID				INT
     , @IP					VARCHAR(15)		= ''
-    , @Reason				NVARCHAR(500)	= ''	
+    , @Reason				NVARCHAR(500)	= ''
+	, @ReasonSC				NVARCHAR(500)	= ''
     
 	, @TransIds				VARCHAR(MAX)	= ''	 
 		
@@ -26,6 +27,7 @@ AS
 		- 20171009@Kent: PH AIO Phase 3 [Redmine:#83737]
 		- 20180508@Alan: Change result for new template email [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		
 	Param's Explanation: Special bet delete option		
 	*/
@@ -293,7 +295,7 @@ BEGIN
 		SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @OutrightID) 
 				+ ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' 
 				+ CONVERT(VARCHAR(20), @ToTransId) + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) 
-				+ ' reason: ' + @Reason
+				+ ' reason: ' + @Reason + ' - ' + @ReasonSC
 				
 		EXEC WriteLog_UserLog 
 			@UserID = @UserID

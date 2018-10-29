@@ -12,7 +12,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO]
 	,@UserID			INT  
 	,@UserName			NVARCHAR(50)  
 	,@UserPassword		NVARCHAR(50)  
-	,@Reason			NVARCHAR(500) = ''  
+	,@Reason			NVARCHAR(500) = '' 
+	,@ReasonSC			NVARCHAR(500) = ''
 	,@IP				VARCHAR(15)	  = ''  
 	,@ErrMsg			NVARCHAR(200) = '' OUTPUT  
 	,@ErrCode			INT			  = 0  OUTPUT  
@@ -82,6 +83,7 @@ Revisions:
 	- 20180507@Benjamin: Correct actual_stake: 0 when INSERT TO BETTRANS[Redmine: #94603]
 	- 20180508@Alan: Change result for new template email - Delete Creator [Redmine:#93296]
 	- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+	- 20181017@Alan: Write log new reason chinese simplified [102918]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -2312,7 +2314,8 @@ BEGIN
 			  , @Action = 'Void'
 			  , @IsReleased = 1  
 
-		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121) + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  
+		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
+			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC
 
 		EXEC WriteLog_UserLog @UserID = @UserID  
 		,@Doing = @LogData		  
