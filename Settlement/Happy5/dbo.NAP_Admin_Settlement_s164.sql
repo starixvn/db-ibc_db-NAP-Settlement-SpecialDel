@@ -3,6 +3,8 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 	@MatchId		INT
 	,@Action		VARCHAR(20)		= 'CAL'
 	,@AdminId		INT
+	,@IsAuto		BIT				= 1
+	,@Resources		VARCHAR(MAX)	= NULL
 	,@IP			VARCHAR(50)		= ''
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		VARCHAR(200)	= ''	OUTPUT
@@ -43,6 +45,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	DECLARE @tmpResultDetail TABLE (pfID INT, ResourceID VARCHAR(20), Bettype SMALLINT, Result1 VARCHAR(50), Result2 VARCHAR(50), OddsType SMALLINT, isSourceFromDB BIT)
+	DECLARE @tmpOldResultDetail TABLE (Seq TINYINT, Number TINYINT)
 	----------------------------------------------------------------------------------------------
 	
 	SELECT	@StartTime = GETDATE()
@@ -58,47 +61,58 @@ BEGIN
   	FROM   DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE  matchid = @matchid
   	
-	-- check and not allow attempt to settlement same game while it's still not finish
-	INSERT INTO #tblMatchProcess (matchid, KeyID)
-	SELECT	@matchid AS matchid, 1 AS KeyID
-	----------------------------------------------------------------------------------------------
-	
-			
-	--check settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = 1
-		,@avaiableProcess = @avaiableProcess OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-		
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN
-		SELECT	@ErrCode = 1000000
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-	
-	-------------------------------------------parse XML and add more info----------------------------------
-	INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
-	EXEC dbo.[NAP_Set_Resource_Parsing] @Sporttype = @Sporttype
-									,@MatchID  = @MatchID
-									,@Action   = @Action
-									,@ErrCode = @ErrCode OUTPUT
-									,@ErrMsg = @ErrMsg OUTPUT
-	
-	SELECT   @strBettype   = 	(SELECT Bettype  AS '@bt'
-								FROM @tmpResultDetail
-								FOR XML PATH('r'), ROOT( 'root' ))
-
-		
-	SELECT @existsFinalRound = 1
-	FROM @tmpResultDetail
-	WHERE ResourceID = '00'
-	----------------------------------------------------------------------------------------------------------
 	
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
+		-- check and not allow attempt to settlement same game while it's still not finish
+		INSERT INTO #tblMatchProcess (matchid, KeyID)
+		SELECT	@matchid AS matchid, 1 AS KeyID
+		----------------------------------------------------------------------------------------------
+	
+	
+		--check settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = 1
+			,@avaiableProcess = @avaiableProcess OUTPUT
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN
+			SELECT	@ErrCode = 1000000
+					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+	
+			RETURN
+		END
+		
+	
+		INSERT INTO @tmpOldResultDetail (Seq, Number)
+		SELECT Seq, Number
+		FROM DBPRO.bodb02.dbo.bingoBall
+		WHERE matchid = @matchid
+		
+		
+		IF @IsAuto = 0
+	  	BEGIN
+		  	EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
+				  						@matchid	= @matchid
+				  						,@Sporttype	= @Sporttype
+				  						,@Resources = @Resources
+		END
+		-------------------------------------------parse XML and add more info----------------------------------
+		INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
+		EXEC dbo.[NAP_Set_Resource_Parsing] @Sporttype = @Sporttype
+										,@MatchID	= @MatchID
+										,@Action	= @Action
+										,@ErrCode 	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
+		
+		SELECT   @strBettype   = 	(SELECT Bettype  AS '@bt'
+									FROM @tmpResultDetail
+									FOR XML PATH('r'), ROOT( 'root' ))
+	
+			
+		
 		
 		IF @ErrCode IS NOT NULL AND @ErrCode > 0
 		BEGIN
@@ -135,9 +149,6 @@ BEGIN
 		  		AND	b.statusID NOT IN (103, 101, 102)
 		END 
 		
-		SELECT @MaxTransID = MAX(transid)
-		FROM #tmpTransID
-			
 		
 		--//MB is running?
 		IF EXISTS (
@@ -157,7 +168,6 @@ BEGIN
 						,@Action			= @Action
 						,@MatchID			= @matchid
 						,@creator			= @AdminId
-						,@IsFinalRound		= @existsFinalRound
 			 
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
@@ -200,8 +210,8 @@ BEGIN
 			IF @Action LIKE 'CAL%'
 			BEGIN
 				SET @strTransIds 		= (SELECT transid		AS '@t'
-											   ,modds		AS '@m'
-											   ,OddsType	AS '@ot'
+											   		,modds		AS '@m'
+											   		,OddsType	AS '@ot'
 										   FROM @tmpTransIDBatch
 										   FOR XML PATH('r'), ROOT( 'root' ))
 			END
@@ -213,10 +223,9 @@ BEGIN
 			END
 			
 
-			EXEC dbo.NAP_Admin_Calculate_Main
+			EXEC dbo.NAP_Admin_Calculate_OtherSports
 				@matchid	  		 = @matchid
 			   ,@action				 = @action
-			   ,@IsSettingByProfile  = 1	 
 			   ,@strTransIds		 = @strTransIds
 		END
 
@@ -350,17 +359,23 @@ BEGIN
 		,@Doing = @doing
 		
 	BEGIN TRY
-		IF @Action LIKE 'CAL'
-		BEGIN
-			SET @Remark = ''
-			SELECT @Remark = @Remark + ', Ball' +ResourceID + '(' + Result1 + ')'
-			FROM @tmpResultDetail
-			WHERE ISNULL(isSourceFromDB,0) = 1
-			
-			SELECT @Remark = 'Result: ' + SUBSTRING(@Remark, 2, LEN(@Remark))  + '<br/> ' 
-				    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-				            + ' - MaxTransID: ' + CAST(ISNULL(@MaxTransID, 0) AS VARCHAR(20));
-		END
+		DECLARE @remarkOldValue VARCHAR(MAX) = '',@remarkNewValue VARCHAR(MAX) = ''
+		SET @Remark = ''
+		
+		
+		SELECT @remarkOldValue = @remarkOldValue + ', B' + CAST(Seq AS VARCHAR(5)) + '(' + CAST(Number AS VARCHAR(5)) + ')'
+		FROM @tmpOldResultDetail
+		WHERE Number > 0
+		
+		
+		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
+		FROM @tmpResultDetail
+		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
+		
+		SELECT @Remark =  CASE WHEN @remarkOldValue IS NOT NULL THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
+						+ CASE WHEN @remarkNewValue IS NOT NULL THEN 'New Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+			    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+		
 			            
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 			,@Matchid = @matchid

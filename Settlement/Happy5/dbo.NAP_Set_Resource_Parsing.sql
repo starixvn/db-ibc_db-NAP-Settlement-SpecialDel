@@ -28,7 +28,7 @@ BEGIN
 		
 		INSERT INTO @tmpResultDetail(ResourceID, Result1, isSourceFromDB)
 		SELECT  Seq, Number, 1
-		FROM    dbo.BingoBall b WITH (NOLOCK)
+		FROM    DBPRO.bodb02.dbo.BingoBall b WITH (NOLOCK)
 		WHERE matchid = @matchid
 	END
 	

@@ -559,17 +559,16 @@ BEGIN
      IF @Command = 'profile_bingoball'
     BEGIN
 		DECLARE @eventstatus VARCHAR(20)
-		IF @IsFinalRound = 1
-		BEGIN
-			IF @action = 'REFUND'
-           		SELECT @eventstatus        = N'Completed'
-	                   ,@betstatus         = N'Refund'
-	                   
-	        IF @action = 'CAL'
-	        	SELECT @eventstatus		   = N'Completed'
-	        		   ,@betstatus         = N''
+		
+		IF @action = 'REFUND'
+       		SELECT @eventstatus        = N'Completed'
+                   ,@betstatus         = N'Refund'
+                   
+        IF @action = 'CAL'
+        	SELECT @eventstatus		   = N'Completed'
+        		   ,@betstatus         = N''
 
-        END
+
 		
         UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus     = COALESCE(@eventstatus, eventstatus)
