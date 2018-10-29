@@ -30,8 +30,6 @@ BEGIN
 			,@avaiableProcess		BIT
 			,@ActionId				INT
 			,@batchCount			INT = 2000	
-			,@strBettype			VARCHAR(MAX)
-			,@existsFinalRound		BIT
 			,@Sporttype				TINYINT
 			,@strTransIds			VARCHAR(MAX)
 			,@MaxTransID			BIGINT
@@ -53,7 +51,6 @@ BEGIN
 							WHEN 'CAL' THEN 81000
 							WHEN 'REFUND' THEN 81001 
 						END
-			,@existsFinalRound = 0
 			,@Remark = ''
 	
 	--get info of match
@@ -107,13 +104,6 @@ BEGIN
 										,@ErrCode 	= @ErrCode OUTPUT
 										,@ErrMsg	= @ErrMsg OUTPUT
 		
-		SELECT   @strBettype   = 	(SELECT Bettype  AS '@bt'
-									FROM @tmpResultDetail
-									FOR XML PATH('r'), ROOT( 'root' ))
-	
-			
-		
-		
 		IF @ErrCode IS NOT NULL AND @ErrCode > 0
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -144,7 +134,12 @@ BEGIN
 			INSERT INTO #tmpTransID(TransID)
 		  	SELECT transid
 		  	FROM bettrans b WITH (NOLOCK)
-		  		INNER JOIN @tmpResultDetail t ON b.BetType = t.BetType 
+		  		CROSS APPLY(
+		  						SELECT TOP 1 pfID, Result1, Result2, OddsType
+		  						FROM @tmpResultDetail t
+		  						WHERE b.BetType = t.BetType
+		  					) sr
+		  		--INNER JOIN @tmpResultDetail t ON b.BetType = t.BetType 
 		  	WHERE b.matchid = @MatchId
 		  		AND	b.statusID NOT IN (103, 101, 102)
 		END 
