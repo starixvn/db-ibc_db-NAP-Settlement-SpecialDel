@@ -28,6 +28,7 @@ AS
 		- 20180704@Kathy: Prevent lock escalation on Bettrans [Redmine:#89132]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
+		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -269,468 +270,234 @@ BEGIN
 									  END
 					  END		
 		
-		IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
-		BEGIN
-			INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
-			SELECT	BatchNo
-					,recommend
-					,MAX(CASE WHEN MinRn = 0 THEN recommend ELSE 0 END) AS MinCustId
-					,MAX(CASE WHEN MaxRn = 1 THEN recommend ELSE 0 END) AS MaxCustId
-					,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS MinTransId	
-					,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS MaxTransId			
-					,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
-					,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
-			FROM (
-				SELECT	n.BatchNo
-						,b.recommend
-						,b.transid
-						,(rn - 1)%@BatchCount AS MinRn
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
-				FROM	(
-					SELECT	transid
-							,recommend
-							,ROW_NUMBER() OVER (ORDER BY recommend, transid) AS rn
-					FROM	dbo.bettrans WITH(NOLOCK)
-					WHERE	matchid = @matchid
-							AND bettype = @bettype
-				)b
-				CROSS APPLY (	
-					SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
-				)n
+		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
+		SELECT	BatchNo
+				,custid
+				,MAX(CASE WHEN MinRn = 0 THEN CustId ELSE 0 END) AS MinCustId
+				,MAX(CASE WHEN MaxRn = 1 THEN CustId ELSE 0 END) AS MaxCustId
+				,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS MinTransId	
+				,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS MaxTransId			
+				,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
+				,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
+		FROM (
+			SELECT	n.BatchNo
+					,b.custid
+					,b.transid
+					,(rn - 1)%@BatchCount AS MinRn
+					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
+					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
+					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
+			FROM	(
+				SELECT	transid
+						,custid
+						,ROW_NUMBER() OVER (ORDER BY custid, transid) AS rn
+				FROM	dbo.bettrans WITH(NOLOCK)
+				WHERE	matchid = @matchid
+						AND bettype = @bettype
 			)b
-			GROUP BY BatchNo, recommend
-		
-			SELECT @BatchNo = MAX(BatchNo)
-			FROM @tmpBatch
-
-			WHILE @BatchNo > 0
-			BEGIN
-				SELECT	@MinCustId = MAX(MinCustId)
-						,@MaxCustId = MAX(MaxCustId)
-						,@MinTransId = MAX(MinTransId)
-						,@MaxTransId = MAX(MaxTransId)
-						,@TransIdOfMinCust = MAX(TransIdOfMinCust)
-						,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
-				FROM	@tmpBatch
-				WHERE	BatchNo = @BatchNo
-
-				UPDATE	b
-					SET @modds = CASE 
-							WHEN bettype = 1206 AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
-							WHEN betteam = '0-1' AND @totalgoal <= 1 THEN 1		-- + 200,201
-							WHEN betteam = '2-3' AND @totalgoal IN (2, 3) THEN 1
-							WHEN betteam = '4-6' AND @totalgoal IN (4, 5, 6) THEN 1
-							WHEN bettype IN (195,196) AND betteam = '0-2' AND @totalgoal <=2 THEN 1			
-							WHEN bettype IN (195,196) AND betteam = '3-4' AND @totalgoal IN (3, 4) THEN 1	
-							WHEN bettype IN (195,196,202) AND betteam = '5-6' AND @totalgoal IN(5, 6) THEN 1	
-							WHEN bettype = 199 AND betteam ='0-8' AND @totalgoal<=8 THEN 1 
-							WHEN bettype = 199 AND betteam ='9-11' AND @totalgoal IN(9,10,11) THEN 1 	
-							WHEN bettype = 199 AND betteam ='12-over' AND @totalgoal>=12 THEN 1 
-							WHEN bettype IN (200,201) AND (betteam ='2' OR betteam='3') AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
-							WHEN bettype = 202 AND betteam ='0-4' AND  @totalgoal<=4 THEN 1 
-							WHEN betteam IN ('4-over', '4&over') AND @totalgoal >= 4 THEN 1		--+ 200,201 
-							WHEN betteam IN ('7-over', '7&over') AND @totalgoal >= 7 THEN 1		-- 7-over(195, 196,202)			
-							WHEN betteam = '5&over' and bettype = 129  AND @totalgoal >= 5 THEN 1
-							WHEN betteam = '3-over' and bettype = 412  AND @totalgoal >= 3 THEN 1 --412
-							WHEN ((betteam <> '5&over' and bettype = 129) 
-									or (betteam <> '7&over' and bettype = 130) 
-									or (betteam <> '3-over' and bettype = 412)) 
-								AND @totalgoal = cast(betteam AS INT) THEN 1 --412
-							WHEN bettype IN (159,406) AND betteam LIKE 'G[0-5]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype IN (159,406) AND betteam ='G6' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype = 179 AND betteam LIKE 'G[0-3]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype = 179 AND betteam ='G4' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype IN (161,162,181,182,407,409) AND betteam LIKE 'G[0-2]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype IN (161,162,181,182,407,409) AND betteam ='G3' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 187 AND betteam LIKE 'G[0-1]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 187 AND betteam ='G2' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 429 THEN CASE
-														WHEN betteam = @result THEN 1
-														ELSE -1
-													END
-							ELSE - 1
-							END
-						,modds = @modds
-						,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
-							WHEN '0' THEN 1
-							WHEN '1' THEN 0
-							ELSE 1
-							END
-						,@commLostRate = CASE comstatus
-							WHEN '0' THEN 1
-							WHEN '1' THEN 2
-							ELSE 1
-							END
-						,WinLost = CASE 
-							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,195,196,199,200,201,202,1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									)
-							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * 0.5
-							WHEN @modds = 0 THEN actual_stake
-							WHEN @modds = - 0.25 THEN actual_stake * 0.5
-							WHEN @modds < - 0.25 THEN 0
-							END
-						,aWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - apositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - apositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * apositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * apositiontaking
-							END
-						,mWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - mpositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - mpositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * mpositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * mpositiontaking
-							END
-						,sWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - spositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - spositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * spositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * spositiontaking
-							END
-						,PlayerComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * playerdiscount * stake
-							WHEN @modds = 0.25 THEN @commWinRate * playerdiscount * stake * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * playerdiscount * stake * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * playerdiscount * stake
-							END
-						,Comm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking)
-							WHEN @modds = 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking)
-							END
-						,aComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-							WHEN @modds = 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-							END
-						,sComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-							WHEN @modds = 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-							END
-						,STATUS = CASE 
-							WHEN @modds > 0 THEN 'WON'
-							WHEN @modds = 0 THEN 'DRAW'
-							WHEN @modds < 0 THEN 'LOSE'
-							END
-						,StatusID = CASE 
-							WHEN @modds > 0 THEN 112 --WON
-							WHEN @modds = 0 THEN 111 --DRAW
-							WHEN @modds < 0 THEN 113 --LOSE
-							END
-						,ruben = 1
-				FROM	@tmpBatch r
-					INNER JOIN dbo.bettrans b
-						ON	r.BatchNo = @BatchNo
-							AND r.CustId = b.recommend
-					CROSS APPLY (
-						SELECT CASE
-									WHEN r.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN r.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i
-				WHERE	matchid = @matchid AND bettype = @bettype 
-						AND statusID NOT IN (101, 102)
-						AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (195,196,199,200,201,202) THEN 0 ELSE 1 END 
-						AND i.IsCalculated = 1
-
-				SET @BatchNo = @BatchNo - 1
-
-				WAITFOR DELAY '00:00:00:010'
-			END
-		END
-		ELSE -- DBTrans, DB06
-		BEGIN
-			INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
-			SELECT	BatchNo
-					,custid
-					,MAX(CASE WHEN MinRn = 0 THEN CustId ELSE 0 END) AS MinCustId
-					,MAX(CASE WHEN MaxRn = 1 THEN CustId ELSE 0 END) AS MaxCustId
-					,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS MinTransId	
-					,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS MaxTransId			
-					,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
-					,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
-			FROM (
-				SELECT	n.BatchNo
-						,b.custid
-						,b.transid
-						,(rn - 1)%@BatchCount AS MinRn
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
-						,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
-				FROM	(
-					SELECT	transid
-							,custid
-							,ROW_NUMBER() OVER (ORDER BY custid, transid) AS rn
-					FROM	dbo.bettrans WITH(NOLOCK)
-					WHERE	matchid = @matchid
-							AND bettype = @bettype
-				)b
-				CROSS APPLY (	
-					SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
-				)n
-			)b
-			GROUP BY BatchNo, CustId
+			CROSS APPLY (	
+				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
+			)n
+		)b
+		GROUP BY BatchNo, CustId
 			
-			SELECT @BatchNo = MAX(BatchNo)
-			FROM @tmpBatch
+		SELECT @BatchNo = MAX(BatchNo)
+		FROM @tmpBatch
 
-			WHILE (@BatchNo > 0)
-			BEGIN
-				SELECT	@MinCustId = MAX(MinCustId)
-						,@MaxCustId = MAX(MaxCustId)
-						,@MinTransId = MAX(MinTransId)
-						,@MaxTransId = MAX(MaxTransId)
-						,@TransIdOfMinCust = MAX(TransIdOfMinCust)
-						,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
-				FROM	@tmpBatch
-				WHERE	BatchNo = @BatchNo
+		WHILE (@BatchNo > 0)
+		BEGIN
+			SELECT	@MinCustId = MAX(MinCustId)
+					,@MaxCustId = MAX(MaxCustId)
+					,@MinTransId = MAX(MinTransId)
+					,@MaxTransId = MAX(MaxTransId)
+					,@TransIdOfMinCust = MAX(TransIdOfMinCust)
+					,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
+			FROM	@tmpBatch
+			WHERE	BatchNo = @BatchNo
 
-				UPDATE	b 
-					SET @modds = CASE 
-							WHEN bettype = 1206 AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
-							WHEN betteam = '0-1' AND @totalgoal <= 1 THEN 1		-- + 200,201
-							WHEN betteam = '2-3' AND @totalgoal IN (2, 3) THEN 1
-							WHEN betteam = '4-6' AND @totalgoal IN (4, 5, 6) THEN 1
-							WHEN bettype IN (195,196) AND betteam = '0-2' AND @totalgoal <=2 THEN 1			
-							WHEN bettype IN (195,196) AND betteam = '3-4' AND @totalgoal IN (3, 4) THEN 1	
-							WHEN bettype IN (195,196,202) AND betteam = '5-6' AND @totalgoal IN(5, 6) THEN 1	
-							WHEN bettype = 199 AND betteam ='0-8' AND @totalgoal<=8 THEN 1 
-							WHEN bettype = 199 AND betteam ='9-11' AND @totalgoal IN(9,10,11) THEN 1 	
-							WHEN bettype = 199 AND betteam ='12-over' AND @totalgoal>=12 THEN 1 
-							WHEN bettype IN (200,201) AND (betteam ='2' OR betteam='3') AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
-							WHEN bettype = 202 AND betteam ='0-4' AND  @totalgoal<=4 THEN 1 
-							WHEN betteam IN ('4-over', '4&over') AND @totalgoal >= 4 THEN 1		--+ 200,201 
-							WHEN betteam IN ('7-over', '7&over') AND @totalgoal >= 7 THEN 1		-- 7-over(195, 196,202)			
-							WHEN betteam = '5&over' and bettype = 129  AND @totalgoal >= 5 THEN 1
-							WHEN betteam = '3-over' and bettype = 412  AND @totalgoal >= 3 THEN 1 --412
-							WHEN ((betteam <> '5&over' and bettype = 129) 
-									or (betteam <> '7&over' and bettype = 130) 
-									or (betteam <> '3-over' and bettype = 412)) 
-								AND @totalgoal = cast(betteam AS INT) THEN 1 --412
-							WHEN bettype IN (159,406) AND betteam LIKE 'G[0-5]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype IN (159,406) AND betteam ='G6' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype = 179 AND betteam LIKE 'G[0-3]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype = 179 AND betteam ='G4' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
-							WHEN bettype IN (161,162,181,182,407,409) AND betteam LIKE 'G[0-2]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype IN (161,162,181,182,407,409) AND betteam ='G3' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 187 AND betteam LIKE 'G[0-1]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 187 AND betteam ='G2' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
-							WHEN bettype = 429 THEN CASE
-														WHEN betteam = @result THEN 1
-														ELSE -1
-													END
-							ELSE - 1
-							END
-						,modds = @modds
-						,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
-							WHEN '0' THEN 1
-							WHEN '1' THEN 0
-							ELSE 1
-							END
-						,@commLostRate = CASE comstatus
-							WHEN '0' THEN 1
-							WHEN '1' THEN 2
-							ELSE 1
-							END
-						,WinLost = CASE 
-							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,195,196,199,200,201,202,1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									)
-							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * 0.5
-							WHEN @modds = 0 THEN actual_stake
-							WHEN @modds = - 0.25 THEN actual_stake * 0.5
-							WHEN @modds < - 0.25 THEN 0
-							END
-						,aWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - apositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - apositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * apositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * apositiontaking
-							END
-						,mWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - mpositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - mpositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * mpositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * mpositiontaking
-							END
-						,sWinLost = CASE 
-							WHEN @modds > 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - spositiontaking
-							WHEN @modds = 0.25 THEN stake * (CASE 
-									WHEN odds < 0 THEN 1
-									ELSE (CASE 
-											WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
-											ELSE odds END
-											) END
-									) * - spositiontaking * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN actual_stake * spositiontaking * 0.5
-							WHEN @modds < - 0.25 THEN actual_stake * spositiontaking
-							END
-						,PlayerComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * playerdiscount * stake
-							WHEN @modds = 0.25 THEN @commWinRate * playerdiscount * stake * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * playerdiscount * stake * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * playerdiscount * stake
-							END
-						,Comm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking)
-							WHEN @modds = 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking)
-							END
-						,aComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-							WHEN @modds = 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-							END
-						,sComm = CASE 
-							WHEN @modds > 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-							WHEN @modds = 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds = 0 THEN 0
-							WHEN @modds = - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
-							WHEN @modds < - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-							END
-						,STATUS = CASE 
-							WHEN @modds > 0 THEN 'WON'
-							WHEN @modds = 0 THEN 'DRAW'
-							WHEN @modds < 0 THEN 'LOSE'
-							END
-						,StatusID = CASE 
-							WHEN @modds > 0 THEN 112 --WON
-							WHEN @modds = 0 THEN 111 --DRAW
-							WHEN @modds < 0 THEN 113 --LOSE
-							END
-						,ruben = 1
-				FROM	@tmpBatch c
-					INNER JOIN dbo.bettrans b
-						ON	c.BatchNo = @BatchNo
-							AND c.CustId = b.custid
-					CROSS APPLY (
-						SELECT CASE
-									WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i
-				WHERE	matchid = @matchid 
-						AND bettype = @bettype 
-						AND statusID NOT IN (101, 102)
-						AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (195,196,199,200,201,202) THEN 0 ELSE 1 END 
-						AND i.IsCalculated = 1
+			UPDATE	b 
+				SET @modds = CASE 
+						WHEN bettype = 1206 AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
+						WHEN betteam = '0-1' AND @totalgoal <= 1 THEN 1		-- + 200,201
+						WHEN betteam = '2-3' AND @totalgoal IN (2, 3) THEN 1
+						WHEN betteam = '4-6' AND @totalgoal IN (4, 5, 6) THEN 1
+						WHEN bettype IN (195,196) AND betteam = '0-2' AND @totalgoal <=2 THEN 1			
+						WHEN bettype IN (195,196) AND betteam = '3-4' AND @totalgoal IN (3, 4) THEN 1	
+						WHEN bettype IN (195,196,202) AND betteam = '5-6' AND @totalgoal IN(5, 6) THEN 1	
+						WHEN bettype = 199 AND betteam ='0-8' AND @totalgoal<=8 THEN 1 
+						WHEN bettype = 199 AND betteam ='9-11' AND @totalgoal IN(9,10,11) THEN 1 	
+						WHEN bettype = 199 AND betteam ='12-over' AND @totalgoal>=12 THEN 1 
+						WHEN bettype IN (200,201) AND (betteam ='2' OR betteam='3') AND betteam = cast(cast(@totalgoal AS TINYINT) AS VARCHAR(5)) THEN 1
+						WHEN bettype = 202 AND betteam ='0-4' AND  @totalgoal<=4 THEN 1 
+						WHEN betteam IN ('4-over', '4&over') AND @totalgoal >= 4 THEN 1		--+ 200,201 
+						WHEN betteam IN ('7-over', '7&over') AND @totalgoal >= 7 THEN 1		-- 7-over(195, 196,202)			
+						WHEN betteam = '5&over' and bettype = 129  AND @totalgoal >= 5 THEN 1
+						WHEN betteam = '3-over' and bettype = 412  AND @totalgoal >= 3 THEN 1 --412
+						WHEN ((betteam <> '5&over' and bettype = 129) 
+								or (betteam <> '7&over' and bettype = 130) 
+								or (betteam <> '3-over' and bettype = 412)) 
+							AND @totalgoal = cast(betteam AS INT) THEN 1 --412
+						WHEN bettype IN (159,406) AND betteam LIKE 'G[0-5]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
+						WHEN bettype IN (159,406) AND betteam ='G6' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
+						WHEN bettype = 179 AND betteam LIKE 'G[0-3]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
+						WHEN bettype = 179 AND betteam ='G4' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1 
+						WHEN bettype IN (161,162,181,182,407,409) AND betteam LIKE 'G[0-2]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
+						WHEN bettype IN (161,162,181,182,407,409) AND betteam ='G3' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
+						WHEN bettype = 187 AND betteam LIKE 'G[0-1]' AND @totalgoal = CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
+						WHEN bettype = 187 AND betteam ='G2' AND @totalgoal >=CAST(RIGHT(betteam,1)AS TINYINT) THEN 1
+						WHEN bettype = 429 THEN CASE
+													WHEN betteam = @result THEN 1
+													ELSE -1
+												END
+						ELSE - 1
+						END
+					,modds = @modds
+					,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+						WHEN '0' THEN 1
+						WHEN '1' THEN 0
+						ELSE 1
+						END
+					,@commLostRate = CASE comstatus
+						WHEN '0' THEN 1
+						WHEN '1' THEN 2
+						ELSE 1
+						END
+					,WinLost = CASE 
+						WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,195,196,199,200,201,202,1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								)
+						WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * 0.5
+						WHEN @modds = 0 THEN actual_stake
+						WHEN @modds = - 0.25 THEN actual_stake * 0.5
+						WHEN @modds < - 0.25 THEN 0
+						END
+					,aWinLost = CASE 
+						WHEN @modds > 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - apositiontaking
+						WHEN @modds = 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - apositiontaking * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN actual_stake * apositiontaking * 0.5
+						WHEN @modds < - 0.25 THEN actual_stake * apositiontaking
+						END
+					,mWinLost = CASE 
+						WHEN @modds > 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - mpositiontaking
+						WHEN @modds = 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - mpositiontaking * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN actual_stake * mpositiontaking * 0.5
+						WHEN @modds < - 0.25 THEN actual_stake * mpositiontaking
+						END
+					,sWinLost = CASE 
+						WHEN @modds > 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - spositiontaking
+						WHEN @modds = 0.25 THEN stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,195,196,199,200,201,202, 1206,406,407,409,412,429) THEN odds - 1
+										ELSE odds END
+										) END
+								) * - spositiontaking * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN actual_stake * spositiontaking * 0.5
+						WHEN @modds < - 0.25 THEN actual_stake * spositiontaking
+						END
+					,PlayerComm = CASE 
+						WHEN @modds > 0.25 THEN @commWinRate * playerdiscount * stake
+						WHEN @modds = 0.25 THEN @commWinRate * playerdiscount * stake * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN @commLostRate * playerdiscount * stake * 0.5
+						WHEN @modds < - 0.25 THEN @commLostRate * playerdiscount * stake
+						END
+					,Comm = CASE 
+						WHEN @modds > 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking)
+						WHEN @modds = 0.25 THEN @commWinRate * discount * stake * (1 - apositiontaking) * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking) * 0.5
+						WHEN @modds < - 0.25 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+						END
+					,aComm = CASE 
+						WHEN @modds > 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+						WHEN @modds = 0.25 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking)) * 0.5
+						WHEN @modds < - 0.25 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+						END
+					,sComm = CASE 
+						WHEN @modds > 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+						WHEN @modds = 0.25 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
+						WHEN @modds = 0 THEN 0
+						WHEN @modds = - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * 0.5
+						WHEN @modds < - 0.25 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+						END
+					,STATUS = CASE 
+						WHEN @modds > 0 THEN 'WON'
+						WHEN @modds = 0 THEN 'DRAW'
+						WHEN @modds < 0 THEN 'LOSE'
+						END
+					,StatusID = CASE 
+						WHEN @modds > 0 THEN 112 --WON
+						WHEN @modds = 0 THEN 111 --DRAW
+						WHEN @modds < 0 THEN 113 --LOSE
+						END
+					,ruben = 1
+			FROM	@tmpBatch c
+				INNER JOIN dbo.bettrans b
+					ON	c.BatchNo = @BatchNo
+						AND c.CustId = b.custid
+				CROSS APPLY (
+					SELECT CASE
+								WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+								WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+								WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+								ELSE 0
+							END AS IsCalculated
+				)i
+			WHERE	matchid = @matchid 
+					AND bettype = @bettype 
+					AND statusID NOT IN (101, 102)
+					AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (195,196,199,200,201,202) THEN 0 ELSE 1 END 
+					AND i.IsCalculated = 1
 				
-				SET @BatchNo = @BatchNo - 1
+			SET @BatchNo = @BatchNo - 1
 				
-				WAITFOR DELAY '00:00:00:010'
-			END
+			WAITFOR DELAY '00:00:00:010'
 		END
 	END
 END
