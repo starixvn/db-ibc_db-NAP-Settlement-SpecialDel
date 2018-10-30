@@ -354,21 +354,22 @@ BEGIN
 		,@Doing = @doing
 		
 	BEGIN TRY
+		
 		DECLARE @remarkOldValue VARCHAR(MAX) = '',@remarkNewValue VARCHAR(MAX) = ''
 		SET @Remark = ''
 		
-		
 		SELECT @remarkOldValue = @remarkOldValue + ', B' + CAST(Seq AS VARCHAR(5)) + '(' + CAST(Number AS VARCHAR(5)) + ')'
 		FROM @tmpOldResultDetail
-		WHERE Number > 0
+		WHERE Number > 0 AND @IsAuto = 0
 		
 		
 		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
 		FROM @tmpResultDetail
 		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
 		
-		SELECT @Remark =  CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
-						+ CASE WHEN @remarkNewValue <> '' THEN 'New Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+						+ CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
+						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
 			    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
 			            

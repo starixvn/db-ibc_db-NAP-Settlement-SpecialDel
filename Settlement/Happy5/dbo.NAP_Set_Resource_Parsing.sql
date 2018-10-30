@@ -47,11 +47,6 @@ BEGIN
 			END
 		
 		    SELECT @ErrCode = 1000002
-		    		,@ErrMsg = 'Ball number must be from 1 to 20'
-		    FROM @tmpResultDetail
-		    WHERE Result1 < 1 OR Result1 > 20
-		    	
-		    SELECT @ErrCode = 1000002
 		    		,@ErrMsg = 'Data is not valid'
 		    FROM @tmpResultDetail
 		    HAVING COUNT(*) <> 5
@@ -61,6 +56,11 @@ BEGIN
 		    FROM @tmpResultDetail
 		    GROUP BY Result1
 		    HAVING COUNT(Result1) > 1
+		    
+		    SELECT @ErrCode = 1000002
+		    		,@ErrMsg = 'Ball number must be from 1 to 20'
+		    FROM @tmpResultDetail
+		    WHERE Result1 < 1 OR Result1 > 20
 	    
 		    IF @ErrCode <> 0
 		    	RETURN
