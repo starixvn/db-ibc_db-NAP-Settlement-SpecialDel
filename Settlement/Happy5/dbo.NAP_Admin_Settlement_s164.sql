@@ -33,6 +33,7 @@ BEGIN
 			,@Sporttype				TINYINT
 			,@strTransIds			VARCHAR(MAX)
 			,@MaxTransID			BIGINT
+			,@delegateBettype		SMALLINT
 			
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
@@ -45,6 +46,7 @@ BEGIN
 	DECLARE @tmpResultDetail TABLE (pfID INT, ResourceID VARCHAR(20), Bettype SMALLINT, Result1 VARCHAR(50), Result2 VARCHAR(50), OddsType SMALLINT, isSourceFromDB BIT)
 	DECLARE @tmpOldResultDetail TABLE (Seq TINYINT, Number TINYINT)
 	----------------------------------------------------------------------------------------------
+	SET @delegateBettype = 81
 	
 	SELECT	@StartTime = GETDATE()
 			,@ActionId = CASE @Action 
@@ -295,7 +297,7 @@ BEGIN
 		SELECT a.custid
 			,a.winlostdate
 			,(a.winlost - b.winlost) AS Balance
-			,8101
+			,@delegateBettype
 			,a.gametypeid
 		FROM #BalanceBefore b
 			INNER JOIN #BalanceAfter a 
@@ -314,7 +316,7 @@ BEGIN
 		SELECT a.custid
 			,a.winlostdate
 			,ABS(a.winlost - b.winlost) AS Balance
-			,8101
+			,@delegateBettype
 			,a.gametypeid
 		FROM #BalanceBefore b
 			INNER JOIN #BalanceAfter a 
