@@ -13,9 +13,11 @@ AS
 		- 20170209@Bobby: Add filtering Abandoned status [Redmine: #71284]
 		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
+		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 */
 BEGIN
 	SET NOCOUNT ON
+
 	DECLARE @Sporttype SMALLINT
 	
 	SELECT	 m.MatchID
@@ -30,29 +32,21 @@ BEGIN
 			,m.finalhomescore
 			,m.finalawayscore
 			,m.eventstatus
-			,CASE 
-				WHEN m.betstatus LIKE 'Refund FT%' THEN 'Refund FT'
-				WHEN m.betstatus LIKE 'Refund HT%' THEN 'Refund HT'
-				WHEN m.betstatus LIKE 'Refund%' THEN 'Refund'
-				WHEN m.betstatus LIKE 'Abandoned 1H%' THEN 'Abandoned 1H'
-				WHEN m.betstatus LIKE 'Abandoned 2H%' THEN 'Abandoned 2H'
-				ELSE m.eventstatus
-			END AS eventstatus
 			,m.betstatus
 			,m.GoalRecord
 			,ISNULL(mr.IsHTCal, 0) AS IsHTCal
 			,ISNULL(mr.calculate, 0) AS calculate
-			,ISNULL(mr.isPending, 0) AS isPending
+			,ISNULL(m.SettlementStatus, 0) AS SettlementStatus
 	FROM(
 		SELECT	m.matchid, m.matchcode, m.sporttype, m.leagueid, m.homeid, m.awayid, m.kickofftime
 				,m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
-				,m.eventstatus, m.betstatus, m.GoalRecord
+				,m.eventstatus, m.betstatus, m.GoalRecord, m.SettlementStatus
 		FROM	dbo.Match m WITH (NOLOCK)
 		WHERE	m.matchid = @MatchId
 		UNION ALL
 		SELECT	m.matchid, m.matchcode, m.sporttype, m.leagueid, m.homeid, m.awayid, m.kickofftime
 				,m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
-				,m.eventstatus, m.betstatus, m.GoalRecord
+				,m.eventstatus, m.betstatus, m.GoalRecord, 0 AS SettlementStatus
 		FROM	dbo.match14 m WITH(NOLOCK)
 		WHERE	m.matchid = @MatchId
 	) m

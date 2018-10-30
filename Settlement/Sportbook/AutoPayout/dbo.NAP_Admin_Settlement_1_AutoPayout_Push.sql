@@ -37,12 +37,12 @@ BEGIN
 		RETURN --not supported
 	END
 
-    DECLARE	@matchcode			NVARCHAR(50)
-			,@sporttype			INT
-			,@leagueid			INT
-			,@procName			NVARCHAR(50)
-			,@sqlCommand		NVARCHAR(MAX)
-			,@IsUnderSettlement	BIT
+    DECLARE	@matchcode				NVARCHAR(50)
+			,@sporttype				INT
+			,@leagueid				INT
+			,@procName				NVARCHAR(50)
+			,@sqlCommand			NVARCHAR(MAX)
+			,@IsSystemSettlement	BIT
 			
     SELECT @matchcode = m.matchcode
 		, @sporttype  = m.sporttype
@@ -120,18 +120,18 @@ BEGIN
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
-		,@IsUnderSettlement = CASE
+		,@IsSystemSettlement = CASE
 								WHEN @Action = 'CAL-FT' THEN 1
 								ELSE NULL
 							END
 
 	-- add new status "Under Settlement" for a match
-	IF @IsUnderSettlement IS NOT NULL
+	IF @IsSystemSettlement IS NOT NULL
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
 			@Matchid		= @Matchid
-			,@Type			= 3
-			,@IsEnabled		= @IsUnderSettlement 
+			,@Type			= 4
+			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
 	END
 

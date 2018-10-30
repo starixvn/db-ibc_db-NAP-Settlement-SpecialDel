@@ -43,7 +43,7 @@ AS
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6:Abandoned, 7: Result Pending, 8: Under Settlement
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6:Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -53,6 +53,7 @@ BEGIN
 
 	DECLARE @UncalOnly BIT, @UncalMultiOnly BIT, @EventStatus NVARCHAR(50), @IsRefund BIT
 		, @MatchId INT, @Today DATETIME
+		,@SettlementStatus TINYINT
 
 	SELECT @matchcode 	= ISNULL(@matchcode, '')
 		, @LeagueID 	= ISNULL(@LeagueID, 0)
@@ -66,6 +67,8 @@ BEGIN
 		SELECT @eventstatus = '', @isRefund = NULL, @UncalOnly = NULL, @UncalMultiOnly = NULL
 			, @LeagueID = CASE WHEN @isReLoad = 1 THEN @LeagueID 
 							ELSE 0 END -- reload partial; search on LeagueID, not reload: get all leagues
+			,@SettlementStatus = 0
+
 		IF ISNUMERIC(@matchcode) = 1
 		BEGIN
 			SET @MatchId = CAST(@matchcode AS INT)
@@ -82,72 +85,77 @@ BEGIN
 								WHEN @statusid = 1 THEN 'running'
 								WHEN @statusid = 2 THEN 'closed'
 								WHEN @statusid IN (3,6) THEN 'completed'
+								WHEN @statusid = 5 THEN 'running'
 								ELSE ''	END
 			, @isRefund = CASE 
 							WHEN @statusid IN (4,6) THEN 1
-							WHEN @statusid IN (0, 7, 8) THEN NULL
+							WHEN @statusid = 0 THEN NULL
 							ELSE 0 
 						END
 			, @UncalOnly = CASE WHEN @filterBy IN (3, 1) THEN 1
 							ELSE 0 END
 			, @UncalMultiOnly = CASE WHEN @filterBy IN (3, 2) THEN 1
 								ELSE 0 END
+			,@SettlementStatus = CASE
+				WHEN @StatusId = 7 THEN 1
+				WHEN @StatusId = 8 THEN 2
+				WHEN @StatusId = 9 THEN 4
+				ELSE 0 
+				END
 
 		--ignore event status if selecting filterby
-		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 )
-			SELECT @eventstatus = '', @isRefund = NULL, @StatusId = 0
+		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @SettlementStatus <> 0 )
+			SELECT @eventstatus = '', @isRefund = NULL
 	END
 
-	CREATE TABLE #matchList (
-		HalfTimeHomeScore			INT
-		, HalfTimeAwayScore			INT
-		, IsCalculated				BIT
-		, IsFTCalculated			BIT
-		, IsMultiCaled				BIT
-		, IsRefund					BIT
-		, IsCalRefund				BIT
-		, matchid					INT PRIMARY KEY
-		, leagueid					INT
-		, homeid					INT
-		, awayid					INT
-		, matchcode					NVARCHAR(50)
-		, kickofftime				DATETIME
-		, finalhomescore			INT
-		, finalawayscore			INT
-		, betstatus					NVARCHAR(50)
-		, eventstatus				NVARCHAR(50)
-		, sporttype					SMALLINT
-		, IsNeutral					BIT
-		, eventdate					DATETIME
-		, goalrecord				VARCHAR(50)
-		, suspenderHalfTime			NVARCHAR(50)
-		, suspenderFullTime			NVARCHAR(50)
-		, IsHalfTimeCal				BIT
-		, IsPending					BIT
-		, IsUndecided				BIT
-		, IsExistFGLG				BIT -- is exist ticket of bettype 14
-		, IsExistHTFGLG				BIT -- is exist ticket of bettype 127
+	CREATE TABLE #matchList (HalfTimeHomeScore INT
+		, HalfTimeAwayScore INT
+		, IsCalculated BIT
+		, IsFTCalculated BIT
+		, IsMultiCaled BIT
+		, IsRefund BIT
+		, IsCalRefund BIT
+		, matchid INT PRIMARY KEY
+		, leagueid INT
+		, homeid INT
+		, awayid INT
+		, matchcode NVARCHAR(50)
+		, kickofftime DATETIME
+		, finalhomescore INT
+		, finalawayscore INT
+		, betstatus NVARCHAR(50)
+		, eventstatus NVARCHAR(50)
+		, sporttype SMALLINT
+		, IsNeutral BIT
+		, eventdate DATETIME
+		, goalrecord VARCHAR(50)
+		, suspenderHalfTime NVARCHAR(50)
+		, suspenderFullTime NVARCHAR(50)
+		, IsHalfTimeCal BIT
+		, SettlementStatus TINYINT
+		, IsExistFGLG BIT -- is exist ticket of bettype 14
+		, IsExistHTFGLG BIT -- is exist ticket of bettype 127
 		
-		, AutoSetting				TINYINT
-		, IsExistRunningCorner		BIT
-		, IsExistRunningHTCorner	BIT
-		, IsNeedToCalculateFGLG		BIT
-		, IsNeedToCalculateCorner	BIT
-		, AutoSettingForLeague		TINYINT
-		, BetCount					INT
-		, IsEnabledGoalRecordHT		BIT
-		, IsEnabledGoalRecordFT		BIT
-		, IsExistGoalRecordBettypeFT	BIT
+		, AutoSetting TINYINT
+		, IsExistRunningCorner BIT
+		, IsExistRunningHTCorner BIT
+		, IsNeedToCalculateFGLG BIT
+		, IsNeedToCalculateCorner BIT
+		, AutoSettingForLeague TINYINT
+		, BetCount INT
+		, IsEnabledGoalRecordHT BIT
+		, IsEnabledGoalRecordFT BIT
+		, IsExistGoalRecordBettypeFT BIT
 		, IsExistRunningUseGoalRecordHT BIT
 		, IsExistRunningUseGoalRecordFT BIT
-		, IsExistHTFGNG				BIT
-		, IsExistHTLG				BIT
-		, IsExistFTFGNG				BIT
-		, IsExistFTLG				BIT
-		, LivePeriod				TINYINT
-		, IsHT						BIT
-		, livehomescore				INT
-		, liveawayscore				INT
+		, IsExistHTFGNG BIT
+		, IsExistHTLG BIT
+		, IsExistFTFGNG BIT
+		, IsExistFTLG BIT
+		, LivePeriod	TINYINT
+		, IsHT			BIT
+		, livehomescore	INT
+		, liveawayscore	INT
 	)
 	--for instant match info
 	CREATE TABLE #InstMatchInfo (
@@ -157,8 +165,7 @@ BEGIN
 		, InstantStatusId 			TINYINT
 		, InstantCalculationType 	TINYINT DEFAULT(0)
 		, InstantPriority 			TINYINT
-		, IsPending					BIT
-		, isUndecided				BIT
+		, SettlementStatus			TINYINT
 		, InstantKey				INT
 		, InstantScoreDiff			TINYINT DEFAULT(0)
 	)
@@ -166,8 +173,13 @@ BEGIN
 	CREATE TABLE #tempBettrans (matchid INT, bettype SMALLINT, runningBet INT, betCount INT, IsParlay BIT DEFAULT(0), IsExistHTFGNG BIT, IsExistHTLG BIT, IsExistFTFGNG BIT, IsExistFTLG BIT)
 	CREATE CLUSTERED INDEX IX_tempBettrans_bettype ON #tempBettrans (bettype)
 	
-	INSERT INTO #matchList (HalfTimeHomeScore, HalfTimeAwayScore, IsCalculated, IsFTCalculated, IsMultiCaled, IsRefund, IsCalRefund, matchid , leagueid, homeid, awayid, matchcode, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus, sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, IsPending, IsUndecided, IsExistFGLG , IsExistHTFGLG 
-						,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateFGLG, IsNeedToCalculateCorner, AutoSettingForLeague, BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT, IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore)
+	INSERT INTO #matchList (HalfTimeHomeScore, HalfTimeAwayScore, IsCalculated, IsFTCalculated, IsMultiCaled, IsRefund, IsCalRefund
+		,matchid , leagueid, homeid, awayid, matchcode, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
+		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
+		,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateFGLG, IsNeedToCalculateCorner, AutoSettingForLeague
+		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
+		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore
+	)
 	SELECT m.hthomescore
 		, m.htawayscore
 		, ISNULL(mr.calculate, 0) IsCalculated
@@ -192,8 +204,7 @@ BEGIN
 		, ISNULL(ci.username, '') AS suspenderHT
 		, ISNULL(cci.username, '') AS suspenderFT
 		, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-		, ISNULL(mr.isPending, 0) AS isPending
-		, ISNULL(mr.isUndecided, 0) AS isUndecided
+		, ISNULL(m.SettlementStatus, 0) AS SettlementStatus
 		, 0 AS IsExistFGLG
 		, 0 AS IsExistHTFGLG		
 		, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
@@ -232,7 +243,6 @@ BEGIN
 						WHEN (m.betstatus LIKE 'Abandoned 2H%') THEN m.finalhomescore * m.finalawayscore
 						ELSE m.hthomescore * m.htawayscore * m.finalhomescore * m.finalawayscore 
 					END
-					--hthomescore * htawayscore * finalhomescore * finalawayscore
 				WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
 			END IS NOT NULL 
 		AND m.sporttype = CASE WHEN @sporttype = 0 THEN m.sporttype ELSE @sporttype END 
@@ -263,20 +273,7 @@ BEGIN
 				ELSE 0 END
 		AND (@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
 		AND (@UncalMultiOnly = 0 OR ISNULL(mr.multiple, 0) = 0 OR @UncalMultiOnly IS NULL)
-		AND 1 = CASE
-					WHEN @StatusId = 0 THEN 1
-					WHEN @matchcode <> '' THEN 1
-					WHEN @StatusId = 7 AND ISNULL(mr.SettlementStatus,0) & 1 > 0 THEN 1
-					WHEN @StatusId = 8 AND ISNULL(mr.SettlementStatus,0) & 1 = 0 AND ISNULL(mr.SettlementStatus,0) & 2 > 0 AND m.eventstatus <> 'Completed' THEN 1
-					WHEN @StatusId NOT IN (7,8) 
-							THEN CASE
-									WHEN ISNULL(mr.SettlementStatus,0) & 1 = 1 THEN 0
-									WHEN ISNULL(mr.SettlementStatus,0) & 2 = 0 THEN 1
-									WHEN m.eventstatus = 'Completed' THEN 1
-									ELSE 0
-								END										
-					ELSE 0
-				END
+		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 
 	--check auto setting
 	IF (@AutoSetting > 0)
@@ -287,7 +284,8 @@ BEGIN
 	END
 	
 	BEGIN --update status
-		DECLARE @n INT = 2147483647		
+		DECLARE @n INT = 2147483647
+		
 		
 		--checking bettrans
 		INSERT INTO #tempBettrans (matchid, bettype, runningBet, betCount)
@@ -525,15 +523,14 @@ BEGIN
 	--Checking for Inst match info
 	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
 	BEGIN 
-		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, isPending, isUndecided, InstantKey)
+		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
 		SELECT t.MatchId
 			, 0 AS HomeValue
 			, 0 AS AwayValue
 			, 0 AS StatusId
 			, 0 AS CalculationType
 			, 4 AS Priority
-			, t.IsPending
-			, t.IsUndecided
+			, t.SettlementStatus
 			, 0  AS InstantKey
 		FROM #matchList t 
 		WHERE 2 & t.AutoSetting = 2
@@ -557,8 +554,7 @@ BEGIN
 					INNER JOIN DBPRO.bodb02.dbo.ProviderResultDetail prd WITH(NOLOCK)
 					ON m.matchid = prd.matchID
 				WHERE prd.TypeId IN (101, 102)
-					AND m.IsPending = 0
-					AND m.isUndecided = 0
+					AND m.SettlementStatus & 3 = 0
 					AND prd.SourceID = 100 --#86964
 			) AS t
 			WHERE RowIdx IN (1, 2)
@@ -702,13 +698,12 @@ BEGIN
 		, m.suspenderHalfTime
 		, m.suspenderFullTime
 		, m.IsHalfTimeCal
+		, m.SettlementStatus
 		, m.IsExistFGLG
 		, m.IsExistHTFGLG
 		, t.IsCalculatingSingle
 		, t.IsCalculatingMP
 		, AutoSetting
-		, m.IsPending
-		, m.IsUndecided
 		, IsNeedToCalculateFGLG
 		, IsNeedToCalculateCorner
 		, AutoSettingForLeague

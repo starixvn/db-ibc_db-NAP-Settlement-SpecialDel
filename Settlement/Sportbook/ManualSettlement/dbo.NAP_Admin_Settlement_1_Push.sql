@@ -1,8 +1,4 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push] 
      @AdminId               INT
     ,@Matchid               INT
@@ -93,7 +89,7 @@ BEGIN
 			,@procName          	NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsExistNetPosition	BIT = 0		
-			,@IsUnderSettlement		BIT
+			,@IsSystemSettlement	BIT
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -216,7 +212,7 @@ BEGIN
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
-				,@IsUnderSettlement = CASE
+				,@IsSystemSettlement = CASE
 										WHEN @Action = 'UNDO' 
 											THEN CASE 
 													WHEN @sporttype NOT IN (2,5) THEN 0
@@ -244,13 +240,14 @@ BEGIN
 		SET	@IsExistNetPosition = 1 
 		
 	-- add new status "Under Settlement" for a match
-	IF @IsUnderSettlement IS NOT NULL 
+	IF @IsSystemSettlement IS NOT NULL 
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
 			@Matchid		= @Matchid
-			,@Type			= 3
-			,@IsEnabled		= @IsUnderSettlement 
+			,@Type			= 4
+			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
+			,@IP			= @IP
 	END
 
     IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
@@ -298,6 +295,4 @@ BEGIN
 			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
     END
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_Push] TO [bodbAdminNet]
 GO

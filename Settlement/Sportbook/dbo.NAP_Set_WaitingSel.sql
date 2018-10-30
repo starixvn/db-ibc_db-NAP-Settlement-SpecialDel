@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
@@ -288,8 +284,7 @@ BEGIN
 		, m.eventstatus
 		, ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		, ISNULL(mr.IsHTCal, 0) AS IsHalfTimeCal
-		, ISNULL(mr.isPending, 0) AS IsPending
-		, ISNULL(mr.isUndecided, 0) AS IsUndecided
+		, ISNULL(m.SettlementStatus, 0) AS SettlementStatus
 		, ISNULL(m.AutoSetting, 0) AS AutoSetting
 		, IsExistFGLG
 		, IsExistHTFGLG
@@ -354,6 +349,4 @@ BEGIN
 	END
 
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_WaitingSel] TO [bodbAdminNet]
 GO
