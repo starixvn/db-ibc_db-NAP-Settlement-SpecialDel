@@ -73,7 +73,7 @@ BEGIN
 	WHERE	m.sporttype = @Sporttype
 			AND m.eventdate BETWEEN @FromDate AND @ToDate
 			AND m.eventstatus IN (SELECT DISTINCT EventStatus FROM @tblEventStatus)
-			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)		
+			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
 			AND ( @IsRefund IS NULL 
 				OR (@IsRefund = 0 AND ISNULL(m.betstatus,'') NOT LIKE 'Refund%')
 				OR (@IsRefund = 1 AND ISNULL(m.betstatus,'') LIKE 'Refund%')

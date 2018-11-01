@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
-	@transIds					VARCHAR(MAX)	 = NULL
+	@transIds					VARCHAR(MAX)
  
 AS
 /*  Created by: Vicky
