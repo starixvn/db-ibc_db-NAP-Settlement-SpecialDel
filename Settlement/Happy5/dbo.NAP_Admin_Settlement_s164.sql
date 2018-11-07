@@ -20,6 +20,13 @@ AS
 		
 	Param's Explanation:	
 		@Action: CAL, REFUND
+		@Resources = '<Resources>
+						<Resource Id="1" Result="1" />
+						<Resource Id="2" Result="2" />
+						<Resource Id="3" Result="3" />
+						<Resource Id="4" Result="4" />
+						<Resource Id="5" Result="5" />
+					  </Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -135,15 +142,14 @@ BEGIN
 			
 			INSERT INTO #tmpTransID(TransID)
 		  	SELECT transid
-		  	FROM bettrans b WITH (NOLOCK)
-		  		CROSS APPLY(
-		  						SELECT TOP 1 pfID, Result1, Result2, OddsType
-		  						FROM @tmpResultDetail t
-		  						WHERE b.BetType = t.BetType
-		  					) sr
-		  		--INNER JOIN @tmpResultDetail t ON b.BetType = t.BetType 
+		  	FROM bettrans b WITH (NOLOCK) 
 		  	WHERE b.matchid = @MatchId
 		  		AND	b.statusID NOT IN (103, 101, 102)
+		  		AND EXISTS (
+		  					SELECT 1
+		  					FROM @tmpResultDetail t
+		  					WHERE b.BetType = t.BetType
+		  					)
 		END 
 		
 		
@@ -155,11 +161,15 @@ BEGIN
 		BEGIN
 			-- waiting for releasing lock on bettrans table
 			SELECT @MaxTransID = MAX(transid)
-			FROM #tmpTransID
+			FROM dbo.bettrans WITH(ROWLOCK)
+			WHERE matchid = @MatchId
 			
 			WAITFOR DELAY '00:00:02:000'
 		END	
 	
+		SELECT @MaxTransID = MAX(transid)
+		FROM #tmpTransID
+			
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
 						@Command			= 'profile_bingoball'
 						,@Action			= @Action
@@ -182,7 +192,7 @@ BEGIN
 			,winlostdate
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
-			INNER JOIN #tmpTransID t ON t.transid = bt.transid
+		WHERE matchid = @matchid AND transid <= @MaxTransID
 		GROUP BY custid, winlostdate, bettype
 		
 		
@@ -244,7 +254,7 @@ BEGIN
 			,winlostdate
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
-			INNER JOIN #tmpTransID t ON t.transid = bt.transid
+		WHERE matchid = @matchid AND transid <= @MaxTransID
 		GROUP BY custid, winlostdate, bettype
 		
 		-------------------------------------------------------------
