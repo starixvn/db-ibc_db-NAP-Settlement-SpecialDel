@@ -26,6 +26,7 @@ AS
 		- 20180122@Kathy: Prevent lock escalation on Bettrans [Redmine:#89132]
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
+		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -72,85 +73,83 @@ BEGIN
 	FROM @xml.nodes('/root/r') AS T(c)
 	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
 	
-    IF @@SERVERNAME IN ('DB052', 'SITDB052', 'DB231', 'DB215')
-	BEGIN
-		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
-		SELECT	BatchNo
-				,recommend
-				,MAX(CASE WHEN MinRn = 0 THEN recommend ELSE 0 END) AS FromCustId
-				,MAX(CASE WHEN MaxRn = 1 THEN recommend ELSE 0 END) AS ToCustId
-				,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS FromTransId	
-				,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS ToTransId			
-				,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
-				,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
-		FROM (
-			SELECT	n.BatchNo
-					,b.recommend
-					,b.transid
-					,(rn - 1)%@BatchCount AS MinRn
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
-			FROM	(
-				SELECT	transid
-						,recommend
-						,ROW_NUMBER() OVER (ORDER BY b.recommend, transid) AS rn
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN @tblBettypes t
-						ON b.bettype = t.bettype
-				WHERE	b.matchid = @matchid
-						AND b.statusID NOT IN (103, 101, 102) 
-			)b
-			CROSS APPLY (	
-				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
-			)n
-		)b
-		GROUP BY BatchNo, recommend
-
-		SELECT @BatchNo = MAX(BatchNo)
-		FROM @tmpBatch
-
-		WHILE @BatchNo > 0
-		BEGIN
-			SELECT	@MinCustId = MAX(MinCustId)
-					,@MaxCustId = MAX(MaxCustId)
-					,@MinTransId = MAX(MinTransId)
-					,@MaxTransId = MAX(MaxTransId)
-					,@TransIdOfMinCust = MAX(TransIdOfMinCust)
-					,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
-			FROM	@tmpBatch
-			WHERE	BatchNo = @BatchNo
-		
-			UPDATE	b
-				SET [status] = N'Refund'
-					,statusID = 103
-					,ruben = 1
-					,winlost = actual_stake
-					,awinlost = 0
-					,mwinlost = 0
-					,swinlost = 0
-					,playercomm = 0
-					,comm = 0
-					,acomm = 0
-					,scomm = 0
-			FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN @tmpBatch r
-					ON	r.BatchNo = @BatchNo
-						AND r.CustId = b.recommend
-				CROSS APPLY (
-					SELECT TOP 1 bettype
-					FROM	@tblBettypes t
-					WHERE	b.bettype = t.bettype
-				) t
-				CROSS APPLY (
-						SELECT CASE
-									WHEN r.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN r.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i
+	INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
+	SELECT	BatchNo
+			,CustId
+			,MAX(CASE WHEN MinRn = 0 THEN CustId ELSE 0 END) AS FromCustId
+			,MAX(CASE WHEN MaxRn = 1 THEN CustId ELSE 0 END) AS ToCustId
+			,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS FromTransId	
+			,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS ToTransId			
+			,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
+			,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
+	FROM (
+		SELECT	n.BatchNo
+				,b.CustId
+				,b.transid
+				,(rn - 1)%@BatchCount AS MinRn
+				,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
+				,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
+				,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
+		FROM	(
+			SELECT	transid
+					,CustId
+					,ROW_NUMBER() OVER (ORDER BY CustId, transid) AS rn
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN @tblBettypes t
+					ON b.bettype = t.bettype
 			WHERE	b.matchid = @matchid
+					AND b.statusID NOT IN (103, 101, 102) 
+		)b
+		CROSS APPLY (	
+			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
+		)n
+	)b
+	GROUP BY BatchNo, CustId
+		
+	SELECT @BatchNo = MAX(BatchNo)
+	FROM @tmpBatch
+
+	WHILE @BatchNo > 0
+	BEGIN
+		SELECT	@MinCustId = MAX(MinCustId)
+				,@MaxCustId = MAX(MaxCustId)
+				,@MinTransId = MAX(MinTransId)
+				,@MaxTransId = MAX(MaxTransId)
+				,@TransIdOfMinCust = MAX(TransIdOfMinCust)
+				,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
+		FROM	@tmpBatch
+		WHERE	BatchNo = @BatchNo
+
+		UPDATE b
+			SET [status] = N'Refund'
+				,statusID = 103
+				,ruben = 1
+				,winlost = actual_stake
+				,awinlost = 0
+				,mwinlost = 0
+				,swinlost = 0
+				,playercomm = 0
+				,comm = 0
+				,acomm = 0
+				,scomm = 0
+		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpBatch c
+				ON	c.BatchNo = @BatchNo
+					AND c.CustId = b.custid
+			CROSS APPLY (
+				SELECT TOP 1 bettype
+				FROM	@tblBettypes t
+				WHERE	b.bettype = t.bettype
+			) t
+			CROSS APPLY (
+					SELECT CASE
+								WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+								WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+								WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+								ELSE 0
+							END AS IsCalculated
+				)i
+		WHERE	b.matchid = @matchid
 				AND b.statusID NOT IN (103, 101, 102)          
 				AND i.IsCalculated = 1
 				AND 1 = CASE 
@@ -159,102 +158,9 @@ BEGIN
 							ELSE 1
 						END
 
-			SET @BatchNo = @BatchNo - 1
+		SET @BatchNo = @BatchNo - 1
 
-			WAITFOR DELAY '00:00:00:010'
-		END
-	END
-	ELSE
-	BEGIN
-		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
-		SELECT	BatchNo
-				,CustId
-				,MAX(CASE WHEN MinRn = 0 THEN CustId ELSE 0 END) AS FromCustId
-				,MAX(CASE WHEN MaxRn = 1 THEN CustId ELSE 0 END) AS ToCustId
-				,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS FromTransId	
-				,MAX(CASE WHEN TransIdDesc = 1 THEN transId ELSE 0 END ) AS ToTransId			
-				,MAX(CASE WHEN MinRn = 0 THEN transid ELSE 0 END) AS TransIdOfMinCust
-				,MAX(CASE WHEN MaxRn = 1 THEN transid ELSE 0 END) AS TransIdOfMaxCust
-		FROM (
-			SELECT	n.BatchNo
-					,b.CustId
-					,b.transid
-					,(rn - 1)%@BatchCount AS MinRn
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
-					,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid) TransIdAsc
-			FROM	(
-				SELECT	transid
-						,CustId
-						,ROW_NUMBER() OVER (ORDER BY CustId, transid) AS rn
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN @tblBettypes t
-						ON b.bettype = t.bettype
-				WHERE	b.matchid = @matchid
-						AND b.statusID NOT IN (103, 101, 102) 
-			)b
-			CROSS APPLY (	
-				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
-			)n
-		)b
-		GROUP BY BatchNo, CustId
-		
-		SELECT @BatchNo = MAX(BatchNo)
-		FROM @tmpBatch
-
-		WHILE @BatchNo > 0
-		BEGIN
-			SELECT	@MinCustId = MAX(MinCustId)
-					,@MaxCustId = MAX(MaxCustId)
-					,@MinTransId = MAX(MinTransId)
-					,@MaxTransId = MAX(MaxTransId)
-					,@TransIdOfMinCust = MAX(TransIdOfMinCust)
-					,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
-			FROM	@tmpBatch
-			WHERE	BatchNo = @BatchNo
-
-			UPDATE b
-				SET [status] = N'Refund'
-					,statusID = 103
-					,ruben = 1
-					,winlost = actual_stake
-					,awinlost = 0
-					,mwinlost = 0
-					,swinlost = 0
-					,playercomm = 0
-					,comm = 0
-					,acomm = 0
-					,scomm = 0
-			FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN @tmpBatch c
-					ON	c.BatchNo = @BatchNo
-						AND c.CustId = b.custid
-				CROSS APPLY (
-					SELECT TOP 1 bettype
-					FROM	@tblBettypes t
-					WHERE	b.bettype = t.bettype
-				) t
-				CROSS APPLY (
-						SELECT CASE
-									WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i
-			WHERE	b.matchid = @matchid
-					AND b.statusID NOT IN (103, 101, 102)          
-					AND i.IsCalculated = 1
-					AND 1 = CASE 
-								WHEN @IsExcludeBetdaq = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR b.recommend = 1688156) THEN 0
-								WHEN @IsExcludeBetfair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 0
-								ELSE 1
-							END
-
-			SET @BatchNo = @BatchNo - 1
-
-			WAITFOR DELAY '00:00:00:010'
-		END
+		WAITFOR DELAY '00:00:00:010'
 	END
 END
 GO

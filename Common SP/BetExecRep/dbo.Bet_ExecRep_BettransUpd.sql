@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
+		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -85,50 +86,7 @@ BEGIN
 	FROM @xmlTicket.nodes('/root/r') AS [T](C) --T: table, C: column
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL))
 
-	--UPDATE on replicas DB servers
-	IF (@@SERVERNAME IN (
-			'DB052','DB053','DB054' --PROD
-			,'SITDB052','SITDB053' 	--SIT
-			,'DB215','DB231'		--LOCAL,DEV
-		)
-	)
-    BEGIN
-		UPDATE dbo.bettrans WITH(ROWLOCK, UPDLOCK)
-		SET winlost 		= s.winlost
-			,awinlost 		= s.awinlost
-			,mwinlost 		= s.mwinlost
-			,swinlost 		= s.swinlost
-			,playercomm 	= s.playercomm
-			,comm 			= s.comm
-			,acomm 			= s.acomm
-			,scomm 			= s.scomm
-			,statusID 		= s.statusid
-			,modds 			= s.modds
-			,status 		= CASE s.statusid
-								WHEN 112 THEN 'WON'
-								WHEN 111 THEN 'DRAW'
-								WHEN 113 THEN 'LOSE'
-								WHEN 103 THEN 'Refund'
-								WHEN 0 THEN 'Running'
-							END 			
-			,ruben 			= CASE 
-								WHEN s.statusid IN (111,112,113,103) THEN 1
-								ELSE 0 
-							END
-			,winlostdate 	= ISNULL(s.winlostdate, bettrans.winlostdate)
-			,statuswinlost	= CASE 
-								WHEN s.statusid IN (103) THEN 0 --REFUND
-								ELSE bettrans.statuswinlost 
-							END
-		FROM @sourceTicket s
-		WHERE bettrans.recommend 	= s.recommend
-			AND bettrans.matchid 	= s.matchid
-			AND bettrans.bettype 	= s.bettype
-			AND bettrans.transid 	= s.transid
-	END
-	ELSE --UPDATE on DBTXN
-    BEGIN
-		UPDATE b 
+	UPDATE b 
 		SET winlost 		= s.winlost
 			,awinlost 		= s.awinlost
 			,mwinlost 		= s.mwinlost
@@ -155,15 +113,13 @@ BEGIN
 								WHEN s.statusid IN (103) THEN 0 --REFUND
 								ELSE b.statuswinlost 
 							END
-		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @sourceTicket s 
-			ON b.matchid 		= s.matchid
-				AND b.custid 	= s.custid
-				AND b.bettype 	= s.bettype
-				AND b.transid 	= s.transid
+	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
+		INNER JOIN @sourceTicket s 
+		ON b.matchid 		= s.matchid
+			AND b.custid 	= s.custid
+			AND b.bettype 	= s.bettype
+			AND b.transid 	= s.transid
 		
-	END
-	
 END
 GO
 
