@@ -1,8 +1,7 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET QUOTED_IDENTIFIER ON
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+USE [bodb02]
 GO
-SET ANSI_NULLS ON
-GO
+
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
 	@MatchId INT,
 	@LicenseeName		VARCHAR(1000)	= 'ALL',
@@ -50,6 +49,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180814@Alan: Rename SP - Filter basketball tickets by quarter [99786]
+		- 20181031@Percy: Remove linked-server DBLIC [RedmineID: #103660]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -90,7 +90,7 @@ BEGIN
 	
 	SELECT CustID 
 	INTO #CustIDs
-	FROM DBLIC.bodb_Licensee.dbo.LicenseeCust WITH (NOLOCK)
+	FROM bodb_Licensee.dbo.LicenseeCust WITH (NOLOCK)
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 
