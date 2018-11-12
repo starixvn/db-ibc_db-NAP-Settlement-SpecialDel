@@ -42,6 +42,7 @@ AS
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		- 20171029@Alan: Return Licensees Name [103474]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -1124,9 +1125,10 @@ BEGIN
 	    ,FollowInfo.transid AS followedId
 		,FollowInfo.Username AS followedUsername
 		,d.RefCode
+		,c.site AS LicenseeName
 	FROM #Data d
-		INNER JOIN CTE_GroupInfo g
-		ON d.custid = g.custid
+		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
 		OUTER APPLY (SELECT CASE 
 								WHEN d.betfrom = 'p' THEN '4-Phone Betting'
 								ELSE g.GroupName

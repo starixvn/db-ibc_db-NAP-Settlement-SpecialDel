@@ -68,6 +68,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180426@Alan: Allow void single and parlay tickets [Redmine:#93167]
 		- 20180808@Alan: Allow to void Sub Parlay ticket while the status of main is 'Reject' [Redmine:#99528]
+		- 20171029@Alan: Return Licensees Name [103474]
 
 
 	Explanation's Param:
@@ -1479,7 +1480,9 @@ BEGIN
 			,s.SubHdp1
 			,s.SubHdp2
 			,s.SubOdds
+			,c.site AS LicenseeName
 	FROM CTE_SettledTypeFiltering s
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'Credit' THEN 1
 				WHEN s.OriginGroupName = '8RM/BARM' THEN 2

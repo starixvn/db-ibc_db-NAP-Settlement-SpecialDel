@@ -2044,8 +2044,6 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #NegativeBalance
 	DROP TABLE #CTE_CustInfo
-	DROP TABLE #CustIdList
-	DROP TABLE #CustList
 	
 END
 GO
