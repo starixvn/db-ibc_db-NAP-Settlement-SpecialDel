@@ -310,8 +310,6 @@ BEGIN
 					, @strTransIds 	= @strInstantTicket
 					, @strTransCashout = @strTransCashout OUTPUT
 				
-				SELECT @strTransCashout	
-				
 				-- Adjust BL before for affected cashout tickets
 				IF @strTransCashout <> ''
 				BEGIN
