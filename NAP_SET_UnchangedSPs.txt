@@ -1,1 +1,1 @@
-Settlement\Sportbook\InstantSettlement\dbo.NAP_Admin_Settlement_1_InstantCalculation_Push.proc
+Settlement\Sportbook\InstantSettlement\dbo.NAP_Admin_Settlement_1_InstantCalculation_Push.proc.sql
