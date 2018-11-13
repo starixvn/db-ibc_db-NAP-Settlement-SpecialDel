@@ -27,6 +27,7 @@ AS
 		- 20180709@Helen: Enhance Performance for Instant Calculation - [Redmine: 98608]
 		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
 		- 20181114@Helen:  Second Accept - Processing for Waiting Tickets [Redmine:104755]
+		- 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -35,24 +36,27 @@ AS
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
         - @IsAutoInst: 1-Auto Instant 0-Manual Instant
+    
+    Sample execution:
+		exec NAP_Admin_Settlement_1_InstantCalculation @Creator = 8 , @MatchId = 27089242, @InstantKey = 10485,@IP = '1',@HomeScore = 2, @AwayScore = 1    
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @start						DATETIME
-		, @stop						DATETIME
-		, @LogData					NVARCHAR(300)
+		, @stop							DATETIME
+		, @LogData						NVARCHAR(300)
 		, @eventstatus					NVARCHAR(50)
 		, @betstatus					NVARCHAR(50)
 		, @sporttype					SMALLINT
 		, @ticketCount					INT	
 		, @Remark						VARCHAR(500)
 		, @ActionLogId					INT
-		, @TotalAccount				INT
+		, @TotalAccount					INT
 		, @TotalAccount_Updated			INT
 		, @Action						VARCHAR(20)
 		------------------------------------
-		, @isExistMatch				BIT
+		, @isExistMatch					BIT
 		, @avaiableProcess				BIT
 		, @CalculationType				TINYINT
 		, @hthomescore					TINYINT
@@ -61,29 +65,32 @@ BEGIN
 		, @finalawayscore				TINYINT
 		, @hScore						TINYINT
 		, @aScore						TINYINT
-		, @hScore1H					TINYINT
-		, @aScore1H					TINYINT
-		, @hScore2H					TINYINT
-		, @aScore2H					TINYINT
+		, @hScore1H						TINYINT
+		, @aScore1H						TINYINT
+		, @hScore2H						TINYINT
+		, @aScore2H						TINYINT
 		, @fromTransId					BIGINT
 		, @toTransId					BIGINT
-		, @FGNG						VARCHAR(50)
+		, @FGNG							VARCHAR(50)
 		, @GoalRecord					VARCHAR(50)
-		, @InstKeyValue				VARCHAR(50)
+		, @InstKeyValue					VARCHAR(50)
 		, @FGLGCheck					TINYINT
-		, @FLValue 					VARCHAR(50)
-		, @betstatusOld				VARCHAR(50)
+		, @FLValue 						VARCHAR(50)
+		, @betstatusOld					VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
-		
+		, @strTransCashout VARCHAR (MAX)
 		
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint)
-	
+	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY)
+			
 	DECLARE @instantBettype TABLE (bettype SMALLINT)
+	DECLARE @xmlCashoutTicket XML
+	
 	
 	SET @InstKeyValue		= CAST(@InstantKey AS VARCHAR(50))
 	
@@ -192,12 +199,13 @@ BEGIN
 		, bettype 				SMALLINT
 		, BonusID 				INT
 		, WalletType 			TINYINT
+		, actual_stake			MONEY
 	)
 	
 	SELECT @batchCount			= 1000 
 		,@startBatchNo			= 1
 
-	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType)
+	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType,actual_stake)
 	SELECT TransID = b.transid
 		,MOdds = ods.modds
 		,CustID = b.custid
@@ -205,6 +213,7 @@ BEGIN
 		,BetType = b.bettype
 		,BonusID = CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
 		,WalletType = ISNULL(b.WalletType, 2) -- Cash Wallet as default
+		,actual_stake = b.actual_stake -- used to determine cashout tickets that make changes Balance (Captured Before)
 	FROM dbo.bettrans b WITH(NOLOCK)
 		OUTER APPLY [dbo].[f_Set_Instant_CalModds](
 												b.bettype
@@ -235,10 +244,11 @@ BEGIN
 			DELETE @tempInstantBatch
 			DELETE @BalanceWalletBefore
 			DELETE @BalanceWalletAfter
+			DELETE @CashoutTickets_tmp
 			
 			DELETE T
-			OUTPUT deleted.TransID, deleted.MOdds,deleted.CustID, deleted.Balance, deleted.BetType, deleted.BonusID, deleted.WalletType	
-			INTO @tempInstantBatch(transid, modds, custid, balance, bettype, BonusID, WalletType)
+			OUTPUT deleted.TransID, deleted.MOdds,deleted.CustID, deleted.Balance, deleted.BetType, deleted.BonusID, deleted.WalletType, deleted.actual_stake	
+			INTO @tempInstantBatch(transid, modds, custid, balance, bettype, BonusID, WalletType, actual_stake)
 			FROM (SELECT TOP (@batchCount) *
 				  FROM #temp_bettrans 
 				  ORDER BY custid
@@ -257,6 +267,7 @@ BEGIN
 			SET @ticketCount += @batchRowCount
 			SET @strInstantTicket = CAST((SELECT b.transid AS t
 												,b.modds AS m 
+												,b.actual_stake AS a
 											FROM @tempInstantBatch b
 											FOR XML AUTO) AS VARCHAR(MAX)
 										)
@@ -285,15 +296,43 @@ BEGIN
 				GROUP BY b.custid
 					, b.bonusID
 					, b.walletType
-			
+				
+				/* -- for testing cashout tickets happen after capture Balance Before
+				RAISERROR ('CASH OUT TICKET PLS', 0, 1) WITH NOWAIT
+				WAITFOR DELAY '00:00:15'
+				*/	
+					
 				--DO instant calculation
 				EXEC dbo.NAP_Admin_Calculate_Main
 					@matchid		= @MatchId
 					, @Action 		= @Action
 					, @Mode 		= @Mode
 					, @strTransIds 	= @strInstantTicket
-			
-			
+					, @strTransCashout = @strTransCashout OUTPUT
+				
+				SELECT @strTransCashout	
+				
+				-- Adjust BL before for affected cashout tickets
+				IF @strTransCashout <> ''
+				BEGIN
+					SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
+					
+					INSERT INTO @CashoutTickets_tmp(transid,custid, balance)
+					SELECT T.C.value('./@t', 'BIGINT') 		AS transid
+							, T.C.value('./@c', 'INT') 	AS custid
+							,T.C.value('./@b', 'MONEY') 	AS balance
+					FROM @xmlCashoutTicket.nodes('/b') AS T(C)
+					OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
+					
+					UPDATE bf
+						SET balance = bf.balance - bl.balance_old + bl.balance_new
+					FROM @BalanceWalletBefore bf
+						INNER JOIN  (SELECT	c.custid, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+									 FROM  @CashoutTickets_tmp tmp 
+												INNER JOIN @tempInstantBatch C ON c.TransID = tmp.transid AND tmp.custid = c.custid
+									 GROUP BY c.custid
+									 ) AS bl ON bl.custid = bf.custid
+				END
 				-------------------------------------------------------------
 				---        CAPTURE value BALANCE after settlement        ---
 				---------------------------VVVV------------------------------
@@ -313,11 +352,10 @@ BEGIN
 					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 				FROM dbo.bettrans b WITH(ROWLOCK)
 					INNER JOIN @tempInstantBatch AS t ON b.transid = t.transid
-					
 				GROUP BY t.custid
 					, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
 					, ISNULL(b.WalletType, 2)
-			
+				
 				---INSERT data into pending balance table   
 				EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 				@BalanceWalletBefore	= @BalanceWalletBefore
