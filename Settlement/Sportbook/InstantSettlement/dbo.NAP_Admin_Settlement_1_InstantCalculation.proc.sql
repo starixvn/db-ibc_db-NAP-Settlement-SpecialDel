@@ -222,7 +222,7 @@ BEGIN
 		AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
 		AND EXISTS(SELECT TOP 1 1 FROM @instantBettype WHERE bettype = b.bettype)
 		AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
-			 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND checktime <= CURRENT_TIMESTAMP)
+			 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND b.checktime <= CURRENT_TIMESTAMP)
 			 )	
 		AND ods.modds IS NOT NULL
 	
