@@ -217,8 +217,8 @@ BEGIN
 			IF @Action LIKE 'CAL%'
 			BEGIN
 				SET @strTransIds 		= (SELECT transid		AS '@t'
-											   		,modds		AS '@m'
-											   		,OddsType	AS '@ot'
+													,modds		AS '@m'
+													,OddsType	AS '@ot'
 										   FROM @tmpTransIDBatch
 										   FOR XML PATH('r'), ROOT( 'root' ))
 			END
@@ -231,7 +231,7 @@ BEGIN
 			
 
 			EXEC dbo.NAP_Admin_Calculate_OtherSports
-				@matchid	  		 = @matchid
+				@matchid			 = @matchid
 			   ,@action				 = @action
 			   ,@strTransIds		 = @strTransIds
 		END
@@ -382,9 +382,9 @@ BEGIN
 		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
 						+ CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
 						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
-			    		+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
-			            
+		
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 			,@Matchid = @matchid
 			,@ActionID = @ActionID
