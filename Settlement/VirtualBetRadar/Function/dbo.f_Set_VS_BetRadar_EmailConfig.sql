@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20160606@Bobby: Initialize
 		- 20181017@Helen: Remove email address from Betradar VS Settlement service - [Redmine:103352]
+		- 20181115@Helen: Add one email address into Settlement email notification - [Redmine:104840]
 		
 	Columns Explanation:    
     
@@ -44,7 +45,7 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw'
+			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;ariel.lin@onelab.tw'
 			, 'qa@starixsoft.com'
 			, 'qa@starixsoft.com'
 			, 'SITDBTRANS'
@@ -53,8 +54,8 @@ RETURN (
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
-			, 'martin.jr@oneworks.com;csd.one1@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw' --credit
-			, 'martin.jr@oneworks.com;csoneonone@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw' --deposit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw;ariel.lin@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;celine.saw99@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;jason.ni@onelab.tw;angela.chan@onelab.tw;ariel.lin@onelab.tw' --deposit
 			, 'DBTRANS'
 			, 'PROD'
 		
@@ -75,13 +76,13 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixsoft.com;kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw', '', ''
+			, 'qa@starixsoft.com;kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;ariel.lin@onelab.tw', '', ''
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com', '', ''
+			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;jason.ni@onelab.tw;angela.chan@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 			
