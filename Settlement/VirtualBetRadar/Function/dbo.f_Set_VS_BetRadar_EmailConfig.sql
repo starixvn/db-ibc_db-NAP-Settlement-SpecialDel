@@ -16,6 +16,7 @@ AS
 		
 	Columns Explanation:    
     
+    Notes: TW Team can change function and not notify VNTeam, please ALWAYS check Code Pro before modify function
 */
 
 RETURN (
