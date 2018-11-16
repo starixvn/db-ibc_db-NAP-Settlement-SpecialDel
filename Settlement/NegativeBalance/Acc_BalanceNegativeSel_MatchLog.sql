@@ -14,6 +14,7 @@ AS
 		- 20150918@Elodie: Get Log Action Name by Chinese langague [Red:#43705]
 		- 20170629@Bobby: 78882 - Add groupid = 7
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
+		- 20181116@Helen: action=165 Calculate Fast Markets,do NOT get for userid=111  [Redmine:82430]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -218,7 +219,9 @@ BEGIN
 							END
 						ELSE 1
 					END
-			AND 1 = CASE WHEN @GroupID IN (1,2) AND l.ActionID IN (SELECT actionid FROM dbo.f_Set_NegativeBalance_ActionGroup()) THEN 1 
+			AND 1 = CASE 
+						WHEN l.ActionID = 165 AND l.userID = 111 THEN 0
+						WHEN @GroupID IN (1,2) AND l.ActionID IN (SELECT actionid FROM dbo.f_Set_NegativeBalance_ActionGroup()) THEN 1 
 						WHEN @GroupID = 7 THEN 1
 						ELSE 0 END
 			
