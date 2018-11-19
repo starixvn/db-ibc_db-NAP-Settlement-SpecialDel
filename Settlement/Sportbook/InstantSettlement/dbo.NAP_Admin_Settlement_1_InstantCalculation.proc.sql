@@ -26,7 +26,8 @@ AS
 		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180709@Helen: Enhance Performance for Instant Calculation - [Redmine: 98608]
 		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter for Determine Manual Instant/Auto Instant [Redmine:#86964]
-    
+		- 20181114@Helen:  Second Accept - Processing for Waiting Tickets [Redmine:104755]
+		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
         - @ResourceResult
@@ -220,9 +221,11 @@ BEGIN
 	WHERE matchid = @matchid
 		AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
 		AND EXISTS(SELECT TOP 1 1 FROM @instantBettype WHERE bettype = b.bettype)
-		AND b.statusId IN (0)
+		AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
+			 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND b.checktime <= CURRENT_TIMESTAMP)
+			 )	
 		AND ods.modds IS NOT NULL
-
+	
 	--DO loop Inst.CAL
 	WHILE (1=1)
 	BEGIN 
