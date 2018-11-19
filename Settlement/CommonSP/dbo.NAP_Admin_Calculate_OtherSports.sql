@@ -5,9 +5,9 @@ SET QUOTED_IDENTIFIER ON
 GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
 	@matchid						INT
-	,@action						VARCHAR(20) = 'CAL'
-	,@strTransIds				   VARCHAR(MAX)	= NULL
-	,@CalledByBrokerService		 BIT		 	= 0
+	,@action						VARCHAR(20)		= 'CAL'
+	,@strTransIds					VARCHAR(MAX)	= NULL
+	,@CalledByBrokerService			BIT				= 0
 AS
 /*
 	Created: 20181016@Vicky
