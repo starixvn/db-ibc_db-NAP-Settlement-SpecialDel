@@ -1131,7 +1131,7 @@ BEGIN
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
-		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = d.matchid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = d.matchid
 		OUTER APPLY (SELECT CASE 
 								WHEN d.betfrom = 'p' THEN '4-Phone Betting'
 								ELSE g.GroupName

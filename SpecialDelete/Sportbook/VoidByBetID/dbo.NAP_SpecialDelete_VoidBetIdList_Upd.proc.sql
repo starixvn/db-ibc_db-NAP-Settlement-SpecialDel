@@ -2683,7 +2683,7 @@ BEGIN
 		,CASE WHEN b.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut
 
 	FROM	#BetDelete b
-		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
 		LEFT JOIN #CTE_CustInfo cr WITH(NOLOCK) ON b.creator = cr.custid	
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON b.recommend = ag.custid
