@@ -73,6 +73,7 @@ BEGIN
 		,MatchCode NVARCHAR(50)
 		,ShowTime  NVARCHAR(50)
 		,BallSequence TINYINT
+		,SportTypeId INT
 	)
 
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
@@ -130,6 +131,7 @@ BEGIN
 				,m.matchcode
 				,m.showtime
 				,null
+				,m.sporttype
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -184,6 +186,7 @@ BEGIN
 				,m.matchcode
 				,m.showtime
 				,BS_tmp.BallSequence
+				,m.sporttype
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 				INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -250,6 +253,7 @@ BEGIN
 			,m.matchcode
 			,m.showtime
 			,BS_tmp.BallSequence
+			,m.sporttype
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN CustDB.dbo.customer ag WITH (NOLOCK) ON b.recommend = ag.custid
 			INNER JOIN CustDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
@@ -308,6 +312,7 @@ BEGIN
 		,showtime
 		,BallSequence
 		,'Credit' AS GroupName
+		,SportTypeId
 	FROM #SpecialDeleteBets WITH (NOLOCK)
 	WHERE custid NOT IN (
 			SELECT CustID
@@ -340,6 +345,7 @@ BEGIN
 		,s.showtime
 		,BallSequence
 		,'Deposit' AS GroupName
+		,SportTypeId
 	FROM #SpecialDeleteBets s WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
 	WHERE c.custid NOT IN (

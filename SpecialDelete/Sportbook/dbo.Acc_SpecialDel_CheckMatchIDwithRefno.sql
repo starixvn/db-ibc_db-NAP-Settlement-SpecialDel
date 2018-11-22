@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_SpecialDel_CheckMatchIDwithRefno]
     @MatchID int
     ,@FromRefno bigint --transid
@@ -24,6 +25,7 @@ BEGIN
         - 201507014@Dominic: Integrate Metric Gaming - Superlive product into the Special Delete site - Redmine: #38200
         - 20150922@Kathy: Add more Type value to support BetTrade transaction [Redmine:#43233]
         - 20170405@Kent: Integrate Cash-out [Redmine:#72059]
+		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
     
     Param's Explanation:    
         - @Type: sports type
@@ -55,7 +57,7 @@ BEGIN
         RETURN
     END 
     
-    IF @Sporttype <> 161 AND @Type = 2
+    IF @Type = 2 AND @Sporttype <> 161 AND @Sporttype <> 164
     BEGIN 
         SET @ErrCode = 4
         SET @ErrMsg ='This MatchID doesn''t belong to number game.' 

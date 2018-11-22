@@ -46,6 +46,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180814@Alan: Rename SP - Filter basketball tickets by quarter [99786]
+		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -163,71 +164,76 @@ BEGIN
 	
 	IF @Type = 1 -- FOR Number Game Only
 	BEGIN
-		INSERT INTO #TmpBallSequence(Seq)
-		SELECT  val
-		FROM	dbo.f_SplitString(@BallSequence, ',')
-		OPTION (maxrecursion 0)	
+		-- Select Happy 5
+		IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
+			BEGIN		
+				INSERT INTO #TmpBallSequence(Seq)
+				SELECT  val
+				FROM	dbo.f_SplitString(@BallSequence, ',')
+				OPTION (maxrecursion 0)	
 	
-		INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
-		SELECT b.srecommend
-			,b.bettype
-			,b.liveindicator
-			,b.statusID
-			,b.matchid
-			,COUNT(b.transid) cnt
-		FROM dbo.bettrans b WITH (NOLOCK)
-			OUTER APPLY (SELECT BallSequence 
-						FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-						WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
-						) AS BS_tmp
-		
-		WHERE b.matchid = @MatchId
-			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-			AND (			
-					bettype IN (
-						SELECT CONVERT(INT, val)
-						FROM dbo.strSplit(@BetTypes, ',')
-						)
-					AND CASE 
-					WHEN @LiveType <> 2 THEN liveindicator
-					ELSE 0 END = CASE 
-					WHEN @LiveType <> 2 THEN @LiveType
-					ELSE 0 END
-					AND livehomescore = CASE 
-					WHEN @LiveHomeScore IS NOT NULL
-						AND @LiveType = 1 THEN @LiveHomeScore
-					ELSE livehomescore END
-					AND liveawayscore = CASE 
-					WHEN @LiveAwayScore IS NOT NULL
-						AND @LiveType = 1 THEN @LiveAwayScore
-					ELSE liveawayscore END
-					AND transdate BETWEEN CASE 
-								WHEN @FromTransdate IS NOT NULL
-									AND @LiveType = 1 THEN @FromTransdate
-								ELSE transdate
-								END
-						AND CASE 
-								WHEN @ToTransdate IS NOT NULL
-									AND @LiveType = 1 THEN @ToTransdate
-								ELSE transdate
-								END				
-				)
-			AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-				WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
-				WHEN 1 THEN 0
-				WHEN 2 THEN 1
-				END
-			AND bettype IN (85, 86, 87, 88, 89, 90) 
-			AND EXISTS (SELECT TOP 1 1
-						FROM #TmpBallSequence WITH (NOLOCK)
-						WHERE Seq = BS_tmp.BallSequence) 
-			
-		GROUP BY b.srecommend
-			,b.matchid
-			,b.bettype
-			,b.liveindicator
-			,b.statusid
-		OPTION (RECOMPILE)	
+				INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
+				SELECT b.srecommend
+					,b.bettype
+					,b.liveindicator
+					,b.statusID
+					,b.matchid
+					,COUNT(b.transid) cnt
+				FROM dbo.bettrans b WITH (NOLOCK)		
+				WHERE b.matchid = @MatchId
+					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
+					AND bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(@BetTypes, ','))
+					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+						WHEN 1 THEN 0
+						WHEN 2 THEN 1
+						END
+				GROUP BY b.srecommend
+					,b.matchid
+					,b.bettype
+					,b.liveindicator
+					,b.statusid		
+				OPTION (RECOMPILE)	
+			END
+
+		-- Select Number Game
+		ELSE
+			BEGIN		
+				INSERT INTO #TmpBallSequence(Seq)
+				SELECT  val
+				FROM	dbo.f_SplitString(@BallSequence, ',')
+				OPTION (maxrecursion 0)	
+	
+				INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
+				SELECT b.srecommend
+					,b.bettype
+					,b.liveindicator
+					,b.statusID
+					,b.matchid
+					,COUNT(b.transid) cnt
+				FROM dbo.bettrans b WITH (NOLOCK)
+					OUTER APPLY (SELECT BallSequence 
+								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								) AS BS_tmp		
+				WHERE b.matchid = @MatchId
+					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
+					AND bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(@BetTypes, ','))
+					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+						WHEN 1 THEN 0
+						WHEN 2 THEN 1
+						END
+					AND EXISTS (SELECT TOP 1 1
+								FROM #TmpBallSequence WITH (NOLOCK)
+								WHERE Seq = BS_tmp.BallSequence)
+				GROUP BY b.srecommend
+					,b.matchid
+					,b.bettype
+					,b.liveindicator
+					,b.statusid		
+				OPTION (RECOMPILE)	
+			END
 	END
 	ELSE -- For Others
 	BEGIN
