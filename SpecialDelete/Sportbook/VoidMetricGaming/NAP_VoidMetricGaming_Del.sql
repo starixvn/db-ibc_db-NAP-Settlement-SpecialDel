@@ -39,6 +39,7 @@ AS
 			  - 20180509@Alan: Change result for new template email [Redmine:#93296]
 			  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 			  - 20181017@Alan: Write log new reason chinese simplified [102918]
+			  - 20181004@Alan: Add new column SettlementStatus [102423]
 			  
 	Param's Explanation:
 
@@ -129,6 +130,9 @@ BEGIN
 	DECLARE @tblBettype TABLE (bettype SMALLINT)
 	INSERT INTO @tblBettype(bettype)
 	SELECT val FROM dbo.strSplit(@BetTypes, '^')
+
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
 
@@ -750,6 +754,7 @@ BEGIN
 			,b.bettype AS BetTypeId
 			,b.hdp1 AS Handicap1
 			,b.hdp2 AS Handicap2
+			,@SettlementStatus AS SettlementStatus
 			-----------------------------
 			,ci.currency
 			,ci.username

@@ -84,6 +84,7 @@ Revisions:
 	- 20180508@Alan: Change result for new template email - Delete Creator [Redmine:#93296]
 	- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 	- 20181017@Alan: Write log new reason chinese simplified [102918]
+	- 20181004@Alan: Add new column SettlementStatus [102423]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -359,7 +360,10 @@ BEGIN
 				WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 				ELSE 1
 		  END = 1
-	OPTION (OPTIMIZE FOR (@BetTypes = NULL))		
+	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
+	
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	
 
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (9, 29) AND b.Bettype NOT BETWEEN 801 AND 806 THEN 1 ELSE 0 END)  
@@ -2396,6 +2400,7 @@ BEGIN
 			,al.choiceOdds AS SubOdds
 			,al.choiceBetTeam AS SubBetteam
 			,al.ChoiceBetCheck AS SubBetCheck
+			,@SettlementStatus AS SettlementStatus
 			-----------------------------  
 			,ci.currency
 			,ci.username

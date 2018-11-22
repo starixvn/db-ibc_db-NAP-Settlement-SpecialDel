@@ -87,6 +87,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181002@Alan: Exclude BetTrade and Cash Out tickets when check negative balance [102212] 
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
+		- 20181003@Alan: Add new column SettlementStatus [102423]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -341,7 +342,10 @@ BEGIN
 					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 		 , cte.Goal
 	FROM CTE_ParsedBettypes cte		 		
-	OPTION (OPTIMIZE FOR (@BetTypes = NULL))			
+	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
+	
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId		
 	
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
@@ -2016,6 +2020,7 @@ BEGIN
 			,CURRENT_TIMESTAMP AS [DateTime]		
 			,al.WalletType
 			,al.RefCode
+			,@SettlementStatus AS SettlementStatus
 		FROM	#BetDelete al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	

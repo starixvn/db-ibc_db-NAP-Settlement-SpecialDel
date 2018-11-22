@@ -43,6 +43,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20171029@Alan: Return Licensees Name [103474]
+		- 20181004@Alan: Add new column SettlementStatus [102423]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -1126,9 +1127,11 @@ BEGIN
 		,FollowInfo.Username AS followedUsername
 		,d.RefCode
 		,c.site AS LicenseeName
+		,m.SettlementStatus
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = d.matchid
 		OUTER APPLY (SELECT CASE 
 								WHEN d.betfrom = 'p' THEN '4-Phone Betting'
 								ELSE g.GroupName

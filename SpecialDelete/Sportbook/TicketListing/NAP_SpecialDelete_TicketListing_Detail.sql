@@ -50,6 +50,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180814@Alan: Rename SP - Filter basketball tickets by quarter [99786]
 		- 20181031@Percy: Remove linked-server DBLIC [RedmineID: #103660]
+		- 20181004@Alan: Add new column SettlementStatus [102423]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -113,6 +114,8 @@ BEGIN
 	FROM match3rd (NOLOCK)
 	WHERE match3rdid = @MatchId
 
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
 
 	CREATE TABLE #TmpBallSequence 
 	(	
@@ -1299,7 +1302,8 @@ BEGIN
 			SubLiveIndicator,
 			SubLeagueId,
 			SubSportType,          
-			SubTransDesc 
+			SubTransDesc,
+			@SettlementStatus AS SettlementStatus
 	FROM #SpecialDeleteBets
 	ORDER BY IsParlay
 		   , ISNULL(MainTransId, transid)

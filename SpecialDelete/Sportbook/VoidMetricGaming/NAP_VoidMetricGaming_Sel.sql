@@ -20,6 +20,7 @@ BEGIN
 		- 20160401@Bobby: #55354 - Update changes for new message structure
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		- 20181004@Alan: Add new column SettlementStatus [102423]
 		
 	Explanation's Param:
 
@@ -69,6 +70,9 @@ BEGIN
 	DECLARE @Event805Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event805Tbl(Custom1)
 	SELECT val FROM dbo.strSplit(@Event805, '^')
+
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
 		
 	INSERT INTO #SpecialDeleteBets
 	SELECT
@@ -167,7 +171,8 @@ BEGIN
 		   ,recommend	
 		   ,SecAcceptFlag	
 		   ,betid
-		   ,transdesc		 
+		   ,transdesc
+		   ,@SettlementStatus AS SettlementStatus
 	FROM #SpecialDeleteBets
 	WHERE custid NOT IN ( SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- Betdaq
 	AND username <> '12EU' -- 12EU
@@ -202,6 +207,7 @@ BEGIN
 		   ,SecAcceptFlag	
 		   ,betid
 		   ,transdesc
+		   ,@SettlementStatus AS SettlementStatus
 	FROM #SpecialDeleteBets
 	WHERE custid NOT IN ( SELECT CustID FROM  [f_GetBetDaqCustomer] (1))
 	AND username <> '12EU'
@@ -236,6 +242,7 @@ BEGIN
 		   ,SecAcceptFlag	
 		   ,betid
 		   ,transdesc
+		   ,@SettlementStatus AS SettlementStatus
 	FROM #SpecialDeleteBets 
 	WHERE custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	ORDER BY IsDeposit desc, transid
