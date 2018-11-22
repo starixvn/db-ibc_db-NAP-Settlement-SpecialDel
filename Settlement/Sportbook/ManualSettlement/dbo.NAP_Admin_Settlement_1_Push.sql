@@ -1,8 +1,4 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push] 
      @AdminId               INT
     ,@Matchid               INT
@@ -65,6 +61,7 @@ AS
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
 		- 20170421@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -92,6 +89,7 @@ BEGIN
 			,@procName          	NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsExistNetPosition	BIT = 0		
+			,@IsSystemSettlement	BIT
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -214,6 +212,24 @@ BEGIN
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
+				,@IsSystemSettlement = CASE
+										WHEN @Action = 'UNDO' 
+											THEN CASE 
+													WHEN @sporttype NOT IN (2,5) THEN 0
+													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 0
+													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%' THEN 0
+													ELSE NULL
+												END
+										WHEN @Action IN ('CAL', 'CAL-FT') 
+											THEN CASE
+													WHEN @sporttype NOT IN (2,5) THEN 1
+													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 1
+													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%'	THEN 1
+													ELSE NULL
+												END
+										ELSE NULL
+									END
+
 
     IF (@SelectedSet IS NOT NULL AND @SelectedSet NOT LIKE '%6%')   -- Tennis 
     BEGIN
@@ -223,6 +239,17 @@ BEGIN
 	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
 		SET	@IsExistNetPosition = 1 
 		
+	-- add new status "Under Settlement" for a match
+	IF @IsSystemSettlement IS NOT NULL 
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
+			@Matchid		= @Matchid
+			,@Type			= 4
+			,@IsEnabled		= @IsSystemSettlement 
+			,@AdminId		= @AdminId
+			,@IP			= @IP
+	END
+
     IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY
@@ -268,6 +295,4 @@ BEGIN
 			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
     END
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1_Push] TO [bodbAdminNet]
 GO

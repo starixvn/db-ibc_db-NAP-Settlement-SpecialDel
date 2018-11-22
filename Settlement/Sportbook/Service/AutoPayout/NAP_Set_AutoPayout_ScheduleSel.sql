@@ -9,6 +9,7 @@ AS
 		- 20161019@Bobby: @#65002 - Add checking AutoSetting on match & league
 		- 20170314@Kathy: Not allow to process Auto Payout HT/FT if keyscore calculated HT/FT manually [Redmine:#73218]
 		- 20170817@Kathy: Get LeagueId [Redmine:#80704]
+		- 20181002@Kathy: get SettlementStatus [Redmine:#102028]
 	Param's Explanation:
  
 */
@@ -22,7 +23,7 @@ BEGIN
 		, (2) --full time
 
 	SELECT MatchId, HomeValue, AwayValue, TypeId, IsUndecided, IsPending, IsHalfTimeConfirmed
-		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid
+		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
 	FROM (
 		SELECT m.matchid AS MatchId
 			, CASE WHEN mr.ConfirmHT > 0 AND f.typeId = 1 THEN m.hthomescore
@@ -44,6 +45,7 @@ BEGIN
 			, mr.IsHTCal AS IsHalfTimeCalculated
 			, m.kickofftime
 			, l.leagueid
+			,m.SettlementStatus
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid

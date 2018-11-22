@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelCompletedHT] 
 	@Date DATETIME
 	, @SportType 	SMALLINT = 0
@@ -37,6 +33,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180426@Helen: Improve Performance [Redmine:#89132]
 		- 20180510@Benjamin: Incorporate new Sports: Kabaddi(47), Futsal (49), Sport 56[Redmine:#94608]
+		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		
 */
 BEGIN
@@ -45,7 +42,7 @@ BEGIN
 	IF @sporttype NOT IN (1, 2, 3, 32, 47, 49, 56) RETURN
 
 	DECLARE @HTOverStartMins INT, @HTOverEndMins INT
-	
+
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
 	
 	SELECT @LeagueID = CASE WHEN @isReLoad = 1 THEN ISNULL(@LeagueID, 0) 
@@ -66,7 +63,7 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT)
 	
 	DECLARE @BettypeFGLG TABLE (bettype SMALLINT, GroupID SMALLINT)
 	
@@ -80,7 +77,7 @@ BEGIN
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, m.sporttype, m.IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, m.AutoSetting, l.AutoSetting AS AutoSetting_League
+		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League
 	FROM bodb02.dbo.match m WITH(NOLOCK)
 		INNER JOIN bodb02.dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -96,13 +93,14 @@ BEGIN
 				ELSE CASE WHEN m.AutoSetting IS NULL AND (1 & ISNULL(l.AutoSetting, 0) = 1) THEN 0
 							WHEN (1 & ISNULL(m.AutoSetting, 0) = 1) THEN 0
 						ELSE 1 END
-				END'')'
+				END'')
+		'
 
 	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
 		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, AutoSetting, AutoSetting_League)
+		, SettlementStatus, AutoSetting, AutoSetting_League)
 	EXEC (@SqlQuery)
 	
 	INSERT INTO @BettypeFGLG (bettype,GroupID)
@@ -156,11 +154,7 @@ BEGIN
 		, m.finalhomescore
 		, m.finalawayscore
 		, m.betstatus
-		, CASE WHEN m.betstatus LIKE 'Refund FT%' THEN 'Refund FT'
-				WHEN m.betstatus LIKE 'Refund HT%' THEN 'Refund HT'
-				WHEN m.betstatus LIKE 'Refund%' THEN 'Refund'
-			ELSE m.eventstatus END AS eventstatus
-		, '' AS Foddsstatus
+		, m.eventstatus
 		, m.sporttype
 		, ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		, m.eventdate
@@ -172,13 +166,7 @@ BEGIN
 					WHERE custid = m.ConfirmHT) END AS suspenderHalfTime
 		, '' AS suspenderFullTime
 		, ISNULL(m.IsHTCal, 0) AS IsHalfTimeCal
-		, ISNULL(m.isPending, 0) AS isPending
-		, ISNULL(m.isUndecided, 0) AS isUndecided
-		, CAST(CASE WHEN hthomescore IS NOT NULL 
-						AND htawayscore IS NOT NULL 
-						AND finalhomescore IS NOT NULL 
-						AND finalawayscore IS NOT NULL THEN 1
-				ELSE 0 END AS BIT) AS IsKeyscore
+		, m.SettlementStatus
 		, b.betcount
 		, CASE WHEN b.cntFGLG = 0 THEN 0 ELSE 1 END AS isExistFGLG
 		, CASE WHEN b.cntHTFGLG = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
@@ -204,6 +192,4 @@ BEGIN
 			)
 	
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelCompletedHT] TO [bodbAdminNet]
 GO

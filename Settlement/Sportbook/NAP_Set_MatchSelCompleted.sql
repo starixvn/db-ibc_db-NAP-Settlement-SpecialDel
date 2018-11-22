@@ -40,6 +40,7 @@ AS
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180426@Helen: Improve Performance [Redmine:89132]
+		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -53,7 +54,7 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, IsPending BIT, IsUndecided BIT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
 	
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
 	
@@ -70,7 +71,7 @@ BEGIN
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, m.sporttype, m.IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, m.AutoSetting, l.AutoSetting AS AutoSetting_League, ConfirmFT
+		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League, ConfirmFT
 	FROM bodb02.dbo.match m WITH(NOLOCK)
 		INNER JOIN bodb02.dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -89,7 +90,7 @@ BEGIN
 		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, IsPending, IsUndecided, AutoSetting, AutoSetting_League, ConfirmFT)
+		, SettlementStatus, AutoSetting, AutoSetting_League, ConfirmFT)
 	EXEC (@SqlQuery)
 
 	DECLARE @tblSingle TABLE (matchid INT, seqS INT)
@@ -152,34 +153,15 @@ BEGIN
 		, m.finalhomescore
 		, m.finalawayscore
 		, m.betstatus
-		, CASE WHEN m.betstatus LIKE 'Refund FT%' THEN 'Refund FT'
-				WHEN m.betstatus LIKE 'Refund HT%' THEN 'Refund HT'
-				WHEN m.betstatus LIKE 'Refund%' THEN 'Refund'
-			ELSE m.eventstatus	END AS eventstatus
-		, '' AS Foddsstatus
+		, m.eventstatus
 		, m.sporttype
 		, ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		, m.eventdate
 		, m.goalrecord
-		--, CASE WHEN mr.ConfirmHT = 0 THEN ''
-		--	ELSE (SELECT username
-		--			FROM CustDB.dbo.custinfo (NOLOCK)
-		--			WHERE custid = mr.ConfirmHT) END AS suspenderHalfTime
-		--, CASE WHEN mr.ConfirmFT = 0 THEN ''
-		--	ELSE (SELECT username
-		--			FROM CustDB.dbo.custinfo (NOLOCK)
-		--			WHERE custid = mr.ConfirmFT) END AS suspenderFullTime
 		, ISNULL(ht.username, '') AS suspenderHalfTime
 		, ISNULL(ft.username, '') AS suspenderFullTime
 		, ISNULL(m.IsHTCal, 0) AS IsHalfTimeCal
-		, ISNULL(m.IsPending, 0) AS IsPending
-		, ISNULL(m.isUndecided, 0) AS isUndecided
-		, CAST(CASE WHEN hthomescore IS NOT NULL 
-						AND htawayscore IS NOT NULL 
-						AND finalhomescore IS NOT NULL 
-						AND finalawayscore IS NOT NULL THEN 1
-				ELSE 0 END AS BIT) AS IsKeyscore
-		--, ISNULL(tm.calculate, 0) AS calculate
+		, m.SettlementStatus
 		, CASE WHEN b.cntFGLG = 0 THEN 0 ELSE 1 END AS isExistFGLG
 		, CASE WHEN b.cntHTFGLG = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
 		, b.BetCount
