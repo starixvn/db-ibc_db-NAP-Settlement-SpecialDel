@@ -325,11 +325,11 @@ BEGIN
 					UPDATE bf
 						SET balance = bf.balance - bl.balance_old + bl.balance_new
 					FROM @BalanceWalletBefore bf
-						INNER JOIN  (SELECT	c.custid, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+						INNER JOIN  (SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
 									 FROM  @CashoutTickets_tmp tmp 
 												INNER JOIN @tempInstantBatch C ON c.TransID = tmp.transid AND tmp.custid = c.custid
-									 GROUP BY c.custid
-									 ) AS bl ON bl.custid = bf.custid
+									 GROUP BY c.custid,c.BonusID,c.WalletType
+									 ) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
 				END
 				-------------------------------------------------------------
 				---        CAPTURE value BALANCE after settlement        ---
