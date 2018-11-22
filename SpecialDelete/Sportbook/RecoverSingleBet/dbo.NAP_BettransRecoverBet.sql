@@ -1894,7 +1894,7 @@ BEGIN
 			,t.RefCode
 			,m.SettlementStatus
 	FROM CTE t
-		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	ORDER BY site
 		   , ISNULL(t.MainTransId, t.transid)
 		   , CASE WHEN t.BonusID IS NOT NULL

@@ -1152,7 +1152,7 @@ BEGIN
 			,m.SettlementStatus
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
-		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	WHERE t.bettype <> 500
 	ORDER BY [site]
 		, CASE 
