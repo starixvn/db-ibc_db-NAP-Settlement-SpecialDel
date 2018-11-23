@@ -1,19 +1,20 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame] 
-	@Option BIT = 0
-	,@MatchId INT
-	,@FromTransId BIGINT = NULL
-	,@ToTransId BIGINT = NULL
-	,@BetTypes VARCHAR(100) = ''
-	,@BallSequence VARCHAR(200)	= ''
-	,@TransIds VARCHAR(MAX) = ''
-	,@UserName NVARCHAR(50)
-	,@UserPwd NVARCHAR(50)
-	,@UserID INT
-	,@IP VARCHAR(15) = ''
-	,@reason NVARCHAR(500) = ''
-	,@ErrMsg NVARCHAR(200) = '' OUTPUT
-	,@ErrCode INT = 0 OUTPUT
+	@Option			BIT = 0
+	,@MatchId		INT
+	,@FromTransId	BIGINT = NULL
+	,@ToTransId		BIGINT = NULL
+	,@BetTypes		VARCHAR(100) = ''
+	,@BallSequence	VARCHAR(200)	= ''
+	,@TransIds		VARCHAR(MAX) = ''
+	,@UserName		NVARCHAR(50)
+	,@UserPwd		NVARCHAR(50)
+	,@UserID		INT
+	,@IP			VARCHAR(15) = ''
+	,@reason		NVARCHAR(500) = ''
+	,@ReasonSC		NVARCHAR(500)	= ''
+	,@ErrMsg		NVARCHAR(200) = '' OUTPUT
+	,@ErrCode		INT = 0 OUTPUT
 AS
 /*
 	Created by: Kathy
@@ -75,18 +76,11 @@ BEGIN
 	END
 
 	--end check password
-	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)	
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
+	CREATE TABLE #TmpBallSequence (Seq	TINYINT)
 	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
-	CREATE TABLE #TmpBallSequence (	
-		Seq	TINYINT
-	)
-	
-	DECLARE @tblMatch TABLE (
-		matchid INT PRIMARY KEY
-		,seq INT
-		)
+	DECLARE @tblMatch TABLE (matchid INT PRIMARY KEY, seq INT)
 	DECLARE @check_MatchId INT
 		,@temp VARCHAR(4000)
 
@@ -95,13 +89,11 @@ BEGIN
 		SELECT DISTINCT CONVERT(BIGINT, val) 
 		FROM dbo.f_SplitString(ISNULL(@TransIds, ''), ',') s
 		OPTION (maxrecursion 0)
-		
 	END TRY
 
 	BEGIN CATCH
 		SELECT @ErrCode = 101
 			,@ErrMsg = 'Invalid TransIds ' + ERROR_MESSAGE()
-
 		RETURN
 	END CATCH
 	
@@ -211,83 +203,152 @@ BEGIN
 		,SportTypeId INT
 	)		
 
-	
-	INSERT INTO #BetDelete (
-		transid
-		,custid
-		,recommend
-		,mrecommend
-		,srecommend
-		,odds
-		,oddstype
-		,transdate
-		,bettype
-		,betteam
-		,hdp1
-		,hdp2
-		,betfrom
-		,stake
-		,winlost
-		,comm
-		,STATUS
-		,currency
-		,CurrencyName
-		,IsLiveIndicator
-		,livehomescore
-		,liveawayscore
-		,creator
-		,betid
-		,matchid
-		,BallSequence
-		,SportTypeId
-	)
-	SELECT DISTINCT b.transid
-		,b.custid
-		,b.recommend
-		,b.mrecommend
-		,b.srecommend
-		,b.odds
-		,b.oddstype
-		,b.transdate
-		,b.bettype
-		,b.betteam
-		,b.hdp1
-		,b.hdp2
-		,b.betfrom
-		,b.stake
-		,b.winlost - b.actual_stake
-		,b.playercomm
-		,b.STATUS
-		,b.currency
-		,b.CurrencyName
-		,b.liveindicator
-		,b.livehomescore
-		,b.liveawayscore
-		,b.creator
-		,b.betid
-		,m.matchid
-		,BS_tmp.BallSequence
-		,m.sporttype
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-		OUTER APPLY (SELECT BallSequence 
-						FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-						WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
-						) AS BS_tmp
-	WHERE	(
-				(
-				@Option = 0 
-					AND b.matchid = @MatchId 
-					AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
-					AND b.bettype IN (SELECT CONVERT(INT, val) 
-									  FROM dbo.strSplit(ISNULL(@BetTypes, ''), ','))
-					AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)						
-				) OR (@Option = 1)
-			) 
-			AND bettype BETWEEN 81 AND 120 
-			AND winlostdate = @today 
-			AND statusID NOT IN (101, 102, 121) 
-			AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) ) 			
+	IF @Option = 0 AND EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164)
+	BEGIN
+		INSERT INTO #BetDelete (
+			transid
+			,custid
+			,recommend
+			,mrecommend
+			,srecommend
+			,odds
+			,oddstype
+			,transdate
+			,bettype
+			,betteam
+			,hdp1
+			,hdp2
+			,betfrom
+			,stake
+			,winlost
+			,comm
+			,STATUS
+			,currency
+			,CurrencyName
+			,IsLiveIndicator
+			,livehomescore
+			,liveawayscore
+			,creator
+			,betid
+			,matchid
+			,BallSequence
+			,SportTypeId
+		)
+		SELECT DISTINCT b.transid
+			,b.custid
+			,b.recommend
+			,b.mrecommend
+			,b.srecommend
+			,b.odds
+			,b.oddstype
+			,b.transdate
+			,b.bettype
+			,b.betteam
+			,b.hdp1
+			,b.hdp2
+			,b.betfrom
+			,b.stake
+			,b.winlost - b.actual_stake
+			,b.playercomm
+			,b.STATUS
+			,b.currency
+			,b.CurrencyName
+			,b.liveindicator
+			,b.livehomescore
+			,b.liveawayscore
+			,b.creator
+			,b.betid
+			,m.matchid
+			,NULL AS BallSequence
+			,m.sporttype
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid			
+		WHERE	b.matchid = @MatchId 
+				AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
+				AND b.bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(ISNULL(@BetTypes, ''), ','))
+				AND winlostdate = @today 
+				AND statusID NOT IN (101, 102, 121) 
+				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #BetDelete (
+			transid
+			,custid
+			,recommend
+			,mrecommend
+			,srecommend
+			,odds
+			,oddstype
+			,transdate
+			,bettype
+			,betteam
+			,hdp1
+			,hdp2
+			,betfrom
+			,stake
+			,winlost
+			,comm
+			,STATUS
+			,currency
+			,CurrencyName
+			,IsLiveIndicator
+			,livehomescore
+			,liveawayscore
+			,creator
+			,betid
+			,matchid
+			,BallSequence
+			,SportTypeId
+		)
+		SELECT DISTINCT b.transid
+			,b.custid
+			,b.recommend
+			,b.mrecommend
+			,b.srecommend
+			,b.odds
+			,b.oddstype
+			,b.transdate
+			,b.bettype
+			,b.betteam
+			,b.hdp1
+			,b.hdp2
+			,b.betfrom
+			,b.stake
+			,b.winlost - b.actual_stake
+			,b.playercomm
+			,b.STATUS
+			,b.currency
+			,b.CurrencyName
+			,b.liveindicator
+			,b.livehomescore
+			,b.liveawayscore
+			,b.creator
+			,b.betid
+			,m.matchid
+			,BS_tmp.BallSequence
+			,m.sporttype
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
+			OUTER APPLY (SELECT BallSequence 
+							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
+							WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+							) AS BS_tmp
+		WHERE	(
+					(
+					@Option = 0 
+						AND b.matchid = @MatchId 
+						AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
+						AND b.bettype IN (SELECT CONVERT(INT, val) 
+										  FROM dbo.strSplit(ISNULL(@BetTypes, ''), ','))
+						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)						
+					) OR (@Option = 1)
+				) 
+				AND (b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8105)
+				AND winlostdate = @today 
+				AND statusID NOT IN (101, 102, 121) 
+				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
+	END
 
 	--check no data
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)
@@ -507,11 +568,12 @@ BEGIN
 		WHERE (a.winlost - b.winlost) < 0
 		
 		SELECT @LogData = CASE 
-				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @reason
+				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) 
+										+ ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @Reason + ' - ' + @ReasonSC
 				ELSE 'void bet for BetId(s): ' + CASE 
 						WHEN @TransIds IS NULL THEN ''
 						ELSE @TransIds + ','
-						END + ' reason: ' + @reason
+						END + ' reason: ' + @Reason + ' - ' + @ReasonSC
 				END
 
 		EXEC WriteLog_UserLog @UserID = @UserID
@@ -547,7 +609,7 @@ BEGIN
 		
 		SELECT b.transid
 			,b.transdate
-			,b.bettype
+			,b.bettype AS BetTypeId
 			,b.betfrom
 			,b.odds
 			,b.stake
@@ -557,10 +619,10 @@ BEGIN
 			,b.STATUS
 			,b.oddstype
 			,b.betteam
-			,b.hdp1
-			,b.hdp2
+			,b.hdp1 AS Handicap1
+			,b.hdp2 AS Handicap2
 			,b.comm
-			,b.IsLiveIndicator
+			,b.IsLiveIndicator AS IsLive
 			,b.livehomescore
 			,b.liveawayscore
 			,b.betid
@@ -568,7 +630,6 @@ BEGIN
 			,m.leagueid
 			,m.homeid
 			,m.awayid
-			,CURRENT_TIMESTAMP AS DATETIME
 			,b.custid
 			,b.recommend
 			,b.mrecommend

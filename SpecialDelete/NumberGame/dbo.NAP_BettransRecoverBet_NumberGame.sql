@@ -30,22 +30,6 @@ BEGIN
 	SET NOCOUNT ON;
 	SELECT @ErrCode = 0,
 	       @ErrMsg = ''
-
-	--Remove checking permission codes on DBPolicy [Redmine:#27058]	
-	--Check permission for account site: 
-	--EXEC DBPOLICY.bodb02.dbo.Acc_Con_CheckPermission 
-	--     @custid = @userid,
-	--     @funcname = '[SpecialDeleteNumberGame]',
-	--     @ErrCode = @ErrCode OUTPUT,
-	--     @ErrMsg = @ErrMsg OUTPUT
-	
-	--IF @ErrCode <> 0
-	--BEGIN
-	--	SELECT @ErrCode = 99,
-	--		@ErrMsg = 'You are not authorized to use this function'
-	--	RETURN
-	--END
-	-- End remove code
 	
 	DECLARE @LogData NVARCHAR(MAX)
 		  , @Remark VARCHAR(500)
@@ -53,7 +37,6 @@ BEGIN
 		  , @isITAdmin BIT = 0	
 		
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)
-
 	DECLARE @tblTransInfo TABLE (transid BIGINT PRIMARY KEY,
 								 custid  INT,
 								 matchid INT, 
@@ -94,7 +77,7 @@ BEGIN
 						AND z.matchid = b.matchid
 						AND z.bettype = b.bettype
 						AND z.transid = b.transid									   
-		WHERE b.bettype between 81 AND 120
+		WHERE (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8105)
 		AND z.winlostdate = @today
 
 		IF @@Rowcount = 0
@@ -171,7 +154,7 @@ BEGIN
 	    END
 	END
 
-	IF EXISTS(SELECT 1 from @tblTransInfo where bettype BETWEEN 81 AND 120)
+	IF EXISTS(SELECT 1 from @tblTransInfo where (bettype BETWEEN 81 AND 120) OR (bettype BETWEEN 8101 AND 8105))
 	BEGIN
 		IF EXISTS(SELECT 1 FROM SystemSettings WITH (NOLOCK) WHERE VValue = 1 AND VName = 'isCalculatingNGManual')
 		BEGIN
