@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20160606@Bobby: Initialize
 		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
+		- 20181122@Kathy: Betradar VS 3 [Redmine:#105261] 
 		
 	Columns Explanation:    
 		- @CalMode: TINYINT [1:HT,2:FT]
@@ -63,7 +64,16 @@ RETURN (
 		UNION ALL SELECT 2809, 193, 2
 		UNION ALL SELECT 2811, 193, 2
 		UNION ALL SELECT 2812, 193, 2
-		
+
+		-- Virtual Soccer Asian Cup
+		UNION ALL SELECT 2701, 194, 2
+		UNION ALL SELECT 2702, 194, 1
+		UNION ALL SELECT 2703, 194, 2
+		UNION ALL SELECT 2704, 194, 1
+		UNION ALL SELECT 2705, 194, 2
+		UNION ALL SELECT 2706, 194, 1
+		UNION ALL SELECT 2707, 194, 2
+
 	) AS vs
 )
 GO
