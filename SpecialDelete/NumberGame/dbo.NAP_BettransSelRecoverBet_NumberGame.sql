@@ -89,7 +89,7 @@ BEGIN
 		INNER JOIN match m with(NOLOCK) ON z.matchid = m.matchid
 	    WHERE  z.transid BETWEEN @FromTransId AND @ToTransId
 	           AND z.matchid = @MatchId			   
-			   AND (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8105)
+			   AND (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8120)
 			   and z.winlostdate = @today
 	END
 	ELSE 
@@ -126,7 +126,7 @@ BEGIN
 	           INNER JOIN bettrans b WITH(NOLOCK) ON  b.transid = z.transid
 			   INNER JOIN match m WITH(NOLOCK) ON m.matchid = z.matchid
 	    WHERE  z.transid IN (SELECT s.transid FROM   @tblTransIds s)
-			   AND (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8105)
+			   AND (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8120)
 			   and z.winlostdate = @today
 	END
 

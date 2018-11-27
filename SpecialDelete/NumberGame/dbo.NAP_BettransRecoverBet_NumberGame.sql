@@ -77,7 +77,7 @@ BEGIN
 						AND z.matchid = b.matchid
 						AND z.bettype = b.bettype
 						AND z.transid = b.transid									   
-		WHERE (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8105)
+		WHERE (z.bettype BETWEEN 81 AND 120 OR z.bettype BETWEEN 8101 AND 8120)
 		AND z.winlostdate = @today
 
 		IF @@Rowcount = 0
@@ -154,7 +154,7 @@ BEGIN
 	    END
 	END
 
-	IF EXISTS(SELECT 1 from @tblTransInfo where (bettype BETWEEN 81 AND 120) OR (bettype BETWEEN 8101 AND 8105))
+	IF EXISTS(SELECT 1 from @tblTransInfo where (bettype BETWEEN 81 AND 120) OR (bettype BETWEEN 8101 AND 8120))
 	BEGIN
 		IF EXISTS(SELECT 1 FROM SystemSettings WITH (NOLOCK) WHERE VValue = 1 AND VName = 'isCalculatingNGManual')
 		BEGIN

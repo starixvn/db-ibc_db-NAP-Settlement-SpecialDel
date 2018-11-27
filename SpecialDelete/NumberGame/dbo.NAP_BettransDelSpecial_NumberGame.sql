@@ -344,7 +344,7 @@ BEGIN
 						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)						
 					) OR (@Option = 1)
 				) 
-				AND (b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8105)
+				AND (b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120)
 				AND winlostdate = @today 
 				AND statusID NOT IN (101, 102, 121) 
 				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
