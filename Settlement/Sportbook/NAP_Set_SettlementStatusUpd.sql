@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_SettlementStatusUpd]
 	@MatchId	INT
 	,@Type		TINYINT
@@ -15,6 +15,7 @@ AS
 
 	Revisions:
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
+		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -22,6 +23,7 @@ AS
 			+ 2: IsUndecided
 			+ 3: IsUnderSettlement	
 			+ 4: IsSystemSettlement
+			+ 5: IsMTDHold
 	
 */
 BEGIN
@@ -40,6 +42,7 @@ BEGIN
 							WHEN @Type = 1 THEN 81002
 							WHEN @Type = 2 THEN 81003
 							WHEN @Type = 3 THEN 81004
+							WHEN @Type = 5 THEN 81005
 							ELSE NULL
 						END
 
@@ -65,13 +68,14 @@ BEGIN
 
 	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
-	IF @Type BETWEEN 1 AND 3
+	IF @Type IN (1,2,3,5)
 	BEGIN
 		SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END
 						 + CASE
 								WHEN @Type = 1 THEN 'Pending '
 								WHEN @Type = 2 THEN 'Undecided '
 								WHEN @Type = 3 THEN 'Under Settlement '
+								WHEN @Type = 5 THEN 'MTD Hold '
 								ELSE ''
 							END
 						+ 'on match: ' + CAST(@MatchId AS VARCHAR) + '<br/> '

@@ -23,11 +23,12 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
 		
 	Param explanation:  
 		@sporttype: show info of particular sport
 		@LeagueID: = 0: show info of all leagues    	
-		@statusid: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6: abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement
+		@statusid: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6: abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold
   
 */
 BEGIN
@@ -106,6 +107,7 @@ BEGIN
 			WHEN @StatusId = 7 THEN 1
 			WHEN @StatusId = 8 THEN 2
 			WHEN @StatusId = 9 THEN 4
+			WHEN @StatusId = 10 THEN 16
 			ELSE 0 
 			END
 	IF @SettlementStatus <> 0

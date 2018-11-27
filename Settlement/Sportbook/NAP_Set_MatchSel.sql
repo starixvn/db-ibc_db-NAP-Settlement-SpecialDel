@@ -38,11 +38,12 @@ AS
 		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180731@Vicky: e-sport 2.0 [Redmine: #95874]
+		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
       
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -130,6 +131,7 @@ BEGIN
 				WHEN @StatusId = 7 THEN 1
 				WHEN @StatusId = 8 THEN 2
 				WHEN @StatusId = 9 THEN 4
+				WHEN @StatusId = 10 THEN 16
 				ELSE 0 
 				END
 
