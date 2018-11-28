@@ -40,17 +40,25 @@ AS
         
 */
 BEGIN
-    IF @betcount = 0 AND @@SERVERNAME NOT LIKE N'DBIOM%' RETURN
+	SET NOCOUNT ON
+	
+	DECLARE @ServerName SYSNAME 
 
-    SET NOCOUNT ON
+	SET @ServerName = @@SERVERNAME
+
+    IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
+
+	IF OBJECT_ID('f_Set_ServerAction', 'IF') IS NOT NULL
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_ServerAction(@ServerName) WHERE AllowCalculation = 0)
+			RETURN
+	END
 
     DECLARE @modds MONEY
         ,@commWinRate SMALLMONEY
         ,@commLostRate SMALLMONEY
         ,@RemoteCount INT
 	
-    IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
-
     CREATE TABLE #tempCust(custid INT PRIMARY KEY)
 
     INSERT INTO #tempCust(custid)
