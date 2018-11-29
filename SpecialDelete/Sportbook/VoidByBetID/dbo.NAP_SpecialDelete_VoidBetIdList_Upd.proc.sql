@@ -69,6 +69,7 @@ AS
 	  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 	  - 20181017@Alan: Write log new reason chinese simplified [102918]
 	  - 20181004@Alan: Add new column SettlementStatus [102423]
+	  - 20181120@Alan: Incorporate Happy 5 into Number Game [102845]
 	
 	 Param's Explanation:   
 	*/
@@ -824,7 +825,7 @@ BEGIN
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
-			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 THEN 1 ELSE 0 END)
+			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
 			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
 			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
@@ -1725,7 +1726,7 @@ BEGIN
 			,b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN b.bettype BETWEEN 81 AND 120 THEN 81
+				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
@@ -1734,14 +1735,14 @@ BEGIN
 			INNER JOIN #BetDelete tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE tmp.Bettype BETWEEN 1101 AND 1199
-			OR b.bettype BETWEEN 81 AND 120
+			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
 			OR b.bettype BETWEEN 1201 AND 1299
 			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN b.bettype BETWEEN 81 AND 120 THEN 81
+				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120THEN 81
 				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
@@ -2345,7 +2346,7 @@ BEGIN
 			,b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN tmp.Bettype BETWEEN 81 AND 120 THEN 81
+				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
@@ -2354,14 +2355,14 @@ BEGIN
 			INNER JOIN #BetDelete tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE tmp.Bettype BETWEEN 1101 AND 1199
-			OR tmp.bettype BETWEEN 81 AND 120
+			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
 			OR tmp.Bettype BETWEEN 1201 AND 1299
 			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
-				WHEN tmp.Bettype BETWEEN 81 AND 120 THEN 81
+				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
