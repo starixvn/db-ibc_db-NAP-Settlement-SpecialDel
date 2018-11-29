@@ -11,7 +11,6 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
-		
 	Param's Explanation:  
 		   
 		@transIds = '<root>
