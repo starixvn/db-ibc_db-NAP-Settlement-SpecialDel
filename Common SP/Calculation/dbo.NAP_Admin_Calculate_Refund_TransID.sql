@@ -12,7 +12,7 @@ AS
         
 */
 BEGIN
-    SET NOCOUNT ON
+	SET NOCOUNT ON
 
     -----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 

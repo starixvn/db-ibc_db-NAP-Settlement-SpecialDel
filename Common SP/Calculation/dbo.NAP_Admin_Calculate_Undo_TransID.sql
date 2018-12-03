@@ -16,7 +16,7 @@ AS
 */ 
 BEGIN
 	SET NOCOUNT ON
-	 
+	
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
@@ -34,6 +34,7 @@ BEGIN
 			RETURN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
+	
 	
     DECLARE @tempTrans TABLE (TransID BIGINT)
     DECLARE @handle INT
