@@ -15,13 +15,34 @@ AS
 		- 20161222@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 		- 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
+		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		
     Param's Explanation:
         
 */
 BEGIN
 	SET NOCOUNT ON;
-	
+
+	DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+			,@AllowUndo			BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+			,@AllowUndo			= @AllowUndo		OUTPUT
+
+		IF @action = 'CAL-INST' AND @AllowCalculation = 0
+			RETURN
+
+		IF @action = 'UNDO-INST' AND @AllowUndo = 0
+			RETURN
+	END
+
 	DECLARE @xmlInstantTicket 	XML
 		, @commWinRate 			SMALLMONEY
         , @commLostRate 		SMALLMONEY
