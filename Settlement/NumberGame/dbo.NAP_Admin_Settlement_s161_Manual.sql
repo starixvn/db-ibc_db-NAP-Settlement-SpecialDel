@@ -1,4 +1,5 @@
-CREATE PROCEDURE [NAP_Admin_Settlement_s161_Manual]
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [NAP_Admin_Settlement_s161_Manual]
 	@MatchId int,
 	@FirstBall tinyint = NULL, --  means N/A
 	@SecondBall tinyint = NULL, --  means N/A
@@ -15,7 +16,7 @@ AS
 	DB: DBTXN/BODB02
 	Orignal: Admin_Settlement_s161_Manual
 	
-	Revisions:
+	Revisions: 
 	
 	Param's Explanation:
 		
@@ -199,11 +200,3 @@ END
 
 
 GO
-
-GRANT EXECUTE ON [NAP_Admin_Settlement_s161_Manual] TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION ON [NAP_Admin_Settlement_s161_Manual] TO [vnteam] AS [dbo]
-GO
-
-
