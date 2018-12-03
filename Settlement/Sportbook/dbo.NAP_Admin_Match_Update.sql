@@ -50,6 +50,7 @@ AS
         - 20171011@Kathy: Correct GoalRecord value when do instant + cal HT [Redmine:#81308]
         - 20171212@Kathy: Change on Refund page [Redmine:#86890]
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+	- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 
     Parameters Explanation:
 
