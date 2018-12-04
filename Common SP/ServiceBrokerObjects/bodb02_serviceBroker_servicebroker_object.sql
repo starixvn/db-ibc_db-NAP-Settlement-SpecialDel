@@ -31,9 +31,12 @@ IF EXISTS (SELECT TOP 1 1
 	DROP MESSAGE TYPE MessageType_Settlement_OtherSports
 GO
 CREATE MESSAGE TYPE [MessageType_Settlement_OtherSports] AUTHORIZATION [dbo] VALIDATION = NONE
+
+--CREATE MESSAGE TYPE [//Message/EndOfStream] AUTHORIZATION [dbo] VALIDATION = NONE
 GO
 CREATE CONTRACT [Contract_Settlement_OtherSports] AUTHORIZATION [dbo] (
-	[MessageType_Settlement_OtherSports] SENT BY ANY
+	[MessageType_Settlement_OtherSports] SENT BY ANY,
+	[//Message/EndOfStream] SENT BY ANY
 )
 GO
 CREATE QUEUE [dbo].[Queue_Settlement_OtherSports] WITH STATUS = ON , RETENTION = OFF , ACTIVATION (  STATUS = ON , PROCEDURE_NAME = [sb].[SBQueue_Settlement_OtherSports] , MAX_QUEUE_READERS = 1 , EXECUTE AS N'dbo'  ), POISON_MESSAGE_HANDLING (STATUS = ON) 
