@@ -7,7 +7,6 @@ AS
     Date: 20180801
     Task: Refund for esport
     DB: DBTXN/BODB02
-    
     Revisions:
     	- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 	- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
@@ -58,6 +57,5 @@ BEGIN
 				    ,statuswinlost = 0
 	FROM @tempTrans sr
         INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
-        
 END
 GO

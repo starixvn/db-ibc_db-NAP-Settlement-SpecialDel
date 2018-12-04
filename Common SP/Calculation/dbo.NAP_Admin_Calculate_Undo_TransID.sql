@@ -17,6 +17,7 @@ AS
 */ 
 BEGIN
 	SET NOCOUNT ON
+	 
 	
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
@@ -39,6 +40,7 @@ BEGIN
     DECLARE @tempTrans TABLE (TransID BIGINT)
     DECLARE @handle INT
     
+
     ---parse XML
     EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
     INSERT INTO @tempTrans(TransID)

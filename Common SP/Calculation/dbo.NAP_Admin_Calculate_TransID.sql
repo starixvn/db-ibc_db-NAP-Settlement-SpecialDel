@@ -43,24 +43,8 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
+
 	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT)
-	DECLARE @ServerName			SYSNAME 
-			,@AllowCalculation	BIT
-
-	SET @ServerName = @@SERVERNAME
-
-	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
-	BEGIN
-		EXEC [dbo].[NAP_Set_ServerAction]
-			@ServerName			= @ServerName
-			,@AllowCalculation	= @AllowCalculation	OUTPUT
-
-		IF @AllowCalculation = 0
-			RETURN
-
-	END
-	-----------------------CHECK SERVER-----------------------------------------
-	
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -163,5 +147,7 @@ BEGIN
 		ruben=1
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
+
+	RETURN
 END
 GO
