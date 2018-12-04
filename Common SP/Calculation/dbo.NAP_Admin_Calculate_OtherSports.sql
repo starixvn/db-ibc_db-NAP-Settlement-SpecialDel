@@ -40,18 +40,15 @@ BEGIN
 		
 		IF @action LIKE 'CAL%'
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_TransID '
-			+'@transIds =' + '''' + @strTransIds + '''' + ','
-			+'@CalledByBrokerService = 1'
+			+'@transIds =' + '''' + @strTransIds + '''' 
 		
 		IF @action LIKE 'REFUND%'
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_Refund_TransID '
-			+'@transIds =' + '''' + @strTransIds + '''' + ','
-			+'@CalledByBrokerService = 1'
+			+'@transIds =' + '''' + @strTransIds + '''' 
 		
 		IF @action LIKE 'UNDO%'
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_Undo_TransID '
-			+'@transIds =' + '''' + @strTransIds + '''' + ','
-			+'@CalledByBrokerService = 1'
+			+'@transIds =' + '''' + @strTransIds + '''' 
 			
 		EXEC [sb].[SBInputMessage] @fromService = N'Service_Settlement_OtherSports'
 			,@toService = N'Service_Settlement_OtherSports'
