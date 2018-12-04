@@ -50,12 +50,12 @@ BEGIN
 		OUTPUT deleted.transid
 		INTO @tmpTransIDBatch(transid)	
 		
+		IF @@ROWCOUNT = 0 BREAK
+		
 		SET @strTransIds = (SELECT transid		AS '@t'
 						   FROM @tmpTransIDBatch
 						   FOR XML PATH('r'), ROOT( 'root' ))
-										   
-		IF @@ROWCOUNT = 0 BREAK
-
+		
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
 				@matchid			 = @matchid
 			   ,@action				 = 'REFUND'

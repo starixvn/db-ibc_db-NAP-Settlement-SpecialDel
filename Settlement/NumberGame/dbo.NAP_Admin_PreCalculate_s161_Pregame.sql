@@ -56,14 +56,14 @@ BEGIN
 		OUTPUT deleted.transid, deleted.modds, deleted.OddsType	
 		INTO @subtable(transid, modds, OddsType)	
 		
+		IF @@ROWCOUNT = 0 BREAK
+		
 		SET @strTransIds 		= (SELECT transid		AS '@t'
 											,modds		AS '@m'
 											,OddsType	AS '@ot'
 								   FROM @subtable
 								   FOR XML PATH('r'), ROOT( 'root' ))
-								   
-		IF @@ROWCOUNT = 0 BREAK
-
+		
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
 				@matchid			 = @matchid
 			   ,@action				 = 'CAL'
