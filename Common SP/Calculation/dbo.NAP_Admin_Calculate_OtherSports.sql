@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
 	@matchid						INT
 	,@action						VARCHAR(20)		= 'CAL'
 	,@strTransIds					VARCHAR(MAX)	= NULL
-	,@CalledByBrokerService			BIT				= 0
 AS
 /*
 	Created: 20181016@Vicky
@@ -19,7 +18,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @isUndo BIT
-
+	DECLARE @sMessage NVARCHAR(MAX)
+	
 	SET @isUndo = CASE 
 					WHEN @action LIKE 'UNDO%' THEN 1
 					ELSE 0
@@ -33,22 +33,24 @@ BEGIN
 			, 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
 			, 'SITDB052', 'SITDB053', 'SITDB054', 'SITDB06'
 			, 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02')
-        AND @CalledByBrokerService = 0
 	BEGIN
 		-- Just send a message to service broker and then let it to handle the rest.
-		DECLARE @sMessage NVARCHAR(MAX)
-		
+			
 		IF @action LIKE 'CAL%'
+		BEGIN
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_TransID '
 			+'@transIds =' + '''' + @strTransIds + '''' 
-		
-		IF @action LIKE 'REFUND%'
+		END
+		ELSE IF @action LIKE 'REFUND%'
+		BEGIN
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_Refund_TransID '
 			+'@transIds =' + '''' + @strTransIds + '''' 
-		
-		IF @action LIKE 'UNDO%'
+		END
+		ELSE IF @action LIKE 'UNDO%'
+		BEGIN
 			SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_Undo_TransID '
 			+'@transIds =' + '''' + @strTransIds + '''' 
+		END
 			
 		EXEC [sb].[SBInputMessage] @fromService = N'Service_Settlement_OtherSports'
 			,@toService = N'Service_Settlement_OtherSports'
