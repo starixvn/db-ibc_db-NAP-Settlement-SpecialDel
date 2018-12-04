@@ -21,7 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @modds MONEY
+	DECLARE @modds MONEY, @strTransIds VARCHAR(MAX)
 
 	DECLARE @subtable TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
@@ -52,11 +52,16 @@ BEGIN
 	BEGIN
 		DELETE @subtable
 
-
 		DELETE TOP (2000) #TempData
 		OUTPUT deleted.transid, deleted.modds, deleted.OddsType	
 		INTO @subtable(transid, modds, OddsType)	
-
+		
+		SET @strTransIds 		= (SELECT transid		AS '@t'
+											,modds		AS '@m'
+											,OddsType	AS '@ot'
+								   FROM @subtable
+								   FOR XML PATH('r'), ROOT( 'root' ))
+								   
 		IF @@ROWCOUNT = 0 BREAK
 
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
