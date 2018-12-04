@@ -10,7 +10,7 @@ AS
 	
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		
+        	- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		
 	Param's Explanation:  
 		   
@@ -25,7 +25,7 @@ AS
 BEGIN
 	
 	SET NOCOUNT ON
-
+	
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
@@ -45,6 +45,23 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT)
+	DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+
+		IF @AllowCalculation = 0
+			RETURN
+
+	END
+	-----------------------CHECK SERVER-----------------------------------------
+	
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -147,7 +164,5 @@ BEGIN
 		ruben=1
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
-
-	RETURN
 END
 GO
