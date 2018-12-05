@@ -40,8 +40,8 @@ BEGIN
 		-- Just send a message to service broker and then let it to handle the rest.
 			
 		SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_OtherSports @matchid = ' + CONVERT(NVARCHAR(50), @matchid) + ','
-			+ '@strTransIds = ' + '''' + @strTransIds + '''' +  ','
 			+ '@action = ' + '''' + @action + '''' +  ','
+			+ '@strTransIds = ' + '''' + @strTransIds + '''' +  ','
 			+ '@CalledByBrokerService = 1 '
 			
 		EXEC [sb].[SBInputMessage] @fromService = N'Service_Settlement_OtherSports'
