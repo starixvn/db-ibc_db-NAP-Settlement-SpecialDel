@@ -10,6 +10,7 @@ AS
 		- 20170314@Kathy: Not allow to process Auto Payout HT/FT if keyscore calculated HT/FT manually [Redmine:#73218]
 		- 20170817@Kathy: Get LeagueId [Redmine:#80704]
 		- 20181002@Kathy: get SettlementStatus [Redmine:#102028]
+		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 	Param's Explanation:
  
 */
@@ -22,7 +23,7 @@ BEGIN
 	VALUES(1) --half time
 		, (2) --full time
 
-	SELECT MatchId, HomeValue, AwayValue, TypeId, IsUndecided, IsPending, IsHalfTimeConfirmed
+	SELECT MatchId, HomeValue, AwayValue, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
 	FROM (
 		SELECT m.matchid AS MatchId
@@ -33,8 +34,6 @@ BEGIN
 				WHEN mr.ConfirmFT > 0 AND f.typeId = 2 THEN m.finalawayscore
 				ELSE NULL END AS AwayValue
 			, f.TypeId
-			, mr.isUndecided AS IsUndecided
-			, mr.isPending AS IsPending
 			, CASE WHEN f.TypeId = 1 THEN mr.ConfirmHT
 					WHEN f.TypeId = 2 THEN mr.ConfirmFT
 					ELSE 0 END AS IsConfirmed
@@ -45,7 +44,7 @@ BEGIN
 			, mr.IsHTCal AS IsHalfTimeCalculated
 			, m.kickofftime
 			, l.leagueid
-			,m.SettlementStatus
+			, m.SettlementStatus
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
