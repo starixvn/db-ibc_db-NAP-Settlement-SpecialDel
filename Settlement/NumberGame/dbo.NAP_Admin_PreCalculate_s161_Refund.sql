@@ -20,12 +20,12 @@ BEGIN
 
 	DECLARE @strTransIds VARCHAR(MAX)
 	
-	CREATE TABLE #TempData (TransID BIGINT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT)
+	CREATE TABLE #TempData_NG_Refund (TransID BIGINT)
+	DECLARE @tmpTransIDBatch_NG_Refund TABLE (TransID BIGINT)
 		  					
 	IF @action = 'Refund-FT'
 	BEGIN
-		INSERT INTO #TempData(TransID)
+		INSERT INTO #TempData_NG_Refund(TransID)
   		SELECT transid
   		FROM bettrans WITH (NOLOCK) 
   		WHERE matchid = @matchid 
@@ -34,7 +34,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO #TempData(TransID)
+		INSERT INTO #TempData_NG_Refund(TransID)
   		SELECT transid
   		FROM bettrans WITH (NOLOCK) 
   		WHERE matchid = @matchid 
@@ -44,16 +44,16 @@ BEGIN
 	
 	WHILE (1 = 1)
 	BEGIN
-		DELETE @tmpTransIDBatch
+		DELETE @tmpTransIDBatch_NG_Refund
 
-		DELETE TOP (2000) #TempData
+		DELETE TOP (2000) #TempData_NG_Refund
 		OUTPUT deleted.transid
-		INTO @tmpTransIDBatch(transid)	
+		INTO @tmpTransIDBatch_NG_Refund(transid)	
 		
 		IF @@ROWCOUNT = 0 BREAK
 		
 		SET @strTransIds = (SELECT transid		AS '@t'
-						   FROM @tmpTransIDBatch
+						   FROM @tmpTransIDBatch_NG_Refund
 						   FOR XML PATH('r'), ROOT( 'root' ))
 		
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
@@ -62,7 +62,7 @@ BEGIN
 			   ,@strTransIds		 = @strTransIds
 	END
 	
-	DROP TABLE #TempData
+	DROP TABLE #TempData_NG_Refund
 	
 END
 GO

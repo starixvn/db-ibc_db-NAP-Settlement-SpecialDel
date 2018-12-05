@@ -21,21 +21,20 @@ BEGIN
 	DECLARE @modds MONEY
 	DECLARE  @strTransIds VARCHAR(MAX)
 		
-	DECLARE @subtable TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
+	DECLARE @subtable_CAL_Live TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
 	SELECT transid, modds, betteam, hdp1, bettype, betid, CASE WHEN bettype IN (89,90) THEN 1 ELSE 0 END AS OddsType 
-	INTO #TempData				
+	INTO #TempData_CAL_Live				
 	FROM dbo.bettrans WITH(ROWLOCK)	
 	WHERE matchid = @matchid 
 		AND bettype IN (85, 86, 87, 89, 90) 
 		AND liveindicator = 1 
 		AND statusID NOT IN (101, 102) -- VOID, REJECT
 		AND livehomescore + liveawayscore + CASE WHEN bettype = 87 THEN 2 ELSE 1 END = @DrawSeq
-	
 
 	IF @@ROWCOUNT = 0 RETURN
 		
-	UPDATE #TempData
+	UPDATE #TempData_CAL_Live
 	SET @modds = CASE
 			WHEN bettype = 85 AND betteam = N'h' AND @Number >= 38   THEN 1
 			WHEN bettype = 85 AND betteam = N'a' AND @Number <= 37   THEN 1
@@ -58,18 +57,18 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		DELETE @subtable
+		DELETE @subtable_CAL_Live
 
-		DELETE TOP (2000) #TempData
+		DELETE TOP (2000) #TempData_CAL_Live
 		OUTPUT deleted.transid, deleted.modds, deleted.OddsType	
-		INTO @subtable(transid, modds, OddsType )	
+		INTO @subtable_CAL_Live(transid, modds, OddsType )	
 		
 		IF @@ROWCOUNT = 0 BREAK
 		
 		SET @strTransIds 		= (SELECT transid		AS '@t'
 											,modds		AS '@m'
 											,OddsType	AS '@ot'
-								   FROM @subtable
+								   FROM @subtable_CAL_Live
 								   FOR XML PATH('r'), ROOT( 'root' ))
 								   
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
@@ -78,7 +77,7 @@ BEGIN
 			   ,@strTransIds		 = @strTransIds
 	END
 
-	DROP TABLE #TempData
+	DROP TABLE #TempData_CAL_Live
 END
 GO
 

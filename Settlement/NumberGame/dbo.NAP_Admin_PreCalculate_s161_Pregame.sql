@@ -23,10 +23,10 @@ BEGIN
 
 	DECLARE @modds MONEY, @strTransIds VARCHAR(MAX)
 
-	DECLARE @subtable TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
+	DECLARE @subtable_CAL_Deadball TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
 	SELECT transid, modds, betteam, hdp1, bettype, CASE WHEN bettype IN (90) THEN 1 ELSE 0 END AS OddsType 
-	INTO #TempData				
+	INTO #TempData_CAL_Deadball
 	FROM dbo.bettrans WITH(ROWLOCK)		
 	WHERE matchid = @MatchId
 		AND bettype = @BetType
@@ -35,7 +35,7 @@ BEGIN
 
 	IF @@ROWCOUNT = 0 RETURN
 
-	UPDATE #TempData
+	UPDATE #TempData_CAL_Deadball
 	SET @modds = CASE
 			WHEN bettype = 90 AND HDP1 = 1 AND CEILING(@FirstBallNo/5.0) = betteam THEN 1 
 			WHEN bettype = 90 AND HDP1 = 2 AND CEILING(@FirstBallNo/15.0) = betteam THEN 1 
@@ -50,28 +50,28 @@ BEGIN
 		
 	WHILE (1 = 1)
 	BEGIN
-		DELETE @subtable
+		DELETE @subtable_CAL_Deadball
 
-		DELETE TOP (2000) #TempData
+		DELETE TOP (2000) #TempData_CAL_Deadball
 		OUTPUT deleted.transid, deleted.modds, deleted.OddsType	
-		INTO @subtable(transid, modds, OddsType)	
+		INTO @subtable_CAL_Deadball(transid, modds, OddsType)	
 		
 		IF @@ROWCOUNT = 0 BREAK
 		
 		SET @strTransIds 		= (SELECT transid		AS '@t'
 											,modds		AS '@m'
 											,OddsType	AS '@ot'
-								   FROM @subtable
+								   FROM @subtable_CAL_Deadball
 								   FOR XML PATH('r'), ROOT( 'root' ))
 		
 		EXEC dbo.NAP_Admin_Calculate_OtherSports
 				@matchid			 = @matchid
 			   ,@action				 = 'CAL'
 			   ,@strTransIds		 = @strTransIds
+			   
 	END
 
-	DROP TABLE #TempData
-		
+	DROP TABLE #TempData_CAL_Deadball
 	-- LOG
 	DECLARE	@LogData VARCHAR(1000)
 	SET @LogData = 'NAP_Admin_PreCalculate_s161_Pregame MatchID:' + CONVERT(VARCHAR(20),@MatchId) + ' Bettype:' + CONVERT(VARCHAR(20),@BetType) +' Betteam:' +@BetTeam
