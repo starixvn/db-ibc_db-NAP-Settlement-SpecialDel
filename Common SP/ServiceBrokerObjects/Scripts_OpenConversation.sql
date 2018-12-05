@@ -2,7 +2,7 @@
 
 	Created: 20181203@Helen
 	Task: apply service broker for othersports, first one will be Number Game - https://nexdev.net/issues/101611
-	DB: bodb02 @ DBLICAPI02/DBTP/DB05/DB052/DB053/DB054/DB06/DBLICAPI
+	DB: bodb02 @ DBLICAPI02/DBTP/DB05/DB052/DB053/DB054/DB06/DBLICAPI/DB0042
 	
 
 */
