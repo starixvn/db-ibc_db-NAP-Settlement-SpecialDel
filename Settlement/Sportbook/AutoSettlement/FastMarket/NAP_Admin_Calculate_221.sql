@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Calculate_221 @matchid INT
 	, @result VARCHAR(MAX)
 	, @action VARCHAR(20)
@@ -12,6 +12,7 @@ AS
     Revisions:
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
+		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 
     Param's Explanation:
 
@@ -19,7 +20,30 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
+	DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+			,@AllowUndo			BIT
+			,@AllowRefund		BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+			,@AllowUndo			= @AllowUndo		OUTPUT
+			,@AllowRefund		= @AllowRefund		OUTPUT
+
+		IF @action = 'CAL' AND @AllowCalculation = 0
+			RETURN
+
+		IF @action = 'UNDO' AND @AllowUndo = 0
+			RETURN
+
+		IF @action = 'REFUND' AND @AllowRefund = 0
+			RETURN
+	END
 	    
     DECLARE @modds			MONEY
 			,@commWinRate	SMALLMONEY

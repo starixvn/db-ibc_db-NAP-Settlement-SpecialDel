@@ -23,6 +23,7 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
+	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
@@ -42,6 +43,7 @@ BEGIN
 		IF @action = 'UNDO-INST' AND @AllowUndo = 0
 			RETURN
 	END
+	-- END CHECK
 
 	DECLARE @xmlInstantTicket 	XML
 		, @commWinRate 			SMALLMONEY

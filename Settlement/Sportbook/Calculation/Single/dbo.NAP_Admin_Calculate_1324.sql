@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_1324] 
      @matchid						INT
 	,@bettype						SMALLINT
@@ -23,21 +23,37 @@ AS
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
-		
+		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		
 */
 BEGIN
-	IF @betcount = 0 AND @@SERVERNAME NOT LIKE N'DBIOM%' RETURN
-
+	
 	SET NOCOUNT ON
+
+	-- CHECK SERVER BEFORE CALCULATING
+	DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+
+	SET @ServerName = @@SERVERNAME
+
+    IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+
+		IF @AllowCalculation = 0
+			RETURN
+	END
+	-- END CHECK
 
 	DECLARE @modds			MONEY
 		,@commWinRate		SMALLMONEY
 		,@commLostRate		SMALLMONEY
 		,@RemoteCount		INT
 		,@isAutoRefundGame	BIT
-
-	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 
 	UPDATE dbo.bettrans WITH (ROWLOCK, UPDLOCK)
 	SET 

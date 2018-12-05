@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_8] 
 	@matchid 						INT
     ,@bettype 						SMALLINT
@@ -37,17 +37,33 @@ AS
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
+		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
         + @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
 */
 BEGIN
-    IF @betcount = 0 AND @@SERVERNAME NOT LIKE N'DBIOM%' RETURN
-
     SET NOCOUNT ON
 
-    IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
+	-- CHECK SERVER BEFORE CALCULATING
+    DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+
+    IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+
+		IF @AllowCalculation = 0
+			RETURN
+	END
+	-- END CHECK
 
     DECLARE @modds MONEY
         ,@commWinRate SMALLMONEY

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -24,12 +24,12 @@ AS
 			- 20170404@Bobby: 73404 - Integrate CashOut bettypes
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
 			
 		Parameter's Explanation:
 	*/
 BEGIN
 	SET NOCOUNT ON 
-	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
 	
 	DECLARE @tmpBettype TABLE(bettype INT)
  
