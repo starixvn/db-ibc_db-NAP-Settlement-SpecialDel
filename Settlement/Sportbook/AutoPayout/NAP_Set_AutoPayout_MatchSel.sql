@@ -556,7 +556,7 @@ BEGIN
 					INNER JOIN DBPRO.bodb02.dbo.ProviderResultDetail prd WITH(NOLOCK)
 					ON m.matchid = prd.matchID
 				WHERE prd.TypeId IN (101, 102)
-					AND m.SettlementStatus & 3 = 0
+					AND m.SettlementStatus & 19 = 0
 					AND prd.SourceID = 100 --#86964
 			) AS t
 			WHERE RowIdx IN (1, 2)
