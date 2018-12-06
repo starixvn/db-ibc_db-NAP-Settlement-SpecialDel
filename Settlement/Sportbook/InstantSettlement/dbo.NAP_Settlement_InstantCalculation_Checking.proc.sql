@@ -105,7 +105,7 @@ BEGIN
 		, @leagueid   		= m.leagueid
 		--, @isPending		= ISNULL(mr.isPending, 0)
 		--, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
-		, @SettlementStatus	= ISNULL(m.SettlementStatus,0)
+		, @SettlementStatus	= ISNULL(m.SettlementStatus, 0)
 		, @isCalculatedHT   = ISNULL(mr.IsHTCal, 0)
 		, @hthomescore		= ISNULL(hthomescore, 0)
 		, @htawayscore		= ISNULL(htawayscore, 0)
