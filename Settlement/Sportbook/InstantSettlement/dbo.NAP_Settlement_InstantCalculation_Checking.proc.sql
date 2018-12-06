@@ -20,6 +20,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
+		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 
 		
 	Param's Explanation:
@@ -35,8 +36,9 @@ BEGIN
 		, @totalGoal		TINYINT
 		, @totalGoalCheck	TINYINT
 		, @goalRecordCheck	VARCHAR(50)
-		, @isPending		BIT
-		, @isUnDecided		BIT
+		--, @isPending		BIT
+		--, @isUnDecided		BIT
+		, @SettlementStatus	TINYINT
 		, @isCalculatedHT	BIT
 		, @instantCheck		BIT
 		, @CalculationType	TINYINT
@@ -101,8 +103,9 @@ BEGIN
     SELECT 
 		@matchcode 			= m.matchcode
 		, @leagueid   		= m.leagueid
-		, @isPending		= ISNULL(mr.isPending, 0)
-		, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
+		--, @isPending		= ISNULL(mr.isPending, 0)
+		--, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
+		, @SettlementStatus	= ISNULL(m.SettlementStatus,0)
 		, @isCalculatedHT   = ISNULL(mr.IsHTCal, 0)
 		, @hthomescore		= ISNULL(hthomescore, 0)
 		, @htawayscore		= ISNULL(htawayscore, 0)
@@ -119,8 +122,7 @@ BEGIN
 	
 	IF (@matchcode 		IS NULL --does not exist match
 		OR CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
-		OR @isPending 	= 1
-		OR @isUnDecided = 1
+		OR @SettlementStatus & 19 	= 1
 		OR (@Mode = 'INST-FT' AND @isCalculatedHT = 0)
 		OR (@hScore > @livehomescore OR  @aScore > @liveawayscore)
 	)
