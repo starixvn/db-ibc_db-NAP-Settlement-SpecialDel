@@ -23,7 +23,7 @@ BEGIN
 	VALUES(1) --half time
 		, (2) --full time
 
-	SELECT MatchId, HomeValue, AwayValue, TypeId, SettlementStatus, IsHalfTimeConfirmed
+	SELECT MatchId, HomeValue, AwayValue, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
 	FROM (
 		SELECT m.matchid AS MatchId
@@ -34,7 +34,6 @@ BEGIN
 				WHEN mr.ConfirmFT > 0 AND f.typeId = 2 THEN m.finalawayscore
 				ELSE NULL END AS AwayValue
 			, f.TypeId
-			, m.SettlementStatus
 			, CASE WHEN f.TypeId = 1 THEN mr.ConfirmHT
 					WHEN f.TypeId = 2 THEN mr.ConfirmFT
 					ELSE 0 END AS IsConfirmed
