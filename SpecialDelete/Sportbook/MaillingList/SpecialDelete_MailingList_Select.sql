@@ -1,5 +1,6 @@
-/*<info serverAlias="DBOIC-bodb_OIC" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[BetDeletionReport_MailingList_Select]
+/*<info serverAlias="DBOIC-bodb_OIC" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[SpecialDelete_MailingList_Select]
+	@CategoryId		TINYINT = 10
 AS
 
 /*
@@ -10,13 +11,15 @@ AS
 	Revisions:   
 		- 20180919@Alan: Get Mailing List From OIC [88509]
 		- 20181009@Alan: Exclude Status Soft Launch and Dont add CcList from EmailConfiguration [102917]
+
+	Explanation's Param:
+		- @CategoryId:
+			+ 10: Bet Deletion Report
+			+ 7: Abnormal Bet
 */
 
 BEGIN 
 SET NOCOUNT ON 
-
-	DECLARE @FuncID INT = 287
-
 	SELECT
 		L.LicenseeId AS siteid
 	   ,L.RegisteredLicenseeName AS site
@@ -69,7 +72,7 @@ SET NOCOUNT ON
 
 	WHERE L.LicenseeStatusId = 3
 	AND L.RegisteredLicenseeName IS NOT NULL
-	AND LCA.CategoryId = 10
+	AND LCA.CategoryId = @CategoryId
 	ORDER BY site ASC	
 SET NOCOUNT OFF
 END

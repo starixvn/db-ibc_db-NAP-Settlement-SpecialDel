@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 SET QUOTED_IDENTIFIER ON
 GO
 SET ANSI_NULLS ON
@@ -400,8 +400,8 @@ BEGIN
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
 								AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-				AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-					WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
 					WHEN 1 THEN 0
 					WHEN 2 THEN 1
 					END
@@ -462,8 +462,8 @@ BEGIN
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
 									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-				AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-					WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
 					WHEN 1 THEN 0
 					WHEN 2 THEN 1
 					END
@@ -532,8 +532,8 @@ BEGIN
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
 									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-				AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-					WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
 					WHEN 1 THEN 0
 					WHEN 2 THEN 1
 					END
