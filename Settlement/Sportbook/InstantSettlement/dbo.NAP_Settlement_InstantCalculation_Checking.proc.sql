@@ -122,7 +122,7 @@ BEGIN
 	
 	IF (@matchcode 		IS NULL --does not exist match
 		OR CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
-		OR @SettlementStatus & 19 	= 1
+		OR @SettlementStatus & 19 	> 0
 		OR (@Mode = 'INST-FT' AND @isCalculatedHT = 0)
 		OR (@hScore > @livehomescore OR  @aScore > @liveawayscore)
 	)
