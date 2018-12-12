@@ -1,0 +1,27 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_MessageTemplate_SubIssueType_Select]
+	  
+AS
+/*	Created by:: Alan
+	Date 20181113
+	Task: #101083 - Support Message Template
+	DB: DBTXN.bodb02
+	
+	Revisions: 
+		- 20181113@Alan: Select Sub Issue Type [101083]
+	
+	Param's explanation:		
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	BEGIN
+		SELECT 
+			SubIssueTypeId, 
+			SubIssueTypeName,
+			IssueTypeId
+		FROM [dbo].[TicketVoiding_SubIssueType] WITH(NOLOCK)
+		ORDER BY SubIssueTypeId
+	END
+END
+GO
