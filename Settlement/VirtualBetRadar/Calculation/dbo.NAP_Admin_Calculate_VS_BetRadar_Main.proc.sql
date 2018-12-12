@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]	
 	@matchid 		INT				= 0
 	,@SportType		INT				= 0
@@ -22,6 +22,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
 		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
+		- 20181212@Alan: Integrate Betradar VS phase 3 [106158]
 		
 	Param's Explanation:
 		- ? @Mode:
@@ -261,7 +262,7 @@ BEGIN
 					, f.CalMode
 					, b.transdesc
 				) AS ods
-			WHERE	mr.sporttype IN (190,191,192)
+			WHERE	mr.sporttype IN (190,191,192,194)
 					AND b.statusID NOT IN (101,102) --void/reject	
 			
 			IF EXISTS (SELECT TOP 1 * FROM #tblMatchResult WITH (NOLOCK) WHERE sporttype = 193)
