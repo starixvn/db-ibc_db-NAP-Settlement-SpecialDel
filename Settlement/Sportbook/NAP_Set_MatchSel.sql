@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSel] 
 	@FromDate DATETIME
 	,@ToDate DATETIME
@@ -37,6 +37,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20180731@Vicky: e-sport 2.0 [Redmine: #95874]
       
  Param explanation:  
 	@MatchCode: match code
@@ -58,6 +59,8 @@ BEGIN
 		,@EndTime	DATETIME
 		,@SqlCommand VARCHAR(MAX)
 		,@SettlementStatus TINYINT
+		,@isSettingByProfile BIT = 0
+		,@existSettingEarly BIT = 0
 	
 	SET @StartTime = GETDATE()
 	
@@ -65,6 +68,16 @@ BEGIN
 		,@LeagueID = ISNULL(@LeagueID, 0)
 		,@filterBy = ISNULL(@filterBy, 0)
 
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	BEGIN
+		SELECT @isSettingByProfile = 1
+		IF EXISTS (SELECT TOP 1 1 FROM SettlementSpecialBettypeProfile WITH (NOLOCK) WHERE sporttype = @sporttype AND SettleType = 'EAR')
+		BEGIN
+			SET @existSettingEarly = 1
+		END
+	END
+	
+	
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF (@matchcode <> '')
 	BEGIN
@@ -520,7 +533,7 @@ BEGIN
 			DELETE FROM	#matchList WHERE IsRunningAutoBettypes = 0 AND IsRunningAutoBettypesParlay = 0 
 		END
 		
-		ELSE IF (@sporttype = 2)
+		ELSE IF (@sporttype = 2 OR @existSettingEarly = 1)
 		BEGIN
 			DELETE FROM #matchList
 			WHERE 1 = CASE
@@ -529,6 +542,7 @@ BEGIN
 							ELSE 0
 					  END
 		END			
+		
 	END
 
 	SELECT	m.HalfTimeHomeScore
@@ -602,19 +616,35 @@ BEGIN
 		, m.matchcode			
 
 	-- Get TENNIS, BASKETBALL RESULT 
-	SELECT	MatchId
-			, ResourceId
-			, HomeValue
-			, AwayValue
-			, ResultStatusID
-			, SettlementStatusID
-	FROM	DBPRO.bodb02.dbo.[ResultDetail] WITH (NOLOCK) 
-	WHERE	@Sporttype IN (0,2,5)
-			AND (ResourceId LIKE '0[0-5]' -- Tennis
-				OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-			)
-			AND MatchID IN (SELECT MatchID FROM #matchList)
+	
 
+	IF @isSettingByProfile = 1
+    BEGIN
+	    DECLARE @matchidList VARCHAR(MAX) = ''
+	    
+	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	    FROM #matchList
+	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
+					@matchidList = @matchidList
+					,@Sporttype = @Sporttype   
+    END
+    ELSE
+    BEGIN
+		SELECT	MatchId
+				, ResourceId
+				, HomeValue
+				, AwayValue
+				, ResultStatusID
+				, SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.[ResultDetail] WITH (NOLOCK) 
+		WHERE	@Sporttype IN (0,2,5)
+				AND (ResourceId LIKE '0[0-5]' -- Tennis
+					OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
+				)
+				AND MatchID IN (SELECT MatchID FROM #matchList)
+	END
 	DROP TABLE #matchList
 	
 	SET @EndTime = GETDATE()

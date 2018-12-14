@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -21,7 +21,7 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
-		
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 
 	Param's Explanation:		
 		
@@ -51,6 +51,7 @@ BEGIN
 		,@minRefno				BIGINT
 		,@maxRefno				BIGINT
 		,@IsBetRadar			BIT
+		,@IsSettleBySetting 	BIT			= 0
 	
 	DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
 
@@ -111,6 +112,11 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 	
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+    BEGIN
+        SET @IsSettleBySetting = 1
+    END
+    
 	IF @action <> 'UNDO' 
 	BEGIN		
 		SELECT	TOP (1) @ErrCode = 1000002
@@ -165,6 +171,7 @@ BEGIN
 			,@str_resultDetail = @resultDetail_bb OUTPUT
 	END
 	
+	
 	BEGIN TRY
 	
 		SELECT TOP(1) @IsBetRadar = 1
@@ -188,7 +195,17 @@ BEGIN
 		END	
 		
 		--CHECK for CAL fisrt
-		IF(
+		IF @IsSettleBySetting = 1
+		BEGIN
+			
+			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
+                @matchid 			= @matchid
+                ,@matchdate 		= @matchdate
+                ,@mode 				= 'CAL'
+                ,@SportType 		= @SportType
+                ,@ticketCount		= @ticketCountCAL OUTPUT
+		END 
+		ELSE IF(
 			@action IN ('REFUND-HT', 'ABANDONED-2H','REFUND-FT')
 		) OR (@SportType IN (2,5) AND @Action = 'REFUND')
 		BEGIN
@@ -243,14 +260,26 @@ BEGIN
 		END
 
 		--REFUND the REST
-		EXEC dbo.NAP_Admin_Settlement_Parlay_Refund
-			@MatchId			= @MatchId
-			,@matchdate			= @matchdate
-			,@mode				= @Action
-			,@IsRefundHT		= @IsRefundHT
-			,@resultDetail_bb	= @resultDetail_bb
-			,@resultDetail_ss	= @resultDetail_ss
-			,@ticketCount		= @ticketCountREFUND OUTPUT
+		IF @IsSettleBySetting = 1
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
+                @matchid 			= @matchid
+                ,@matchdate 		= @matchdate
+                ,@mode 				= 'REFUND'
+                ,@SportType 		= @SportType
+                ,@ticketCount		= @ticketCountREFUND OUTPUT
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_Parlay_Refund
+				@MatchId			= @MatchId
+				,@matchdate			= @matchdate
+				,@mode				= @Action
+				,@IsRefundHT		= @IsRefundHT
+				,@resultDetail_bb	= @resultDetail_bb
+				,@resultDetail_ss	= @resultDetail_ss
+				,@ticketCount		= @ticketCountREFUND OUTPUT
+		END
 		
 		/*
 		SELECT @ticketCountBetRadar	AS TC_BetRadar
@@ -482,5 +511,4 @@ BEGIN
 	RETURN
 END	
 GO 
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Refund_MP] TO [bodbAdminNet]
-GO
+

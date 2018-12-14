@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update]
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update]
   @Command						VARCHAR(100) 
  ,@MatchID						INT
  ,@HomeValue					VARCHAR(20)	= NULL		
@@ -31,6 +32,7 @@ AS
 	DB: DBPRO/bodb02 
 
 	Revision
+        - 20180803@Vicky: add header info [Redmine:#95874]
 
 	Param's Explanation: 
 		+ @HomeValue & @AwayValue : Match Result - ResourceID ='00'
@@ -465,6 +467,4 @@ BEGIN
 	/* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Result_Update] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Result_Update] TO [vnteam] AS [dbo]
+

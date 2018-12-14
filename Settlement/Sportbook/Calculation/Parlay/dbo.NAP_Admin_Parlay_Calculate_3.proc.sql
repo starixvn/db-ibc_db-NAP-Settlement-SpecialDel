@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
@@ -14,6 +14,7 @@ AS
     Revisions:        
 		- 20170609@Kathy: Early Settlement - BAIO [Redmine:#77835]
 		- 20170719@Kathy: Correct statuswinlost of refund [Redmine:#77835]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
     Param's Explanation:
         
@@ -147,6 +148,32 @@ BEGIN
 			INNER JOIN #parlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
+	END
+	
+	IF (@action IN ('UNDO'))
+	BEGIN
+		 --update bettransm
+	    UPDATE bm
+	    SET [status]        = 'running'
+	        ,statuswinlost  = 0
+	        ,ruben          = 0
+	        ,statusID       = 0
+	    OUTPUT INSERTED.transid
+				,INSERTED.refno
+				,INSERTED.statusID
+				,INSERTED.statuswinlost
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost)
+		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #parlayTicket t
+			ON bm.refno = t.refno AND bm.transid = t.transid        
+	          
+	    
+	    --update BetParlayDetail
+	    UPDATE pd
+	    SET statuswinlost   = 0
+	        ,statusID       = 0
+	    FROM dbo.BetParlayDetail pd WITH (ROWLOCK, UPDLOCK)
+	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno 
 	END
 	
 	DROP TABLE #parlayTicket;

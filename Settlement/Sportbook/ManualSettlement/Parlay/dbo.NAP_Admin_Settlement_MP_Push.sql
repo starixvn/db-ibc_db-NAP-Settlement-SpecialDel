@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -34,7 +34,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-		
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 	Param's Explanation:		
 		
 */
@@ -52,7 +52,14 @@ BEGIN
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
-	
+			
+	DECLARE @tblBettype TABLE ( matchid INT
+						  ,Sporttype SMALLINT
+						  ,Bettype SMALLINT
+						  ,Betcheck NVARCHAR(50)
+						  ,ResourceID VARCHAR(20)
+						 )
+						 
 	DECLARE @match TABLE ( matchid INT
 						  ,matchcode NVARCHAR(50)
 						  ,fth SMALLINT
@@ -89,7 +96,7 @@ BEGIN
 	DECLARE @tblFGLGMatch TABLE(matchid INT, matchcode NVARCHAR(50))
 	DECLARE @tblRunningAutoSettle TABLE (matchid INT)
 	
-	DECLARE @tblRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50))
+	DECLARE @tblRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50), OrdNo SMALLINT)
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
 	
 	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY)
@@ -228,6 +235,51 @@ BEGIN
 		GROUP BY c.matchid, c.QuarterX
 	END
 
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
+	BEGIN
+		DECLARE @sporttype SMALLINT
+		SELECT TOP 1 @sporttype = Sporttype FROM @match
+		
+		;WITH cteBetstatus
+		AS(
+			SELECT	bm.matchid
+					,bm.bettype
+					,bm.betcheck
+					,m.sporttype
+			FROM	@match m
+				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
+			WHERE bm.statusID = 0
+			GROUP BY bm.matchid, bm.bettype, bm.betcheck,m.sporttype
+		)
+		,cteResourceID
+		AS(
+			SELECT c.matchid
+					,f.ResourceID
+					,f.SettleType
+					,MAX(f.OrdNo) AS OrdNo
+			FROM	cteBetstatus c
+				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
+			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
+			GROUP BY c.matchid, f.ResourceID,f.SettleType
+		)
+			
+		INSERT INTO @tblRunningBAIO (matchid, QuarterX, OrdNo)
+		SELECT	c.matchid, COALESCE(sd.RoundName, 'Early Settle'), MAX(c.OrdNo)
+		FROM	cteResourceID c
+			OUTER  APPLY(
+	  			SELECT ResultStatusID
+	  			FROM DBPRO.bodb02.dbo.ResultDetailES rd WITH (NOLOCK) 
+	  			WHERE rd.ResourceID = c.ResourceID
+	  				AND rd.matchid = c.matchid
+	  		) AS rs
+			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON c.ResourceID = sd.ResourceID
+		WHERE	ISNULL(rs.ResultStatusId,'') <> 5
+		GROUP BY c.matchid, sd.RoundName--,c.OrdNo
+		--ORDER BY c.OrdNo
+
+	END
+	
 	IF EXISTS (SELECT 1
 				FROM @match
 				WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL ) AND @action <> 'UNDO'
@@ -256,6 +308,7 @@ BEGIN
 								+ m.matchcode +  '(' + STUFF((SELECT ',' + QuarterX 
 												FROM @tblRunningBAIO 
 												WHERE m.matchid = matchid 
+												ORDER BY OrdNo
 												FOR XML PATH('')),1,1,'') + ')' 
 								+ ',' 
 						
@@ -400,7 +453,4 @@ BEGIN
 	END
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_MP_Push] TO [bodbAdminNet]
-GO
-
 

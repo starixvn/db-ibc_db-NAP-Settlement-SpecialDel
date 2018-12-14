@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@matchid 			INT,
 	@command 			VARCHAR(5),
@@ -6,8 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@SelectedSet		VARCHAR(50) = NULL,
 	@SelectedSetCAL		VARCHAR(50) = NULL,
 	@SelectedSetREFUND	VARCHAR(50) = NULL,
-	@SelectedQuarter 	VARCHAR(50) = NULL
-
+	@SelectedQuarter 	VARCHAR(50) = NULL,
+	@IsFinalRound       BIT = 0
 WITH RECOMPILE
 /*  
 	Created: Kathy
@@ -25,6 +25,7 @@ WITH RECOMPILE
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]	
 		- 20170525@Kathy: Set calrefund = 1 when refund FT basketball  [Redmine:#77046]
 		- 20170901@Kathy: Update parlay info base on user action [Redmine:#82122]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 	Param's Explanation: 
 */
 AS
@@ -78,6 +79,7 @@ BEGIN
 	IF @command = 'F' AND ((@SelectedSet IS NULL AND @SelectedQuarter IS NULL)
 							OR @SelectedSet LIKE'%6%'
 							OR @SelectedQuarter LIKE '%FT%'
+							OR ISNULL(@IsFinalRound,0) = 1
 						)
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
@@ -112,7 +114,9 @@ BEGIN
 	-- [U]ndo settlement
 	IF @command = 'U' AND ((@SelectedSet IS NULL AND @SelectedQuarter IS NULL) 
 							OR @SelectedSet LIKE'%6%'
-							OR ISNULL(@SelectedQuarter,'') LIKE '%FT%')
+							OR ISNULL(@SelectedQuarter,'') LIKE '%FT%'
+							OR ISNULL(@IsFinalRound,0) = 1
+							)
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET IsHTCal					= CASE WHEN ISNULL(@SelectedQuarter,'') LIKE '%FT%' THEN IsHTCal ELSE 0 END

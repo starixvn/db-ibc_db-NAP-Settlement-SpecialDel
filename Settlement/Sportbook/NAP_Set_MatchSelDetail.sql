@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -54,6 +54,7 @@ AS
 		- 20170609@Kathy: Remove "early settled" bettypes from Calculation popup [Redmine:#77835]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20171201@Kathy: Remove the checkbox "Settle determined tickets" on Refund popup page [Redmine:#86890]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
 */
 BEGIN
@@ -188,7 +189,7 @@ BEGIN
 			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' THEN 1 ELSE 0 END) AS BetCountSet4
 			,SUM(CASE WHEN CAST(betid AS VARCHAR(20)) LIKE '805%' THEN 1 ELSE 0 END) AS BetCountSet5
 	FROM	dbo.bettrans b WITH(NOLOCK)
-			LEFT JOIN @tmpBettypes bt ON b.bettype = bt.bettype
+			--LEFT JOIN @tmpBettypes bt ON b.bettype = bt.bettype
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
 			AND 1 = CASE 
@@ -218,7 +219,7 @@ BEGIN
 			,0 AS BetCountSet4
 			,0 AS BetCountSet5
 	FROM	dbo.bettransm bm WITH(NOLOCK)
-			LEFT JOIN @tmpBettypes bt ON bm.bettype = bt.bettype
+			--LEFT JOIN @tmpBettypes bt ON bm.bettype = bt.bettype
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
 			AND 1 = CASE 

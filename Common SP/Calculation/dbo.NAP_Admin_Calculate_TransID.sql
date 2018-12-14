@@ -9,6 +9,7 @@ AS
 	DB: DBTRANS.BODB02
 	
 	Revisions:
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
 		
 	Param's Explanation:  
@@ -25,6 +26,24 @@ BEGIN
 	
 	SET NOCOUNT ON
 
+	-----------------------CHECK SERVER-----------------------------------------
+	DECLARE @ServerName			SYSNAME 
+			,@AllowCalculation	BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+
+		IF @AllowCalculation = 0
+			RETURN
+
+	END
+	-----------------------CHECK SERVER-----------------------------------------
+	
 	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT)
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY

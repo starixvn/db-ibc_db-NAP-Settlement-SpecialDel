@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 USE [bodb02]
 GO
 SET ANSI_NULLS ON
@@ -9,7 +9,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_UpdateSaveBet]
 	@action 			VARCHAR(20),
 	@matchid 			INT,
 	@SelectedSet 		VARCHAR(50)=NULL,
-	@SelectedQuarter 	VARCHAR(50) = NULL
+	@SelectedQuarter 	VARCHAR(50) = NULL,
+	@IsFinalRound       BIT        = NULL
 AS
 /*
 	Created: Kathy
@@ -21,10 +22,14 @@ AS
 	Revisions:
 		- 20141022@Jamie: Sporting Solution for Tennis [Redmine:#23034]
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 */
 BEGIN
 	SET NOCOUNT ON
-	IF @action = 'UNDO' AND ((@SelectedSet IS NULL OR @SelectedSet LIKE'%6%') OR ISNULL(@SelectedQuarter,'') LIKE '%FT%')
+	IF @action = 'UNDO' AND ((@SelectedSet IS NULL OR @SelectedSet LIKE'%6%')
+	                           OR ISNULL(@SelectedQuarter,'') LIKE '%FT%'
+	                           OR ISNULL(@IsFinalRound,0) = 1
+	                           )
 	BEGIN
 		-- RESET 'SaveBet' of DB06
 		DELETE FROM Save_Jobs WHERE matchid = @matchid
@@ -36,6 +41,3 @@ BEGIN
 END
 
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Match_UpdateSaveBet] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Match_UpdateSaveBet] TO [vnteam] AS [dbo]

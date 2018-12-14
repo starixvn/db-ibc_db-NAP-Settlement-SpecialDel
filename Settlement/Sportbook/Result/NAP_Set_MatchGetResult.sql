@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchGetResult] 
 	@Date DATETIME
 	,@LeagueID INT = 0
@@ -22,6 +22,7 @@ AS
 		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
 	Param explanation:  
 		@sporttype: show info of particular sport
@@ -40,6 +41,7 @@ BEGIN
 		,@xmlResults		XML
 		,@MaxMatchId		INT
 		,@SettlementStatus	TINYINT
+		,@isSettingByProfile BIT = 0
 
 	DECLARE @tmpMatchId TABLE (matchid INT, isMove BIT)
 		
@@ -80,6 +82,11 @@ BEGIN
 	SELECT BetType,GroupID
 	FROM dbo.f_Set_GetGroupBettypes()
 	WHERE IsFGLG = 1
+	
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	BEGIN
+		SELECT @isSettingByProfile = 1
+	END
 	
 	SELECT @eventstatus = CASE @statusid
 			WHEN 1 THEN 'running'
@@ -371,46 +378,84 @@ BEGIN
 			,betstatus
 			,matchcode  
 
-	-- Get TENNIS RESULT 
-	SELECT	DISTINCT MatchId
-			, CASE WHEN @Sporttype = 1 THEN '04'
-				   WHEN @Sporttype = 5 AND LEN(ResourceId) > 2 THEN '0101' 
-				   ELSE ResourceID END AS ResourceID 
-			, CASE WHEN @Sporttype = 1 THEN '0'
-				   WHEN @sporttype = 5 AND LEN(ResourceID) > 2 THEN '0' 
-				   ELSE HomeValue END AS HomeValue 
-			, CASE WHEN @Sporttype = 1 THEN '0'
-				   WHEN @Sporttype = 5 AND LEN(ResourceID) > 2 THEN '0' 
-				   ELSE AwayValue END AS AwayValue 
-			, CASE WHEN @Sporttype = 1 
-						OR (@Sporttype = 5 AND LEN(ResourceID) > 2)
-						OR (@Sporttype = 2 AND LEN(ResourceId) = 2 AND SettlementStatusID = 0)
-							THEN 4 
-				   ELSE SettlementStatusID END AS SettlementStatusID
-	FROM(
-			SELECT  MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
-			FROM	dbo.[ResultDetail] WITH (NOLOCK) 
-			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 0)
-			UNION ALL
-			SELECT	MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
-			FROM	dbo.ResultDetail14 WITH(NOLOCK)
-			WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
-		) r
-	WHERE	(@Sporttype IN (2, 5)
-				OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
-			))
-			AND 1 = CASE
-						WHEN @Sporttype = 2 THEN CASE
+	
+	-- Get TENNIS, ESport RESULT 
+	IF @isSettingByProfile = 1
+	BEGIN
+		IF @sporttype = 43
+		BEGIN
+			SELECT    rs.MatchId
+	                , rs.ResourceId
+	                , rs.HomeValue
+	                , rs.AwayValue
+	                , CASE WHEN (@Sporttype = 43 AND LEN(ResourceId) = 2 AND SettlementStatusID = 0) THEN 4 
+					   ELSE SettlementStatusID END AS SettlementStatusID
+	        FROM    (
+	        			SELECT  MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+						FROM	dbo.[ResultDetailES] rs WITH (NOLOCK) 
+						WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 0)
+														
+						UNION ALL
+						SELECT	MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+						FROM	dbo.ResultDetailES14 rs WITH(NOLOCK)
+						WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
+							 
+	        		)rs 
+	        WHERE
+	        	1 = CASE
+						WHEN @Sporttype = 43 THEN CASE
 													WHEN LEN(ResourceId) = 2 THEN 1
 													WHEN SettlementStatusID > 0 THEN 1
 													WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
 													ELSE 0
 												END
 						ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
-					END								
-			
-	ORDER BY MatchID, ResourceID 
-
+					END	
+		END
+	END
+	ELSE
+	BEGIN
+		
+		SELECT	DISTINCT MatchId
+				, CASE WHEN @Sporttype = 1 THEN '04'
+					   WHEN @Sporttype = 5 AND LEN(ResourceId) > 2 THEN '0101' 
+					   ELSE ResourceID END AS ResourceID 
+				, CASE WHEN @Sporttype = 1 THEN '0'
+					   WHEN @sporttype = 5 AND LEN(ResourceID) > 2 THEN '0' 
+					   ELSE HomeValue END AS HomeValue 
+				, CASE WHEN @Sporttype = 1 THEN '0'
+					   WHEN @Sporttype = 5 AND LEN(ResourceID) > 2 THEN '0' 
+					   ELSE AwayValue END AS AwayValue 
+				, CASE WHEN @Sporttype = 1 
+							OR (@Sporttype = 5 AND LEN(ResourceID) > 2)
+							OR (@Sporttype = 2 AND LEN(ResourceId) = 2 AND SettlementStatusID = 0)
+								THEN 4 
+					   ELSE SettlementStatusID END AS SettlementStatusID
+		FROM(
+				SELECT  MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+				FROM	dbo.[ResultDetail] WITH (NOLOCK) 
+				WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 0)
+				UNION ALL
+				SELECT	MatchId, ResourceId, HomeValue, AwayValue, SettlementStatusID, ResultStatusID
+				FROM	dbo.ResultDetail14 WITH(NOLOCK)
+				WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
+			) r
+		WHERE	(@Sporttype IN (2, 5)
+					OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
+				))
+				AND 1 = CASE
+							WHEN @Sporttype = 2 THEN CASE
+														WHEN LEN(ResourceId) = 2 THEN 1
+														WHEN SettlementStatusID > 0 THEN 1
+														WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
+														ELSE 0
+													END
+							ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
+						END								
+				
+		ORDER BY MatchID, ResourceID
+	END
+	 
 	DROP TABLE #matchList
 END
 GO

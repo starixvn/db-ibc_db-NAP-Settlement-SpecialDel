@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	@MatchId 			INT
 	, @sportType		INT
@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @TennisSet    	VARCHAR(100)	= NULL
 	, @BAResults		VARCHAR(MAX)	= NULL
 	, @ResourceIDs      VARCHAR(MAX)	= NULL 
+	, @SelectedRID      VARCHAR(MAX)    = NULL
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -19,6 +20,7 @@ AS
 
 	Revisions:  
 		- 20170801@Bobby: Initial
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -44,6 +46,12 @@ AS
 
 		- @TennisSet: Tennis result
 			+ Sample: '1,2,3,4,5,6'
+			
+		- @SelectedRID = '<root>
+							<r bt="9001" b="801"/>
+							<r bt="9001" b="801"/>
+							<r bt="9001" b="801"/>
+						 </root>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,16 +62,23 @@ BEGIN
 		, @xmlBAResults		XML
 		, @minBettype		SMALLINT
 		, @maxBettype		SMALLINT
+		, @handle			INT
 				
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId SMALLINT, GroupName VARCHAR(50))
 	DECLARE @tmpEarlyBettypesSoccer TABLE (bettype SMALLINT)
 	DECLARE @tmpResourceIdsBasketBall TABLE (ResourceId VARCHAR(20), bettype SMALLINT)
+    DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT)
+    DECLARE @matchid_tmp INT
+	                         
 
 	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
-
+	----------------------------------------------------------------------------------------------------------------------------------------------------
+	
 	SELECT @xmlFMResults 	= CAST(ISNULL(@FMResults, '<r />') AS XML)
 		, @xmlBAResults 	= CAST(ISNULL(@BAResults, '<Results />') AS XML)
 		, @balanceType 		= 1 --default sportbook
+		
+	SET	@matchid_tmp = @MatchId	
 	
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
@@ -71,7 +86,35 @@ BEGIN
 							ELSE 0 
 						END
 		
-	IF (@isCheckBet = 0) --Capturing Balance M1
+	----------------------------------------------------------------------------------------------------------------------------------------------------
+	IF @SelectedRID IS NOT NULL
+    BEGIN
+        
+	    EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
+	    INSERT INTO @tmpSelectedRID(BetType, BetID)
+	    SELECT DISTINCT bt, b
+	    FROM OPENXML(@handle,'root/r',1) WITH( bt SMALLINT
+	                                           ,b BIGINT
+                                			) AS tbl
+	    EXEC sp_xml_removedocument @handle
+	    
+        ----cal Balance
+        SELECT @MatchId AS matchid,b.custid
+               ,@balanceType AS balanceType
+               ,ISNULL(b.WalletType,2) AS WalletType -- 2: Cash wallet,
+               ,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+               ,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+        FROM BetTrans b WITH (ROWLOCK)
+        WHERE b.matchid = @matchid_tmp
+        	AND b.statusID NOT IN (101,102)
+			AND EXISTS( SELECT TOP 1 1
+  						FROM @tmpSelectedRID t
+  						WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  					) 
+        GROUP BY b.custid, b.WalletType, b.BonusId
+    END  ---END @SelectedRID
+    
+    ELSE IF (@isCheckBet = 0) --Capturing Balance M1
 	BEGIN		
 		INSERT INTO @tmpBettypes(bettype)
 		SELECT f.Bettype
