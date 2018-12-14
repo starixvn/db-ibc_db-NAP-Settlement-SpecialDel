@@ -85,6 +85,7 @@ Revisions:
 	- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 	- 20181017@Alan: Write log new reason chinese simplified [102918]
 	- 20181004@Alan: Add new column SettlementStatus [102423]
+	- 20180821@Alan: Incorporate ESports 2.0 [99448]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -549,7 +550,7 @@ BEGIN
 					  WHERE tp.Id = s.bettype
 						AND CASE
 								WHEN tp.Game = 'ALL' THEN 1
-								WHEN (tp.Game = '13' AND RIGHT(s.betid, 2) >= 13) 
+								WHEN (tp.Game LIKE '>%' AND RIGHT(s.betid, 2) > RIGHT(tp.Game, 2)) 
 									 OR (RIGHT(s.betid, 2) = tp.Game)
 										THEN 1											
 								ELSE 0

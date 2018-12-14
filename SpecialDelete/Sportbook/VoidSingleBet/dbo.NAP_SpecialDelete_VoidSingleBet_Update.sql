@@ -88,6 +88,7 @@ AS
 		- 20181002@Alan: Exclude BetTrade and Cash Out tickets when check negative balance [102212] 
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20181003@Alan: Add new column SettlementStatus [102423]
+		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -765,7 +766,7 @@ BEGIN
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game = '13' AND b.FilterGame >= 13) OR (b.FilterGame = tp.Game)))
+			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
 		DELETE b
 		FROM  #BetDelete b

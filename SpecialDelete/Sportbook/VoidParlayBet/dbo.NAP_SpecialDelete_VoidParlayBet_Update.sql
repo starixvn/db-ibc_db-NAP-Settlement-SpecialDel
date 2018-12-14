@@ -40,6 +40,7 @@ AS
 		- 20180507@Alan: Change result for new template email - Delete Creator, Match Outright [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
+		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -290,7 +291,7 @@ BEGIN
 					  WHERE tp.Id = s.bettype
 						AND CASE
 								WHEN tp.Game = 'ALL' THEN 1
-								WHEN (tp.Game = '13' AND RIGHT(s.betcheck, 2) >= 13) 
+								WHEN (tp.Game LIKE '>%' AND RIGHT(s.betcheck, 2) > RIGHT(tp.Game, 2))
 									 OR (RIGHT(s.betcheck, 2) = tp.Game)
 										THEN 1											
 								ELSE 0
