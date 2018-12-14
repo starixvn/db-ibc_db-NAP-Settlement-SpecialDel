@@ -10,7 +10,7 @@ AS
 
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
+		
 		
 	Param's Explanation:
 			
@@ -18,7 +18,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	 
-	
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
