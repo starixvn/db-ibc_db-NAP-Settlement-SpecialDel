@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -41,6 +41,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180426@Helen: Improve Performance [Redmine:89132]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -56,13 +57,19 @@ BEGIN
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
 	
-	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
+	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647, @isSettingByProfile BIT = 0
 	
 	DECLARE @BettypeFGLG TABLE  (bettype SMALLINT, GroupID SMALLINT)
 	
 	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT )
 	
 	DECLARE @SqlQuery VARCHAR(4000)
+	
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	BEGIN
+		SELECT @isSettingByProfile = 1
+	END
+	
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
 	
@@ -174,21 +181,38 @@ BEGIN
 		LEFT JOIN @tblSingle t ON t.matchid = m.matchid
 	ORDER BY m.eventstatus, m.matchcode
 
-	-- Get TENNIS, BASKETBALL RESULT 
-	SELECT	MatchId
-			, ResourceId
-			, HomeValue
-			, AwayValue
-			, ResultStatusID
-			, SettlementStatusID
-	FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
-	WHERE	@Sporttype IN (0, 2, 5)
-			AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
-			AND (ResourceId LIKE '0[0-5]' -- Tennis
-				OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-			)
+	
+	IF @isSettingByProfile = 1
+    BEGIN	
+		DECLARE @matchidList VARCHAR(MAX) = ''
+	    
+	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	    FROM @DataTmp
+	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
+					@matchidList = @matchidList
+					,@Sporttype = @Sporttype
+    END
+    ELSE
+    BEGIN
+		-- Get TENNIS, BASKETBALL RESULT 
+		SELECT	MatchId
+				, ResourceId
+				, HomeValue
+				, AwayValue
+				, ResultStatusID
+				, SettlementStatusID
+		FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
+		WHERE	@Sporttype IN (0, 2, 5)
+				AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
+				AND (ResourceId LIKE '0[0-5]' -- Tennis
+					OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
+				)
+	END
 	
 END
 GO
 GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelCompleted] TO [bodbAdminNet]
 GO
+

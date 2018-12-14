@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
@@ -29,6 +29,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 	
 	Param's explanation:  
 		
@@ -38,7 +39,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
-		,@MinBettype SMALLINT, @MaxBettype SMALLINT
+		,@MinBettype SMALLINT, @MaxBettype SMALLINT,@isSettingByProfile BIT = 0
 		
 	SELECT @MatchCode = ISNULL(@MatchCode, ''), @LeagueId = ISNULL(@LeagueID, 0), @SportType = ISNULL(@SportType, 0)
 
@@ -78,6 +79,11 @@ BEGIN
 	CREATE INDEX IX_ResultDetail ON #tblResultDetail (matchid, ResourceId)
 	
 	CREATE TABLE #tblBetStatus (matchid INT, bettype SMALLINT, isRunning INT, IsWaiting INT, groupId TINYINT ,IsParlay	 BIT, IsFGLG BIT)
+	
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	BEGIN
+		SELECT @isSettingByProfile = 1
+	END
 	
 	;WITH SingleTicket AS (
 		SELECT matchid, MIN(IsCalculating) AS IsCalculating
@@ -127,6 +133,7 @@ BEGIN
 		, 0 AS IsRunningEarlyBettypesParlay
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
+	
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -195,7 +202,7 @@ BEGIN
 			)b
 				ON b.bettype = bt.bettype
 		GROUP BY b.matchid, b.bettype, bt.GroupId,bt.IsFGLG
-
+		
 		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG)
 		SELECT  bm.matchid, bm.bettype, MAX(bm.isRunning),MAX(bm.IsWaiting), bt.GroupId, 1,bt.IsFGLG
 		FROM	#tblBettype bt
@@ -317,8 +324,22 @@ BEGIN
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
 	
+		
+		
 	-- Get TENNIS, BASKETBALL RESULT  
-	IF @SportType IN (0,1,2,5)
+	IF @isSettingByProfile = 1
+    BEGIN
+	    DECLARE @matchidList VARCHAR(MAX) = ''
+	    
+	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	    FROM @TempMatch
+	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
+					@matchidList = @matchidList
+					,@Sporttype = @Sporttype  
+    END
+    ELSE IF @SportType IN (0,1,2,5)
 		SELECT MatchId
 			, ResourceId
 			, HomeValue

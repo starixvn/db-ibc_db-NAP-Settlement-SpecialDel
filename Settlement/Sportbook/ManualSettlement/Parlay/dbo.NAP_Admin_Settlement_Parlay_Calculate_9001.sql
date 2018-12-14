@@ -1,0 +1,178 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate_9001] (
+	@matchId 			INT
+	, @matchdate		SMALLDATETIME
+	, @Mode 			VARCHAR(20)
+	, @sportType		SMALLINT
+	, @resultDetail		VARCHAR(MAX) = NULL
+	, @ErrCode 			INT = 0 OUTPUT
+	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
+	, @ticketCount		INT OUTPUT
+)
+AS
+/*	Created by: 20180801@Vicky
+    Task: Incorporate eSports 2.0  
+    DB: DBTRANS.BODB02
+
+	Revisions:		
+			- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+			
+	Param's Explanation:		
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @strTransIds VARCHAR(MAX),@resultDetail_All VARCHAR(MAX),@handle INT
+	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	CREATE TABLE #bettypeCAL (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, groupName NVARCHAR(50), isEarly BIT)
+	
+	SELECT @ticketCount		= 0
+	
+
+	
+	--Start process
+	DECLARE 
+		@fromTransId		INT
+		,@batchNo			INT
+		,@batchCount		INT
+		,@strTicket			VARCHAR(MAX)
+		,@ResourcesStr		VARCHAR(MAX) = ''
+	
+	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
+	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
+	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT)
+	DECLARE @tempSelectedResource TABLE (ResourceID VARCHAR(20))
+	DECLARE @tempResource TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssID TINYINT)
+	
+	
+	--get resultDetail
+	IF @resultDetail IS NULL --resourceid
+	BEGIN
+		INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
+		EXEC dbo.NAP_Admin_Settlement_2
+             @mode = 'all_profile'
+            ,@matchid = @matchid
+            ,@sportType = @sportType
+            ,@str_resultDetail = @resultDetail_All OUTPUT	
+	END 
+	ELSE
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @resultDetail
+	    INSERT INTO @tempSelectedResource(ResourceID)
+	    SELECT Id
+	    FROM OPENXML(@handle,'Resources/Resource',1) WITH (Id VARCHAR(20)) AS tbl
+	    EXEC sp_xml_removedocument @handle
+	    
+	    SELECT @ResourcesStr   = @ResourcesStr   + ',' + ResourceID
+	  	FROM @tempSelectedResource sr
+	
+	  	
+	  	SELECT @ResourcesStr   = CASE WHEN @ResourcesStr = ''   THEN NULL ELSE @ResourcesStr   + ',' END
+	  	
+	  	INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
+	  	EXEC dbo.NAP_Admin_Settlement_2
+             @mode = 'resourceid_profile'
+            ,@matchid = @matchid
+            ,@resourceid = @ResourcesStr
+            ,@sportType = @sportType
+            ,@str_resultDetail = @resultDetail_All OUTPUT	
+	END 
+	
+	
+	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID)
+    SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID
+    FROM @tempResource rs
+	    INNER JOIN SettlementSpecialBettypeProfile sf WITH (NOLOCK) ON sf.ResourceID = rs.ResourceID
+	WHERE sf.sporttype = @sporttype
+		AND 1 = CASE WHEN @Mode = 'CAL' 	AND ssID = 4 THEN 1
+					 WHEN @Mode = 'REFUND' 	AND ssID = 1 THEN 1
+					 WHEN @Mode = 'UNDO' 	AND ssID = 0 THEN 1
+					 ELSE 0 END
+    
+	--get transid
+	IF @Mode = 'CAL'
+	BEGIN
+	
+		INSERT INTO @tempRefno (refno, transid, modds)
+		SELECT bm.refno, bm.transid, m.modds
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
+			CROSS APPLY dbo.f_Set_Calculate_modds(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore) m
+		WHERE bm.matchid = @matchid
+			AND bm.statusID NOT IN (101, 102)
+	END
+	ELSE IF @Mode = 'REFUND'
+	BEGIN
+	
+		INSERT INTO @tempRefno (refno, transid, modds)
+		SELECT bm.refno, bm.transid, 0
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
+		WHERE bm.matchid = @matchid
+			AND statusID NOT IN (103, 101, 102)
+	END
+	ELSE IF @Mode = 'UNDO'
+	BEGIN
+	
+		INSERT INTO @tempRefno (refno, transid, modds)
+		SELECT bm.refno, bm.transid, 0
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
+		WHERE bm.matchid = @matchid
+			AND statusID NOT IN (101, 102, 1, 0)
+	END
+	
+	
+
+	SELECT @batchNo			= 2000
+		, @batchCount		= 0
+		, @fromTransId		= 0
+		
+	WHILE (1 = 1)
+	BEGIN
+		
+		DELETE @tempBatch
+		
+		DELETE TOP(@batchNo) t
+		OUTPUT deleted.refno, DELETED.transid, DELETED.modds
+		INTO @tempBatch(refno, transid, modds)
+		FROM @tempRefno t	
+
+		SELECT @batchCount 	= @@ROWCOUNT
+			, @ticketCount	+= @batchCount
+
+		IF @batchCount = 0 BREAK
+		
+        SET @strTransIds = CAST(
+        				(
+        					SELECT * 
+        					FROM ( 
+								 SELECT transid  AS t
+									  ,refno	AS r
+	                                  ,modds    AS m
+	                                  ,'0'      AS i
+	                             FROM @tempBatch
+	                        )AS b FOR XML AUTO
+	                     ) AS VARCHAR(MAX))
+                           			
+		IF(@strTransIds IS NOT NULL)
+		BEGIN
+			EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
+				@matchid 		= @matchid
+				,@matchdate		= @matchdate
+				,@mode 			= @Mode
+				,@strTransIds	= @strTransIds
+		END
+	END
+	
+	DROP TABLE #bettypeCAL
+	RETURN
+END
+GO
+
+

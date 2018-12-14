@@ -8,11 +8,29 @@ AS
     Task: Refund for esport
     DB: DBTXN/BODB02
     Revisions:
+    	- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
         
 */
 BEGIN
     SET NOCOUNT ON
-  
+
+    -----------------------CHECK SERVER-----------------------------------------
+	DECLARE @ServerName			SYSNAME 
+			,@AllowRefund		BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowRefund		= @AllowRefund		OUTPUT
+
+		IF @AllowRefund = 0
+			RETURN
+	END
+	-----------------------CHECK SERVER-----------------------------------------
+	
     DECLARE @tempTrans TABLE (TransID BIGINT)
     DECLARE @handle INT
 

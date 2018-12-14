@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		@pfID			SMALLINT
 		,@betteam 		NVARCHAR(10)
@@ -15,6 +15,7 @@ AS
 	Task: cal modds
 	DB: DBTXN/bodb02
 	Revisions:	
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
 */
 RETURN

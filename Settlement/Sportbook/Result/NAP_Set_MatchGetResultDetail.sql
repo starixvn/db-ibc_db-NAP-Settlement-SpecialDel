@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchGetResultDetail]
 	@MatchID	INT 
 AS
@@ -14,6 +14,7 @@ AS
 		- 20170525@Kathy: Show all results of Basketball  [Redmine:#77046]
 		- 20170920@Kathy: Allow user to view result of matches stored in match14 [Redmine:#83261]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -63,33 +64,68 @@ BEGIN
 		WHERE	matchid = @MatchId
 	END
 
-	SELECT	 MatchId
-			,ResourceID 
-			,HomeValue 
-			,AwayValue 
-			,OtherInfo
-			,CASE 
-				WHEN @Sporttype = 2 AND SettlementStatusID = 0 THEN 4
-				ELSE SettlementStatusID
-			END AS SettlementStatusID
-	FROM(
-		SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
-		FROM	dbo.[ResultDetail] WITH (NOLOCK) 
-		WHERE	MatchID = @MatchID 
-		UNION ALL
-		SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
-		FROM	dbo.[ResultDetail14] WITH (NOLOCK) 
-		WHERE	MatchID = @MatchID 
-	) r
-	WHERE	1 = CASE
-					WHEN @Sporttype = 2 THEN CASE 
-												WHEN LEN(ResourceId) = 2 THEN 1
-												WHEN SettlementStatusID > 0 THEN 1
-												WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
-												ELSE 0
-											END
-					ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
-				END				
-	ORDER BY ResourceID 
+	IF @sporttype = 43
+	BEGIN
+		SELECT	 MatchId
+				,ResourceID 
+				,HomeValue 
+				,AwayValue 
+				,OtherInfo
+				,CASE 
+					WHEN @Sporttype = 43 AND SettlementStatusID = 0 THEN 4
+					ELSE SettlementStatusID
+				 END AS SettlementStatusID
+		FROM(
+				SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
+				FROM	dbo.[ResultDetailES] WITH (NOLOCK) 
+				WHERE	MatchID = @MatchID
+				UNION ALL
+				SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
+				FROM	dbo.[ResultDetailES14] WITH (NOLOCK) 
+				WHERE	MatchID = @MatchID
+			) r
+		WHERE	1 = CASE
+						WHEN @Sporttype = 43 THEN CASE 
+													WHEN LEN(ResourceId) = 2 THEN 1
+													WHEN SettlementStatusID > 0 THEN 1
+													WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
+													ELSE 0
+												END
+						ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
+					END
+		ORDER BY ResourceID 
+	END
+	ELSE
+	BEGIN
+		SELECT	 MatchId
+				,ResourceID 
+				,HomeValue 
+				,AwayValue 
+				,OtherInfo
+				,CASE 
+					WHEN @Sporttype = 2 AND SettlementStatusID = 0 THEN 4
+					ELSE SettlementStatusID
+				END AS SettlementStatusID
+		FROM(
+			SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
+			FROM	dbo.[ResultDetail] WITH (NOLOCK) 
+			WHERE	MatchID = @MatchID 
+			UNION ALL
+			SELECT	MatchId, ResourceId, HomeValue, AwayValue, OtherInfo, SettlementStatusID, ResultStatusID
+			FROM	dbo.[ResultDetail14] WITH (NOLOCK) 
+			WHERE	MatchID = @MatchID 
+		) r
+		WHERE	1 = CASE
+						WHEN @Sporttype = 2 THEN CASE 
+													WHEN LEN(ResourceId) = 2 THEN 1
+													WHEN SettlementStatusID > 0 THEN 1
+													WHEN HomeValue IS NOT NULL OR AwayValue IS NOT NULL THEN 1
+													ELSE 0
+												END
+						ELSE CASE WHEN ResultStatusID > 0 THEN 1 ELSE 0 END
+					END				
+		ORDER BY ResourceID 
+	END
+	
 END
 GO
