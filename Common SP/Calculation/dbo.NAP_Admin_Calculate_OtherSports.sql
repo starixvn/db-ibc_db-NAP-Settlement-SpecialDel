@@ -47,6 +47,14 @@ BEGIN
 			,@messageBody = @sMessage
 
 		RETURN
+
+	SET @isUndo = CASE WHEN @action LIKE '%UNDO%' THEN 1
+					   ELSE 0
+				  END
+
+	IF @@SERVERNAME IN ('DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
+		RETURN
+
 		
 	END
 	ELSE

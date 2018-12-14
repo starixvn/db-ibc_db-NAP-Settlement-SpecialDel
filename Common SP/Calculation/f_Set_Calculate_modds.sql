@@ -16,6 +16,7 @@ AS
 	DB: DBTXN/bodb02
 	Revisions:	
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		
 */
 RETURN
 (

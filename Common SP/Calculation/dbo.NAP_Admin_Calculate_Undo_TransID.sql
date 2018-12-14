@@ -11,12 +11,13 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		
+		
 	Param's Explanation:
 			
 */ 
 BEGIN
 	SET NOCOUNT ON
-	
+	 
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
@@ -34,7 +35,6 @@ BEGIN
 			RETURN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
-	
 	
     DECLARE @tempTrans TABLE (TransID BIGINT)
     DECLARE @handle INT
