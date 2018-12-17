@@ -60,6 +60,6 @@ BEGIN
 		,acomm = 0
 		,scomm = 0
 	FROM @tempTrans sr
-        INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
+        INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 END
 GO

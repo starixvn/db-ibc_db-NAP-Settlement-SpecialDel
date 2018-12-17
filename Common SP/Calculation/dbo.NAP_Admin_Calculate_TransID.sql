@@ -146,7 +146,7 @@ BEGIN
 				END,
 		ruben=1
 	FROM @tempTrans sr
-		INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
+		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 
 	RETURN
 END
