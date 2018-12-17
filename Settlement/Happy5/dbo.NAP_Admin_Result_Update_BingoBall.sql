@@ -44,7 +44,7 @@ BEGIN
     
     ----------------------------------------------------------------------------
     --Insert and update BingoBall
-    MERGE dbo.BingoBall TARGET
+    MERGE dbo.BingoBall WITH (UPDLOCK,ROWLOCK) TARGET
     USING (
         SELECT  sr.ResourceId, sr.Result
         FROM    @tblSelectedRID sr
