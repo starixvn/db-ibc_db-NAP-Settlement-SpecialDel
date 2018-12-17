@@ -32,7 +32,7 @@ AS
 	DB: DBPRO/bodb02 
 
 	Revision
-        - 20180803@Vicky: add header info [Redmine:#95874]
+		- 20180801@Vicky: get code from PROD [Redmine #95874]
 
 	Param's Explanation: 
 		+ @HomeValue & @AwayValue : Match Result - ResourceID ='00'
@@ -66,11 +66,20 @@ BEGIN
 			,@gamei	INT
 			,@gamen	INT
 
-	SELECT	 @GameResult1 = UPPER(@GameResult1)		-- a -->A or n --> N
-			,@GameResult2 = UPPER(@GameResult2)
-			,@GameResult3 = UPPER(@GameResult3)
-			,@GameResult4 = UPPER(@GameResult4)
-			,@GameResult5 = UPPER(@GameResult5)
+	SELECT	 @GameResult1 = UPPER(ISNULL(@GameResult1,''))		-- a -->A or n --> N
+			,@GameResult2 = UPPER(ISNULL(@GameResult2,''))
+			,@GameResult3 = UPPER(ISNULL(@GameResult3,''))
+			,@GameResult4 = UPPER(ISNULL(@GameResult4,''))
+			,@GameResult5 = UPPER(ISNULL(@GameResult5,''))
+			,@SetResult   = ISNULL(@SetResult,'') 
+			,@SelectedSet1Game = ISNULL(@SelectedSet1Game,'')
+			,@SelectedSet2Game = ISNULL(@SelectedSet2Game,'')
+			,@SelectedSet3Game = ISNULL(@SelectedSet3Game,'')
+			,@SelectedSet4Game = ISNULL(@SelectedSet4Game,'')
+			,@SelectedSet5Game = ISNULL(@SelectedSet5Game,'')
+			,@SelectedSettleFinishedGame = ISNULL(@SelectedSettleFinishedGame,'') 
+			
+
 
 	DECLARE	@tmpEachSet TABLE (
 	 		ID			TINYINT IDENTITY(1,1)
@@ -105,21 +114,21 @@ BEGIN
 	BEGIN
 
 		INSERT INTO @tmpEachSet(SetScore,HomeValue,AwayValue) 
-		SELECT val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@SetResult, ',')
+		SELECT val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@SetResult, ',') WHERE @SetResult <> ''
 
 		INSERT INTO @tmpSelectedGame(SetIndex, GameIndex)
-				  SELECT	1, Val FROM dbo.StrSplit(@SelectedSet1Game, ',')
-		UNION ALL SELECT	2, Val FROM dbo.StrSplit(@SelectedSet2Game, ',')
-		UNION ALL SELECT	3, Val FROM dbo.StrSplit(@SelectedSet3Game, ',')
-		UNION ALL SELECT	4, Val FROM dbo.StrSplit(@SelectedSet4Game, ',')
-		UNION ALL SELECT	5, Val FROM dbo.StrSplit(@SelectedSet5Game, ',')
+				  SELECT	1, Val FROM dbo.StrSplit(@SelectedSet1Game, ',') WHERE @SelectedSet1Game <> ''
+		UNION ALL SELECT	2, Val FROM dbo.StrSplit(@SelectedSet2Game, ',') WHERE @SelectedSet2Game <> ''
+		UNION ALL SELECT	3, Val FROM dbo.StrSplit(@SelectedSet3Game, ',') WHERE @SelectedSet3Game <> ''
+		UNION ALL SELECT	4, Val FROM dbo.StrSplit(@SelectedSet4Game, ',') WHERE @SelectedSet4Game <> ''
+		UNION ALL SELECT	5, Val FROM dbo.StrSplit(@SelectedSet5Game, ',') WHERE @SelectedSet5Game <> ''
 
 		INSERT INTO @tmpEachGamePerSet (SetIndex, GameScore,HomeValue,AwayValue)
-				   SELECT 1, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult1, ',')
-		UNION ALL  SELECT 2, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult2, ',')
-		UNION ALL  SELECT 3, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult3, ',')
-		UNION ALL  SELECT 4, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult4, ',')
-		UNION ALL  SELECT 5, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult5, ',')
+				   SELECT 1, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult1, ',') WHERE @GameResult1 <> ''
+		UNION ALL  SELECT 2, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult2, ',') WHERE @GameResult2 <> ''
+		UNION ALL  SELECT 3, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult3, ',') WHERE @GameResult3 <> ''
+		UNION ALL  SELECT 4, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult4, ',') WHERE @GameResult4 <> ''
+		UNION ALL  SELECT 5, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult5, ',') WHERE @GameResult5 <> ''
 	
 		/*START:Auto Refund Game not selected */
 		SELECT	 @MaxGameSet1 = CASE WHEN SetIndex = 1 AND @MaxGameSet1 < GameIndex THEN GameIndex ELSE @MaxGameSet1 END
@@ -183,8 +192,8 @@ BEGIN
 				INNER JOIN @tmpSelectedSet s ON e.ID = s.ID
 	
 		-- Game Result 
-		IF @SelectedSet1Game IS NOT NULL OR @SelectedSet2Game IS NOT NULL OR @SelectedSet3Game IS NOT NULL 
-				OR @SelectedSet4Game IS NOT NULL OR @SelectedSet5Game IS NOT NULL 
+		IF ISNULL(@SelectedSet1Game,'') <>'' OR ISNULL(@SelectedSet2Game,'') <>'' OR ISNULL(@SelectedSet3Game,'') <> ''
+				OR ISNULL(@SelectedSet4Game,'') <>'' OR ISNULL(@SelectedSet5Game,'') <> ''  
 			INSERT INTO @tmpResultDetail(
 				 MatchID
 				,ResourceID
@@ -280,24 +289,24 @@ BEGIN
 	IF @Command ='NAP_Admin_Settlement_Refund_All'
 	BEGIN
 		INSERT INTO @tmpSelectedSettleFinishedGame(SetIndex)
-		SELECT	Val FROM dbo.StrSplit(@SelectedSettleFinishedGame, ',')
+		SELECT	Val FROM dbo.StrSplit(@SelectedSettleFinishedGame, ',') WHERE @SelectedSettleFinishedGame <>'' 
 
 		--INSERT INTO @tmpEachSet(SetScore,HomeValue,AwayValue) 
 		--SELECT val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@SetResult, ',')
 
 		INSERT INTO @tmpSelectedGame(SetIndex, GameIndex)
-				  SELECT	1, Val FROM dbo.StrSplit(@SelectedSet1Game, ',')
-		UNION ALL SELECT	2, Val FROM dbo.StrSplit(@SelectedSet2Game, ',')
-		UNION ALL SELECT	3, Val FROM dbo.StrSplit(@SelectedSet3Game, ',')
-		UNION ALL SELECT	4, Val FROM dbo.StrSplit(@SelectedSet4Game, ',')
-		UNION ALL SELECT	5, Val FROM dbo.StrSplit(@SelectedSet5Game, ',')
+				  SELECT	1, Val FROM dbo.StrSplit(@SelectedSet1Game, ',') WHERE @SelectedSet1Game <> ''
+		UNION ALL SELECT	2, Val FROM dbo.StrSplit(@SelectedSet2Game, ',') WHERE @SelectedSet2Game <> ''
+		UNION ALL SELECT	3, Val FROM dbo.StrSplit(@SelectedSet3Game, ',') WHERE @SelectedSet3Game <> '' 
+		UNION ALL SELECT	4, Val FROM dbo.StrSplit(@SelectedSet4Game, ',') WHERE @SelectedSet4Game <> ''
+		UNION ALL SELECT	5, Val FROM dbo.StrSplit(@SelectedSet5Game, ',') WHERE @SelectedSet5Game <> ''
 
 		INSERT INTO @tmpEachGamePerSet (SetIndex, GameScore,HomeValue,AwayValue)
-				   SELECT 1, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult1, ',')
-		UNION ALL  SELECT 2, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult2, ',')
-		UNION ALL  SELECT 3, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult3, ',')
-		UNION ALL  SELECT 4, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult4, ',')
-		UNION ALL  SELECT 5, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult5, ',')
+				   SELECT 1, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult1, ',') WHERE @GameResult1 <>''
+		UNION ALL  SELECT 2, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult2, ',') WHERE @GameResult2 <>''
+		UNION ALL  SELECT 3, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult3, ',') WHERE @GameResult3 <>''
+		UNION ALL  SELECT 4, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult4, ',') WHERE @GameResult4 <>''
+		UNION ALL  SELECT 5, Val, LEFT(Val,CHARINDEX('-',Val)-1), RIGHT(Val,LEN(Val) - CHARINDEX('-',Val)) FROM dbo.StrSplit(@GameResult5, ',') WHERE @GameResult5 <>''
 	
 		/*START:Auto Refund Game not selected */
 		SELECT	 @MaxGameSet1 = CASE WHEN SetIndex = 1 AND @MaxGameSet1 < GameIndex THEN GameIndex ELSE @MaxGameSet1 END
@@ -386,8 +395,8 @@ BEGIN
 				AND t.SettlementStatusID = 1 
 		
 		-- Game Result 
-		IF @SelectedSet1Game IS NOT NULL OR @SelectedSet2Game IS NOT NULL OR @SelectedSet3Game IS NOT NULL 
-				OR @SelectedSet4Game IS NOT NULL OR @SelectedSet5Game IS NOT NULL 
+		IF ISNULL(@SelectedSet1Game,'') <>'' OR ISNULL(@SelectedSet2Game,'') <>'' OR ISNULL(@SelectedSet3Game,'') <> ''
+				OR ISNULL(@SelectedSet4Game,'') <>'' OR ISNULL(@SelectedSet5Game,'') <> '' 
 			INSERT INTO @tmpResultDetail(
 				 MatchID
 				,ResourceID
