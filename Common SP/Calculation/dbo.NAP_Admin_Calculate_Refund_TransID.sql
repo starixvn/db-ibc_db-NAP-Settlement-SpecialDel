@@ -9,6 +9,7 @@ AS
     DB: DBTXN/BODB02
     Revisions:
     	- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+    	- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
         
 */
 BEGIN
