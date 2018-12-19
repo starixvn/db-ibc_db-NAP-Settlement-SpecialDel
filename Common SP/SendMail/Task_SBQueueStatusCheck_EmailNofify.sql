@@ -9,6 +9,7 @@ AS
 
 	Revision: 
 		- 20180817@Billy:	Add Letstalk notification - [Redmine: #00000]
+		- 20181219@Helen:	Apply service broker for othersports - [Redmine: 101611]
 */
 BEGIN;
 	-- SEND warning email to DBA
