@@ -12,7 +12,7 @@ AS
 /*
 	Created by: Vicky.phan
 	Date: 20181015
-	Task: change the result of Happy 5 
+	Task: change the result of Happy 5
 	DB: DBTXN/BODB02
 	
 	Revisions:
@@ -46,7 +46,7 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
 	
 	DECLARE @BalanceWalletBefore 	TVP_BalanceWalletChange
-	DECLARE @BalanceWalletAfter 	TVP_BalanceWalletChange	
+	DECLARE @BalanceWalletAfter 	TVP_BalanceWalletChange
 	DECLARE @tmpBetTickets 			TVP_Settlement_BetTicket
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -63,10 +63,10 @@ BEGIN
 			,@Remark = ''
 	
 	--get info of match
-  	SELECT @sportType	   = sportType
-  	FROM   DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  	WHERE  matchid = @matchid
-  	
+	SELECT @sportType	   = sportType
+	FROM   DBPRO.BODB02.dbo.match WITH (NOLOCK)
+	WHERE  matchid = @matchid
+	
 	
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
@@ -94,16 +94,16 @@ BEGIN
 	
 		INSERT INTO @tmpOldResultDetail (Seq, Number)
 		SELECT Seq, Number
-		FROM DBPRO.bodb02.dbo.bingoBall
+		FROM DBPRO.bodb02.dbo.bingoBall WITH (NOLOCK)
 		WHERE matchid = @matchid
 		
 		
 		IF @IsAuto = 0
-	  	BEGIN
-		  	EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
-				  						@matchid	= @matchid
-				  						,@Sporttype	= @Sporttype
-				  						,@Resources = @Resources
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
+										@matchid	= @matchid
+										,@Sporttype	= @Sporttype
+										,@Resources = @Resources
 		END
 		-------------------------------------------parse XML and add more info----------------------------------
 		INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
@@ -126,30 +126,30 @@ BEGIN
 		IF @Action LIKE 'CAL%'
 		BEGIN
 			INSERT INTO #tmpTransID (TransID, modds, OddsType)
-		  	SELECT transid, m.modds, sr.OddsType
-		  	FROM bettrans b WITH (NOLOCK)
-		  		CROSS APPLY(
-		  						SELECT TOP 1 pfID, Result1, Result2, OddsType
-		  						FROM @tmpResultDetail t
-		  						WHERE b.BetType = t.BetType
-		  					) sr
-		  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL) m
-		  	WHERE b.matchid = @MatchId
-		  		AND b.statusID NOT IN (101,102)
+			SELECT transid, m.modds, sr.OddsType
+			FROM bettrans b WITH (NOLOCK)
+				CROSS APPLY(
+								SELECT TOP 1 pfID, Result1, Result2, OddsType
+								FROM @tmpResultDetail t
+								WHERE b.BetType = t.BetType
+							) sr
+				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL) m
+			WHERE b.matchid = @MatchId
+				AND b.statusID NOT IN (101,102)
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
 			
 			INSERT INTO #tmpTransID(TransID)
-		  	SELECT transid
-		  	FROM bettrans b WITH (NOLOCK) 
-		  	WHERE b.matchid = @MatchId
-		  		AND	b.statusID NOT IN (103, 101, 102)
-		  		AND EXISTS (
-		  					SELECT 1
-		  					FROM @tmpResultDetail t
-		  					WHERE b.BetType = t.BetType
-		  					)
+			SELECT transid
+			FROM bettrans b WITH (NOLOCK) 
+			WHERE b.matchid = @MatchId
+				AND	b.statusID NOT IN (103, 101, 102)
+				AND EXISTS (
+							SELECT 1
+							FROM @tmpResultDetail t
+							WHERE b.BetType = t.BetType
+							)
 		END 
 		
 		

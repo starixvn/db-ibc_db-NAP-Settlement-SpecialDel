@@ -11,7 +11,7 @@ AS
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
-	Param's Explanation:	
+	Param's Explanation:
 				
 */
 BEGIN
@@ -21,7 +21,7 @@ BEGIN
 			,m.leagueid
 			,m.kickofftime
 			,m.matchcode
-	FROM	dbo.[match] m WITH (ROWLOCK)
+	FROM	dbo.[match] m WITH (NOLOCK)
 	WHERE	m.Matchid = @MatchId
 END
 

@@ -28,7 +28,7 @@ BEGIN
 		
 		INSERT INTO @tmpResultDetail(ResourceID, Result1, isSourceFromDB)
 		SELECT  Seq, Number, 1
-		FROM    DBPRO.bodb02.dbo.BingoBall b WITH (NOLOCK)
+		FROM	DBPRO.bodb02.dbo.BingoBall b WITH (NOLOCK)
 		WHERE matchid = @matchid
 	END
 	
@@ -36,7 +36,7 @@ BEGIN
 	IF @Sporttype = 164
 	BEGIN
 		
-    
+	
 		IF @Action LIKE 'CAL%'
 		BEGIN
 			--------------------------------------VALIDATE DATA-----------------
@@ -46,24 +46,24 @@ BEGIN
 						,@ErrMsg	= 'Ball number is required.'
 			END
 		
-		    SELECT @ErrCode = 1000002
-		    		,@ErrMsg = 'Data is not valid'
-		    FROM @tmpResultDetail
-		    HAVING COUNT(*) <> 5
-		    
-		    SELECT @ErrCode = 1000002
-		    		,@ErrMsg = 'Duplicate ball numbers'
-		    FROM @tmpResultDetail
-		    GROUP BY Result1
-		    HAVING COUNT(Result1) > 1
-		    
-		    SELECT @ErrCode = 1000002
-		    		,@ErrMsg = 'Ball number must be from 1 to 20'
-		    FROM @tmpResultDetail
-		    WHERE Result1 < 1 OR Result1 > 20
-	    
-		    IF @ErrCode <> 0
-		    	RETURN
+			SELECT @ErrCode = 1000002
+					,@ErrMsg = 'Data is not valid'
+			FROM @tmpResultDetail
+			HAVING COUNT(*) <> 5
+			
+			SELECT @ErrCode = 1000002
+					,@ErrMsg = 'Duplicate ball numbers'
+			FROM @tmpResultDetail
+			GROUP BY Result1
+			HAVING COUNT(Result1) > 1
+			
+			SELECT @ErrCode = 1000002
+					,@ErrMsg = 'Ball number must be from 1 to 20'
+			FROM @tmpResultDetail
+			WHERE Result1 < 1 OR Result1 > 20
+		
+			IF @ErrCode <> 0
+				RETURN
 			--------------------------------------END VALIDATE DATA-------------
 		
 			INSERT INTO @tmpResultDetail(ResourceID, Result1, Result2)
