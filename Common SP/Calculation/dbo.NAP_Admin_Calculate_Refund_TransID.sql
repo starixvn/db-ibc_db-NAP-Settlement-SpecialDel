@@ -1,21 +1,25 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
 	@transIds					VARCHAR(MAX)
- 
+
 AS
 /*  Created by: Vicky
-    Date: 20180801
-    Task: Refund for esport
-    DB: DBTXN/BODB02
-    Revisions:
-    	- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-    	- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
-        
+	Date: 20180801
+	Task: Refund for esport
+	DB: DBTXN/BODB02
+	Revisions:
+		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+	Param's Explanation:
+			@transIds = '<root>
+						<r t="104730774034"/>
+						<r t="104729373985"/>
+					</root>'
 */
 BEGIN
-    SET NOCOUNT ON
+	SET NOCOUNT ON
 
-    -----------------------CHECK SERVER-----------------------------------------
+	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowRefund		BIT
 
@@ -32,16 +36,16 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-    DECLARE @tempTrans TABLE (TransID BIGINT)
-    DECLARE @handle INT
+	DECLARE @tempTrans TABLE (TransID BIGINT)
+	DECLARE @handle INT
 
-    ---parse XML
-    EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-    INSERT INTO @tempTrans(TransID)
-    SELECT t
-    FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT) tbl
-    EXEC sp_xml_removedocument @handle  
-    
+	---parse XML
+	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
+	INSERT INTO @tempTrans(TransID)
+	SELECT t
+	FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT) tbl
+	EXEC sp_xml_removedocument @handle  
+	
 	UPDATE	b
 	SET [status] = N'Refund'
 					,statusID = 103
@@ -53,9 +57,9 @@ BEGIN
 					,comm = 0
 					,acomm = 0
 					,scomm = 0
-				    ,ruben = 1
-				    ,statuswinlost = 0
+					,ruben = 1
+					,statuswinlost = 0
 	FROM @tempTrans sr
-        INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
+		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 END
 GO
