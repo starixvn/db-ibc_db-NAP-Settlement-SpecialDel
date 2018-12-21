@@ -1,4 +1,5 @@
-ALTER PROCEDURE [NAP_Admin_PreCalculate_s161_Refund] 
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE dbo.NAP_Admin_PreCalculate_s161_Refund
 	@MatchId INT
 	,@Action VARCHAR(10) = 'Refund-FT' -- Refund / Refund-FT
 AS
@@ -11,67 +12,59 @@ AS
 
 	Revisions:		
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
+		- 20181203@Helen: Remove execution on LAS + Apply Service Broker for Other Sports - [Redmine:101611]
+		
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @IgnoreList VARCHAR(200)
-	SET @IgnoreList = 'DB04,DB042,DB043,DB044'
+	DECLARE @strTransIds VARCHAR(MAX)
+	
+	CREATE TABLE #TempData_NG_Refund (TransID BIGINT)
+	DECLARE @tmpTransIDBatch_NG_Refund TABLE (TransID BIGINT)
+		  					
+	IF @action = 'Refund-FT'
+	BEGIN
+		INSERT INTO #TempData_NG_Refund(TransID)
+  		SELECT transid
+  		FROM bettrans WITH (NOLOCK) 
+  		WHERE matchid = @matchid 
+			AND statusID IN (0, 1) -- only refund all running/waiting's tickets
+			AND bettype BETWEEN 81 AND 120
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #TempData_NG_Refund(TransID)
+  		SELECT transid
+  		FROM bettrans WITH (NOLOCK) 
+  		WHERE matchid = @matchid 
+			AND statusID NOT IN (101,102) -- refund all, except void/reject
+			AND bettype BETWEEN 81 AND 120
+	END		
+	
+	WHILE (1 = 1)
+	BEGIN
+		DELETE @tmpTransIDBatch_NG_Refund
 
-	DECLARE @_xml XML, @_sXML VARCHAR(MAX)
-		,@LASCommand NVARCHAR(max),@createdDate DATETIME, @Remark varchar(500)
-
-	SET @_xml = '<root><r matchid="'+ CONVERT(VARCHAR(12), @MatchId) +'" action="'+ @Action +'" /></root>'
-
-	SELECT @_sXML = CONVERT(VARCHAR(max), @_xml)
-
-	EXEC dbo.Bet_ExecRep_05 @IgnoreList = @IgnoreList
-		,@updatetype = 4 --refund NG
-		,@_sXML = @_sXML		
-
-	--- LAS settlement 
-	SELECT @LASCommand = 'EXEC [dbo].[Admin_Calculate_s161_Refund] @_sXML = ''' + @_sXML + ''''
-				,@createdDate = GETDATE()
-
-	BEGIN TRY
-			EXEC DBLAS.LASDB.[dbo].[Las_GeneratingSettlementCommand] @SPName = 'Admin_Calculate_s161_Refund'
-				,@SQLCommand = @LASCommand
-				,@CreatedDate = @createdDate
-				,@StatusID = 0 -- waiting
-				,@MatchID = @matchid
-				,@Bettype = NULL
-				,@Status = 'waiting'
-				,@BetCount = NULL
-	END TRY
-	BEGIN CATCH			
-		SELECT @Remark = '@matchid = ' + @matchid + ', @action = ''' + @action + ''''
-
-		BEGIN TRY			
-			EXEC DBLOG.bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-							@UserID = NULL, 
-							@Matchid = @matchid, 
-							@ActionID = 40015, 
-							@Remark = @Remark
-		END TRY
-		BEGIN CATCH
-			EXEC bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-							@UserID = NULL, 
-							@Matchid = @matchid, 
-							@ActionID = 40015, 
-							@Remark = @Remark
-		END CATCH
-	END CATCH
+		DELETE TOP (2000) #TempData_NG_Refund
+		OUTPUT deleted.transid
+		INTO @tmpTransIDBatch_NG_Refund(transid)	
+		
+		IF @@ROWCOUNT = 0 BREAK
+		
+		SET @strTransIds = (SELECT transid		AS '@t'
+						   FROM @tmpTransIDBatch_NG_Refund
+						   FOR XML PATH('r'), ROOT( 'root' ))
+		
+		EXEC dbo.NAP_Admin_Calculate_OtherSports
+				@matchid			 = @matchid
+			   ,@action				 = 'REFUND'
+			   ,@strTransIds		 = @strTransIds
+	END
+	
+	DROP TABLE #TempData_NG_Refund
+	
 END
-
-
-
-
-GO
-
-GRANT EXECUTE ON [NAP_Admin_PreCalculate_s161_Refund] TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION ON [NAP_Admin_PreCalculate_s161_Refund] TO [vnteam] AS [dbo]
 GO
 
 
