@@ -1,8 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
  ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_901]
 	@matchid INT,	
 	@action	VARCHAR(30)= '',
@@ -23,13 +19,13 @@ GO
 			- 20170411@Bobby: 74819 - Correct Bettrade condition for auto bettypes
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
 			
 		Parameter's Explantion:
 	*/
 BEGIN
 	SET NOCOUNT ON
-	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
-	
+
 	DECLARE @statusID INT
 			,@winlost MONEY
 	

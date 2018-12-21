@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_RefundHT] @matchid INT
     ,@IsExcludeBetdaq BIT = 0
     ,@IsExcludeBetfair BIT = 0
@@ -27,6 +27,7 @@ AS
 		- 20180904@Kathy: Change CIX on DB054 [Redmine:#100828]
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
+		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -39,6 +40,23 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
+	
+	-- CHECK SERVER BEFORE REFUND
+	DECLARE @ServerName		SYSNAME 
+			,@AllowRefund	BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName		= @ServerName
+			,@AllowRefund	= @AllowRefund	OUTPUT
+
+		IF @AllowRefund = 0
+			RETURN
+	END
+	-- END CHECK
 	
 	DECLARE @xml					XML	
 

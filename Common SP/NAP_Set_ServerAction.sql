@@ -40,8 +40,6 @@ BEGIN
 	UNION ALL
 	SELECT 'SITDB04' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
 	UNION ALL
-	SELECT 'SITDB053' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund -- DB042
-	UNION ALL
 	SELECT 'SITDB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
 	UNION ALL
 	SELECT 'SITDB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
@@ -53,7 +51,7 @@ BEGIN
 	WHERE	ServerName = @ServerName
 
 	IF @@ROWCOUNT = 0
-		SELECT @AllowCalculation = 1
+		SELECT	@AllowCalculation = 1
 				,@AllowUndo = 1
 				,@AllowRefund = 1
 END
