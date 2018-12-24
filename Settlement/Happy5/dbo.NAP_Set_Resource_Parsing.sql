@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.[NAP_Set_Resource_Parsing]
 	@Sporttype				TINYINT
 	,@MatchID				INT
