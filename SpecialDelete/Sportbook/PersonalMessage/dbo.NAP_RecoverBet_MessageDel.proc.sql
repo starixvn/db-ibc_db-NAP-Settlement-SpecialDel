@@ -1,42 +1,67 @@
-﻿USE bodb_Message
-go
-
-/****** Object:  Stored Procedure dbo.Acc_Msg_Remove    Script Date: 6/24/2011 4:48:50 PM ******/
+﻿/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_RecoverBet_MessageDel]
    @transids 	VARCHAR(MAX),
     @UserID 	INT = 8 
 AS
 /*
-Created: 20160609@Bobby.Nguyen	
-DB: DBMSG.bodb_Message
-Revisions:   
-	- 20160609@Bobby.Nguyen: #59171 - Implement remove message function when recovering multiple tickets
-Param's Explanation:
+	Created: 20160609@Bobby.Nguyen	
+	DB: DBMSG.bodb_Message
+	Revisions:   
+		- 20160609@Bobby.Nguyen: #59171 - Implement remove message function when recovering multiple tickets
+		- 20181221@Kathy: get messageid of voided transaction from new table [Redmine:#101231]
+	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
+	
+	DECLARE @tmpInputTransId TABLE (TransId VARCHAR(20))
 
-	CREATE TABLE #tempTransId (transid VARCHAR(20), rankIdx INT IDENTITY(1,1))
+	CREATE TABLE #tempTransId (transid VARCHAR(20), messageId INT, rankIdx INT IDENTITY(1,1))
 	CREATE TABLE #tempMsgTarget (MsgTargetId INT, MessageId INT, BettransId VARCHAR(MAX))
 	CREATE TABLE #updatedMsgTarget (MsgTargetId INT, BettransId VARCHAR(MAX), IsDeleted BIT)
 
-	INSERT INTO #tempTransId(transid)
+	INSERT INTO @tmpInputTransId(TransId)
 	SELECT DISTINCT val
 	FROM dbo.strSplit(@transids, ',')
 	WHERE LEN(val) > 0 AND val <> '0'
-	
+
+	INSERT INTO #tempTransId (transid, messageId)
+	SELECT	t.TransId, vt.messageId
+	FROM	@tmpInputTransId t
+		LEFT JOIN DBTXN.bodb02.dbo.TicketVoiding_VoidedTransaction vt WITH(NOLOCK)
+			ON t.transid = vt.TransId
+
 	--Gather MsgTargetId need to update
-	INSERT INTO #tempMsgTarget (MsgTargetId, MessageId, BetTransId)
-	SELECT DISTINCT MsgTargetId, MessageId, BetTransId
-	FROM #tempTransId temp
+	INSERT INTO #tempMsgTarget (MsgTargetId, MessageId, BettransId)
+	SELECT	DISTINCT mt.MsgTargetId, t.messageId, mt.BetTransId
+	FROM	#tempTransId t
 		CROSS APPLY (
-			SELECT MsgTargetId, msg.MessageId, msg.BetTransId
-			FROM dbo.MsgTarget msg WITH(NOLOCK)
-			WHERE msg.isDeleted = 0
-				AND CHARINDEX(temp.transid, msg.BettransId) > 0
-	) AS t
+			SELECT	mt.MsgTargetId, mt.BetTransId
+			FROM	dbo.MsgTarget mt WITH(NOLOCK)
+			WHERE	mt.MessageId = t.messageId
+					AND mt.isDeleted = 0
+					AND CHARINDEX(t.transid, mt.BettransId) > 0
+		) mt
+	WHERE	t.messageId IS NOT NULL
 	
-	IF(@@ROWCOUNT = 0) RETURN
+	 -- in case of voiding ticket by script, cannot find the transid in table VoidedTransaction
+	IF EXISTS (SELECT TOP 1 1 FROM #tempTransId WHERE messageId IS NULL) 
+	BEGIN
+		INSERT INTO #tempMsgTarget (MsgTargetId, MessageId, BetTransId)
+		SELECT DISTINCT t.MsgTargetId, t.MessageId, t.BetTransId
+		FROM #tempTransId temp
+			CROSS APPLY (
+				SELECT MsgTargetId, msg.MessageId, msg.BetTransId
+				FROM dbo.MsgTarget msg WITH(NOLOCK)
+				WHERE msg.isDeleted = 0
+					AND CHARINDEX(temp.transid, msg.BettransId) > 0
+		) AS t
+		WHERE	temp.messageId IS NULL
+
+	END
+	
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #tempMsgTarget)
+		RETURN
 
 	;WITH CTE_UpdateMsgTarget AS (
 		SELECT temp.MsgTargetId
@@ -117,8 +142,4 @@ BEGIN
 	
 	RETURN
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_RecoverBet_MessageDel] TO [bodbAdminNet]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_RecoverBet_MessageDel] TO [vnteam]
 GO
