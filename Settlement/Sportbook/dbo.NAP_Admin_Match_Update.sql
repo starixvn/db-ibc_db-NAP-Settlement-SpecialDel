@@ -19,8 +19,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @isExcludeCorner            BIT = 0,
     @isExistRunningCornerBet    BIT = 0,
     @RowCount                   INT = 0 OUTPUT,
-    @Creator                    INT = 0,
-    @IsFinalRound               BIT = NULL
+	@Creator 					INT = 0,
+	@IsFinalRound               BIT = NULL
 )
 AS
 /*
@@ -50,6 +50,7 @@ AS
         - 20171011@Kathy: Correct GoalRecord value when do instant + cal HT [Redmine:#81308]
         - 20171212@Kathy: Change on Refund page [Redmine:#86890]
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 
     Parameters Explanation:
 
@@ -59,7 +60,7 @@ BEGIN
     SET NOCOUNT ON
 
     DECLARE @Sporttype INT
-
+	DECLARE @eventstatus VARCHAR(20)
     SET @BetStatus = ISNULL(@BetStatus, N'')
 
     IF @Command = 'NAP_Admin_Settlement_1-UNDO'
@@ -555,10 +556,29 @@ BEGIN
         WHERE   matchid = @matchid
     END
     --END: 77720
+	
+     IF @Command = 'profile_bingoball'
+    BEGIN	
+		IF @action = 'REFUND'
+       		SELECT @eventstatus        = N'completed'
+                   ,@betstatus         = N'refund'
+                   
+        IF @action = 'CAL'
+        	SELECT @eventstatus		   = N'completed'
+        		   ,@betstatus         = N''
+        		   
+        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET eventstatus     = COALESCE(@eventstatus, eventstatus)
+                ,betstatus      = COALESCE(@betstatus, '')
+                ,changetime     = GETDATE()
+                ,settletime     = GETDATE()
+        WHERE   matchid = @matchid
+    END
+
 
     IF @Command = 'profile'
     BEGIN
-		DECLARE @eventstatus VARCHAR(20), @ruben TINYINT
+		DECLARE @ruben TINYINT
 		IF @IsFinalRound = 1
 		BEGIN
 			IF @action = 'REFUND'
@@ -590,8 +610,6 @@ BEGIN
                 ,settletime     = GETDATE()
         WHERE   matchid = @matchid
         END
-		
-        
     END
 END
 GO

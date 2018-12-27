@@ -1,19 +1,22 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
-	@transIds      		VARCHAR(MAX)
+	@transIds			VARCHAR(MAX)
 
 AS
 /*
 	Created by: 20180801@Vicky
-    Task: Incorporate eSports 2.0  
-    DB: DBTRANS.BODB02
+	Task: Incorporate eSports 2.0
+	DB: DBTRANS.BODB02
 
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		
+		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
 	Param's Explanation:
-			
+			@transIds = '<root>
+						<r t="104730774034"/>
+						<r t="104729373985"/>
+					</root>'
 */ 
 BEGIN
 	SET NOCOUNT ON
@@ -36,15 +39,15 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-    DECLARE @tempTrans TABLE (TransID BIGINT)
-    DECLARE @handle INT
-    
+	DECLARE @tempTrans TABLE (TransID BIGINT)
+	DECLARE @handle INT
+	
 
-    ---parse XML
-    EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-    INSERT INTO @tempTrans(TransID)
-    SELECT t
-    FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT ) tbl
+	---parse XML
+	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
+	INSERT INTO @tempTrans(TransID)
+	SELECT t
+	FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT ) tbl
 	EXEC sp_xml_removedocument @handle
 	
 	UPDATE	b
@@ -60,6 +63,6 @@ BEGIN
 		,acomm = 0
 		,scomm = 0
 	FROM @tempTrans sr
-        INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
+		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 END
 GO

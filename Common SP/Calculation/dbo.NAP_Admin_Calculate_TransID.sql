@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		
 		
 	Param's Explanation:  
@@ -146,7 +147,7 @@ BEGIN
 				END,
 		ruben=1
 	FROM @tempTrans sr
-		INNER JOIN dbo.bettrans b ON  sr.transid = b.transid
+		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 
 	RETURN
 END
