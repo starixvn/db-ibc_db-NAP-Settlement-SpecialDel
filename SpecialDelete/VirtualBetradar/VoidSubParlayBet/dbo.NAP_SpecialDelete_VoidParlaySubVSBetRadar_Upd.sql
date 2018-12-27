@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd] 
 	@SearchBy				VARCHAR(100),
 	
@@ -11,7 +11,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd]
     @Password				NVARCHAR(50),
     @UserID					INT,
     @IP						VARCHAR(15),
-    @Reason					NVARCHAR(500),
+    @Reason					NVARCHAR(500)	= '',
+	@ReasonSC				NVARCHAR(500)	= '',
     
     @NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
     @ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
@@ -25,7 +26,8 @@ AS
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]	
-		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]			
+		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]
+		- 20181207@Alan: Support Chinese Email [105976]	
 
 	Param's Explanation:
 		- @SearchBy:		
@@ -40,29 +42,31 @@ BEGIN
 	SET NOCOUNT ON	
 	
 	IF @SearchBy = 'MatchId'
-		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd] 		
-			@MatchId = @MatchId,	
-			@TransIds = @TransIds,					
+		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd]
+			@MatchId = @MatchId,
+			@TransIds = @TransIds,
 			@UserName = @UserName,
 			@Password = @Password,
 			@UserID	= @UserID,
 			@IP	= @IP,
-			@Reason	= @Reason,		    
+			@Reason	= @Reason,
+			@ReasonSC = @ReasonSC,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
 			@ErrMsg	= @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT	  
+			@ErrCode = @ErrCode OUTPUT
 	ELSE IF @SearchBy = 'SubTransIds'
-		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd] 		
-			@SubTransIds = @SubTransIds,					
+		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd]
+			@SubTransIds = @SubTransIds,
 			@UserName = @UserName,
 			@Password = @Password,
 			@UserID	= @UserID,
 			@IP	= @IP,
-			@Reason	= @Reason,		    
+			@Reason	= @Reason,
+			@ReasonSC = @ReasonSC,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
 			@ErrMsg	= @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT		
+			@ErrCode = @ErrCode OUTPUT
 						
-	SET NOCOUNT OFF		
+	SET NOCOUNT OFF
 END
 GO

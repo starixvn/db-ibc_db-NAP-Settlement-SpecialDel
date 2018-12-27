@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 SET QUOTED_IDENTIFIER ON
 GO
 SET ANSI_NULLS ON
@@ -31,6 +31,7 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20180409@Alan: Add new column Username2 - Remove Licensee = 'All', 'MBC' [Redmine:#93167]
 		- 20180814@Alan: Filter basketball tickets by quarter - Remove #CustIDs [99786]
+		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -91,28 +92,42 @@ BEGIN
 	BEGIN
 		IF @Type = 1 -- Number Game
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, transid, CustId)
-			SELECT	b.username,									
-					b.transid,
-					b.custid
-			FROM	dbo.bettrans b WITH (NOLOCK)
-				OUTER APPLY (SELECT BallSequence 
-							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-							WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
-							) AS BS_tmp
-			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-					AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-					AND b.matchid = @MatchId 
-			 	   	AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
-					AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-					AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
-								AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END														 
-						
-					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WITH (NOLOCK) WHERE Seq = BS_tmp.BallSequence)
-			OPTION	(RECOMPILE)	
+			-- Select Happy 5
+			IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username, transid, CustId)
+				SELECT	b.username,
+						b.transid,
+						b.custid
+				FROM	dbo.bettrans b WITH (NOLOCK)
+				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
+						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+						AND b.matchid = @MatchId 
+			 	   		AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))					
+						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+				OPTION	(RECOMPILE)	
+			END
+
+			-- Select Number Game
+			ELSE
+			BEGIN
+				INSERT INTO #SpecialDeleteBets (username, transid, CustId)
+				SELECT	b.username,
+						b.transid,
+						b.custid
+				FROM	dbo.bettrans b WITH (NOLOCK)
+					OUTER APPLY (SELECT BallSequence 
+								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								) AS BS_tmp
+				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
+						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+						AND b.matchid = @MatchId 
+			 	   		AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))					
+						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WITH (NOLOCK) WHERE Seq = BS_tmp.BallSequence)
+				OPTION	(RECOMPILE)	
+			END
 		END
 		ELSE
 		BEGIN
@@ -169,7 +184,7 @@ BEGIN
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
 			AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END 
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-			AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
 			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
 	END
@@ -185,6 +200,4 @@ BEGIN
 	DROP TABLE #TmpBallSequence
 	
 END			 
-GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic] TO [bodbAdminNet]
 GO

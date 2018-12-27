@@ -1,12 +1,13 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd] 		
 	@SubTransIds			VARCHAR(MAX),
 	
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
     @UserID					INT,
-    @IP						VARCHAR(15),
-    @Reason					NVARCHAR(500),
+    @IP						VARCHAR(15)		= '',
+    @Reason					NVARCHAR(500)	= '',
+	@ReasonSC				NVARCHAR(500)	= '',
     
     @NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
     @ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
@@ -22,6 +23,7 @@ AS
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]			
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20181207@Alan: Support Chinese Email [105976]
 		
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -54,7 +56,7 @@ BEGIN
 		BetId			BIGINT,
 		BetTeam			NVARCHAR(10),
 		BetType			SMALLINT,
-		CurrencyCode	NVARCHAR(50),
+		CurrencyName	NVARCHAR(50),
 		Hdp1			SMALLMONEY,
 		Hdp2			SMALLMONEY,
 		HomeId			INT,
@@ -208,7 +210,7 @@ BEGIN
 				,BetId
 				,BetTeam
 				,BetType
-				,CurrencyCode
+				,CurrencyName
 				,Hdp1
 				,Hdp2
 				,HomeId
@@ -256,7 +258,7 @@ BEGIN
 				,b.BetId
 				,b.BetTeam
 				,b.BetType
-				,b.CurrencyName AS CurrencyCode
+				,b.CurrencyName
 				,b.Hdp1
 				,b.Hdp2
 				,m.HomeId
@@ -424,7 +426,7 @@ BEGIN
 		
 		--> Write log
 		SELECT	@LogData ='Void bet for sub betid(s) ' + ISNULL(@SubTransIds, '') + ' for Mix Parlay Special Delete'   
-				+ ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + ISNULL(@Reason, '')
+				+ ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC 
 			   
 		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData
 			
@@ -449,20 +451,20 @@ BEGIN
 		SELECT  r.Stake,
 				r.AwayId,
 				r.BetCheck,
-				r.BetId,
+				r.BetId AS BetTypeId,
 				r.BetTeam,
-				r.BetType,
-				r.CurrencyCode,
-				r.Hdp1,
-				r.Hdp2,
+				r.BetType,				
+				r.CurrencyName,
+				r.Hdp1 AS Handicap1,
+				r.Hdp2 AS Handicap2,
 				r.HomeId,
-				r.IsLiveIndicator,
+				r.IsLiveIndicator AS IsLive,
 				r.LiveAwayScore,
 				r.LiveHomeScore,
 				r.Odds,
 				r.OddsType,
 				r.RefNo,
-				r.SportType,
+				r.SportType AS SportTypeId,
 				r.Status,
 				r.TransDate,
 				r.TransDesc,
@@ -472,7 +474,7 @@ BEGIN
 				r.IsNeutral,
 				r.showtime,
 				r.LeagueId,
-				r.modds,
+				r.modds AS MasterOdds,
 
 				r.SubStatus,
 				r.SubTransId,
@@ -482,18 +484,20 @@ BEGIN
 				r.SubHdp1,
 				r.SubHdp2,
 				r.SubOdds,
-				r.SubTransdesc,				
-
-				r.CustId AS UserId,
-				r.recommend AS AgentId,
-				ag.UserName AS AgentName,
-				r.mrecommend AS MasterId,
-				ma.UserName AS MasterName,
-				r.srecommend AS SuperId,
-				su.Username AS SuperName,
+				r.SubTransdesc,	
+				1 AS IsMixParlay,			
+				-----------------------------
+				r.CustId,
+				r.recommend,
+				ag.UserName AS AgUserName,
+				r.mrecommend,
+				ma.UserName AS MagUserName,
+				r.srecommend,
+				su.Username AS SagUserName,
+				-----------------------------
+				ag.Currency,
 				ag.Site,
-				su.Site AS EmailGroup,
-				CURRENT_TIMESTAMP AS [DateTime],		
+				su.Site AS EmailGroup,	
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #tmpBetDelete r
@@ -510,7 +514,7 @@ BEGIN
 		IF @avaiableProcess = 1
 			--> Release Concurrency process	
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlayVSBetradar = 1			
+					@IsExistParlayVSBetradar = 1
 				  , @IsReleased	= 1	
 	END CATCH			
 						
