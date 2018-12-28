@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]  
 	  @MatchID				INT 
 	, @Type					SMALLINT		= 0   
@@ -41,6 +41,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
+		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -614,7 +615,7 @@ BEGIN
 				,b.winlost-b.actual_stake AS winlost
 				,r.refno
 				,r.betfrom
-				,r.transdesc
+				,r.transdesc AS SubTransDesc
 				,r.livehomescore
 				,r.liveawayscore
 				,r.liveindicator AS IsLive

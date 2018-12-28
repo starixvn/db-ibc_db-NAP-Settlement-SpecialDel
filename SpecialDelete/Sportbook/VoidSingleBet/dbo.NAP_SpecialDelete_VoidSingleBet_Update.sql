@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@MatchId				INT,
 	
@@ -89,6 +89,7 @@ AS
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20181003@Alan: Add new column SettlementStatus [102423]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
+		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -190,6 +191,7 @@ BEGIN
 		MainTransId			BIGINT,
 		WinLost				MONEY,
 		IsMixParlay			BIT DEFAULT (0),
+		SubTransDesc		NVARCHAR(1000),
 		SubTransId			BIGINT,
 		SubStatus			NVARCHAR(10),
 		SubBetCheck			NVARCHAR(50),
@@ -215,9 +217,9 @@ BEGIN
 		LiveIndicator		BIT,
 		LiveHomeScore 		SMALLINT, 
 		LiveAwayScore 		SMALLINT,
-		Creator				INT,
-		TransDesc			NVARCHAR(1000),
+		Creator				INT,		
 		Refno				BIGINT,
+		SubTransDesc		NVARCHAR(1000),
 		SubTransId			BIGINT,
 		SubStatus			NVARCHAR(10),
 		SubBetCheck			NVARCHAR(50),
@@ -604,14 +606,14 @@ BEGIN
 		BEGIN
 			INSERT INTO #BetDeletem (
 				CustId
-				,OddsSpread			
-				,TransDate				
-				,LiveIndicator	
-				,LiveHomeScore 	
-				,LiveAwayScore 	
+				,OddsSpread
+				,TransDate
+				,LiveIndicator
+				,LiveHomeScore 
+				,LiveAwayScore 
 				,Creator
-				,TransDesc	
 				,Refno
+				,SubTransDesc
 				,SubTransId
 				,SubStatus
 				,SubBetCheck
@@ -629,8 +631,8 @@ BEGIN
 				bm.livehomescore,
 				bm.liveawayscore,
 				bm.creator,
-				bm.transdesc,
 				bm.refno,
+				bm.transdesc AS SubTransDesc,
 				bm.transid AS SubTransId,
 				bm.status AS SubStatus,
 				bm.betcheck AS SubBetCheck,
@@ -680,6 +682,7 @@ BEGIN
 				,refno
 				,WinLost
 				,IsMixParlay
+				,SubTransDesc
 				,SubTransId
 				,SubStatus
 				,SubBetCheck
@@ -719,10 +722,11 @@ BEGIN
 				b.recommend,
 				b.betid,
 				b.betdaqid,
-				bm.transdesc,
+				b.transdesc,
 				bm.refno,
 				b.WinLost - b.actual_stake AS WinLost,
 				1 AS IsMixParlay,
+				bm.SubTransDesc,
 				bm.SubTransId,
 				bm.SubStatus,
 				bm.SubBetCheck,
@@ -1990,6 +1994,7 @@ BEGIN
 			,al.hdp2 AS Handicap2
 			,al.IsLiveIndicator AS IsLive
 			,al.IsMixParlay
+			,al.SubTransDesc
 			,al.SubTransid
 			,al.SubStatus
 			,al.SubBetcheck
