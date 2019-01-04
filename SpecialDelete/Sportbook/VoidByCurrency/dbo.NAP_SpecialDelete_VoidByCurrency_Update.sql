@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update] 
 	@MatchID			INT = 0,
 	@LicenseeNames		VARCHAR(MAX),
@@ -38,6 +38,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
+		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		
 	Param's Explanation:			
 			- @TicketType:
@@ -134,15 +135,16 @@ BEGIN
 			WalletType			TINYINT,
 			RefCode				BIGINT,
 			BonusID				INT,
-			MainTransId			BIGINT,			
-			
+			MainTransId			BIGINT,	
+					
+			SubTransDesc		NVARCHAR(1000),
 			SubTransId			BIGINT,
 			SubBetCheck			NVARCHAR(50),
 			SubBetTeam			NVARCHAR(10),
 			SubBetType			SMALLINT,
 			SubHdp1				SMALLMONEY,
 			SubHdp2				SMALLMONEY,
-			SubOdds				MONEY						
+			SubOdds				MONEY
 	)	
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -1233,7 +1235,8 @@ BEGIN
 						balance,
 						betdaqid,
 						IsBetTrade,						
-						BettradeGroupID,						
+						BettradeGroupID,
+						SubTransDesc,					
 						SubTransId,
 						SubBetCheck,
 						SubBetTeam,
@@ -1265,7 +1268,7 @@ BEGIN
 					m.SportType,
 					main.status AS STATUS,
 					main.transdate AS TransDate,
-					sub.transdesc AS TransDesc,
+					main.transdesc AS TransDesc,
 					main.transid AS TransId,
 					main.UserName,
 					main.winlost - main.actual_stake AS NetWinLost,
@@ -1278,7 +1281,8 @@ BEGIN
 					main.winlost - main.actual_stake + main.playercomm AS balance,
 					main.betdaqid,
 					CAST(0 AS BIT) AS IsBetTrade,					
-					main.transid AS BettradeGroupID,					
+					main.transid AS BettradeGroupID,
+					sub.transdesc AS SubTransDesc,					
 					sub.transid AS SubTransId,
 					sub.betcheck AS SubBetCheck,
 					sub.betteam AS SubBetTeam,
@@ -2097,6 +2101,7 @@ BEGIN
 				s.NetWinLost AS WinLost,
 
 				s.IsMixParlay,
+				s.SubTransDesc,
 				s.SubBetType,
 				s.SubHdp1,
 				s.SubHdp2,
