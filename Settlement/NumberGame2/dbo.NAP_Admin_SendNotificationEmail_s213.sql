@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_SendNotificationEmail_s213
 	@Action VARCHAR(50)='',
 	@seqID 	INT = 0
@@ -90,7 +91,7 @@ This is an auto-mail. Please do not reply.
 
 		SELECT 
 			--config for local
-			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com',
+			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
 			--config PRO
 			/*
 			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;
@@ -137,7 +138,7 @@ This is an auto-mail. Please do not reply.
 
 		SELECT 
 			--config local
-			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com',
+			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
 			--config PRO
 			/*
 			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;
