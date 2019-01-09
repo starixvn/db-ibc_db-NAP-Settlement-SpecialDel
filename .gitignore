@@ -14,3 +14,4 @@ bk/
 backup/
 
 .project
+.settings/org.eclipse.core.resources.prefs

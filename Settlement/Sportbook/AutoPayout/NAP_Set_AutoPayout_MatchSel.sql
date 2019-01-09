@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	  @FromDate 			DATETIME
 	, @ToDate 			DATETIME
@@ -39,11 +39,12 @@ AS
 	- 20180530@Benjamin: Convert HomeValue, AwayValue to number before comparing [Redmine:#86964]
 	- 20180806@Kathy: Get waiting time for auto instant [Redmine:#86964]
 	- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+	- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 	
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 6:Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 5: Postponed, 6:Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -85,7 +86,7 @@ BEGIN
 								WHEN @statusid = 1 THEN 'running'
 								WHEN @statusid = 2 THEN 'closed'
 								WHEN @statusid IN (3,6) THEN 'completed'
-								WHEN @statusid = 5 THEN 'running'
+								WHEN @statusid = 5 THEN 'postponed'
 								ELSE ''	END
 			, @isRefund = CASE 
 							WHEN @statusid IN (4,6) THEN 1
@@ -100,6 +101,7 @@ BEGIN
 				WHEN @StatusId = 7 THEN 1
 				WHEN @StatusId = 8 THEN 2
 				WHEN @StatusId = 9 THEN 4
+				WHEN @StatusId = 10 THEN 16
 				ELSE 0 
 				END
 
@@ -554,7 +556,7 @@ BEGIN
 					INNER JOIN DBPRO.bodb02.dbo.ProviderResultDetail prd WITH(NOLOCK)
 					ON m.matchid = prd.matchID
 				WHERE prd.TypeId IN (101, 102)
-					AND m.SettlementStatus & 3 = 0
+					AND m.SettlementStatus & 19 = 0
 					AND prd.SourceID = 100 --#86964
 			) AS t
 			WHERE RowIdx IN (1, 2)
