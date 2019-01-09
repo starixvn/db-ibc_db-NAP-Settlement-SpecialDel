@@ -11,6 +11,7 @@ AS
 
 	Revision
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 
 	Param's Explanation: 
 
