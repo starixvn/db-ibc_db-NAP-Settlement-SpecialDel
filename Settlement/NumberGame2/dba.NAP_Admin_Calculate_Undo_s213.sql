@@ -18,7 +18,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06','DB231\DBSPU2','DB232\DBSPU2' ) AND @CalledByBrokerService = 0
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042'
+            , 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
+            , 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
+			, 'DB231\DBSPU2','DB232\DBSPU2'
+            , 'SITDB052', 'SITDB053', 'SITDB054', 'SITDB06'
+            , 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02')
+		AND @CalledByBrokerService = 0
 	BEGIN
 		-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 		DECLARE @sMessage NVARCHAR(MAX)
