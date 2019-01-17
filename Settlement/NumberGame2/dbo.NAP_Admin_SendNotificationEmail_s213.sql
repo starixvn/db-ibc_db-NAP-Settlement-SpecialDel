@@ -40,11 +40,10 @@ BEGIN
 		
 ',
 			--config for local
-			@recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com',
+			--@recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com',
 			--config for pro
-			/*@recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
-			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw',
-			*/
+			@recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
+			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw',			
 			--@copy_recipients ='dbaadmin@onelab.tw',
 			@subject ='[Lotto] IsSkipped tickets Notification',
 			@query = 'SET NOCOUNT ON 
@@ -91,13 +90,13 @@ This is an auto-mail. Please do not reply.
 
 		SELECT 
 			--config for local
-			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
-			--config PRO
-			/*
+			/*@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+			*/
+			--config PRO			
 			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;
 			kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
 			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
-			*/
+			
 			--,@copy_recipients ='dbaadmin@onelab.tw'
 			,@subject ='[Lotto] Ticket Refund Notification – Completed'
 		
@@ -138,7 +137,7 @@ This is an auto-mail. Please do not reply.
 
 		SELECT 
 			--config local
-			@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+			@recipients = N'harris.tran@starixsoft.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com'
 			--config PRO
 			/*
 			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;

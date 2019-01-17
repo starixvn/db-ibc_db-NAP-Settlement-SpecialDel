@@ -30,7 +30,7 @@ BEGIN
 	IF @@ROWCOUNT = 0 RETURN
 	
 	SELECT @start = CURRENT_TIMESTAMP,
-			@actionID = 200--Undo action for NG2
+			@actionID = 81008--Undo action for NG2
 			
 	UPDATE settlementNG2_message WITH (UPDLOCK,ROWLOCK)
 	SET startCalculate_time = GETDATE(),
