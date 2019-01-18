@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_Admin_Settlement_s213_Job]
 AS
 	/* 
@@ -7,7 +8,7 @@ AS
 		DB: DBTXN/bodb02
 		
 		Revision:
-		
+			- 20190109@Johnson: add UNDO action [redmine#107658]
 		Parameter's Explanation:
 	*/
 BEGIN
@@ -29,4 +30,6 @@ BEGIN
 		EXEC NAP_Admin_Settlement_s213
 	ELSE IF @task = 'Refund'
 		EXEC NAP_Admin_Settlement_Refund_s213
+	ELSE IF @task = 'Undo'
+		EXEC NAP_Admin_Settlement_Undo_s213		
 END
