@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20190109@Johnson: Add UNDO action [redmine:#107658]
+		- 20190130@Johnson: config email for different env. [redmine:#107658]
 	Parameter's Explanation:
 		@Action= "settlement" : send email to IT if skip updating tickets
 				= "Refund": send mail to CSD,IT,3rd Party
@@ -33,17 +34,20 @@ BEGIN
 		IF NOT EXISTS (SELECT 1 FROM Bettrans_staging WITH(NOLOCK) WHERE seqID = @seqID AND isSkipped = 1)
 		RETURN		
 		
+		--config email for local
+		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
+			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+		ELSE 	
+		--config for SIT,PRO
+			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; charlie.ma@onelab.tw; 
+								jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
+		
 		SELECT @body = 
 'Dear All,
 
  Please be informed that the ticket below had been skipped to update to bettrans: 
 		
-',
-			--config for local
-			--@recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com',
-			--config for pro
-			@recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
-			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw',			
+',						
 			--@copy_recipients ='dbaadmin@onelab.tw',
 			@subject ='[Lotto] IsSkipped tickets Notification',
 			@query = 'SET NOCOUNT ON 
@@ -73,7 +77,21 @@ BEGIN
 				@EventDate = eventDate
 		FROM settlementNG2_message WITH(NOLOCK)
 		WHERE seqID = @seqID
-				
+		
+		--config email for local
+		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
+			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
+			--config for SIT
+			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
+						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
+		ELSE 
+			--config PRO			
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
+						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
+			
 		SELECT @body ='Dear All,
 		
 Please be informed that the Event below had been Refunded
@@ -88,17 +106,9 @@ This is an auto-mail. Please do not reply.
 		WHERE sportType = @sportType
 
 
-		SELECT 
-			--config for local
-			/*@recipients = N'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
-			*/
-			--config PRO			
-			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;
-			kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
-			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
-			
+		SELECT
 			--,@copy_recipients ='dbaadmin@onelab.tw'
-			,@subject ='[Lotto] Ticket Refund Notification – Completed'
+			@subject ='[Lotto] Ticket Refund Notification – Completed'
 		
 		BEGIN TRANSACTION
 			SELECT TOP (1) @profile_name = name FROM MSDB.dbo.sysmail_profile
@@ -134,18 +144,23 @@ This is an auto-mail. Please do not reply.
 		FROM sports WITH(NOLOCK)
 		WHERE sportType = @sportType
 
-
+		--config email for local
+		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
+			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
+			--config for SIT
+			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
+						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
+		ELSE 
+			--config PRO			
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
+						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
+			
 		SELECT 
-			--config local
-			@recipients = N'harris.tran@starixsoft.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com'
-			--config PRO
-			/*
-			@recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; joker35@enpine.com;
-			kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; jackal.chien@onelab.com; charlie.ma@onelab.tw; timothy.chen@onelab.tw;
-			jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
-			*/
-			--,@copy_recipients ='dbaadmin@onelab.tw'
-			,@subject ='[Lotto] Ticket Undo Notification – Completed'
+			--@copy_recipients ='dbaadmin@onelab.tw'
+			@subject ='[Lotto] Ticket Undo Notification – Completed'
 		
 		BEGIN TRANSACTION
 			SELECT TOP (1) @profile_name = name FROM MSDB.dbo.sysmail_profile
