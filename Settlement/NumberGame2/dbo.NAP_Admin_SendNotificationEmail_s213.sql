@@ -83,12 +83,12 @@ BEGIN
 			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
 		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
 			--config for SIT
-			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; 
+			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 		ELSE 
 			--config PRO			
-			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; 
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 			
@@ -149,12 +149,12 @@ This is an auto-mail. Please do not reply.
 			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
 		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
 			--config for SIT
-			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; 
+			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 		ELSE 
 			--config PRO			
-			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; lim.ykl@gwibsi.com; 
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 			
