@@ -25,18 +25,18 @@ BEGIN
 		,custid			INT
 		,username		VARCHAR(30)
 		,odds			MONEY
-		,choiceOdds		MONEY
+		,SubOdds		MONEY
 		,oddsspread		MONEY
 		,OddsType		INT
 		,transdate		DATETIME
 		,bettype 		SMALLINT
 		,OriginalBetType SMALLINT
 		,betteam 		NVARCHAR(10)
-		,ChoiceBetTeam	NVARCHAR(10)		
+		,SubBetTeam	NVARCHAR(10)		
 		,betcheck		NVARCHAR(50)
-		,choiceBetcheck NVARCHAR(50)
-		,choicehdp1		SMALLMONEY
-		,choicehdp2		SMALLMONEY
+		,SubBetcheck NVARCHAR(50)
+		,Subhdp1		SMALLMONEY
+		,Subhdp2		SMALLMONEY
 		,hdp1 			SMALLMONEY
 		,hdp2 			SMALLMONEY
 		,livehomescore 	SMALLINT
@@ -47,11 +47,11 @@ BEGIN
 		,currencyname	VARCHAR(20)
 		,IsDeposit		BIT	DEFAULT (0)
 		,STATUS			NVARCHAR(10)
-		,ChoiceStatus	NVARCHAR(10)
+		,SubStatus	NVARCHAR(10)
 		,srecommend		INT
 		,mrecommend		INT
 		,recommend		INT
-		,ChoiceLeagueId INT
+		,SubLeagueId INT
 		,betid			BIGINT DEFAULT (0)
 		,Transdesc		NVARCHAR(1000)
 		,betdaqid		BIGINT		
@@ -100,15 +100,15 @@ BEGIN
 			,refno			
 			,custid			
 			,odds			
-			,choiceOdds	
+			,SubOdds	
 			,oddsspread			
 			,OddsType		
 			,transdate		
 			,bettype 		
 			,betteam 		
-			,ChoiceBetTeam
+			,SubBetTeam
 			,betcheck	
-			,choiceBetcheck	
+			,SubBetcheck	
 			,hdp1 			
 			,hdp2 			
 			,livehomescore 	
@@ -117,7 +117,7 @@ BEGIN
 			,Stake			
 			,currencyname		
 			,STATUS			
-			,ChoiceStatus	
+			,SubStatus	
 			,srecommend
 			,mrecommend		
 			,recommend		
@@ -137,15 +137,15 @@ BEGIN
 			,b.refno
 			,b.custid
 			,b.odds
-			,b.odds AS choiceOdds
+			,b.odds AS SubOdds
 			,b.oddsspread			
 			,b.OddsType
 			,b.transdate
 			,b.bettype
 			,b.betteam
-			,b.betteam AS choiceBetteam
+			,b.betteam AS SubBetteam
 			,b.betcheck
-			,b.betcheck AS choiceBetcheck
+			,b.betcheck AS SubBetcheck
 			,b.hdp1
 			,b.hdp2
 			,b.livehomescore
@@ -158,7 +158,7 @@ BEGIN
 				END AS STATUS
 			,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					ELSE b.STATUS
-				END AS ChoiceStatus
+				END AS SubStatus
 			,b.srecommend
 			,b.mrecommend
 			,b.recommend
@@ -191,15 +191,15 @@ BEGIN
 				,refno			
 				,custid			
 				,odds			
-				,choiceOdds	
+				,SubOdds	
 				,oddsspread							
 				,OddsType		
 				,transdate		
 				,bettype 		
 				,betteam 		
-				,ChoiceBetTeam
+				,SubBetTeam
 				,betcheck	
-				,choiceBetcheck	
+				,SubBetcheck	
 				,hdp1 			
 				,hdp2 			
 				,livehomescore 	
@@ -208,7 +208,7 @@ BEGIN
 				,Stake			
 				,currencyname		
 				,STATUS			
-				,ChoiceStatus	
+				,SubStatus	
 				,srecommend
 				,mrecommend		
 				,recommend		
@@ -223,15 +223,15 @@ BEGIN
 				,b.TranslogID refno
 				,b.custid
 				,b.odds
-				,b.odds AS choiceOdds
+				,b.odds AS SubOdds
 				,0 AS oddsspread			
 				,b.custom1 OddsType
 				,b.transdate
 				,b.GameID
 				,NULL betteam
-				,NULL choicebetteam
+				,NULL Subbetteam
 				,NULL betcheck
-				,NULL choicebetcheck
+				,NULL Subbetcheck
 				,0 hdp1
 				,0 hdp2
 				,NULL livehomescore
@@ -240,7 +240,7 @@ BEGIN
 				,b.stake			
 				,b.currencyname			
 				,b.STATUS
-				,b.Status AS ChoiceStatus
+				,b.Status AS SubStatus
 				,b.srecommend
 				,b.mrecommend
 				,b.recommend		
@@ -273,17 +273,17 @@ BEGIN
 				,refno			
 				,custid					
 				,odds			
-				,choiceOdds	
+				,SubOdds	
 				,oddsspread
 				,OddsType		
 				,transdate		
 				,bettype		
 				,betteam		
-				,ChoiceBetTeam
+				,SubBetTeam
 				,betcheck	
-				,choiceBetcheck	
-				,choicehdp1
-				,choicehdp2
+				,SubBetcheck	
+				,Subhdp1
+				,Subhdp2
 				,hdp1 			
 				,hdp2 			
 				,livehomescore	
@@ -292,7 +292,7 @@ BEGIN
 				,Stake			
 				,currencyname						
 				,STATUS			
-				,ChoiceStatus	
+				,SubStatus	
 				,srecommend		
 				,mrecommend		
 				,recommend						
@@ -308,7 +308,7 @@ BEGIN
 				,sub.refno
 				,sub.custid				
 				,main.odds
-				,sub.odds AS choiceOdds
+				,sub.odds AS SubOdds
 				,sub.oddsspread
 				,main.OddsType
 				,sub.transdate
@@ -327,7 +327,7 @@ BEGIN
 				,main.stake
 				,main.currencyname				
 				,main.STATUS
-				,sub.STATUS AS ChoiceStatus
+				,sub.STATUS AS SubStatus
 				,main.srecommend
 				,main.mrecommend
 				,main.recommend
@@ -389,15 +389,15 @@ BEGIN
 						,refno			
 						,custid			
 						,odds			
-						,choiceOdds		
+						,SubOdds		
 						,oddsspread
 						,OddsType		
 						,transdate		
 						,bettype 		
 						,betteam 		
-						,ChoiceBetTeam
+						,SubBetTeam
 						,betcheck	
-						,choiceBetcheck	
+						,SubBetcheck	
 						,hdp1 			
 						,hdp2 			
 						,livehomescore 	
@@ -406,7 +406,7 @@ BEGIN
 						,Stake			
 						,currencyname		
 						,STATUS			
-						,ChoiceStatus	
+						,SubStatus	
 						,srecommend
 						,mrecommend		
 						,recommend		
@@ -427,15 +427,15 @@ BEGIN
 						,b.refno
 						,b.custid
 						,b.odds
-						,b.odds AS choiceOdds
+						,b.odds AS SubOdds
 						,b.oddsspread
 						,b.OddsType
 						,b.transdate
 						,b.bettype
 						,b.betteam
-						,b.betteam AS choiceBetteam
+						,b.betteam AS SubBetteam
 						,b.betcheck
-						,b.betcheck AS choiceBetcheck
+						,b.betcheck AS SubBetcheck
 						,b.hdp1
 						,b.hdp2
 						,b.livehomescore
@@ -448,7 +448,7 @@ BEGIN
 						 END AS STATUS
 						,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 							  ELSE b.STATUS
-						 END AS ChoiceStatus
+						 END AS SubStatus
 						,b.srecommend
 						,b.mrecommend
 						,b.recommend
@@ -499,16 +499,16 @@ BEGIN
 			,refno			
 			,custid			
 			,odds			
-			,choiceOdds	
+			,SubOdds	
 			,oddsspread			
 			,OddsType		
 			,transdate		
 			,bettype
 			,OriginalBetType 		
 			,betteam 		
-			,ChoiceBetTeam
+			,SubBetTeam
 			,betcheck	
-			,choiceBetcheck	
+			,SubBetcheck	
 			,hdp1 			
 			,hdp2 			
 			,livehomescore 	
@@ -517,7 +517,7 @@ BEGIN
 			,Stake			
 			,currencyname		
 			,STATUS			
-			,ChoiceStatus	
+			,SubStatus	
 			,srecommend
 			,mrecommend		
 			,recommend		
@@ -536,16 +536,16 @@ BEGIN
 			,sub.refno
 			,sub.custid
 			,main.odds
-			,main.odds AS choiceOdds
+			,main.odds AS SubOdds
 			,main.oddsspread
 			,main.OddsType
 			,sub.transdate
 			,sub.bettype
 			,main.bettype  AS OriginalBetType
 			,main.betteam
-			,main.ChoiceBetTeam
+			,main.SubBetTeam
 			,main.betcheck
-			,main.choiceBetcheck
+			,main.SubBetcheck
 			,main.hdp1
 			,main.hdp2			
 			,main.livehomescore
@@ -554,7 +554,7 @@ BEGIN
 			,main.Stake
 			,main.CurrencyName
 			,'SOLD'
-			,'SOLD' AS ChoiceStatus
+			,'SOLD' AS SubStatus
 			,main.srecommend
 			,main.mrecommend
 			,main.recommend			
@@ -582,16 +582,16 @@ BEGIN
 			,refno			
 			,custid			
 			,odds					
-			,choiceOdds
+			,SubOdds
 			,oddsspread				
 			,OddsType		
 			,transdate		
 			,bettype
 			,OriginalBetType 		
 			,betteam 		
-			,ChoiceBetTeam
+			,SubBetTeam
 			,betcheck	
-			,choiceBetcheck	
+			,SubBetcheck	
 			,hdp1 			
 			,hdp2 			
 			,livehomescore 	
@@ -600,7 +600,7 @@ BEGIN
 			,Stake			
 			,currencyname		
 			,STATUS			
-			,ChoiceStatus	
+			,SubStatus	
 			,srecommend
 			,mrecommend		
 			,recommend		
@@ -621,16 +621,16 @@ BEGIN
 			,sub911.refno
 			,sub911.custid
 			,main.odds
-			,main.odds AS choiceOdds
+			,main.odds AS SubOdds
 			,main.oddsspread
 			,main.OddsType
 			,sub911.transdate
 			,sub911.bettype
 			,main.bettype AS OriginalBetType
 			,main.betteam
-			,main.ChoiceBetTeam
+			,main.SubBetTeam
 			,main.betcheck
-			,main.choiceBetcheck
+			,main.SubBetcheck
 			,main.hdp1
 			,main.hdp2			
 			,main.livehomescore
@@ -639,7 +639,7 @@ BEGIN
 			,sub911.Stake
 			,main.CurrencyName
 			,'Cash out'
-			,'Cash out' AS ChoiceStatus
+			,'Cash out' AS SubStatus
 			,main.srecommend
 			,main.mrecommend
 			,main.recommend			
@@ -671,16 +671,16 @@ BEGIN
 				,refno			
 				,custid			
 				,odds			
-				,choiceOdds	
+				,SubOdds	
 				,oddsspread				
 				,OddsType		
 				,transdate		
 				,bettype 
 				,OriginalBetType		
 				,betteam 		
-				,ChoiceBetTeam
+				,SubBetTeam
 				,betcheck	
-				,choiceBetcheck	
+				,SubBetcheck	
 				,hdp1 			
 				,hdp2 			
 				,livehomescore 	
@@ -689,7 +689,7 @@ BEGIN
 				,Stake			
 				,currencyname		
 				,STATUS			
-				,ChoiceStatus	
+				,SubStatus	
 				,srecommend
 				,mrecommend		
 				,recommend		
@@ -710,16 +710,16 @@ BEGIN
 				,b.refno
 				,b.custid
 				,b.odds
-				,b.odds AS choiceOdds
+				,b.odds AS SubOdds
 				,b.oddsspread
 				,b.OddsType
 				,b.transdate
 				,b.bettype
 				,sub911.OriginalBetType
 				,b.betteam
-				,b.betteam AS choiceBetteam
+				,b.betteam AS SubBetteam
 				,b.betcheck
-				,b.betcheck AS choiceBetcheck
+				,b.betcheck AS SubBetcheck
 				,b.hdp1
 				,b.hdp2
 				,b.livehomescore
@@ -732,7 +732,7 @@ BEGIN
 				 END AS STATUS
 				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 					  ELSE b.STATUS
-				 END AS ChoiceStatus
+				 END AS SubStatus
 				,b.srecommend
 				,b.mrecommend
 				,b.recommend
@@ -763,7 +763,7 @@ BEGIN
 	UPDATE al
 		SET username = ci.username
 			,creatorName = cr.username
-			,ChoiceLeagueId = @LeagueId
+			,SubLeagueId = @LeagueId
 			,sporttype = @SportType
 	FROM	#SpecialDeleteBets al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
@@ -791,26 +791,26 @@ BEGIN
 			   ,s.creatorName AS creator
 			   ,s.Stake
 			   ,s.odds
-			   ,s.choiceOdds
+			   ,s.SubOdds
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.OriginalBetType
 			   ,s.STATUS
-			   ,s.ChoiceStatus
+			   ,s.SubStatus
 			   ,s.currencyname
 			   ,s.betteam
-			   ,s.ChoiceBetTeam
-			   ,s.ChoiceLeagueId
-			   ,s.choicehdp1
-			   ,s.choicehdp2
+			   ,s.SubBetTeam
+			   ,s.SubLeagueId
+			   ,s.Subhdp1
+			   ,s.Subhdp2
 			   ,s.hdp1
 			   ,s.hdp2
 			   ,s.livehomescore
 			   ,s.liveawayscore
 			   ,s.betid
 			   ,s.betcheck
-			   ,s.choiceBetcheck
+			   ,s.SubBetcheck
 			   ,s.IsMixParlay
 			   ,s.ParlayType
 			   ,NULL AS followedId
@@ -855,26 +855,26 @@ BEGIN
 			   ,s.creatorName AS creator
 			   ,s.Stake
 			   ,s.odds
-			   ,s.choiceOdds
+			   ,s.SubOdds
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.OriginalBetType
 			   ,s.STATUS
-			   ,s.ChoiceStatus
+			   ,s.SubStatus
 			   ,s.currencyname
 			   ,s.betteam
-			   ,s.ChoiceBetTeam
-			   ,s.ChoiceLeagueId
-			   ,s.choicehdp1
-			   ,s.choicehdp2
+			   ,s.SubBetTeam
+			   ,s.SubLeagueId
+			   ,s.Subhdp1
+			   ,s.Subhdp2
 			   ,s.hdp1
 			   ,s.hdp2
 			   ,s.livehomescore
 			   ,s.liveawayscore
 			   ,s.betid
 			   ,s.betcheck
-			   ,s.choiceBetcheck
+			   ,s.SubBetcheck
 			   ,s.IsMixParlay
 			   ,s.ParlayType
 			   ,b.transid AS followedId
@@ -910,26 +910,26 @@ BEGIN
 			   ,s.creatorName AS creator
 			   ,s.Stake
 			   ,s.odds
-			   ,s.choiceOdds
+			   ,s.SubOdds
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
 			   ,s.OriginalBetType
 			   ,s.STATUS
-			   ,s.ChoiceStatus
+			   ,s.SubStatus
 			   ,s.currencyname
 			   ,s.betteam
-			   ,s.ChoiceBetTeam
-			   ,s.ChoiceLeagueId
-			   ,s.choicehdp1
-			   ,s.choicehdp2
+			   ,s.SubBetTeam
+			   ,s.SubLeagueId
+			   ,s.Subhdp1
+			   ,s.Subhdp2
 			   ,s.hdp1
 			   ,s.hdp2
 			   ,s.livehomescore
 			   ,s.liveawayscore
 			   ,s.betid
 			   ,s.betcheck
-			   ,s.choiceBetcheck
+			   ,s.SubBetcheck
 			   ,s.IsMixParlay
 			   ,s.ParlayType
 			   ,NULL AS followedId
@@ -973,26 +973,26 @@ BEGIN
 		   ,s.creatorName AS creator
 		   ,s.Stake
 		   ,s.odds
-		   ,s.choiceOdds
+		   ,s.SubOdds
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.OriginalBetType
 		   ,s.STATUS
-		   ,s.ChoiceStatus
+		   ,s.SubStatus
 		   ,s.currencyname
 		   ,s.betteam
-		   ,s.ChoiceBetTeam
-		   ,s.ChoiceLeagueId
-		   ,s.choicehdp1
-		   ,s.choicehdp2
+		   ,s.SubBetTeam
+		   ,s.SubLeagueId
+		   ,s.Subhdp1
+		   ,s.Subhdp2
 		   ,s.hdp1
 		   ,s.hdp2
 		   ,s.livehomescore
 		   ,s.liveawayscore
 		   ,s.betid
 		   ,s.betcheck
-		   ,s.choiceBetcheck
+		   ,s.SubBetcheck
 		   ,s.IsMixParlay
 		   ,s.ParlayType
 		   ,NULL AS followedId
@@ -1026,26 +1026,26 @@ BEGIN
 		   ,s.creator
 		   ,s.Stake
 		   ,s.odds
-		   ,s.choiceOdds
+		   ,s.SubOdds
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
 		   ,s.OriginalBetType
 		   ,s.STATUS
-		   ,s.ChoiceStatus
+		   ,s.SubStatus
 		   ,s.currencyname
 		   ,s.betteam
-		   ,s.ChoiceBetTeam
-		   ,s.ChoiceLeagueId
-		   ,s.choicehdp1
-		   ,s.choicehdp2
+		   ,s.SubBetTeam
+		   ,s.SubLeagueId
+		   ,s.Subhdp1
+		   ,s.Subhdp2
 		   ,s.hdp1
 		   ,s.hdp2
 		   ,s.livehomescore
 		   ,s.liveawayscore
 		   ,s.betid
 		   ,s.betcheck
-		   ,s.choiceBetcheck
+		   ,s.SubBetcheck
 		   ,s.IsMixParlay
 		   ,s.ParlayType
 		   ,s.followedId

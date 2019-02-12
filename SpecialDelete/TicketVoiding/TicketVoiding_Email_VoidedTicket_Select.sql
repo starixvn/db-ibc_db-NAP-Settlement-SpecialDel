@@ -53,7 +53,6 @@ BEGIN
 		,RefCode		BIGINT
 		,ExtraInfo		VARCHAR(1000)
 		,TransDesc		NVARCHAR(1000)
-
 		,Username		NVARCHAR(50)
 		
 		,subbetcheck	NVARCHAR(1)
@@ -246,7 +245,7 @@ BEGIN
 			,t.RefCode
 			,t.ExtraInfo		
 			,t.TransDesc
-			
+
 			,t.subTransId
 			,t.subbetcheck
 			,t.subOdds
@@ -256,11 +255,15 @@ BEGIN
 			,t.subhdp2			
 			,t.subtransdesc
 			
+			,t.custId
+			,t.recommend
+			,t.mrecommend
+			,t.srecommend
 			,c.username
 			,c.username2		
 			,ag.username AS AgUserName
-			,ma.username AS MaUserName
-			,su.username AS SuUserName
+			,ma.username AS MagUserName
+			,su.username AS SagUserName
 			
 			,CASE 
 				WHEN ag.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'BetFair'

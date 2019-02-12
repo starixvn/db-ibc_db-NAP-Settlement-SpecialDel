@@ -47,7 +47,9 @@ BEGIN
 		,TransDesc		NVARCHAR(1000)
 
 		,Username		NVARCHAR(50)
+		,creator		INT
 		
+		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(1)
 		,subOdds		SMALLMONEY
 		,subbetteam		NVARCHAR(10)
@@ -95,13 +97,14 @@ BEGIN
 		) z
 		
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
 			,zm.status
 			,zm.VoidedTime
 			,zm.custid
+			,1 AS IsMixParlay
 	FROM	@tmpVoidingHistory vh
 		CROSS APPLY (
 			SELECT	zm.transid
@@ -137,7 +140,7 @@ BEGIN
 			,CurrencyName = b.CurrencyName
 			,betfrom = b.betfrom
 			,transdate = b.transdate
-			
+			,creator = b.creator
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -166,6 +169,7 @@ BEGIN
 			,CurrencyName = b.CurrencyName
 			,betfrom = b.betfrom
 			,transdate = b.transdate
+			,creator = b.creator
 
 			,subbetcheck = bm.betcheck
 			,subOdds = bm.odds
@@ -205,7 +209,11 @@ BEGIN
 			,t.RefCode
 			,t.ExtraInfo		
 			,t.TransDesc
+			,t.Refno
+			,cr.username AS Creator
+			,t.VoidedTime
 			
+			,t.IsMixParlay
 			,t.subTransId
 			,t.subbetcheck
 			,t.subOdds
@@ -226,5 +234,7 @@ BEGIN
 			ON c.custid = t.custid	
 		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 			ON ag.custid = c.recommend
+		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK)
+			ON t.creator = cr.custid
 END
 GO
