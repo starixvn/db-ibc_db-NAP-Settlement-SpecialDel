@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_BalanceNegativeSel_MatchLog]
 	 @MatchID	INT,
 	 @GroupID	INT = 1 
