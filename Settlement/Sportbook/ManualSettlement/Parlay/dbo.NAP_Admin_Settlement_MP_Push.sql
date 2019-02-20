@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Push] (
 	@MatchIds VARCHAR(4000)
 	,@AdminId INT
@@ -35,6 +31,8 @@ AS
 		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
+
 	Param's Explanation:		
 		
 */
@@ -49,6 +47,9 @@ BEGIN
 			,@matchid int
 			,@bettype_22 VARCHAR(20)
 			,@bettype_160 VARCHAR(20)
+
+			,@MovingMatchIds VARCHAR(MAX) 
+			,@InvalidMatchIds VARCHAR(MAX) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -352,7 +353,21 @@ BEGIN
 		WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1) )
 		OR matchid IN (SELECT matchid FROM Parlay_Calculate_Queue with(NOLOCK) WHERE IsCalculating IN (0,1) ) 
 	END
+
+	-- check movebet day
+	EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
+		@MatchIds =  @matchids 
+		,@MovingMatchIds = @InvalidMatchIds OUTPUT
 	
+	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + m.matchcode, m.matchcode)
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid IN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ','))
+	OPTION (maxrecursion 0) 
+	
+	DELETE FROM @match
+	WHERE	matchid IN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ','))
+	OPTION (maxrecursion 0) 
+
 	-- check waiting ticket
 	EXEC [NAP_Admin_Settlement_Checking] 		@MatchIds = @MatchIds	OUTPUT
 		,@Action = @Action
@@ -364,8 +379,8 @@ BEGIN
 	
 	DELETE FROM @match
 	WHERE matchid IN (SELECT val FROM dbo.strSplit(@MatchIds, ','))
-
-	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> ''
+	
+	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'All matches are being calculated, except following matches ' 
@@ -385,6 +400,12 @@ BEGIN
 									THEN ' (need to be executed "Calc FGLG"): ' + @NotExecutedFGLG
 									ELSE ''
 								END
+							+ CASE WHEN ISNULL(@MovingMatchIds, '') <> ''
+									THEN ' (during move-bet progress): ' + @MovingMatchIds + '. Please contact Starix IT for further support!'
+									ELSE ''
+								END
+
+							
 	END
 	
 	IF EXISTS (

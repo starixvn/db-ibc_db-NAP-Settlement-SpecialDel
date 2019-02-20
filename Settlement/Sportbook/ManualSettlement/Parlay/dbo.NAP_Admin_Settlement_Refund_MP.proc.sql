@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP] (
 	@MatchId 	INT
 	,@Creator 	INT
@@ -22,6 +18,8 @@ AS
 		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
+
 
 	Param's Explanation:		
 		
@@ -308,13 +306,14 @@ BEGIN
 		CREATE TABLE #tempRefno29 (refno BIGINT, transid BIGINT)	
 		
 		-- for balance table --	
-		DECLARE @BeforeUpd 					TVP_BalanceChange
-			, @AfterUpd 					TVP_BalanceChange
-			
-		CREATE TABLE #Balance_29 (custid int PRIMARY KEY, balance money, Increased bit)
-		CREATE INDEX IX_Balance_29_Increased ON #Balance_29 (Increased)
+		DECLARE @tblDebitPending_29 TVP_BalanceList
+		DECLARE @tblCreditPending_29 TVP_BalanceList
 
-		DECLARE @TotalAccount INT, @TotalAccount_BalanceUpdate INT
+		CREATE TABLE #BalanceBefore_29 (transid BIGINT PRIMARY KEY, custid INT, balance money)
+		CREATE TABLE #BalanceAfter_29 (transid BIGINT PRIMARY KEY, custid INT, balance money)			
+		CREATE TABLE #Balance_29 (custid INT, balance MONEY)
+
+		DECLARE @TotalAccount INT
 		
 		----------------------------------------------------------------------------------------------------------------------------------------
 		INSERT INTO @refnos(refno)
@@ -353,20 +352,6 @@ BEGIN
 					,@mode = 'PRECAL-29'
 					,@matchdate = @matchdate
 					,@strXML = @strTransIds
-				
-				-- CAPTURE value BALANCE before udpate bettrans
-				INSERT INTO @BeforeUpd (
-					custid
-					,balance
-					,balanceType
-				)
-				SELECT b.custid
-					,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-					,1 -- Sports
-				FROM dbo.bettrans b WITH(ROWLOCK)
-				WHERE EXISTS( SELECT 1 FROM #temp_bettrans_29 WHERE transid = b.transid)
-				GROUP BY b.custid
-				--------------------------------------------------------------	
 			
 				INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 				VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start running CAL-29')
@@ -375,6 +360,9 @@ BEGIN
 				WHILE (1=1)
 				BEGIN
 					TRUNCATE TABLE #tempRefno29
+					TRUNCATE TABLE #BalanceBefore_29
+					TRUNCATE TABLE #BalanceAfter_29
+
 					SET @strRefnos = ''
 					
 					UPDATE TOP (800) #temp_bettrans_29
@@ -390,38 +378,64 @@ BEGIN
 					
 					SET @strRefnos = STUFF(@strRefnos,1,1,'')
 					
+					---- CAPTURE value BALANCE before udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
+					INSERT INTO #BalanceBefore_29(transid, custid, balance)
+					SELECT b.transid
+						,b.custid
+						,(b.winlost - b.actual_stake + b.playercomm) AS balance
+					FROM dbo.bettrans b WITH(ROWLOCK)
+					WHERE EXISTS( SELECT 1 FROM #tempRefno29 WHERE transid = b.transid)
+					--------------------------------------------------------------	
+
 					EXEC dbo.NAP_Admin_Calculate_MP_broker
 						@mode = '29'
 						,@matchdate = @matchdate
 						,@strXML = @strRefnos
-				END			
-													
-				-- CAPTURE value BALANCE after update bettrans
-				INSERT INTO @AfterUpd (
-					custid
-					,balance
-					,balanceType
-				)
-				SELECT b.custid
-					,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-					,1 -- Sports
-				FROM dbo.bettrans b WITH(ROWLOCK)
-				WHERE EXISTS( SELECT 1 FROM #temp_bettrans_29 WHERE transid = b.transid)
-				GROUP BY b.custid
-				
-				INSERT INTO #Balance_29 (custid, balance, Increased)
-				SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-				FROM @beforeUpd b
-					INNER JOIN @afterUpd a ON b.custid = a.custid
-				WHERE b.balance <> a.balance
 
-				SET @TotalAccount_BalanceUpdate = @@ROWCOUNT
+					---- CAPTURE value BALANCE after udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
+					INSERT INTO #BalanceAfter_29 (transid, custid, balance)
+					SELECT b.transid
+						,b.custid
+						,(b.winlost - b.actual_stake + b.playercomm) AS balance
+					FROM dbo.bettrans b WITH(ROWLOCK)
+					WHERE EXISTS( SELECT 1 FROM #tempRefno29 WHERE transid = b.transid)
+
+					INSERT INTO #Balance_29 (custid, balance)
+					SELECT b.custid
+						,SUM(a.balance - b.balance)
+					FROM #BalanceBefore_29 b
+						INNER JOIN #BalanceAfter_29 a ON b.transid = a.transid
+					GROUP BY b.custid
+				END			
 				
-				---INSERT data into pending balance table   
-				EXEC [dbo].[NAP_Admin_BalancePendingIns]
-					@BeforeUpd	 = @beforeUpd
-					, @AfterUpd	 = @afterUpd
-			
+				INSERT INTO @tblDebitPending_29 (custID, balance)
+				SELECT t.custid, ABS(t.balance)
+				FROM (
+					SELECT	custID, SUM(balance) AS balance
+					FROM	#Balance_29
+					GROUP BY custID
+				) t
+				WHERE t.balance < 0
+
+				IF @@ROWCOUNT <> 0
+					EXEC dbo.Dot_BalancePendingDebitIns
+						@BalancePending = @tblDebitPending_29
+						,@Type			= 1 -- Sports
+
+				INSERT INTO @tblCreditPending_29 (custID, balance)
+				SELECT t.custid, ABS(t.balance)
+				FROM (
+					SELECT	custID, SUM(balance) AS balance
+					FROM	#Balance_29
+					GROUP BY custID
+				) t
+				WHERE t.balance > 0
+
+				IF @@ROWCOUNT <> 0
+					EXEC dbo.Dot_BalancePendingCreditIns
+						@BalancePending = @tblCreditPending_29
+						,@Type			= 1 -- Sports
+
 				----
 				-- Add Negative Balance into BalanceNegative table 
 				----
@@ -443,8 +457,13 @@ BEGIN
 					,Balance
 					,0
 					,@matchid
-				FROM #Balance_29 WITH (NOLOCK)
-				WHERE Increased = 0
+				FROM (	SELECT	custID, SUM(balance) AS balance
+						FROM	#Balance_29
+						GROUP BY custID) t
+				WHERE t.balance < 0
+
+				INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
+				VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
 			END
 		END
 	END

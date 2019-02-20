@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	@AdminId 						INT
 	,@MatchId 						INT
@@ -26,6 +22,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]	
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
+		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -41,6 +38,8 @@ BEGIN
 		,@NotAllowCalculating	VARCHAR(200)
 		,@HaveWaitingTicket		VARCHAR(200)
 		,@NotExecutedFGLG		VARCHAR(200)
+		,@MovingMatchIds		VARCHAR(200)
+		,@InvalidMatchIds		VARCHAR(MAX) = ''
 
     DECLARE @matchcode			NVARCHAR(50)
 		,@sporttype     		INT
@@ -365,6 +364,16 @@ BEGIN
 		SELECT @NotAllowCalculating = @matchcode
 	END
 
+	-- check movebet day
+	EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
+		@MatchIds =  @MatchId 
+		,@MovingMatchIds = @InvalidMatchIds OUTPUT
+
+	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + @matchcode, @matchcode)
+	FROM	dbo.f_SplitString (@InvalidMatchIds, ',') f
+	WHERE	f.val = @MatchId
+	OPTION (maxrecursion 0) 
+
 	-- check waiting ticket
 	SELECT @HaveWaitingTicket = @matchcode
 	WHERE EXISTS (
@@ -380,7 +389,7 @@ BEGIN
 			)
 		)
 	
-	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> ''
+	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'This match is being calculated, except following matches ' 
@@ -398,6 +407,10 @@ BEGIN
 								END
 							+ CASE WHEN ISNULL(@NotExecutedFGLG, '') <> ''
 									THEN ' (need to be executed "Calc FGLG"): ' + @NotExecutedFGLG
+									ELSE ''
+								END
+							+ CASE WHEN ISNULL(@MovingMatchIds, '') <> ''
+									THEN ' (during move-bet progress): ' + @MovingMatchIds + '. Please contact Starix IT for further support!'
 									ELSE ''
 								END
 		RETURN
