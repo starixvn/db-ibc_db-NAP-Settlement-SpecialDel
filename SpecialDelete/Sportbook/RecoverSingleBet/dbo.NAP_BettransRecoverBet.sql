@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 	@TransIds			VARCHAR(MAX),
 	@TransIdSolds		VARCHAR(MAX)	= '', -- just for BetTrade's subticket (transid of bettype 901)  	
@@ -50,6 +50,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread and Remove DateTime Column- Fast Markets Phase 2 [Redmine:#90667]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
+		- 20190220@Alan: Support New Ticket Status Abnormal Bet [106654]
 		
 	Param's Explanation:
 */
@@ -1131,18 +1132,18 @@ BEGIN
 	DECLARE @newBettypeTime VARCHAR(50) = ''
 	---- recover : normal, main bettrade, main cash-out, cash-out member bet ticket
 	UPDATE main
-	SET    winlost = 0
-	       ,ruben = 0
-	       ,statuswinlost = NULL
-	       ,STATUS = 'running'
-	       ,statusID = 0
-	       ,creator = t.creator
-		   ,actual_stake = CASE WHEN main.bettype BETWEEN 801 AND 806 THEN 0 ELSE main.actual_stake END
-		   ,@newBettypeTime = (SELECT TOP 1 custom1 FROM DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK) WHERE resultId = main.betid)
-		   ,transdesc = CASE WHEN main.bettype = 801 AND @newBettypeTime <> ''
-								THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
-							 ELSE main.transdesc 
-							 END
+	SET winlost = 0
+	    ,ruben = 0
+	    ,statuswinlost = NULL
+	    ,STATUS = 'running'
+	    ,statusID = 0
+	    ,creator = t.creator
+		,actual_stake = CASE WHEN main.bettype BETWEEN 801 AND 806 THEN 0 ELSE main.actual_stake END
+		,@newBettypeTime = (SELECT TOP 1 custom1 FROM DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK) WHERE resultId = main.betid)
+		,transdesc = CASE WHEN main.bettype = 801 AND @newBettypeTime <> ''
+							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
+							ELSE main.transdesc END
+		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo)
 	FROM   bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t
 			ON	main.transid = t.grouptransid

@@ -1,10 +1,10 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
 	@CustID				INT				= NULL 	
 	,@TransIds			VARCHAR(MAX)	= NULL 
 	,@FromDate			DATETIME		= NULL
 	,@ToDate			DATETIME		= NULL
-	,@Duration			INT				= 0	 OUTPUT	
+	,@IncludeMainParlay	BIT				= 0		
 	,@InvalidTransIds	VARCHAR(MAX)	= '' OUTPUT
 	,@MovedTransIds		VARCHAR(MAX)	= '' OUTPUT
 AS
@@ -44,6 +44,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20171029@Alan: Return Licensees Name [103474]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
+		- 20190220@Alan: Separate a function from Void By Bet ID to void main parlay ticket [108969]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -55,12 +56,7 @@ BEGIN
 	
 	IF(@custid IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay 	SMALLDATETIME
-		,@startTime			DATETIME	
-		
-	SELECT @Duration 		= 0
-		, @startTime		= CURRENT_TIMESTAMP
-		
+	DECLARE @moveBetDay 	SMALLDATETIME	
 	
 	SELECT @moveBetDay = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
@@ -177,42 +173,41 @@ BEGIN
 	
 	--Search by TransIds
 	IF (EXISTS(SELECT TOP 1 1 FROM #transIdTemp))
-	BEGIN 
-		
+	BEGIN
 		-- MG running tickets in translog
 		INSERT INTO #Data(
-			GroupID			
-			,bettype		
-			,transid		
-			,betid			
+			GroupID
+			,bettype
+			,transid
+			,betid
 			,refno	
-			,hdp1			
-			,hdp2			
+			,hdp1
+			,hdp2
 			,odds
 			,oddsspread
-			,finalodds		
-			,finalodds2		
-			,OddsType		
-			,STATUS			
-			,comstatus		
-			,stake							
-			,transdate		
-			,betteam		
-			,betcheck		
+			,finalodds
+			,finalodds2
+			,OddsType
+			,STATUS
+			,comstatus
+			,stake
+			,transdate
+			,betteam
+			,betcheck
 			,liveindicator	
-			,modds			
-			,custid						
+			,modds
+			,custid
 			,livehomescore	
-			,liveawayscore					
-			,betfrom		
-			,matchid					
-			,winlost		
-			,commission					
-			,winlostdate	
-			,TransDesc		
+			,liveawayscore
+			,betfrom
+			,matchid
+			,winlost
+			,commission
+			,winlostdate
+			,TransDesc
 			,betdaqid
 			,username
-			,recommend		
+			,recommend
 			,CurrencyName	
 		)
 		SELECT	
@@ -230,7 +225,7 @@ BEGIN
 			,b.custom1 OddsType
 			,b.STATUS
 			,b.custom2 comstatus
-			,b.stake				
+			,b.stake
 			,b.transdate
 			,NULL betteam
 			,NULL betcheck
@@ -238,20 +233,20 @@ BEGIN
 			,NULL modds
 			,b.custid
 			,NULL livehomescore
-			,NULL liveawayscore				
+			,NULL liveawayscore
 			,b.betfrom
-			,b.EventID				
+			,b.EventID
 			,- b.actual_stake as winlost
-			,0 AS commission			
+			,0 AS commission
 			,b.winlostdate
 			,b.transdesc
 			,-1 -- normal ticket
 			,username
-			,recommend		
-			,b.CurrencyName			
+			,recommend
+			,b.CurrencyName	
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
-			ON b.translogid = temp.transid			
+			ON b.translogid = temp.transid
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -316,13 +311,11 @@ BEGIN
 				WHEN b.STATUS = 'running'
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.STATUS
-				END AS STATUS
+				ELSE b.STATUS END AS STATUS
 			,CASE 
 				WHEN b.comstatus = '1' THEN 1
-				ELSE 0
-				END AS comstatus
-			,b.stake				
+				ELSE 0 END AS comstatus
+			,b.stake
 			,b.transdate
 			,b.betteam
 			,b.betcheck
@@ -330,7 +323,7 @@ BEGIN
 			,b.modds
 			,b.custid
 			,b.livehomescore
-			,b.liveawayscore				
+			,b.liveawayscore
 			,b.betfrom
 			,b.matchid				
 			,(b.winlost - b.actual_stake) winlost
@@ -344,10 +337,8 @@ BEGIN
 			,b.oddsid
 			,b.ExtraInfo
 			,CASE
-				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-						THEN b.transid
-				ELSE NULL
-			 END AS MainCashoutId
+				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid
+				ELSE NULL END AS MainCashoutId
 			,b.CurrencyName
 			,b.WalletType
 			,b.RefCode
@@ -381,12 +372,10 @@ BEGIN
 				WHEN b.STATUS = 'running'
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.STATUS
-				END AS STATUS
+				ELSE b.STATUS END AS STATUS
 			,CASE 
 				WHEN b.comstatus = '1' THEN 1
-				ELSE 0
-				END AS comstatus
+				ELSE 0 END AS comstatus
 			,b.stake				
 			,b.transdate
 			,b.betteam
@@ -439,7 +428,15 @@ BEGIN
 	WHERE EXISTS (SELECT TOP 1 1
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)				    	
+				    AND sub911.transid = t.refno)	
+
+	-- delete main parlay tickets
+	IF(@IncludeMainParlay = 0)
+	BEGIN
+		DELETE b
+		FROM #Data b
+		WHERE b.bettype IN (9, 29, 2799)
+	END
 	
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #Data WHERE refno IS NOT NULL)
@@ -523,13 +520,11 @@ BEGIN
 						WHEN b.STATUS = 'running'
 							AND IsNull(b.SecAcceptFlag, 0) = 1
 							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-						END AS STATUS
+						ELSE b.STATUS END AS STATUS
 					,CASE 
 						WHEN b.comstatus = '1' THEN 1
-						ELSE 0
-						END AS comstatus
-					,b.stake				
+						ELSE 0 END AS comstatus
+					,b.stake
 					,b.transdate
 					,b.betteam
 					,b.betcheck
@@ -579,14 +574,11 @@ BEGIN
 			,leagueid 	= m.leagueid
 			,sporttype 	= m.sporttype
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')  
-			
+			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
 		FROM #Data d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-			
 		WHERE d.bettype NOT IN (9, 29, 2799)
-			
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -599,7 +591,6 @@ BEGIN
 			,leagueid 	= odds.leagueid
 			,sporttype 	= l.sporttype
 			,showtime	= ''
-			
 		FROM #Data d
 			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 			ON	d.matchid = odds.orid
@@ -780,7 +771,6 @@ BEGIN
 			INNER JOIN #Data main
 			ON	sub.refno 	= main.transid 
 			AND sub.matchid = main.matchid
-		
 		WHERE sub.BTNo = 1
 		
 		-- update SoldId column: if main ticket is BT, update SoldId = transid of subticket(901)
@@ -1194,9 +1184,6 @@ BEGIN
 								ELSE ''
 							END
 		FROM t_invalid
-	
-	SELECT @Duration = DATEDIFF(MS, @startTime, CURRENT_TIMESTAMP)
-	
 	RETURN;
 END
 GO
