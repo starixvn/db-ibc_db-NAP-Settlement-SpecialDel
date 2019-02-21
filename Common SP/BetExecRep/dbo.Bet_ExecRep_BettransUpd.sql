@@ -10,6 +10,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
+		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -17,8 +18,23 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	IF @@SERVERNAME IN ('DB04', 'DB042', 'DB043', 'DB044') RETURN
+
+	-- CHECK SERVER BEFORE CALCULATING
+	DECLARE @ServerName	SYSNAME 
+			,@AllowExec	BIT
+
+	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
+	BEGIN
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName	= @ServerName
+			,@AllowExec	= @AllowExec OUTPUT
+
+		IF @AllowExec = 0
+			RETURN
+	END
+	-- END CHECK
 
 	--RECEIVE bet tickets
 	DECLARE @xmlTicket XML
