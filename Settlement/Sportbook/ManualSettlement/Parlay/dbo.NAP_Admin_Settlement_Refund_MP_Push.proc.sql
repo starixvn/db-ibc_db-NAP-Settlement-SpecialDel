@@ -25,6 +25,7 @@ AS
 		- 20171204@Kathy: Allow to settle parlay in case Early Settled bettypes have only Single tickets [Redmine:#87544]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]	
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -35,6 +36,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @currentdate DATETIME
 	DECLARE  @NotKeyScoreList	VARCHAR(130) = ''
 		,@NotAllowCalculating	VARCHAR(200)
 		,@HaveWaitingTicket		VARCHAR(200)
@@ -55,6 +57,7 @@ BEGIN
     
     SET @bettype_22 = '22'
     SET @bettype_160 = '160'
+	SET @currentdate = CURRENT_TIMESTAMP
     
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
 	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY, GroupID INT, IsFGLG BIT)
@@ -370,7 +373,11 @@ BEGIN
 			INNER JOIN dbo.[f_Set_GetGroupBettypes]() f
 				ON b.bettype = f.BetType
 		WHERE b.matchid = @MatchId
-			AND b.statusID = 1 -- waiting status
+			AND 
+			( 
+				b.statusID = 1 -- waiting status
+				OR ( b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate)
+			)
 		)
 	
 	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> ''
