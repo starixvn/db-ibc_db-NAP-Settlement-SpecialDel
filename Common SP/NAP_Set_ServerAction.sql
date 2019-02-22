@@ -5,14 +5,16 @@ ALTER PROCEDURE [dbo].[NAP_Set_ServerAction]
 	,@AllowCalculation	BIT		= 0	OUTPUT
 	,@AllowUndo			BIT		= 0	OUTPUT
 	,@AllowRefund		BIT		= 0	OUTPUT
+	,@AllowExec			BIT		= 0 OUTPUT
 )
 /*    
 	Creator: 20181129@Kathy
     Task: config Settlement action for special servers [Redmine:#105327]
-    DB: DBTXN.bodb02
+    DB: DBTXN/bodb02
 
     Revisions:
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190221@Kathy: Exclude 2 new servers DB04ADMIN1 and DB04ADMIN2 out of Settlement Flow [Redmine:#108362]
 		
     Param's Explanation:
         this SP is adding in publication DBTrans_ExecRep
@@ -31,7 +33,11 @@ BEGIN
 	SELECT 'DB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
 	UNION ALL
 	SELECT 'DB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
-	 
+	UNION ALL
+	SELECT 'DB04ADMIN1' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	UNION ALL
+	SELECT 'DB04ADMIN2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund 
+
 	-- local 
 	UNION ALL
 	SELECT 'DB233\SQLSERVER2008R2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund -- DB042
@@ -47,6 +53,7 @@ BEGIN
 	SELECT	@AllowCalculation = AllowCalculation
 			,@AllowUndo = AllowUndo
 			,@AllowRefund = AllowRefund
+			,@AllowExec = 0
 	FROM	@tmpServerName
 	WHERE	ServerName = @ServerName
 
@@ -54,6 +61,7 @@ BEGIN
 		SELECT	@AllowCalculation = 1
 				,@AllowUndo = 1
 				,@AllowRefund = 1
+				,@AllowExec = 1
 END
 GO
 
