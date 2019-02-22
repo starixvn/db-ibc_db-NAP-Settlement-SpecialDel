@@ -34,6 +34,7 @@ AS
 		- 20180426@Helen: Improve Performance [Redmine:#89132]
 		- 20180510@Benjamin: Incorporate new Sports: Kabaddi(47), Futsal (49), Sport 56[Redmine:#94608]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		
 */
 BEGIN
@@ -120,7 +121,7 @@ BEGIN
 						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
 						WHERE 	b.matchid = M.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
 							AND b.bettype <= 19000
-							AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
+							AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38)
 							AND b.bettype NOT BETWEEN 1301 AND 1334 -- exclude sporting solution product
 							AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
 							AND b.bettype NOT BETWEEN 901 AND 910 --bettrade
