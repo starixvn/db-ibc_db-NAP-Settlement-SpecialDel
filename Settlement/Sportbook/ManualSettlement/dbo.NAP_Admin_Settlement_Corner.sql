@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Corner] @AdminId INT
 	, @Matchid				INT
 	, @fthCorners			SMALLINT		= NULL
