@@ -3,7 +3,9 @@ ALTER FUNCTION [dbo].[f_SD_SetExtraInfoAbnormalBet]
 (
 	@IsAbnormalBet	BIT = 0,
 	@IsMark			VARCHAR(10) = 'void',
-	@ExtraInfo		VARCHAR(1000)
+	@ExtraInfo		VARCHAR(1000),
+	@SportType		TINYINT,
+	@BetType		SMALLINT
 )
 RETURNS VARCHAR(1000)
 /*
@@ -22,30 +24,37 @@ RETURNS VARCHAR(1000)
 AS
 BEGIN
 	-- Declare the return variable here
-	DECLARE @Result VARCHAR(1000) = @ExtraInfo
+	DECLARE @Result VARCHAR(1000)
 	DECLARE @XmlData XML = CAST(ISNULL(@ExtraInfo, '') AS XML)
-
+	
 	-- Add the T-SQL statements to compute the return value here
-	IF(@IsAbnormalBet = 1 AND @IsMark = 'void')
-	BEGIN		
-		-- Extend Abnormal Bet
-		IF(@XmlData.exist('/p1') = 1)
-		BEGIN
-			SET @XmlData.modify('insert(attribute ab {"1"}) into (/p1)[1]')
-		END
-		ELSE
-		BEGIN
-			SET @XmlData.modify('insert <p1 ab="1" /> as last into (/)[1]')
-		END	
+	IF(@SportType NOT BETWEEN 1 AND 99 OR @BetType IN (10,29,2799,801,803,804,805,806))
+	BEGIN
+		SET @Result = @ExtraInfo
 	END
-	-- Remove Abnormal Bet
 	ELSE
 	BEGIN
-		SET @XmlData.modify('delete (/p1/@ab)[1]')
-		SET @XmlData.modify('delete //p1[empty(node()) and empty(@*)]')
-	END
+		IF(@IsAbnormalBet = 1 AND @IsMark = 'void')
+		BEGIN		
+			-- Extend Abnormal Bet
+			IF(@XmlData.exist('/p1') = 1)
+			BEGIN
+				SET @XmlData.modify('insert(attribute ab {"1"}) into (/p1)[1]')
+			END
+			ELSE
+			BEGIN
+				SET @XmlData.modify('insert <p1 ab="1" /> as last into (/)[1]')
+			END	
+		END
+		-- Remove Abnormal Bet
+		ELSE
+		BEGIN
+			SET @XmlData.modify('delete (/p1/@ab)[1]')
+			SET @XmlData.modify('delete //p1[empty(node()) and empty(@*)]')
+		END
 
-	SET @Result = CAST(@XmlData AS VARCHAR(1000))
+		SET @Result = CAST(@XmlData AS VARCHAR(1000))
+	END
 
 	-- Return the result of the function
 	RETURN @Result

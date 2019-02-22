@@ -100,6 +100,7 @@ BEGIN
 		,currencyName	NVARCHAR(50)
 		,status			VARCHAR(20)
 		,leagueid		INT
+		,SportType		TINYINT
 		,homeid			INT
 		,awayid			INT
 		,betid			BIGINT
@@ -1130,6 +1131,15 @@ BEGIN
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets	
 
 	DECLARE @newBettypeTime VARCHAR(50) = ''
+
+	UPDATE t 
+		SET	leagueid = m.leagueid
+			,homeid = m.homeid
+			,awayid = m.awayid
+			,SportType = m.sporttype
+	FROM	#tblTransInfo t
+		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
+
 	---- recover : normal, main bettrade, main cash-out, cash-out member bet ticket
 	UPDATE main
 	SET winlost = 0
@@ -1143,11 +1153,9 @@ BEGIN
 		,transdesc = CASE WHEN main.bettype = 801 AND @newBettypeTime <> ''
 							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
 							ELSE main.transdesc END
-		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo)
+		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 	FROM   bettrans main WITH(ROWLOCK, UPDLOCK)
-		INNER JOIN #tblTransInfo t
-			ON	main.transid = t.grouptransid
-				AND main.transid = t.transid
+		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	
 	--update translog
 	UPDATE tl
@@ -1692,15 +1700,6 @@ BEGIN
 			ON	t.matchid = o.orid
 	where o.oddsstatus = 'completed'
 	and t.bettype = 10			  
-	
-	
-	UPDATE t 
-		SET	leagueid = m.leagueid
-			,homeid = m.homeid
-			,awayid = m.awayid
-	FROM	#tblTransInfo t
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON	t.matchid = m.matchid			
 	
 	UPDATE t 
 		SET username = c.username
