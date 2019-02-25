@@ -36,12 +36,20 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 
+			,@oldSubIssueTypeId SMALLINT
+			,@oldActionId		TINYINT
+			,@oldCheckedBy		INT
+
 	SET @StartTime = GETDATE()
-	SET @LogActionId = 90001
+	SET @LogActionId = 90002
 	SET @SB_Error = 0
 
 	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
-		SET SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
+		SET @oldActionId = ActionId
+			,@oldSubIssueTypeId = SubIssueTypeId
+			,@oldCheckedBy = CheckedBy
+
+			,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 			,ActionId = ISNULL(@ActionId, ActionId)
 			,Provider = ISNULL(@Provider, Provider)
 			,Source = ISNULL(@Source, Source)
@@ -71,14 +79,15 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @SubIssueTypeId IS NOT NULL THEN ' SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(30)) ELSE '' END
-								+ CASE WHEN @ActionId IS NOT NULL THEN ' ActionId: ' + CAST(@ActionId AS VARCHAR(30)) ELSE '' END
-								+ CASE WHEN @CheckedBy IS NOT NULL THEN ' CheckedBy: ' + CAST(@CheckedBy AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @SubIssueTypeId IS NOT NULL THEN ' Old SubIssueTypeId: ' + CAST(@oldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN @ActionId IS NOT NULL THEN ' Old ActionId: ' + CAST(@oldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @CheckedBy IS NOT NULL THEN ' Old CheckedBy: ' + CAST(@oldCheckedBy AS VARCHAR(20)) + ' CheckedBy: ' + CAST(@CheckedBy AS VARCHAR(30)) ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+	
 END
 GO
 

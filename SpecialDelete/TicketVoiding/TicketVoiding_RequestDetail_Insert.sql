@@ -2,7 +2,10 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	@RequestId		INT
 	,@MatchId		INT
-	,@KickOffTime	DATETIME		= NULL
+	,@KickOffTime	DATETIME	= NULL
+
+	,@UserId		INT
+	,@IP			VARCHAR(50)	= NULL
 	
 AS
 /*	Created by: Kathy
@@ -30,7 +33,7 @@ BEGIN
 			,@Sporttype SMALLINT
 	
 	SET @StartTime = GETDATE()
-	SET @LogActionId = 90000
+	SET @LogActionId = 90001
 	SET @SB_Error = 0
 
 	SELECT	@LeagueId = leagueid
@@ -47,8 +50,10 @@ BEGIN
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CAST(@KickOffTime AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21) ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))

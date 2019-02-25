@@ -33,6 +33,7 @@ BEGIN
 			,@VoidingHistoryId = @VoidingHistoryId
 			,@TransIds = @TransIds
 			,@UserId = @UserId
+			,@IP = @IP
 			,@ErrCode = @ErrCode OUTPUT	
 			,@ErrMsg = @ErrMsg OUTPUT
 

@@ -148,7 +148,7 @@ BEGIN
 			AND b.statusID NOT IN (101, 102)
 
 	SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), TransId) + ','
-			,@strRefno = @strRefno + CONVERT(VARCHAR(20), Refno)			
+			,@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
 	FROM	#tmpMainTransId
 
 	EXEC dbo.NAP_Admin_Calculate_MP_broker   

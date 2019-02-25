@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	,@VoidingHistoryId	INT
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
-	,@IP				VARCHAR(50)
+	,@IP				VARCHAR(50)		= ''
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
