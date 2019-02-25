@@ -16,6 +16,7 @@ AS
 	DB: DBTXN/bodb02
 	Revisions:	
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		
 */
 RETURN
@@ -110,7 +111,12 @@ RETURN
 			   		WHEN @betteam = 'so' AND fm < 53  AND fm % 2 = 1 THEN 1
 			   		WHEN @betteam = 'se' AND fm < 53  AND fm % 2 = 0 THEN 1
 					ELSE -1 END
-					
+				
+			WHEN @pfID = 38 THEN
+				CASE WHEN @HomeValue = 'WON' THEN 1
+			   		 WHEN @HomeValue = 'LOSE' THEN -1
+			   		 ELSE -1 END
+			   		
 			ELSE -1 END AS modds
    FROM
 	(

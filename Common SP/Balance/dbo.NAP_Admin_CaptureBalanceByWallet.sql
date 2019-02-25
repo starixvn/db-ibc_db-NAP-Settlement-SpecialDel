@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @BAResults		VARCHAR(MAX)	= NULL
 	, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
+	, @TransIDs		    VARCHAR(MAX)    = NULL
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -22,6 +23,7 @@ AS
 		- 20170801@Bobby: Initial
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -52,6 +54,11 @@ AS
 							<r bt="9001" b="801"/>
 							<r bt="9001" b="801"/>
 							<r bt="9001" b="801"/>
+						 </root>'
+		- @TransIDs = '<root>
+							<r t="9001"/>
+							<r t="9002"/>
+							<r t="9003"/>
 						 </root>'
 */
 BEGIN
@@ -88,6 +95,34 @@ BEGIN
 						END
 		
 	----------------------------------------------------------------------------------------------------------------------------------------------------
+	IF @TransIDs IS NOT NULL
+	BEGIN
+		DECLARE @tblTransID TABLE(transID BIGINT)
+		
+		EXEC sp_xml_preparedocument @handle OUTPUT, @TransIDs
+	    INSERT INTO @tblTransID(transID)
+	    SELECT t
+	    FROM OPENXML(@handle,'root/r',1) WITH( t BIGINT
+                                			) AS tbl
+	    EXEC sp_xml_removedocument @handle
+	    
+        ----cal Balance
+        SELECT @MatchId AS matchid,b.custid
+               ,@balanceType AS balanceType
+               ,ISNULL(b.WalletType,2) AS WalletType -- 2: Cash wallet,
+               ,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+               ,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+        FROM BetTrans b WITH (ROWLOCK)
+        WHERE b.matchid = @matchid_tmp
+        	AND b.statusID NOT IN (101,102)
+			AND EXISTS ( SELECT 1
+  						FROM @tblTransID t
+  						WHERE b.transID = t.transID 
+	  					)
+        GROUP BY b.custid, b.WalletType, b.BonusId
+		RETURN 
+	END
+	
 	IF @SelectedRID IS NOT NULL
     BEGIN
         

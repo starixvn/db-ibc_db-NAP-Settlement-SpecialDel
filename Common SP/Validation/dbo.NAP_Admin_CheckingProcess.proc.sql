@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsExistNG				BIT = 0
 	, @IsExistVS				BIT = 0
 	, @IsExistParlayVSBetradar 	BIT = 0
+	, @IsExistBB				BIT	= 0  --BetBuilder
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
 	, @AvaiableProcess			BIT = 0 OUTPUT
@@ -24,6 +25,7 @@ AS
 	-20160413@bobby.nguyen: #55756 - Update changes for checking process
 	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 	- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
+	- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 	
  Param's Explanation:   
  
@@ -46,6 +48,7 @@ BEGIN
 										OR @isExistNG = 1
 										OR @isExistVS = 1
 										OR @IsExistFM = 1
+										OR @isExistBB = 1
 									) THEN 1 ELSE 0 
 								END
 	-- checking dependency				
@@ -153,6 +156,7 @@ BEGIN
 					WHEN @isExistMG = 1 		AND ck.KeyId = 3 THEN 3	-- MG
 					WHEN @isExistVS = 1 		AND ck.KeyId = 4 THEN 4	-- VS Racing
 					WHEN @isExistFM = 1 		AND ck.KeyId = 6 THEN 6	-- Fast market
+					WHEN @IsExistBB = 1			AND ck.KeyId = 5 THEN 5 -- BetBuilder
 					ELSE 0
 				END AS KeyId
 			FROM dbo.TempVariableNumber ck WITH(ROWLOCK)

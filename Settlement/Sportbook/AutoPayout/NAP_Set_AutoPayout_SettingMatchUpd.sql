@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_SettingMatchUpd 
 	@MatchId 			INT
 	, @AutoType			TINYINT
@@ -17,12 +17,14 @@ AS
 		- 20161212@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170123@Kathy: Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
+		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
 			+ 1: Auto Payout
 			+ 2: Inst Calculation
 			+ 3: Fast Market
+			+ 4: BetBuilder
 */
 BEGIN
 	SET NOCOUNT ON
@@ -38,6 +40,7 @@ BEGIN
 									WHEN @AutoType = 1 THEN 160
 									WHEN @AutoType = 2 THEN 181
 									WHEN @AutoType = 3 THEN 184
+									WHEN @AutoType = 4 THEN 81007
 									ELSE -1 
 								END
 	
