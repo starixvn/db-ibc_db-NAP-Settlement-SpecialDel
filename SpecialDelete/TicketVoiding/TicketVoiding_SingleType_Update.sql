@@ -398,16 +398,16 @@ BEGIN
 	INSERT INTO @BeforeUpd(
 		matchid
 		,custid
-		,balance
 		,balanceType
 		,walletType
 		,bonusId
+		,balance
 	)
 	SELECT	@matchid
 			,b.custid
 			,b.balanceType
-			,b.BonusID
 			,b.WalletType
+			,b.BonusID			
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
@@ -529,16 +529,16 @@ BEGIN
 	INSERT INTO @AfterUpd(
 		matchid
 		,custid
-		,balance
-		,balanceType
+		,balanceType		
 		,walletType
 		,bonusId
+		,balance
 	)
 	SELECT	@matchid
 			,b.custid
 			,b.balanceType
-			,b.BonusID
 			,b.WalletType
+			,b.BonusID			
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
@@ -586,7 +586,7 @@ BEGIN
 
 	--UPDATE balance
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-				@BalanceWalletBefore	= @beforeUpd
+			@BalanceWalletBefore	= @beforeUpd
 			, @BalanceWalletAfter	= @afterUpd
 			, @ActionId				= 0	
 
