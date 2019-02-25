@@ -29,7 +29,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML
+	DECLARE @xml XML, @ResultDefault VARCHAR(5) = 'Lose'
 	CREATE TABLE #tblData (marketID VARCHAR(20), result VARCHAR(20), ResultStatusID TINYINT, PRIMARY KEY CLUSTERED(marketID) )
 	----------------------------------------------------------------------------
 	
@@ -68,11 +68,11 @@ BEGIN
 		FROM
 			(SELECT cteData.marketID
 					,MAX(CASE
-							WHEN ms.Result = 'REFUND'	THEN '9_REFUND'
+							WHEN ms.Result = 'REFUND'	THEN '9_' + ms.Result
 							WHEN ms.Result IS NULL 		THEN '8_NULL'
-							WHEN ms.Result = 'LOSE'		THEN '7_LOSE'
-							WHEN ms.Result = 'WON'		THEN '6_WON'
-							ELSE '7_LOSE' END
+							WHEN ms.Result = 'LOSE'		THEN '7_' + ms.Result
+							WHEN ms.Result = 'WON'		THEN '6_' + ms.Result
+							ELSE '7_' + @ResultDefault END
 						 ) AS Result --priority: REFUND, RUNNING, LOSE, WON
 					,MAX(CASE
 							--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 5			THEN '9_5' --manual Refund

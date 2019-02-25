@@ -643,10 +643,7 @@ BEGIN
 		FROM cteData
 			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s ON s.SelectionType = cteData.selectionType
 			
-		SELECT @SelectedResources = (CASE WHEN @action LIKE 'CAL%' THEN ' Result:'
-										 WHEN @action LIKE 'UNDO%' THEN ' Selected:'
-										 ELSE '' END)
-									+ STUFF(@SelectedResources, 1, 1, '')
+		SELECT @SelectedResources = 'Selections:' + STUFF(@SelectedResources, 1, 1, '')
 	END
 		
 	

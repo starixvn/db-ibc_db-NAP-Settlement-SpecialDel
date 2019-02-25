@@ -31,10 +31,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML
+	DECLARE @xml XML, @ResultDefault VARCHAR(5) = 'Lose'
 	DECLARE @tblSelectionType TABLE (selectionType INT, result VARCHAR(20))
 	CREATE TABLE #tblMarketChecking (MarketID VARCHAR(20) PRIMARY KEY, result VARCHAR(20), ResultStatusID TINYINT)
 	CREATE TABLE #tblMarket (MarketID VARCHAR(20) PRIMARY KEY)
+	
 	----------------------------------------------------------------------------
 	SET @xml = CAST(@Resources AS XML)
 	
@@ -59,19 +60,19 @@ BEGIN
 				,MAX(CASE
 						WHEN sl.selectionType IS NULL THEN
 								CASE 
-									WHEN ms.ResultStatusID IN (0,1) THEN '0_LOSE'
-									WHEN ms.Result = 'REFUND' 		THEN '9_REFUND'
+									WHEN ms.ResultStatusID IN (0,1) THEN '0_' + ms.Result
+									WHEN ms.Result = 'REFUND' 		THEN '9_' + ms.Result
 									WHEN ms.Result IS NULL 			THEN '8_NULL'
-									WHEN ms.Result = 'LOSE' 		THEN '7_LOSE'
-									WHEN ms.Result = 'WON'			THEN '6_WON'
-									ELSE '7_LOSE' END
+									WHEN ms.Result = 'LOSE' 		THEN '7_' + ms.Result
+									WHEN ms.Result = 'WON'			THEN '6_' + ms.Result
+									ELSE '7_' + @ResultDefault END
 						ELSE 
 								CASE
-									WHEN sl.Result = 'REFUND'	THEN '9_REFUND'
+									WHEN sl.Result = 'REFUND'	THEN '9_' + ms.Result
 									WHEN sl.Result IS NULL 		THEN '8_NULL'
-									WHEN sl.Result = 'LOSE' 	THEN '7_LOSE'
-									WHEN sl.Result = 'WON'		THEN '6_WON'
-									ELSE '7_LOSE' END
+									WHEN sl.Result = 'LOSE' 	THEN '7_' + ms.Result
+									WHEN sl.Result = 'WON'		THEN '6_' + ms.Result
+									ELSE '7_' + @ResultDefault END
 						END
 					) AS Result --priority: REFUND, RUNNING, LOSE, WON
 				, MAX(CASE 
