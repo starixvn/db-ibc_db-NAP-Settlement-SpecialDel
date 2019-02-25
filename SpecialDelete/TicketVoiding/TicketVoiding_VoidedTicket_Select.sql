@@ -17,6 +17,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
 	CREATE TABLE #tmpTicket (
@@ -48,7 +51,12 @@ BEGIN
 
 		,Username		NVARCHAR(50)
 		,creator		INT
-		
+		,CreatorName	NVARCHAR(50)
+		,IsDeposit		BIT	DEFAULT (0)
+		,srecommend		INT
+		,mrecommend		INT
+		,recommend		INT
+
 		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(1)
 		,subOdds		SMALLMONEY
@@ -57,13 +65,13 @@ BEGIN
 		,subhdp1		SMALLINT
 		,subhdp2		SMALLINT
 		,subtransdesc	NVARCHAR(1000)
-		
+
 		,Refno			BIGINT
 		,subTransId		BIGINT	
 		,VoidedTime		DATETIME
 		,IsCashOutMemberTicket BIT
 		,isITAdmin		BIT
-		
+
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 	)
 
@@ -141,10 +149,11 @@ BEGIN
 			,betfrom = b.betfrom
 			,transdate = b.transdate
 			,creator = b.creator
+			,srecommend = b.srecommend
+			,mrecommend = b.mrecommend
+			,recommend = b.recommend
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)
-			ON t.TransId = b.transid
-
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
 	
 	UPDATE	t
 		SET transid = b.transid
@@ -170,6 +179,9 @@ BEGIN
 			,betfrom = b.betfrom
 			,transdate = b.transdate
 			,creator = b.creator
+			,srecommend = b.srecommend
+			,mrecommend = b.mrecommend
+			,recommend = b.recommend
 
 			,subbetcheck = bm.betcheck
 			,subOdds = bm.odds
@@ -179,62 +191,239 @@ BEGIN
 			,subhdp2 = bm.hdp2
 			,subtransdesc = bm.transdesc
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettransm bm WITH(NOLOCK)
-			ON	t.subTransId = bm.transid
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)
-			ON	bm.refno = b.refno
-				AND b.matchid = 29
+		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 
-	-- list ticket
-	SELECT	ag.username
-			,t.TransId
-			,t.TransDate
-			,t.Stake
-			,t.Status
-			,t.Betcheck
-			,t.betdaqid
-			,t.betid
-			,t.betfrom
-			,t.Betteam
-			,t.Bettype
-			,t.CurrencyName			
-			,t.Hdp1
-			,t.Hdp2
-			,t.LiveAwayScore
-			,t.LiveHomeScore
-			,t.Odds
-			,t.Oddsspread
-			,t.oddstype
-			,t.WalletType
-			,t.RefCode
-			,t.ExtraInfo		
-			,t.TransDesc
-			,t.Refno
+	-- update Isdeposit
+	UPDATE al SET IsDeposit = 1
+	FROM	#tmpTicket al
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
+	
+	;WITH CTE_OriginResult AS (
+		--1. For Credit	 
+		SELECT 
+			   s.transid
+			   ,s.SubTransid
+			   ,s.refno		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.transdate
+			   ,s.creator
+			   ,s.Stake
+			   ,s.odds
+			   ,s.SubOdds
+			   ,s.oddsspread
+			   ,s.OddsType
+			   ,s.bettype
+			   ,s.STATUS
+			   ,s.currencyname
+			   ,s.betteam
+			   ,s.SubBetTeam
+			   ,s.Subhdp1
+			   ,s.Subhdp2
+			   ,s.hdp1
+			   ,s.hdp2
+			   ,s.livehomescore
+			   ,s.liveawayscore
+			   ,s.betid
+			   ,s.betcheck
+			   ,s.SubBetcheck
+			   ,s.IsMixParlay
+			   ,NULL AS followedId
+			   ,NULL AS followedUsername
+			   ,s.Transdesc
+			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,'Credit' AS GroupName
+			   ,s.WalletType	
+			   ,s.RefCode
+		FROM	#tmpTicket s
+			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
+		WHERE	f.CustID IS NULL
+				AND (s.username <> '12EU')
+				AND s.IsDeposit = 0
+				AND s.mrecommend NOT IN (105181, 118473, 105183) -- MHC
+				AND s.recommend NOT IN (11196380, 13423967, 52466, 5707545) -- Foobet, 1E, 8RM, BARM
+				AND s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
+		UNION
+		--2. For 8RM
+		SELECT  
+				s.transid
+			   ,s.SubTransid
+			   ,s.refno		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.transdate
+			   ,s.creator
+			   ,s.Stake
+			   ,s.odds
+			   ,s.SubOdds
+			   ,s.oddsspread
+			   ,s.OddsType
+			   ,s.bettype
+			   ,s.STATUS
+			   ,s.currencyname
+			   ,s.betteam
+			   ,s.SubBetTeam
+			   ,s.Subhdp1
+			   ,s.Subhdp2
+			   ,s.hdp1
+			   ,s.hdp2
+			   ,s.livehomescore
+			   ,s.liveawayscore
+			   ,s.betid
+			   ,s.betcheck
+			   ,s.SubBetcheck
+			   ,s.IsMixParlay
+			   ,b.transid AS followedId
+			   ,b.Username AS followedUsername
+			   ,s.Transdesc
+			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,'8RM/BARM' AS GroupName
+			   ,s.WalletType
+			   ,s.RefCode
+		FROM	#tmpTicket s 
+			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
+		WHERE	s.recommend IN (52466, 5707545)
+		UNION
+		--3. For Deposit
+		SELECT  
+				s.transid
+			   ,s.SubTransid
+			   ,s.refno		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.transdate
+			   ,s.creator
+			   ,s.Stake
+			   ,s.odds
+			   ,s.SubOdds
+			   ,s.oddsspread
+			   ,s.OddsType
+			   ,s.bettype
+			   ,s.STATUS
+			   ,s.currencyname
+			   ,s.betteam
+			   ,s.SubBetTeam
+			   ,s.Subhdp1
+			   ,s.Subhdp2
+			   ,s.hdp1
+			   ,s.hdp2
+			   ,s.livehomescore
+			   ,s.liveawayscore
+			   ,s.betid
+			   ,s.betcheck
+			   ,s.SubBetcheck
+			   ,s.IsMixParlay
+			   ,NULL AS followedId
+			   ,NULL AS followedUsername
+			   ,s.Transdesc
+			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,'Deposit' AS GroupName
+			   ,s.WalletType	
+			   ,s.RefCode
+		FROM	#tmpTicket s 
+			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
+		WHERE	f.CustID IS NULL -- Betdaq
+				AND (s.username <> '12EU')
+				AND s.IsDeposit = 1
+				AND s.mrecommend NOT IN (105181, 118473, 105183)
+				AND s.recommend NOT IN (11196380, 13423967, 52466, 5707545) -- Foobet, 1E, 8RM, BARM
+				AND s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3	
+		UNION
+		--4. For Betfair
+		SELECT  
+			s.transid
+		   ,s.SubTransid
+		   ,s.refno		
+		   ,s.custid		
+		   ,s.username	
+		   ,s.transdate
+		   ,s.creator
+		   ,s.Stake
+		   ,s.odds
+		   ,s.SubOdds
+		   ,s.oddsspread
+		   ,s.OddsType
+		   ,s.bettype
+		   ,s.STATUS
+		   ,s.currencyname
+		   ,s.betteam
+		   ,s.SubBetTeam
+		   ,s.Subhdp1
+		   ,s.Subhdp2
+		   ,s.hdp1
+		   ,s.hdp2
+		   ,s.livehomescore
+		   ,s.liveawayscore
+		   ,s.betid
+		   ,s.betcheck
+		   ,s.SubBetcheck
+		   ,s.IsMixParlay
+		   ,NULL AS followedId
+		   ,NULL AS followedUsername
+		   ,s.Transdesc
+		   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
+		   ,s.betdaqid
+		   ,s.ExtraInfo
+		   ,'Betfair' AS GroupName
+		   ,s.WalletType
+		   ,s.RefCode
+		FROM	#tmpTicket s WITH (NOLOCK)
+		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
+	)
+	SELECT s.transid
+		   ,s.SubTransid
+		   ,s.refno		
+		   ,s.custid		
+		   ,s.username	
+		   ,s.transdate
+		   ,s.creator
+		   ,s.Stake
+		   ,s.odds
+		   ,s.SubOdds
+		   ,s.oddsspread
+		   ,s.OddsType
+		   ,s.bettype
+		   ,s.STATUS
+		   ,s.currencyname
+		   ,s.betteam
+		   ,s.SubBetTeam
+		   ,s.Subhdp1
+		   ,s.Subhdp2
+		   ,s.hdp1
+		   ,s.hdp2
+		   ,s.livehomescore
+		   ,s.liveawayscore
+		   ,s.betid
+		   ,s.betcheck
+		   ,s.SubBetcheck
+		   ,s.IsMixParlay
+		   ,s.followedId
+		   ,s.followedUsername
+		   ,s.Transdesc
+		   ,s.IsCricket
+		   ,s.betdaqid
+		   ,s.ExtraInfo
+		   ,s.GroupName
+		   ,s.WalletType
+		   ,s.RefCode
+
+		   ,@SettlementStatus AS SettlementStatus
 			,cr.username AS Creator
-			,t.VoidedTime
-			
-			,t.IsMixParlay
-			,t.subTransId
-			,t.subbetcheck
-			,t.subOdds
-			,t.subbetteam
-			,t.subbettype
-			,t.subhdp1
-			,t.subhdp2			
-			,t.subtransdesc
-			
-			,c.username
-			,c.username2		
-			,ag.site
-			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
-			,CASE WHEN t.betdaqid = 1 AND t.Bettype NOT BETWEEN 901 AND 920 THEN 1 ELSE 0 END AS isCashOut
-
-	FROM	#tmpTicket t
-		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
-			ON c.custid = t.custid	
-		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-			ON ag.custid = c.recommend
-		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK)
-			ON t.creator = cr.custid
+	FROM CTE_OriginResult s
+		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
+	ORDER BY CASE
+				WHEN s.GroupName = 'Credit' THEN 1
+				WHEN s.GroupName = '8RM/BARM' THEN 2
+				WHEN s.GroupName = 'Deposit' THEN 3
+				WHEN s.GroupName = 'Betfair' THEN 4
+			 END
+		   , s.transid
 END
 GO
