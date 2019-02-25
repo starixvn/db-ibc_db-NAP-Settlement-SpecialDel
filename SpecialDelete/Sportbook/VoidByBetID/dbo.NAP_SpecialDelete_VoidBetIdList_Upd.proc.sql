@@ -1899,7 +1899,8 @@ BEGIN
 		,scomm = 0
 		,statusID = 102
 		,status = 'VOID'
-		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype)
+		,ExtraInfo = CASE WHEN tmpmain.IsCashOutMemberTicket = 1 THEN main.ExtraInfo
+			ELSE dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) END
 	FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
 		INNER JOIN #BetDelete AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
