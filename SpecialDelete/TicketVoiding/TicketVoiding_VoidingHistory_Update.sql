@@ -19,7 +19,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	UPDATE	dbo.TicketVoiding_VoidingHistory 
+	UPDATE	dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
 		SET	StatusId = @StatusId
 			,MessageId = @MessageId
 			,ReasonId = @ReasonId

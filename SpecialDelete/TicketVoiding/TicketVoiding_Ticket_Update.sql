@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
-	@MatchId			INT
+	@RequestId			INT
+	,@MatchId			INT
 	,@TransIds			VARCHAR(MAX)
 	,@VoidingHistoryId	INT
 	,@VoidingTypeId		TINYINT
@@ -23,16 +24,15 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
 	
 	IF @VoidingTypeId = 1 -- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
-			@MatchId = @MatchId	
+			@RequestId = @RequestId
+			,@MatchId = @MatchId	
 			,@VoidingHistoryId = @VoidingHistoryId
 			,@TransIds = @TransIds
 			,@UserId = @UserId
-			,@Reason = ''		
 			,@ErrCode = @ErrCode OUTPUT	
 			,@ErrMsg = @ErrMsg OUTPUT
 
@@ -40,7 +40,8 @@ BEGIN
 	ELSE IF @VoidingTypeId = 2 -- subParlay
 	BEGIN
 		EXEC dbo.TicketVoiding_ParlayType_Update
-			@MatchId = @MatchId			
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
 			,@VoidingHistoryId = @VoidingHistoryId
 			,@TransIds = @TransIds
 			,@UserId = @UserId

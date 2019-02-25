@@ -96,7 +96,8 @@ BEGIN
 
 		BEGIN TRY
 			EXEC dbo.TicketVoiding_Ticket_Update 
-				@MatchId = @MatchId
+				@RequestId = @RequestId
+				,@MatchId = @MatchId
 				,@TransIds = @TransIds
 				,@VoidingHistoryId = @VoidingHistoryId
 				,@VoidingTypeId = @VoidingTypeId

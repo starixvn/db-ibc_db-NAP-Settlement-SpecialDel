@@ -1,14 +1,14 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
-	@MatchId			INT
+	@RequestId			INT
+	,@MatchId			INT
 	,@VoidingHistoryId	INT
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
+	,@IP				VARCHAR(50)
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
-
-	,@Reason			NVARCHAR(150)
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -23,7 +23,13 @@ AS
 */      
 BEGIN
 	SET NOCOUNT ON
-	
+
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			VARCHAR(MAX)
+			,@SB_Error			BIT
+
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
 			,@isExistMatch BIT
@@ -60,6 +66,10 @@ BEGIN
 		,awinlost			MONEY
 		,isSubTransaction	BIT	DEFAULT(0)
 	)
+	
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90100
+	SET @SB_Error = 0
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 
@@ -633,7 +643,7 @@ BEGIN
 		(
 			SELECT	bts.TradeID AS TradeID
 					,bts.TicketID AS [TicketID]					
-					,'SB void ticket due to ' + @Reason AS [Remark]
+					,'SB void ticket due to ' AS [Remark]
 					,sub.awinlost AS [BTBuyBack]
 					,0 AS [BTComission]
 					,c.Balance AS [AfterBalance]
@@ -704,7 +714,7 @@ BEGIN
 				,'VOID'
 				,b.BuyBackNo
 				,b.PayOut
-				,'SB void ticket due to ' + @Reason
+				,'SB void ticket due to ' 
 		FROM	#tmpTransId t
 			INNER JOIN dbo.BetTradeSelling b WITH(NOLOCK)
 				ON t.TransId = b.TicketID
@@ -717,6 +727,21 @@ BEGIN
 		,@isExistMG	= @isExistMG
 		, @IsReleased = 1
 
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
+							,@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'
+							,@IP AS '@IP'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
+								+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
+								+ ' Single ticket with TransId: ' + @TransIds
+								AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS VARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 END
 GO
 

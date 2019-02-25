@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	@RequestId			INT
 	,@SubIssueTypeId	SMALLINT		= NULL
 	,@ActionId			TINYINT			= NULL
-	,@KickOffTime		DATETIME		= NULL
 	,@MistakenBy		NVARCHAR(200)	= NULL
 	,@CheckedBy			INT				= NULL
 	,@DecidedBy			NVARCHAR(200)	= NULL
@@ -31,8 +30,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @StartTime DATETIME
-			,@EndTime DATETIME
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
@@ -67,11 +66,15 @@ BEGIN
 
 	-- Write Log
 	SET @EndTime = GETDATE()
-	SET @LogData = CAST((SELECT	@ActionId AS '@ActionId'
+	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
+							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
-							,@RequestId AS '@RequestId'
 							,@IP AS '@IP'
-							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms' AS '@LogData'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								+ CASE WHEN @SubIssueTypeId IS NOT NULL THEN ' SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @ActionId IS NOT NULL THEN ' ActionId: ' + CAST(@ActionId AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @CheckedBy IS NOT NULL THEN ' CheckedBy: ' + CAST(@CheckedBy AS VARCHAR(30)) ELSE '' END
+								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 

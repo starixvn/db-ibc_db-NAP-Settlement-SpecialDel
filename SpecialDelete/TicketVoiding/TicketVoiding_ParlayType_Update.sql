@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
-	@MatchId			INT
+	@RequestId			INT
+	,@MatchId			INT
 	,@VoidingHistoryId	INT
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
@@ -23,6 +24,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			VARCHAR(MAX)
+			,@SB_Error			BIT
+
 	DECLARE @avaiableProcess BIT
 			,@MatchDate DATETIME
 			,@RowId INT
@@ -40,6 +47,10 @@ BEGIN
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	CREATE TABLE #tmpSubTransId (RowId INT IDENTITY(1,1), TransId BIGINT, Refno BIGINT)
 	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT)
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90101
+	SET @SB_Error = 0
 
 	SELECT	@RowId = 0
 			,@strSubTransId = ''
@@ -194,6 +205,22 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay  = 1  
 		, @IsReleased  = 1 
+
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
+							,@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'
+							,@IP AS '@IP'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+								+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
+								+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
+								+ ' Parlay ticket with TransId: ' + @TransIds
+								AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS VARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 END
 GO
 
