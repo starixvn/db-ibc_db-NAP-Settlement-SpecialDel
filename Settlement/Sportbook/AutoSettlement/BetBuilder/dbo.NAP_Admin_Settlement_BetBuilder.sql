@@ -204,7 +204,7 @@ BEGIN
 	BEGIN
 	
 		INSERT INTO #tblMarket (MarketID)
-		EXEC dbo.NAP_Admin_ChangedMarket_Sel
+		EXEC DBPRO.bodb02.dbo.NAP_Admin_ChangedMarket_Sel
 					@matchID			= @matchID
 					,@VendorID			= @VendorID
 					,@action			= @Action
@@ -274,7 +274,7 @@ BEGIN
 	ELSE
 	BEGIN
 		INSERT INTO #tblMarketSelection (marketSelectionID, Result)
-		EXEC dbo.NAP_Admin_MarketSelection_Sel 
+		EXEC DBPRO.bodb02.dbo.NAP_Admin_MarketSelection_Sel 
 					@matchID						= @MatchID
 					,@action						= @action
 					,@Resources						= @Resources
