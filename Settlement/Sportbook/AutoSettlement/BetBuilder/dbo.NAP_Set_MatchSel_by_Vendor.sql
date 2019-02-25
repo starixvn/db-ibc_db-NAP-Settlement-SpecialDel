@@ -130,8 +130,8 @@ BEGIN
 			,ISNULL(cteBt.parlayStatus, 'No Ticket') AS parlayStatus
 			,ISNULL(tempM.IsCalculating, 2) AS QueueStatus
 	FROM @TempMatch	tempM
-		INNER JOIN dbo.[match] m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
-		INNER JOIN dbo.[League] l WITH (NOLOCK) ON m.leagueID = l.LeagueID
+		INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
+		INNER JOIN dbo.League l WITH (NOLOCK) ON m.leagueID = l.LeagueID
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
 	WHERE	(@CheckEventStatus = 0 OR cteBt.parlayStatus = @Status)
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
