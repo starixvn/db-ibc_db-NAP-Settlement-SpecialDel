@@ -116,5 +116,5 @@ BEGIN
 					 --WHEN mc.Result IS NOT NULL AND mk.ResultStatusID IN (0,1) THEN 1
 					 ELSE 0 END
 END
-
+GO
 
