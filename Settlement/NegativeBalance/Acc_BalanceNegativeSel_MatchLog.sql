@@ -209,7 +209,8 @@ BEGIN
 								END
 							
 							WHEN l.ActionID IN (157,158) THEN REPLACE(la.ActionNameEN,'Auto Payout - ','')
-							
+							WHEN l.ActionID = 81009 THEN 'Calculate Single Match Parlay'
+							WHEN l.ActionID = 81010 THEN 'Undo Single Match Parlay Settlement'
 							ELSE la.ActionNameEN 
 							
 						END AS ActionNameEN
