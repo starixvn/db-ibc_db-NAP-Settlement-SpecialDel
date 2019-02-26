@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]  
 	@TransIds			VARCHAR(MAX)
 	,@TransIdSolds		VARCHAR(MAX)	= '' -- just for BetTrade's subticket (transid of bettype 901)  
@@ -9,12 +9,12 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@IP				VARCHAR(15)
 	,@Reason			NVARCHAR(500) = ''
 	,@ReasonSC			NVARCHAR(500) = ''
+	,@IsAbnormalBet		BIT = 0
 	
 	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT -- invalid trans of BTrade
+	,@ReCalcMatches		VARCHAR(MAX) = '' OUTPUT --Lucky 3 matches need recalculation
 	,@ErrCode			INT = 0 OUTPUT
 	,@ErrMsg			NVARCHAR(200) = '' OUTPUT
-	,@Duration			INT = 0 OUTPUT
-	,@ReCalcMatches		VARCHAR(MAX) = '' OUTPUT --Lucky 3 matches need recalculation
 AS 
 	/* Created by: Jamie  
 	 Task:  VOID BY BET ID (Running & Settled tickets)  
@@ -70,6 +70,7 @@ AS
 	  - 20181017@Alan: Write log new reason chinese simplified [102918]
 	  - 20181004@Alan: Add new column SettlementStatus [102423]
 	  - 20181120@Alan: Incorporate Happy 5 into Number Game [102845]
+	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
 	
 	 Param's Explanation:   
 	*/
@@ -102,8 +103,6 @@ BEGIN
 	SELECT @InvalidTransIds		= '' 
 		, @ErrCode				= 0
 		, @ErrMsg				= ''
-		, @Duration 			= 0
-		, @startTime			= CURRENT_TIMESTAMP		
 	
 	DECLARE @beforeUpd 	TVP_BalanceWalletChange
 		  , @afterUpd 	TVP_BalanceWalletChange
@@ -1899,13 +1898,12 @@ BEGIN
 		,acomm = 0
 		,scomm = 0
 		,statusID = 102
-		,status = 'VOID'		
+		,status = 'VOID'
+		,ExtraInfo = CASE WHEN tmpmain.IsCashOutMemberTicket = 1 THEN main.ExtraInfo
+			ELSE dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) END
 	FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN #tblMatch tm 
-			ON main.matchid = tm.matchid
-		INNER JOIN #BetDelete AS tmpmain
-			ON	main.transid = tmpmain.transid
-			AND main.matchid = tmpmain.matchid			
+		INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
+		INNER JOIN #BetDelete AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
 	WHERE tmpmain.Bettype NOT BETWEEN 901 AND 903
 	  AND tmpmain.Bettype NOT BETWEEN 911 AND 913
 	
@@ -2718,9 +2716,7 @@ BEGIN
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON tl.translogid = tmp.refno
 	WHERE tmp.Bettype BETWEEN 801 AND 806  
-	
-	SELECT @Duration = DATEDIFF(MS, @startTime, CURRENT_TIMESTAMP)
-	
+		
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #BTTransActive
 	DROP TABLE #balanceGameBefore
