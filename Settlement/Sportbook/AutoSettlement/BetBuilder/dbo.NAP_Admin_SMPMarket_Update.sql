@@ -68,19 +68,19 @@ BEGIN
 		FROM
 			(SELECT cteData.marketID
 					,MAX(CASE
-							WHEN ms.Result = 'REFUND'	THEN '9_' + ms.Result
-							WHEN ms.Result IS NULL 		THEN '8_NULL'
-							WHEN ms.Result = 'LOSE'		THEN '7_' + ms.Result
-							WHEN ms.Result = 'WON'		THEN '6_' + ms.Result
-							ELSE '7_' + @ResultDefault END
+							WHEN ms.Result = 'REFUND' AND ms.ResultStatusID IN (2,5)	THEN '9_' + ms.Result
+							WHEN ms.Result IS NULL 										THEN '8_NULL'
+							WHEN ms.Result = 'LOSE' AND ms.ResultStatusID IN (2,5)		THEN '7_' + ms.Result
+							WHEN ms.Result = 'WON'  AND ms.ResultStatusID IN (2,5)		THEN '6_' + ms.Result
+							ELSE '5_' + @ResultDefault END
 						 ) AS Result --priority: REFUND, RUNNING, LOSE, WON
 					,MAX(CASE
 							--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 5			THEN '9_5' --manual Refund
 							--WHEN ms.Result = 'REFUND' AND ms.ResultStatusID = 2			THEN '8_2' --auto Refund
-							WHEN ms.Result = 'REFUND'									THEN '9_5' --Refund
+							WHEN ms.Result = 'REFUND' AND ResultStatusID IN (2,5)		THEN '9_5' --Refund
+							WHEN ms.ResultStatusID = 3									THEN '8_3' --UNDO
 							WHEN ms.ResultStatusID = 0									THEN '7_0' --inital
 							WHEN ms.ResultStatusID = 1									THEN '6_1' --keyin
-							WHEN ms.ResultStatusID = 3									THEN '5_3' --UNDO
 							ELSE '0_5' END
 						 ) AS ResultStatusID --priority: REFUND, RUNNING, LOSE, WON
 			FROM cteData

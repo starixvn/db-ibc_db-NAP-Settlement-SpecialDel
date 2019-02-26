@@ -217,7 +217,7 @@ BEGIN
 
 														
 	
-	/*IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
 	BEGIN
 		BEGIN TRY
 
@@ -240,7 +240,7 @@ BEGIN
 		END CATCH
 	END
 	ELSE
-	BEGIN*/
+	BEGIN
 		
 		INSERT INTO Single_Calculate_Queue_3rd (
 			matchid
@@ -262,6 +262,6 @@ BEGIN
 			   ,@IP
 			   ,@Action
 			   ,@sqlCommand
-	--END
+	END
 END
 GO

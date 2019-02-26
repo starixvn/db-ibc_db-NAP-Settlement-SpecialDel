@@ -79,10 +79,10 @@ BEGIN
 							WHEN sl.Result = 'REFUND' 								 THEN '9_5'
 							WHEN ms.Result = 'REFUND' AND ResultStatusID NOT IN(0,1) THEN '8_5' --+ CAST(ResultStatusID AS VARCHAR)
 							WHEN sl.SelectionType IS NOT NULL AND @Action='CAL'		 THEN '0_5'
-							WHEN sl.SelectionType IS NOT NULL AND @Action='UNDO'	 THEN '5_3'
-							WHEN ms.ResultStatusID = 0 								 THEN '7_0'
-							WHEN ms.ResultStatusID = 1 								 THEN '6_1'
-							WHEN ms.ResultStatusID = 3 								 THEN '5_3'
+							WHEN sl.SelectionType IS NOT NULL AND @Action='UNDO'	 THEN '7_3'
+							WHEN ms.ResultStatusID = 3 								 THEN '7_3'
+							WHEN ms.ResultStatusID = 0 								 THEN '6_0'
+							WHEN ms.ResultStatusID = 1 								 THEN '5_1'
 							ELSE '0_5' END
 					) AS ResultStatusID
 		FROM dbo.SMP_MarketSelection ms WITH (NOLOCK)

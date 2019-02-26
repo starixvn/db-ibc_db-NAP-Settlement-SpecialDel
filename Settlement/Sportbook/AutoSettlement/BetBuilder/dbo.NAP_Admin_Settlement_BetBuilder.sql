@@ -120,7 +120,7 @@ BEGIN
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
 	--END Balance tables
 
-	CREATE TABLE #tblMatchProcess (matchID INT, keyID TINYINT)
+	CREATE TABLE #tblMatchProcess (matchID INT, keyID TINYINT, KeyValue2 VARCHAR(20))
 	CREATE TABLE #tblTransID (transID BIGINT, modds SMALLMONEY, result VARCHAR(20))
 	CREATE TABLE #tblTransIDRefund (transID BIGINT)
 	CREATE TABLE #tblTransIDUndo (transID BIGINT)
@@ -152,33 +152,14 @@ BEGIN
 		RETURN
 	
 	--get info of match
-  	SELECT @fth			= finalhomescore
+  	/*SELECT @fth			= finalhomescore
 		  ,@fta			= finalawayscore
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
   	FROM DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  	WHERE matchid = @matchid
-  	
-  	-- check and not allow attempt to settlement same game while it's still not finish
-  	INSERT INTO #tblMatchProcess(matchID, KeyID)
-  	SELECT	@matchID AS matchID, 5 AS KeyID
-  	----------------------------------------------------------------------------------------------------------------------
+  	WHERE matchid = @matchid*/
 
-
-	--check settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		  @isExistMatch			= 1
-		  , @avaiableProcess 	= @avaiableProcess OUTPUT
-		  , @ErrCode			= @ErrCode OUTPUT
-		  , @ErrMsg				= @ErrMsg OUTPUT
-
-	--check error
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN
-		SELECT   @ErrCode   = 1000000
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
+	
 
 
   	------------------------------------------get market info-----------------------------------------
@@ -212,7 +193,27 @@ BEGIN
 					,@ResultStatusID	= @ResultStatusID
 		
 	END
-  	
+		
+	-- check and not allow attempt to settlement same game while it's still not finish
+  	INSERT INTO #tblMatchProcess(matchID, KeyID, KeyValue2)
+  	SELECT	@matchID AS matchID, 5 AS KeyID, MarketID
+  	FROM #tblMarket
+  	----------------------------------------------------------------------------------------------------------------------
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		  @isExistMatch			= 1
+		  , @avaiableProcess 	= @avaiableProcess OUTPUT
+		  , @checkKeyValue2		= 1
+		  , @ErrCode			= @ErrCode OUTPUT
+		  , @ErrMsg				= @ErrMsg OUTPUT
+
+	--check error
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0)
+	BEGIN
+		SELECT   @ErrCode   = 1000000
+				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+		RETURN
+	END
 	
 		
 	SELECT @minMarketID = MIN(marketID)
@@ -569,6 +570,7 @@ BEGIN
 	------ releasing Settlement process
     EXEC dbo.NAP_Admin_CheckingProcess
 			  @isExistMatch		= 1
+			  ,@checkKeyValue2	= 1
 			  ,@IsReleased		= 1
 	
 	
@@ -588,7 +590,7 @@ BEGIN
 	DECLARE @LogDate DATETIME = GETDATE()
 			,@LogIDOutput	 BIGINT
 	
-	IF @IsSettleByMarket = 1
+	IF @IsSettleByMarket = 1 AND EXISTS(SELECT TOP 1 1 FROM #tblMarket)
 	BEGIN
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 			@userID				= @AdminId
@@ -624,7 +626,7 @@ BEGIN
 										,@LogIDOutput		= @LogIDOutput OUTPUT
 			
 		END
-		SET @SelectedResources = ' LogID: ' + CAST(@LogIDOutput AS VARCHAR)
+		SET @SelectedResources = 'MarketIds: please refer to LogId ' + CAST(@LogIDOutput AS VARCHAR)
 	END
 	ELSE
 	BEGIN
@@ -648,10 +650,10 @@ BEGIN
 		
 	
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END
 							+ '; IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
 							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
 							+ '<br/> '
-							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @AdminId
@@ -659,9 +661,9 @@ BEGIN
 	
 				
 	SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 
-						+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
+						/*+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
 						+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
-						+ '<br/> ' 
+						+ '<br/> ' */
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))

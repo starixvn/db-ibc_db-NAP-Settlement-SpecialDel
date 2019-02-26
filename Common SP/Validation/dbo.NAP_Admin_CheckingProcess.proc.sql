@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsExistVS				BIT = 0
 	, @IsExistParlayVSBetradar 	BIT = 0
 	, @IsExistBB				BIT	= 0  --BetBuilder
+	, @checkKeyValue2			BIT = 0
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
 	, @AvaiableProcess			BIT = 0 OUTPUT
@@ -144,7 +145,42 @@ BEGIN
 				SET @avaiableProcess = 1
 			END
 		END
-
+		
+		IF (@checkKeyValue2 = 1)
+		BEGIN
+			IF EXISTS(SELECT 1
+					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
+							INNER JOIN #tblMatchProcess tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = tp.KeyValue2
+					)
+			BEGIN
+				SELECT @ErrCode = 103
+						,@ErrMsg	= 'These matches are being calculated or some tickets of matches are being voided, please wait a few seconds until the on-going process is completed and try again.'
+				SELECT @avaiableProcess = 0
+				 
+				RETURN
+			END
+			BEGIN TRY
+					
+				INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, KeyValue2) 
+				SELECT DISTINCT KeyID, matchid, KeyValue2
+				FROM #tblMatchProcess
+				WHERE KeyID > 0
+				
+				SET @avaiableProcess = 1
+				
+			END TRY
+			BEGIN CATCH
+				
+				SELECT @ErrCode = 103
+					,@ErrMsg	= 'These matches are being calculated or some tickets of matches are being voided, please wait a few seconds until the on-going process is completed and try again.'
+				
+				SELECT @avaiableProcess = 0	
+			END CATCH
+			
+			RETURN
+		END
+		
 		IF (@isExistTempVariable = 1)
 		BEGIN
 				 
@@ -254,7 +290,18 @@ BEGIN
 		SET VValue 			= '0'
 		WHERE VName 		= 'isCalculatingNGManual'
 		AND @isExistNG 		= 1
-				
+		
+		IF (@checkKeyValue2 = 1)
+		BEGIN
+			DELETE ck
+			FROM dbo.TempVariableNumber ck
+				INNER JOIN #tblMatchProcess tp
+				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+			WHERE ck.KeyValue2 = tp.KeyValue2
+			
+			RETURN
+		END
+		
 		IF (@isExistTempVariable = 1)
 		BEGIN
 			DELETE ck
