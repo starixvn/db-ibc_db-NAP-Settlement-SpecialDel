@@ -208,6 +208,7 @@ BEGIN
 			   ,s.custid		
 			   ,s.username	
 			   ,s.transdate
+			   ,s.VoidedTime
 			   ,s.creator
 			   ,s.Stake
 			   ,s.odds
@@ -255,6 +256,7 @@ BEGIN
 			   ,s.custid		
 			   ,s.username	
 			   ,s.transdate
+			   ,s.VoidedTime
 			   ,s.creator
 			   ,s.Stake
 			   ,s.odds
@@ -297,6 +299,7 @@ BEGIN
 			   ,s.custid		
 			   ,s.username	
 			   ,s.transdate
+			   ,s.VoidedTime
 			   ,s.creator
 			   ,s.Stake
 			   ,s.odds
@@ -344,6 +347,7 @@ BEGIN
 		   ,s.custid		
 		   ,s.username	
 		   ,s.transdate
+		   ,s.VoidedTime
 		   ,s.creator
 		   ,s.Stake
 		   ,s.odds
@@ -383,6 +387,7 @@ BEGIN
 		   ,s.custid		
 		   ,s.username	
 		   ,s.transdate
+		   ,s.VoidedTime
 		   ,s.creator
 		   ,s.Stake
 		   ,s.odds
