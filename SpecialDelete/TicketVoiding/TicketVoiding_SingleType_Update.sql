@@ -9,10 +9,11 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
-	Task: view voided ticket [Redmine:#90155]
+	Task: void single ticket [Redmine:#90155]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
@@ -64,12 +65,14 @@ BEGIN
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
 		,awinlost			MONEY
+		,actual_stake		MONEY
 		,isSubTransaction	BIT	DEFAULT(0)
 	)
 	
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
 	SET @SB_Error = 0
+	SET @FailedTransIds = @TransIds
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 
@@ -78,8 +81,8 @@ BEGIN
 	FROM	dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
 
-	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, balanceType, TicketType)
-	SELECT	tl.custid, tl.gameID, 3, tl.translogid, 4 AS balanceType, 5 -- Metric gaming
+	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, balanceType, TicketType)
+	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 4 AS balanceType, 5 -- Metric gaming
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
@@ -105,11 +108,12 @@ BEGIN
 
 	IF NOT EXISTS (SELECT * FROM #tmpTransId)
 	BEGIN
-		SELECT	@ErrCode = 1
-				,@ErrMsg = 'no ticket'				
+		SELECT	@ErrCode = 100
+				,@ErrMsg = 'No ticket found.'				
 
 		RETURN
 	END
+
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@MatchId, KeyId
 	FROM	#tmpTransId
@@ -124,10 +128,6 @@ BEGIN
 		
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
-		SELECT	@ErrCode = 1
-				,@ErrMsg = 'lock match'
-				
-
 		RETURN
 	END
 
@@ -150,7 +150,7 @@ BEGIN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId t)
 	BEGIN
-		SELECT	@ErrCode = 1
+		SELECT	@ErrCode = 100
 				,@ErrMsg = 'No ticket found.'
 
 		------ releasing SD process
@@ -382,6 +382,22 @@ BEGIN
 
 	END
 
+	SET @FailedTransIds = NULL
+
+	;WITH cteResult 
+	AS(
+		SELECT	refno AS TransId
+		FROM	#tmpTransId
+		WHERE	TicketType = 5
+		UNION ALL
+		SELECT	TransId 
+		FROM	#tmpTransId
+		WHERE	TicketType <> 5
+	)
+	SELECT	@FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(it.TransId AS VARCHAR(30)), CAST(it.TransId AS VARCHAR(30)))
+	FROM	@tmpInputTransId it
+	WHERE	NOT EXISTS (SELECT * FROM cteResult c WHERE c.TransId = it.TransId)
+
 	-- backup into zzzbettrans
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
 			,odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator  
@@ -404,7 +420,7 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)  
 			ON b.transid = t.TransId
 
-	-- capture balance before voiding
+	--capture balance before voiding
 	INSERT INTO @BeforeUpd(
 		matchid
 		,custid
@@ -429,7 +445,12 @@ BEGIN
 				,CASE
 					WHEN t.isSubTransaction = 1 THEN 2
 					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
-				,b.winlost - b.actual_stake + b.playercomm AS balance
+				,b.winlost 
+					- CASE 
+						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
+						ELSE b.actual_stake 
+					END 
+					+ b.playercomm AS balance
 		FROM	#tmpTransId t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
@@ -462,11 +483,12 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-
+			
 	SELECT @xmlTransId = (SELECT	t.TransId AS '@transid'
 									,CASE WHEN t.TicketType = 5 THEN t.Refno ELSE NULL END AS '@translogid'
 									,t.betid AS '@betid'
 									,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
+									,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
 							FROM	#tmpTransId t
 							FOR XML PATH('r'), ROOT('root')
 						)
@@ -593,7 +615,8 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-
+			SELECT * FROM @BeforeUpd
+			SELECT * FROM @AfterUpd
 	--UPDATE balance
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @beforeUpd

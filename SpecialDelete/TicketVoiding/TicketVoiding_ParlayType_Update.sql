@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -51,6 +52,7 @@ BEGIN
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90101
 	SET @SB_Error = 0
+	SET @FailedTransIds = @TransIds
 
 	SELECT	@RowId = 0
 			,@strSubTransId = ''
@@ -77,8 +79,9 @@ BEGIN
 	
 	IF @RowCount = 0
 	BEGIN
-		SELECT @ErrCode = 1  
+		SELECT @ErrCode = 100  
 				,@ErrMsg = 'No parlay ticket found.'  
+
 		RETURN
 	END
 	
@@ -90,11 +93,9 @@ BEGIN
   
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN	
-		SELECT	@ErrCode = 1
-				,@ErrMsg = ''
 		RETURN  
 	END
-	
+
 	-- BackUp bettransm tickets into zzzbettrans  
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 			winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   

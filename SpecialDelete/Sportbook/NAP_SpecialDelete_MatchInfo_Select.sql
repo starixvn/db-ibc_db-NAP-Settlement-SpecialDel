@@ -12,6 +12,7 @@ AS
 	Original:
 	Revisions: 
 		- 20180305@Helen: Initialize - [Redmine: 90153]
+		- 20190228@Kathy: Support get match info in table match14 [Redmine:#90155]
 	
 */
 BEGIN
@@ -56,24 +57,34 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT 
-					match.matchid,
-					match.homeid,
-					match.awayid,
-					match.matchcode, 
-					match.eventdate, 
-					match.leagueid,
-					isnull(match.isNeutral, CONVERT(BIT,0)) as IsNeutral,
-					showtime,
-					match.kickofftime,
-					match.sporttype
-				FROM dbo.match AS match WITH (NOLOCK) 
-				WHERE match.matchid = @matchID
+			SELECT	m.matchid
+					,m.homeid
+					,m.awayid
+					,m.matchcode
+					,m.eventdate
+					,m.leagueid
+					,isnull(m.isNeutral, CONVERT(BIT,0)) as IsNeutral
+					,m.showtime
+					,m.kickofftime
+					,m.sporttype
+			FROM	dbo.match AS m WITH (NOLOCK) 
+			WHERE	m.matchid = @matchID
+			UNION ALL
+			SELECT	m14.matchid
+					,m14.homeid
+					,m14.awayid
+					,m14.matchcode
+					,m14.eventdate
+					,m14.leagueid
+					,isnull(m14.isNeutral, CONVERT(BIT,0)) as IsNeutral
+					,m14.showtime
+					,m14.kickofftime
+					,m14.sporttype
+			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
+			WHERE	m14.matchid = @matchID
+				
 		END		
 	END		
 
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_MatchInfo_Select] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_MatchInfo_Select] TO [vnteam] AS [dbo]

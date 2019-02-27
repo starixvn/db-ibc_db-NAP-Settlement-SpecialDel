@@ -20,6 +20,7 @@ BEGIN
 			,q.TotalTicket
 			,q.ErrMsg
 			,q.StatusId
+			,q.FailedTransIds
 	FROM	dbo.TicketVoiding_Queue q WITH(NOLOCK)
 	WHERE	q.VoidingHistoryId = @VoidingHistoryId
 

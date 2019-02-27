@@ -1,9 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
-	@RequestId		INT = NULL
-	,@MatchId		INT = NULL
-	,@FromDate		DATETIME
-	,@ToDate		DATETIME
+	@RequestId		INT			= NULL
+	,@MatchId		INT			= NULL
+	,@FromDate		DATETIME	= NULL
+	,@ToDate		DATETIME	= NULL
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -22,6 +22,7 @@ BEGIN
 	DECLARE	@FilteredBy	TINYINT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
+
 	DECLARE @tmpMatchVoidingHistory TABLE (
 		RequestId			INT
 		,MatchId			INT
@@ -48,6 +49,7 @@ BEGIN
 		,HomeId			INT
 		,AwayId			INT
 		,KickOffTime	DATETIME
+		,EventDate		DATETIME
 
 		,LastVoidedBy	INT
 		,TotalSingle	INT
@@ -58,27 +60,23 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
 	SELECT	@FilteredBy = CASE
-								WHEN @RequestId IS NOT NULL
-									THEN CASE
-											WHEN @MatchId IS NOT NULL THEN 1 -- RequestId & MatchId
-											ELSE 2 -- Only RequestId
-										END
+								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
 								ELSE
 									CASE 
-										WHEN @MatchId IS NOT NULL THEN 3 -- Only MatchId
-										ELSE 4 -- NULL
+										WHEN @MatchId IS NOT NULL THEN 2 -- MatchId & Fromdate, Todate
+										ELSE 3 -- Fromdate, Todate
 									END
 							END
 
-	IF @FilteredBy IN (1, 2)
+	IF @FilteredBy = 1
 	BEGIN
 		INSERT INTO @tmpRequest (RequestId)
-		SELECT	DISTINCT rd.RequestId
-		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		WHERE	rd.RequestId = @RequestId
-				AND rd.MatchId = CASE WHEN @FilteredBy = 1 THEN @MatchId ELSE rd.MatchId END	
+		SELECT	r.RequestId
+		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
+		WHERE	r.RequestId = @RequestId
+				
 	END
-	ELSE IF @FilteredBy = 3
+	ELSE IF @FilteredBy = 2
 	BEGIN
 		INSERT INTO @tmpRequest (RequestId)
 		SELECT	DISTINCT rd.RequestId
@@ -86,7 +84,7 @@ BEGIN
 		WHERE	rd.MatchId = @MatchId
 	END
 
-	IF @FilteredBy IN (1,2,3)
+	IF @FilteredBy IN (1,2)
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
 		SELECT	r.RequestId
@@ -108,10 +106,8 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
-
 	END
-	ELSE IF @FilteredBy = 4
+	ELSE IF @FilteredBy = 3
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
 		SELECT	r.RequestId
@@ -204,15 +200,28 @@ BEGIN
 					AND vh.MatchId = t.MatchId
 		) vh
 	
-	SELECT	RequestId
-			,SubIssueTypeId
-			,MatchId
-			,KickOffTime
-			,Sporttype
-			,LeagueId
-			,HomeId
-			,AwayId
-			,ActionId
+	UPDATE t 
+		SET EventDate = m.eventdate
+	FROM	#tmpResult t
+		INNER JOIN (
+			SELECT m.matchid, m.eventdate
+			FROM	dbo.match m WITH(NOLOCK)
+			UNION ALL
+			SELECT	m14.MatchId, m14.eventdate
+			FROM	dbo.match14 m14 WITH(NOLOCK)
+		) m
+			ON t.MatchId = m.matchid
+
+	SELECT	t.RequestId
+			,t.SubIssueTypeId
+			,t.MatchId
+			,t.KickOffTime
+			,t.Sporttype
+			,t.LeagueId
+			,t.HomeId
+			,t.AwayId
+			,t.EventDate
+			,t.ActionId
 			,t.CreatedDate
 			,c.Username AS CreatedBy
 			,t.MistakenBy

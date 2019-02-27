@@ -13,7 +13,7 @@ AS
 	
 	Param's explanation:	
 		@transIds = '<root>
-						<r transid="104730774034" translogid="432934573" betid="1" isMG="1"/>
+						<r transid="104730774034" translogid="432934573" betid="1" isMG="1" actual_stake="100"/>
 						<r transid="104729373985" />
 					</root>'
 					isMG: metric gaming ticket
@@ -22,20 +22,25 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @xml XML
-	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT)    
+			,@actual_stake MONEY
+
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY)    
 
 	SET @xml = CONVERT(XML, @TransIds)
     
-	INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG)
+	INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake)
     SELECT	T.C.value('./@transid', 'bigint')
 			,T.C.value('./@translogid', 'bigint')
 			,T.C.value('./@betid', 'bigint')
 			,T.C.value('./@isMG', 'bit')
+			,T.C.value('./@actual_stake', 'money')
 	FROM	@xml.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
 	UPDATE	b
-		SET winlost = b.actual_stake
+		SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
+			,winlost = @actual_stake
+			,actual_stake = @actual_stake
 			,ruben = 1
 			,statuswinlost = 6
 			,creator = @UserId

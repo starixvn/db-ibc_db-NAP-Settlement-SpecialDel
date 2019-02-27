@@ -27,9 +27,11 @@ BEGIN
 
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
+			,@FailedTransIds	VARCHAR(MAX)
 
 	DECLARE @tmpQueue TABLE (
-		QueueId			INT
+		RequestId		INT
+		,QueueId		INT
 		,MatchId		INT
 		,VoidingTypeId	TINYINT
 		,TransIds		VARCHAR(MAX)
@@ -51,14 +53,16 @@ BEGIN
 		RETURN
 
 	INSERT INTO @tmpQueue (
-		QueueId
+		RequestId
+		,QueueId
 		,MatchId
 		,VoidingTypeId
 		,TransIds
 		,UserId
 		,IP
 	)
-	SELECT	QueueId
+	SELECT	RequestId
+			,QueueId
 			,MatchId
 			,VoidingTypeId
 			,TransIds
@@ -72,6 +76,7 @@ BEGIN
 	BEGIN
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
+				,@RequestId = RequestId
 				,@QueueId = QueueId
 				,@MatchId = MatchId
 				,@VoidingTypeId = VoidingTypeId
@@ -86,6 +91,7 @@ BEGIN
 
 		SELECT	@ErrCode = 0
 				,@ErrMsg = ''
+				,@FailedTransIds = ''
 				,@StatusId = 1 -- running
 
 		UPDATE	q  WITH(ROWLOCK, UPDLOCK)
@@ -105,6 +111,7 @@ BEGIN
 				,@IP = @IP
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
+				,@FailedTransIds = @FailedTransIds OUTPUT
 
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -112,12 +119,14 @@ BEGIN
 			SELECT	@StatusId = 3 -- failed
 					,@ErrCode = ERROR_NUMBER()
 					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
+					,@FailedTransIds = @FailedTransIds
 		END CATCH
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
 				,StatusId = @StatusId
 				,ErrMsg = @ErrMsg
+				,FailedTransIds = @FailedTransIds
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	QueueId = @QueueId
 	END

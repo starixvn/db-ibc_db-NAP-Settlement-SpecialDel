@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -36,7 +37,7 @@ BEGIN
 			,@IP = @IP
 			,@ErrCode = @ErrCode OUTPUT	
 			,@ErrMsg = @ErrMsg OUTPUT
-
+			,@FailedTransIds = @FailedTransIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId = 2 -- subParlay
 	BEGIN
@@ -49,6 +50,7 @@ BEGIN
 			,@IP = @IP
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
 	END
 	
 END

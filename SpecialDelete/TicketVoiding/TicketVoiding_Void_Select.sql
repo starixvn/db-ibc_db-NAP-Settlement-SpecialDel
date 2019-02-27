@@ -180,8 +180,8 @@ BEGIN
 			AND b.statusID NOT IN (101, 102) -- reject, void
 			AND b.liveindicator = 0
 			AND b.bettype NOT IN (805, 806, 9, 29)			
-			AND b.betfrom <> 'P'
-							  
+			AND b.bettype NOT BETWEEN 901 AND 920
+			AND b.betfrom <> 'P'		 
 	
 	-- Metric Gaming Super Live
 		INSERT INTO #SpecialDeleteBets(
@@ -758,7 +758,7 @@ BEGIN
 							AND b.statusID NOT IN (102, 101) -- VOID, REJECT
 					 ) AS b
 	WHERE sub911.bettype = 911
-				
+			 	
 	-- update username/creatorname column
 	UPDATE al
 		SET username = ci.username

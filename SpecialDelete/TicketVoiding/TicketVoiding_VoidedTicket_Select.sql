@@ -17,8 +17,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	DECLARE @SettlementStatus TINYINT
+			,@IsMovebet BIT
+
+	SET @SettlementStatus = NULL
+	SET @IsMovebet = 0
+
+	SELECT	@SettlementStatus = m.SettlementStatus 
+	FROM	dbo.match m WITH(NOLOCK) 
+	WHERE	m.matchid = @MatchId 
+
+	IF @@rowcount = 0
+		SET @IsMovebet = 1
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
@@ -126,73 +136,188 @@ BEGIN
 					AND zm.matchid = @MatchId
 		) zm
 
-	UPDATE t 
-		SET Betcheck = b.betcheck
-			,betdaqid = b.betdaqid
-			,betid = b.betid
-			,betteam = b.betteam
-			,bettype = b.bettype
-			,ExtraInfo = b.ExtraInfo
-			,hdp1 = b.hdp1
-			,hdp2 = b.hdp2
-			,liveawayscore = b.liveawayscore
-			,livehomescore = b.livehomescore
-			,odds = b.odds
-			,oddsspread = b.oddsspread
-			,oddstype = b.oddstype
-			,RefCode = b.RefCode
-			,stake = b.stake
-			,transdesc = b.transdesc
-			,Username = b.Username
-			,WalletType = b.WalletType
-			,CurrencyName = b.CurrencyName
-			,betfrom = b.betfrom
-			,transdate = b.transdate
-			,creator = b.creator
-			,srecommend = b.srecommend
-			,mrecommend = b.mrecommend
-			,recommend = b.recommend
-	FROM	#tmpTicket t
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
+	IF @IsMovebet = 0
+	BEGIN
+		UPDATE t 
+			SET Betcheck = b.betcheck
+				,betdaqid = b.betdaqid
+				,betid = b.betid
+				,betteam = b.betteam
+				,bettype = b.bettype
+				,ExtraInfo = b.ExtraInfo
+				,hdp1 = b.hdp1
+				,hdp2 = b.hdp2
+				,liveawayscore = b.liveawayscore
+				,livehomescore = b.livehomescore
+				,odds = b.odds
+				,oddsspread = b.oddsspread
+				,oddstype = b.oddstype
+				,RefCode = b.RefCode
+				,stake = b.stake
+				,transdesc = b.transdesc
+				,Username = b.Username
+				,WalletType = b.WalletType
+				,CurrencyName = b.CurrencyName
+				,betfrom = b.betfrom
+				,transdate = b.transdate
+				,creator = b.creator
+				,srecommend = b.srecommend
+				,mrecommend = b.mrecommend
+				,recommend = b.recommend
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
 	
-	UPDATE	t
-		SET transid = b.transid
-			,Betcheck = b.betcheck
-			,betdaqid = b.betdaqid
-			,betid = b.betid
-			,betteam = b.betteam
-			,bettype = b.bettype
-			,ExtraInfo = b.ExtraInfo
-			,hdp1 = b.hdp1
-			,hdp2 = b.hdp2
-			,liveawayscore = b.liveawayscore
-			,livehomescore = b.livehomescore
-			,odds = b.odds
-			,oddsspread = b.oddsspread
-			,oddstype = b.oddstype
-			,RefCode = b.RefCode
-			,stake = b.stake
-			,transdesc = b.transdesc
-			,Username = b.Username
-			,WalletType = b.WalletType
-			,CurrencyName = b.CurrencyName
-			,betfrom = b.betfrom
-			,transdate = b.transdate
-			,creator = b.creator
-			,srecommend = b.srecommend
-			,mrecommend = b.mrecommend
-			,recommend = b.recommend
+		UPDATE	t
+			SET transid = b.transid
+				,Betcheck = b.betcheck
+				,betdaqid = b.betdaqid
+				,betid = b.betid
+				,betteam = b.betteam
+				,bettype = b.bettype
+				,ExtraInfo = b.ExtraInfo
+				,hdp1 = b.hdp1
+				,hdp2 = b.hdp2
+				,liveawayscore = b.liveawayscore
+				,livehomescore = b.livehomescore
+				,odds = b.odds
+				,oddsspread = b.oddsspread
+				,oddstype = b.oddstype
+				,RefCode = b.RefCode
+				,stake = b.stake
+				,transdesc = b.transdesc
+				,Username = b.Username
+				,WalletType = b.WalletType
+				,CurrencyName = b.CurrencyName
+				,betfrom = b.betfrom
+				,transdate = b.transdate
+				,creator = b.creator
+				,srecommend = b.srecommend
+				,mrecommend = b.mrecommend
+				,recommend = b.recommend
 
-			,subbetcheck = bm.betcheck
-			,subOdds = bm.odds
-			,subbetteam = bm.betteam
-			,subbettype = bm.bettype
-			,subhdp1 = bm.hdp1
-			,subhdp2 = bm.hdp2
-			,subtransdesc = bm.transdesc
-	FROM	#tmpTicket t
-		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
+				,subbetcheck = bm.betcheck
+				,subOdds = bm.odds
+				,subbetteam = bm.betteam
+				,subbettype = bm.bettype
+				,subhdp1 = bm.hdp1
+				,subhdp2 = bm.hdp2
+				,subtransdesc = bm.transdesc
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
+	END
+	ELSE
+	BEGIN
+		UPDATE t 
+			SET Betcheck = b.betcheck
+				,betdaqid = b.betdaqid
+				,betid = b.betid
+				,betteam = b.betteam
+				,bettype = b.bettype
+				,ExtraInfo = b.ExtraInfo
+				,hdp1 = b.hdp1
+				,hdp2 = b.hdp2
+				,liveawayscore = b.liveawayscore
+				,livehomescore = b.livehomescore
+				,odds = b.odds
+				,oddsspread = b.oddsspread
+				,oddstype = b.oddstype
+				,RefCode = b.RefCode
+				,stake = b.stake
+				,transdesc = b.transdesc
+				,Username = b.Username
+				,WalletType = b.WalletType
+				,CurrencyName = b.CurrencyName
+				,betfrom = b.betfrom
+				,transdate = b.transdate
+				,creator = b.creator
+				,srecommend = b.srecommend
+				,mrecommend = b.mrecommend
+				,recommend = b.recommend
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
+	
+		UPDATE	t
+			SET transid = b.transid
+				,Betcheck = b.betcheck
+				,betdaqid = b.betdaqid
+				,betid = b.betid
+				,betteam = b.betteam
+				,bettype = b.bettype
+				,ExtraInfo = b.ExtraInfo
+				,hdp1 = b.hdp1
+				,hdp2 = b.hdp2
+				,liveawayscore = b.liveawayscore
+				,livehomescore = b.livehomescore
+				,odds = b.odds
+				,oddsspread = b.oddsspread
+				,oddstype = b.oddstype
+				,RefCode = b.RefCode
+				,stake = b.stake
+				,transdesc = b.transdesc
+				,Username = b.Username
+				,WalletType = b.WalletType
+				,CurrencyName = b.CurrencyName
+				,betfrom = b.betfrom
+				,transdate = b.transdate
+				,creator = b.creator
+				,srecommend = b.srecommend
+				,mrecommend = b.mrecommend
+				,recommend = b.recommend
+
+				,subbetcheck = bm.betcheck
+				,subOdds = bm.odds
+				,subbetteam = bm.betteam
+				,subbettype = bm.bettype
+				,subhdp1 = bm.hdp1
+				,subhdp2 = bm.hdp2
+				,subtransdesc = bm.transdesc
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE TransId IS NULL AND IsMixParlay = 1)
+		BEGIN
+			UPDATE	t
+				SET transid = b.transid
+					,Betcheck = b.betcheck
+					,betdaqid = b.betdaqid
+					,betid = b.betid
+					,betteam = b.betteam
+					,bettype = b.bettype
+					,ExtraInfo = b.ExtraInfo
+					,hdp1 = b.hdp1
+					,hdp2 = b.hdp2
+					,liveawayscore = b.liveawayscore
+					,livehomescore = b.livehomescore
+					,odds = b.odds
+					,oddsspread = b.oddsspread
+					,oddstype = b.oddstype
+					,RefCode = b.RefCode
+					,stake = b.stake
+					,transdesc = b.transdesc
+					,Username = b.Username
+					,WalletType = b.WalletType
+					,CurrencyName = b.CurrencyName
+					,betfrom = b.betfrom
+					,transdate = b.transdate
+					,creator = b.creator
+					,srecommend = b.srecommend
+					,mrecommend = b.mrecommend
+					,recommend = b.recommend
+
+					,subbetcheck = bm.betcheck
+					,subOdds = bm.odds
+					,subbetteam = bm.betteam
+					,subbettype = bm.bettype
+					,subhdp1 = bm.hdp1
+					,subhdp2 = bm.hdp2
+					,subtransdesc = bm.transdesc
+			FROM	#tmpTicket t
+				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+		END
+	END
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
