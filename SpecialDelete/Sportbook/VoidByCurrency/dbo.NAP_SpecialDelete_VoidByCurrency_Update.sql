@@ -56,6 +56,12 @@ BEGIN
 		 , @InvalidTransIds = ''
 	
 	-- Constant
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+	SELECT @SettlementStatus = m.SettlementStatus
+			,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WHERE m.matchid = @MatchId
+
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
 		  , @789y_Name	   VARCHAR(50) = '789y'	
 		  , @y987_Name	   VARCHAR(50) = 'y987'
@@ -79,14 +85,10 @@ BEGIN
 	DECLARE @isExistBT	BIT = 0 
 		  , @isExistCashOut	BIT = 0
 		  
-	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''
-	
+	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
-	
-	DECLARE @tblTransIds TABLE (transid BIGINT)
-	
-	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tblTransIds TABLE (transid BIGINT)	
+	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange		
 	
@@ -235,9 +237,6 @@ BEGIN
 	
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
-	
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
 	SELECT ss.val AS LicenseeName, ss.val AS GroupName
@@ -2126,6 +2125,7 @@ BEGIN
 				s.SubBetTeam,
 				s.SubBetCheck,
 				@SettlementStatus AS SettlementStatus,
+				@GlobalShowTime AS GlobalShowTime,
 				-----------------------
 				s.custid,
 				s.UserName,

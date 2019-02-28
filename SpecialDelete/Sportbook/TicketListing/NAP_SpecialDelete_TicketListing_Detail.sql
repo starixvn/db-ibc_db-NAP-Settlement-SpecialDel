@@ -2221,14 +2221,10 @@ BEGIN
 	FROM #SpecialDeleteBets
 	ORDER BY IsParlay
 		   , ISNULL(MainTransId, transid)
-		   , CASE 
-				WHEN BonusID IS NOT NULL
-						THEN CASE 
-								WHEN MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE transid
-			 END
+		   , CASE WHEN BonusID IS NOT NULL
+				THEN CASE WHEN MainTransId IS NULL THEN 1
+					ELSE 2 END
+				ELSE transid END
 	
 	
 	DROP TABLE #SpecialDeleteBets  

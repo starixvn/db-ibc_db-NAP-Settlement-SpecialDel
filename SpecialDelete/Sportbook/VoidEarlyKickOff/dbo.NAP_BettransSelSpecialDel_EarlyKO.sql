@@ -53,6 +53,7 @@ AS;
 	- 20180821@Alan: Incorporate ESports 2.0 [99448]
 	- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]		  
+	- 20190301@Alan: Implement Bet Builder - [106898]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -134,12 +135,15 @@ BEGIN
 
 	DECLARE @SportType	SMALLINT
 			,@LeagueId	INT
+			,@SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
 	
-	SELECT	@SportType = Sporttype 
-			,@LeagueId = leagueid
-	FROM	dbo.match WITH(NOLOCK) 
+	SELECT	@SportType = m.Sporttype 
+			,@LeagueId = m.leagueid
+			,@SettlementStatus = m.SettlementStatus
+			,@GlobalShowTime = m.GlobalShowTime
+	FROM	dbo.match m WITH(NOLOCK) 
 	WHERE	matchid = @matchid
-	
 	--IF @SportType <> 44
 	--BEGIN
 	--	SET @SportType = NULL
@@ -213,8 +217,7 @@ BEGIN
 		  END = 1
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
+	
 	
 	-- search tickets : not metric gaming tickets, mix parlay tickets
 	INSERT INTO #SpecialDeleteBets(
@@ -1372,6 +1375,7 @@ BEGIN
 		   ,s.RefCode
 		   ,@SettlementStatus AS SettlementStatus
 		   ,s.IsMarked
+		   ,@GlobalShowTime AS GlobalShowTime
 	FROM CTE_OriginResult s
 	ORDER BY CASE
 				WHEN s.GroupName = 'Credit' THEN 1

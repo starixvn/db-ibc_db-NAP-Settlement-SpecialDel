@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BetTypeSel] 
     @Mode        SMALLINT = 0
     ,@MatchId    INT = 0 -- defaul value for NG, VS, LC, VS Betradar
@@ -33,6 +33,7 @@ AS
 		- 20180301@Benjamin: Add bettype 226,227 add GroupName for bettype 805,806 in Mode:2 [Redmine:#90667]
 		- 20180816@Alan: Incorporate ESports 2.0 [99448]
 		- 20181119@Alan: Incorporate Happy 5 into Number Game [102845]
+		- 20190228@Alan: Implement Bet Builder, remove Live Casino - [106898]
 		
     Param's Explanation:  
     @Mode:   
@@ -44,6 +45,7 @@ AS
          5: Virtual sports  
 		 6: Lucky 3
 		 7: Bull fighting
+		 8: Bet Builder
 */
 BEGIN
     SET NOCOUNT ON
@@ -140,6 +142,7 @@ BEGIN
             FROM dbo.bettype b WITH(NOLOCK)
             WHERE b.typeid IN (9, 29)
         END
+				
 		-- exclude FM bettypes
 		IF(@mode = 4)
 		BEGIN
@@ -151,17 +154,6 @@ BEGIN
      -- 3: TicketListing  
     IF @Mode = 3
     BEGIN
-        INSERT INTO #TmpBettype (
-                typeid
-                ,type
-                ,liveindicator                
-                )
-        SELECT b.typeid
-            ,3 AS type -- type = 3: Live Casino
-            ,0 AS liveindicator            
-        FROM dbo.bettype b WITH(NOLOCK)
-        WHERE  @matchid = 0 AND b.typeid BETWEEN 1101 AND 1199
-
 		INSERT INTO #TmpBettype (
             typeid
             ,type
@@ -205,6 +197,17 @@ BEGIN
             ,0 AS liveindicator            
         FROM bettype WITH (NOLOCK)
         WHERE @matchid = 0 AND typeid = 1004
+
+		INSERT INTO #TmpBettype (
+            typeid
+            ,type
+            ,liveindicator            
+            )
+        SELECT typeid
+            ,8 AS type -- type = 8: Bet Builder
+            ,0 AS liveindicator            
+        FROM bettype WITH (NOLOCK)
+        WHERE @matchid = 0 AND typeid = 38
     END
     
     IF @Mode = 2
@@ -224,7 +227,24 @@ BEGIN
         INNER JOIN dbo.ResultDetail3rd rd WITH(NOLOCK) ON b.typeid = rd.gameid
         WHERE rd.matchid = @matchid 
         AND rd.vendorid = 5 
-        AND rd.gameID IN (805,806)        
+        AND rd.gameID IN (805,806)    
+		
+		--Bet Builder
+		IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype))
+        BEGIN
+            INSERT INTO #TmpBettype (
+                typeid
+                ,type
+                ,liveindicator
+                ,GroupName
+                )
+            SELECT b.typeid        
+                , 8
+                , 0                   
+                , 'Special' AS GroupName           
+            FROM dbo.bettype b WITH(NOLOCK)
+            WHERE b.typeid = 38
+        END
     END
         
     ----- number game  

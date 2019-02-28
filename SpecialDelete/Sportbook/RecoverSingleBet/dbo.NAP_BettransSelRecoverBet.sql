@@ -1150,6 +1150,7 @@ BEGIN
 			,t.MainTransId
 			,t.RefCode
 			,m.SettlementStatus
+			,m.GlobalShowTime
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid

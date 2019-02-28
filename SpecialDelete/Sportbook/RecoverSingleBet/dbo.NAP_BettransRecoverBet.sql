@@ -1957,6 +1957,7 @@ BEGIN
 			,t.WalletType
 			,t.RefCode
 			,m.SettlementStatus
+			,m.GlobalShowTime
 	FROM CTE t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	ORDER BY site

@@ -21,6 +21,7 @@ AS;
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20190228@Alan: Implement Bet Builder - [106898]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -38,9 +39,15 @@ BEGIN
 	
 	DECLARE @SearchSingle BIT
 		  , @SearchParlay BIT
-	
-	CREATE TABLE #SpecialDeleteBets
+
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+	SELECT @SettlementStatus = m.SettlementStatus
+			,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WHERE m.matchid = @MatchId
+CREATE TABLE #SpecialDeleteBets
              (GroupID               BIGINT,
+	
               Stake                 MONEY,
               AwayId                INT,
               BetCheck              NVARCHAR(50),
@@ -161,10 +168,7 @@ BEGIN
 	ELSE IF @TicketType = 'SingleTicket'
 		SET @SearchSingle = 1
 	ELSE IF @TicketType = 'ParlayTicket'
-		SET @SearchParlay = 1		
-		
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	   
+		SET @SearchParlay = 1
 	
 	--> single
 	IF @SearchSingle = 1
@@ -1015,6 +1019,7 @@ BEGIN
 		s.SubStatus,
 		@SettlementStatus AS SettlementStatus,
 		s.IsMarked
+		@GlobalShowTime AS GlobalShowTime
 	FROM #SpecialDeleteBets s					 
 		 CROSS APPLY (SELECT CASE
 									WHEN EXISTS (SELECT d.custid 

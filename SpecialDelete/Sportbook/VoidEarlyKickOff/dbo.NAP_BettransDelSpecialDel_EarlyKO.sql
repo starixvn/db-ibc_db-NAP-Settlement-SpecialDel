@@ -89,6 +89,7 @@ Revisions:
 	- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 	- 20190718@Charles: Drop table #CTE_CustInfo [115870]
+	- 20190301@Alan: Implement Bet Builder - [106898]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -248,8 +249,13 @@ BEGIN
 		 , @ErrMsg = ''
 		 , @InvalidTransIds = ''
 
-	SELECT @eventdate = eventdate   
-	FROM match WITH (NOLOCK)  
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+
+	SELECT @eventdate = m.eventdate 
+		,@SettlementStatus = m.SettlementStatus 
+		,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WITH (NOLOCK)  
 	WHERE matchid = @matchid  
 
 	IF NOT EXISTS (  
@@ -362,9 +368,6 @@ BEGIN
 				ELSE 1
 		  END = 1
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
-	
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	
 
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (9, 29) 
@@ -2421,6 +2424,7 @@ BEGIN
 			,al.choiceBetTeam AS SubBetteam
 			,al.ChoiceBetCheck AS SubBetCheck
 			,@SettlementStatus AS SettlementStatus
+			,@GlobalShowTime AS GlobalShowTime
 			-----------------------------  
 			,ci.currency
 			,ci.username

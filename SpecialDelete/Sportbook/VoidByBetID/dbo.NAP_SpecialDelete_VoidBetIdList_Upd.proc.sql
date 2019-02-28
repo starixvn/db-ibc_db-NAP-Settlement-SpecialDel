@@ -73,6 +73,7 @@ AS
 	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
 	  - 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 	  - 20190718@Charles: Drop table #CTE_CustInfo [115870]
+	  - 20190228@Alan: Implement Bet Builder - [106898]
 
 	 Param's Explanation:   
 	*/
@@ -2680,6 +2681,7 @@ BEGIN
 		,b.Hdp1 AS Handicap1
 		,b.Hdp2 AS Handicap2
 		,m.SettlementStatus
+		,m.GlobalShowTime
 		--------------------
 		,ci.username
 		,ci.username2

@@ -1,10 +1,4 @@
-﻿USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[Acc_BettransSelBet_BatchMsg]    Script Date: 10/13/2016 14:01:08 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_BettransSelBet_BatchMsg] (
 	@TransIds 		VARCHAR(MAX)
 	,@ProductIds 	VARCHAR(1000) = ''
@@ -18,7 +12,7 @@ AS
  Task: Select batch msg  
  DB: DBACC/BODB02  
   
- History:  
+ Revisions:  
   - 20100823@Khoa: add more @TransIds  
   - 20101007@Henry: Change column transid from INT to BIGINT  
   - 20140224@Elodie: Apply LAS system [Redmine:#10701]  
@@ -30,20 +24,21 @@ AS
   - 20160817@bobby.nguyen: #62572 - Exclude BT's bettype 904
   - 20161013@Kathy: Add NG2 [Redmine:#63211]
   - 20170309@Kent: Integrate Cash-out [Redmine:#72059]
+  - 20190228@Alan: Implement Bet Builder - [106898]
   
 Explanation's Param:  
 	- @ProductIds: [1-99]
 		+ 1001: Metric Gaming (hard-code)
+		+ 1002: Bet Builder
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @invalidTransId 	VARCHAR(MAX)
 		,@balanUpDate			SMALLDATETIME
-		,@MG_ProductId			INT 
-	
-	SET @MG_ProductId 			= 1001
-	
+		,@MG_ProductId			INT = 1001
+		,@BetBuilder_ProductId	INT = 1002
+
 	CREATE TABLE #transIdList 	( transid 	BIGINT)
 	CREATE TABLE #productIdList ( ProductId INT)
 
@@ -82,23 +77,26 @@ BEGIN
 	INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
 	SELECT DISTINCT p.ProductId, sb.Bettype, sb.SubProduct
 	FROM dbo.SportBettypeMatrix sb (NOLOCK)
-		INNER JOIN #productIdList p ON sb.ProductId = p.ProductId
-		
+		INNER JOIN #productIdList p ON sb.ProductId = p.ProductId		
 	WHERE sb.SubProduct NOT IN ('MG-SuperLive') 
-		AND sb.Bettype 	NOT IN (901, 902, 903, 904, 911, 912, 913, 914, 500)
+		AND sb.Bettype 	NOT IN (901, 902, 903, 904, 911, 912, 913, 914, 500, 38)
 	
 	-- Check metric gaming
-	IF(EXISTS (
-			SELECT 1
-			FROM #productIdList
-			WHERE ProductId = @MG_ProductId
-		)
-	)
+	IF(EXISTS (SELECT 1 FROM #productIdList	WHERE ProductId = @MG_ProductId))
 	BEGIN
 		INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
 		SELECT DISTINCT @MG_ProductId AS ProductId, sb.Bettype, sb.SubProduct
 		FROM dbo.SportBettypeMatrix sb (NOLOCK)
 		WHERE sb.SubProduct IN ('MG-SuperLive') 	
+	END
+
+	-- Check Bet Builder
+	IF(EXISTS (SELECT 1 FROM #productIdList WHERE ProductId = @BetBuilder_ProductId))
+	BEGIN
+		INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
+		SELECT DISTINCT @BetBuilder_ProductId AS ProductId, sb.Bettype, sb.SubProduct
+		FROM dbo.SportBettypeMatrix sb (NOLOCK)
+		WHERE sb.Bettype = 38 	
 	END
 	-- search by group 1
 	/*	
@@ -129,10 +127,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid 	= t.transid
-			INNER JOIN #productBettype bt
-			ON b.bettype 	= bt.bettype			   
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.bettype = bt.bettype			   
 			
 		UNION ALL 
 		SELECT 
@@ -145,10 +141,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM bettrans14 b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid = t.transid
-			INNER JOIN #productBettype bt
-			ON b.bettype 	= bt.bettype			   
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.bettype = bt.bettype			   
 	END
 	-- search by group 2
 	/*	
@@ -180,10 +174,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.translog AS b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.translogid	= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 	= bt.bettype
+			INNER JOIN #transIdList t ON b.translogid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 			
 		UNION ALL 
 		SELECT b.translogid
@@ -195,11 +187,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.translog14 AS b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.translogid	= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 	= bt.bettype
-			
+			INNER JOIN #transIdList t ON b.translogid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 		WHERE b.winlostdate >= @balanUpDate		
 	END	
 	-- search by group 3
@@ -228,10 +217,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.bettransLC b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid 		= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 		= bt.bettype
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 			
 		UNION ALL
 		SELECT b.transid
@@ -243,11 +230,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.bettransLC14 b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid 	= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 	= bt.bettype
-			
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype			
 		WHERE b.winlostdate  >= @balanUpDate
 	END
 	
@@ -279,10 +263,8 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.bettransRNG b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid 		= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 		= bt.bettype
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype
 	
 		UNION ALL
 		SELECT b.transid
@@ -294,12 +276,9 @@ BEGIN
 			, b.srecommend
 			, b.betfrom
 		FROM dbo.bettransRNG14 b WITH (NOLOCK)
-			INNER JOIN #transIdList t 
-			ON b.transid 		= t.transid
-			INNER JOIN #productBettype bt
-			ON b.gameid 		= bt.bettype
-			
-		WHERE b.winlostdate  >= @balanUpDate
+			INNER JOIN #transIdList t ON b.transid = t.transid
+			INNER JOIN #productBettype bt ON b.gameid = bt.bettype			
+		WHERE b.winlostdate >= @balanUpDate
 	END
 	
 	;WITH CTE_CustInfo AS 
@@ -312,8 +291,7 @@ BEGIN
 				,(mrecommend)
 				,(srecommend)
 			) ct (custid)
-			INNER JOIN dbo.custinfo ci WITH(NOLOCK)
-			ON ct.custid = ci.custid
+			INNER JOIN dbo.custinfo ci WITH(NOLOCK) ON ct.custid = ci.custid
 	)
 	SELECT bd.transid
 		, bd.custid
@@ -325,28 +303,18 @@ BEGIN
 		, bd.srecommend
 		, sag.Username AS SagUserName
 	FROM #BetDelete bd
-		INNER JOIN CTE_CustInfo mem 
-			ON bd.custid = mem.custid
-		INNER JOIN CTE_CustInfo ag 
-			ON bd.recommend = ag.custid
-		INNER JOIN CTE_CustInfo mag 
-			ON bd.mrecommend = mag.custid
-		INNER JOIN CTE_CustInfo sag
-			ON bd.srecommend = sag.custid
+		INNER JOIN CTE_CustInfo mem ON bd.custid = mem.custid
+		INNER JOIN CTE_CustInfo ag ON bd.recommend = ag.custid
+		INNER JOIN CTE_CustInfo mag ON bd.mrecommend = mag.custid
+		INNER JOIN CTE_CustInfo sag ON bd.srecommend = sag.custid
 	
 	--Gte invalid transids
 	SELECT @invalidTransId = COALESCE(@invalidTransId + '^', '') + CAST(b.transid AS VARCHAR(20))
 	FROM #transIdList b
-		LEFT JOIN #BetDelete bd
-		ON b.transid = bd.transid
+		LEFT JOIN #BetDelete bd ON b.transid = bd.transid
 	WHERE bd.transid IS NULL
 
 	SELECT @invalidTransId AS InvalidTransID
 	
 	RETURN
 END
-
-GO
-GRANT EXECUTE ON [dbo].[Acc_BettransSelBet_BatchMsg] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[Acc_BettransSelBet_BatchMsg] TO [vnteam] AS [dbo]
