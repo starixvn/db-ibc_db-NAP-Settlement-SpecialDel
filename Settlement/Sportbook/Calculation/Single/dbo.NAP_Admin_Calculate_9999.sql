@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999_UAT1] 
     @matchid INT
     ,@bettype SMALLINT
     ,@fth    INT = NULL -- Fulltime of Home
@@ -35,6 +35,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
         - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190227@Sol:  New Formula for Comm [Redmine:#109007]
 */
 BEGIN
     SET NOCOUNT ON
@@ -70,6 +71,9 @@ BEGIN
         ,@ExcludingFTChoice NVARCHAR(1000)
         ,@htbetteam NVARCHAR(10)
         ,@ftbetteam NVARCHAR(10)
+		,@winlost			MONEY
+		,@stake				MONEY
+		,@commBettypeGroupId SMALLINT
     
     SELECT @fth2H = @fth - @hth
         ,@fta2H	= @fta - @hta
@@ -89,6 +93,8 @@ BEGIN
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT
 		,CustId					INT
+		,sRecommend				INT
+		,IsCN88					BIT
 		,MinCustId				INT
 		,MaxCustId				INT
 		,MinTransId				BIGINT
@@ -100,9 +106,10 @@ BEGIN
 		
 	SET	@BatchCount = 2000
 	
-	INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
+	INSERT INTO @tmpBatch (BatchNo, CustId, sRecommend, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
 	SELECT	BatchNo
 			,custid
+			,sRecommend
 			,MAX(CASE WHEN MinRn = 0 THEN CustId ELSE 0 END) AS MinCustId
 			,MAX(CASE WHEN MaxRn = 1 THEN CustId ELSE 0 END) AS MaxCustId
 			,MAX(CASE WHEN TransIdAsc = 1 THEN transId ELSE 0 END ) AS MinTransId	
@@ -113,6 +120,7 @@ BEGIN
 		SELECT	n.BatchNo
 				,b.custid
 				,b.transid
+				,b.sRecommend
 				,(rn - 1)%@BatchCount AS MinRn
 				,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY b.rn DESC) MaxRn
 				,ROW_NUMBER() OVER (PARTITION BY n.BatchNo ORDER BY transid DESC) TransIdDesc
@@ -120,6 +128,7 @@ BEGIN
 		FROM	(
 			SELECT	transid
 					,custid
+					,sRecommend
 					,ROW_NUMBER() OVER (ORDER BY custid, transid) AS rn
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @matchid
@@ -129,7 +138,17 @@ BEGIN
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
 		)n
 	)b
-	GROUP BY BatchNo, CustId
+	GROUP BY BatchNo, CustId,sRecommend
+
+	-- update if bettype belongs to the CN88 site or not
+	UPDATE tmp
+	  SET  isCN88 = CASE WHEN cs.CustId IS NULL THEN 0 ELSE 1 END
+	FROM   @tmpBatch tmp
+			   LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
+				   ON tmp.srecommend = cs.CustId;
+
+	-- get CommBettypeGroupId 
+	SELECT @commBettypeGroupId = CommBettypeGroupId FROM dbo.f_Set_GetGroupBettypes_UAT1() AS f WHERE BetType = @bettype
 			
 	SELECT @BatchNo = MAX(BatchNo)
 	FROM @tmpBatch
@@ -282,7 +301,7 @@ BEGIN
 							WHEN '1' THEN 2
 							ELSE 1
 							END
-						,winlost = CASE 
+						,@winlost = CASE 
 							WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 									WHEN odds < 0 THEN 1
 									ELSE CASE 
@@ -293,7 +312,12 @@ BEGIN
 								)
 							WHEN @modds = 0 THEN actual_stake
 							WHEN @modds < 0 THEN 0
-							END
+							END 
+						-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
+						,@stake = CASE WHEN c.IsCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
+									ELSE stake 
+								END
+						,winlost = @winlost
 						,aWinLost = CASE 
 							WHEN @modds > 0 THEN stake * (CASE 
 									WHEN odds < 0 THEN 1
@@ -331,23 +355,23 @@ BEGIN
 							WHEN @modds < 0 THEN actual_stake * spositiontaking
 							END
 						,PlayerComm = CASE 
-							WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
-							WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
+							WHEN @modds > 0 THEN @commWinRate * playerdiscount * @stake
+							WHEN @modds < 0 THEN @commLostRate * playerdiscount * @stake
 							WHEN @modds = 0 THEN 0
 							END
 						,Comm = CASE 
-							WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
-							WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+							WHEN @modds > 0 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
+							WHEN @modds < 0 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
 							WHEN @modds = 0 THEN 0
 							END
 						,aComm = CASE 
-							WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-							WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+							WHEN @modds > 0 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
+							WHEN @modds < 0 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
 							WHEN @modds = 0 THEN 0
 							END
 						,sComm = CASE 
-							WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-							WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+							WHEN @modds > 0 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+							WHEN @modds < 0 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 							WHEN @modds = 0 THEN 0
 							END
 						,STATUS = CASE 
@@ -630,7 +654,7 @@ BEGIN
 					WHEN '1' THEN 2
 					ELSE 1
 					END
-				,winlost = CASE 
+				,@winlost = CASE 
 					WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
@@ -641,7 +665,12 @@ BEGIN
 						)
 					WHEN @modds < 0 THEN 0
 					ELSE winlost
-					END
+					END 
+				-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
+				,@stake = CASE WHEN c.IsCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
+							ELSE stake 
+						END
+				,winlost = @winlost
 				,aWinLost = CASE 
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
@@ -679,23 +708,23 @@ BEGIN
 					ELSE swinlost
 					END
 				,PlayerComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
-					WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
+					WHEN @modds > 0 THEN @commWinRate * playerdiscount * @stake
+					WHEN @modds < 0 THEN @commLostRate * playerdiscount * @stake
 					ELSE playercomm
 					END
 				,Comm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
-					WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+					WHEN @modds > 0 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
+					WHEN @modds < 0 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
 					ELSE comm
 					END
 				,aComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-					WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds > 0 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds < 0 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
 					ELSE acomm
 					END
 				,sComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-					WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds > 0 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds < 0 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 					ELSE scomm
 					END
 				,STATUS = CASE 
@@ -1273,7 +1302,7 @@ BEGIN
 					WHEN '1' THEN 2
 					ELSE 1
 					END
-				,winlost = CASE 
+				,@winlost = CASE 
 					WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
@@ -1284,7 +1313,12 @@ BEGIN
 						)
 					WHEN @modds < 0 THEN 0
 					ELSE winlost
-					END
+					END 
+				-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
+				,@stake = CASE WHEN c.IsCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
+							ELSE stake 
+						END
+				,winlost = @winlost
 				,aWinLost = CASE 
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
@@ -1322,23 +1356,23 @@ BEGIN
 					ELSE swinlost
 					END
 				,PlayerComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
-					WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
+					WHEN @modds > 0 THEN @commWinRate * playerdiscount * @stake
+					WHEN @modds < 0 THEN @commLostRate * playerdiscount * @stake
 					ELSE playercomm
 					END
 				,Comm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
-					WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+					WHEN @modds > 0 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
+					WHEN @modds < 0 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
 					ELSE comm
 					END
 				,aComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
-					WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds > 0 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds < 0 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
 					ELSE acomm
 					END
 				,sComm = CASE 
-					WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-					WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds > 0 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds < 0 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 					ELSE scomm
 					END
 				,STATUS = CASE 
