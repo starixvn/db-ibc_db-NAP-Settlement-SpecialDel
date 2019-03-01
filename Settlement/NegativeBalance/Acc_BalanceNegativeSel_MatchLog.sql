@@ -224,6 +224,8 @@ BEGIN
 										END
 									ELSE REPLACE(la.ActionNameCS, 'VS BetRadar', '') --remove product name
 								END
+							WHEN l.ActionID = 81009 THEN N'结算Single Match Parlay'
+							WHEN l.ActionID = 81010 THEN N'撤消Single Match Parlay'
 							ELSE la.ActionNameCS 
 						END AS ActionNameCS
 				) AS act
