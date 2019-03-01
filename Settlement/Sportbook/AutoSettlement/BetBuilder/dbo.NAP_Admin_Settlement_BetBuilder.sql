@@ -121,9 +121,9 @@ BEGIN
 	--END Balance tables
 
 	CREATE TABLE #tblMatchProcess (matchID INT, keyID TINYINT, KeyValue2 VARCHAR(20))
-	CREATE TABLE #tblTransID (transID BIGINT, modds SMALLMONEY, result VARCHAR(20))
+	CREATE TABLE #tblTransID (transID BIGINT, modds SMALLMONEY, result VARCHAR(20), custID INT)
 	CREATE TABLE #tblTransIDRefund (transID BIGINT)
-	CREATE TABLE #tblTransIDUndo (transID BIGINT)
+	CREATE TABLE #tblTransIDUndo (transID BIGINT, custID INT)
 	CREATE TABLE #tblDataByBatch (vID BIGINT,strID VARCHAR(20), modds SMALLMONEY, result VARCHAR(20))
 	CREATE TABLE #tblMarket (rowNum INT NOT NULL IDENTITY(1,1) PRIMARY KEY, marketID VARCHAR(20), result VARCHAR(20), modds SMALLINT
 							,UNIQUE CLUSTERED (rowNum)
@@ -366,11 +366,11 @@ BEGIN
 				AND mk.MarketID BETWEEN @minMarketID AND @maxMarketID
 				AND mk.VendorID = @VendorID
 			
-			
-	  	INSERT INTO #tblTransID(TransID, modds, Result)
+	  	INSERT INTO #tblTransID(TransID, modds, Result, custID)
 	  	SELECT transID
 	  			,mk.modds
 	  			,mk.Result
+	  			,b.custID
 	  	FROM dbo.bettrans b WITH (NOLOCK)
 	  		INNER JOIN #tblMarket mk ON b.BetCheck = mk.MarketID
 	  	WHERE b.matchID = @MatchID
@@ -379,6 +379,8 @@ BEGIN
 	  		AND 1 = CASE WHEN mk.Result = 'REFUND' AND b.statusID = 103 THEN 0
 	  					 WHEN mk.Result IS NULL AND b.statusID = 0 THEN 0
 	  					 ELSE 1 END
+	  	
+	  	SELECT @TotalAccount = (SELECT COUNT(DISTINCT custID) FROM #tblTransID)
 	  	
 	  	DELETE t
 	  	OUTPUT DELETED.TransID INTO #tblTransIDRefund (TransID)
@@ -395,14 +397,16 @@ BEGIN
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
 		
-		INSERT INTO #tblTransIDUndo(TransID)
-	  	SELECT transID
+		INSERT INTO #tblTransIDUndo(TransID, custID)
+	  	SELECT transID, b.custID
 	  	FROM dbo.bettrans b WITH (NOLOCK)
 	  		INNER JOIN #tblMarket m ON b.BetCheck = m.MarketID
 	  	WHERE b.matchID = @MatchID
 	  		AND b.Bettype = @Bettype
 	  		AND	b.statusID NOT IN (102, 101, 0, 1)--VOID, REJECT, RUNNING
 	  		AND m.Result IS NULL
+	  		
+	  	SELECT @TotalAccount = (SELECT COUNT(DISTINCT custID) FROM #tblTransIDUndo)
 	END 
 	--END get transID-----------------------------------------------------
 	
@@ -484,7 +488,7 @@ BEGIN
 							,@Action 				  = @ActionProcessing
 							,@Mode 					  = 2
 							,@TransIDs				  = @strDataByBatch
-			SELECT @TotalAccount = @TotalAccount + @@ROWCOUNT
+			
 		
 		    EXEC dbo.NAP_Admin_Calculate_Main
 							@matchid	  		 = @matchid
