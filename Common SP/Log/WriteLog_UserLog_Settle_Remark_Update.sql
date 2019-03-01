@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[WriteLog_UserLog_Settle_Remark_Update]
 	@LogIDOutput	BIGINT OUTPUT
 AS
 /*
-	Creator: 2019-02-12@Vicky
+	Creator: 20190212@Vicky
 	DB: DBLOG-bodb_CustomerLog
 	Task: Insert LOGS for BetBuilder
 	
