@@ -413,7 +413,7 @@ BEGIN
 	
 	
 	------START CAL, UNDO-------------------------------------------------
-	SELECT @startRowIndex = 0,@ActionProcessing = @Action, @TotalAccount = 0
+	SELECT @startRowIndex = 0,@ActionProcessing = @Action
 	WHILE 1=1
 	BEGIN
 		-------------BEGIN TRY--------------------------------------------
