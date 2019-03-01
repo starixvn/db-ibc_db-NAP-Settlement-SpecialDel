@@ -130,6 +130,7 @@ BEGIN
 							,UNIQUE NONCLUSTERED (marketID)
 							)
 	CREATE TABLE #tblMarketSelection (marketSelectionID BIGINT, result VARCHAR(20))
+	CREATE TABLE #tblCustIDBalanceUpdated (custID INT NOT NULL)
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -513,7 +514,9 @@ BEGIN
 			
 			
 						
-			SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custID)
+			--SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custID)
+			INSERT INTO #tblCustIDBalanceUpdated(custID)
+			SELECT a.custID
 			FROM @BalanceWalletAfter a
 				INNER JOIN @BalanceWalletBefore b 
 				ON	 a.matchID				= b.matchID
@@ -522,7 +525,6 @@ BEGIN
 						AND a.walletType	= b.walletType
 						AND a.bonusID		= b.bonusID
 			WHERE a.balance <> b.balance
-			
 			
 		END TRY
 		BEGIN CATCH
@@ -544,8 +546,10 @@ BEGIN
 					  , @BalanceWalletAfter	= @BalanceWalletAfter
 					  , @ActionID			= @ActionID
 			  
-			  SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custID)
-				FROM @BalanceWalletAfter a
+			  --SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custID)
+			  INSERT INTO #tblCustIDBalanceUpdated(custID)
+			  SELECT a.custID
+			  FROM @BalanceWalletAfter a
 					INNER JOIN @BalanceWalletBefore b 
 					ON	 a.matchID				= b.matchID
 							AND a.custID		= b.custID
@@ -553,6 +557,7 @@ BEGIN
 							AND a.walletType	= b.walletType
 							AND a.bonusID		= b.bonusID
 				WHERE a.balance <> b.balance
+					
 				
 			  SELECT	@ErrCode = 1001017
 						,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
@@ -648,6 +653,7 @@ BEGIN
 		SELECT @SelectedResources = 'Selections:' + STUFF(@SelectedResources, 1, 1, '')
 	END
 		
+	SELECT @TotalAccount_BalanceUpdate = (SELECT COUNT(DISTINCT custID) FROM #tblCustIDBalanceUpdated)
 	
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
 							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END
