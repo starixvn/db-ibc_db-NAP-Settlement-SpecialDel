@@ -170,7 +170,7 @@ BEGIN
 		BEGIN
 			
 			SET @SettledMarketIDs = ''
-			SELECT @SettledMarketIDs = @SettledMarketIDs + ',' + CAST(marketID AS VARCHAR)
+			SELECT @SettledMarketIDs = @SettledMarketIDs + ',' + CAST(marketID AS VARCHAR(20))
 			FROM #tblInvalidMarketID
 			
 			SET @SettledMarketIDs = SUBSTRING(@SettledMarketIDs, 2 , LEN(@SettledMarketIDs))	
