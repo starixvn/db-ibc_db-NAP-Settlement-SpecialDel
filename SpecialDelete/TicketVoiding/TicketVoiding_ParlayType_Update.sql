@@ -44,7 +44,7 @@ BEGIN
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
 
-	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
+	DECLARE @tmpInputTransId TABLE(TransId BIGINT, MainTransId BIGINT, MainStatusId TINYINT, SubStatusId TINYINT, Refno BIGINT)
 
 	CREATE TABLE #BeforeUpd (custid INT, balance MONEY)  
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
@@ -54,7 +54,6 @@ BEGIN
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90101
 	SET @SB_Error = 0
-	SET @FailedTransIds = @TransIds
 
 	SELECT	@RowId = 0
 			,@strSubTransId = ''
@@ -70,15 +69,34 @@ BEGIN
 	FROM	dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
 
+	UPDATE t 
+		SET MainTransId = b.transid
+			,MainStatusId = b.statusID
+			,SubStatusId = bm.statusID
+			,refno = b.refno
+	FROM	@tmpInputTransId t 
+		INNER JOIN dbo.bettransm bm WITH(NOLOCK)
+			ON t.TransId = bm.transid
+		INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			ON	bm.refno = b.refno
+				AND b.matchid = 29
+				AND b.bettype = 29
+
 	INSERT INTO #tmpSubTransId(TransId, Refno)
-	SELECT	b.transid, b.refno
-	FROM	@tmpInputTransId t
-		INNER JOIN dbo.bettransm b WITH(NOLOCK)
-			ON t.TransId = b.transid
-	WHERE	b.statusID <> 102		
+	SELECT	TransId, Refno
+	FROM	@tmpInputTransId
+	WHERE	MainTransId IS NOT NULL 	
+			AND MainStatusId NOT IN (101, 102)
+			AND SubStatusId NOT IN (101, 102)
 
 	SET @RowCount = @@ROWCOUNT
 	
+	SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
+	FROM	@tmpInputTransId
+	WHERE	MainTransId IS NULL
+			OR MainStatusId IN (101, 102)
+			OR SubStatusId IN (101, 102)
+
 	IF @RowCount = 0
 	BEGIN
 		SELECT @ErrCode = 100  
@@ -95,6 +113,9 @@ BEGIN
   
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN	
+		SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
+		FROM	@tmpInputTransId
+
 		RETURN  
 	END
 
