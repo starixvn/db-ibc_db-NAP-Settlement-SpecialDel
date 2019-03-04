@@ -635,7 +635,7 @@ BEGIN
 										,@LogIDOutput		= @LogIDOutput OUTPUT
 			
 		END
-		SET @SelectedResources = 'MarketIds: please refer to LogId ' + CAST(@LogIDOutput AS VARCHAR)
+		SET @SelectedResources = 'MarketIds: please refer to LogId ' + CAST(@LogIDOutput AS VARCHAR(50))
 	END
 	ELSE
 	BEGIN
@@ -650,7 +650,7 @@ BEGIN
 				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
 			FROM @xmlLogResult.nodes('/Resources/Resource') AS T(C)
 		)
-		SELECT @SelectedResources = @SelectedResources + ',' + CAST(s.SelectionName AS VARCHAR) + CASE WHEN result IS NULL THEN '' ELSE '(' + result + ')' END
+		SELECT @SelectedResources = @SelectedResources + ',' + s.SelectionName + (CASE WHEN result IS NULL THEN '' ELSE '(' + result + ')' END)
 		FROM cteData
 			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s ON s.SelectionType = cteData.selectionType
 			
