@@ -45,6 +45,7 @@ BEGIN
 		,betfrom		NVARCHAR(1)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
+		,OriginalBettype SMALLINT
 		,Currency		TINYINT
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
@@ -58,6 +59,7 @@ BEGIN
 		,RefCode		BIGINT
 		,ExtraInfo		VARCHAR(1000)
 		,TransDesc		NVARCHAR(1000)
+		,winlost		MONEY
 
 		,Username		NVARCHAR(50)
 		,creator		INT
@@ -79,10 +81,8 @@ BEGIN
 		,Refno			BIGINT
 		,subTransId		BIGINT	
 		,VoidedTime		DATETIME
-		,IsCashOutMemberTicket BIT
 		,isITAdmin		BIT
-
-		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
+		,IsCashOut		BIT
 	)
 
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) 
@@ -91,12 +91,17 @@ BEGIN
 	WHERE	vh.RequestId = @RequestId
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
 			,z.VoidedTime
 			,z.custid
+			,z.IsCashOut
+			,z.winlost
+			,z.refno
+			,z.bettype
+			,z.odds
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -104,6 +109,11 @@ BEGIN
 					,z.status
 					,z.transdate AS VoidedTime
 					,z.custid
+					,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCashOut
+					,z.winlost
+					,z.refno
+					,z.bettype
+					,z.odds
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND z.matchid = @MatchId
@@ -138,6 +148,17 @@ BEGIN
 
 	IF @IsMovebet = 0
 	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
+		BEGIN
+			UPDATE t
+				SET OriginalBettype = b.bettype
+					,odds = b.odds
+			FROM	#tmpTicket t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON t.Refno = b.transid
+			WHERE	t.Bettype = 911
+		END
+
 		UPDATE t 
 			SET Betcheck = b.betcheck
 				,betdaqid = b.betdaqid
@@ -149,7 +170,6 @@ BEGIN
 				,hdp2 = b.hdp2
 				,liveawayscore = b.liveawayscore
 				,livehomescore = b.livehomescore
-				,odds = b.odds
 				,oddsspread = b.oddsspread
 				,oddstype = b.oddstype
 				,RefCode = b.RefCode
@@ -164,8 +184,10 @@ BEGIN
 				,srecommend = b.srecommend
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
+				,winlost = t.winlost - b.actual_stake
 		FROM	#tmpTicket t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) 
+				ON	t.TransId = b.transid
 	
 		UPDATE	t
 			SET transid = b.transid
@@ -208,6 +230,17 @@ BEGIN
 	END
 	ELSE
 	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
+		BEGIN
+			UPDATE t
+				SET OriginalBettype = b.bettype
+					,odds = b.odds
+			FROM	#tmpTicket t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON t.Refno = b.transid
+			WHERE	t.Bettype = 911
+		END
+
 		UPDATE t 
 			SET Betcheck = b.betcheck
 				,betdaqid = b.betdaqid
@@ -219,7 +252,6 @@ BEGIN
 				,hdp2 = b.hdp2
 				,liveawayscore = b.liveawayscore
 				,livehomescore = b.livehomescore
-				,odds = b.odds
 				,oddsspread = b.oddsspread
 				,oddstype = b.oddstype
 				,RefCode = b.RefCode
@@ -341,6 +373,7 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
+			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -364,6 +397,8 @@ BEGIN
 			   ,'Credit' AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
+			   ,s.IsCashOut
+			   ,s.winlost
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL
@@ -389,6 +424,7 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
+			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -412,6 +448,8 @@ BEGIN
 			   ,'8RM/BARM' AS GroupName
 			   ,s.WalletType
 			   ,s.RefCode
+			   ,s.IsCashOut
+			   ,s.winlost
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
 		WHERE	s.recommend IN (52466, 5707545)
@@ -432,6 +470,7 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
+			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -455,6 +494,8 @@ BEGIN
 			   ,'Deposit' AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
+			   ,s.IsCashOut
+			   ,s.winlost
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -480,6 +521,7 @@ BEGIN
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
+		   ,s.OriginalBettype
 		   ,s.STATUS
 		   ,s.currencyname
 		   ,s.betteam
@@ -503,6 +545,8 @@ BEGIN
 		   ,'Betfair' AS GroupName
 		   ,s.WalletType
 		   ,s.RefCode
+		   ,s.IsCashOut
+		   ,s.winlost
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -520,6 +564,7 @@ BEGIN
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
+		   ,s.OriginalBettype
 		   ,s.STATUS
 		   ,s.currencyname
 		   ,s.betteam
@@ -543,9 +588,11 @@ BEGIN
 		   ,s.GroupName
 		   ,s.WalletType
 		   ,s.RefCode
-
+		   ,s.IsCashOut
 		   ,@SettlementStatus AS SettlementStatus
 			,cr.username AS Creator
+			,s.IsCashOut
+			,s.winlost
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 	ORDER BY CASE

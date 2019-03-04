@@ -10,6 +10,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -40,7 +42,6 @@ BEGIN
 			,@CustBalance XML
 			
 			,@CustIdsCashOut VARCHAR(MAX)
-			,@CustIdsBetTrade VARCHAR(MAX)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -48,7 +49,6 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT)
-	DECLARE @tmpCustBettrade TABLE (CustId INT)
 
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -60,13 +60,14 @@ BEGIN
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
 		,balanceType		TINYINT
-		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade, 5: Metric gaming
+		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
 		,awinlost			MONEY
 		,actual_stake		MONEY
 		,isSubTransaction	BIT	DEFAULT(0)
+		,refcode			BIGINT
 	)
 	
 	SET @StartTime = GETDATE()
@@ -91,13 +92,12 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode)
 	SELECT	b.transid, b.custid, b.bettype, 1 AS KeyId, 1 AS balanceType
 			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
-				WHEN b.betdaqid = 0 AND b.ExtraInfo IS NULL THEN 4 				
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo
+			,b.betdaqid, b.ExtraInfo, b.RefCode
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -105,7 +105,7 @@ BEGIN
 
 	IF @@ROWCOUNT <> 0
 		SET @isExistMatch = 1
-
+		
 	IF NOT EXISTS (SELECT * FROM #tmpTransId)
 	BEGIN
 		SELECT	@ErrCode = 100
@@ -113,7 +113,7 @@ BEGIN
 
 		RETURN
 	END
-
+	
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@MatchId, KeyId
 	FROM	#tmpTransId
@@ -167,12 +167,12 @@ BEGIN
 
 		RETURN
 	END
-
+	
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId (TransId, Refno, bettype, TicketType, isSubTransaction)
-		SELECT	sub.transid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction
+		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, balanceType)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
 		FROM	#tmpTransId main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -181,15 +181,16 @@ BEGIN
 					AND sub.bettype = 911
 		WHERE	main.TicketType = 3
 				AND sub.statusID NOT IN (101, 102)
-		
+
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId, Refno, bettype, TicketType, isSubTransaction)
-		SELECT	sub.TransId, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction
+		INSERT INTO #tmpTransId(TransId, Refno, bettype, TicketType, isSubTransaction, balanceType)
+		SELECT	sub.TransId, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
 		FROM	#tmpTransId sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
 					AND sub.matchid = @MatchId
 		WHERE	sub.statusID NOT IN (101, 102)
+				AND sub911.bettype = 911
 
 		INSERT INTO @tmpCustCashOut(CustId)
 		SELECT	t.custid
@@ -199,26 +200,6 @@ BEGIN
 		GROUP BY t.custid
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 4)
-	BEGIN
-		INSERT INTO #tmpTransId(TransId, Refno, bettype, awinlost, isSubTransaction)
-		SELECT	sub.transid, sub.refno, sub.bettype, sub.awinlost, 1 AS isSubTransaction
-		FROM	#tmpTransId main
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-				ON	sub.refno = main.TransId
-					AND sub.matchid = @MatchId
-		WHERE	sub.bettype BETWEEN 901 AND 903
-				AND sub.statusID IN (111, 112, 113, 103)
-				AND main.betdaqid = 0
-				AND main.ExtraInfo IS NULL
-
-		INSERT INTO @tmpCustBettrade (CustId)
-		SELECT	t.custid
-		FROM	#tmpTransId t
-		WHERE	t.TicketType = 4
-				AND t.bettype = 902
-	END
-	
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 5)
 	BEGIN
 		INSERT INTO [bodb02].[dbo].[bettrans]  (
@@ -382,6 +363,21 @@ BEGIN
 
 	END
 
+	-- get bonus ticket
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.refcode IS NOT NULL)
+	BEGIN
+		INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, TicketType, refcode)
+		SELECT	b.transid, b.custid, b.bettype, 1 AS balanceType, 1 AS TicketType, b.RefCode
+		FROM	#tmpTransId t
+			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				ON	b.RefCode = t.refcode
+					AND b.transid <> t.TransId
+					AND b.matchid = @MatchId
+					AND b.custid = t.custid
+					AND b.bettype = t.bettype
+		WHERE	b.statusID NOT IN (101, 102)
+	END
+
 	SET @FailedTransIds = NULL
 
 	;WITH cteResult 
@@ -411,9 +407,9 @@ BEGIN
 		,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
 		,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
 		,CASE 
-			WHEN t.TicketType = 3 AND b.bettype NOT BETWEEN 911 AND 913 THEN @session 
-			ELSE b.betcheck END AS betcheck -- original ticket & cashout bet ticket
-		,b.comstatus
+			WHEN t.TicketType = 3 THEN @session -- original ticket & cashout bet ticket
+			ELSE b.betcheck END AS betcheck 
+		,CASE WHEN t.TicketType = 3 AND t.isSubTransaction = 1 THEN 'CO' ELSE b.comstatus END
 		,b.checktime, b.matchid, b.bettype  
 		,@VoidingHistoryId
 	FROM	#tmpTransId AS t WITH (NOLOCK)  
@@ -466,18 +462,6 @@ BEGIN
 				ON	b914.matchid = @MatchId
 					AND b914.custid = c.CustId
 					AND b914.bettype = 914
-
-		UNION ALL
-		SELECT	b904.custid
-				,1 AS balanceType
-				,0 AS BonusID -- bet trade sub tickets always bet from cash wallet
-				,2 AS WalletType -- bet trade sub tickets always bet from cash wallet
-				,b904.winlost - b904.actual_stake + b904.playercomm AS balance
-		FROM	@tmpCustBettrade c
-			INNER JOIN bettrans b904 WITH (NOLOCK)
-				ON	b904.matchid = @MatchId
-					AND b904.custid = c.CustId
-					AND b904.bettype = 904
 	)b
 	GROUP BY b.custid
 			,b.balanceType
@@ -513,26 +497,6 @@ BEGIN
 		BEGIN CATCH
 			SELECT @ErrCode = 914
 					, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
-		END CATCH
-	END
-
-	-- PRE CAL 904
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE TicketType = 4)
-	BEGIN
-		BEGIN TRY
-			SET @CustIdsBetTrade = STUFF((SELECT ',' + CAST(c.custid AS VARCHAR(50))
-									FROM	@tmpCustBettrade c 
-									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-			
-			EXEC dbo.NAP_Admin_Calculate_904 
-				@MatchId 	= @MatchId
-				,@Action 	= 'VOID'
-				,@CustIds 	= @CustIdsBetTrade
-						
-		END TRY
-		BEGIN CATCH
-			SELECT	@ErrCode = 904
-					,@ErrMsg = 'Called NAP_Admin_Calculate_904 with error.'
 		END CATCH
 	END
 
@@ -598,30 +562,29 @@ BEGIN
 				ON	b914.matchid = @MatchId
 					AND b914.custid = c.CustId
 					AND b914.bettype = 914
-
-		UNION ALL
-		SELECT	b904.custid
-				,1 AS balanceType
-				,0 AS BonusID -- bet trade sub tickets always bet from cash wallet
-				,2 AS WalletType -- bet trade sub tickets always bet from cash wallet
-				,b904.winlost - b904.actual_stake + b904.playercomm AS balance
-		FROM	@tmpCustBettrade c
-			INNER JOIN bettrans b904 WITH (NOLOCK)
-				ON	b904.matchid = @MatchId
-					AND b904.custid = c.CustId
-					AND b904.bettype = 904
 	)b
 	GROUP BY b.custid
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-			SELECT * FROM @BeforeUpd
-			SELECT * FROM @AfterUpd
+
 	--UPDATE balance
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @beforeUpd
 			, @BalanceWalletAfter	= @afterUpd
 			, @ActionId				= 0	
+
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
+	FROM	@BeforeUpd b
+		INNER JOIN @AfterUpd a
+			ON b.custid = a.custid
+	WHERE	b.balance > a.balance
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	UPDATE odds  
 		SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
@@ -647,9 +610,10 @@ BEGIN
 		   ) 
 
 	-- Update BetTradeSellingCancelled information
-	SELECT	@CustIds = CAST(t.custid AS VARCHAR(20)) + ','
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
 	FROM	#tmpTransId t
-	WHERE	t.custid IS NOT NULL
+	WHERE	t.bettype = 911
 	GROUP BY t.custid
 
 	EXEC dbo.TicketVoiding_BalanceMember_Select 
@@ -687,7 +651,7 @@ BEGIN
 								END = 1	
 				 INNER JOIN @tmpBalanceMember c
 						 ON sub.custid = c.custid						 							
-			WHERE sub.BetType IN (901,911)			  
+			WHERE sub.BetType = 911
 		)
 		MERGE INTO [dbo].[BetTradeSellingCancelled] AS [Target]
 		USING (SELECT * FROM CTE_Source) AS [Source]
@@ -749,6 +713,12 @@ BEGIN
 		@isExistMatch = @isExistMatch
 		,@isExistMG	= @isExistMG
 		, @IsReleased = 1
+
+	------ releasing cash-out process
+	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+			@Mode = 'Original'
+		  , @Action = 'Void'
+		  , @IsReleased = 1  
 
 	-- Write Log
 	SET @EndTime = GETDATE()

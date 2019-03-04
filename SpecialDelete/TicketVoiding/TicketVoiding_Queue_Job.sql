@@ -28,6 +28,7 @@ BEGIN
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@FailedTransIds	VARCHAR(MAX)
+			,@NegativeBalanceUsers VARCHAR(MAX)
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -112,6 +113,7 @@ BEGIN
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@FailedTransIds = @FailedTransIds OUTPUT
+				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -120,6 +122,7 @@ BEGIN
 					,@ErrCode = ERROR_NUMBER()
 					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
 					,@FailedTransIds = @FailedTransIds
+					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
@@ -127,9 +130,11 @@ BEGIN
 				,StatusId = @StatusId
 				,ErrMsg = @ErrMsg
 				,FailedTransIds = @FailedTransIds
+				,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	QueueId = @QueueId
 	END
 END
 GO
+
 

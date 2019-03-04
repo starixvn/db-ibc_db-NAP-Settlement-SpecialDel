@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	@VoidingHistoryId		INT = NULL
-	,@NegativeBalanceUsers	VARCHAR(MAX) = '' OUTPUT	
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -18,7 +17,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @isITAdmin BIT
-			,@CustIds	VARCHAR(MAX)
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
@@ -40,6 +38,7 @@ BEGIN
 		,betfrom		NVARCHAR(1)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
+		,OriginalBettype SMALLINT
 		,Currency		TINYINT
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
@@ -49,13 +48,14 @@ BEGIN
 		,Odds			SMALLMONEY
 		,Oddsspread		MONEY
 		,oddstype		TINYINT
+		,BonusId		INT
 		,WalletType		TINYINT
 		,RefCode		BIGINT
 		,ExtraInfo		VARCHAR(1000)
 		,TransDesc		NVARCHAR(1000)
 		,Username		NVARCHAR(50)
 		
-		,subbetcheck	NVARCHAR(1)
+		,subbetcheck	NVARCHAR(50)
 		,subOdds		SMALLMONEY
 		,subbetteam		NVARCHAR(10)
 		,subbettype		SMALLINT
@@ -72,8 +72,6 @@ BEGIN
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 	)
 
-	SET @CustIds = ''
-
 	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (UserId,2)),0)
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
@@ -81,12 +79,16 @@ BEGIN
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) VALUES (@VoidingHistoryId)		
 			
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
 			,z.VoidedTime
 			,z.custid
+			,z.winlost
+			,z.bettype
+			,z.refno
+			,z.odds
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	z.transid
@@ -94,6 +96,10 @@ BEGIN
 					,z.status
 					,z.transdate AS VoidedTime
 					,z.custid
+					,z.winlost
+					,z.bettype
+					,z.refno
+					,z.odds
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND 1 = CASE
@@ -124,15 +130,17 @@ BEGIN
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
-		
-	SELECT	@CustIds = @CustIds + CAST(custid AS VARCHAR(20)) + ','
-	FROM	#tmpTicket
-	GROUP BY custid
 
-	-- get member has negative balance
-	EXEC dbo.NAP_CustNegativeBalance_Sel
-		@CustIds = @CustIds
-		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
+	BEGIN
+		UPDATE t
+			SET OriginalBettype = b.bettype
+				,odds = b.odds
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				ON t.Refno = b.transid
+		WHERE	t.Bettype = 911
+	END
 
 	UPDATE t 
 		SET actual_stake = b.actual_stake
@@ -146,18 +154,20 @@ BEGIN
 			,hdp2 = b.hdp2
 			,liveawayscore = b.liveawayscore
 			,livehomescore = b.livehomescore
-			,odds = b.odds
 			,oddsspread = b.oddsspread
 			,oddstype = b.oddstype
 			,RefCode = b.RefCode
 			,stake = b.stake
 			,transdesc = b.transdesc
 			,Username = b.Username
+			,BonusId = b.BonusID
 			,WalletType = b.WalletType
-			,winlost = b.winlost
+			,winlost = t.winlost - b.actual_stake
+			,currency = b.currency
 			,CurrencyName = b.CurrencyName
 			,betfrom = b.betfrom
 			,transdate = b.transdate
+			,refno = b.refno
 
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
@@ -165,7 +175,7 @@ BEGIN
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
-
+			
 	
 	UPDATE	t
 		SET transid = b.transid
@@ -187,8 +197,10 @@ BEGIN
 			,stake = b.stake
 			,transdesc = b.transdesc
 			,Username = b.Username
+			,BonusID = b.BonusID
 			,WalletType = b.WalletType
 			,winlost = b.winlost
+			,currency = b.currency
 			,CurrencyName = b.CurrencyName
 			,betfrom = b.betfrom
 			,transdate = b.transdate
@@ -221,7 +233,8 @@ BEGIN
 			,m.showtime 
 			,m.isneutral
 
-			,t.TransId
+			,CASE WHEN t.Bettype BETWEEN 801 AND 806 THEN t.Refno ELSE t.TransId END AS TransId
+			,t.Refno
 			,t.TransDate
 			,t.actual_stake
 			,t.Stake
@@ -232,10 +245,12 @@ BEGIN
 			,t.betid
 			,t.betfrom
 			,t.Betteam
-			,t.Bettype
+			,t.Bettype AS BetTypeId
+			,t.OriginalBettype
+			,t.Currency
 			,t.CurrencyName			
-			,t.Hdp1
-			,t.Hdp2
+			,t.Hdp1 AS Handicap1
+			,t.Hdp2 AS Handicap2 
 			,t.LiveAwayScore
 			,t.LiveHomeScore
 			,t.Odds
@@ -285,6 +300,7 @@ BEGIN
 			ON ma.custid = t.mrecommend
 		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK)
 			ON su.custid = t.srecommend 		
+	ORDER BY TransId
 
 	--Metric API Calling  
 	SELECT t.refno  

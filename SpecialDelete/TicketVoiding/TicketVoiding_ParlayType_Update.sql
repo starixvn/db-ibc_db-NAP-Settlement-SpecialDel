@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -38,6 +39,7 @@ BEGIN
 			,@strSubTransId VARCHAR(MAX)
 			,@strMainTransId VARCHAR(MAX)
 			,@strRefno VARCHAR(MAX)
+			,@CustIds VARCHAR(MAX)
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
@@ -95,6 +97,8 @@ BEGIN
 	BEGIN	
 		RETURN  
 	END
+
+	SET @FailedTransIds = ''
 
 	-- BackUp bettransm tickets into zzzbettrans  
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
@@ -202,6 +206,18 @@ BEGIN
 		EXEC dbo.Dot_BalancePendingDebitIns   
 			@BalancePending = @tblDebitPending  
 			,@Type   = 1 -- Sports  
+
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
+	FROM	#BeforeUpd b
+		INNER JOIN #AfterUpd a
+			ON b.custid = a.custid
+	WHERE	b.balance > a.balance
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay  = 1  

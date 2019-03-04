@@ -70,11 +70,25 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO @tmpRequest (RequestId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
 		SELECT	r.RequestId
-		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
-		WHERE	r.RequestId = @RequestId
-				
+				,r.SubIssueTypeId
+				,r.ActionId
+				,r.CreatedDate
+				,r.UserId
+				,r.MistakenBy
+				,r.DecidedBy
+				,r.CheckedBy
+				,rd.MatchId
+				,r.Sporttype
+				,rd.LeagueId
+				,rd.HomeId
+				,rd.AwayId
+				,rd.KickOffTime
+		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				ON r.RequestId = rd.RequestId
+		WHERE	r.RequestId = @RequestId				
 	END
 	ELSE IF @FilteredBy = 2
 	BEGIN
@@ -82,10 +96,7 @@ BEGIN
 		SELECT	DISTINCT rd.RequestId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
-	END
 
-	IF @FilteredBy IN (1,2)
-	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
@@ -106,6 +117,7 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -157,8 +169,7 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,vh.MatchId
-					,SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1 ELSE 0 END) AS TotalVoidedSingle
-					--,SUM(CASE WHEN z.bettype = 911 AND z.betcheck LIKE 'CO%' THEN 1 ELSE 0 END) AS TotalVoidedCashOut
+					,SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 AND z.comstatus <> 'CO' THEN 1 ELSE 0 END) AS TotalVoidedSingle
 					,0 AS TotalVoidedCashOut 
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)

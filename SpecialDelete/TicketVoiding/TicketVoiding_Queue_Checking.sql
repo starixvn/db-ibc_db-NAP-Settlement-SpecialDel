@@ -21,6 +21,7 @@ BEGIN
 			,q.ErrMsg
 			,q.StatusId
 			,q.FailedTransIds
+			,q.NegativeBalanceUsers
 	FROM	dbo.TicketVoiding_Queue q WITH(NOLOCK)
 	WHERE	q.VoidingHistoryId = @VoidingHistoryId
 
