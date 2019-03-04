@@ -32,6 +32,8 @@ AS
  
  Dependences:
 	1. CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	OR CREATE TABLE #tblMatchProcessKeyValue2 (matchid INT, KeyID TINYINT, KeyValue2 VARCHAR(20))  -- BetBuilder
+	
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,7 +56,7 @@ BEGIN
 								END
 	-- checking dependency				
 	IF (@isExistTempVariable = 1
-		AND OBJECT_ID('tempdb..#tblMatchProcess') IS NULL
+		AND (OBJECT_ID('tempdb..#tblMatchProcess') IS NULL AND OBJECT_ID('tempdb..#tblMatchProcessKeyValue2') IS NULL)
 	)
 	BEGIN
 		SELECT @ErrCode		= 109
@@ -71,7 +73,7 @@ BEGIN
 		BEGIN
 			IF EXISTS(
 				SELECT 1 
-				FROM dbo.SystemSettings WITH (NOLOCK) 
+				FROM dbo.SystemSettings WITH (NOLOCK)
 				WHERE VValue 	= 1 
 				AND VName 		= 'isCalculatingParlay'
 			)  
@@ -80,12 +82,12 @@ BEGIN
 					,@ErrMsg 	= 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'  
 				
 				RETURN
-			END  
+			END
 			ELSE
 			BEGIN
-				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 				SET VValue 		= '1'  
-				WHERE VName 	= 'isCalculatingParlay' 
+				WHERE VName 	= 'isCalculatingParlay'
 				
 				SET @avaiableProcess = 1
 			END
@@ -107,7 +109,7 @@ BEGIN
 			END  
 			ELSE
 			BEGIN
-				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 				SET VValue 		= '1'  
 				WHERE VName 	= 'isCalculatingParlayVSBetradar' 
 				
@@ -150,7 +152,7 @@ BEGIN
 		BEGIN
 			IF EXISTS(SELECT 1
 					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
-							INNER JOIN #tblMatchProcess tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+							INNER JOIN #tblMatchProcessKeyValue2 tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
 					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = tp.KeyValue2
 					)
 			BEGIN
@@ -164,7 +166,7 @@ BEGIN
 					
 				INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, KeyValue2) 
 				SELECT DISTINCT KeyID, matchid, KeyValue2
-				FROM #tblMatchProcess
+				FROM #tblMatchProcessKeyValue2
 				WHERE KeyID > 0
 				
 				SET @avaiableProcess = 1
@@ -295,7 +297,7 @@ BEGIN
 		BEGIN
 			DELETE ck
 			FROM dbo.TempVariableNumber ck
-				INNER JOIN #tblMatchProcess tp
+				INNER JOIN #tblMatchProcessKeyValue2 tp
 				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
 			WHERE ck.KeyValue2 = tp.KeyValue2
 			

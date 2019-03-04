@@ -120,7 +120,7 @@ BEGIN
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
 	--END Balance tables
 
-	CREATE TABLE #tblMatchProcess (matchID INT, keyID TINYINT, KeyValue2 VARCHAR(20))
+	CREATE TABLE #tblMatchProcessKeyValue2 (matchID INT, keyID TINYINT, KeyValue2 VARCHAR(20))
 	CREATE TABLE #tblTransID (transID BIGINT, modds SMALLMONEY, result VARCHAR(20), custID INT)
 	CREATE TABLE #tblTransIDRefund (transID BIGINT)
 	CREATE TABLE #tblTransIDUndo (transID BIGINT, custID INT)
@@ -196,7 +196,7 @@ BEGIN
 	END
 		
 	-- check and not allow attempt to settlement same game while it's still not finish
-  	INSERT INTO #tblMatchProcess(matchID, KeyID, KeyValue2)
+  	INSERT INTO #tblMatchProcessKeyValue2(matchID, KeyID, KeyValue2)
   	SELECT	@matchID AS matchID, 5 AS KeyID, MarketID
   	FROM #tblMarket
   	----------------------------------------------------------------------------------------------------------------------
