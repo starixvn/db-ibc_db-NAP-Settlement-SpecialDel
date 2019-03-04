@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 AS
 /*	Created by: Kathy
 	Date 20181212
-	Task: view voided ticket [Redmine:#90155]
+	Task: void ticket [Redmine:#90155]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
