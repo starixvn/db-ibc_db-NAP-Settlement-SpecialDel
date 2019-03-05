@@ -109,6 +109,7 @@ BEGIN
 				  		INNER JOIN dbo.Bettrans bt WITH (NOLOCK) ON m.MatchID = bt.MatchID
 				  WHERE bt.Bettype IN (SELECT BetType FROM @tblBettype t)
 						AND bt.Bettype BETWEEN @MinBetType AND @MaxBetType
+						AND bt.statusID NOT IN (101, 102)
 				  GROUP BY m.matchID
 			  ) AS tbtTicketCount
 	)
