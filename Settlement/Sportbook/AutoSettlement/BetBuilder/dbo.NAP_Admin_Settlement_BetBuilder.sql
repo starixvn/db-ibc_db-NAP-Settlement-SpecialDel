@@ -95,7 +95,7 @@ BEGIN
 			,@TotalAccount		INT
 			,@TotalAccount_BalanceUpdate INT
 			,@batchCount		INT		
-			,@strDataByBatch		VARCHAR(MAX)	= ''
+			,@strDataByBatch	VARCHAR(MAX)	= ''
 			,@xml				XML
 			,@startRowIndex		INT
 			--------------log---------------------------------------------------
@@ -103,8 +103,8 @@ BEGIN
 			,@stop				DATETIME
 			,@avaiableProcess	BIT
 			,@ResultRemarkLog	VARCHAR(MAX)	= ''
-			,@Remark			VARCHAR(500)
-			,@LogData			NVARCHAR(300)
+			,@Remark			VARCHAR(MAX)
+			,@LogData			NVARCHAR(MAX)
 			,@ErrMsgMarketID	VARCHAR(MAX)
 			,@SelectedResources	VARCHAR(MAX)
 			,@ActionProcessing	VARCHAR(MAX)
@@ -213,6 +213,19 @@ BEGIN
 	BEGIN
 		SELECT   @ErrCode   = 1000000
 				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+				
+				
+		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@userid				= @AdminId
+				,@matchid			= @MatchID
+				,@actionid			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@Remark			= 'Failed: ' + @ErrMsg
+				,@ip				= @ip
 		RETURN
 	END
 	
