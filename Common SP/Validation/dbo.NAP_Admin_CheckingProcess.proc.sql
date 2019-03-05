@@ -154,6 +154,11 @@ BEGIN
 					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
 							INNER JOIN #tblMatchProcessKeyValue2 tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
 					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = tp.KeyValue2
+					  UNION ALL
+					  SELECT 1
+					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
+							INNER JOIN #tblMatchProcessKeyValue2 tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = '0'
 					)
 			BEGIN
 				SELECT @ErrCode = 103
