@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999_UAT1] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999] 
     @matchid INT
     ,@bettype SMALLINT
     ,@fth    INT = NULL -- Fulltime of Home
@@ -291,6 +291,7 @@ BEGIN
 																                            
 									ELSE - 1
 								END
+						,modds = @modds
 						,@commWinRate = CASE comstatus
 							WHEN '0' THEN 1 -- 0: pay normal, both win/lost -- 1: pay 'double' ONLY on lost
 							WHEN '1' THEN 0

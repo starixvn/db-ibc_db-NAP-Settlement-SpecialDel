@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_603_UAT1] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_603] 
 	@matchid 			INT
 	,@bettype			SMALLINT		= NULL		
 	,@strResourceIds	VARCHAR(MAX)	= NULL

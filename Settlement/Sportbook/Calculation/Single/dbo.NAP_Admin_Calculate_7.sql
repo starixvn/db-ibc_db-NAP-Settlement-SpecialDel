@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7_UAT1] @matchid INT
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7] @matchid INT
     ,@bettype SMALLINT
     ,@hth SMALLMONEY
     ,@hta SMALLMONEY

@@ -86,7 +86,7 @@ BEGIN
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY)
+	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY, srecommend INT)
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY)
 			
 	DECLARE @instantBettype TABLE (bettype SMALLINT)
@@ -146,8 +146,7 @@ BEGIN
 		, @finalawayscore	= m.finalawayscore
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
-	
-	
+
 	--SET scores in 1H & 2H
 	SELECT @hScore1H	= CASE WHEN @CalculationType = 101 THEN @hScore ELSE ISNULL(@hthomescore, 0) END
 		, @aScore1H	= CASE WHEN @CalculationType = 101 THEN @aScore ELSE ISNULL(@htawayscore,0) END 
@@ -201,12 +200,13 @@ BEGIN
 		, BonusID 				INT
 		, WalletType 			TINYINT
 		, actual_stake			MONEY
+		, srecommend			INT
 	)
 	
 	SELECT @batchCount			= 1000 
 		,@startBatchNo			= 1
 
-	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType,actual_stake)
+	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType,actual_stake, srecommend)
 	SELECT TransID = b.transid
 		,MOdds = ods.modds
 		,CustID = b.custid
@@ -215,6 +215,7 @@ BEGIN
 		,BonusID = CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
 		,WalletType = ISNULL(b.WalletType, 2) -- Cash Wallet as default
 		,actual_stake = b.actual_stake -- used to determine cashout tickets that make changes Balance (Captured Before)
+		,srecommend = b.srecommend
 	FROM dbo.bettrans b WITH(NOLOCK)
 		OUTER APPLY [dbo].[f_Set_Instant_CalModds](
 												b.bettype
@@ -239,7 +240,6 @@ BEGIN
 	--DO loop Inst.CAL
 	WHILE (1=1)
 	BEGIN 
-		
 		BEGIN TRY
 			--CLEAR instant batch & balance table
 			DELETE @tempInstantBatch
@@ -248,8 +248,8 @@ BEGIN
 			DELETE @CashoutTickets_tmp
 			
 			DELETE T
-			OUTPUT deleted.TransID, deleted.MOdds,deleted.CustID, deleted.Balance, deleted.BetType, deleted.BonusID, deleted.WalletType, deleted.actual_stake	
-			INTO @tempInstantBatch(transid, modds, custid, balance, bettype, BonusID, WalletType, actual_stake)
+			OUTPUT deleted.TransID, deleted.MOdds,deleted.CustID, deleted.Balance, deleted.BetType, deleted.BonusID, deleted.WalletType, deleted.actual_stake, deleted.srecommend
+			INTO @tempInstantBatch(transid, modds, custid, balance, bettype, BonusID, WalletType, actual_stake, srecommend)
 			FROM (SELECT TOP (@batchCount) *
 				  FROM #temp_bettrans 
 				  ORDER BY custid
@@ -269,10 +269,12 @@ BEGIN
 			SET @strInstantTicket = CAST((SELECT b.transid AS t
 												,b.modds AS m 
 												,b.actual_stake AS a
+												,b.bettype as bt
+												,b.srecommend as sr
 											FROM @tempInstantBatch b
 											FOR XML AUTO) AS VARCHAR(MAX)
 										)
-										
+			
 			IF(@strInstantTicket IS NOT NULL) 
 			BEGIN
 				
