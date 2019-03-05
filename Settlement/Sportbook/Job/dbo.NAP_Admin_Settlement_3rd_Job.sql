@@ -153,7 +153,7 @@ BEGIN
 			ORDER BY Starttime DESC
 
 			EXEC dbo.NAP_Set_SB_ErrorHandling @Action = @Action
-				--, @ActionIDInput = @ActionID
+				, @ActionIDInput = @ActionID
 				, @MatchId = @MatchId
 				, @sqlCommand = @sqlCommand
 				, @ErrMsg = @ErrMsg

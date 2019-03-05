@@ -88,6 +88,7 @@ BEGIN
 			,@xml				XML
 			,@AutoSetting		TINYINT
 			,@sqlCommand		NVARCHAR(MAX)
+			,@ActionID			INT
 			-------------------------------------
 			,@maxNumProcess		INT 			= 50000
 			
@@ -114,6 +115,13 @@ BEGIN
 		RETURN
 	END
 		
+	SELECT @ActionID = CASE
+						  WHEN @Action IN ('CAL','CAL_MARKET')  AND @IsAuto = 0 THEN 81009
+						  WHEN @Action = 'UNDO' AND @IsAuto = 0 THEN 81010
+						  WHEN @Action = 'CAL'  AND @IsAuto = 1 THEN 81012
+						  ELSE 0
+					   END
+					   
 	IF @IsAuto = 1 OR @action LIKE '%MARKET'
 	BEGIN
 		--parse XML
@@ -252,6 +260,7 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
+			,ActionID
 			)
 		SELECT @MatchId
 			   ,@matchcode
@@ -262,6 +271,7 @@ BEGIN
 			   ,@IP
 			   ,@Action
 			   ,@sqlCommand
+			   ,@ActionID
 	END
 END
 GO

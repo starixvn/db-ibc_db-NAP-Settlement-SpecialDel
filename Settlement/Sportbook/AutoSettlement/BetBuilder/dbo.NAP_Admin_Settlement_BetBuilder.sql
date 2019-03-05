@@ -213,19 +213,7 @@ BEGIN
 	BEGIN
 		SELECT   @ErrCode   = 1000000
 				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-				
-				
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-				@userid				= @AdminId
-				,@matchid			= @MatchID
-				,@actionid			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@Remark			= 'Failed: ' + @ErrMsg
-				,@ip				= @ip
+
 		RETURN
 	END
 	
