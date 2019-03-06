@@ -38,6 +38,7 @@ BEGIN
 		FROM @tblMatch m
 			INNER JOIN dbo.Bettrans bt WITH(NOLOCK) ON m.matchid = bt.matchid
 		WHERE bt.Bettype = 38
+			AND bt.statusID NOT IN (101, 102)
 			AND bt.StatusID = 0				-- running
 	)
 	BEGIN
