@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -87,6 +87,7 @@ AS
 		- 20171226@Kathy: Clear data in table AutoPayoutResult if match has been undo [Redmine:#86890]
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20180419@Benjamin: Add ISNULL(@hth,0),ISNULL(@hta,0) IN @LogData [Redmine:#86964]
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -252,6 +253,7 @@ BEGIN
                 AND b.bettype NOT BETWEEN 901 AND 910
                 AND b.bettype NOT BETWEEN 801 AND 899
 				AND b.bettype NOT BETWEEN 911 AND 920
+				AND b.bettype <> 38 --BetBuilder
     ELSE 
         SELECT    @TicketCount = COUNT(1)
         FROM    dbo.bettrans b WITH(NOLOCK)
@@ -279,7 +281,7 @@ BEGIN
 							ELSE 0
 						END
 				AND b.bettype <= 19000
-                AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
+                AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
                 AND b.bettype NOT BETWEEN 1501 AND 1599 -- Keno
                 AND 1 = CASE 
                             WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') > 0 THEN 0
@@ -464,7 +466,7 @@ BEGIN
                             END)
             FROM    dbo.bettrans b with (NOLOCK)
             WHERE    b.matchid = @matchid
-                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
+                    AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
                     AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
                     AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
 					AND b.bettype NOT BETWEEN 901 AND 920 --BT & CashOut 

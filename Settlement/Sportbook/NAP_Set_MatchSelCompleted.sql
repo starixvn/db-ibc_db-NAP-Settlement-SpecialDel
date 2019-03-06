@@ -42,6 +42,7 @@ AS
 		- 20180426@Helen: Improve Performance [Redmine:89132]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -125,7 +126,7 @@ BEGIN
 								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount 
 						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
 						WHERE b.matchid = m.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
-								AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238)
+								AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38)
 								AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
 								AND b.bettype NOT BETWEEN 901 AND 910
 								AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets

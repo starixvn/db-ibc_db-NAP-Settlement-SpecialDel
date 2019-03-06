@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Corner] @AdminId INT
 	, @Matchid				INT
 	, @fthCorners			SMALLINT		= NULL
@@ -25,6 +25,7 @@ AS
 		- 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20160311@Kathy: Exclude Fast Market [Redmine:#56367]
 		- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		
 	Param's Explanation:
 
@@ -134,7 +135,7 @@ BEGIN
 				, SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END)
 		FROM	dbo.Bettrans WITH (NOLOCK)
 		WHERE	matchID = @MatchID 
-				AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
+				AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
 				AND bettype NOT BETWEEN 1501 AND 1599 -- Keno
 				AND bettype NOT BETWEEN 801 AND 899 --Metric Gaming 
 				AND 1 = CASE 
