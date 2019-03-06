@@ -95,7 +95,9 @@ BEGIN
 	CREATE TABLE #tblMarketPush (marketID VARCHAR(20), Result VARCHAR(20), ResultStatusID TINYINT)
 	CREATE TABLE #tblInvalidMarketID (marketID VARCHAR(20))
 	----------------------------------------------------------------------------
-	
+	SELECT @ErrCode		= 0
+		   ,@ErrMsg		= '' 
+
 	IF @Action LIKE '%_MARKET'
 		SET @IsAuto = 0
 		
@@ -212,7 +214,7 @@ BEGIN
 	END 	
 	
 				  
-	SELECT	 @procName		= OBJECT_NAME(@@procid)
+	SELECT	@procName		= OBJECT_NAME(@@procid)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @Resources = ''' + CONVERT(VARCHAR(MAX), @Resources) + ''''
@@ -242,8 +244,8 @@ BEGIN
 		END TRY
 
 		BEGIN CATCH
-			SELECT  @ErrMsg	= @ErrMsg + ISNULL(ERROR_MESSAGE(),'')
-				   ,@ErrCode= @ErrCode
+			SELECT  @ErrMsg	= ISNULL(@ErrMsg, '') + ISNULL(ERROR_MESSAGE(),'')
+				   ,@ErrCode = @@error
 			RETURN
 		END CATCH
 	END
