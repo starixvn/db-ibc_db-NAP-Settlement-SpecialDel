@@ -53,6 +53,7 @@ AS
 		- 20190220@Alan: Support New Ticket Status Abnormal Bet [106654]
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket [Redmine:#108826]
 		- 20190529@Raymond.Le: Implement recover for ScoreBox bettype (468, 469) [Redmine:#108826]
+		- 20190305@Alan: Implement Bet Builder - [106898]
 		
 	Param's Explanation:
 */
@@ -327,22 +328,10 @@ BEGIN
 				,b.srecommend
 				,b.SecAcceptFlag
 				,b.ExtraInfo
-				,CASE 
-					WHEN b.betdaqid = 0 AND b.extrainfo is null 
-							THEN 1
-					ELSE 0
-				 END AS IsBettrade
-				,CASE 
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 
-							THEN 1
-					ELSE 0
-				 END AS IsCashOut
+				,CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBettrade
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN 1 ELSE 0 END AS IsCashOut
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -350,12 +339,12 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
-				ON	b.transid = z.transid																		
+				ON	b.transid = z.transid
 					AND z.custid = b.custid
 					AND z.matchid = b.matchid
-					AND z.bettype = b.bettype						
+					AND z.bettype = b.bettype
 			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON m.matchid = b.matchid		
+				ON m.matchid = b.matchid
 		WHERE	z.bettype NOT BETWEEN 801 AND 806
 				AND b.winlostdate >= @before_yesterday
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)

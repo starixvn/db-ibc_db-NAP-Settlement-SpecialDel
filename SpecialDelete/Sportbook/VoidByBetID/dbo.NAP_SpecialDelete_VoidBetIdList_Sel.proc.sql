@@ -447,7 +447,7 @@ BEGIN
 	BEGIN
 		DELETE b
 		FROM #Data b
-		WHERE b.bettype IN (9, 29, 2799)
+		WHERE b.bettype IN (9, 29, 2799, 38)
 	END
 	
 	-- update MainTransId
