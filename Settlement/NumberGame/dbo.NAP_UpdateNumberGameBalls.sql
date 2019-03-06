@@ -1,13 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_UpdateNumberGameBalls]    Script Date: 06/12/2015 15:36:53 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-
-/****** Object:  Stored Procedure dbo.NAP_UpdateNumberGameBalls    Script Date: 3/20/2014 5:44:00 PM ******/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_UpdateNumberGameBalls]
 	@MatchId int,
 	@FirstBall tinyint = NULL, -- 0 means N/A	
@@ -24,7 +15,8 @@ AS
 	Orignal: Acc_UpdateNumberGameBalls
 
 	Revisions:
-		20150612@Kathy: Not allow to insert/delete table TempVariableNumber by linked server. Use SP NAP_UpdateTempVariableNumber   [Redmine:#36216](Migrate custDB to new server - DBCust)
+		- 20150612@Kathy: Not allow to insert/delete table TempVariableNumber by linked server. Use SP NAP_UpdateTempVariableNumber   [Redmine:#36216](Migrate custDB to new server - DBCust)
+		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 */
 BEGIN	
 
@@ -64,6 +56,14 @@ BEGIN
 	RETURN
 END
 ---------
+	DECLARE @IsTest BIT, @SportType SMALLINT
+	
+	SELECT @IsTest = lg.IsTest
+			,@SportType = m.SportType
+	FROM dbo.Match m WITH (NOLOCK)
+		INNER JOIN dbo.League lg WITH (NOLOCK) ON m.leagueID = lg.LeagueID
+	WHERE m.matchID = @matchID
+	
 
 	UPDATE match with(rowlock, updlock)
 	SET hthomescore = @FirstBall
@@ -119,8 +119,8 @@ END
 		RETURN
 	END
 	ELSE	
-	INSERT INTO bingoball(matchid, seq, number, updatetime)
-	VALUES(@MatchId, 1, @FirstBall, CURRENT_TIMESTAMP)
+	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest)
+	VALUES(@MatchId, 1, @FirstBall, CURRENT_TIMESTAMP, @SportType, @IsTest)
 
 	-- SECOND ball
 	IF @SecondBall IS NULL 
@@ -165,8 +165,8 @@ END
 		RETURN
 	END	
 	ELSE
-	INSERT INTO bingoball(matchid, seq, number, updatetime)
-	VALUES(@MatchId, 2, @SecondBall, CURRENT_TIMESTAMP)
+	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest)
+	VALUES(@MatchId, 2, @SecondBall, CURRENT_TIMESTAMP, @SportType, @isTest)
 
 	-- THIRD ball
 	IF @ThirdBall IS NULL 
@@ -211,8 +211,8 @@ END
 		RETURN
 	END	
 	ELSE	
-	INSERT INTO bingoball(matchid, seq, number, updatetime)
-	VALUES(@MatchId, 3, @ThirdBall, CURRENT_TIMESTAMP)
+	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest)
+	VALUES(@MatchId, 3, @ThirdBall, CURRENT_TIMESTAMP, @SportType, @isTest)
 	
 	   
 ----
@@ -256,6 +256,3 @@ END
 END
 
 GO
-GRANT EXECUTE ON [dbo].[NAP_UpdateNumberGameBalls] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_UpdateNumberGameBalls] TO [vnteam] AS [dbo]

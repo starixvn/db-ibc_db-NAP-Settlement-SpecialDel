@@ -11,6 +11,7 @@ AS
 
 	Revision
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 
 	Param's Explanation: 
 
@@ -27,9 +28,14 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE @tblSelectedRID TABLE (ResourceID TINYINT, Result TINYINT)
-	DECLARE @handle INT
+	DECLARE @handle INT, @IsTest INT
 	 
 	----------------------------------------------------------------------------
+	SELECT @IsTest = lg.IsTest
+	FROM dbo.Match m WITH (NOLOCK)
+		INNER JOIN dbo.League lg WITH (NOLOCK) ON m.leagueID = lg.LeagueID
+	WHERE m.matchID = @matchID
+		
 	--parse XML   
 	EXEC sp_xml_preparedocument @handle OUTPUT, @Resources
 	INSERT INTO @tblSelectedRID(ResourceID, Result)
@@ -55,7 +61,7 @@ BEGIN
 
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT (MatchId,  Seq,				 Number,		UpdateTime, 	   SportType,  isTest)
-		VALUES (@matchid, SOURCE.ResourceId, SOURCE.Result, CURRENT_TIMESTAMP, @Sporttype, 0);
+		VALUES (@matchid, SOURCE.ResourceId, SOURCE.Result, CURRENT_TIMESTAMP, @Sporttype, @IsTest);
 	
 END 
 GO
