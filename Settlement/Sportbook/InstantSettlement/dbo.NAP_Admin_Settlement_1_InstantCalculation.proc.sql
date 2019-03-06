@@ -29,6 +29,7 @@ AS
 		- 20181114@Helen:  Second Accept - Processing for Waiting Tickets [Redmine:104755]
 		- 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
+		- 20190305@Sol:  New Formula for Comm [Redmine:#109007]
 
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']

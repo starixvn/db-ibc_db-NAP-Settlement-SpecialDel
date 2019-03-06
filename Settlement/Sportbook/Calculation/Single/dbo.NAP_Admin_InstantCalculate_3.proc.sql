@@ -82,7 +82,7 @@ BEGIN
 		FROM   #InstantTicket_Input tmp
 					LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
 						ON tmp.srecommend = cs.CustId
-					LEFT JOIN dbo.f_Set_GetGroupBettypes_UAT1() AS f
+					LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
 						ON tmp.bettype = f.BetType
 
 		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','SITDBTRANS')

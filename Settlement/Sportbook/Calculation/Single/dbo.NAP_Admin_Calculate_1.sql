@@ -87,7 +87,7 @@ BEGIN
 				   ON tmp.srecommend = cs.CustId;
 
 	-- get CommBettypeGroupId 
-	SELECT @commBettypeGroupId = CommBettypeGroupId FROM dbo.f_Set_GetGroupBettypes_UAT1() AS f WHERE BetType = @bettype
+	SELECT @commBettypeGroupId = CommBettypeGroupId FROM dbo.f_Set_GetGroupBettypes() AS f WHERE BetType = @bettype
 
     CREATE TABLE #currList (custid INT PRIMARY KEY, isCN88 bit)
 	DECLARE @MinCustId INT

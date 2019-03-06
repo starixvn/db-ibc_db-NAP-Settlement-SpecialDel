@@ -18,7 +18,7 @@ AS
 
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
