@@ -69,6 +69,7 @@ BEGIN
 			,@isExistFM			BIT = 0
 			,@isExistBT			BIT = 0
 			,@isExistCashOut	BIT = 0
+			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 
 	SELECT	@before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
@@ -237,11 +238,7 @@ BEGIN
 				,b.srecommend
 				,b.SecAcceptFlag
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -425,11 +422,7 @@ BEGIN
 				,o.teamid
 				,0 AS awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -485,21 +478,9 @@ BEGIN
 					,b.srecommend
 					,b.SecAcceptFlag
 					,b.ExtraInfo
-					,CASE 
-						WHEN b.betdaqid = 0 AND b.extrainfo is null 
-								THEN 1
-						ELSE 0
-					 END AS IsBettrade
-					,CASE 
-						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 
-								THEN 1
-						ELSE 0
-					 END AS IsCashOut				
-					,CASE
-						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-								THEN b.transid
-						ELSE NULL
-					 END AS MainCashoutId
+					,CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBettrade
+					,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN 1 ELSE 0 END AS IsCashOut				
+					,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
@@ -624,9 +605,9 @@ BEGIN
 		FROM #tblCashOutProcess
 		WHERE IsAvailable = 0					
 		
-		--- check exists BT + Cash-out or not
-		SELECT @isExistBT 	= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-			 , @isExistCashOut = MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+		--- check exists BT, Cash-out, Bet Builder
+		SELECT @isExistBT 		= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+			 , @isExistCashOut	= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
 		FROM #tblTransInfo
 		
 		IF (@isExistBT = 1 AND ISNULL(@TransIdSolds, '') <> '')
@@ -1009,11 +990,11 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
+				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
 				WHEN bettype BETWEEN 221 AND 227 THEN 6
-				ELSE 0 
-			END AS KeyId
+				WHEN Bettype = 38 THEN 5 -- Bet Builder
+				ELSE 0 END AS KeyId
 		FROM #tblTransInfo
 	)
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
@@ -1024,6 +1005,7 @@ BEGIN
 	SELECT @isExistMatch 	= MAX(CASE WHEN KeyId = 1 THEN 1 ELSE 0 END )
 		, @isExistMG 		= MAX(CASE WHEN KeyId = 3 THEN 1 ELSE 0 END )
 		, @isExistFM 		= MAX(CASE WHEN KeyId = 6 THEN 1 ELSE 0 END )
+		, @isExistBB		= MAX(CASE WHEN KeyId = 5 THEN 1 ELSE 0 END)
 	FROM #tblMatchProcess
 	
 	-- checking SD proccess
@@ -1031,6 +1013,7 @@ BEGIN
 		@isExistMatch		= @isExistMatch
 		, @isExistMG 		= @isExistMG
 		, @isExistFM 		= @isExistFM
+		, @isExistBB		= @isExistBB
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -1810,6 +1793,7 @@ BEGIN
 		@isExistMG 			= @isExistMG
 		, @isExistMatch		= @isExistMatch
 		, @isExistFM 		= @isExistFM
+		, @isExistBB		= @isExistBB
 		, @IsReleased		= 1	
 		
 	------ releasing cash-out process
