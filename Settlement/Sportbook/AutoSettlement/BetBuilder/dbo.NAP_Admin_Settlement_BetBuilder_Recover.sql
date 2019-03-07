@@ -38,7 +38,7 @@ BEGIN
 	DECLARE --------hard code---------------------------------------------------
 			@Bettype			INT				= 38
 			,@pfID				SMALLINT		= 38
-			,@ActionID			INT				= 81008
+			,@ActionID			INT				= 81009
 			--------------------------------------------------------------------
 			
 			,@sportType 		INT
