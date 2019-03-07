@@ -38,7 +38,7 @@ BEGIN
 		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE l.matchid = @matchid
-		AND l.ActionID NOT IN (81006,81007,81009,81010,81011,81012) --exclude Betbuilder
+		AND l.ActionID NOT IN (81006,81007,81008,81009,81010,81011,81012) --exclude Betbuilder
 		AND LogDate >= @__archiveDate
 	UNION ALL
 	SELECT 
@@ -59,7 +59,7 @@ BEGIN
 		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE l.matchid = @matchid
-		AND l.ActionID NOT IN (81006,81007,81009,81010,81011,81012) --exclude Betbuilder
+		AND l.ActionID NOT IN (81006,81007,81008,81009,81010,81011,81012) --exclude Betbuilder
 		AND LogDate < @__archiveDate
 	ORDER BY logdate ASC
 
