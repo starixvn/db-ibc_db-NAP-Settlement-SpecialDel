@@ -23,7 +23,7 @@ AS
 					  </Resources>'
 		
 		Example:
-			--settle by auto
+			
 			DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
 			SELECT @ErrCode = 0, @ErrMsg = ''
 				EXEC [dbo].[NAP_Admin_Settlement_BetBuilder_Recover] @MatchId	= 1
@@ -44,7 +44,7 @@ BEGIN
 			,@sportType 		INT
 			,@strDataByBatch	VARCHAR(MAX)
 			,@xml				XML
-			--------------log---------------------------------------------------
+			
 			,@minMarketID 		VARCHAR(20)
 			,@maxMarketID		VARCHAR(20)
 
@@ -57,7 +57,7 @@ BEGIN
 	
 	SELECT @ErrCode = 0,@ErrMsg = ''
 	
-  	------------------------------------------get market info-------------------
+  	------------------------------------------get transID ----------------------
 	SET @xml = CAST(@Resources AS XML)
 			
 	;WITH TmpData AS (
@@ -89,7 +89,7 @@ BEGIN
 			AND mk.ResultStatusID NOT IN (0,1)
 		
 			
-	--cal modd for transID
+	--modd
   	UPDATE #tblTransID
   	SET Result = mk.Result
   		,modds = mk.modds
