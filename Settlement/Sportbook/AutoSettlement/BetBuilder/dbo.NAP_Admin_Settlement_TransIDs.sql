@@ -1,8 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_TransIDs]
-	@matchID				INT
-	,@sportType				INT
-	,@TransIDs				VARCHAR(MAX)	
+	@TransIDs				VARCHAR(MAX)	
 	,@Action				VARCHAR(50)
 	,@ActionID				INT
 	,@balanceCount 			INT				= 0		OUTPUT
@@ -45,8 +43,8 @@ BEGIN
 	BEGIN TRY
 		INSERT INTO @BalanceWalletBefore (matchID, custID, balanceType, WalletType, BonusID, balance)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-						@MatchID 				  = @matchID
-						,@sportType				  = @sportType
+						@MatchID 				  = 0
+						,@sportType				  = 0
 						,@Action 				  = @Action
 						,@Mode 					  = 2
 						,@TransIDs				  = @TransIDs
@@ -54,7 +52,7 @@ BEGIN
 	
 		--------- UPDATE BETTRANS-----------------------------------------------
 	    EXEC dbo.NAP_Admin_Calculate_Main
-						@matchid	  		 = @matchid
+						@matchid	  		 = 0
 					   ,@action				 = @Action
 					   ,@IsSettingByProfile  = 1
 					   ,@strTransIds		 = @TransIDs
@@ -67,8 +65,8 @@ BEGIN
 		---------------------------VVVV------------------------------
 		INSERT INTO @BalanceWalletAfter (matchID, custID, balanceType, WalletType, BonusID, balance)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-					@MatchID		  	= @matchID
-					,@sportType			= @sportType
+					@MatchID		  	= 0
+					,@sportType			= 0
 					,@Action 			= @Action
 					,@Mode 			  	= 2 --Used for Manual settle process
 					,@TransIDs			= @TransIDs
@@ -101,8 +99,8 @@ BEGIN
 		  
 		  INSERT INTO @BalanceWalletAfter (matchID, custID, balanceType, WalletType, BonusID, balance)
 		  EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-				  @MatchID 				= @matchID
-				  , @sportType			= @sportType
+				  @MatchID 				= 0
+				  , @sportType			= 0
 				  , @Action 			= @Action 
 				  , @Mode 				= 2 --Used for Manual settle process
 				  , @TransIDs			= @TransIDs

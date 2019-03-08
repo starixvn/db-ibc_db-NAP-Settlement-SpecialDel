@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Recover]
 	 @AdminId			INT				
-	,@MatchId			INT
 	,@Resources			VARCHAR(MAX)	
 	,@IP				VARCHAR(15)		= ''
 	,@ErrCode			INT				= 0		OUTPUT
@@ -27,31 +26,27 @@ AS
 			
 			DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
 			SELECT @ErrCode = 0, @ErrMsg = ''
-				EXEC [dbo].[NAP_Admin_Settlement_BetBuilder_Recover] @MatchId	= 1
-															  ,@AdminId = 8
-															  ,@Resources = '<Resources><Resource Id="200"/></Resources>'
-															  ,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
+				EXEC [dbo].[NAP_Admin_Settlement_BetBuilder_Recover] 
+									@AdminId = 8
+									,@Resources = '<Resources><Resource Id="200"/></Resources>'
+									,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
 			SELECT @ErrCode,@ErrMsg
 */	
 BEGIN
 	SET NOCOUNT ON
 		
 	DECLARE --------hard code---------------------------------------------------
-			@Bettype			INT				= 38
-			,@pfID				SMALLINT		= 38
+			@pfID				SMALLINT		= 38
 			,@ActionID			INT				= 81009
-			,@sportType 		INT				= 1
-			--------------------------------------------------------------------			
+			--------------------------------------------------------------------
 			,@transIDs			VARCHAR(MAX)
 			,@xml				XML
 			,@minMarketID 		VARCHAR(20)
 			,@maxMarketID		VARCHAR(20)
 
   	
-	CREATE TABLE #tblTransID (transID BIGINT, marketID VARCHAR(20), modds SMALLMONEY, result VARCHAR(20))
-	CREATE TABLE #tblMarket (marketID VARCHAR(20), result VARCHAR(20), modds SMALLINT
-							,UNIQUE CLUSTERED (marketID)
-							)
+	CREATE TABLE #tblTransID (transID BIGINT, matchID INT, marketID VARCHAR(20)
+							  , modds SMALLMONEY, result VARCHAR(20))
 	----------------------------------------------------------------------------
 	
 	SELECT @ErrCode = 0,@ErrMsg = ''
@@ -63,40 +58,23 @@ BEGIN
 		SELECT T.C.value('@Id', 'BIGINT') AS transID
 		FROM @xml.nodes('/Resources/Resource') AS T(C)
 	)
-	INSERT INTO #tblTransID (transID, marketID)
-	SELECT	d.transID, bt.betcheck
+	INSERT INTO #tblTransID (transID, matchID, marketID)
+	SELECT	d.transID, bt.matchID, bt.betcheck
 	FROM TmpData d
 		INNER JOIN dbo.Bettrans bt WITH (NOLOCK) ON d.transID = bt.transID	
 
-		
-	SELECT @minMarketID = MIN(marketID)
-		   ,@maxMarketID = MAX(marketID)
-	FROM #tblTransID
-	
-		
-	--get result of market & cal modds
-	INSERT INTO #tblMarket (marketID, Result, modds)
-	SELECT mk.marketID
-		   ,mk.Result
-		   ,m.modds
-	FROM DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK)
-		CROSS APPLY dbo.f_Set_Calculate_modds(@pfID, NULL, NULL, NULL, mk.Result, NULL, NULL, NULL) m
-	WHERE mk.MatchID = @MatchID 
-			AND mk.MarketID BETWEEN @minMarketID AND @maxMarketID
-			AND mk.VendorID = 34
-			AND mk.ResultStatusID NOT IN (0,1)
-			AND mk.MarketID IN (SELECT bt.MarketID FROM #tblTransID bt)
-		
-			
-	
-	--update #tblTransID
-  	UPDATE #tblTransID
-  	SET Result = mk.Result
-  		,modds = mk.modds
-  	FROM #tblTransID b
-  		INNER JOIN #tblMarket mk ON b.MarketID = mk.MarketID
 
-  		
+	--get result & cal modds
+	UPDATE t 
+	SET Result = mk.Result
+  		,modds = m.modds
+	FROM #tblTransID t 
+		INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON t.matchID = mk.matchID AND t.marketID = mk.marketID
+		CROSS APPLY dbo.f_Set_Calculate_modds(@pfID, NULL, NULL, NULL, mk.Result, NULL, NULL, NULL) m
+	WHERE mk.VendorID = 34
+		AND mk.ResultStatusID NOT IN (0,1)
+
+
 	----------UNDO--------------------------------------------------------------
 	SET @transIDs 			= (SELECT transID		AS '@t'
 							   FROM #tblTransID
@@ -105,9 +83,7 @@ BEGIN
 	
 	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@matchID				= @matchID
-								,@sportType				= @sporttype
-								,@transIDs				= @transIDs
+								@transIDs				= @transIDs
 								,@Action				= 'UNDO'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT
@@ -124,9 +100,7 @@ BEGIN
 	
 	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@matchID				= @matchID
-								,@sportType				= @sporttype
-								,@transIDs				= @transIDs
+								@transIDs				= @transIDs
 								,@Action				= 'REFUND'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT
@@ -145,9 +119,7 @@ BEGIN
 	
 	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@matchID				= @matchID
-								,@sportType				= @sporttype
-								,@transIDs				= @transIDs
+								@transIDs				= @transIDs
 								,@Action				= 'CAL'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT

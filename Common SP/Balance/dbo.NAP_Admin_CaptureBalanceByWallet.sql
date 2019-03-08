@@ -112,13 +112,8 @@ BEGIN
                ,ISNULL(b.WalletType,2) AS WalletType -- 2: Cash wallet,
                ,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
                ,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-        FROM BetTrans b WITH (ROWLOCK)
-        WHERE b.matchid = @matchid_tmp
-        	--AND b.statusID NOT IN (101,102)
-			AND EXISTS ( SELECT 1
-  						FROM @tblTransID t
-  						WHERE b.transID = t.transID 
-	  					)
+        FROM @tblTransID t 
+        	INNER JOIN BetTrans b WITH (ROWLOCK) ON b.transID = t.transID 
         GROUP BY b.custid, b.WalletType, b.BonusId
 		RETURN 
 	END
