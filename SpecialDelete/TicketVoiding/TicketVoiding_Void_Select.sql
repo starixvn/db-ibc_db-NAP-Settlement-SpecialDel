@@ -32,9 +32,9 @@ BEGIN
 		,bettype 		SMALLINT
 		,OriginalBetType SMALLINT
 		,betteam 		NVARCHAR(10)
-		,SubBetTeam	NVARCHAR(10)		
+		,SubBetTeam		NVARCHAR(10)		
 		,betcheck		NVARCHAR(50)
-		,SubBetcheck NVARCHAR(50)
+		,SubBetcheck	NVARCHAR(50)
 		,Subhdp1		SMALLMONEY
 		,Subhdp2		SMALLMONEY
 		,hdp1 			SMALLMONEY
@@ -47,11 +47,11 @@ BEGIN
 		,currencyname	VARCHAR(20)
 		,IsDeposit		BIT	DEFAULT (0)
 		,STATUS			NVARCHAR(10)
-		,SubStatus	NVARCHAR(10)
+		,SubStatus		NVARCHAR(10)
 		,srecommend		INT
 		,mrecommend		INT
 		,recommend		INT
-		,SubLeagueId INT
+		,SubLeagueId	INT
 		,betid			BIGINT DEFAULT (0)
 		,Transdesc		NVARCHAR(1000)
 		,betdaqid		BIGINT		
@@ -68,6 +68,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT		
 		,MainTransId	BIGINT
+		,WinLost		MONEY
 	)	
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -128,7 +129,8 @@ BEGIN
 			,MainCashoutId
 			,WalletType
 			,RefCode
-			,BonusID	
+			,BonusID
+			,WinLost
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -174,6 +176,7 @@ BEGIN
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
+			,b.WinLost - b.actual_stake AS WinLost
 	FROM	bettrans b WITH (NOLOCK)		
 	WHERE	b.matchid = @matchid
 			AND b.transdate >= @KickOffDate
@@ -214,7 +217,8 @@ BEGIN
 				,recommend		
 				,betid			
 				,Transdesc		
-				,betdaqid							
+				,betdaqid
+				,WinLost
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -246,7 +250,8 @@ BEGIN
 				,b.recommend		
 				,NULL betid
 				,b.Transdesc
-				,-1 AS betdaqid -- normal ticket								
+				,-1 AS betdaqid -- normal ticket
+				,- b.actual_stake as winlost
 		FROM	Translog b WITH (NOLOCK)
 		WHERE	b.EventID = @matchid
 				AND b.transdate >= @KickOffDate
@@ -299,7 +304,8 @@ BEGIN
 				,Transdesc		
 				,ParlayType		
 				,IsMixParlay
-				,modds							
+				,modds
+				,WinLost
 			)
 		SELECT 
 				main.transid AS GroupID
@@ -334,7 +340,8 @@ BEGIN
 				,sub.Transdesc
 				,sub.bettype AS parlaytype
 				,1 AS IsMixParlay
-				,main.modds				
+				,main.modds
+				,main.winlost -main.actual_stake AS WinLost	
 		FROM	dbo.bettransm sub WITH (NOLOCK)				
 				INNER JOIN bettrans AS main WITH (NOLOCK) 
 					ON	main.refno = sub.refno				
@@ -418,7 +425,8 @@ BEGIN
 						,WalletType
 						,RefCode
 						,BonusID
-						,MainTransId		
+						,MainTransId
+						,WinLost
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -465,6 +473,7 @@ BEGIN
 						,b.RefCode
 						,b.BonusID
 						,t.transid AS MainTransId
+						,b.winlost - b.actual_stake AS WinLost
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -528,7 +537,8 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
-			,MainTransId						
+			,MainTransId
+			,WinLost
 		)
 	SELECT  main.transid AS GroupTransId
 			,sub.transid AS transId
@@ -565,7 +575,8 @@ BEGIN
 			,sub.WalletType
 			,sub.RefCode
 			,sub.BonusID
-			,main.transid AS MainTransId			
+			,main.transid AS MainTransId
+			,sub.winlost - sub.actual_stake AS WinLost
 	FROM	#SpecialDeleteBets main
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			ON	main.transid = sub.refno
@@ -613,7 +624,8 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
-			,MainTransId		
+			,MainTransId
+			,WinLost
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -653,6 +665,7 @@ BEGIN
 			,sub911.RefCode
 			,sub911.BonusID
 			,main.transid AS MainTransId
+			,sub911.winlost - sub911.actual_stake AS WinLost
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 		 INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -702,7 +715,8 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
-				,MainTransId		
+				,MainTransId
+				,WinLost
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -746,11 +760,12 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,b.winlost - b.actual_stake AS WinLost
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (
 						  SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
 								,b.hdp1, b.hdp2, b.livehomescore, b.liveawayscore, b.creator, b.stake, b.CurrencyName, b.SecAcceptFlag, b.checktime, b.odds
-								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID
+								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake
 						  FROM dbo.bettrans b WITH (NOLOCK)
 						  WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					
@@ -829,6 +844,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusID
 			   ,s.RefCode
+			   ,s.WinLost
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -893,6 +909,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusID
 			   ,s.RefCode
+			   ,s.WinLost
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -948,6 +965,7 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusID
 			   ,s.RefCode
+			   ,s.WinLost
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1011,6 +1029,7 @@ BEGIN
 		   ,s.MainTransId
 		   ,s.BonusID
 		   ,s.RefCode
+		   ,s.WinLost
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1063,6 +1082,7 @@ BEGIN
 		   ,s.MainTransId
 		   ,s.RefCode
 		   ,@SettlementStatus AS SettlementStatus
+		   ,s.WinLost
 	FROM CTE_OriginResult s
 	ORDER BY CASE
 				WHEN s.GroupName = 'Credit' THEN 1

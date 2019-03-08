@@ -216,7 +216,7 @@ BEGIN
 				,srecommend = b.srecommend
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
-
+				,winlost = b.winlost - b.actual_stake
 				,subbetcheck = bm.betcheck
 				,subOdds = bm.odds
 				,subbetteam = bm.betteam
@@ -266,6 +266,7 @@ BEGIN
 				,srecommend = b.srecommend
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
+				,winlost = b.winlost - b.actual_stake
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 	
@@ -296,7 +297,7 @@ BEGIN
 				,srecommend = b.srecommend
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
-
+				,winlost = b.winlost - b.actual_stake
 				,subbetcheck = bm.betcheck
 				,subOdds = bm.odds
 				,subbetteam = bm.betteam
@@ -337,7 +338,7 @@ BEGIN
 					,srecommend = b.srecommend
 					,mrecommend = b.mrecommend
 					,recommend = b.recommend
-
+					,winlost = b.winlost - b.actual_stake
 					,subbetcheck = bm.betcheck
 					,subOdds = bm.odds
 					,subbetteam = bm.betteam
