@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Recover]
 AS
 /*	Creator: Vicky
 	Date: 20181228
-	Task: BetBuilder Auto/Manual Settlement
+	Task: Incorporate BetBuilder
 	DB: DBTXN/BODB02
 	
 	Revisions:
@@ -21,6 +21,7 @@ AS
 							<Resource Id="200"/>
 							<Resource Id="201"/>
 					  </Resources>'
+					  Id: Bettrans.transID
 		
 		Example:
 			
@@ -39,12 +40,10 @@ BEGIN
 			@Bettype			INT				= 38
 			,@pfID				SMALLINT		= 38
 			,@ActionID			INT				= 81009
-			--------------------------------------------------------------------
-			
-			,@sportType 		INT
-			,@strDataByBatch	VARCHAR(MAX)
+			,@sportType 		INT				= 1
+			--------------------------------------------------------------------			
+			,@transIDs			VARCHAR(MAX)
 			,@xml				XML
-			
 			,@minMarketID 		VARCHAR(20)
 			,@maxMarketID		VARCHAR(20)
 
@@ -75,7 +74,7 @@ BEGIN
 	FROM #tblTransID
 	
 	
-	--get result of market
+	--get result of market & cal modds
 	INSERT INTO #tblMarket (marketID, Result, modds)
 	SELECT DISTINCT bt.marketID
 					,mk.Result
@@ -89,7 +88,7 @@ BEGIN
 			AND mk.ResultStatusID NOT IN (0,1)
 		
 			
-	--modd
+	--update #tblTransID
   	UPDATE #tblTransID
   	SET Result = mk.Result
   		,modds = mk.modds
@@ -98,16 +97,16 @@ BEGIN
 
   		
 	----------UNDO--------------------------------------------------------------
-	SET @strDataByBatch 	= (SELECT transID		AS '@t'
+	SET @transIDs 	= (SELECT transID		AS '@t'
 							   FROM #tblTransID
 							   WHERE Result IS NULL
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
-	IF ISNULL(@strDataByBatch,'') <> ''
+	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
 								@matchID				= @matchID
 								,@sportType				= @sporttype
-								,@transIDs				= @strDataByBatch
+								,@transIDs				= @transIDs
 								,@Action				= 'UNDO'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT
@@ -117,16 +116,16 @@ BEGIN
 	
 		
 	----------REFUND------------------------------------------------------------
-	SET @strDataByBatch 	= (SELECT transID		AS '@t'
+	SET @transIDs 	= (SELECT transID		AS '@t'
 							   FROM #tblTransID
 							   WHERE Result = 'REFUND'
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
-	IF ISNULL(@strDataByBatch,'') <> ''
+	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
 								@matchID				= @matchID
 								,@sportType				= @sporttype
-								,@transIDs				= @strDataByBatch
+								,@transIDs				= @transIDs
 								,@Action				= 'REFUND'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT
@@ -136,18 +135,18 @@ BEGIN
 		
 		
 	---------------CAL----------------------------------------------------------
-	SET @strDataByBatch 	= (SELECT transID		AS '@t'
+	SET @transIDs 	= (SELECT transID		AS '@t'
 									  ,modds		AS '@m'
 									  ,1			AS '@ot'
 							   FROM #tblTransID
 							   WHERE Result IS NOT NULL AND Result <> 'REFUND'
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
-	IF ISNULL(@strDataByBatch,'') <> ''
+	IF ISNULL(@transIDs,'') <> ''
 		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
 								@matchID				= @matchID
 								,@sportType				= @sporttype
-								,@transIDs				= @strDataByBatch
+								,@transIDs				= @transIDs
 								,@Action				= 'CAL'
 								,@ActionID				= @actionID
 								,@ErrCode				= @ErrCode		OUTPUT
