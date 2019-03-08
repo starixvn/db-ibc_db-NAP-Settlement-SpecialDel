@@ -114,7 +114,7 @@ BEGIN
                ,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
         FROM BetTrans b WITH (ROWLOCK)
         WHERE b.matchid = @matchid_tmp
-        	AND b.statusID NOT IN (101,102)
+        	--AND b.statusID NOT IN (101,102)
 			AND EXISTS ( SELECT 1
   						FROM @tblTransID t
   						WHERE b.transID = t.transID 
