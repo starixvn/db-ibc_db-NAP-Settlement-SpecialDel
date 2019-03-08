@@ -73,21 +73,22 @@ BEGIN
 		   ,@maxMarketID = MAX(marketID)
 	FROM #tblTransID
 	
-	
+		
 	--get result of market & cal modds
 	INSERT INTO #tblMarket (marketID, Result, modds)
-	SELECT DISTINCT bt.marketID
-					,mk.Result
-					,m.modds
-	FROM #tblTransID bt
-		INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON bt.MarketID = mk.MarketID
+	SELECT mk.marketID
+		   ,mk.Result
+		   ,m.modds
+	FROM DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK)
 		CROSS APPLY dbo.f_Set_Calculate_modds(@pfID, NULL, NULL, NULL, mk.Result, NULL, NULL, NULL) m
 	WHERE mk.MatchID = @MatchID 
 			AND mk.MarketID BETWEEN @minMarketID AND @maxMarketID
 			AND mk.VendorID = 34
 			AND mk.ResultStatusID NOT IN (0,1)
+			AND mk.MarketID IN (SELECT bt.MarketID FROM #tblTransID bt)
 		
 			
+	
 	--update #tblTransID
   	UPDATE #tblTransID
   	SET Result = mk.Result
@@ -97,7 +98,7 @@ BEGIN
 
   		
 	----------UNDO--------------------------------------------------------------
-	SET @transIDs 	= (SELECT transID		AS '@t'
+	SET @transIDs 			= (SELECT transID		AS '@t'
 							   FROM #tblTransID
 							   WHERE Result IS NULL
 							   FOR XML PATH('r'), ROOT( 'root' ))
@@ -116,7 +117,7 @@ BEGIN
 	
 		
 	----------REFUND------------------------------------------------------------
-	SET @transIDs 	= (SELECT transID		AS '@t'
+	SET @transIDs 			= (SELECT transID		AS '@t'
 							   FROM #tblTransID
 							   WHERE Result = 'REFUND'
 							   FOR XML PATH('r'), ROOT( 'root' ))
@@ -135,7 +136,7 @@ BEGIN
 		
 		
 	---------------CAL----------------------------------------------------------
-	SET @transIDs 	= (SELECT transID		AS '@t'
+	SET @transIDs 			= (SELECT transID		AS '@t'
 									  ,modds		AS '@m'
 									  ,1			AS '@ot'
 							   FROM #tblTransID
