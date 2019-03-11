@@ -8,7 +8,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 	
 	@ErrCode			INT				= 0		OUTPUT,
 	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
-	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT
+	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT,
+	@AutoReSettledTransIds   VARCHAR(MAX)	= '' OUTPUT
 AS
 /*
 	Created: Kathy
@@ -1552,6 +1553,42 @@ BEGIN
 					AND b.[Status] IN ('Accept', 'Confirm')
 		END
 	END
+
+	-- Re-Cal Bet Builder
+	IF(@IsExistBB = 1)
+	BEGIN
+		BEGIN TRY
+			CREATE TABLE #BetBuilderTransId(TransId BIGINT PRIMARY KEY);
+			INSERT INTO #BetBuilderTransId
+			SELECT b.TransId FROM #tblTransInfo b
+			WHERE b.bettype = 38;
+
+			DECLARE @xmlData xml;
+			SET @xmlData = (SELECT TransId AS [@Id] FROM #BetBuilderTransId 
+			FOR XML PATH('Resource'), ROOT('Resources'));
+
+			DECLARE @Resources VARCHAR(MAX) = CAST(@xmlData AS VARCHAR(MAX));
+
+			EXEC dbo.NAP_Admin_Settlement_BetBuilder_Recover
+				@AdminId = @UserId, @Resources = @Resources, @Ip = @Ip
+				,@ErrCode	= @ErrCode	OUTPUT
+				,@ErrMsg	= @ErrMsg	OUTPUT
+			
+			SET @AutoReSettledTransIds = ''			
+			SELECT @AutoReSettledTransIds = @AutoReSettledTransIds
+											+ CASE WHEN @AutoReSettledTransIds <> '' THEN ',' ELSE '' END
+											+ CAST(t.Transid AS VARCHAR(100))
+			FROM #BetBuilderTransId t
+				 INNER JOIN bettrans b (NOLOCK) ON t.TransId = b.transid
+			WHERE b.statusID IN (111, 112, 113, 103)
+
+			DROP TABLE #BetBuilderTransId;
+		END TRY 
+		BEGIN CATCH
+			SELECT @ErrCode = 38
+				,@ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'
+		END CATCH
+	END
 	
 	-- get data after update
 	INSERT INTO @tblAfterBalance(matchid, custid, balanceType, BonusID, WalletType, balance)
@@ -1721,7 +1758,7 @@ BEGIN
 		inner JOIN match m WITH(NOLOCK) 
 			ON	t.matchid = m.matchid
 	where	m.eventstatus = 'completed'
-			and t.bettype <> 10
+			and t.bettype NOT IN (10, 38)
 	UNION ALL
 	select	t.transid AS inputtransid,
 			t.custid,
