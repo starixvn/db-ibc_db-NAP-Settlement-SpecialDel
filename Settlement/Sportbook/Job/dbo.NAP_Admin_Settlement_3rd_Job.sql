@@ -18,6 +18,7 @@ BEGIN
 		, @AdminId			INT
 		, @IP				VARCHAR(15)
 		, @Action			VARCHAR(20)
+		, @ActionID			INT
 		, @ErrCode			INT
 		, @ErrMsg			NVARCHAR(200)
 		, @sqlCommand		NVARCHAR(max)
@@ -60,9 +61,25 @@ BEGIN
 	SELECT @ErrCode = 0, @ErrMsg = ''
 
 	--Get sporttype of previous calculated match
-	SELECT TOP 1 @pre_Sporttype = SportType
+	/*SELECT TOP 1 @pre_Sporttype = SportType
 	FROM dbo.Single_Calculate_Queue_3rd WITH (NOLOCK)
 	WHERE IsCalculating IN (2, 3)
+	ORDER BY execTime DESC*/
+	
+	SELECT TOP 1 @pre_Sporttype = SportType
+	FROM(
+		SELECT TOP 1 SportType, execTime
+		FROM dbo.Single_Calculate_Queue_3rd WITH (NOLOCK)
+		WHERE IsCalculating = 2
+		ORDER BY execTime DESC
+		
+		UNION ALL
+		
+		SELECT TOP 1 SportType, execTime
+		FROM dbo.Single_Calculate_Queue_3rd WITH (NOLOCK)
+		WHERE IsCalculating = 3
+		ORDER BY execTime DESC
+		) As t
 	ORDER BY execTime DESC
 
 	--Giving priority to calcualate the match which has sporttype <> previous calculated match
@@ -81,6 +98,7 @@ BEGIN
 		, @Adminid 		= AdminId
 		, @IP			= IP
 		, @Action		= Action
+		, @ActionID		= ActionID
 		, @sqlCommand	= sqlCommand
 	WHERE keyid = @keyId
 
@@ -135,6 +153,7 @@ BEGIN
 			ORDER BY Starttime DESC
 
 			EXEC dbo.NAP_Set_SB_ErrorHandling @Action = @Action
+				, @ActionIDInput = @ActionID
 				, @MatchId = @MatchId
 				, @sqlCommand = @sqlCommand
 				, @ErrMsg = @ErrMsg
