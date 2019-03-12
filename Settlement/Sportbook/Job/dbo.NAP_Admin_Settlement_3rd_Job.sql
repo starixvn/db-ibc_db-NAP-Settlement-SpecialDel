@@ -21,7 +21,7 @@ BEGIN
 		, @ActionID			INT
 		, @ErrCode			INT
 		, @ErrMsg			NVARCHAR(200)
-		, @sqlCommand		NVARCHAR(max)
+		, @sqlCommand		NVARCHAR(MAX)
 		, @keyId			INT
 		, @duration			INT
 		, @pre_Sporttype	SMALLINT
@@ -79,7 +79,7 @@ BEGIN
 		FROM dbo.Single_Calculate_Queue_3rd WITH (NOLOCK)
 		WHERE IsCalculating = 3
 		ORDER BY execTime DESC
-		) As t
+		) AS t
 	ORDER BY execTime DESC
 
 	--Giving priority to calcualate the match which has sporttype <> previous calculated match
