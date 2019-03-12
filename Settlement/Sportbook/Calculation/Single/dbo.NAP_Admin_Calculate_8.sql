@@ -79,7 +79,7 @@ BEGIN
 	SELECT custid, sRecommend
 	FROM dbo.bettrans WITH(NOLOCK) 
 	WHERE matchid = @matchid AND bettype = @bettype
-	GROUP BY custid, sRecommend
+	GROUP BY custid, sRecommend	
 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
@@ -108,7 +108,7 @@ BEGIN
 			DELETE FROM #currList
 
 			DELETE TOP (1000)
-			FROM #tempCust OUTPUT DELETED.custid, DELETED.isCN88 INTO #currList
+			FROM #tempCust OUTPUT DELETED.custid, DELETED.isCN88 INTO #currList(custid, isCN88)
 			IF @@ROWCOUNT = 0 BREAK
 
 			SELECT @MinCustId = MIN(custid) FROM #currList
@@ -317,11 +317,11 @@ BEGIN
 			DELETE FROM #currList
 
 			DELETE TOP (1000)
-			FROM #tempCust OUTPUT DELETED.custid INTO #currList
+			FROM #tempCust OUTPUT DELETED.custid, DELETED.isCN88 INTO #currList (custid, isCN88)
 			IF @@ROWCOUNT = 0 BREAK
-
+			
 			SELECT @MinCustId = MIN(custid) FROM #currList
-
+			
 			UPDATE b
 			SET @modds = CASE 
 					WHEN betteam IN ('h', 'o') THEN @totalht - hdp1
