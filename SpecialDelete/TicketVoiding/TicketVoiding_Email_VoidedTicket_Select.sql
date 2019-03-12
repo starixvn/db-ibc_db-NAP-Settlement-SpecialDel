@@ -55,6 +55,7 @@ BEGIN
 		,TransDesc		NVARCHAR(1000)
 		,Username		NVARCHAR(50)
 		
+		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(50)
 		,subOdds		SMALLMONEY
 		,subbetteam		NVARCHAR(10)
@@ -205,6 +206,7 @@ BEGIN
 			,betfrom = b.betfrom
 			,transdate = b.transdate
 
+			,IsMixParlay = 1
 			,subbetcheck = bm.betcheck
 			,subOdds = bm.odds
 			,subbetteam = bm.betteam
@@ -217,11 +219,8 @@ BEGIN
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettransm bm WITH(NOLOCK)
-			ON	t.subTransId = bm.transid
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)
-			ON	bm.refno = b.refno
-				AND b.matchid = 29
+		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	
 	SELECT	m.homeid
 			,m.awayId
@@ -248,7 +247,7 @@ BEGIN
 			,t.Bettype AS BetTypeId
 			,t.OriginalBettype
 			,t.Currency
-			,t.CurrencyName			
+			,t.CurrencyName	
 			,t.Hdp1 AS Handicap1
 			,t.Hdp2 AS Handicap2 
 			,t.LiveAwayScore
@@ -258,16 +257,17 @@ BEGIN
 			,t.oddstype
 			,t.WalletType
 			,t.RefCode
-			,t.ExtraInfo		
+			,t.ExtraInfo
 			,t.TransDesc
 
+			,t.IsMixParlay
 			,t.subTransId
 			,t.subbetcheck
 			,t.subOdds
 			,t.subbetteam
 			,t.subbettype
 			,t.subhdp1
-			,t.subhdp2			
+			,t.subhdp2
 			,t.subtransdesc
 			
 			,t.custId
@@ -275,7 +275,7 @@ BEGIN
 			,t.mrecommend
 			,t.srecommend
 			,c.username
-			,c.username2		
+			,c.username2
 			,ag.username AS AgUserName
 			,ma.username AS MagUserName
 			,su.username AS SagUserName
@@ -290,16 +290,11 @@ BEGIN
 			,@isITAdmin AS IsITSupport 
 
 	FROM	#tmpTicket t
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON t.matchid = m.matchid
-		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
-			ON c.custid = t.custid
-		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-			ON ag.custid = t.recommend 
-		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK)
-			ON ma.custid = t.mrecommend
-		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK)
-			ON su.custid = t.srecommend 		
+		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
+		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
+		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK) ON ag.custid = t.recommend 
+		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend
+		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend 	
 	ORDER BY TransId
 
 	--Metric API Calling  
@@ -314,10 +309,8 @@ BEGIN
 		,t.transdesc  
 		,tl.SiteId
 	FROM #tmpTicket t  
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)  
-			ON	t.transid = b.transid  
-		INNER JOIN dbo.translog tl WITH(NOLOCK)  
-			ON	tl.translogid = t.refno  
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid  
+		INNER JOIN dbo.translog tl WITH(NOLOCK) ON	tl.translogid = t.refno  
 	WHERE	t.Bettype IN (805,806)  
 	ORDER BY t.refno  
 	

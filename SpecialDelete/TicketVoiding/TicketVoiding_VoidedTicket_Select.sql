@@ -186,8 +186,7 @@ BEGIN
 				,recommend = b.recommend
 				,winlost = t.winlost - b.actual_stake
 		FROM	#tmpTicket t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) 
-				ON	t.TransId = b.transid
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 	
 		UPDATE	t
 			SET transid = b.transid
@@ -266,7 +265,7 @@ BEGIN
 				,srecommend = b.srecommend
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
-				,winlost = b.winlost - b.actual_stake
+				,winlost = t.winlost - b.actual_stake
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 	
