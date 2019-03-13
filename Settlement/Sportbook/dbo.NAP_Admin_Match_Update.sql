@@ -51,6 +51,7 @@ AS
         - 20171212@Kathy: Change on Refund page [Redmine:#86890]
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 
     Parameters Explanation:
 
@@ -114,7 +115,7 @@ BEGIN
         WHERE matchid = @MatchID
 
     END
-    IF @Command = 'NAP_Admin_Settlement_Refund_All'
+    IF @Command = 'NAP_Admin_Settlement_Refund-All'
     BEGIN
 
         SELECT @Sporttype = sporttype
@@ -279,7 +280,7 @@ BEGIN
             WHERE matchid=@MatchID
         END
     END
-    IF @Command = 'NAP_Admin_Settlement_RefundFT'
+    IF @Command = 'NAP_Admin_Settlement_Refund-FT'
     BEGIN
 
         IF ISNULL(@betstatus , '') = ''
@@ -333,7 +334,7 @@ BEGIN
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
     END
-    IF @Command = 'NAP_Admin_Settlement_RefundHT'
+    IF @Command = 'NAP_Admin_Settlement_Refund-HT'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
         SET hthomescore=0, htawayscore=0,

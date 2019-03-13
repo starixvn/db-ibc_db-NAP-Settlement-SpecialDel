@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT] 
 	@matchid INT
     ,@adminid INT
@@ -49,6 +45,7 @@ AS
 		- 20170321@Bobby: #73407 - CashOut integration
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
         - 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
+		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -224,13 +221,13 @@ BEGIN
 		/* --- END Settle Abandoned Match ---*/
 		DECLARE @RowCount INT
 
-		 EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_RefundHT'
+		 EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Refund-HT'
 			,@Matchid = @matchid
 			,@RowCount = @Rowcount OUTPUT
 			,@creator = @adminid
 
 		EXEC DBPRO.BODB02.dbo.[NAP_Admin_Result_Update_1s] 
-			@Command            = 'NAP_Admin_Settlement_RefundHT'
+			@Command            = 'NAP_Admin_Settlement_Refund-HT'
 			,@MatchID            = @matchid
 			,@isExistTotalCorner= @isExistTotalCorner
 			,@isExistHTFCorner    = @isExistHTFCorner
@@ -418,6 +415,4 @@ BEGIN
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_RefundHT] TO [bodbAdminNet]
 GO

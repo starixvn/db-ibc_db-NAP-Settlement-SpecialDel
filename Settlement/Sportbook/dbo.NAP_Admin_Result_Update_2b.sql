@@ -13,6 +13,7 @@ AS
 
 	Revision
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
+		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		
 	Param's Explanation: 
 
@@ -120,7 +121,7 @@ BEGIN
 				ON tr.ResourceId LIKE r.ResourceId
 		WHERE	MatchID = @MatchID
 	END
-	ELSE IF @Command IN('NAP_Admin_Settlement_1-CAL', 'NAP_Admin_Settlement_Refund_All','NAP_Admin_Settlement_2b-CAL', 'NAP_Admin_Settlement_2b-REFUND')
+	ELSE IF @Command IN('NAP_Admin_Settlement_1-CAL', 'NAP_Admin_Settlement_Refund-All','NAP_Admin_Settlement_2b-CAL', 'NAP_Admin_Settlement_2b-REFUND')
 	BEGIN		
 		UPDATE @tmpResult
 			SET HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
