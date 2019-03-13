@@ -87,8 +87,6 @@ BEGIN
 							   ,@action				 = 'UNDO'
 							   ,@IsSettingByProfile  = 1
 							   ,@strTransIds		 = @TransIDs
-	IF @ErrCode <> 0
-		RETURN
 	
 		
 	----------REFUND------------------------------------------------------------
@@ -102,9 +100,7 @@ BEGIN
 								@matchid	  		 = 0
 							   ,@action				 = 'REFUND'
 							   ,@IsSettingByProfile  = 1
-							   ,@strTransIds		 = @TransIDs
-	IF @ErrCode <> 0
-		RETURN				
+							   ,@strTransIds		 = @TransIDs		
 		
 		
 	---------------CAL----------------------------------------------------------
