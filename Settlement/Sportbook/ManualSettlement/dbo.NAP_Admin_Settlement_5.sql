@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_5] 
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_5] 
 	 @MatchID			INT 
 	,@Action			VARCHAR(10)	= 'CAL-SET'
 	,@Mode				VARCHAR(6)	= 'CAL'
@@ -294,6 +295,3 @@ BEGIN
 	END
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_5] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_5] TO [vnteam] AS [dbo]
