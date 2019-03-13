@@ -205,6 +205,7 @@ BEGIN
 				,oddstype = b.oddstype
 				,RefCode = b.RefCode
 				,stake = b.stake
+				,Status = b.status
 				,transdesc = b.transdesc
 				,Username = b.Username
 				,WalletType = b.WalletType
@@ -286,6 +287,7 @@ BEGIN
 				,oddstype = b.oddstype
 				,RefCode = b.RefCode
 				,stake = b.stake
+				,Status = b.status
 				,transdesc = b.transdesc
 				,Username = b.Username
 				,WalletType = b.WalletType
@@ -327,6 +329,7 @@ BEGIN
 					,oddstype = b.oddstype
 					,RefCode = b.RefCode
 					,stake = b.stake
+					,Status = b.status
 					,transdesc = b.transdesc
 					,Username = b.Username
 					,WalletType = b.WalletType

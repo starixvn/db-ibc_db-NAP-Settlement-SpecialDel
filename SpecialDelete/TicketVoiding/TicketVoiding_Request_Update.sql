@@ -55,7 +55,8 @@ BEGIN
 			,Source = ISNULL(@Source, Source)
 			,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
 			,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
-			,CheckedBy = ISNULL(@CheckedBy,CheckedBy)
+			-- @SubIssueTypeId IS NULL update @CheckBy
+			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 			,Remark = ISNULL(@Remark, Remark)
 	WHERE	RequestId = @RequestId
 
@@ -81,7 +82,7 @@ BEGIN
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ CASE WHEN @SubIssueTypeId IS NOT NULL THEN ' Old SubIssueTypeId: ' + CAST(@oldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN @ActionId IS NOT NULL THEN ' Old ActionId: ' + CAST(@oldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(30)) ELSE '' END
-								+ CASE WHEN @CheckedBy IS NOT NULL THEN ' Old CheckedBy: ' + CAST(@oldCheckedBy AS VARCHAR(20)) + ' CheckedBy: ' + CAST(@CheckedBy AS VARCHAR(30)) ELSE '' END
+								+ CASE WHEN @SubIssueTypeId IS NULL THEN ' Old CheckedBy: ' + CAST(@oldCheckedBy AS VARCHAR(20)) + ' CheckedBy: ' + CAST(@CheckedBy AS VARCHAR(30)) ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
