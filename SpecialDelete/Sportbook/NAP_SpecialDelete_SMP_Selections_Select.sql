@@ -22,8 +22,8 @@ BEGIN
 	
 	INSERT INTO #SelectionBetBuilder(MarketSelectionID, SelectionName, Result)
 	SELECT ms.MarketSelectionId, s.SelectionName, ms.Result
-	FROM dbo.SMP_MarketSelection ms WITH(NOLOCK)
-		INNER JOIN dbo.SMP_Selection s WITH(NOLOCK) ON  ms.SelectionType = s.SelectionType
+	FROM DBPRO.bodb02.dbo.SMP_MarketSelection ms WITH(NOLOCK)
+		INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s WITH(NOLOCK) ON  ms.SelectionType = s.SelectionType
 		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = @TransId AND b.betcheck = ms.MarketId AND b.matchid = ms.MatchId
 
 	SELECT s.MarketSelectionID, s.SelectionName, s.Result
