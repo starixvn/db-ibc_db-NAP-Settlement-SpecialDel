@@ -69,7 +69,14 @@ BEGIN
 		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
 	)
-	
+
+	CREATE TABLE #tmpRefCodeSummary (
+		 RefCode	BIGINT
+		 ,custid	INT
+		 ,bettype	SMALLINT
+		 ,transid	BIGINT
+	)
+
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
 	SET @SB_Error = 0
@@ -363,19 +370,25 @@ BEGIN
 
 	END
 
-	-- get bonus ticket
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.refcode IS NOT NULL)
+	-- Insert more bonus or cash ticket in case only one ticket appears in #tmpTransId	
+	INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
+	SELECT	RefCode, custid, bettype, MAX(transid) as transid
+	FROM	#tmpTransId t
+	WHERE	t.refcode IS NOT NULL
+	GROUP BY t.refcode, t.custid, t.bettype
+
+	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, TicketType, refcode)
-		SELECT	b.transid, b.custid, b.bettype, 1 AS balanceType, 1 AS TicketType, b.RefCode
-		FROM	#tmpTransId t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
-				ON	b.RefCode = t.refcode
-					AND b.transid <> t.TransId
+		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
+		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode
+		FROM #tmpRefCodeSummary r
+			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
+				ON	b.RefCode = r.RefCode
+					AND b.transid <> r.transid
 					AND b.matchid = @MatchId
-					AND b.custid = t.custid
-					AND b.bettype = t.bettype
-		WHERE	b.statusID NOT IN (101, 102)
+					AND b.custid = r.custid
+					AND b.bettype = r.bettype
+		WHERE b.statusID NOT IN (101,102 ) -- reject, void
 	END
 
 	SET @FailedTransIds = NULL
@@ -736,5 +749,6 @@ BEGIN
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 END
+
 GO
 
