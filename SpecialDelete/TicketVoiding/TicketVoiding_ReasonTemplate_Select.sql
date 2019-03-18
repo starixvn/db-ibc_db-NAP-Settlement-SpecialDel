@@ -21,7 +21,7 @@ BEGIN
 	SELECT	Sporttype
 			,ReasonEnglish
 			,ReasonChineseSimplified
-	FROM	dbo.TicketVoiding_ReasonTemplate
+	FROM	dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
 	WHERE	1 = CASE 
 					WHEN Sporttype = @Sporttype THEN 1
 					WHEN Sporttype = 0 THEN 1

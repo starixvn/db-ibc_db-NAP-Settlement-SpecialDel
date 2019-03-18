@@ -55,11 +55,12 @@ BEGIN
 			,status = 'VOID'
 			,betid = t.BetId
 	FROM	@tmpTrans t
-        INNER JOIN dbo.bettrans b ON  t.transid = b.transid
+        INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
+			ON  t.transid = b.transid
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMG = 1)
 	BEGIN
-		UPDATE	tl
+		UPDATE	tl 
 			SET status = 'VOID'
 				,statusID = 102
 				,creator = @UserId

@@ -16,7 +16,7 @@ BEGIN
 
 	SELECT s.SportType
 			,s.SportName
-	FROM	dbo.Sports s
+	FROM	dbo.Sports s WITH(NOLOCK)
 	WHERE	(s.SportType BETWEEN 1 AND 99 
 			OR s.SportType = 154)
 			AND s.SportType <> 27 -- old cricket
