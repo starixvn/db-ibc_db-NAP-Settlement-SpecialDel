@@ -179,8 +179,8 @@ RETURN (
 	UNION ALL SELECT 2,    431  ,  0, 0, 1, 0, '2H', 0, 0,0
 	UNION ALL SELECT 2,    432  ,  0, 0, 1, 0, '2H', 0, 0,0
 	UNION ALL SELECT 2,    433  ,  1, 0, 1, 0, '2H', 2, 0,0
-	UNION ALL SELECT 2,    434  ,  1, 0, 1, 0, 'FT', 2, 0,1
-	UNION ALL SELECT 2,    435  ,  1, 0, 1, 0, 'FT', 3, 0,1
+	UNION ALL SELECT 2,    434  ,  1, 0, 1, 0, 'FT', 2, 0,0
+	UNION ALL SELECT 2,    435  ,  1, 0, 1, 0, 'FT', 3, 0,0
 	UNION ALL SELECT 2,    436  ,  1, 0, 1, 0, 'FT', 2, 0,0
 	UNION ALL SELECT 2,    437  ,  1, 0, 1, 0, 'FT', 2, 0,0
 	UNION ALL SELECT 2,    438  ,  1, 0, 1, 0, 'FT', 2, 0,0
