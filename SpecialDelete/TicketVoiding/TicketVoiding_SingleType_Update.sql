@@ -388,7 +388,8 @@ BEGIN
 					AND b.matchid = @MatchId
 					AND b.custid = r.custid
 					AND b.bettype = r.bettype
-		WHERE b.statusID NOT IN (101,102 ) -- reject, void
+		WHERE	b.statusID NOT IN (101,102 ) -- reject, void
+				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE b.transid = TransId)
 	END
 
 	SET @FailedTransIds = NULL

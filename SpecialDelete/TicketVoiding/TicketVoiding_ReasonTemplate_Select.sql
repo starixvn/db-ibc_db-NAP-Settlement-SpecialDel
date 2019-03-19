@@ -22,11 +22,7 @@ BEGIN
 			,ReasonEnglish
 			,ReasonChineseSimplified
 	FROM	dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
-	WHERE	1 = CASE 
-					WHEN Sporttype = @Sporttype THEN 1
-					WHEN Sporttype = 0 THEN 1
-					ELSE 0
-				END		
+	WHERE	Sporttype = @Sporttype 
 			AND SubIssueTypeId = @SubIssueTypeId
 
 END

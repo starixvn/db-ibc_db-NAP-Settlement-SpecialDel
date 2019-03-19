@@ -71,7 +71,11 @@ BEGIN
 		,isITAdmin		BIT
 		
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
+		,MainTransId 	BIGINT
+		,IsCashOut		BIT
 	)
+	
+	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (UserId,2)),0)
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
@@ -80,7 +84,7 @@ BEGIN
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) VALUES (@VoidingHistoryId)		
 			
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -90,6 +94,7 @@ BEGIN
 			,z.bettype
 			,z.refno
 			,z.odds
+			,z.IsCashOut
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	z.transid
@@ -101,6 +106,7 @@ BEGIN
 					,z.bettype
 					,z.refno
 					,z.odds
+					,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCashOut
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND 1 = CASE
@@ -131,17 +137,6 @@ BEGIN
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
-
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
-	BEGIN
-		UPDATE t
-			SET OriginalBettype = b.bettype
-				,odds = b.odds
-		FROM	#tmpTicket t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
-				ON t.Refno = b.transid
-		WHERE	t.Bettype = 911
-	END
 
 	UPDATE t 
 		SET actual_stake = b.actual_stake
@@ -222,6 +217,40 @@ BEGIN
 		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
+	BEGIN		
+		UPDATE sub911
+			SET OriginalBettype = main.bettype
+				,odds = main.odds
+				,MainTransId = main.TransId
+		FROM	#tmpTicket sub911
+			INNER JOIN #tmpTicket main WITH(NOLOCK)
+				ON sub911.Refno = main.transid
+		WHERE	sub911.Bettype = 911
+		
+		UPDATE subCO 
+			SET MainTransId = sub911.MainTransId
+		FROM	#tmpTicket subCO
+			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
+				ON subCO.Refno = sub911.transid
+		WHERE	subCO.IsCashOut = 1
+				AND sub911.bettype = 911
+	END
+
+	-- Update maintransid for bonus ticket
+	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
+	BEGIN
+		UPDATE sub 
+			SET maintransid = main.transid
+		FROM	#tmpTicket sub  
+			INNER JOIN #tmpTicket main 
+				ON 	main.refcode = sub.refcode
+					AND main.transid <> sub.transid
+					AND main.custid = sub.custid
+					AND main.bettype = sub.bettype
+		WHERE	main.wallettype = 1
+	END	
+
 	SELECT	m.homeid
 			,m.awayId
 			,m.awayid AS subawayid 
@@ -295,7 +324,15 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK) ON ag.custid = t.recommend 
 		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend
 		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend 	
-	ORDER BY TransId
+	ORDER BY ISNULL(t.MainTransId, t.transid)
+		   , CASE 
+				WHEN t.BonusID IS NOT NULL
+						THEN CASE 
+								WHEN t.MainTransId IS NULL THEN 1
+								ELSE 2 
+							 END
+				ELSE t.transid
+			 END
 
 	--Metric API Calling  
 	SELECT t.refno  

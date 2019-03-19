@@ -83,7 +83,11 @@ BEGIN
 		,VoidedTime		DATETIME
 		,isITAdmin		BIT
 		,IsCashOut		BIT
+		,MainTransId 	BIGINT
+		,BonusId		INT
 	)
+
+	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) 
 	SELECT	vh.VoidingHistoryId
@@ -145,20 +149,9 @@ BEGIN
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 					AND zm.matchid = @MatchId
 		) zm
-
+		
 	IF @IsMovebet = 0
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
-		BEGIN
-			UPDATE t
-				SET OriginalBettype = b.bettype
-					,odds = b.odds
-			FROM	#tmpTicket t
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON t.Refno = b.transid
-			WHERE	t.Bettype = 911
-		END
-
 		UPDATE t 
 			SET Betcheck = b.betcheck
 				,betdaqid = b.betdaqid
@@ -185,6 +178,7 @@ BEGIN
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
 				,winlost = t.winlost - b.actual_stake
+				,BonusID = b.BonusId
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 	
@@ -230,17 +224,6 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
-		BEGIN
-			UPDATE t
-				SET OriginalBettype = b.bettype
-					,odds = b.odds
-			FROM	#tmpTicket t
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON t.Refno = b.transid
-			WHERE	t.Bettype = 911
-		END
-
 		UPDATE t 
 			SET Betcheck = b.betcheck
 				,betdaqid = b.betdaqid
@@ -267,9 +250,10 @@ BEGIN
 				,mrecommend = b.mrecommend
 				,recommend = b.recommend
 				,winlost = t.winlost - b.actual_stake
+				,BonusID = b.BonusId
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
-	
+		
 		UPDATE	t
 			SET transid = b.transid
 				,Betcheck = b.betcheck
@@ -354,6 +338,40 @@ BEGIN
 		END
 	END
 
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
+	BEGIN		
+		UPDATE sub911
+			SET OriginalBettype = main.bettype
+				,odds = main.odds
+				,MainTransId = main.TransId
+		FROM	#tmpTicket sub911
+			INNER JOIN #tmpTicket main WITH(NOLOCK)
+				ON sub911.Refno = main.transid
+		WHERE	sub911.Bettype = 911
+		
+		UPDATE subCO 
+			SET MainTransId = sub911.MainTransId
+		FROM	#tmpTicket subCO
+			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
+				ON subCO.Refno = sub911.transid
+		WHERE	subCO.IsCashOut = 1
+				AND sub911.bettype = 911
+	END
+
+	-- Update maintransid for bonus ticket
+	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
+	BEGIN
+		UPDATE sub 
+			SET maintransid = main.transid
+		FROM	#tmpTicket sub  
+			INNER JOIN #tmpTicket main 
+				ON 	main.refcode = sub.refcode
+					AND main.transid <> sub.transid
+					AND main.custid = sub.custid
+					AND main.bettype = sub.bettype
+		WHERE	main.wallettype = 1
+	END	
+
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
 	FROM	#tmpTicket al
@@ -402,6 +420,8 @@ BEGIN
 			   ,s.RefCode
 			   ,s.IsCashOut
 			   ,s.winlost
+			   ,s.MainTransId
+			   ,s.BonusId
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL
@@ -453,6 +473,8 @@ BEGIN
 			   ,s.RefCode
 			   ,s.IsCashOut
 			   ,s.winlost
+			   ,s.MainTransId
+			   ,s.BonusId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
 		WHERE	s.recommend IN (52466, 5707545)
@@ -499,6 +521,8 @@ BEGIN
 			   ,s.RefCode
 			   ,s.IsCashOut
 			   ,s.winlost
+			   ,s.MainTransId
+			   ,s.BonusId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -550,10 +574,14 @@ BEGIN
 		   ,s.RefCode
 		   ,s.IsCashOut
 		   ,s.winlost
+		   ,s.MainTransId
+		   ,s.BonusId
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
 	SELECT s.transid
+			,s.MainTransId
+			,s.BonusId
 		   ,s.SubTransid
 		   ,s.refno		
 		   ,s.custid		
@@ -604,6 +632,14 @@ BEGIN
 				WHEN s.GroupName = 'Deposit' THEN 3
 				WHEN s.GroupName = 'Betfair' THEN 4
 			 END
-		   , s.transid
+		   , ISNULL(s.MainTransId, s.transid)
+		   , CASE 
+				WHEN s.BonusID IS NOT NULL
+						THEN CASE 
+								WHEN s.MainTransId IS NULL THEN 1
+								ELSE 2 
+							 END
+				ELSE s.transid
+			 END		
 END
 GO
