@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_s213] 
 	@strXML VARCHAR(MAX),
 	@CalledByBrokerService BIT = 0 
@@ -10,13 +11,14 @@ AS
 	
 	Revisions:
 		- 20161214@Johnson: correct comm value [redmine:#68766]
+		- 20190319@Johnson: migrate server DB061,062 [redmine: #110514]
 	Parameter's Explanation:
 	
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06' ,'DB231\DBSPU2' ,'DB232\DBSPU2') AND @CalledByBrokerService = 0
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DB061', 'DB062', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06' ,'DB231\DBSPU2' ,'DB232\DBSPU2') AND @CalledByBrokerService = 0
 	BEGIN
 		-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 		DECLARE @sMessage NVARCHAR(MAX)
