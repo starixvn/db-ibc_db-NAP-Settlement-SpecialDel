@@ -11,6 +11,7 @@ AS
 	Revisions: 		
 		- 20161026@Kent: Check negative balance after recovering voided Parlay tickets [Redmine:#65531]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
+		- 20190321@Alan: Do not check negative balance for CN88 [109858]
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -76,7 +77,7 @@ BEGIN
 		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
 			ON	bal.custid = c.custid
 		INNER JOIN custDB.dbo.Customer ag WITH(NOLOCK) 
-			ON	ag.custid = c.recommend
+			ON	ag.custid = c.recommend AND ag.site <> 'CN88'
 		LEFT JOIN @BalNetPositionTmp tt ON bal.CustId = tt.CustId
 	WHERE (c.credit + bal.balance + ISNULL(tt.Balance, 0)) < 0	
 END

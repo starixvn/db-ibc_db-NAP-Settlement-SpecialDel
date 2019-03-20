@@ -39,6 +39,7 @@ AS
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
+		- 20190320@Alan: Add CN88 into Others Group [109858]
 		
 	Param's Explanation:			
 			- @TicketType:
@@ -56,7 +57,8 @@ BEGIN
 	-- Constant
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
 		  , @789y_Name	   VARCHAR(50) = '789y'	
-		  , @y987_Name	   VARCHAR(50) = 'y987'	  
+		  , @y987_Name	   VARCHAR(50) = 'y987'
+		  , @cn88_Name		VARCHAR(50) = 'CN88'	  
 		  , @VoidPatchSize INT = 100
 	
 	DECLARE @LogData					NVARCHAR(500) = ''
@@ -244,7 +246,7 @@ BEGIN
 	DELETE FROM #t_LicenseeNames 
 	OUTPUT DELETED.GroupName 
 			INTO #t_UIRepresentativeLicenseeGroupNames(GroupName)
-	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name)
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -262,14 +264,11 @@ BEGIN
 							SELECT cte.[site]
 							FROM CTE_CreditSit cte
 							WHERE CASE
-										WHEN t.GroupName = @MBCGroup_Name 
-											 AND cte.[site] NOT IN (@789y_Name, @y987_Name) 
-													THEN 1
-										WHEN t.GroupName = @789y_Name 
-											 AND cte.[site] IN (@789y_Name, @y987_Name) 
-													THEN 1
-										ELSE 0
-								  END = 1
+								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) THEN 1
+								WHEN t.GroupName = @789y_Name AND cte.[site] IN (@789y_Name, @y987_Name) THEN 1
+								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1
+								ELSE 0
+							END = 1
 						 ) AS cte
 	END						 
 	
@@ -1164,7 +1163,7 @@ BEGIN
 									 , CASE 
 											WHEN isLicensee = 0		  
 												 AND isActive = 1	
-												 AND [site] <> @789y_Name 
+												 AND [site] NOT IN (@789y_Name, @cn88_Name)
 													THEN @MBCGroup_Name
 											ELSE [site]
 									   END AS GroupName
@@ -1558,9 +1557,9 @@ BEGIN
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
 				WHERE t.BetType NOT BETWEEN 901 AND 910
-				  AND t.BetType NOT BETWEEN 911 AND 914				
+				  AND t.BetType NOT BETWEEN 911 AND 914
 				UNION ALL
-				-- sub bettrade (901,902,903)												
+				-- sub bettrade (901,902,903)
 				SELECT sub.custid
 					 , 0 AS BonusID -- bet trade sub tickets always bet from cash wallet
 					 , 2 AS WalletType -- bet trade sub tickets always bet from cash wallet

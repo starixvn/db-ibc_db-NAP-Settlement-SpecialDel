@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select] 
 	@MatchID		INT,
 	@LicenseeNames	VARCHAR(MAX),
@@ -20,7 +20,7 @@ AS
 		- 20180306@Kathy: get Refcode value [Redmine:#91461]
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
-
+		- 20190320@Alan: Add CN88 into Others Group [109858]
 	
 	Param's Explanation:			
 			- @TicketType:
@@ -32,9 +32,10 @@ BEGIN
 	SET NOCOUNT ON
 	
 	-- Constant
-	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
-		  , @789y_Name	   VARCHAR(50) = '789y'
-		  , @y987_Name	   VARCHAR(50) = 'y987'
+	DECLARE @MBCGroup_Name	VARCHAR(50) = 'MBC Group'
+		  , @789y_Name		VARCHAR(50) = '789y'
+		  , @y987_Name		VARCHAR(50) = 'y987'
+		  , @cn88_Name		VARCHAR(50) = 'CN88'
 	
 	DECLARE @SearchSingle BIT
 		  , @SearchParlay BIT
@@ -122,7 +123,7 @@ BEGIN
 	DELETE FROM #t_LicenseeNames 
 	OUTPUT DELETED.GroupName 
 			INTO #t_UIRepresentativeLicenseeGroupNames(GroupName)
-	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name)
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -140,14 +141,10 @@ BEGIN
 							SELECT cte.[site]
 							FROM CTE_CreditSit cte
 							WHERE CASE
-										WHEN t.GroupName = @MBCGroup_Name 
-											 AND cte.[site] NOT IN (@789y_Name, @y987_Name) 
-													THEN 1
-										WHEN t.GroupName = @789y_Name 
-											 AND cte.[site] IN (@789y_Name, @y987_Name) 
-													THEN 1
-										ELSE 0
-								  END = 1
+								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) THEN 1
+								WHEN t.GroupName = @789y_Name AND cte.[site] IN (@789y_Name, @y987_Name) THEN 1
+								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0 
+								END = 1
 						 ) AS cte
 	END					 				  			   	  	  			  
 	
@@ -1017,9 +1014,10 @@ BEGIN
 									ELSE 0
 							 END AS IsDeposit) AS T1						 
 	ORDER BY CASE
-				WHEN s.GroupName = @MBCGroup_Name THEN 1
+				WHEN s.GroupName = @cn88_Name THEN 1
 				WHEN s.GroupName = @789y_Name THEN 2
-				ELSE 3
+				WHEN s.GroupName = @MBCGroup_Name THEN 3
+				ELSE 4
 		     END ASC
 		   , s.GroupName ASC
 		   , s.IsMixParlay ASC

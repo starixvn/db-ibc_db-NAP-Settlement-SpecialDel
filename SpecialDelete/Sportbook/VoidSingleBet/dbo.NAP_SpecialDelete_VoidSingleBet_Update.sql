@@ -1907,7 +1907,7 @@ BEGIN
 		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
 		FROM #BeforeUpd b
 			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
-		WHERE b.balance > a.balance	
+		WHERE b.balance > a.balance
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
