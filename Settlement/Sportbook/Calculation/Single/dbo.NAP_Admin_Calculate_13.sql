@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_13] @matchid INT
 	,@IsSettleAbandonedMatchBetFair BIT = 0
 	,@IsSettleAbandonedMatchIBC BIT = 0
 	,@betcount INT = 0
+	,@IsReSettledTickets BIT = 1
 AS
 /*
 	Created by: Kathy
@@ -26,6 +27,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -304,6 +306,7 @@ BEGIN
 				FROM	dbo.bettrans WITH(NOLOCK)
 				WHERE	matchid = @matchid
 						AND bettype = @bettype
+						AND statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE statusID END
 			)b
 			CROSS APPLY (	
 				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -483,9 +486,17 @@ BEGIN
 								ELSE 0
 							END AS IsCalculated
 				)i
+				OUTER APPLY (
+					SELECT TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transId
+							AND mt.CustId = c.custid
+				)mt
 			WHERE	matchid = @matchid AND bettype = @bettype
 					AND statusID NOT IN (101, 102)
 					AND i.IsCalculated = 1
+					AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+					AND mt.TransId IS NULL
 
 			SET @BatchNo = @BatchNo - 1
 				

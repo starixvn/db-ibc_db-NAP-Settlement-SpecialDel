@@ -1,15 +1,16 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
-	,@Action		VARCHAR(20)
-	,@Results		VARCHAR(MAX)
-	,@EventCounters	VARCHAR(MAX)	= NULL
+	,@Action				VARCHAR(20)
+	,@Results				VARCHAR(MAX)
+	,@EventCounters			VARCHAR(MAX)	= NULL
 
-	,@IsAuto		BIT				= 0
-	,@AdminId		INT				= 0
-	,@Ip			VARCHAR(20)		= ''
+	,@IsAuto				BIT				= 0
+	,@AdminId				INT				= 0
+	,@Ip					VARCHAR(20)		= ''
+	,@IsReSettledTickets	BIT				= 1
 
-	,@ErrCode		INT				= 0		OUTPUT
-	,@ErrMsg		VARCHAR(200)	= ''	OUTPUT
+	,@ErrCode				INT				= 0		OUTPUT
+	,@ErrMsg				VARCHAR(200)	= ''	OUTPUT
 AS
 /*
 	Created: 20160427@Patrick
@@ -21,6 +22,8 @@ AS
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -103,7 +106,7 @@ BEGIN
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT @matchId AS matchid
-		, 1 AS KeyID
+		, 6 AS KeyID
 		
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -202,6 +205,7 @@ BEGIN
 				,@action = 'CAL-FM'
 				,@mode = @Action
 				,@XmlData = @Results
+				,@IsReSettledTickets = @IsReSettledTickets
 		END
 	END TRY
 	BEGIN CATCH

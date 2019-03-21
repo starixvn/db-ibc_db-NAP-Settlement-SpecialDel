@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_5] @matchid INT
 	,@fth SMALLMONEY = 0
 	,@fta SMALLMONEY = 0
 	,@betcount INT = 0
+	,@IsReSettledTickets BIT	= 1
 AS
 /*
 	Created by: Kathy
@@ -25,6 +26,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
 */
 BEGIN
@@ -55,11 +57,25 @@ BEGIN
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY)
 
-	INSERT INTO #tempCust(custid)
-	SELECT custid
-	FROM dbo.bettrans WITH(NOLOCK) 
-	WHERE matchid = @matchid AND bettype = @bettype
-	GROUP BY custid
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tempCust (custid)
+		SELECT	b.custid
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.bettype = @bettype
+				AND b.statusID = 0
+		GROUP BY b.custid
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tempCust(custid)
+		SELECT	custid
+		FROM	dbo.bettrans WITH(NOLOCK) 
+		WHERE	matchid = @matchid 
+				AND bettype = @bettype
+		GROUP BY custid
+	END
      
 	CREATE TABLE #currList (custid INT PRIMARY KEY)
 	DECLARE @MinCustId INT
@@ -222,12 +238,21 @@ BEGIN
 				WHEN @modds < 0 THEN 113 --LOSE
 				END
 			,ruben = 1
-		FROM #currList t 
-			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
-		WHERE matchid = @matchid 
-			AND b.custid >= @MinCustId
-			AND bettype = @bettype 
-			AND statusID NOT IN (101, 102)
+		FROM	#currList t 
+			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
+				ON	t.custid = b.custid
+			OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+							AND mt.CustId = t.custId
+				) mt
+		WHERE	matchid = @matchid 
+				AND b.custid >= @MinCustId
+				AND bettype = @bettype 
+				AND statusID NOT IN (101, 102)
+				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND mt.TransId IS NULL
 		OPTION (FORCE ORDER)
 
 		WAITFOR DELAY '00:00:00:010'

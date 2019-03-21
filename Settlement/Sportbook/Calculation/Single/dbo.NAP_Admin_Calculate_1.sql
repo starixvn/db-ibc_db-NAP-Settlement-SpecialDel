@@ -1,21 +1,22 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_1] 
      @matchid INT
-    ,@bettype                SMALLINT
-    ,@fth                    SMALLMONEY    = NULL
-    ,@fta                    SMALLMONEY    = NULL 
-    ,@SelectedSet            VARCHAR(50) = NULL 
-    ,@TotalGameHomeSet1        SMALLMONEY    = NULL 
-    ,@TotalGameHomeSet2        SMALLMONEY    = NULL 
-    ,@TotalGameHomeSet3        SMALLMONEY    = NULL 
-    ,@TotalGameHomeSet4        SMALLMONEY    = NULL 
-    ,@TotalGameHomeSet5        SMALLMONEY    = NULL 
-    ,@TotalGameAwaySet1        SMALLMONEY    = NULL 
-    ,@TotalGameAwaySet2        SMALLMONEY    = NULL 
-    ,@TotalGameAwaySet3        SMALLMONEY    = NULL 
-    ,@TotalGameAwaySet4        SMALLMONEY    = NULL 
-    ,@TotalGameAwaySet5        SMALLMONEY    = NULL 
-    ,@betcount                INT = 0
+    ,@bettype				SMALLINT
+    ,@fth					SMALLMONEY		= NULL
+    ,@fta					SMALLMONEY		= NULL 
+    ,@SelectedSet			VARCHAR(50)		= NULL 
+    ,@TotalGameHomeSet1		SMALLMONEY		= NULL 
+    ,@TotalGameHomeSet2		SMALLMONEY		= NULL 
+    ,@TotalGameHomeSet3		SMALLMONEY		= NULL 
+    ,@TotalGameHomeSet4		SMALLMONEY		= NULL 
+    ,@TotalGameHomeSet5		SMALLMONEY		= NULL 
+    ,@TotalGameAwaySet1		SMALLMONEY		= NULL 
+    ,@TotalGameAwaySet2		SMALLMONEY		= NULL 
+    ,@TotalGameAwaySet3		SMALLMONEY		= NULL 
+    ,@TotalGameAwaySet4		SMALLMONEY		= NULL 
+    ,@TotalGameAwaySet5		SMALLMONEY		= NULL 
+    ,@betcount              INT				= 0
+	,@IsReSettledTickets	BIT				= 1
     -- add any params, please modify script in 'special section'
 AS
 /*
@@ -39,6 +40,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
         - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -71,14 +73,27 @@ BEGIN
 		,@stake MONEY
 		,@commBettypeGroupId SMALLINT
 	
+	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
-    CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
-
-    INSERT INTO #tempCust(custid, sRecommend)
-    SELECT bt.custid, srecommend
-    FROM dbo.bettrans bt WITH(NOLOCK) 
-    WHERE matchid = @matchid AND bettype = @bettype
-	GROUP BY bt.custid, bt.srecommend
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tempCust (custid, srecommend)
+		SELECT	b.custid, b.srecommend
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.bettype = @bettype
+				AND b.statusID = 0
+		GROUP BY b.custid, b.srecommend
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tempCust(custid, sRecommend)
+		SELECT	b.custid, b.srecommend
+		FROM	dbo.bettrans b WITH(NOLOCK) 
+		WHERE	b.matchid = @matchid 
+				AND b.bettype = @bettype
+		GROUP BY b.custid, b.srecommend
+	END
 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
@@ -93,7 +108,7 @@ BEGIN
     CREATE TABLE #currList (custid INT PRIMARY KEY, isCN88 bit)
 	DECLARE @MinCustId INT
 
-	WHILE 1 = 1
+    WHILE 1 = 1
     BEGIN
         DELETE FROM #currList
 
@@ -305,11 +320,18 @@ BEGIN
 				END
 			,ruben = 1
 		FROM #currList t 
-			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
+			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
+				ON	t.custid = b.custid
+			OUTER APPLY (
+				SELECT TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transId
+						AND mt.CustId = t.custid
+			)mt
 		WHERE matchid = @matchid 
 			AND b.custid >= @MinCustId
-			AND bettype = @bettype 
-			AND statusID NOT IN (101,102) -- REJECT & VOID 				
+			AND b.bettype = @bettype 
+			AND b.statusID NOT IN (101,102) -- REJECT & VOID 	
 			AND 1 = CASE WHEN @Bettype NOT IN (154,155,1311, 1316) THEN 1
 							WHEN @Bettype IN (154,155,1311, 1316) AND @SelectedSet LIKE '%1%' AND BetID = 801 THEN 1
 							WHEN @Bettype IN (154,155,1311, 1316) AND @SelectedSet LIKE '%2%' AND BetID = 802 THEN 1
@@ -317,6 +339,8 @@ BEGIN
 							WHEN @Bettype IN (154,155,1311, 1316) AND @SelectedSet LIKE '%4%' AND BetID = 804 THEN 1
 							WHEN @Bettype IN (154,155,1311, 1316) AND @SelectedSet LIKE '%5%' AND BetID = 805 THEN 1
 							ELSE 0 END
+			AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+			AND mt.TransId IS NULL
 		OPTION (FORCE ORDER)
 
 		WAITFOR DELAY '00:00:00:010'

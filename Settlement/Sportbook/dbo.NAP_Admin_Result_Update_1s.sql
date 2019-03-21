@@ -43,6 +43,7 @@ AS
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
         - 20180720@Vicky: Refund FT without Settle Determined [Redmine:#92859]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
+		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
         
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -831,7 +832,7 @@ BEGIN
                 );   
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
-    ELSE IF @Command ='NAP_Admin_Settlement_FGLG'
+    ELSE IF @Command ='NAP_Admin_Settlement-FGLG'
     BEGIN
         MERGE   ResultDetail AS TARGET
         USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
@@ -872,7 +873,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END 
-    /* END - @Command = 'NAP_Admin_Settlement_FGLG' */
+    /* END - @Command = 'NAP_Admin_Settlement-FGLG' */
     ELSE IF @Command ='NAP_Admin_Settlement_Corner-CAL'
     BEGIN
         INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)

@@ -181,6 +181,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@strTransCashout				VARCHAR (MAX) = NULL OUTPUT
     ,@CalledByBrokerService         BIT         = 0
     ,@IsSettingByProfile            BIT 		= NULL
+	,@IsReSettledTickets			BIT			= 1
+
 AS
 /*
     Created: Viet
@@ -230,6 +232,7 @@ AS
         - 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
         @action             @mode
@@ -456,6 +459,7 @@ BEGIN
 
             + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ' + '''' + CONVERT(NVARCHAR(50), @SelectedQuarter) + '''' END
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
+			 + CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -511,6 +515,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 16 : HT/FT
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 16)
@@ -521,6 +526,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 17)
                     EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
@@ -528,12 +534,14 @@ BEGIN
                         ,@fth = @home_2nd
                         ,@fta = @away_2nd
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 18)
                     EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
                         ,@bettype = 18
                         ,@totalgoal = @totalgoal_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 20 : Money Line
                 -- IF @betcount_20 > 0
@@ -554,6 +562,7 @@ BEGIN
                             ,@fth = @fth
                             ,@fta = @fta
                             ,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 124: FT 1x2 HDP
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 124)
@@ -562,6 +571,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1 ---parametter @betcount has not used, will be removed later
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 2 : Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 2)
@@ -569,6 +579,7 @@ BEGIN
                         ,@bettype = 2
                         ,@oddeven = @oddeven
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 3 : Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 3)
@@ -576,6 +587,7 @@ BEGIN
                         ,@bettype = 3
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 4 : Correct Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 4)
@@ -589,6 +601,7 @@ BEGIN
                         ,@fta = @fta
                         ,@FGLG2 = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 5 : 1x2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 5)
@@ -596,6 +609,7 @@ BEGIN
                         ,@bettype = 5
                         ,@whowin = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 6 : Total Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 6)
@@ -603,6 +617,7 @@ BEGIN
                         ,@bettype = 6
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 13 : Clean Sheet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 13)
@@ -611,6 +626,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 24 : Double Chance
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 24)
@@ -618,6 +634,7 @@ BEGIN
                         ,@bettype = 24
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 25 : Draw no bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 25)
@@ -625,6 +642,7 @@ BEGIN
                         ,@bettype = 25
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 26 : Both/One/Neither team to score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 26)
@@ -633,6 +651,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 27 : To win to nil
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 27)
@@ -641,6 +660,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 28 : 3-way handicap
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 28)
@@ -649,6 +669,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 121 : Home no bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 121)
@@ -656,6 +677,7 @@ BEGIN
                         ,@bettype = 121
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 122 : Away no bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 122)
@@ -663,6 +685,7 @@ BEGIN
                         ,@bettype = 122
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 123 : Draw/No Draw
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 123)
@@ -670,6 +693,7 @@ BEGIN
                         ,@bettype = 123
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 133 : Home To Win Both Halves
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 133)
@@ -680,6 +704,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 134 : Away To win Both halves
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 134)
@@ -690,6 +715,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 140 : Highest scoring half
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 140)
@@ -700,6 +726,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 141 : Highest Scoring Half Home Team
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 141)
@@ -710,6 +737,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 142 : Highest Scoring Half Away Team
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 142)
@@ -720,6 +748,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 145 : Both Teams To Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 145)
@@ -730,6 +759,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 146 : 2nd Half Both Teams To Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 146)
@@ -740,6 +770,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 147 : Home To Score In Both Halves
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 147)
@@ -750,6 +781,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
                 -- bettype 148 : Away To Score In Both Halves
@@ -761,6 +793,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 149 : Home To Win Either Half
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 149)
@@ -771,6 +804,7 @@ BEGIN
                     ,@hth = @hth
                     ,@hta = @hta
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 150 : Away To Win Either Half
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 150)
@@ -781,6 +815,7 @@ BEGIN
                     ,@hth = @hth
                     ,@hta = @hta
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 152 : Half time/Fulltime Correct Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 152)
@@ -791,6 +826,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 128 : HT/FT Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 128)
@@ -799,6 +835,7 @@ BEGIN
                         ,@oddeven = @oddeven
                         ,@oddevenht = @oddevenht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 130 : Exact Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 130)
@@ -806,6 +843,7 @@ BEGIN
                         ,@bettype = 130
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 131 : Home Team Total Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 131)
@@ -813,6 +851,7 @@ BEGIN
                         ,@bettype = 131
                         ,@totalgoal = @totalhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 132 : Away Team Total Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 132)
@@ -820,6 +859,7 @@ BEGIN
                         ,@bettype = 132
                         ,@totalgoal = @totalaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 137 : Home Team Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 137)
@@ -827,6 +867,7 @@ BEGIN
                         ,@bettype = 137
                         ,@oddeven = @oddevenhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 139 : Away Team Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 139)
@@ -834,6 +875,7 @@ BEGIN
                         ,@bettype = 139
                         ,@oddeven = @oddevenaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 144 : Result/Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 144)
@@ -842,6 +884,7 @@ BEGIN
                         ,@totalgoal = @totalgoal
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
             --*** Betradar 2: START *****
                 -- bettype 157: Odd/Even(3rd)
@@ -851,6 +894,7 @@ BEGIN
                         ,@bettype = 157
                         ,@oddeven = @oddeven
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 159: Exact Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 159)
@@ -859,6 +903,7 @@ BEGIN
                         ,@bettype = 159
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 161:Exact Home Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 161)
@@ -867,6 +912,7 @@ BEGIN
                         ,@bettype = 161
                         ,@totalgoal = @totalhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 162:Exact Away Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 162)
@@ -875,6 +921,7 @@ BEGIN
                         ,@bettype = 162
                         ,@totalgoal = @totalaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 163:Result/Total Goals (3rd)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 163)
@@ -884,6 +931,7 @@ BEGIN
                         ,@totalgoal = @totalgoal
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 166: Extra time correct score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 166)
@@ -892,6 +940,7 @@ BEGIN
                         ,@bettype = 166
                         ,@correctscore = @correctscore
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
                 -- bettype 170: Team to Score
@@ -902,6 +951,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 171: Winning Margin
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 171)
@@ -910,6 +960,7 @@ BEGIN
                         ,@bettype = 171
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 172: Result and First Team to Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 172)
@@ -920,6 +971,7 @@ BEGIN
                         ,@fta = @fta
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 177 : 2nd Half 1x2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 177)
@@ -928,6 +980,7 @@ BEGIN
                         ,@bettype = 177
                         ,@whowin = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 178 : 2nd Over/Under(3rd)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 178)
@@ -935,6 +988,7 @@ BEGIN
                         ,@bettype = 178
                         ,@totalgoal = @totalgoal_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 183 : 2nd Handicap (3rd)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 183)
@@ -943,6 +997,7 @@ BEGIN
                         ,@fth = @home_2nd
                         ,@fta = @away_2nd
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 184 : 2H Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 184)
@@ -951,6 +1006,7 @@ BEGIN
                         ,@oddeven = @oddeven_2H
                         ,@oddevenht = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 185 : 2H Draw No Bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 185)
@@ -959,6 +1015,7 @@ BEGIN
                         ,@bettype = 185
                         ,@scorediff = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 186 : 2H Double Chance
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 186)
@@ -967,6 +1024,7 @@ BEGIN
                         ,@bettype = 186
                         ,@scorediff = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 187 : Exact 2H Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 187)
@@ -975,6 +1033,7 @@ BEGIN
                         ,@bettype = 187
                         ,@totalgoal = @totalgoal_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 189 : Both Halves Over 1.5 Yes/No  [189]
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 189)
@@ -985,6 +1044,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 190 : Both Halves Under 1.5 Yes/No
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 190)
@@ -995,6 +1055,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 194 : Corners Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 194)
@@ -1004,6 +1065,7 @@ BEGIN
                         ,@oddevenht = NULL
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 195 :Home Team Exact Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 195)
@@ -1012,6 +1074,7 @@ BEGIN
                         ,@totalgoal = @fthCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 196 :Away Team Exact Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 196)
@@ -1020,6 +1083,7 @@ BEGIN
                         ,@totalgoal = @ftaCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
                 -- bettype 197 :Home Team Total Corners Over/Under
@@ -1029,6 +1093,7 @@ BEGIN
                         ,@totalgoal = @fthCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 198 :Home Team Total Corners Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 198)
@@ -1037,6 +1102,7 @@ BEGIN
                         ,@totalgoal = @ftaCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 199 :Total Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 199)
@@ -1045,6 +1111,7 @@ BEGIN
                         ,@totalgoal = @totalCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype: 206: First Corner
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 206)
@@ -1054,6 +1121,7 @@ BEGIN
                         ,@result = @ftFCorner
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype: 208: Last Corner
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 208)
@@ -1063,6 +1131,7 @@ BEGIN
                         ,@result = @ftLCorner
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
             --*** Betradar 2: END *****
 
@@ -1080,12 +1149,14 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 302)
                     EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
                         ,@bettype = 302
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
             /*END FT Myanmar odds*/
 
                 --Home Team Over/Under
@@ -1094,6 +1165,7 @@ BEGIN
                         ,@bettype = 401
                         ,@totalgoal = @totalhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Home Team Over/Under (dec)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 461)
@@ -1101,6 +1173,7 @@ BEGIN
                         ,@bettype = 461
                         ,@totalgoal = @totalhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Away Team Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 402)
@@ -1108,6 +1181,7 @@ BEGIN
                         ,@bettype = 402
                         ,@totalgoal = @totalaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Away Team Over/Under (dec)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 462)
@@ -1115,6 +1189,7 @@ BEGIN
                         ,@bettype = 462
                         ,@totalgoal = @totalaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --2H Correct Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 405)
@@ -1128,6 +1203,7 @@ BEGIN
                     ,@fta = @fta
                     ,@FGLG2 = NULL
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
                 --Exact Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 406)
@@ -1135,6 +1211,7 @@ BEGIN
                         ,@bettype = 406
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Exact Home Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 407)
@@ -1142,6 +1219,7 @@ BEGIN
                         ,@bettype = 407
                         ,@totalgoal = @totalhome
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Winning Margin
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 408)
@@ -1151,6 +1229,7 @@ BEGIN
                         ,@scorediff = @scorediff
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Exact Away Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 409)
@@ -1158,6 +1237,7 @@ BEGIN
                         ,@bettype = 409
                         ,@totalgoal = @totalaway
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Correct Score (aos)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 413)
@@ -1171,6 +1251,7 @@ BEGIN
                         ,@fta = @fta
                         ,@FGLG2 = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 415: Result and First Team To Score (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 415)
@@ -1181,6 +1262,7 @@ BEGIN
                         ,@fta = @fta
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 416 : Half Time/Full Time Correct Score (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 416)
@@ -1191,6 +1273,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 417 : Both Team Score / Result
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 417)
@@ -1199,6 +1282,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 418 : Both Teams to Score/ Total Goal
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 418)
@@ -1207,6 +1291,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 419 : Which Half First Goal
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 419)
@@ -1217,6 +1302,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 420 : Home Team Which Half First Goal
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 420)
@@ -1225,6 +1311,7 @@ BEGIN
                         ,@fth = @fth
                         ,@hth = @hth
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 421 : Away Team Which Half First Goal
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 421)
@@ -1233,6 +1320,7 @@ BEGIN
                         ,@fta = @fta
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 422 : First Team 2 Goals
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 422)
@@ -1240,6 +1328,7 @@ BEGIN
                         ,@bettype = 422
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 423 : First Team 3 Goals
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 423)
@@ -1247,6 +1336,7 @@ BEGIN
                         ,@bettype = 423
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 425 : To Win From Behind
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 425)
@@ -1254,6 +1344,7 @@ BEGIN
                         ,@bettype = 425
                         ,@ResultString = @WinFromBehind
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 428 : 2H Odd/Even (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 428)
@@ -1262,6 +1353,7 @@ BEGIN
                         ,@oddeven = @oddeven_2H
                         ,@oddevenht = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 429 : Exact 2nd Half Goal
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 429)
@@ -1270,6 +1362,7 @@ BEGIN
                         ,@bettype = 429
                         ,@totalgoal = @totalgoal_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 430 : 2H 1X2 (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 430)
@@ -1278,6 +1371,7 @@ BEGIN
                         ,@bettype = 430
                         ,@whowin = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
                 -- bettype 431 : 2H Double Chance (own)
@@ -1287,6 +1381,7 @@ BEGIN
                         ,@bettype = 431
                         ,@scorediff = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 432 : 2H Draw No Bet (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 432)
@@ -1295,6 +1390,7 @@ BEGIN
                         ,@bettype = 432
                         ,@scorediff = @scorediff_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 433 : 2H Both Teams To Score (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 433)
@@ -1305,6 +1401,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 434 : Both Halves Over 1.5 Yes/No (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 434)
@@ -1315,6 +1412,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 435 : Both Halves Under 1.5 Yes/No (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 435)
@@ -1325,6 +1423,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 436 : Home To Score In Both Halves (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 436)
@@ -1335,6 +1434,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 437 : Away To Score In Both Halves (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 437)
@@ -1345,6 +1445,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 438 : Home To Win Both Halves (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 438)
@@ -1355,6 +1456,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 439 : Away To Win Both Halves (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 439)
@@ -1365,6 +1467,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 440 : Home To Win Either Half (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 440)
@@ -1375,6 +1478,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 441 : Away To Win Either Half (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 441)
@@ -1385,6 +1489,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 442 : Highest Scoring Half (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 442)
@@ -1395,6 +1500,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 443 : Highest Scoring Half Home Team (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 443)
@@ -1405,6 +1511,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 444 : Highest Scoring Half Away Team (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 444)
@@ -1415,6 +1522,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 445 : Both Team To Score in 1H/ 2H
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 445)
@@ -1425,6 +1533,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 446 : Home 1H to Score/ 2H To Score
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 446)
@@ -1435,6 +1544,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 447 : Away 1H to Score/ 2H To Score
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 447)
@@ -1445,12 +1555,14 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 501)
                     EXEC dbo.NAP_Admin_Calculate_501 @matchid = @matchid
                         ,@bettype = 501
                         ,@betcount = 1
                         ,@ScoreDiff = @ScoreDiff
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 14 : FT-FGLG
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 14)
@@ -1459,6 +1571,7 @@ BEGIN
                         ,@correctscore = @ft_fg
                         ,@FGLG2 = @ft_lg
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- FT Winning Margin 14 Way
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 601)
@@ -1480,6 +1593,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 448: Last Team To Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 448)
@@ -1487,6 +1601,7 @@ BEGIN
                         ,@bettype = 448
                         ,@FGLG2 = @ft_lg
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 449: Double Chance & Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 449)
@@ -1495,6 +1610,7 @@ BEGIN
                         ,@scorediff = @scorediff
                         ,@totalgoal=@totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 450: Odd/Even & Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 450)
@@ -1503,6 +1619,7 @@ BEGIN
                         ,@oddeven = @oddeven
                         ,@totalgoal = @totalgoal
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 451: Both Teams To Score / Double Chance
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 451)
@@ -1512,6 +1629,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- 452:    Highest Scoring Half (2 Way)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 452)
@@ -1522,6 +1640,7 @@ BEGIN
                         ,@totalht = @totalht
                         ,@totalgoal_2H = @totalgoal_2H
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- 460: Which Team Will Win By 5+ Goals
                  IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 460)
@@ -1529,6 +1648,7 @@ BEGIN
                         ,@bettype = 460
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 454: Double Chance & First Team To Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 454)
@@ -1539,6 +1659,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 465: Asian 1X2 HDP
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 465)
@@ -1547,7 +1668,7 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
                         ,@betcount = 1
-
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
             END -- END CAL/CAL-FT
@@ -1564,6 +1685,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 21: 1st moneyline
                 -- IF @betcount_21 > 0
@@ -1573,6 +1695,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 125 : 1st 1x2 Handicap
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 125)
@@ -1581,6 +1704,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1 ---parametter @betcount has not used, will be removed later
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 8 : 1st Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 8)
@@ -1588,6 +1712,7 @@ BEGIN
                         ,@bettype = 8
                         ,@totalht = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 12 : 1st Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 12)
@@ -1595,6 +1720,7 @@ BEGIN
                         ,@bettype = 12
                         ,@oddeven = @oddevenht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 15 : 1st 1x2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 15)
@@ -1602,6 +1728,7 @@ BEGIN
                         ,@bettype = 15
                         ,@whowin = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 30: 1st Correct Score (Reuse with bettype 4)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 30)
@@ -1615,6 +1742,7 @@ BEGIN
                         ,@fta = @fta
                         ,@FGLG2 = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 126 : 1H Total Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 126)
@@ -1622,6 +1750,7 @@ BEGIN
                         ,@bettype = 126
                         ,@totalgoal = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 151 : 1st Half Double Chance
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 151)
@@ -1629,6 +1758,7 @@ BEGIN
                         ,@bettype = 151
                         ,@scorediff = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 129 : 1H Exact Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 129)
@@ -1636,6 +1766,7 @@ BEGIN
                         ,@bettype = 129
                         ,@totalgoal = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 136 : 1H Home Team Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 136)
@@ -1643,6 +1774,7 @@ BEGIN
                         ,@bettype = 136
                         ,@oddevenht = @oddevenhome_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 138 : 1H Away Team Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 138)
@@ -1650,6 +1782,7 @@ BEGIN
                         ,@bettype = 138
                         ,@oddevenht = @oddevenaway_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 143 : 1H Result/Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 143)
@@ -1658,6 +1791,7 @@ BEGIN
                         ,@totalht = @totalht
                         ,@scorediff_ht = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
             --*** Betradar 2: START ****
                 -- bettype 165: Extra time 1H correct score
@@ -1667,6 +1801,7 @@ BEGIN
                         ,@bettype = 165
                         ,@correctscore = @correctscore_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 167 : Extra Time 1H 1X2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 167)
@@ -1674,6 +1809,7 @@ BEGIN
                         ,@bettype = 167
                         ,@whowin = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 179 : Exact 1H Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 179)
@@ -1682,6 +1818,7 @@ BEGIN
                         ,@bettype = 179
                         ,@totalgoal = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 181 : 1H Exact Home Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 181)
@@ -1690,6 +1827,7 @@ BEGIN
                         ,@bettype = 181
                         ,@totalgoal = @hth
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 182 : 1H Exact Away Team Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 182)
@@ -1698,6 +1836,7 @@ BEGIN
                         ,@bettype = 182
                         ,@totalgoal = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 188: 1H Both Teams to Score
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 188)
@@ -1707,6 +1846,7 @@ BEGIN
                         ,@fth = @hth
                         ,@fta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 191 : 1H Draw no bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 191)
@@ -1714,6 +1854,7 @@ BEGIN
                         ,@bettype = 191
                         ,@scorediff = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 200 :1H Home Team Exact Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 200)
@@ -1722,6 +1863,7 @@ BEGIN
                         ,@totalgoal = @hthCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 201 :1H Away Team Exact Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 201)
@@ -1730,6 +1872,7 @@ BEGIN
                         ,@totalgoal = @htaCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 202 :1H Total Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 202)
@@ -1738,6 +1881,7 @@ BEGIN
                         ,@totalgoal = @totalCorners_ht
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 203 : 1H Corners Odd/Even
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 203)
@@ -1747,6 +1891,7 @@ BEGIN
                         ,@oddevenht = NULL
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 204 :1H Home Corner Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 204)
@@ -1755,6 +1900,7 @@ BEGIN
                         ,@totalgoal = @hthCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 205 :1H Away Corner Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 205)
@@ -1763,6 +1909,7 @@ BEGIN
                         ,@totalgoal = @htaCorners
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype: 207: 1H First Corner
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 207)
@@ -1772,6 +1919,7 @@ BEGIN
                         ,@result = @htFCorner
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype: 209: 1H Last Corner
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 209)
@@ -1781,6 +1929,7 @@ BEGIN
                         ,@result = @htLCorner
                         ,@isExcludeCorner = @isExcludeCorner
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
             --*** Betradar 2: END ****
 
                 --Bettrade
@@ -1796,12 +1945,15 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 304)
                                         EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
                         ,@bettype = 304
                         ,@totalht = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
             /*END HT Myanmar Odds*/
 
                 --1H Home Team Over/Under
@@ -1810,6 +1962,7 @@ BEGIN
                         ,@bettype = 403
                         ,@totalht = @hth
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Home Team Over/Under (dec)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 463)
@@ -1817,6 +1970,7 @@ BEGIN
                         ,@bettype = 463
                         ,@totalht = @hth
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Away Team Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 404)
@@ -1824,6 +1978,7 @@ BEGIN
                         ,@bettype = 404
                         ,@totalht = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Away Team Over/Under (dec)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 464)
@@ -1831,6 +1986,7 @@ BEGIN
                         ,@bettype = 464
                         ,@totalht = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Double Chance
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 410)
@@ -1838,6 +1994,7 @@ BEGIN
                         ,@bettype = 410
                         ,@scorediff = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Draw No Bet
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 411)
@@ -1845,6 +2002,7 @@ BEGIN
                         ,@bettype = 411
                         ,@scorediff = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --Exact 1st Half Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 412)
@@ -1853,6 +2011,7 @@ BEGIN
                         ,@bettype = 412
                         ,@totalgoal = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 --1H Correct Score (aos)
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 414)
@@ -1866,6 +2025,7 @@ BEGIN
                         ,@fta = @fta
                         ,@FGLG2 = NULL
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
              -- bettype 426: 1H Winning Margin
@@ -1876,6 +2036,7 @@ BEGIN
                         ,@scorediff_ht = @scorediff_ht
                         ,@totalht = @totalht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 427: 1H Both Teams To Score (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 427)
@@ -1885,6 +2046,7 @@ BEGIN
                         ,@fth = @hth
                         ,@fta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 127: HT-FGLG
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 127)
@@ -1893,6 +2055,7 @@ BEGIN
                         ,@correctscore = @ht_fg
                         ,@FGLG2 = @ht_lg
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- 1H Winning Margin 12 Way
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 608)
@@ -1910,6 +2073,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 456 : 1H Both Teams To Score / Result
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 456)
@@ -1918,6 +2082,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 457 : 1H Both Teams To Score / Total Goals
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 457)
@@ -1926,6 +2091,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 459: 1H Asian 1X2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 459)
@@ -1934,6 +2100,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 466: 1H Asian 1X2 HDP
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 466)
@@ -1942,6 +2109,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 
             END
@@ -2200,6 +2368,8 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @penaltyshootout
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
+
 
             -- bettype: 160: Next Goal (3rd)
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 160)
@@ -2209,6 +2379,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @NextGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 164: Extra Time Next Goal
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 164)
@@ -2218,6 +2389,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @ExtraNextGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 168: Who advances to next round
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 168)
@@ -2227,6 +2399,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @WhoAdvancesNextRound
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 169: Next Goal Time (15 Min)
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 169)
@@ -2236,6 +2409,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @NextGoalTime15Min
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 173: Extra Time Yes/No
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 173)
@@ -2245,6 +2419,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @ExtraTimeYN
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 174: Extra Time and Goal
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 174)
@@ -2254,6 +2429,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @ExtraTimeandGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 175 : Match Decided Method
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 175)
@@ -2263,6 +2439,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @matchDecidedMethod
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 176 : First 10 Min 1x2
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 176)
@@ -2272,6 +2449,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @1st10Min1x2
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 180 : 1H Next Goal
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 180)
@@ -2281,6 +2459,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @1HNextGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 192 : First Goal Time (10 Min)
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 192)
@@ -2290,6 +2469,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @1stGoalTime10Min
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 193 : First Goal Time (15 Min)
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 193)
@@ -2299,6 +2479,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @1stGoalTime15Min
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 210 : Player Sent Off
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 210)
@@ -2308,6 +2489,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @PlayerSentOff
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 211 : 1H Player Sent Off
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 211)
@@ -2317,6 +2499,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @HTPlayerSentOff
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
 
             -- bettype: 212 : Home Team Player Sent Off
@@ -2327,6 +2510,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @PlayerSentOffHome
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 213 : HT Home Team Player Sent Off
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 213)
@@ -2336,6 +2520,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @HTPlayerSentOffHome
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
 
             -- bettype: 214 : Away Team Player Sent Off
@@ -2346,6 +2531,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @PlayerSentOffAway
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 215 : 1H Away Team Player Sent Off
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 215)
@@ -2355,6 +2541,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @HTPlayerSentOffAway
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 216 : Goal Scorer - Anytime
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 216)
@@ -2364,6 +2551,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @GoalScorerAnytime
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype: 217 : Goal Scorer - First
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 217)
@@ -2373,6 +2561,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @GoalScorerFirst
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
             -- bettype 424 : First Goal Method
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 424)
@@ -2382,6 +2571,8 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @FirstGoalMethod
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
+
             -- bettype 22:  Next Goal
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
                 EXEC dbo.NAP_Admin_Calculate_135
@@ -2390,6 +2581,8 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @NextGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
+
             -- bettype 455: Time Of First Goal
             IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 455)
                 EXEC dbo.NAP_Admin_Calculate_135
@@ -2398,6 +2591,7 @@ BEGIN
                     ,@ResourceIDs = @ResourceIDs
                     ,@result = @TimeFirstGoal
                     ,@betcount = 1
+					,@IsReSettledTickets = @IsReSettledTickets
 
         END
 
@@ -2406,6 +2600,7 @@ BEGIN
             EXEC dbo.NAP_Admin_Calculate_221 @matchid = @matchid
                 , @result = @xmlData
                 , @action = @Mode -- CAL, REFUND, UNDO
+				, @IsReSettledTickets = @IsReSettledTickets
         END
 
         IF @action ='CAL-SET'  --Tennis including Sportting Solution

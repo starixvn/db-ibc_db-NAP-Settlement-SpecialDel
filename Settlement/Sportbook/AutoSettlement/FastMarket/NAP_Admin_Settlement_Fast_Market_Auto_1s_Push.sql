@@ -1,15 +1,16 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
-	,@Action	VARCHAR(20)
-	,@Results	VARCHAR(MAX)
-	,@EventCounters VARCHAR(MAX) = NULL
+	,@Action				VARCHAR(20)
+	,@Results				VARCHAR(MAX)
+	,@EventCounters			VARCHAR(MAX) = NULL
 
-	,@IsAuto	BIT				= 0
-	,@AdminId	INT				= 0
-	,@Ip		VARCHAR(20)		= ''
+	,@IsAuto				BIT			= 0
+	,@AdminId				INT			= 0
+	,@Ip					VARCHAR(20)	= ''
+	,@IsReSettledTickets	BIT			= 1
 
-	,@ErrCode	INT				= 0		OUTPUT
-	,@ErrMsg	VARCHAR(MAX)	= ''	OUTPUT
+	,@ErrCode				INT			= 0		OUTPUT
+	,@ErrMsg				VARCHAR(MAX)= ''	OUTPUT
 AS
 /*
 	Created: 20160428@Patrick
@@ -22,6 +23,7 @@ AS
 			- 20170123@Kathy: Checking auto settlement FM setting of match before settling  [Redmine:#69949]
 			- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
 			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
+			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			
 	Param's Explanation:
 		- @Result: 
@@ -274,6 +276,7 @@ BEGIN
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 															+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
+															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														

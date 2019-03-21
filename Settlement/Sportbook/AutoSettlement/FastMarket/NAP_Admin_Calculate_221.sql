@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Admin_Calculate_221 @matchid INT
 	, @result VARCHAR(MAX)
 	, @action VARCHAR(20)
+	, @IsReSettledTickets BIT = 1
 AS
 /*
     Created: 20160428@Patrick
@@ -13,6 +14,7 @@ AS
 		- 20170113@Kathy:  Enhancement for Fast Market [Redmine:#69951]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
 
@@ -65,7 +67,7 @@ BEGIN
 	INSERT INTO #tblTransIds (transid, BetOption)
 	SELECT	b.transid, t.BetOption
 	FROM	tmpData t
-		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
+		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON	b.matchid = @matchid
 				AND b.bettype = t.Bettype
 				AND b.hdp1 = t.Position
@@ -159,6 +161,13 @@ BEGIN
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
 					ON b.transid = t.transid
+				OUTER APPLY (
+					SELECT	mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transId
+				)mt
+			WHERE	b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+					AND mt.TransId IS NULL
 	END
 	ELSE IF @action = 'UNDO'
 	BEGIN

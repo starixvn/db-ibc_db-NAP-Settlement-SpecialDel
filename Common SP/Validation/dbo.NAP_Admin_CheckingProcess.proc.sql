@@ -7,7 +7,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsExistNG				BIT = 0
 	, @IsExistVS				BIT = 0
 	, @IsExistParlayVSBetradar 	BIT = 0
-	, @IsReleased				BIT	= 0	
+	, @IsReleased				BIT	= 0
+	, @IsExistFM				BIT = 0	
 	, @AvaiableProcess			BIT = 0 OUTPUT
 	, @ErrCode					INT = 0 OUTPUT
 	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
@@ -22,6 +23,7 @@ AS
 	-20160318@bobby.nguyen: #55930 - Exclude bettype 9 from match locking table
 	-20160413@bobby.nguyen: #55756 - Update changes for checking process
 	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
+	- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 	
  Param's Explanation:   
  
@@ -43,6 +45,7 @@ BEGIN
 										OR @isExistMG = 1
 										OR @isExistNG = 1
 										OR @isExistVS = 1
+										OR @IsExistFM = 1
 									) THEN 1 ELSE 0 
 								END
 	-- checking dependency				
@@ -149,6 +152,7 @@ BEGIN
 					WHEN @isExistOutright = 1 	AND ck.KeyId = 2 THEN 2	-- Outright
 					WHEN @isExistMG = 1 		AND ck.KeyId = 3 THEN 3	-- MG
 					WHEN @isExistVS = 1 		AND ck.KeyId = 4 THEN 4	-- VS Racing
+					WHEN @isExistFM = 1 		AND ck.KeyId = 6 THEN 6	-- Fast market
 					ELSE 0
 				END AS KeyId
 			FROM dbo.TempVariableNumber ck WITH(ROWLOCK)

@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	  @FromDate 			DATETIME
-	, @ToDate 			DATETIME
+	, @ToDate 				DATETIME
 	, @SportType 			SMALLINT = 0
 	, @LeagueID 			INT = 0 -- 0 for ALL Leagues
 	, @MatchCode 			NVARCHAR(50) = ''
@@ -10,7 +10,8 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	, @IsReLoad 			BIT = 0
 	, @IsHTOverOnly 		BIT = 0
 	, @IsOverOnly 			BIT = 0
-	, @AutoSetting 		TINYINT = 0
+	, @AutoSetting 			TINYINT = 0
+	,@IsMarkedTicket		BIT = 0
 AS
 /*  
  Created by: 20160311@Patrick
@@ -40,6 +41,7 @@ AS
 	- 20180806@Kathy: Get waiting time for auto instant [Redmine:#86964]
 	- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 	- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
+	- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -69,6 +71,7 @@ BEGIN
 			, @LeagueID = CASE WHEN @isReLoad = 1 THEN @LeagueID 
 							ELSE 0 END -- reload partial; search on LeagueID, not reload: get all leagues
 			,@SettlementStatus = 0
+			,@IsMarkedTicket = 0
 
 		IF ISNUMERIC(@matchcode) = 1
 		BEGIN
@@ -106,7 +109,7 @@ BEGIN
 				END
 
 		--ignore event status if selecting filterby
-		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @SettlementStatus <> 0 )
+		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @SettlementStatus <> 0 OR @IsMarkedTicket = 1 )
 			SELECT @eventstatus = '', @isRefund = NULL
 	END
 
@@ -158,6 +161,9 @@ BEGIN
 		, IsHT			BIT
 		, livehomescore	INT
 		, liveawayscore	INT
+
+		,IsExistRunningTicket BIT
+		,IsExistMarkedTicket BIT
 	)
 	--for instant match info
 	CREATE TABLE #InstMatchInfo (
@@ -180,7 +186,7 @@ BEGIN
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
 		,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateFGLG, IsNeedToCalculateCorner, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
-		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore
+		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket
 	)
 	SELECT m.hthomescore
 		, m.htawayscore
@@ -229,6 +235,8 @@ BEGIN
 		, mr.IsHT
 		, m.livehomescore
 		, m.liveawayscore
+		,0 AS IsExistRunningTicket
+		,0 AS IsExistMarkedTicket
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -676,6 +684,88 @@ BEGIN
 					AND r.ResourceId = '00'
 	END
 
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, mt.matchid
+	FROM	#matchList m
+		CROSS APPLY (
+			SELECT	mt.TransId, mt.MatchId
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+			WHERE	m.matchid = mt.MatchId
+		)mt
+
+	INSERT INTO @tmpMatchMarked(MatchId)
+	SELECT	DISTINCT matchId
+	FROM	#tmpMarkedTransaction
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE	mk 
+			SET  IsExistMarkedTicket = 1
+		FROM	@tmpMatchMarked mk
+			INNER JOIN (
+				SELECT	mt.matchId
+				FROM	#tmpMarkedTransaction mt
+					CROSS APPLY (
+						SELECT	TOP (1) b.transid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	mt.transid = b.transid
+								AND b.statusID = 0
+					) b
+				GROUP BY mt.matchid
+			) m
+				ON m.matchid = mk.MatchId
+
+		UPDATE m 
+			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+		FROM	#matchList m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+
+	END
+
+	IF @IsMarkedTicket = 1
+	BEGIN
+		DELETE	m
+		FROM	#matchList m 
+		WHERE	IsExistMarkedTicket = 0
+	END
+
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+
+	INSERT INTO @tmpMatchCompleted (MatchId)
+	SELECT	matchid
+	FROM	#matchList
+	WHERE	eventstatus = 'completed'
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE m 
+			SET IsExistRunningTicket = 1
+		FROM	@tmpMatchCompleted m
+			CROSS APPLY (
+				SELECT	b.matchid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE b.transid = mt.TransId
+					)mt
+				WHERE	b.matchid = m.matchid
+						AND b.statusID = 0
+						AND mt.transId IS NULL
+				GROUP BY b.matchid
+			)b
+
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	#matchList m
+			INNER JOIN @tmpMatchCompleted t
+				ON m.matchid = t.MatchId
+	END
+
 	SELECT m.HalfTimeHomeScore
 		, m.HalfTimeAwayScore
 		, m.IsCalculated
@@ -724,6 +814,8 @@ BEGIN
 		, ISNULL(im.InstantKey, 0) AS InstantKey
 		, ISNULL(im.InstantScoreDiff, 0) AS InstantScoreDiff
 		, ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
+		, m.IsExistRunningTicket
+		, m.IsExistMarkedTicket
 	FROM #matchList m
 		LEFT JOIN #tempmatch t ON t.matchid = m.matchid
 		LEFT JOIN #InstMatchInfo im ON m.matchid = im.matchid

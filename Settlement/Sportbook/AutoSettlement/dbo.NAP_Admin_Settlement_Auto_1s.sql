@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
      @AdminID                       INT             = 148        -- calculated by system (default)
     ,@MatchID                       INT
@@ -8,6 +8,7 @@ CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
     ,@Action                    	VARCHAR(10)     = 'CAL'
     ,@IsAuto                        BIT             = 1
     ,@IP                            VARCHAR(15)     = ''
+	,@IsReSettledTickets			BIT				= 1
     ,@ErrCode            			INT             = 0		OUTPUT
     ,@ErrMsg            			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -25,6 +26,7 @@ AS
         - 20170215@Kathy: Get list bettypes with xml format [Redmine:#71372]
         - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
 */    
@@ -137,7 +139,8 @@ BEGIN
         EXEC dbo.NAP_Admin_Settlement_3_Auto_1s 
              @matchid        	= @matchid
             ,@ResourceIDs    	= @ResourceIDs
-            ,@mode            	= @action                        
+            ,@mode            	= @action         
+			,@IsReSettledTickets = @IsReSettledTickets               
 
     END
     ELSE IF @action = 'UNDO'

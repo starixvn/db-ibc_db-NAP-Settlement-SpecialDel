@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7] @matchid INT
     ,@hth SMALLMONEY
     ,@hta SMALLMONEY
     ,@betcount INT = 0
+	,@IsReSettledTickets BIT	= 1
     -- add any params, please modify script in 'special section'
 AS
 /*
@@ -24,6 +25,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190227@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 */
 BEGIN
     SET NOCOUNT ON
@@ -58,11 +60,25 @@ BEGIN
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
-	INSERT INTO #tempCust(custid, sRecommend)
-	SELECT custid, srecommend
-	FROM dbo.bettrans WITH(NOLOCK) 
-	WHERE matchid = @matchid AND bettype = @bettype
-	GROUP BY custid, srecommend
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tempCust (custid, srecommend)
+		SELECT	b.custid, b.srecommend
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.bettype = @bettype
+				AND b.statusID = 0
+		GROUP BY b.custid, b.srecommend
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tempCust(custid, srecommend)
+		SELECT	custid, srecommend
+		FROM	dbo.bettrans WITH(NOLOCK) 
+		WHERE	matchid = @matchid 
+				AND bettype = @bettype
+		GROUP BY custid, srecommend
+	END
 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
@@ -274,12 +290,21 @@ BEGIN
 				WHEN @modds < 0 THEN 113 --LOSE
 				END
 			,ruben = 1
-		FROM #currList t
-			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
-		WHERE matchid = @matchid 
-			AND b.custid >= @MinCustId
-			AND bettype = @bettype
-			AND statusID NOT IN (101, 102)--[status] NOT IN (N'VOID', N'REJECT')
+		FROM	#currList t
+			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
+				ON	t.custid = b.custid
+			OUTER APPLY (
+				SELECT	TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transid
+						AND mt.CustId = t.custId
+			) mt
+		WHERE	matchid = @matchid 
+				AND b.custid >= @MinCustId
+				AND bettype = @bettype
+				AND statusID NOT IN (101, 102)--[status] NOT IN (N'VOID', N'REJECT')
+				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND mt.TransId IS NULL
 		OPTION (FORCE ORDER)
 
 		WAITFOR DELAY '00:00:00:010'
