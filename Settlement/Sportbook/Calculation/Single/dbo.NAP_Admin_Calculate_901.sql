@@ -20,6 +20,7 @@
 			- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
+			- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 			
 		Parameter's Explantion:
 	*/
@@ -207,7 +208,7 @@ BEGIN
 	END
 	
 	--recover BetTradeSelling & BetTradeSellingCancelled on DBTXN
-	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06')
+	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DB061', 'DB062')
 	BEGIN		
 		UPDATE dbo.BetTradeSellingCancelled WITH(UPDLOCK,ROWLOCK)
 		SET BTBuyback = -BTBuyback,
