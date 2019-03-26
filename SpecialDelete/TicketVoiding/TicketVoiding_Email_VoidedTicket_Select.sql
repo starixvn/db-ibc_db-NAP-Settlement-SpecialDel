@@ -67,7 +67,6 @@ BEGIN
 		,Refno			BIGINT
 		,subTransId		BIGINT	
 		,VoidedTime		DATETIME
-		,IsCashOutMemberTicket BIT
 		,isITAdmin		BIT
 		
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
@@ -315,7 +314,7 @@ BEGIN
 			END AS EmailGroup
 			,su.site
 			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
-			,CASE WHEN t.betdaqid = 1 AND t.Bettype NOT BETWEEN 901 AND 920 THEN 1 ELSE 0 END AS isCashOut
+			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
 			,@isITAdmin AS IsITSupport 
 
 	FROM	#tmpTicket t

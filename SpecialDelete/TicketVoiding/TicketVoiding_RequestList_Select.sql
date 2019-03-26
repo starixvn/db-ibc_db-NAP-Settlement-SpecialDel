@@ -169,7 +169,7 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,vh.MatchId
-					,SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 AND z.comstatus <> 'CO' THEN 1 ELSE 0 END) AS TotalVoidedSingle
+					,SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 AND ISNULL(z.comstatus,'') <> 'CO' THEN 1 ELSE 0 END) AS TotalVoidedSingle
 					,0 AS TotalVoidedCashOut 
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
