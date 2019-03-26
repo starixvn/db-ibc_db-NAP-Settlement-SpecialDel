@@ -18,13 +18,29 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT	Sporttype
-			,ReasonEnglish
-			,ReasonChineseSimplified
-	FROM	dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
-	WHERE	Sporttype = @Sporttype 
-			AND SubIssueTypeId = @SubIssueTypeId
-
+	
+	IF EXISTS (SELECT TOP 1 1
+				FROM dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
+				WHERE	Sporttype = @Sporttype 
+						AND SubIssueTypeId = @SubIssueTypeId
+		)
+	BEGIN
+		SELECT	Sporttype
+				,ReasonEnglish
+				,ReasonChineseSimplified
+		FROM	dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
+		WHERE	Sporttype = @Sporttype 
+				AND SubIssueTypeId = @SubIssueTypeId	
+	END
+	ELSE
+	BEGIN
+		SELECT	Sporttype
+				,ReasonEnglish
+				,ReasonChineseSimplified
+		FROM	dbo.TicketVoiding_ReasonTemplate WITH(NOLOCK)
+		WHERE	Sporttype = 0 
+				AND SubIssueTypeId = @SubIssueTypeId
+	END
 END
 GO
 
