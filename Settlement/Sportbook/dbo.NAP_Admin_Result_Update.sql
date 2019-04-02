@@ -33,6 +33,7 @@ AS
 
 	Revision
 		- 20180801@Vicky: get code from PROD [Redmine #95874]
+		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 
 	Param's Explanation: 
 		+ @HomeValue & @AwayValue : Match Result - ResourceID ='00'
@@ -286,7 +287,7 @@ BEGIN
 	/* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
 
 	/* START - @Command = 'NAP_Admin_Settlement_Refund_All' */
-	IF @Command ='NAP_Admin_Settlement_Refund_All'
+	IF @Command ='NAP_Admin_Settlement_Refund-All'
 	BEGIN
 		INSERT INTO @tmpSelectedSettleFinishedGame(SetIndex)
 		SELECT	Val FROM dbo.StrSplit(@SelectedSettleFinishedGame, ',') WHERE @SelectedSettleFinishedGame <>'' 
@@ -473,7 +474,7 @@ BEGIN
 					,GETDATE()
 				);
 	END 
-	/* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
+	/* END - @Command = 'NAP_Admin_Settlement_Refund-All' */
 END
 GO
 

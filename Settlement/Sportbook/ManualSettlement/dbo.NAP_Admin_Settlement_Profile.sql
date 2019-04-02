@@ -18,6 +18,7 @@ AS
 
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -60,8 +61,8 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT, srecommend INT, bettype SMALLINT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, srecommend INT, bettype SMALLINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2)
@@ -138,8 +139,8 @@ BEGIN
   	--get transid
   	IF @Action LIKE 'CAL%'
   	BEGIN
-		INSERT INTO #tmpTransID(TransID, modds)
-	  	SELECT transid, m.modds
+		INSERT INTO #tmpTransID(TransID, modds, srecommend, bettype)
+	  	SELECT transid, m.modds, b.srecommend, b.bettype
 	  	FROM bettrans b WITH (NOLOCK)
 	  		CROSS APPLY(
 	  						SELECT TOP 1 pfID, HomeValue, AwayValue
@@ -261,8 +262,8 @@ BEGIN
 			
 			UPDATE TOP(@batchNo) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds
-			INTO @tmpTransIDBatch(transid, modds)
+			OUTPUT deleted.transid, deleted.modds, deleted.srecommend, deleted.bettype
+			INTO @tmpTransIDBatch(transid, modds, srecommend, bettype)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -274,6 +275,8 @@ BEGIN
 			--filter selectedRID by current Profile and BetType
 			SET @strTransIds 		= (SELECT transid	AS '@t'
 											   ,modds	AS '@m'
+											   ,srecommend AS '@sr'
+											   ,bettype AS '@bt'
 									   FROM @tmpTransIDBatch
 									   FOR XML PATH('r'), ROOT( 'root' ))
 

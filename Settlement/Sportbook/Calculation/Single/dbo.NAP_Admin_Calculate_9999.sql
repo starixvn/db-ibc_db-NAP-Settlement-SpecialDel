@@ -35,6 +35,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
         - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190318@Kathy: update modds column [Redmine:#109007]
 */
 BEGIN
     SET NOCOUNT ON
@@ -272,6 +273,7 @@ BEGIN
 																                            
 									ELSE - 1
 								END
+						,modds = @modds
 						,@commWinRate = CASE comstatus
 							WHEN '0' THEN 1 -- 0: pay normal, both win/lost -- 1: pay 'double' ONLY on lost
 							WHEN '1' THEN 0

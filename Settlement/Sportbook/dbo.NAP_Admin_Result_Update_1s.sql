@@ -42,6 +42,7 @@ AS
         - 20161118@Bobby: #67551 - Update changes for refunding SDT - ABANDONED match
         - 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
         - 20180720@Vicky: Refund FT without Settle Determined [Redmine:#92859]
+		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
         
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -358,7 +359,7 @@ BEGIN
 
     END 
     /* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
-    ELSE IF @Command ='NAP_Admin_Settlement_Refund_All'
+    ELSE IF @Command = 'NAP_Admin_Settlement_Refund-All'
     BEGIN
         SELECT   @fth           = finalhomescore
                 ,@fta           = finalawayscore
@@ -470,7 +471,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END 
-    /* END - @Command = 'NAP_Admin_Settlement_Refund_All' */
+    /* END - @Command = 'NAP_Admin_Settlement_Refund-All' */
     
     ELSE IF @Command ='NAP_Admin_Settlement_Refund_All-ABANDONED'
     BEGIN
@@ -589,7 +590,7 @@ BEGIN
             
     END
     /* END - @Command = 'NAP_Admin_Settlement_Refund_All-ABANDONED' */
-    ELSE IF @Command ='NAP_Admin_Settlement_RefundFT'
+    ELSE IF @Command ='NAP_Admin_Settlement_Refund-FT'
     BEGIN
         SELECT   @fth           = finalhomescore
                 ,@fta           = finalawayscore
@@ -662,7 +663,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END 
-    /* END - @Command = ''NAP_Admin_Settlement_RefundFT' */
+    /* END - @Command = ''NAP_Admin_Settlement_Refund-FT' */
     ELSE IF @Command ='NAP_Admin_Settlement_RefundFT-ABANDONED'
     BEGIN
                 
@@ -755,7 +756,7 @@ BEGIN
             
     END
     /* END - @Command = 'NAP_Admin_Settlement_RefundFT-ABANDONED' */
-    ELSE IF @Command ='NAP_Admin_Settlement_RefundHT'
+    ELSE IF @Command ='NAP_Admin_Settlement_Refund-HT'
     BEGIN
         SELECT   @hth           = hthomescore
                 ,@hta           = htawayscore
@@ -829,7 +830,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END 
-    /* END - @Command = 'NAP_Admin_Settlement_RefundHT' */
+    /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
     ELSE IF @Command ='NAP_Admin_Settlement_FGLG'
     BEGIN
         MERGE   ResultDetail AS TARGET

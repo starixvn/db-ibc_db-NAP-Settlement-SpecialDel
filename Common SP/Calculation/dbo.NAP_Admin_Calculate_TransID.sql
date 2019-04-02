@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		
 		
 	Param's Explanation:  
@@ -45,24 +46,38 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT)
+	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT)
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
+			,@commHalfWLRate	SMALLMONEY
 			,@odds				SMALLMONEY
+			,@winlost			MONEY
+			,@stake				MONEY
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-	INSERT INTO @tempTrans(TransID, modds, oddstype)
-	SELECT t, m, ot
+	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype)
+	SELECT t, m, ot, sr, bt
 	FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
 										 ,m   SMALLMONEY
 										 ,ot  TINYINT
+										 ,sr  INT
+										 ,bt  SMALLINT
 									) tbl
 	EXEC sp_xml_removedocument @handle
-	
-	
+
+	-- update if bettype belongs to the CN88 site or not
+	UPDATE tmp
+	  SET	isCN88 = CASE WHEN cs.CustId IS NULL THEN 0 ELSE 1 END,
+			isMajorGroup = CASE WHEN f.CommBettypeGroupId IS NOT NULL AND f.CommBettypeGroupId = 1 THEN 1 ELSE 0 END
+	FROM   @tempTrans tmp
+			   LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
+				   ON tmp.srecommend = cs.CustId
+				LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
+					ON tmp.bettype = f.BetType
+
 	UPDATE  b
 	SET @modds = sr.modds,
 	   @commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
@@ -73,18 +88,26 @@ BEGIN
 							WHEN '0' THEN 1
 							WHEN '1' THEN 2
 							ELSE 1 END,
+	   @commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
+							ELSE 0.5
+						END,
 	   @odds = (CASE WHEN b.odds < 0 THEN 1 
 	   				 WHEN sr.oddstype = 1 THEN b.odds - 1 ----/*DECIMAL ONLY*/
 					 ELSE b.odds END),
 		----------------------------------------------------------------------------------------------------------------
-		modds = @modds,			   			
-		WinLost = CASE
+		modds = @modds,			   	
+		@winlost = CASE
 				WHEN @modds >  0.25 THEN actual_stake + stake * @odds
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
 				WHEN @modds < -0.25 THEN 0
-				END,
+				END, 	
+		-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
+		@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
+						ELSE stake 
+					END,
+		WinLost = @winlost,
 		aWinLost = CASE
 				WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
 				WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
@@ -108,32 +131,32 @@ BEGIN
 				END,
 
 		PlayerComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * playerdiscount * stake
-				WHEN @modds =  0.25 THEN @commWinRate * playerdiscount * stake * 0.5
+				WHEN @modds >  0.25 THEN @commWinRate * playerdiscount * @stake
+				WHEN @modds =  0.25 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
 				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * playerdiscount * stake * 0.5
-				WHEN @modds < -0.25 THEN @commLostRate * playerdiscount * stake
+				WHEN @modds = -0.25 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
+				WHEN @modds < -0.25 THEN @commLostRate * playerdiscount * @stake
 				END,
 		Comm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * discount * stake * (1-apositiontaking)
-				WHEN @modds =  0.25 THEN @commWinRate * discount * stake * (1-apositiontaking) * 0.5
+				WHEN @modds >  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking)
+				WHEN @modds =  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
 				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking) * 0.5
-				WHEN @modds < -0.25 THEN @commLostRate * discount * stake * (1-apositiontaking)
+				WHEN @modds = -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
+				WHEN @modds < -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking)
 				END,
 		aComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
-				WHEN @modds =  0.25 THEN @commWinRate * adiscount * stake * (1-(mpositiontaking+apositiontaking)) * 0.5
+				WHEN @modds >  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+				WHEN @modds =  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
 				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking)) * 0.5
-				WHEN @modds < -0.25 THEN @commLostRate * adiscount * stake * (1-(mpositiontaking+apositiontaking))
+				WHEN @modds = -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
+				WHEN @modds < -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
 				END,
 		sComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
-				WHEN @modds =  0.25 THEN @commWinRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * 0.5
+				WHEN @modds >  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+				WHEN @modds =  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
 				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * 0.5
-				WHEN @modds < -0.25 THEN @commLostRate * sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+				WHEN @modds = -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
+				WHEN @modds < -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
 				END,
 		Status = CASE
 				WHEN @modds > 0 THEN 'WON'
