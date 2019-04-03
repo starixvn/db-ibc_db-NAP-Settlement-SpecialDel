@@ -1,0 +1,37 @@
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
+	@TransDate		DATETIME	= NULL,
+	@IsFromMoveBet	BIT			= 0
+AS
+/*
+    Created by: Alan
+	Date: 20190325
+	Task: Mark Ticket for Settlement Exclusion
+	DB: DBTXN/BODB02
+
+	Revisions:
+		- 20190325@Alan: - Mark Ticket for Settlement Exclusion
+		
+	Explanation's Param:
+*/
+BEGIN
+SET NOCOUNT ON
+	CREATE TABLE #Tickets(
+		Total INT,
+		MatchId INT)
+	
+	INSERT INTO #Tickets
+	SELECT COUNT(m.TransId), m.MatchId
+	FROM dbo.MarkedTransaction m WITH(NOLOCK)
+	INNER JOIN dbo.bettrans b ON b.TransId = m.TransId AND b.MatchId = m.MatchId
+	WHERE (@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate))	OR @IsFromMoveBet = 1
+	GROUP BY m.MatchId
+
+
+	SELECT t.MatchId, t.Total, m.HomeId, m.AwayId, m.IsNeutral, m.SportType
+	FROM #Tickets t
+	LEFT JOIN dbo.match m WITH(NOLOCK) ON m.MatchId = t.MatchId	
+
+SET NOCOUNT OFF
+END
+GO

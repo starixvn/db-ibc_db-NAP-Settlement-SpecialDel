@@ -557,6 +557,7 @@ SET NOCOUNT ON
 		tl.GroupName,
 		b.betdaqid,
 		b.ExtraInfo,
+		b.IsCashOutMemberTicket,
 		b.MainCashoutId,
 		b.WalletType,			
 		b.MainTransId,		

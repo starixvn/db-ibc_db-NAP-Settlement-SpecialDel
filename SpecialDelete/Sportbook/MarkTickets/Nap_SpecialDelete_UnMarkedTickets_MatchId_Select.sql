@@ -207,7 +207,6 @@ SET NOCOUNT ON
 		refno				BIGINT,	
 		ExtraInfo			VARCHAR(1000),
 		MainCashoutId		BIGINT,
-		matchid				INT,
 		WalletType			TINYINT,
 		RefCode				BIGINT,
 		BonusID				INT,
@@ -816,7 +815,7 @@ SET NOCOUNT ON
 		m.sporttype,
 		m.SettlementStatus
 	FROM #Tickets b
-		LEFT JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid
+		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = @MatchId
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 
 										FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) 
