@@ -5,31 +5,31 @@ AS
 /*
 	Created: 20190227@Alan
 	Task : Select Selection of Single Match Parlay
-	DB: DBPRO/bodb02
+	DB: DBTXN/bodb02
 	Original:
 	Revisions: 
 		- 20190227@Alan: Select Selection Bet Builder - [106898]
 	
 */
 BEGIN
-	SET NOCOUNT ON
+	SET NOCOUNT ON	
+	DECLARE @BetCheck NVARCHAR(50), @MatchID INT
+	SELECT top 1 @BetCheck = b.betcheck, @MatchID = matchid
+	FROM bettrans b WITH(NOLOCK) 
+	WHERE b.transid = @TransId
 
-	CREATE TABLE #SelectionBetBuilder(
-		MarketSelectionID	BIGINT,
-		SelectionName		VARCHAR(200),
-		Result				VARCHAR(20)
-	)
-	
-	INSERT INTO #SelectionBetBuilder(MarketSelectionID, SelectionName, Result)
-	SELECT ms.MarketSelectionId, s.SelectionName, ms.Result
-	FROM DBPRO.bodb02.dbo.SMP_MarketSelection ms WITH(NOLOCK)
-		INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s WITH(NOLOCK) ON  ms.SelectionType = s.SelectionType
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = @TransId AND b.betcheck = ms.MarketId AND b.matchid = ms.MatchId
+	DECLARE @SQL NVARCHAR(MAX)
+	SELECT @SQL = N''
+	SELECT @SQL = N'
+	SELECT MarketSelectionId, SelectionName, Result
+	FROM OPENQUERY(DBPRO, ''
+		SELECT ms.MarketSelectionId, s.SelectionName, ms.Result
+		FROM bodb02.dbo.SMP_MarketSelection AS ms WITH(NOLOCK)
+		INNER JOIN bodb02.dbo.SMP_Selection AS s WITH(NOLOCK) ON ms.SelectionType = s.SelectionType
+		WHERE ms.MarketId = '''''+ @BetCheck +''''' AND ms.MatchId = '+ CONVERT(NVARCHAR(50),@MatchID) +'
+		ORDER BY ms.MarketSelectionID
+	'')'
 
-	SELECT s.MarketSelectionID, s.SelectionName, s.Result
-	FROM #SelectionBetBuilder s
-	ORDER BY s.MarketSelectionID	
-	
-	DROP TABLE #SelectionBetBuilder
+	EXECUTE	sys.sp_executesql @SQL
 END
 GO
