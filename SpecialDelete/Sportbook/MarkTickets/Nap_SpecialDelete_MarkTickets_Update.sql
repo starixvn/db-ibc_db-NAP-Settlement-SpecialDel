@@ -46,6 +46,20 @@ SET NOCOUNT ON
 			@ErrMsg			= @ErrMsg OUTPUT,
 			@ErrCode		= @ErrCode OUTPUT
 	END
+
+	-- Write Log
+	DECLARE @LogActionId	INT = 90500
+		,@LogData			VARCHAR(MAX)
+
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+						,@UserId AS '@UserId'
+						,@IP AS '@IP'
+						,'Status: ' + CAST(@Status AS VARCHAR(10)) + ', TransIds: ' + @TransIds AS '@LogData'
+				FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS VARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log'
+
 SET NOCOUNT OFF
 END
 GO

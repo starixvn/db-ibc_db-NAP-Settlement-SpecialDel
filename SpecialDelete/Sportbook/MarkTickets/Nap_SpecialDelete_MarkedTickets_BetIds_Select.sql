@@ -1,7 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_BetIds_Select]
 	@TransIds				VARCHAR(MAX)	= NULL,
-	@InvalidTransIds		VARCHAR(MAX)	= '' OUTPUT
+	@InvalidTransIds		VARCHAR(MAX)	= '' OUTPUT,
+	@MovedTransIds			VARCHAR(MAX)	= '' OUTPUT
 AS
 /*
     Created by: Alan
@@ -545,6 +546,28 @@ SET NOCOUNT ON
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END
+
+	-- invalid trans
+	SELECT @InvalidTransIds = '', @MovedTransIds = ''
+	;WITH t_invalid AS
+	(
+		SELECT	transid
+				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+		FROM #transIdTemp temp
+			OUTER APPLY (
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM dbo.bettrans14 WITH(NOLOCK) 
+				WHERE transid = temp.transid
+			) bm
+		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
+	)
+	SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN isMoved = 0
+							  THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
+							  ELSE '' END
+		 , @MovedTransIds = @MovedTransIds + CASE WHEN isMoved = 1
+							THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
+							ELSE '' END
+		FROM t_invalid
 
 	DROP TABLE #Tickets
 	DROP TABLE #tmpRefCodeSummary

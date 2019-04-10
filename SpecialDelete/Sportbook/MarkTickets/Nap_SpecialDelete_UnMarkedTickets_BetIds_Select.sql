@@ -267,8 +267,7 @@ SET NOCOUNT ON
 			WHERE b.statusID IN (0, 1)
 		END
 	END
-
-	IF(EXISTS(SELECT TOP 1 1 FROM #Tickets WHERE bettype NOT IN (9, 29, 2799)))
+		
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode

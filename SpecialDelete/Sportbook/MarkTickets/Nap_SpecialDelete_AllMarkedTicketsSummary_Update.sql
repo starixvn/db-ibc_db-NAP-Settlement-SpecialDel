@@ -2,7 +2,11 @@
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update]
 	@MatchIds		VARCHAR(MAX)	= NULL,
 	@TransDate		DATETIME		= NULL,
-	@IsFromMoveBet	BIT				= 0
+	@IsFromMoveBet	BIT				= 0,
+	@UserId			INT				= 0,
+	@IP				VARCHAR(15)		= NULL,
+	@ErrMsg			NVARCHAR(200)	= ''	OUTPUT,
+    @ErrCode		INT				= 0		OUTPUT
 AS
 /*
     Created by: Alan
@@ -41,6 +45,22 @@ SET NOCOUNT ON
 	SELECT b.MatchId, m.HomeId, m.AwayId, m.SportType, m.IsNeutral 
 	FROM #Match b
 		LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId
+
+	-- Write Log
+	DECLARE @LogActionId	INT = 90501
+		,@LogData			VARCHAR(MAX)
+
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+						,@UserId AS '@UserId'
+						,@IP AS '@IP'
+						,'Status: 1, MatchIds: ' + @MatchIds 
+						+ ', @IsFromMoveBet: ' + CAST(@IsFromMoveBet AS VARCHAR(10))
+						+ ', @TransDate: ' + CAST(@TransDate AS VARCHAR(50))
+						AS '@LogData'
+				FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS VARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log'
 
 	DROP TABLE #Match
 	DROP TABLE #Tickets
