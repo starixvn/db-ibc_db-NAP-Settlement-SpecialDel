@@ -177,7 +177,7 @@ SET NOCOUNT ON
 		GroupName			VARCHAR(50),
 		transid				BIGINT,
 		custid				INT,
-		username			VARCHAR(30),
+		username			VARCHAR(50),
 		oddsspread 			MONEY,
 		odds				MONEY, 
 		OddsType			INT, 
@@ -362,6 +362,7 @@ SET NOCOUNT ON
 			,livehomescore 
 			,liveawayscore 
 			,creator
+			,username
 			,Stake
 			,CurrencyName
 			,status
@@ -406,6 +407,7 @@ SET NOCOUNT ON
 			b.livehomescore,
 			b.liveawayscore,
 			b.creator,
+			b.Username,
 			b.stake,
 			b.CurrencyName, 
 			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 
@@ -534,6 +536,7 @@ SET NOCOUNT ON
 					,livehomescore
 					,liveawayscore
 					,creator
+					,username
 					,Stake
 					,CurrencyName
 					,status
@@ -568,6 +571,7 @@ SET NOCOUNT ON
 					b.livehomescore,
 					b.liveawayscore,
 					b.creator,
+					b.Username,
 					b.stake,
 					b.CurrencyName,
 					CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
@@ -802,9 +806,12 @@ SET NOCOUNT ON
 		m.leagueid,
 		m.IsNeutral,
 		m.sporttype,
-		m.SettlementStatus
+		m.SettlementStatus,
+		c.site AS LicenseeName,
+		CASE WHEN b.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
 	FROM #Tickets b
-		LEFT JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid
+		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = @MatchId
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 
 										FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) 

@@ -21,7 +21,7 @@ SET NOCOUNT ON
 		GroupID				BIGINT,
 		transid				BIGINT,
 		custid				INT,
-		username			VARCHAR(30),
+		username			VARCHAR(50),
 		oddsspread 			MONEY,
 		odds				MONEY, 
 		OddsType			INT, 
@@ -484,7 +484,9 @@ SET NOCOUNT ON
 		m.leagueid,
 		m.IsNeutral,
 		m.sporttype,
-		m.SettlementStatus
+		m.SettlementStatus,
+		c.site AS LicenseeName,
+		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
