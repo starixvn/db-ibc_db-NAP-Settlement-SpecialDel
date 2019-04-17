@@ -71,7 +71,7 @@ AS
 	  - 20181004@Alan: Add new column SettlementStatus [102423]
 	  - 20181120@Alan: Incorporate Happy 5 into Number Game [102845]
 	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
-	
+	  - 20190325@Alan: - Mark Ticket for Settlement Exclusion
 	 Param's Explanation:   
 	*/
 BEGIN
@@ -2588,7 +2588,40 @@ BEGIN
 			@Mode = 'Original'
 		  , @Action = 'Void' 
 		  , @IsReleased = 1		
+	------------------***** Insert into Settled_Message *****------------------
 	
+    INSERT INTO [dbo].[Settled_Message]
+		  ([AdminId],
+		  [MatchId],
+		  [IP],
+		  [Starttime],
+		  [Action],
+		  [Message],
+		  [IsRead],
+		  [Warning],
+		  [IsSent]
+		  )
+		  SELECT 111,
+				t.matchid,
+				@IP,
+				GETDATE(),
+				'MARK',
+				'has some tickets marked by '+@Username,
+				0,
+				NULL,
+				0
+		  FROM #tblMatch t
+			 LEFT JOIN
+    (
+	   SELECT m.matchid
+	   FROM dbo.MarkedTransaction m WITH (NOLOCK)
+			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
+											 AND b.statusID IN(0, 1)
+    ) mt ON mt.MatchId = t.MatchId
+		  WHERE mt.MatchId IS NULL;
+		  
+	   ------------------***** End of Insert into Settled_Message *****------------------
+
 	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
 		+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  

@@ -90,6 +90,7 @@ AS
 		- 20181003@Alan: Add new column SettlementStatus [102423]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
+		- 20190325@Alan: - Mark Ticket for Settlement Exclusion
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1925,6 +1926,42 @@ BEGIN
 			,@IsReleased = 1	
 			
 	------------------***** End of Special Delete *****------------------
+	------------------***** Insert into Settled_Message *****------------------
+	
+	   IF NOT EXISTS
+	   (
+		  SELECT m.matchid
+		  FROM dbo.MarkedTransaction m WITH (NOLOCK)
+			  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
+												AND b.statusID IN(0, 1)
+		  WHERE m.MatchId = @MatchId
+	   )
+		  BEGIN
+			 INSERT INTO [dbo].[Settled_Message]
+				   ([AdminId],
+				    [MatchId],
+				    [IP],
+				    [Starttime],
+				    [Action],
+				    [Message],
+				    [IsRead],
+				    [Warning],
+				    [IsSent]
+				   )
+			 VALUES
+				   (111,
+				    @MatchId,
+				    @IP,
+				    GETDATE(),
+				    'VOID',
+				    'has all tickets unmarked by '+@Username,
+				    0,
+				    NULL,
+				    0
+				   );
+		  END;
+	   ------------------***** End of Insert into Settled_Message *****------------------
+
 		IF(@FromTransId > 0)
 		BEGIN
 			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
