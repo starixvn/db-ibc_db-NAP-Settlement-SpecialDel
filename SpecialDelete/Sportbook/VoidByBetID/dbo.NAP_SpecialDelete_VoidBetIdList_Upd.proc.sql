@@ -2605,8 +2605,8 @@ BEGIN
 				t.matchid,
 				@IP,
 				GETDATE(),
-				'MARK',
-				'has some tickets marked by '+@Username,
+				'VOID',
+				'has all tickets unmarked by '+@Username,
 				0,
 				NULL,
 				0
