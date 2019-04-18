@@ -397,7 +397,6 @@ SET NOCOUNT ON
 						AND main.betdaqid = 0
 						AND charindex ('p25',main.extrainfo)> 0	
 						AND sub911.bettype = 911			 
-		WHERE sub911.statusID IN (0, 1) 
 
 		-- get cash-out member bet tickets
 		INSERT INTO #Tickets (
@@ -490,7 +489,6 @@ SET NOCOUNT ON
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID IN (0, 1) 
 						 ) AS b
 		WHERE sub911.bettype = 911
 	END

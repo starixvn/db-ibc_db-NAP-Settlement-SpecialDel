@@ -39,11 +39,6 @@ AS
                   (matchid INT,
                    KeyID   TINYINT
                   );
-     CREATE TABLE #tblCashOutProcess
-                  (transid     BIGINT,
-                   refno       BIGINT,
-                   IsAvailable BIT DEFAULT 0
-                  );
      CREATE TABLE #Tickets
                   (TransId   BIGINT,
                    MatchId   INT,
@@ -72,21 +67,6 @@ AS
                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
                  LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
             WHERE m.TransId IS NULL;
-
-	-- checking cash-out process
-     INSERT INTO #tblCashOutProcess(transid)
-            SELECT transid
-            FROM #Tickets
-            WHERE betdaqid = 0
-                  AND CHARINDEX('p25', extrainfo) > 0;
-     EXEC dbo.NAP_Admin_CheckingCashOutProcess
-          @Mode = 'Original',
-          @Action = 'Void',
-          @IsReleased = 0;
-     DELETE t
-     FROM #Tickets t
-          INNER JOIN #tblCashOutProcess rp ON t.TransId = rp.transid
-                                              AND rp.IsAvailable = 0;	
 
 --check no data
      IF NOT EXISTS
@@ -244,6 +224,5 @@ AS
      DROP TABLE #transIds;
      DROP TABLE #Match;
      DROP TABLE #tblMatchProcess;
-     DROP TABLE #tblCashOutProcess;
      SET NOCOUNT OFF;
 GO

@@ -174,7 +174,6 @@ SET NOCOUNT ON
 
 	CREATE TABLE #Tickets (
 		GroupID				BIGINT,
-		GroupName			VARCHAR(50),
 		transid				BIGINT,
 		custid				INT,
 		username			VARCHAR(50),
@@ -239,7 +238,6 @@ SET NOCOUNT ON
 	BEGIN
 		INSERT INTO #Tickets (
 			GroupID
-			,GroupName
 			,transid
 			,custid	
 			,odds
@@ -283,7 +281,6 @@ SET NOCOUNT ON
 		)
 		SELECT
 			b.transid,
-			tl.GroupName AS GroupName,
 			b.transid,
 			b.custid,
 			b.odds,   
@@ -332,7 +329,6 @@ SET NOCOUNT ON
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
-			INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE
 			b.statusID IN (0, 1) -- running, waiting
@@ -347,7 +343,6 @@ SET NOCOUNT ON
 	BEGIN
 		INSERT INTO #Tickets (
 			GroupID
-			,GroupName
 			,transid
 			,custid	
 			,odds
@@ -392,7 +387,6 @@ SET NOCOUNT ON
 		)
 		SELECT
 			b.transid,
-			tl.GroupName AS GroupName,
 			b.transid,
 			b.custid,
 			b.odds,   
@@ -443,7 +437,6 @@ SET NOCOUNT ON
 			INNER JOIN #Durations d WITH (NOLOCK) ON b.transdate BETWEEN d.FromTransDate AND d.ToTransDate 
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
-			INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE
 		     b.statusID IN (0, 1) -- running, waiting
@@ -605,169 +598,165 @@ SET NOCOUNT ON
 		END 		
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0)
+	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
+	IF(EXISTS (SELECT TOP 1 1 
+			   FROM #Tickets 
+			   WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0))
 	BEGIN
-		-- get sub ticket of Cash-out (911)
+		-- get sub ticket of Cash-out (911)	
 		INSERT INTO #Tickets(
-					GroupID,
-					Stake,
-					BetCheck,
-					BetId,
-					BetTeam,
-					BetType,
-					OriginalBetType,
-					CurrencyName,
-					Creator,
-					Hdp1,
-					Hdp2,
-					IsLiveIndicator,
-					LiveAwayScore,
-					LiveHomeScore,
-					Odds,
-					oddsspread,
-					OddsType,
-					RefNo,
-					Status,
-					TransDate,
-					TransDesc,
-					TransId,
-					UserName,
-					WinLost,
-					srecommend,
-					GroupName,
-					betdaqid,
-					ExtraInfo,
-					MainCashoutId,
-					matchid,
-					WalletType,
-					RefCode,
-					BonusID,
-					MainTransId
-				)
-		SELECT  sub911.transid AS GroupID,
-				sub911.Stake,
-				main.BetCheck,
-				main.BetType AS BetId,
-				main.BetTeam,
-				sub911.BetType AS BetType,
-				main.bettype  AS OriginalBetType,
-				main.CurrencyName,
-				main.Creator,
-				main.Hdp1,
-				main.Hdp2,
-				main.IsLiveIndicator,
-				main.LiveAwayScore,
-				main.LiveHomeScore,
-				main.Odds,
-				main.oddsspread,
-				main.OddsType,
-				sub911.RefNo,
-				'Cash out' AS Status,
-				sub911.TransDate,
-				main.TransDesc,
-				sub911.TransId,
-				sub911.UserName,
-				sub911.winlost - sub911.actual_stake AS WinLost,
-				sub911.srecommend,
-				main.GroupName,
-				sub911.betdaqid,
-				sub911.ExtraInfo AS ExtraInfo,
-				main.transid AS MainCashoutId,
-				sub911.matchid,
-				sub911.WalletType,
-				sub911.RefCode,
-				sub911.BonusID,
-				main.transid AS MainTransId
-		FROM dbo.bettrans sub911 WITH(NOLOCK)
-			INNER JOIN #Tickets main 
-				ON	sub911.refno = main.transid	
-					AND sub911.custid = main.custid
-					AND main.betdaqid = 0
-					AND charindex ('p25',main.extrainfo)> 0
-					AND sub911.bettype = 911
-					AND sub911.matchid = @matchid
-		WHERE sub911.statusID IN (0, 1) -- running, waiting	
-			
+			GroupID
+			,bettype
+			,OriginalBetType
+			,transid
+			,betid
+			,refno
+			,hdp1
+			,hdp2
+			,odds
+			,oddsspread
+			,OddsType
+			,STATUS	
+			,stake
+			,transdate
+			,betteam
+			,betcheck
+			,IsLiveIndicator
+			,custid
+			,livehomescore
+			,liveawayscore
+			,winlost
+			,TransDesc
+			,betdaqid
+			,username
+			,recommend
+			,ExtraInfo
+			,MainCashoutId
+			,CurrencyName
+			,WalletType
+			,RefCode
+			,BonusID
+			,MainTransId
+		)
+		SELECT  sub911.transid
+				,sub911.bettype
+				,main.bettype AS OriginalBetType
+				,sub911.transid
+				,main.bettype AS betid
+				,sub911.refno
+				,main.hdp1
+				,main.hdp2
+				,main.odds
+				,main.oddsspread
+				,main.OddsType
+				,'Cash out'
+				,sub911.stake
+				,sub911.transdate
+				,main.betteam
+				,main.betcheck
+				,main.IsLiveIndicator
+				,sub911.custid
+				,main.livehomescore
+				,main.liveawayscore
+				,sub911.winlost - sub911.actual_stake
+				,main.TransDesc
+				,sub911.betdaqid
+				,sub911.username
+				,sub911.recommend
+				,sub911.ExtraInfo
+				,main.transid AS MainCashoutId
+				,sub911.CurrencyName
+				,sub911.WalletType
+				,sub911.RefCode
+				,sub911.BonusID
+				,main.transid AS MainTransId
+		FROM #Tickets main
+			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
+					 ON main.transid = sub911.refno
+						AND sub911.matchid = @matchId	
+						AND sub911.custid = main.custid	
+						AND main.betdaqid = 0
+						AND charindex ('p25',main.extrainfo)> 0	
+						AND sub911.bettype = 911			 
+
 		-- get cash-out member bet tickets
-		INSERT INTO #Tickets(
-				GroupID,
-				Stake,
-				BetCheck,
-				BetId,
-				BetTeam,
-				BetType,
-				OriginalBetType,
-				CurrencyName,
-				Creator,
-				Hdp1,
-				Hdp2,
-				IsLiveIndicator,
-				LiveAwayScore,
-				LiveHomeScore,
-				Odds,
-				oddsspread,
-				OddsType,
-				RefNo,
-				Status,
-				TransDate,
-				TransDesc,
-				TransId,
-				UserName,
-				WinLost,
-				srecommend,
-				GroupName,
-				betdaqid,
-				ExtraInfo,
-				MainCashoutId,
-				WalletType,
-				RefCode,
-				BonusID,
-				MainTransId	
-			)
-	SELECT 	sub911.transid AS GroupID,
-			b.Stake,
-			b.BetCheck,
-			b.BetId,
-			b.BetTeam,
-			b.BetType,
-			sub911.OriginalBetType,
-			te.currency AS CurrencyName,
-			b.Creator,
-			b.Hdp1,
-			b.Hdp2,
-			b.LiveIndicator AS IsLiveIndicator,
-			b.LiveAwayScore,
-			b.LiveHomeScore,
-			b.Odds,
-			b.oddsspread,
-			b.OddsType,
-			b.RefNo,
-			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.status 
-			END AS STATUS,
-			b.TransDate,
-			b.TransDesc,
-			b.TransId,
-			b.UserName,
-			b.WinLost - b.actual_stake AS WinLost,
-			b.srecommend,
-			sub911.GroupName,
-			b.betdaqid,	
-			b.ExtraInfo,
-			sub911.MainCashoutId AS MainCashoutId,
-			b.WalletType,
-			b.RefCode,
-			b.BonusID,
-			sub911.MainTransId
+		INSERT INTO #Tickets (
+			GroupID	
+			,bettype
+			,OriginalBetType
+			,transid
+			,betid
+			,refno
+			,hdp1
+			,hdp2
+			,odds
+			,oddsspread	
+			,OddsType
+			,STATUS
+			,stake
+			,transdate
+			,betteam
+			,betcheck
+			,IsLiveIndicator
+			,custid
+			,livehomescore
+			,liveawayscore
+			,winlost
+			,TransDesc
+			,betdaqid
+			,username
+			,recommend
+			,ExtraInfo
+			,MainCashoutId
+			,CurrencyName
+			,WalletType
+			,RefCode
+			,BonusID
+			,MainTransId
+		)
+		SELECT  sub911.transid AS GroupId
+				,b.bettype
+				,sub911.OriginalBetType
+				,b.transid
+				,isnull(b.BetID, 0) AS BetID
+				,b.refno
+				,b.hdp1
+				,b.hdp2
+				,b.odds
+				,b.oddsspread
+				,b.OddsType
+				,CASE WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS STATUS
+				,b.stake
+				,b.transdate
+				,b.betteam
+				,b.betcheck
+				,b.liveindicator
+				,b.custid
+				,b.livehomescore
+				,b.liveawayscore
+				,(b.winlost - b.actual_stake) winlost
+				,b.transdesc
+				,b.betdaqid
+				,b.username
+				,b.recommend
+				,b.ExtraInfo
+				,sub911.MainCashoutId
+				,b.CurrencyName
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,sub911.MainTransId
 		FROM #Tickets sub911
-				CROSS APPLY (
-								SELECT b.*
-								FROM dbo.bettrans b WITH (NOLOCK)
-								WHERE b.refno = sub911.transid
-								AND b.matchid = sub911.matchid
+			 CROSS APPLY (
+							  SELECT b.*
+							  FROM dbo.bettrans b WITH (NOLOCK)
+							  WHERE b.refno = sub911.transid
+								AND b.matchid = @MatchId
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID IN (0, 1) -- running, waiting
-							) AS b
+					   ) AS b
 				LEFT JOIN CustDB.dbo.exchange te WITH(NOLOCK) ON b.currency = te.exchangeid
 		WHERE sub911.bettype = 911
 	END
@@ -796,7 +785,7 @@ SET NOCOUNT ON
 		b.TransId,
 		b.UserName,
 		b.WinLost,
-		b.GroupName,
+		tl.GroupName,
 		b.betdaqid,
 		b.ExtraInfo,
 		b.MainCashoutId,
@@ -810,9 +799,10 @@ SET NOCOUNT ON
 		m.sporttype,
 		m.SettlementStatus,
 		c.site AS LicenseeName,
-		CASE WHEN b.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
+		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = @MatchId
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 
@@ -822,12 +812,12 @@ SET NOCOUNT ON
 						ELSE 0
 					END AS IsDeposit) AS T1
 	ORDER BY CASE
-				WHEN b.GroupName = @cn88_Name THEN 1
-				WHEN b.GroupName = @789y_Name THEN 2
-				WHEN b.GroupName = @MBCGroup_Name THEN 3
+				WHEN tl.GroupName = @cn88_Name THEN 1
+				WHEN tl.GroupName = @789y_Name THEN 2
+				WHEN tl.GroupName = @MBCGroup_Name THEN 3
 				ELSE 4
 		     END ASC
-		   , b.GroupName ASC
+		   , tl.GroupName ASC
 		   , ISNULL(b.MainTransId, b.transid) ASC
 		   , CASE WHEN b.BonusID IS NOT NULL
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
