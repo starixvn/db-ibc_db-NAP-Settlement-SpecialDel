@@ -335,7 +335,8 @@ SET NOCOUNT ON
 			INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE
-			b.matchid = @MatchId 
+			b.statusID IN (0, 1) -- running, waiting
+			AND b.matchid = @MatchId 
 			AND b.transid BETWEEN @FromTransId AND @ToTransId
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
@@ -445,7 +446,8 @@ SET NOCOUNT ON
 			INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE
-			b.matchid = @MatchId 
+		     b.statusID IN (0, 1) -- running, waiting
+			AND b.matchid = @MatchId 
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END

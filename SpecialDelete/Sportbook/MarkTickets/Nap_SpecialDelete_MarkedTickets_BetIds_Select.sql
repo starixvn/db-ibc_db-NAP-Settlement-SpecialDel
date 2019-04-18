@@ -156,7 +156,7 @@ SET NOCOUNT ON
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
-
+		WHERE b.statusID IN (0, 1) -- running, waiting	
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE refno IS NOT NULL)
 	BEGIN
