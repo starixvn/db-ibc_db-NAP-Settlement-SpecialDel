@@ -23,7 +23,7 @@ SET NOCOUNT ON
 	INSERT INTO #Tickets
 	SELECT COUNT(m.TransId), m.MatchId
 	FROM dbo.MarkedTransaction m WITH(NOLOCK)
-	INNER JOIN dbo.bettrans b ON b.TransId = m.TransId AND b.MatchId = m.MatchId
+	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = m.TransId AND b.MatchId = m.MatchId
 	WHERE (@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate))	OR @IsFromMoveBet = 1
 	GROUP BY m.MatchId
 
