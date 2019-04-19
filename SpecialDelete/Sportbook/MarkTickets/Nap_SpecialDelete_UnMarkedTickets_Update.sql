@@ -77,17 +77,12 @@ AS
          BEGIN
              SELECT @ErrCode = 99,
                     @ErrMsg = 'No ticket found.';		
-		-------> releasing cash-out process
-             EXEC dbo.NAP_Admin_CheckingCashOutProcess
-                  @Mode = 'Original',
-                  @Action = 'Void',
-                  @IsReleased = 1;
              RETURN;
          END;
 	
 	-- Check Lock Match
          BEGIN
-             DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0, @isExistCashOut BIT= 0;
+             DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0
              SELECT @isExistMatch = MAX(CASE
                                             WHEN BetType NOT BETWEEN 221 AND 227
                                             THEN 1
@@ -97,13 +92,7 @@ AS
                                          WHEN BetType BETWEEN 221 AND 227
                                          THEN 1
                                          ELSE 0
-                                     END),
-                    @isExistCashOut = MAX(CASE
-                                              WHEN betdaqid = 0
-                                                   AND CHARINDEX('p25', extrainfo) > 0
-                                              THEN 1
-                                              ELSE 0
-                                          END)
+                                     END)
              FROM #Tickets;
              INSERT INTO #tblMatchProcess
                     (MatchId,
@@ -128,11 +117,6 @@ AS
              IF(@ErrCode <> 0
                 OR @avaiableProcess = 0)
                  BEGIN		
-			-- releasing cash-out process
-                     EXEC dbo.NAP_Admin_CheckingCashOutProcess
-                          @Mode = 'Original',
-                          @Action = 'Void',
-                          @IsReleased = 1;
                      RETURN;
                  END;
          END;
@@ -194,11 +178,7 @@ AS
           @isExistMatch = @isExistMatch,
           @IsExistFM = @IsExistFM,
           @IsReleased = 1;
-	-- releasing cash-out process
-     EXEC dbo.NAP_Admin_CheckingCashOutProcess
-          @Mode = 'Original',
-          @Action = 'Void',
-          @IsReleased = 1;
+
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
