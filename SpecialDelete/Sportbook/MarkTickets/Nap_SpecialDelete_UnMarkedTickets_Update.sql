@@ -45,29 +45,150 @@ AS
                    CustId    INT,
                    BetType   SMALLINT,
                    Betdaqid  BIGINT,
-                   ExtraInfo VARCHAR(1000)
+                   ExtraInfo VARCHAR(1000),
+                   RefCode   BIGINT
                   );
-
-	-- Get tickets insert into transaction
+     CREATE TABLE #Cashout911Tickets
+                  (TransId BIGINT,
+                   MatchId INT
+                  );
+     CREATE TABLE #tmpRefCodeSummary
+                  (RefCode BIGINT,
+                   custid  INT,
+                   matchid INT,
+                   bettype SMALLINT,
+                   transid BIGINT
+                  );
+     CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
+     CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
+    
+-- Get tickets insert into transaction
      INSERT INTO #Tickets
             (TransId,
              MatchId,
              BetType,
              CustId,
              Betdaqid,
-             ExtraInfo
+             ExtraInfo,
+             RefCode
             )
             SELECT t.TransId,
                    b.MatchId,
                    b.BetType,
                    b.custid,
                    b.betdaqid,
-                   b.ExtraInfo
+                   b.ExtraInfo,
+                   b.RefCode
             FROM #transIds t
                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
                  LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
             WHERE m.TransId IS NULL;
+-- Bonus
+     IF EXISTS
+(
+    SELECT TOP 1 1
+    FROM #Tickets
+    WHERE RefCode IS NOT NULL
+)
+         BEGIN
+             -- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
+             INSERT INTO #tmpRefCodeSummary
+                    (RefCode,
+                     custid,
+                     matchid,
+                     bettype,
+                     transid
+                    )
+                    SELECT RefCode,
+                           custid,
+                           matchid,
+                           bettype,
+                           MAX(transid) AS transid
+                    FROM #Tickets
+                    WHERE RefCode IS NOT NULL
+                    GROUP BY RefCode,
+                             custid,
+                             matchid,
+                             bettype
+                    HAVING COUNT(*) = 1;
+             IF @@ROWCOUNT > 0
+                 BEGIN
+                     INSERT INTO #Tickets
+                            (TransId,
+                             MatchId,
+                             BetType,
+                             CustId,
+                             Betdaqid,
+                             ExtraInfo,
+                             RefCode
+                            )
+                            SELECT b.transid,
+                                   b.matchid,
+                                   b.bettype,
+                                   b.custid,
+                                   b.betdaqid,
+                                   b.ExtraInfo,
+                                   b.RefCode
+                            FROM #tmpRefCodeSummary t
+                                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.RefCode = t.RefCode
+                                                                            AND b.transid <> t.transid
+                                                                            AND b.matchid = t.matchid
+                                                                            AND b.custid = t.custid
+                                                                            AND b.bettype = t.bettype
+                            WHERE b.statusID IN(0, 1); -- running, waiting
+                 END;
+         END;	
 
+-- get sub ticket of Cash-out (911) and cash-out member bet tickets
+     IF(EXISTS
+(
+    SELECT TOP 1 1
+    FROM #Tickets
+    WHERE betdaqid = 0
+          AND CHARINDEX('p25', extrainfo) > 0
+))
+         BEGIN
+-- get sub ticket of Cash-out (911)	
+             INSERT INTO #Cashout911Tickets
+                    (TransId,
+                     MatchId
+                    )
+                    SELECT sub911.transid,
+                           sub911.matchid
+                    FROM #Tickets main
+                         INNER JOIN dbo.bettrans sub911 WITH (NOLOCK) ON main.transid = sub911.refno
+                                                                         AND sub911.matchid = main.MatchId
+                                                                         AND sub911.custid = main.custid
+                                                                         AND main.betdaqid = 0
+                                                                         AND CHARINDEX('p25', main.extrainfo) > 0
+                                                                         AND sub911.bettype = 911;			 
+
+-- get cash-out member bet tickets
+             INSERT INTO #Tickets
+                    (TransId,
+                     MatchId,
+                     BetType,
+                     CustId,
+                     Betdaqid,
+                     ExtraInfo
+                    )
+                    SELECT b.transid,
+                           b.matchid,
+                           b.bettype,
+                           b.custid,
+                           b.betdaqid,
+                           b.ExtraInfo
+                    FROM #Cashout911Tickets sub911
+                         CROSS APPLY
+(
+    SELECT b.*
+    FROM dbo.bettrans b WITH (NOLOCK)
+    WHERE b.refno = sub911.transid
+          AND b.matchid = sub911.MatchId
+          AND b.bettype NOT IN(911, 912, 913)
+) AS b
+                         LEFT JOIN CustDB.dbo.exchange te WITH (NOLOCK) ON b.currency = te.exchangeid;
+         END;
 --check no data
      IF NOT EXISTS
 (
@@ -76,13 +197,13 @@ AS
 )
          BEGIN
              SELECT @ErrCode = 99,
-                    @ErrMsg = 'No ticket found.';		
+                    @ErrMsg = 'No ticket found.';
              RETURN;
          END;
 	
-	-- Check Lock Match
+-- Check Lock Match
          BEGIN
-             DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0
+             DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0;
              SELECT @isExistMatch = MAX(CASE
                                             WHEN BetType NOT BETWEEN 221 AND 227
                                             THEN 1
@@ -116,7 +237,7 @@ AS
                   @ErrMsg = @ErrMsg OUTPUT;
              IF(@ErrCode <> 0
                 OR @avaiableProcess = 0)
-                 BEGIN		
+                 BEGIN
                      RETURN;
                  END;
          END;
@@ -125,7 +246,7 @@ AS
                    t.MatchId
             FROM #Tickets t;
 	  	  
-     -- Insert Settled_Message
+-- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
             ([AdminId],
              [MatchId],
@@ -156,7 +277,7 @@ AS
 ) mt ON mt.MatchId = t.MatchId
             WHERE mt.MatchId IS NULL;
     
-	-- Insert Transaction
+-- Insert Transaction
      INSERT INTO dbo.MarkedTransaction
             (TransId,
              MatchId,
@@ -173,12 +294,11 @@ AS
                    CURRENT_TIMESTAMP
             FROM #Tickets t; 
 
-	-- Release Match
+-- Release Match
      EXEC dbo.NAP_Admin_CheckingProcess
           @isExistMatch = @isExistMatch,
           @IsExistFM = @IsExistFM,
           @IsReleased = 1;
-
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
@@ -187,7 +307,7 @@ AS
      FROM #Match b
           LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
 
-	-- invalid trans
+-- invalid trans
      SELECT @InvalidTransIds = @InvalidTransIds+CASE
                                                     WHEN @InvalidTransIds <> ''
                                                     THEN ','
@@ -201,6 +321,8 @@ AS
     WHERE b.transid = t.transid
 );
      DROP TABLE #Tickets;
+     DROP TABLE #Cashout911Tickets;
+     DROP TABLE #tmpRefCodeSummary;
      DROP TABLE #transIds;
      DROP TABLE #Match;
      DROP TABLE #tblMatchProcess;
