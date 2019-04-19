@@ -1,7 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
-	@TransDate		DATETIME	= NULL,
-	@IsFromMoveBet	BIT			= 0
 AS
 /*
     Created by: Alan
@@ -25,7 +23,6 @@ SET NOCOUNT ON
 	FROM dbo.MarkedTransaction m WITH(NOLOCK)
 	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = m.TransId AND b.MatchId = m.MatchId
 	WHERE b.statusID IN (0, 1) -- running, waiting
-		AND ((@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate))	OR @IsFromMoveBet = 1)
 	GROUP BY m.MatchId
 
 
