@@ -15,6 +15,7 @@ AS
 		- 20170629@Bobby: 78882 - Add groupid = 7
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
 		- 20181116@Helen: action=165 Calculate Fast Markets,do NOT get for userid=111  [Redmine:82430]
+		- 20190405@Patrick: Support archive date range [Redmine: #111476]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -172,6 +173,22 @@ BEGIN
 
 	IF @GroupID IN (1,2,7)
 	BEGIN
+		
+		DECLARE @__archiveDate DATETIME
+		SELECT @__archiveDate = DATEADD(DAY, 1, dbo.f_CustomerLog_GetArchiveDate())
+
+		SELECT * INTO #__tmpData
+		FROM (
+			SELECT LogID, LogDate, finalhomescore, finalawayscore, hthomescore, htawayscore, ActionID, Remark, UserID
+			FROM dbo.UserLog_Settle WITH(NOLOCK)
+			WHERE MatchID = @MatchID AND LogDate >= @__archiveDate
+
+			UNION ALL
+			SELECT LogID, LogDate, finalhomescore, finalawayscore, hthomescore, htawayscore, ActionID, Remark, UserID
+			FROM bodb_CustomerLog_Archive.dbo.UserLog_Settle WITH(NOLOCK)
+			WHERE MatchID = @MatchID AND LogDate < @__archiveDate
+		)t
+
 		SELECT	  l.logid
 				, l.logdate
 				, act.ActionNameEN
@@ -180,7 +197,7 @@ BEGIN
 				, l.finalawayscore
 				, l.hthomescore
 				, l.htawayscore
-		FROM	bodb_CustomerLog.dbo.UserLog_Settle l WITH(NOLOCK)
+		FROM	#__tmpData l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 				OUTER APPLY (
 					SELECT 
@@ -210,8 +227,7 @@ BEGIN
 						END AS ActionNameCS
 				) AS act
 
-		WHERE	l.MatchID = @MatchID
-			AND 1 = CASE 
+		WHERE 1 = CASE 
 						WHEN @GroupID = 7 THEN 
 							CASE 
 								WHEN l.Remark NOT LIKE '%Error%' AND l.Remark NOT LIKE '%API%' THEN 1
@@ -241,4 +257,5 @@ BEGIN
 		ORDER BY	l.LogID ASC 	
 	END
 END 
-GO 
+
+GO
