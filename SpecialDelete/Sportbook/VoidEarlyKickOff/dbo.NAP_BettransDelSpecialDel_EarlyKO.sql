@@ -86,7 +86,8 @@ Revisions:
 	- 20181017@Alan: Write log new reason chinese simplified [102918]
 	- 20181004@Alan: Add new column SettlementStatus [102423]
 	- 20180821@Alan: Incorporate ESports 2.0 [99448]
-	- 20190325@Alan: - Mark Ticket for Settlement Exclusion
+	- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
+
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
 		'<BetTypes>
@@ -2319,41 +2320,17 @@ BEGIN
 			  , @Action = 'Void'
 			  , @IsReleased = 1  
 	   
-	   ------------------***** Insert into Settled_Message *****------------------
-	
-	   IF NOT EXISTS
-	   (
-		  SELECT m.matchid
-		  FROM dbo.MarkedTransaction m WITH (NOLOCK)
-			  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
-												AND b.statusID IN(0, 1)
-		  WHERE m.MatchId = @MatchId
-	   )
-		  BEGIN
-			 INSERT INTO [dbo].[Settled_Message]
-				   ([AdminId],
-				    [MatchId],
-				    [IP],
-				    [Starttime],
-				    [Action],
-				    [Message],
-				    [IsRead],
-				    [Warning],
-				    [IsSent]
-				   )
-			 VALUES
-				   (111,
-				    @MatchId,
-				    @IP,
-				    GETDATE(),
-				    'VOID',
-				    'has all tickets unmarked by '+@Username,
-				    0,
-				    NULL,
-				    0
-				   );
-		  END;
-	   ------------------***** End of Insert into Settled_Message *****------------------
+		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+		DECLARE @allTransId VARCHAR(MAX) = ''
+
+		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+		FROM	#BetDelete
+
+		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+			@TransId = @allTransId
+			,@Username = @Username
+			,@MatchId = @MatchId		 
+
 		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
 			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC
 
