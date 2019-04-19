@@ -24,14 +24,16 @@ SET NOCOUNT ON
 	SELECT COUNT(m.TransId), m.MatchId
 	FROM dbo.MarkedTransaction m WITH(NOLOCK)
 	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = m.TransId AND b.MatchId = m.MatchId
-	WHERE (@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate))	OR @IsFromMoveBet = 1
+	WHERE b.statusID IN (0, 1) -- running, waiting
+		AND ((@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate))	OR @IsFromMoveBet = 1)
 	GROUP BY m.MatchId
 
 
 	SELECT t.MatchId, t.Total, m.HomeId, m.AwayId, m.IsNeutral, m.SportType
 	FROM #Tickets t
 	LEFT JOIN dbo.match m WITH(NOLOCK) ON m.MatchId = t.MatchId	
-
+	
+	DROP TABLE #Tickets
 SET NOCOUNT OFF
 END
 GO

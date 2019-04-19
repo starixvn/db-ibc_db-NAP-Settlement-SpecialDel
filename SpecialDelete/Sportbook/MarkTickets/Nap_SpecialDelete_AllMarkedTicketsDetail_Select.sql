@@ -129,8 +129,10 @@ SET NOCOUNT ON
 			,b.BonusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
-		WHERE m.MatchId = @MatchId AND
+		WHERE b.statusID IN (0, 1) -- running, waiting
+		AND m.MatchId = @MatchId AND
 		((@IsFromMoveBet = 0 AND m.CreatedDate BETWEEN @TransDate AND DATEADD(DAY, 1, @TransDate)) OR @IsFromMoveBet = 1)
+		
 
 	CREATE TABLE #tmpRefCodeSummary (
 		 RefCode	BIGINT
