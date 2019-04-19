@@ -142,6 +142,13 @@ SET NOCOUNT ON
 	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
+    -- delete cash-out member bet tickets
+    DELETE t
+    FROM #Tickets t
+    WHERE EXISTS (SELECT TOP 1 1
+			 FROM bettrans sub911 (NOLOCK)
+			 WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
+
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE refno IS NOT NULL)
 	BEGIN
@@ -508,6 +515,11 @@ SET NOCOUNT ON
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END
 
+				
+  DROP TABLE #Tickets
+  DROP TABLE #tmpRefCodeSummary
+  DROP TABLE #t_LicenseeNames
+  DROP TABLE #t_UIRepresentativeLicenseeGroupNames
 SET NOCOUNT OFF
 END
 GO
