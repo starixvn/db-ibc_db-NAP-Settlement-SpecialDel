@@ -168,7 +168,7 @@ SET NOCOUNT ON
 			AND b.betfrom <> 'p'
 
 	-- update MainTransId
-	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE refno IS NOT NULL)
+	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
 	BEGIN
 		UPDATE sub
 		SET MainTransId = main.transid
@@ -283,7 +283,7 @@ SET NOCOUNT ON
 
 	-- delete marked tickets
 	DELETE t FROM #Tickets t
-	WHERE EXISTS (SELECT TOP 1 1 
+	WHERE EXISTS (SELECT TOP (1) 1 
 				  FROM dbo.MarkedTransaction m WITH(NOLOCK) 
 				  WHERE m.TransId = t.transid)
 
@@ -292,8 +292,8 @@ SET NOCOUNT ON
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM bettrans sub911 (NOLOCK)
+	WHERE EXISTS (SELECT TOP (1) 1
+				  FROM bettrans sub911 WITH (NOLOCK)
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)	
 
 	--- Remove invalid sporttype	
@@ -302,7 +302,7 @@ SET NOCOUNT ON
 	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/)
 
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
-	IF(EXISTS (SELECT TOP 1 1 
+	IF(EXISTS (SELECT TOP (1) 1 
 			   FROM #Tickets 
 			   WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0))
 	BEGIN
@@ -602,12 +602,12 @@ SET NOCOUNT ON
 				,ISNULL(m.isMarked, CAST(0 AS BIT)) AS isMarked
 		FROM #transIdTemp temp
 			OUTER APPLY (
-				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				SELECT TOP (1) CAST(1 AS BIT) AS isMoved
 				FROM dbo.bettrans14 WITH(NOLOCK) 
 				WHERE transid = temp.transid
 			) bm
 			OUTER APPLY (
-				SELECT TOP 1 CAST(1 AS BIT) AS isMarked
+				SELECT TOP (1) CAST(1 AS BIT) AS isMarked
 				FROM dbo.MarkedTransaction WITH(NOLOCK) 
 				WHERE transid = temp.transid
 			) m

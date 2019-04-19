@@ -456,55 +456,55 @@ SET NOCOUNT ON
 	BEGIN
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam ))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%'  ))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
 
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.TimeInterval = 9999 OR b.FilterTimeInterval = tp.TimeInterval)) 
 	END
 
 	-- delete marked tickets
 	DELETE t FROM #Tickets t
-	WHERE EXISTS (SELECT TOP 1 1 
+	WHERE EXISTS (SELECT TOP (1) 1 
 				  FROM dbo.MarkedTransaction m WITH(NOLOCK) 
 				  WHERE m.TransId = t.transid)
 
 	-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
-	WHERE EXISTS (SELECT TOP 1 1
+	WHERE EXISTS (SELECT TOP (1) 1
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
 
 	-- update MainTransId	
-	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE RefCode IS NOT NULL)
+	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE RefCode IS NOT NULL)
 	BEGIN
 		UPDATE sub
 		SET MainTransId = main.transid
@@ -610,7 +610,7 @@ SET NOCOUNT ON
 		END 		
 	END
 
-	IF(EXISTS (SELECT TOP 1 1 
+	IF(EXISTS (SELECT TOP (1) 1 
 			   FROM #Tickets 
 			   WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0))
 	BEGIN
@@ -762,7 +762,38 @@ SET NOCOUNT ON
 				,sub911.MainTransId
 		FROM #Tickets sub911
 			 CROSS APPLY (
-							  SELECT b.*
+							  SELECT b.bettype
+								,b.transid
+								,b.BetID
+								,b.refno
+								,b.hdp1
+								,b.hdp2
+								,b.odds
+								,b.oddsspread
+								,b.OddsType
+								,b.status
+								,b.SecAcceptFlag
+								,b.checktime
+								,b.stake
+								,b.transdate
+								,b.betteam
+								,b.betcheck
+								,b.liveindicator
+								,b.custid
+								,b.livehomescore
+								,b.liveawayscore
+								,b.winlost
+								,b.actual_stake
+								,b.transdesc
+								,b.betdaqid
+								,b.username
+								,b.recommend
+								,b.ExtraInfo
+								,b.CurrencyName
+								,b.WalletType
+								,b.RefCode
+								,b.BonusID
+								,b.currency
 							  FROM dbo.bettrans b WITH (NOLOCK)
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = @MatchId

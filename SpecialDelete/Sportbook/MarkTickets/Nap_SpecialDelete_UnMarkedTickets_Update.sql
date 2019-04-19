@@ -20,7 +20,7 @@ AS
 	Explanation's Param:
 		
 	Revisions:
-		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	
+		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 */
 
      SET NOCOUNT ON;
@@ -86,7 +86,7 @@ AS
 -- Bonus
      IF EXISTS
 (
-    SELECT TOP 1 1
+    SELECT TOP (1) 1
     FROM #Tickets
     WHERE RefCode IS NOT NULL
 )
@@ -142,7 +142,7 @@ AS
 -- get sub ticket of Cash-out (911) and cash-out member bet tickets
      IF(EXISTS
 (
-    SELECT TOP 1 1
+    SELECT TOP (1) 1
     FROM #Tickets
     WHERE betdaqid = 0
           AND CHARINDEX('p25', extrainfo) > 0
@@ -181,7 +181,38 @@ AS
                     FROM #Cashout911Tickets sub911
                          CROSS APPLY
 (
-    SELECT b.*
+    SELECT b.bettype
+		  ,b.transid
+		  ,b.BetID
+		  ,b.refno
+		  ,b.hdp1
+		  ,b.hdp2
+		  ,b.odds
+		  ,b.oddsspread
+		  ,b.OddsType
+		  ,b.status
+		  ,b.SecAcceptFlag
+		  ,b.checktime
+		  ,b.stake
+		  ,b.transdate
+		  ,b.betteam
+		  ,b.betcheck
+		  ,b.liveindicator
+		  ,b.custid
+		  ,b.livehomescore
+		  ,b.liveawayscore
+		  ,b.winlost
+		  ,b.actual_stake
+		  ,b.transdesc
+		  ,b.betdaqid
+		  ,b.username
+		  ,b.recommend
+		  ,b.ExtraInfo
+		  ,b.CurrencyName
+		  ,b.WalletType
+		  ,b.RefCode
+		  ,b.BonusID
+		  ,b.currency
     FROM dbo.bettrans b WITH (NOLOCK)
     WHERE b.refno = sub911.transid
           AND b.matchid = sub911.MatchId
@@ -192,7 +223,7 @@ AS
 --check no data
      IF NOT EXISTS
 (
-    SELECT TOP 1 1
+    SELECT TOP (1) 1
     FROM #Tickets
 )
          BEGIN

@@ -15,7 +15,7 @@ AS
 */
 BEGIN
 SET NOCOUNT ON
-	SELECT TOP 1 b.transdate FROM bettrans b WITH(NOLOCK) WHERE b.matchid =@MatchId
+	SELECT TOP (1) b.transdate FROM bettrans b WITH(NOLOCK) WHERE b.matchid =@MatchId
 	ORDER BY b.transdate ;
 SET NOCOUNT OFF
 END

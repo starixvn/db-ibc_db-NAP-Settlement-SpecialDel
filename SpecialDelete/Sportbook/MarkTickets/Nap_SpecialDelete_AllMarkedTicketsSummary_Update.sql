@@ -35,7 +35,7 @@ AS
 
 -- Delete Transaction
              DELETE m
-             FROM dbo.MarkedTransaction m
+             FROM dbo.MarkedTransaction m WITH(ROWLOCK)
                   INNER JOIN #Match t ON t.MatchId = m.MatchId;
 
 -- Insert Settled_Message

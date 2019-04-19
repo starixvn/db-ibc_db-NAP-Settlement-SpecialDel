@@ -144,12 +144,12 @@ SET NOCOUNT ON
     -- delete cash-out member bet tickets
     DELETE t
     FROM #Tickets t
-    WHERE EXISTS (SELECT TOP 1 1
+    WHERE EXISTS (SELECT TOP (1) 1
 			 FROM bettrans sub911 (NOLOCK)
 			 WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
 
 	-- update MainTransId
-	IF EXISTS (SELECT TOP 1 1 FROM #Tickets WHERE refno IS NOT NULL)
+	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
 	BEGIN
 		UPDATE sub
 		SET MainTransId = main.transid
@@ -250,7 +250,7 @@ SET NOCOUNT ON
 	END
 
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
-	IF(EXISTS (SELECT TOP 1 1 
+	IF(EXISTS (SELECT TOP (1) 1 
 			   FROM #Tickets 
 			   WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0))
 	BEGIN

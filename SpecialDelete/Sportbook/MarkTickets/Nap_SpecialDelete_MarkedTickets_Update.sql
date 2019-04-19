@@ -82,7 +82,7 @@ AS
 -- Bonus
      IF EXISTS
 (
-    SELECT TOP 1 1
+    SELECT TOP (1) 1
     FROM #Tickets
     WHERE RefCode IS NOT NULL
 )
@@ -124,7 +124,7 @@ AS
 -- get sub ticket of Cash-out (911) and cash-out member bet tickets
      IF(EXISTS
 (
-    SELECT TOP 1 1
+    SELECT TOP (1) 1
     FROM #Tickets
     WHERE betdaqid = 0
           AND CHARINDEX('p25', extrainfo) > 0
