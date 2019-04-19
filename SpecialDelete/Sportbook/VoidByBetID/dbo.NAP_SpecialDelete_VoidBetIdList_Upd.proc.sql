@@ -83,6 +83,7 @@ BEGIN
 			,@winlostdate				DATETIME
 			,@isExistMatch				BIT = 0
 			,@isExistMG					BIT = 0
+			,@isExistFM					BIT = 0
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
@@ -819,8 +820,9 @@ BEGIN
 	END
 	
 	SELECT @winlostdate 				= MIN (winlostdate)
-			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) THEN 1 ELSE 0 END)
+			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND Bettype NOT BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+			,@isExistFM 				= MAX (CASE WHEN Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
@@ -855,6 +857,7 @@ BEGIN
 		@isExistParlay 				= @isExistParlay
 		, @isExistOutright 			= @isExistOutright
 		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS
@@ -2578,6 +2581,7 @@ BEGIN
 		@isExistParlay 				= @isExistParlay
 		, @isExistOutright 			= @isExistOutright
 		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS

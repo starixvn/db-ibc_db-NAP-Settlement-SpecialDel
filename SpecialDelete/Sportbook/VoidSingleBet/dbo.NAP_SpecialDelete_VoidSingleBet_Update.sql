@@ -123,6 +123,7 @@ BEGIN
 			,@isExistBT			BIT = 0
 			,@isExistCashOut	BIT = 0
 			,@isExistSingle		BIT = 0
+			,@isExistFM			BIT = 0
 			,@avaiableProcess	BIT = 0
 	DECLARE @session			NVARCHAR(50)
 	DECLARE @CustIds			VARCHAR(MAX) = ''
@@ -354,7 +355,8 @@ BEGIN
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
 	BEGIN 
-		SELECT TOP 1 @isExistSingle = 1		
+		SELECT @isExistSingle = MAX(CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 0 ELSE 1 END)
+				,@isExistFM = MAX(CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)				
 		FROM dbo.bettrans b WITH (NOLOCK)  
 			INNER JOIN #tblTransIds t ON t.transid = b.transid  
 			INNER JOIN #tblBettype tp ON tp.Id = b.bettype  
@@ -371,10 +373,14 @@ BEGIN
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistSingle = 1 
+	UNION ALL
+	SELECT @MatchId AS matchid, 6 AS KeyId WHERE @isExistFM = 1
+
 	-- checking SD proccess
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistParlay		= @isExistParlay  
 		,@isExistMatch		= @isExistSingle
+		,@isExistFM			= @isExistFM
 		,@avaiableProcess 	= @avaiableProcess OUTPUT
 		,@ErrCode			= @ErrCode OUTPUT
 		,@ErrMsg			= @ErrMsg OUTPUT
@@ -1916,6 +1922,7 @@ BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistSingle
+			,@isExistFM		= @isExistFM
 			,@isExistParlay = @isExistParlay 
 			,@IsReleased	= 1
 		
