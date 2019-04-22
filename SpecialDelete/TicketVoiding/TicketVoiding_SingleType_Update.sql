@@ -36,7 +36,6 @@ BEGIN
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
-			,@isExistFM BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
 			,@session NVARCHAR(50)
@@ -102,9 +101,7 @@ BEGIN
 		SET @isExistMG = 1
 		
 	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode)
-	SELECT	b.transid, b.custid, b.bettype
-			,CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 6 ELSE 1 END AS KeyId
-			,1 AS balanceType
+	SELECT	b.transid, b.custid, b.bettype, 1 AS KeyId, 1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
 				ELSE 1 END AS TicketType
@@ -114,8 +111,8 @@ BEGIN
 			ON t.TransId = b.transid
 	WHERE	b.statusID <> 102		
 
-	--IF @@ROWCOUNT <> 0
-	--	SET @isExistMatch = 1
+	IF @@ROWCOUNT <> 0
+		SET @isExistMatch = 1
 		
 	IF NOT EXISTS (SELECT * FROM #tmpTransId)
 	BEGIN
@@ -130,13 +127,8 @@ BEGIN
 	FROM	#tmpTransId
 	GROUP BY KeyId
 	
-	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
-			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-	FROM	#tblMatchProcess
-
 	EXEC dbo.NAP_Admin_CheckingProcess
 		 @isExistMG = @isExistMG
-		, @isExistFM = @isExistFM
 		, @isExistMatch	= @isExistMatch
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
@@ -735,7 +727,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch = @isExistMatch
 		,@isExistMG	= @isExistMG
-		,@isExistFM = @isExistFM
 		, @IsReleased = 1
 
 	------ releasing cash-out process
