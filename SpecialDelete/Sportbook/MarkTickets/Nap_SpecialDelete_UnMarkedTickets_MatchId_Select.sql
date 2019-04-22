@@ -391,7 +391,7 @@ SET NOCOUNT ON
 			,FilterBetOption
 			,FilterTimeInterval
 		)
-		SELECT
+		SELECT 
 			b.transid,
 			b.transid,
 			b.custid,
@@ -440,7 +440,6 @@ SET NOCOUNT ON
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
-			INNER JOIN #Durations d WITH (NOLOCK) ON b.transdate BETWEEN d.FromTransDate AND d.ToTransDate 
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		WHERE
@@ -450,6 +449,7 @@ SET NOCOUNT ON
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
 			AND b.statusID IN (0,1 ) -- running, waiting
 			AND b.betfrom <> 'p'	
+			AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE b.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 	END
 
 	-- Filter Advanced Mode
