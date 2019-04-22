@@ -843,11 +843,13 @@ BEGIN
 	SELECT DISTINCT matchid
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10) 
-					AND Bettype NOT BETWEEN 801 AND 899 
+					AND Bettype NOT BETWEEN 801 AND 899
+					AND Bettype NOT BETWEEN 221 AND 227
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+			AND Bettype BETWEEN 221 AND 227 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			ELSE 0
 		END AS KeyID
