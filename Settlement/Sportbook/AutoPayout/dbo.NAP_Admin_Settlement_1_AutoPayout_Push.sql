@@ -9,6 +9,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
     , @Action		VARCHAR(10)     = 'CAL-FT'
     , @IP			VARCHAR(15)     = ''
 	, @IsReSettledTickets	BIT		= 1
+	, @GoalRecord	VARCHAR(50)		= ''
+	, @BetStatus	NVARCHAR(50)	= ''
+	, @ResourceResult VARCHAR(MAX)	= NULL
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -100,8 +103,8 @@ BEGIN
         , @Action = @Action
         , @Mode	= 'CAL'
 		, @IsExcludeCorner = 1
-		, @IsExcludeFGLG = 1
-		, @IsAutoCalculatePage = 1
+		, @IsExcludeFGLG = 0
+		, @IsAutoCalculatePage = 0
         , @ErrCode = @ErrCode OUTPUT
         , @ErrMsg = @ErrMsg OUTPUT
         
@@ -121,6 +124,9 @@ BEGIN
                             + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 							+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
+							+ ', @GoalRecord = ' + ISNULL(CONVERT(NVARCHAR(50), @GoalRecord), 'NULL') 
+							+ ', @BetStatus = ' + ISNULL(CONVERT(NVARCHAR(50), @BetStatus), N'NULL') 
+							+ ', @ResourceResult = ' + ISNULL(CONVERT(NVARCHAR(50), @ResourceResult), 'NULL') 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE
