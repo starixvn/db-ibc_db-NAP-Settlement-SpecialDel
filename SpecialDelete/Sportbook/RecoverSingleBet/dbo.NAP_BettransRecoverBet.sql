@@ -32,8 +32,8 @@ AS
 		- 20151008@Kathy: insert bettrade tickets to send API [Redmine:#43233]
 		- 20151021@Kathy: Do not show ticket 901 if its owner is not BetTrade account(betdaqid = 1)[Redmine:#43233]
 		- 20151102@Kathy: Enhance performance [Redmine:#43233]
-                - 20151209@Kathy: - get translog.siteid for MG API [Redmine:#49019]
-				  - update bettypetime for 801
+        - 20151209@Kathy: - get translog.siteid for MG API [Redmine:#49019]
+						  - update bettypetime for 801
 		- 20150712@Kathy: Database - Change datatype [Redmine: #48660]
 		- 20160706@Kathy: Get Refno for Lucky Single Ticket [Redmine:#55272]
 		- 20160809@Bobby: #61984 - Apply new bussiess terms for bettrade bettype[904]
@@ -51,6 +51,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190220@Alan: Support New Ticket Status Abnormal Bet [106654]
+		- 20190419@Kathy: Change KeyId = 6 for FastMarket [Redmine:#108826]
 		
 	Param's Explanation:
 */
@@ -63,6 +64,7 @@ BEGIN
 			,@before_yesterday	DATETIME
 			,@isExistMatch		BIT = 1
 			,@isExistMG			BIT = 0
+			,@isExistFM			BIT = 0
 			,@isExistBT			BIT = 0
 			,@isExistCashOut	BIT = 0
 			,@avaiableProcess	BIT	= 0
@@ -1017,8 +1019,9 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN bettype NOT BETWEEN 801 AND 806 THEN 1 --SB
+				WHEN bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
+				WHEN bettype BETWEEN 221 AND 227 THEN 6
 				ELSE 0 
 			END AS KeyId
 		FROM #tblTransInfo
@@ -1030,12 +1033,14 @@ BEGIN
 	
 	SELECT @isExistMatch 	= MAX(CASE WHEN KeyId = 1 THEN 1 ELSE 0 END )
 		, @isExistMG 		= MAX(CASE WHEN KeyId = 3 THEN 1 ELSE 0 END )
+		, @isExistFM 		= MAX(CASE WHEN KeyId = 6 THEN 1 ELSE 0 END )
 	FROM #tblMatchProcess
 	
 	-- checking SD proccess
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= @isExistMatch
 		, @isExistMG 		= @isExistMG
+		, @isExistFM 		= @isExistFM
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -1757,6 +1762,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMG 			= @isExistMG
 		, @isExistMatch		= @isExistMatch
+		, @isExistFM 		= @isExistFM
 		, @IsReleased		= 1	
 		
 	------ releasing cash-out process
