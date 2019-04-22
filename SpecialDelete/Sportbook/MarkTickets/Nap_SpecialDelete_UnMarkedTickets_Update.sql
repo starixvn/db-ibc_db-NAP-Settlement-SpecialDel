@@ -46,7 +46,8 @@ AS
                    BetType   SMALLINT,
                    Betdaqid  BIGINT,
                    ExtraInfo VARCHAR(1000),
-                   RefCode   BIGINT
+                   RefCode   BIGINT,
+				   refno	 BIGINT
                   );
      CREATE TABLE #Cashout911Tickets
                   (TransId BIGINT,
@@ -70,7 +71,8 @@ AS
              CustId,
              Betdaqid,
              ExtraInfo,
-             RefCode
+             RefCode,
+			 refno
             )
             SELECT t.TransId,
                    b.MatchId,
@@ -78,11 +80,19 @@ AS
                    b.custid,
                    b.betdaqid,
                    b.ExtraInfo,
-                   b.RefCode
+                   b.RefCode,
+				   b.refno
             FROM #transIds t
                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
                  LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
             WHERE m.TransId IS NULL;
+			
+-- delete cash-out member bet tickets
+	DELETE t
+	FROM #Tickets t
+	WHERE EXISTS (SELECT TOP (1) 1
+				  FROM bettrans sub911 (NOLOCK)
+				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
 -- Bonus
      IF EXISTS
 (
@@ -183,6 +193,7 @@ AS
 (
     SELECT b.bettype
 		  ,b.transid
+		  ,b.matchid
 		  ,b.BetID
 		  ,b.refno
 		  ,b.hdp1

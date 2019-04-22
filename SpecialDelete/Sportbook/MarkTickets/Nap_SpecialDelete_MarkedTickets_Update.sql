@@ -38,7 +38,8 @@ AS
                    BetType   SMALLINT,
                    Betdaqid  BIGINT,
                    ExtraInfo VARCHAR(1000),
-                   RefCode   BIGINT
+                   RefCode   BIGINT,
+				   refno	 BIGINT
                   );
      CREATE TABLE #Cashout911Tickets
                   (TransId BIGINT,
@@ -68,7 +69,8 @@ AS
              CustId,
              Betdaqid,
              ExtraInfo,
-             RefCode
+             RefCode,
+			 refno
             )
             SELECT t.TransId,
                    b.MatchId,
@@ -76,9 +78,16 @@ AS
                    b.custid,
                    b.betdaqid,
                    b.ExtraInfo,
-                   b.RefCode
+                   b.RefCode,
+				   b.refno
             FROM #transIds t
-                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid;                
+                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid;
+-- delete cash-out member bet tickets
+	DELETE t
+	FROM #Tickets t
+	WHERE EXISTS (SELECT TOP (1) 1
+				  FROM bettrans sub911 (NOLOCK)
+				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)				 
 -- Bonus
      IF EXISTS
 (
@@ -151,7 +160,39 @@ AS
                     FROM #Cashout911Tickets sub911
                          CROSS APPLY
 (
-    SELECT b.*
+    SELECT b.bettype
+		  ,b.transid
+		  ,b.matchid
+		  ,b.BetID
+		  ,b.refno
+		  ,b.hdp1
+		  ,b.hdp2
+		  ,b.odds
+		  ,b.oddsspread
+		  ,b.OddsType
+		  ,b.status
+		  ,b.SecAcceptFlag
+		  ,b.checktime
+		  ,b.stake
+		  ,b.transdate
+		  ,b.betteam
+		  ,b.betcheck
+		  ,b.liveindicator
+		  ,b.custid
+		  ,b.livehomescore
+		  ,b.liveawayscore
+		  ,b.winlost
+		  ,b.actual_stake
+		  ,b.transdesc
+		  ,b.betdaqid
+		  ,b.username
+		  ,b.recommend
+		  ,b.ExtraInfo
+		  ,b.CurrencyName
+		  ,b.WalletType
+		  ,b.RefCode
+		  ,b.BonusID
+		  ,b.currency
     FROM dbo.bettrans b WITH (NOLOCK)
     WHERE b.refno = sub911.transid
           AND b.matchid = sub911.MatchId

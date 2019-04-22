@@ -249,12 +249,12 @@ SET NOCOUNT ON
 		END
 	END
 
-	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
+-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP (1) 1 
 			   FROM #Tickets 
 			   WHERE betdaqid = 0 AND charindex ('p25',extrainfo)> 0))
 	BEGIN
-		-- get sub ticket of Cash-out (911)	
+-- get sub ticket of Cash-out (911)	
 		INSERT INTO #Tickets(
 			GroupID
 			,bettype
@@ -332,7 +332,7 @@ SET NOCOUNT ON
 						AND charindex ('p25',main.extrainfo)> 0	
 						AND sub911.bettype = 911			 
 
-		-- get cash-out member bet tickets
+-- get cash-out member bet tickets
 		INSERT INTO #Tickets (
 			GroupID	
 			,bettype
@@ -406,7 +406,39 @@ SET NOCOUNT ON
 				,sub911.MainTransId
 		FROM #Tickets sub911
 			 CROSS APPLY (
-							  SELECT b.*
+							  SELECT b.bettype
+								  ,b.transid
+								  ,b.matchid
+								  ,b.BetID
+								  ,b.refno
+								  ,b.hdp1
+								  ,b.hdp2
+								  ,b.odds
+								  ,b.oddsspread
+								  ,b.OddsType
+								  ,b.status
+								  ,b.SecAcceptFlag
+								  ,b.checktime
+								  ,b.stake
+								  ,b.transdate
+								  ,b.betteam
+								  ,b.betcheck
+								  ,b.liveindicator
+								  ,b.custid
+								  ,b.livehomescore
+								  ,b.liveawayscore
+								  ,b.winlost
+								  ,b.actual_stake
+								  ,b.transdesc
+								  ,b.betdaqid
+								  ,b.username
+								  ,b.recommend
+								  ,b.ExtraInfo
+								  ,b.CurrencyName
+								  ,b.WalletType
+								  ,b.RefCode
+								  ,b.BonusID
+								  ,b.currency
 							  FROM dbo.bettrans b WITH (NOLOCK)
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
