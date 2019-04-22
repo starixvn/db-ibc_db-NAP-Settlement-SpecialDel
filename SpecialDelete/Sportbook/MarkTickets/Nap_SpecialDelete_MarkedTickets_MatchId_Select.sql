@@ -253,6 +253,7 @@ SET NOCOUNT ON
 			,livehomescore 
 			,liveawayscore 
 			,creator
+			,username
 			,Stake
 			,CurrencyName
 			,status
@@ -296,6 +297,7 @@ SET NOCOUNT ON
 			b.livehomescore,
 			b.liveawayscore,
 			b.creator,
+			b.username,
 			b.stake,
 			b.CurrencyName, 
 			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 
