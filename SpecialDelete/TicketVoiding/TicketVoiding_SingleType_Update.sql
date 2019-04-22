@@ -20,7 +20,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-		- 20190419@Kathy: Change KeyId = 6 for FastMarket [Redmine:#108826]
+		- 20190419@Kathy: Change KeyId = 6 for FastMarket and send notification in case of void all marked ticket [Redmine:#108826]
 	
 	Param's explanation:	
 		
@@ -743,6 +743,22 @@ BEGIN
 			@Mode = 'Original'
 		  , @Action = 'Void'
 		  , @IsReleased = 1  
+
+	-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+	DECLARE @allTransId VARCHAR(MAX) = ''
+	DECLARE @username NVARCHAR(50)
+
+	SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+	FROM	#tmpTransId
+
+	SELECT	@username = username
+	FROM	CustDB.dbo.custInfo WITH(NOLOCK)
+	WHERE	custid = @UserId
+
+	EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+		@TransId = @allTransId
+		,@Username = @Username
+		,@MatchId = @MatchId	
 
 	-- Write Log
 	SET @EndTime = GETDATE()
