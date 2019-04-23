@@ -35,7 +35,7 @@ VALUES
         'Update MarkTicket - Insert/Delete ticket in table MarkedTransaction',
         'Update MarkTicket - Insert/Delete ticket in table MarkedTransaction',
         '',
-        1
+        0
        );
 INSERT INTO bodb_CustomerLog.dbo.LogAction
        (ActionID,
@@ -65,6 +65,6 @@ VALUES
         'Update MarkTicket - Insert/Delete ticket in table MarkedTransaction for all ticket of several matches',
         'Update MarkTicket - Insert/Delete ticket in table MarkedTransaction for all ticket of several matches',
         '',
-        1
+        0
        );
 GO
