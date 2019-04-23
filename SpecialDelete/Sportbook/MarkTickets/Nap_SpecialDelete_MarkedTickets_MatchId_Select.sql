@@ -1,19 +1,17 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select]	
-	@MatchId			INT,
-	@FromTransId		BIGINT			= 0,
-	@ToTransId			BIGINT			= 0,
-	
-	@Duration			XML				= NULL,
-	
-	@LiveIndicator		INT				= 0,
-	@LiveHomeScore		SMALLINT 		= NULL,
-    @LiveAwayScore		SMALLINT 		= NULL,
-	@CurrencyIDs		VARCHAR(MAX)	= NULL,
-	@LicenseeNames		VARCHAR(MAX)	= NULL,
-	@BetTypes			XML				= NULL
-	
-AS
+﻿
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select] @MatchId       INT,
+                                                                       @FromTransId   BIGINT       = 0,
+                                                                       @ToTransId     BIGINT       = 0,
+                                                                       @Duration      XML          = NULL,
+                                                                       @LiveIndicator INT          = 0,
+                                                                       @LiveHomeScore SMALLINT     = NULL,
+                                                                       @LiveAwayScore SMALLINT     = NULL,
+                                                                       @CurrencyIDs   VARCHAR(MAX) = NULL,
+                                                                       @LicenseeNames VARCHAR(MAX) = NULL,
+                                                                       @BetTypes      XML          = NULL
+AS;
 /*
     Created by: Alan
 	Date: 20190325
@@ -45,29 +43,35 @@ AS
 		  '<TransDates><TransDate From="2019-03-04 04:11:33.240" To="2019-03-26 04:11:33.240" /></TransDates>'
 */
 BEGIN
-SET NOCOUNT ON
-	CREATE TABLE #tblBetType
-	(
-		Id				SMALLINT PRIMARY KEY,
-		BetTeam			NVARCHAR(MAX), 
-		[Set]			VARCHAR(10),
-		Game			VARCHAR(3),
-		BetOption		NVARCHAR(250),
-		[Value]			VARCHAR(500),
-		Goal			VARCHAR(10)
-	)
+    SET NOCOUNT ON
+    
+    DECLARE @SportType TINYINT= NULL;
+    SELECT @SportType = SportType
+    FROM dbo.match WITH (NOLOCK)
+    WHERE MatchId = @MatchId;
+    IF @SportType <> 1
+    RETURN;
 
-	CREATE TABLE #tblBetType_Detail
-	(
-		Id				SMALLINT,
-		BetTeam			NVARCHAR(10), 
-		[Set]			VARCHAR(10),
-		Game			VARCHAR(3),
-		BetOption		NVARCHAR(50),
-		[Value]			SMALLMONEY,	
-		TimeInterval	SMALLMONEY,	
-		Goal			BIGINT
-	)
+	CREATE TABLE #tblBetType
+             (Id        SMALLINT
+              PRIMARY KEY,
+              BetTeam   NVARCHAR(MAX),
+              [Set]     VARCHAR(10),
+              Game      VARCHAR(3),
+              BetOption NVARCHAR(250),
+              [Value]   VARCHAR(500),
+              Goal      VARCHAR(10)
+             );
+    CREATE TABLE #tblBetType_Detail
+             (Id           SMALLINT,
+              BetTeam      NVARCHAR(10),
+              [Set]        VARCHAR(10),
+              Game         VARCHAR(3),
+              BetOption    NVARCHAR(50),
+              [Value]      SMALLMONEY,
+              TimeInterval SMALLMONEY,
+              Goal         BIGINT
+             );
 		
 	-- Parse xml @BetTypes
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
@@ -112,12 +116,19 @@ SET NOCOUNT ON
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 			ELSE 1 END = 1
 	
-	CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
-	-- Parse xml @Durations
-	INSERT INTO #Durations(FromTransDate, ToTransDate)
-	SELECT x.value('@From','DATETIME') AS FromTransDate
-		, x.value('@To','DATETIME') AS ToTransDate
-	FROM @Duration.nodes('TransDates/TransDate') XmlData(x)
+    CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
+    
+    -- Only parse xml @Durations if @Duration is not null and is not empty
+    IF ISNULL(DATALENGTH(@Duration), 5) = 5
+    BEGIN 
+        INSERT INTO #Durations
+               (FromTransDate,
+                ToTransDate
+               )
+               SELECT x.value('@From', 'DATETIME') AS FromTransDate,
+                      x.value('@To', 'DATETIME') AS ToTransDate
+               FROM @Duration.nodes('TransDates/TransDate') XmlData(x) OPTION(OPTIMIZE FOR(@Duration = NULL));
+    END;
 	
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)

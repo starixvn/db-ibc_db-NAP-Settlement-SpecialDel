@@ -1,18 +1,15 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select]
-	@MatchId			INT,
-	@FromTransId		BIGINT			= 0,
-	@ToTransId			BIGINT			= 0,
-	
-	@Duration			XML				= NULL,
-	
-	@LiveIndicator		INT				= 0,
-	@LiveHomeScore		SMALLINT 		= NULL,
-    @LiveAwayScore		SMALLINT 		= NULL,
-	@CurrencyIDs		VARCHAR(MAX)	= NULL,
-	@LicenseeNames		VARCHAR(MAX)	= NULL,
-	@BetTypes			XML				= NULL
-AS
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select] @MatchId       INT,
+                                                                         @FromTransId   BIGINT       = 0,
+                                                                         @ToTransId     BIGINT       = 0,
+                                                                         @Duration      XML          = NULL,
+                                                                         @LiveIndicator INT          = 0,
+                                                                         @LiveHomeScore SMALLINT     = NULL,
+                                                                         @LiveAwayScore SMALLINT     = NULL,
+                                                                         @CurrencyIDs   VARCHAR(MAX) = NULL,
+                                                                         @LicenseeNames VARCHAR(MAX) = NULL,
+                                                                         @BetTypes      XML          = NULL
+AS;
 /*
     Created by: Alan
 	Date: 20190325
@@ -46,32 +43,34 @@ AS
 */
 BEGIN
 SET NOCOUNT ON
-	DECLARE @SportType TINYINT = NULL
-	SELECT @SportType = SportType FROM dbo.match WITH(NOLOCK) WHERE MatchId = @MatchId
-	IF @SportType <> 1 RETURN
+    DECLARE @SportType TINYINT= NULL;
+    SELECT @SportType = SportType
+    FROM dbo.match WITH (NOLOCK)
+    WHERE MatchId = @MatchId;
+    IF @SportType <> 1
+    RETURN;
 
-	CREATE TABLE #tblBetType
-	(
-		Id				SMALLINT PRIMARY KEY,
-		BetTeam			NVARCHAR(MAX), 
-		[Set]			VARCHAR(10),
-		Game			VARCHAR(3),
-		BetOption		NVARCHAR(250),
-		[Value]			VARCHAR(500),
-		Goal			VARCHAR(10)
-	)
+    CREATE TABLE #tblBetType
+             (Id        SMALLINT
+              PRIMARY KEY,
+              BetTeam   NVARCHAR(MAX),
+              [Set]     VARCHAR(10),
+              Game      VARCHAR(3),
+              BetOption NVARCHAR(250),
+              [Value]   VARCHAR(500),
+              Goal      VARCHAR(10)
+             );
 
 	CREATE TABLE #tblBetType_Detail
-	(
-		Id				SMALLINT,
-		BetTeam			NVARCHAR(10), 
-		[Set]			VARCHAR(10),
-		Game			VARCHAR(3),
-		BetOption		NVARCHAR(50),
-		[Value]			SMALLMONEY,	
-		TimeInterval	SMALLMONEY,	
-		Goal			BIGINT
-	)
+             (Id           SMALLINT,
+              BetTeam      NVARCHAR(10),
+              [Set]        VARCHAR(10),
+              Game         VARCHAR(3),
+              BetOption    NVARCHAR(50),
+              [Value]      SMALLMONEY,
+              TimeInterval SMALLMONEY,
+              Goal         BIGINT
+             );
 		
 	-- Parse xml @BetTypes
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
@@ -117,12 +116,19 @@ SET NOCOUNT ON
 			ELSE 1 END = 1
 
 	CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
-	-- Parse xml @Durations
-	INSERT INTO #Durations(FromTransDate, ToTransDate)
-	SELECT x.value('@From','DATETIME') AS FromTransDate
-		, x.value('@To','DATETIME') AS ToTransDate
-	FROM @Duration.nodes('TransDates/TransDate') XmlData(x)
 	
+    -- Only parse xml @Durations if @Duration is not null and is not empty
+    IF ISNULL(DATALENGTH(@Duration), 5) = 5
+    BEGIN 
+        INSERT INTO #Durations
+               (FromTransDate,
+                ToTransDate
+               )
+               SELECT x.value('@From', 'DATETIME') AS FromTransDate,
+                      x.value('@To', 'DATETIME') AS ToTransDate
+               FROM @Duration.nodes('TransDates/TransDate') XmlData(x) OPTION(OPTIMIZE FOR(@Duration = NULL));
+    END;
+
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)
 	
@@ -176,63 +182,62 @@ SET NOCOUNT ON
 		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK) ON CAST(ss.val AS INT) = e.exchangeid
 	OPTION (maxrecursion 0)	
 
-	CREATE TABLE #Tickets (
-		GroupID				BIGINT,
-		transid				BIGINT,
-		custid				INT,
-		UserName			VARCHAR(50),
-		oddsspread 			MONEY,
-		odds				MONEY, 
-		OddsType			INT, 
-		transdate			DATETIME,
-		bettype				SMALLINT,
-		OriginalBetType		SMALLINT,
-		betteam				NVARCHAR(10),
-		betcheck			NVARCHAR(50),
-		hdp1				SMALLMONEY, 
-		hdp2				SMALLMONEY,
-		IsLiveIndicator		BIT,
-		livehomescore 		SMALLINT, 
-		liveawayscore 		SMALLINT,
-		creator				INT,
-		Stake				MONEY,
-		CurrencyName		VARCHAR(10),
-		IsDeposit			BIT DEFAULT (0),
-		IsCricket			BIT DEFAULT (0),
-		status				NVARCHAR(10), 
-		srecommend			INT,
-		mrecommend			INT, 
-		recommend			INT, 
-		SecAcceptFlag		BIT,
-		betid				BIGINT,
-		betdaqid			BIGINT,
-		TransDesc			NVARCHAR(1000),
-		refno				BIGINT,	
-		ExtraInfo			VARCHAR(1000),
-		MainCashoutId		BIGINT,
-		WalletType			TINYINT,
-		RefCode				BIGINT,
-		BonusID				INT,
-		MainTransId			BIGINT,
-		WinLost				MONEY,
-		IsCashOutMemberTicket BIT DEFAULT 0,
-		
-		FilterBettype		SMALLINT,
-		FilterBetTeam		NVARCHAR(10), 
-		FilterSet			VARCHAR(50),
-		FilterGame			VARCHAR(50),
-		FilterValue			SMALLMONEY,	
-		FilterGoal			BIGINT,
-		FilterBetOption		NVARCHAR(50),
-		FilterTimeInterval	SMALLMONEY
-	)
+	CREATE TABLE #Tickets
+             (GroupID               BIGINT,
+              transid               BIGINT,
+              custid                INT,
+              UserName              VARCHAR(50),
+              oddsspread            MONEY,
+              odds                  MONEY,
+              OddsType              INT,
+              transdate             DATETIME,
+              bettype               SMALLINT,
+              OriginalBetType       SMALLINT,
+              betteam               NVARCHAR(10),
+              betcheck              NVARCHAR(50),
+              hdp1                  SMALLMONEY,
+              hdp2                  SMALLMONEY,
+              IsLiveIndicator       BIT,
+              livehomescore         SMALLINT,
+              liveawayscore         SMALLINT,
+              creator               INT,
+              Stake                 MONEY,
+              CurrencyName          VARCHAR(10),
+              IsDeposit             BIT DEFAULT(0),
+              IsCricket             BIT DEFAULT(0),
+              status                NVARCHAR(10),
+              srecommend            INT,
+              mrecommend            INT,
+              recommend             INT,
+              SecAcceptFlag         BIT,
+              betid                 BIGINT,
+              betdaqid              BIGINT,
+              TransDesc             NVARCHAR(1000),
+              refno                 BIGINT,
+              ExtraInfo             VARCHAR(1000),
+              MainCashoutId         BIGINT,
+              WalletType            TINYINT,
+              RefCode               BIGINT,
+              BonusID               INT,
+              MainTransId           BIGINT,
+              WinLost               MONEY,
+              IsCashOutMemberTicket BIT DEFAULT 0,
+              FilterBettype         SMALLINT,
+              FilterBetTeam         NVARCHAR(10),
+              FilterSet             VARCHAR(50),
+              FilterGame            VARCHAR(50),
+              FilterValue           SMALLMONEY,
+              FilterGoal            BIGINT,
+              FilterBetOption       NVARCHAR(50),
+              FilterTimeInterval    SMALLMONEY
+             );
 
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
+	CREATE TABLE #tmpRefCodeSummary
+             (RefCode BIGINT,
+              custid  INT,
+              bettype SMALLINT,
+              transid BIGINT
+             );
 
 	CREATE INDEX IX_Tickets_RefCode ON #Tickets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)

@@ -90,11 +90,11 @@ AS
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)				 
 -- Bonus
      IF EXISTS
-(
-    SELECT TOP (1) 1
-    FROM #Tickets
-    WHERE RefCode IS NOT NULL
-)
+	   (
+		  SELECT TOP (1) 1
+		  FROM #Tickets
+		  WHERE RefCode IS NOT NULL
+	   )
          BEGIN
              -- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
              INSERT INTO #tmpRefCodeSummary
@@ -131,14 +131,14 @@ AS
          END;	
 
 -- get sub ticket of Cash-out (911) and cash-out member bet tickets
-     IF(EXISTS
-(
-    SELECT TOP (1) 1
-    FROM #Tickets
-    WHERE betdaqid = 0
-          AND CHARINDEX('p25', extrainfo) > 0
-))
-         BEGIN
+    IF(EXISTS
+	   (
+		  SELECT TOP (1) 1
+		  FROM #Tickets
+		  WHERE betdaqid = 0
+			   AND CHARINDEX('p25', extrainfo) > 0
+	   ))
+    BEGIN
 -- get sub ticket of Cash-out (911)	
              INSERT INTO #Cashout911Tickets
                     (TransId,
@@ -159,51 +159,54 @@ AS
                     SELECT b.transid
                     FROM #Cashout911Tickets sub911
                          CROSS APPLY
-(
-    SELECT b.bettype
-		  ,b.transid
-		  ,b.matchid
-		  ,b.BetID
-		  ,b.refno
-		  ,b.hdp1
-		  ,b.hdp2
-		  ,b.odds
-		  ,b.oddsspread
-		  ,b.OddsType
-		  ,b.status
-		  ,b.SecAcceptFlag
-		  ,b.checktime
-		  ,b.stake
-		  ,b.transdate
-		  ,b.betteam
-		  ,b.betcheck
-		  ,b.liveindicator
-		  ,b.custid
-		  ,b.livehomescore
-		  ,b.liveawayscore
-		  ,b.winlost
-		  ,b.actual_stake
-		  ,b.transdesc
-		  ,b.betdaqid
-		  ,b.username
-		  ,b.recommend
-		  ,b.ExtraInfo
-		  ,b.CurrencyName
-		  ,b.WalletType
-		  ,b.RefCode
-		  ,b.BonusID
-		  ,b.currency
-    FROM dbo.bettrans b WITH (NOLOCK)
-    WHERE b.refno = sub911.transid
-          AND b.matchid = sub911.MatchId
-          AND b.bettype NOT IN(911, 912, 913)
-) AS b
-                         LEFT JOIN CustDB.dbo.exchange te WITH (NOLOCK) ON b.currency = te.exchangeid;
-         END;
+				(
+				    SELECT b.bettype
+						  ,b.transid
+						  ,b.matchid
+						  ,b.BetID
+						  ,b.refno
+						  ,b.hdp1
+						  ,b.hdp2
+						  ,b.odds
+						  ,b.oddsspread
+						  ,b.OddsType
+						  ,b.status
+						  ,b.SecAcceptFlag
+						  ,b.checktime
+						  ,b.stake
+						  ,b.transdate
+						  ,b.betteam
+						  ,b.betcheck
+						  ,b.liveindicator
+						  ,b.custid
+						  ,b.livehomescore
+						  ,b.liveawayscore
+						  ,b.winlost
+						  ,b.actual_stake
+						  ,b.transdesc
+						  ,b.betdaqid
+						  ,b.username
+						  ,b.recommend
+						  ,b.ExtraInfo
+						  ,b.CurrencyName
+						  ,b.WalletType
+						  ,b.RefCode
+						  ,b.BonusID
+						  ,b.currency
+				    FROM dbo.bettrans b WITH (NOLOCK)
+				    WHERE b.refno = sub911.transid
+						AND b.matchid = sub911.MatchId
+						AND b.bettype NOT IN(911, 912, 913)
+				    ) AS b
+    END;
 -- Delete Transaction
-     DELETE m
-     FROM dbo.MarkedTransaction m
-          INNER JOIN #TransIds t ON t.TransId = m.TransId;
+	WHILE (0=0)
+	BEGIN
+		DELETE TOP (2000) m 
+		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+        INNER JOIN #TransIds t ON t.TransId = m.TransId;
+		IF @@ROWCOUNT = 0 BREAK	  
+	END 
 
  -- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
@@ -228,12 +231,12 @@ AS
                    0
             FROM #Match t
                  LEFT JOIN
-(
-    SELECT m.matchid
-    FROM dbo.MarkedTransaction m WITH (NOLOCK)
-         INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
-                                                    AND b.statusID IN(0, 1)
-) mt ON mt.MatchId = t.MatchId
+				(
+				    SELECT m.matchid
+				    FROM dbo.MarkedTransaction m WITH (NOLOCK)
+					    INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
+														  AND b.statusID IN(0, 1)
+				) mt ON mt.MatchId = t.MatchId
             WHERE mt.MatchId IS NULL;
      DELETE b
      FROM #Match b

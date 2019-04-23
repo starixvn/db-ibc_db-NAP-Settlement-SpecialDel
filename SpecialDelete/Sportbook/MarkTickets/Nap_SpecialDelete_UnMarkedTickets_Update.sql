@@ -94,13 +94,13 @@ AS
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
 -- Bonus
-     IF EXISTS
-(
-    SELECT TOP (1) 1
-    FROM #Tickets
-    WHERE RefCode IS NOT NULL
-)
-         BEGIN
+    IF EXISTS
+	   (
+		  SELECT TOP (1) 1
+		  FROM #Tickets
+		  WHERE RefCode IS NOT NULL
+	   )
+    BEGIN
              -- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
              INSERT INTO #tmpRefCodeSummary
                     (RefCode,
@@ -147,143 +147,142 @@ AS
                                                                             AND b.bettype = t.bettype
                             WHERE b.statusID IN(0, 1); -- running, waiting
                  END;
-         END;	
+    END;	
 
 -- get sub ticket of Cash-out (911) and cash-out member bet tickets
-     IF(EXISTS
-(
-    SELECT TOP (1) 1
-    FROM #Tickets
-    WHERE betdaqid = 0
-          AND CHARINDEX('p25', extrainfo) > 0
-))
-         BEGIN
+    IF(EXISTS
+	   (
+		  SELECT TOP (1) 1
+		  FROM #Tickets
+		  WHERE betdaqid = 0
+			   AND CHARINDEX('p25', extrainfo) > 0
+	   ))
+    BEGIN
 -- get sub ticket of Cash-out (911)	
-             INSERT INTO #Cashout911Tickets
-                    (TransId,
-                     MatchId
-                    )
-                    SELECT sub911.transid,
-                           sub911.matchid
-                    FROM #Tickets main
-                         INNER JOIN dbo.bettrans sub911 WITH (NOLOCK) ON main.transid = sub911.refno
-                                                                         AND sub911.matchid = main.MatchId
-                                                                         AND sub911.custid = main.custid
-                                                                         AND main.betdaqid = 0
-                                                                         AND CHARINDEX('p25', main.extrainfo) > 0
-                                                                         AND sub911.bettype = 911;			 
+        INSERT INTO #Cashout911Tickets
+        (TransId,
+            MatchId
+        )
+        SELECT sub911.transid,
+                sub911.matchid
+        FROM #Tickets main
+                INNER JOIN dbo.bettrans sub911 WITH (NOLOCK) ON main.transid = sub911.refno
+                                                                AND sub911.matchid = main.MatchId
+                                                                AND sub911.custid = main.custid
+                                                                AND main.betdaqid = 0
+                                                                AND CHARINDEX('p25', main.extrainfo) > 0
+                                                                AND sub911.bettype = 911;			 
 
 -- get cash-out member bet tickets
-             INSERT INTO #Tickets
-                    (TransId,
-                     MatchId,
-                     BetType,
-                     CustId,
-                     Betdaqid,
-                     ExtraInfo
-                    )
-                    SELECT b.transid,
-                           b.matchid,
-                           b.bettype,
-                           b.custid,
-                           b.betdaqid,
-                           b.ExtraInfo
-                    FROM #Cashout911Tickets sub911
-                         CROSS APPLY
-(
-    SELECT b.bettype
-		  ,b.transid
-		  ,b.matchid
-		  ,b.BetID
-		  ,b.refno
-		  ,b.hdp1
-		  ,b.hdp2
-		  ,b.odds
-		  ,b.oddsspread
-		  ,b.OddsType
-		  ,b.status
-		  ,b.SecAcceptFlag
-		  ,b.checktime
-		  ,b.stake
-		  ,b.transdate
-		  ,b.betteam
-		  ,b.betcheck
-		  ,b.liveindicator
-		  ,b.custid
-		  ,b.livehomescore
-		  ,b.liveawayscore
-		  ,b.winlost
-		  ,b.actual_stake
-		  ,b.transdesc
-		  ,b.betdaqid
-		  ,b.username
-		  ,b.recommend
-		  ,b.ExtraInfo
-		  ,b.CurrencyName
-		  ,b.WalletType
-		  ,b.RefCode
-		  ,b.BonusID
-		  ,b.currency
-    FROM dbo.bettrans b WITH (NOLOCK)
-    WHERE b.refno = sub911.transid
-          AND b.matchid = sub911.MatchId
-          AND b.bettype NOT IN(911, 912, 913)
-) AS b
-                         LEFT JOIN CustDB.dbo.exchange te WITH (NOLOCK) ON b.currency = te.exchangeid;
-         END;
+	   INSERT INTO #Tickets
+		  (TransId,
+			 MatchId,
+			 BetType,
+			 CustId,
+			 Betdaqid,
+			 ExtraInfo
+		  )
+		  SELECT b.transid,
+				b.matchid,
+				b.bettype,
+				b.custid,
+				b.betdaqid,
+				b.ExtraInfo
+		  FROM #Cashout911Tickets sub911
+				CROSS APPLY
+			 (
+				SELECT b.bettype
+					   ,b.transid
+					   ,b.matchid
+					   ,b.BetID
+					   ,b.refno
+					   ,b.hdp1
+					   ,b.hdp2
+					   ,b.odds
+					   ,b.oddsspread
+					   ,b.OddsType
+					   ,b.status
+					   ,b.SecAcceptFlag
+					   ,b.checktime
+					   ,b.stake
+					   ,b.transdate
+					   ,b.betteam
+					   ,b.betcheck
+					   ,b.liveindicator
+					   ,b.custid
+					   ,b.livehomescore
+					   ,b.liveawayscore
+					   ,b.winlost
+					   ,b.actual_stake
+					   ,b.transdesc
+					   ,b.betdaqid
+					   ,b.username
+					   ,b.recommend
+					   ,b.ExtraInfo
+					   ,b.CurrencyName
+					   ,b.WalletType
+					   ,b.RefCode
+					   ,b.BonusID
+					   ,b.currency
+				FROM dbo.bettrans b WITH (NOLOCK)
+				WHERE b.refno = sub911.transid
+					 AND b.matchid = sub911.MatchId
+					 AND b.bettype NOT IN(911, 912, 913)
+			 ) AS b
+    END;
 --check no data
-     IF NOT EXISTS
-(
-    SELECT TOP (1) 1
-    FROM #Tickets
-)
-         BEGIN
-             SELECT @ErrCode = 99,
-                    @ErrMsg = 'No ticket found.';
-             RETURN;
-         END;
+    IF NOT EXISTS
+    (
+	   SELECT TOP (1) 1
+	   FROM #Tickets
+    )
+    BEGIN
+        SELECT @ErrCode = 99,
+            @ErrMsg = 'No ticket found.';
+        RETURN;
+    END;
 	
 -- Check Lock Match
-         BEGIN
-             DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0;
-             SELECT @isExistMatch = MAX(CASE
-                                            WHEN BetType NOT BETWEEN 221 AND 227
-                                            THEN 1
-                                            ELSE 0
-                                        END),
-                    @IsExistFM = MAX(CASE
-                                         WHEN BetType BETWEEN 221 AND 227
-                                         THEN 1
-                                         ELSE 0
-                                     END)
-             FROM #Tickets;
-             INSERT INTO #tblMatchProcess
-                    (MatchId,
-                     KeyID
-                    )
-                    SELECT DISTINCT
-                           MatchId,
-                           CASE
-                               WHEN BetType NOT BETWEEN 221 AND 227
-                               THEN 1 --SB
-                               WHEN BetType BETWEEN 221 AND 227
-                               THEN 6 -- Fast Market
-                               ELSE 0
-                           END AS KeyID
-                    FROM #Tickets;
-             EXEC dbo.NAP_Admin_CheckingProcess
-                  @isExistMatch = @isExistMatch,
-                  @IsExistFM = @IsExistFM,
-                  @avaiableProcess = @avaiableProcess OUTPUT,
-                  @ErrCode = @ErrCode OUTPUT,
-                  @ErrMsg = @ErrMsg OUTPUT;
-             IF(@ErrCode <> 0
-                OR @avaiableProcess = 0)
-                 BEGIN
-                     RETURN;
-                 END;
-         END;
-     INSERT INTO #Match
+    BEGIN
+        DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0;
+        SELECT @isExistMatch = MAX(CASE
+                                    WHEN BetType NOT BETWEEN 221 AND 227
+                                    THEN 1
+                                    ELSE 0
+                                END),
+            @IsExistFM = MAX(CASE
+                                    WHEN BetType BETWEEN 221 AND 227
+                                    THEN 1
+                                    ELSE 0
+                                END)
+        FROM #Tickets;
+        INSERT INTO #tblMatchProcess
+            (MatchId,
+                KeyID
+            )
+            SELECT DISTINCT
+                    MatchId,
+                    CASE
+                        WHEN BetType NOT BETWEEN 221 AND 227
+                        THEN 1 --SB
+                        WHEN BetType BETWEEN 221 AND 227
+                        THEN 6 -- Fast Market
+                        ELSE 0
+                    END AS KeyID
+            FROM #Tickets;
+        EXEC dbo.NAP_Admin_CheckingProcess
+            @isExistMatch = @isExistMatch,
+            @IsExistFM = @IsExistFM,
+            @avaiableProcess = @avaiableProcess OUTPUT,
+            @ErrCode = @ErrCode OUTPUT,
+            @ErrMsg = @ErrMsg OUTPUT;
+        IF(@ErrCode <> 0
+        OR @avaiableProcess = 0)
+            BEGIN
+                RETURN;
+            END;
+    END;
+    INSERT INTO #Match
             SELECT DISTINCT
                    t.MatchId
             FROM #Tickets t;
@@ -300,27 +299,27 @@ AS
              [Warning],
              [IsSent]
             )
-            SELECT 111,
-                   t.matchid,
-                   @IP,
-                   GETDATE(),
-                   'MARK',
-                   'has some tickets marked by '+@Username,
-                   0,
-                   NULL,
-                   0
-            FROM #Match t
-                 LEFT JOIN
-(
-    SELECT m.matchid
-    FROM dbo.MarkedTransaction m WITH (NOLOCK)
-         INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
-                                                    AND b.statusID IN(0, 1)
-) mt ON mt.MatchId = t.MatchId
-            WHERE mt.MatchId IS NULL;
+    SELECT 111,
+            t.matchid,
+            @IP,
+            GETDATE(),
+            'MARK',
+            'has some tickets marked by '+@Username,
+            0,
+            NULL,
+            0
+    FROM #Match t
+            LEFT JOIN
+	   (
+		  SELECT m.matchid
+		  FROM dbo.MarkedTransaction m WITH (NOLOCK)
+			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
+											 AND b.statusID IN(0, 1)
+	   ) mt ON mt.MatchId = t.MatchId
+    WHERE mt.MatchId IS NULL;
     
 -- Insert Transaction
-     INSERT INTO dbo.MarkedTransaction
+    INSERT INTO dbo.MarkedTransaction
             (TransId,
              MatchId,
              BetType,
@@ -328,13 +327,13 @@ AS
              UserId,
              CreatedDate
             )
-            SELECT t.TransId,
-                   t.MatchId,
-                   t.BetType,
-                   t.CustId,
-                   @UserId,
-                   CURRENT_TIMESTAMP
-            FROM #Tickets t; 
+    SELECT t.TransId,
+            t.MatchId,
+            t.BetType,
+            t.CustId,
+            @UserId,
+            CURRENT_TIMESTAMP
+    FROM #Tickets t; 
 
 -- Release Match
      EXEC dbo.NAP_Admin_CheckingProcess
@@ -357,11 +356,11 @@ AS
                                                 END+CAST(transid AS VARCHAR(100))
      FROM #transIds t
      WHERE NOT EXISTS
-(
-    SELECT 1
-    FROM #Tickets b
-    WHERE b.transid = t.transid
-);
+	   (
+		  SELECT 1
+		  FROM #Tickets b
+		  WHERE b.transid = t.transid
+	   );
      DROP TABLE #Tickets;
      DROP TABLE #Cashout911Tickets;
      DROP TABLE #tmpRefCodeSummary;
