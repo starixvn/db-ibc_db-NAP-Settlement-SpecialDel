@@ -118,7 +118,7 @@ SET NOCOUNT ON
 	CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
 	
     -- Only parse xml @Durations if @Duration is not null and is not empty
-    IF ISNULL(DATALENGTH(@Duration), 5) = 5
+    IF ISNULL(DATALENGTH(@Duration), 5) <> 5
     BEGIN 
         INSERT INTO #Durations
                (FromTransDate,
