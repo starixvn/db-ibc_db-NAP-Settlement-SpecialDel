@@ -23,7 +23,7 @@ AS
 			+ 1: Marked
 
 	Revisions:
-		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	
+		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
 */
 
      SET NOCOUNT ON;
