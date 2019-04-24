@@ -157,6 +157,7 @@ SET NOCOUNT ON
 			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting	
+
 	-- update MainTransId
 	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
 	BEGIN
@@ -257,6 +258,39 @@ SET NOCOUNT ON
 			WHERE b.statusID IN (0, 1)
 		END
 	END
+
+	BEGIN
+		UPDATE d
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+		FROM #Tickets d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
+	END
+
+	-- delete unmarked tickets
+	DELETE t FROM #Tickets t
+	WHERE NOT EXISTS (SELECT TOP (1) 1 
+				  FROM dbo.MarkedTransaction m WITH(NOLOCK) 
+				  WHERE m.TransId = t.transid)
+
+	-- delete Tickets is not Soccer
+	DELETE t FROM #Tickets t WHERE t.SportType <> 1
+
+	-- delete cash-out member bet tickets
+	DELETE t FROM #Tickets t
+	WHERE EXISTS (SELECT TOP (1) 1
+				  FROM bettrans sub911 WITH (NOLOCK)
+				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)	
+
+	--- Remove invalid sporttype	
+	DELETE 
+	FROM #Tickets
+	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/)
 
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP (1) 1 
