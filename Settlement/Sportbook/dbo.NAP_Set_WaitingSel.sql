@@ -30,6 +30,7 @@ AS
 		- 20180611@Kaden: Add Blinking Color for Disabled Auto Cal FM Matches [Redmine:#96018]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	
 	Param's explanation:  
 		
@@ -70,6 +71,8 @@ BEGIN
 		,IsExistEarlyBettypesParlay 	BIT
 		,IsRunningEarlyBettypes			BIT
 		,IsRunningEarlyBettypesParlay	BIT
+		,IsExistMarkedTicket			BIT
+		,IsExistRunningTicket			BIT
 	)
 	
 	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsFGLG BIT)
@@ -107,6 +110,7 @@ BEGIN
 		, IsExistAutoBettypes, IsExistAutoBettypesParlay, IsRunningAutoBettypes, IsRunningAutoBettypesParlay
 		, IsWaitingAutoBettypes ,IsWaitingAutoBettypesParlay
 		, IsMissingAutoResult , IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay
+		, IsExistMarkedTicket, IsExistRunningTicket
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 		, sg.IsCalculating AS SingleStatus
@@ -131,9 +135,10 @@ BEGIN
 		, 0 AS IsExistEarlyBettypesParlay
 		, 0 AS IsRunningEarlyBettypes
 		, 0 AS IsRunningEarlyBettypesParlay
+		, 0 AS IsExistMarkedTicket
+		, 0 AS IsExistRunningTicket
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
-	
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -279,6 +284,83 @@ BEGIN
 		) t
 			ON m.matchid = t.matchid
 	END
+
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, mt.matchid
+	FROM	@TempMatch m
+		CROSS APPLY (
+			SELECT	mt.TransId, mt.MatchId
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+			WHERE	m.matchid = mt.MatchId
+		)mt
+
+	INSERT INTO @tmpMatchMarked(MatchId)
+	SELECT	DISTINCT matchId
+	FROM	#tmpMarkedTransaction
+	
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE	mk 
+			SET  IsExistMarkedTicket = 1
+		FROM	@tmpMatchMarked mk
+			INNER JOIN (
+				SELECT	mt.matchId
+				FROM	#tmpMarkedTransaction mt
+					CROSS APPLY (
+						SELECT	TOP (1) b.transid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	mt.transid = b.transid
+								AND b.statusID = 0
+					) b
+				GROUP BY mt.matchid
+			) m
+				ON m.matchid = mk.MatchId
+
+		UPDATE m 
+			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+		FROM	@TempMatch m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+
+	END
+
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+
+	INSERT INTO @tmpMatchCompleted (MatchId)
+	SELECT	t.matchid
+	FROM	@TempMatch t
+		INNER JOIN dbo.match m WITH(NOLOCK)
+			ON t.MatchId = m.matchid
+	WHERE	m.eventstatus = 'completed'
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE m 
+			SET IsExistRunningTicket = 1
+		FROM	@tmpMatchCompleted m
+			CROSS APPLY (
+				SELECT	b.matchid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE b.transid = mt.TransId
+					)mt
+				WHERE	b.matchid = m.matchid
+						AND b.statusID = 0
+						AND mt.transId IS NULL
+				GROUP BY b.matchid
+			)b
+
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	@TempMatch m
+			INNER JOIN @tmpMatchCompleted t
+				ON m.matchid = t.MatchId
+	END
 	
 	SELECT m.matchid, m.leagueid, m.homeid, m.awayid, m.matchcode, m.finalhomescore, m.finalawayscore
 		, m.betstatus, m.sporttype, m.goalrecord
@@ -317,6 +399,8 @@ BEGIN
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsRunningEarlyBettypesParlay > 0 THEN 'Parlay Running'
 			ELSE 'Completed'
 		END AS EarlySettleStatus
+		,tm.IsExistMarkedTicket
+		,tm.IsExistRunningTicket
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN @TempMatch tm ON m.matchid = tm.matchid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid

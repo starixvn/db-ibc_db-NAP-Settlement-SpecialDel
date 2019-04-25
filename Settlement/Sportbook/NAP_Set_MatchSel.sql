@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel]
 	,@AutoSettlementOnly BIT = 0 
 	,@FastMarketsOnly BIT = 0 
 	,@IsReLoad BIT = 0
+	,@IsMarkedTicket BIT = 0
 AS
 /*  
  Created by: Kathy
@@ -39,6 +40,7 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180731@Vicky: e-sport 2.0 [Redmine: #95874]
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
       
  Param explanation:  
 	@MatchCode: match code
@@ -94,6 +96,7 @@ BEGIN
 			,@AutoSettlementOnly = 0
 			,@FastMarketsOnly =0
 			,@SettlementStatus = 0
+			,@IsMarkedTicket = 0
 
 		BEGIN TRY
 			SET @matchid = CASE 
@@ -137,7 +140,7 @@ BEGIN
 				END
 
 		--ignore event status if selecting filterby
-		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @AutoSettlementOnly = 1 OR @FastMarketsOnly = 1 OR @SettlementStatus <> 0)
+		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @AutoSettlementOnly = 1 OR @FastMarketsOnly = 1 OR @SettlementStatus <> 0 OR @IsMarkedTicket <> 0)
 			SELECT @eventstatus = ''
 				,@isRefund = NULL
 	END
@@ -189,6 +192,9 @@ BEGIN
 		,IsExistEarlyBettypesParlay BIT
 		,IsRunningEarlyBettypes BIT
 		,IsRunningEarlyBettypesParlay BIT
+
+		,IsExistRunningTicket BIT
+		,IsExistMarkedTicket BIT
 		)
 
 	DECLARE @strmatchid VARCHAR(MAX)
@@ -202,7 +208,7 @@ BEGIN
 		,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord 	,suspenderHalfTime 	,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 		,SettlementStatus ,IsExistFGLG ,IsExistHTFGLG ,AutoSetting ,IsExistAutoBettypes ,IsExistAutoBettypesParlay ,IsRunningAutoBettypes ,IsRunningAutoBettypesParlay 
 		,IsWaitingAutoBettypes ,IsWaitingAutoBettypesParlay ,IsMissingAutoResult ,IsExistFastMarket ,IsRunningFastMarket ,SettlementStatusID,IsExistFastMarketResult ,IsExistEarlyBettypes	,IsExistEarlyBettypesParlay 
-		,IsRunningEarlyBettypes ,IsRunningEarlyBettypesParlay)
+		,IsRunningEarlyBettypes ,IsRunningEarlyBettypesParlay, IsExistRunningTicket, IsExistMarkedTicket)
 	SELECT 
 		tmp.hthomescore
 		,tmp.htawayscore
@@ -261,6 +267,8 @@ BEGIN
 		,0 AS IsExistEarlyBettypesParlay
 		,0 AS IsRunningEarlyBettypes
 		,0 AS IsRunningEarlyBettypesParlay
+		,0 AS IsExistRunningTicket
+		,0 AS IsExistMarkedTicket
 	FROM (
 		SELECT hthomescore
 			,htawayscore			
@@ -548,6 +556,88 @@ BEGIN
 		
 	END
 
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, m.matchid
+	FROM	#matchList m
+		CROSS APPLY (
+			SELECT	mt.TransId
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+			WHERE	m.matchid = mt.MatchId
+		)mt
+
+	INSERT INTO @tmpMatchMarked(MatchId)
+	SELECT	DISTINCT matchId
+	FROM	#tmpMarkedTransaction
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE	mk 
+			SET  IsExistMarkedTicket = 1
+		FROM	@tmpMatchMarked mk
+			INNER JOIN (
+				SELECT	mt.matchId
+				FROM	#tmpMarkedTransaction mt
+					CROSS APPLY (
+						SELECT	TOP (1) b.transid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	mt.transid = b.transid
+								AND b.statusID = 0
+					) b
+				GROUP BY mt.matchid
+			) m
+				ON m.matchid = mk.MatchId
+
+		UPDATE m 
+			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+		FROM	#matchList m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+
+	END
+
+	IF @IsMarkedTicket = 1
+	BEGIN
+		DELETE m
+		FROM #matchList m 
+		WHERE	IsExistMarkedTicket = 0
+	END
+
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+
+	INSERT INTO @tmpMatchCompleted (MatchId)
+	SELECT	matchid
+	FROM	#matchList
+	WHERE	eventstatus = 'completed'
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE m 
+			SET IsExistRunningTicket = 1
+		FROM	@tmpMatchCompleted m
+			CROSS APPLY (
+				SELECT	b.matchid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE b.transid = mt.TransId
+					)mt
+				WHERE	b.matchid = m.matchid
+						AND b.statusID = 0
+						AND mt.transId IS NULL
+				GROUP BY b.matchid
+			)b
+
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	#matchList m
+			INNER JOIN @tmpMatchCompleted t
+				ON m.matchid = t.MatchId
+	END
+
 	SELECT	m.HalfTimeHomeScore
 			,m.HalfTimeAwayScore
 			,m.IsCalculated
@@ -606,6 +696,8 @@ BEGIN
 				ELSE 'Completed'
 			END AS EarlySettleStatus
 			
+			,m.IsExistRunningTicket
+			,m.IsExistMarkedTicket
 	FROM	#matchList m
 		LEFT JOIN #tempmatch t 
 			ON	t.matchid = m.matchid

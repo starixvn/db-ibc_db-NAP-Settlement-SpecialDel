@@ -1,9 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_SettledErrorSel] @AdminId INT
 	,@Top INT = 10
 AS
@@ -13,9 +8,11 @@ AS
 	DB: DBTXN/BODB02
 	Original: 
 
-	History:
+	Revisions:
 		- 20140404@Kathy: Get all notification messages for each group (Soccer, Other Sports)
 		- 20170112@Kathy: Add AdminId 111 into Soccer Team [Redmine:#70302]
+		- 20190418@Kathy: Add starix56 to view notification [Redmine:#106823]
+						  
 		
 	Param's Explanation:
 		@Top: 0 -- Get all
@@ -48,9 +45,9 @@ BEGIN
 	UNION ALL SELECT 8068543	-- TRACY			
 	UNION ALL SELECT 384559		-- YONG 
 	UNION ALL SELECT 12978541	-- pgmHarris 
-	--UNION ALL SELECT 9503076	-- pgmJacob 
 	UNION ALL SELECT 4338171	-- pgmKaka 
 	UNION ALL SELECT 111		-- Auto Settlement
+	UNION ALL SELECT 20442488	-- starix56 
 
 
 	INSERT INTO @tblOtherSportTeam
@@ -62,8 +59,8 @@ BEGIN
 	UNION ALL SELECT 859948		-- OSMICKEY	
 	UNION ALL SELECT 5234866	-- OSVENNY
 	UNION ALL SELECT 12978541	-- pgmHarris 
-	--UNION ALL SELECT 9503076	-- pgmJacob 
 	UNION ALL SELECT 4338171	-- pgmKaka 
+	UNION ALL SELECT 20442488	-- starix56 
 
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @tblSoccerTeam WHERE custid = @AdminId)
@@ -126,10 +123,4 @@ BEGIN
 			)
 			AND IsRead = 0
 END
-
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Set_SettledErrorSel] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Set_SettledErrorSel] TO [vnteam] AS [dbo]

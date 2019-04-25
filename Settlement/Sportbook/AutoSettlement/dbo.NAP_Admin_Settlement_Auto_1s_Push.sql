@@ -1,15 +1,16 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
-	 @AdminId			INT				= 148		-- calculated by system (default)
-	,@MatchId			INT
-	,@ResourceIDs		VARCHAR(MAX)	= '' 
-	,@Results			VARCHAR(MAX)	= '' 
-	,@IsSettleAbandonedMatchIBC			BIT = 0 
-	,@Action			VARCHAR(10)		= 'CAL'
-	,@IsAuto			BIT				= 1
-	,@IP				VARCHAR(15)		= ''
-	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	 @AdminId					INT				= 148		-- calculated by system (default)
+	,@MatchId					INT
+	,@ResourceIDs				VARCHAR(MAX)	= '' 
+	,@Results					VARCHAR(MAX)	= '' 
+	,@IsSettleAbandonedMatchIBC	BIT = 0 
+	,@Action					VARCHAR(10)		= 'CAL'
+	,@IsAuto					BIT				= 1
+	,@IP						VARCHAR(15)		= ''
+	,@IsReSettledTickets		BIT				= 1
+	,@ErrCode					INT				= 0		OUTPUT
+	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 AS
 /*	Creator: Jamie
 	Date: 20150113
@@ -20,6 +21,8 @@ AS
 	Revisions:
 		- 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+
 		
 	Param's Explanation:
 */		
@@ -132,6 +135,7 @@ BEGIN
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 															+ ', @isAuto = ' + CONVERT(NVARCHAR(50), @isAuto) 														
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
+															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 														
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														

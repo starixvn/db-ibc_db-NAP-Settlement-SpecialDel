@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_28] @matchid INT
 	,@hth SMALLMONEY = 0
 	,@hta SMALLMONEY = 0
 	,@betcount INT = 0
+	,@IsReSettledTickets BIT	= 1
 AS
 /*
 	Created by: Kathy
@@ -21,6 +22,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		
 */
 BEGIN
@@ -98,6 +100,7 @@ BEGIN
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @matchid
 					AND bettype = @bettype
+					AND statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE statusID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -264,20 +267,28 @@ BEGIN
 				END
 			,ruben = 1
 		FROM	@tmpBatch c
-					INNER JOIN dbo.bettrans b
-						ON	c.BatchNo = @BatchNo
-							AND c.CustId = b.custid
-					CROSS APPLY (
-						SELECT CASE
-									WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i		
+			INNER JOIN dbo.bettrans b
+				ON	c.BatchNo = @BatchNo
+					AND c.CustId = b.custid
+			CROSS APPLY (
+				SELECT CASE
+							WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+							WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+							WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+							ELSE 0
+						END AS IsCalculated
+			)i	
+			OUTER APPLY (
+				SELECT	TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transid
+						AND mt.CustId = c.custId
+			) mt	
 		WHERE matchid = @matchid AND bettype = @bettype 
 			AND	statusID NOT IN (101, 102) --status NOT IN ('VOID', 'REJECT')	
 			AND i.IsCalculated = 1
+			AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+			AND mt.TransId IS NULL
 				
 		SET @BatchNo = @BatchNo - 1
 

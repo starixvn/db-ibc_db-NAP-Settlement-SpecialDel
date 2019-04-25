@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1] 
     @creator			INT
     ,@matchid			INT
@@ -41,6 +37,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
     ,@isExcludeCorner	BIT            	= 0 
     ,@action            VARCHAR(10)    	= 'CAL'
     ,@IP                VARCHAR(50)    	= ''
+	,@IsReSettledTickets BIT			= 1
+
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -88,6 +86,7 @@ AS
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20180419@Benjamin: Add ISNULL(@hth,0),ISNULL(@hta,0) IN @LogData [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -637,6 +636,7 @@ BEGIN
                         @matchid            = @matchid
                         ,@mode                = @action    
                         ,@isExcludeCorner    = @isExcludeCorner  
+						,@IsReSettledTickets = @IsReSettledTickets
                 END
             END
 
@@ -912,9 +912,3 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1] TO [bodbAdminNet]
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_1] TO [Dot_Member]
-GO
-
-

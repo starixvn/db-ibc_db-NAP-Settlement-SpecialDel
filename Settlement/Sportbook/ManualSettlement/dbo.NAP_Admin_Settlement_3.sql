@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3]
     , @mode VARCHAR(6) = 'CAL'
     , @isExcludeCorner BIT = 0 
 	, @IsAutoCalculatePage BIT = 0
+	, @IsReSettledTickets BIT = 1
 AS
 /*
     Created: Viet
@@ -36,6 +37,7 @@ AS
 	   - 20171211@Kathy: Do not calculate bettype 22 with old format (betteam:h,a) [Redmine:#80947]
 	   - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 	   - 20180510@Benjamin: Incorporate new Sports: Sepak Takraw(48)[Redmine:#94608]
+	   - 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
     • @Mode:
@@ -306,6 +308,7 @@ BEGIN
 		SELECT	bettype
 		FROM	dbo.bettrans WITH(NOLOCK)
 		WHERE 	matchid = @matchid
+				AND statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE statusID END
 		GROUP BY bettype
 	
 	) AS b 
@@ -368,8 +371,10 @@ BEGIN
 		,@ht_lg = @ht_lg
 		,@ft_fg = @ft_fg
 		,@ft_lg = @ft_lg
+		,@IsReSettledTickets = @IsReSettledTickets
 		-- using by service broker
 		,@CalledByBrokerService = 0 -- this one is called by NAP_Admin_Settlement_3 instead :)
+		
 					   
         --Cricket: Charged Commision
         EXEC dbo.NAP_Admin_Calculate_500
@@ -391,6 +396,3 @@ BEGIN
 		END
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_3] TO [bodbAdminNet]
-GO
-

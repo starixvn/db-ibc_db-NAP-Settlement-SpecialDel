@@ -1,12 +1,9 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Auto_1s] 
   @MatchID		INT
  ,@ResourceIDs	VARCHAR(MAX)	= '' 
  ,@Mode			VARCHAR(6)		= 'CAL'
+ ,@IsReSettledTickets BIT		= 1
 AS
 /*	Creator: Jamie
 	Date: 20150205
@@ -17,6 +14,7 @@ AS
 	Revisions:
 		- 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
 	Param's Explanation:
 */	
@@ -101,6 +99,7 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchId
 				AND b.statusID NOT BETWEEN 101 AND 102
+				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
 		GROUP BY b.bettype
 	)b
 	WHERE	b.bettype IN (SELECT bettype FROM cteBettypes)
@@ -169,10 +168,7 @@ BEGIN
 				,@TimeFirstGoal			= @TimeFirstGoal
 				,@strBettypes			= @strBettypes
 				,@CalledByBrokerService = 0	
+				,@IsReSettledTickets	= @IsReSettledTickets
 
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_3_Auto_1s] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_3_Auto_1s] TO [vnteam] AS [dbo]
 GO

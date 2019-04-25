@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelCompleted] 
 	@Date DATETIME
 	, @SportType 	SMALLINT = 0
@@ -43,6 +39,7 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -56,13 +53,13 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT)
 	
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647, @isSettingByProfile BIT = 0
 	
 	DECLARE @BettypeFGLG TABLE  (bettype SMALLINT, GroupID SMALLINT)
 	
-	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT )
+	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT)
 	
 	DECLARE @SqlQuery VARCHAR(4000)
 	
@@ -123,7 +120,7 @@ BEGIN
 		FROM (SELECT TOP (@n) matchid FROM @DataTmp ) m 
 			CROSS APPLY (SELECT 
 								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
-								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount 
+								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount
 						FROM dbo.bettrans b WITH (NOLOCK, INDEX = CIX_matchid_bettype) 
 						WHERE b.matchid = m.matchid * @Matchid_tmp -- It's used for performance tuning, make sure estimated of rows always: 10%
 								AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38)
@@ -145,7 +142,82 @@ BEGIN
 	WHERE  winlostdate = @Date
 	GROUP BY b.matchid
 	OPTION (OPTIMIZE FOR (@n = 1))	
-	
+
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, mt.matchid
+	FROM	@DataTmp m
+		CROSS APPLY (
+			SELECT	mt.TransId, mt.MatchId
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+			WHERE	m.matchid = mt.MatchId
+		)mt
+
+	INSERT INTO @tmpMatchMarked(MatchId)
+	SELECT	DISTINCT matchId
+	FROM	#tmpMarkedTransaction
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE	mk 
+			SET  IsExistMarkedTicket = 1
+		FROM	@tmpMatchMarked mk
+			INNER JOIN (
+				SELECT	mt.matchId
+				FROM	#tmpMarkedTransaction mt
+					CROSS APPLY (
+						SELECT	TOP (1) b.transid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	mt.transid = b.transid
+								AND b.statusID = 0
+					) b
+				GROUP BY mt.matchid
+			) m
+				ON m.matchid = mk.MatchId
+
+		UPDATE m 
+			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+		FROM	@DataTmp m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+
+	END
+
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+
+	INSERT INTO @tmpMatchCompleted (MatchId)
+	SELECT	matchid
+	FROM	@DataTmp
+	WHERE	eventstatus = 'completed'
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE m 
+			SET IsExistRunningTicket = 1
+		FROM	@tmpMatchCompleted m
+			CROSS APPLY (
+				SELECT	b.matchid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE b.transid = mt.TransId
+					)mt
+				WHERE	b.matchid = m.matchid
+						AND b.statusID = 0
+						AND mt.transId IS NULL
+				GROUP BY b.matchid
+			)b
+
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	@DataTmp m
+			INNER JOIN @tmpMatchCompleted t
+				ON m.matchid = t.MatchId
+	END
+
 	SELECT m.matchid
 		, m.leagueid
 		, hthomescore AS HalfTimeHomeScore
@@ -175,6 +247,8 @@ BEGIN
 		, b.BetCount
 		, t.seqS AS IsCalculatingSingle
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
+		, m.IsExistRunningTicket
+		, m.IsExistMarkedTicket
 	FROM @DataTmp m
 		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.custinfo ht WITH (NOLOCK) ON m.ConfirmHT > 0 AND m.ConfirmHT = ht.custid
@@ -182,7 +256,6 @@ BEGIN
 		LEFT JOIN @tblSingle t ON t.matchid = m.matchid
 	ORDER BY m.eventstatus, m.matchcode
 
-	
 	IF @isSettingByProfile = 1
     BEGIN	
 		DECLARE @matchidList VARCHAR(MAX) = ''
@@ -214,6 +287,3 @@ BEGIN
 	
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelCompleted] TO [bodbAdminNet]
-GO
-

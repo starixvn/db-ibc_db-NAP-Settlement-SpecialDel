@@ -35,6 +35,7 @@ AS
 		- 20180510@Benjamin: Incorporate new Sports: Kabaddi(47), Futsal (49), Sport 56[Redmine:#94608]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		
 */
 BEGIN
@@ -64,11 +65,11 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT)
 	
 	DECLARE @BettypeFGLG TABLE (bettype SMALLINT, GroupID SMALLINT)
 	
-	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT )
+	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT)
 	
 	DECLARE @SqlQuery VARCHAR(4000)
 	SET @SqlQuery = ''
@@ -139,6 +140,81 @@ BEGIN
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
 	GROUP BY b.matchid
 	OPTION (OPTIMIZE FOR (@n = 1))	
+
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, mt.matchid
+	FROM	@DataTmp m
+		CROSS APPLY (
+			SELECT	mt.TransId, mt.MatchId
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+			WHERE	m.matchid = mt.MatchId
+		)mt
+
+	INSERT INTO @tmpMatchMarked(MatchId)
+	SELECT	DISTINCT matchId
+	FROM	#tmpMarkedTransaction
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE	mk 
+			SET  IsExistMarkedTicket = 1
+		FROM	@tmpMatchMarked mk
+			INNER JOIN (
+				SELECT	mt.matchId
+				FROM	#tmpMarkedTransaction mt
+					CROSS APPLY (
+						SELECT	TOP (1) b.transid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	mt.transid = b.transid
+								AND b.statusID = 0
+					) b
+				GROUP BY mt.matchid
+			) m
+				ON m.matchid = mk.MatchId
+
+		UPDATE m 
+			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+		FROM	@DataTmp m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+
+	END
+
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+
+	INSERT INTO @tmpMatchCompleted (MatchId)
+	SELECT	matchid
+	FROM	@DataTmp
+	WHERE	eventstatus = 'completed'
+
+	IF @@ROWCOUNT <> 0
+	BEGIN
+		UPDATE m 
+			SET IsExistRunningTicket = 1
+		FROM	@tmpMatchCompleted m
+			CROSS APPLY (
+				SELECT	b.matchid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE b.transid = mt.TransId
+					)mt
+				WHERE	b.matchid = m.matchid
+						AND b.statusID = 0
+						AND mt.transId IS NULL
+				GROUP BY b.matchid
+			)b
+
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	@DataTmp m
+			INNER JOIN @tmpMatchCompleted t
+				ON m.matchid = t.MatchId
+	END
 			
 	SELECT m.matchid
 		, m.leagueid
@@ -173,6 +249,8 @@ BEGIN
 		, CASE WHEN b.cntHTFGLG = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
 		, t.seqS AS IsCalculatingSingle
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
+		, m.IsExistRunningTicket
+		, m.IsExistMarkedTicket
 	FROM @DataTmp m
 		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN @tblSingle t ON m.matchid = t.matchid

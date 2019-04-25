@@ -52,6 +52,7 @@ AS
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
+		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 
     Parameters Explanation:
 
@@ -351,7 +352,7 @@ BEGIN
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
     END
-    IF @Command = 'NAP_Admin_Settlement_FGLG'
+    IF @Command = 'NAP_Admin_Settlement-FGLG'
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK)
         SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus

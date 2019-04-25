@@ -17,6 +17,7 @@ AS
 		- 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		
     Param's Explanation:
         
@@ -180,6 +181,13 @@ BEGIN
 				INTO @instantTicket_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
 			FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #InstantTicket_Input t ON b.transid = t.transid
+				OUTER APPLY(
+					SELECT TOP 1 mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = t.transid
+				)mt
+			WHERE	mt.TransId IS NULL
+
 			OPTION(MAXDOP 1)
 			
 			-- Process for cashout tickets make change Balance before
@@ -280,7 +288,14 @@ BEGIN
 					END
 				FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN #InstantTicket_Input t
-					ON b.transid = t.transid
+						ON	b.transid = t.transid
+					OUTER APPLY(
+						SELECT TOP 1 mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = t.transid
+				)mt
+			WHERE	mt.TransId IS NULL
+
 				OPTION(MAXDOP 1)
 		END
 	END

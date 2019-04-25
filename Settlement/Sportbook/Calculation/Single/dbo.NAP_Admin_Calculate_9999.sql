@@ -15,6 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_9999]
     ,@IsSettleAbandonedMatch BIT = 0 -- BetDaq
     ,@IsSettleAbandonedMatchBetFair BIT = 0 -- BetFair
     ,@IsHTCal BIT = 0
+	,@IsReSettledTickets BIT = 1
 AS
 /*
     Created by: Kathy
@@ -36,6 +37,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
         - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190318@Kathy: update modds column [Redmine:#109007]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 */
 BEGIN
     SET NOCOUNT ON
@@ -125,6 +127,7 @@ BEGIN
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @matchid
 					AND bettype = @bettype
+					AND statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE statusID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -375,10 +378,18 @@ BEGIN
 									ELSE 0
 								END AS IsCalculated
 					)i
+					OUTER APPLY (
+						SELECT	TOP (1) mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transid
+								AND mt.CustId = c.custId
+					) mt
 				WHERE    matchid = @matchid            
 						AND bettype = @bettype  
 						AND i.IsCalculated = 1  
 						AND statusID NOT IN (101, 102)
+						AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+						AND mt.TransId IS NULL
 					
 				SET @BatchNo = @BatchNo - 1
 
@@ -713,18 +724,17 @@ BEGIN
 				,ruben = CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
 			--FROM	dbo.bettrans b
 			FROM	@tmpBatch c
-						INNER JOIN dbo.bettrans b
-							ON	c.BatchNo = @BatchNo
-								AND c.CustId = b.custid
-						CROSS APPLY (
-							SELECT CASE
-										WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-										WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-										WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-										ELSE 0
-									END AS IsCalculated
-						)i
-							
+				INNER JOIN dbo.bettrans b
+					ON	c.BatchNo = @BatchNo
+						AND c.CustId = b.custid
+				CROSS APPLY (
+					SELECT CASE
+								WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+								WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+								WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+								ELSE 0
+							END AS IsCalculated
+				)i
 			WHERE   matchid = @matchid    
 					AND bettype = @bettype
 					AND statusID NOT IN (101, 102)
@@ -735,7 +745,7 @@ BEGIN
 								WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
 								ELSE 0
 							END
-					
+
 				SET @BatchNo = @BatchNo - 1
 
 				WAITFOR DELAY '00:00:00:010'			
@@ -1356,18 +1366,23 @@ BEGIN
 				,ruben = CASE WHEN @modds IS NOT NULL THEN 1 ELSE ruben END
 			
 			FROM	@tmpBatch c
-					INNER JOIN dbo.bettrans b
-						ON	c.BatchNo = @BatchNo
-							AND c.CustId = b.custid
-					CROSS APPLY (
-						SELECT CASE
-									WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
-									WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
-									WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
-									ELSE 0
-								END AS IsCalculated
-					)i
-						
+				INNER JOIN dbo.bettrans b
+					ON	c.BatchNo = @BatchNo
+						AND c.CustId = b.custid
+				CROSS APPLY (
+					SELECT CASE
+								WHEN c.CustId = @MinCustId AND transId < @TransIdOfMinCust THEN 0
+								WHEN c.CustId = @MaxCustId AND transId > @TransIdOfMaxCust THEN 0
+								WHEN b.transId BETWEEN @MinTransId AND @MaxTransId THEN 1 
+								ELSE 0
+							END AS IsCalculated
+				)i
+				OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+							AND mt.CustId = c.custId
+				) mt	
 			WHERE matchid = @matchid 
 				AND bettype = @bettype 
 				AND statusID NOT IN (101, 102) -- reject, void
@@ -1380,6 +1395,8 @@ BEGIN
 								) THEN 1                       
 								ELSE 0
 						END
+				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND mt.TransId IS NULL
 				
 			SET @BatchNo = @BatchNo - 1
 

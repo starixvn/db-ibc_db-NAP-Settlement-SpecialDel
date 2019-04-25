@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
     , @HalfTimeAway SMALLINT        = NULL 
     , @Action		VARCHAR(10)     = 'CAL-FT'
     , @IP			VARCHAR(15)     = ''
+	, @IsReSettledTickets	BIT		= 1
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -25,6 +26,7 @@ AS
 		- 20170316@Bobby: Integrate CashOut bettypes [Redmine:#73404]
 		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 
     Param's Explanation:
         
@@ -118,6 +120,7 @@ BEGIN
                             + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
                             + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+							+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE

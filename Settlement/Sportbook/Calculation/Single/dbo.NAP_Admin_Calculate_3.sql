@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_3]
     ,@IsSettleAbandonedMatchBetFair		BIT = 0
     ,@IsSettleAbandonedMatchIBC			BIT = 0
     ,@isExcludeCorner					BIT = 0 
+	,@IsReSettledTickets				BIT	= 1
     -- add any params, please modify script in 'special section'
 AS
 /*
@@ -51,6 +52,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -90,11 +92,25 @@ BEGIN
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
-	INSERT INTO #tempCust(custid, sRecommend)
-	SELECT custid, srecommend
-	FROM dbo.bettrans bt WITH(NOLOCK) 
-	WHERE matchid = @matchid AND bettype = @bettype
-	GROUP BY custid, bt.srecommend
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tempCust(custid, sRecommend)
+		SELECT	custid, srecommend
+		FROM	dbo.bettrans bt WITH(NOLOCK) 
+		WHERE	matchid = @matchid 
+				AND bettype = @bettype
+				AND statusID = 0
+		GROUP BY custid, bt.srecommend
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tempCust(custid, sRecommend)
+		SELECT	custid, srecommend
+		FROM	dbo.bettrans bt WITH(NOLOCK) 
+		WHERE	matchid = @matchid 
+				AND bettype = @bettype
+		GROUP BY custid, bt.srecommend
+	END
 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
@@ -502,9 +518,16 @@ BEGIN
 					WHEN @modds < 0 THEN 113 --LOSE
 					END
 				,ruben = 1
-			FROM #currList t
-				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
-			WHERE matchid = @matchid 
+			FROM	#currList t
+				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
+					ON	t.custid = b.custid
+				OUTER APPLY (
+					SELECT TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+							AND mt.CustId = t.custid
+				)mt
+			WHERE	matchid = @matchid 
 					AND b.custid >= @MinCustId
 					AND bettype = @bettype 
 					AND statusID NOT IN (101, 102)						
@@ -516,6 +539,8 @@ BEGIN
 									WHEN @Bettype IN (156,1312) AND @SelectedSet LIKE '%4%' AND BetID = 804 THEN 1
 									WHEN @Bettype IN (156,1312) AND @SelectedSet LIKE '%5%' AND BetID = 805 THEN 1 
 									ELSE 0 END
+					AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+					AND mt.TransId IS NULL
 			OPTION (FORCE ORDER)
 
 			WAITFOR DELAY '00:00:00:010'
