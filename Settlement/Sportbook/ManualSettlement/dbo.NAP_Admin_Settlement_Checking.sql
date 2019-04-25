@@ -42,6 +42,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
+		- 20190425@Sol: Update SettlementTime col when status/winlost changed  [Redmine:#106901]
 		
 	Param's Explanation:
 		@Mode			@Action
