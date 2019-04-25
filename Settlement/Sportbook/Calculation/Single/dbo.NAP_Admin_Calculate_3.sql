@@ -53,6 +53,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -89,6 +90,7 @@ BEGIN
 		,@winlost MONEY
 		,@stake MONEY
 		,@commBettypeGroupId SMALLINT
+		,@statusId TINYINT
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
@@ -125,6 +127,8 @@ BEGIN
 	CREATE TABLE #currList (custid INT PRIMARY KEY, isCN88 bit)
 	DECLARE @MinCustId INT
 	
+	DECLARE @settlementTime DATETIME
+
     IF @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair = 1 or @IsSettleAbandonedMatchIBC = 1
     BEGIN
         DECLARE    @comparedValue SMALLMONEY    --@totalgoal - 0.5 -- Get tickets had result 
@@ -141,6 +145,8 @@ BEGIN
 			IF @@ROWCOUNT = 0 BREAK
 
 			SELECT @MinCustId = MIN(CustId) FROM #currList
+
+			SET @settlementTime = GETDATE();
 
 			UPDATE b 
 			SET 
@@ -190,6 +196,13 @@ BEGIN
 				,@stake = CASE WHEN t.isCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
 								ELSE stake 
 							END 
+				-- check winlost or status change to update SettlementTime
+				,@statusId = CASE 
+					WHEN @modds > 0 THEN 112 --WON
+					WHEN @modds < 0 THEN 113 --LOSE
+					WHEN @modds IS NULL THEN statusID
+					END
+				,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 				,WinLost = @winlost
 				,aWinLost = CASE 
 					WHEN  @modds > 0.25 THEN stake * (CASE 
@@ -281,11 +294,7 @@ BEGIN
 					WHEN @modds < 0 THEN N'LOSE'
 					WHEN @modds IS NULL THEN status
 					END
-				,StatusID = CASE 
-					WHEN @modds > 0 THEN 112 --WON
-					WHEN @modds < 0 THEN 113 --LOSE
-					WHEN @modds IS NULL THEN statusID
-					END
+				,StatusID = @statusId
 				,ruben = CASE WHEN @modds IS NULL THEN ruben
 							  ELSE 1
 						 END
@@ -316,6 +325,8 @@ BEGIN
 			IF @@ROWCOUNT = 0 BREAK
 
 			SELECT @MinCustId = MIN(CustId) FROM #currList
+
+			SET @settlementTime = GETDATE();
 
 			UPDATE b
 			SET 
@@ -414,6 +425,17 @@ BEGIN
 				,@stake = CASE WHEN t.isCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
 								ELSE stake 
 							END
+				-- check winlost or status change to update SettlementTime
+				,@statusId = CASE 
+								WHEN @modds > 0 THEN 112 --WON
+								WHEN @modds = 0 AND bettype <> 302 THEN 111 --DRAW
+								WHEN @modds = 0 AND bettype = 302 THEN CASE WHEN oddsspread = 0 THEN 111 
+																		WHEN oddsspread > 0 THEN 112
+																		ELSE 113
+																		END
+								WHEN @modds < 0 THEN 113 --LOSE
+							END
+				,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 				,WinLost = @winlost
 				,aWinLost = CASE 
 					WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (144,163,171,1203,408,601,602,461,462,460) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking 
@@ -508,15 +530,7 @@ BEGIN
 															END
 					WHEN @modds < 0 THEN N'LOSE'
 					END
-				,StatusID = CASE 
-					WHEN @modds > 0 THEN 112 --WON
-					WHEN @modds = 0 AND bettype <> 302 THEN 111 --DRAW
-					WHEN @modds = 0 AND bettype = 302 THEN CASE WHEN oddsspread = 0 THEN 111 
-															WHEN oddsspread > 0 THEN 112
-															ELSE 113
-															END
-					WHEN @modds < 0 THEN 113 --LOSE
-					END
+				,StatusID = @statusId
 				,ruben = 1
 			FROM	#currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 

@@ -15,7 +15,8 @@ AS
 		- 20150422@Jamie: Settlement Betradar phase 2 [Redmine: #27212]
 		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
-		
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,13 +37,17 @@ BEGIN
 			RETURN
 	END
 	-- END CHECK
+	DECLARE @settlementTime DATETIME
 
 	BEGIN
 		WHILE 1=1
 		BEGIN
+			SET @settlementTime = GETDATE();
+
 			UPDATE TOP (10000) dbo.bettrans with (ROWLOCK, UPDLOCK)
 			SET
 				[status] = N'Refund',
+				SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END,
 				statusID = 103,
 				ruben = 1,
 				winlost=actual_stake,

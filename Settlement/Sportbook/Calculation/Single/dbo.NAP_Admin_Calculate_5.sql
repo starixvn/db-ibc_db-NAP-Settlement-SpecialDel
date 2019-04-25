@@ -27,6 +27,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
 
 */
 BEGIN
@@ -54,6 +55,8 @@ BEGIN
 	DECLARE @modds MONEY
 		,@commWinRate SMALLMONEY
 		,@commLostRate SMALLMONEY
+		,@statusId TINYINT
+		,@winlost MONEY
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY)
 
@@ -79,6 +82,7 @@ BEGIN
      
 	CREATE TABLE #currList (custid INT PRIMARY KEY)
 	DECLARE @MinCustId INT
+	DECLARE @settlementTime DATETIME
 
 	WHILE 1 = 1
 	BEGIN
@@ -89,6 +93,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 BREAK
 
 		SELECT @MinCustId = MIN(CustId) FROM #currList
+		SET @settlementTime = GETDATE();
 
 		UPDATE b
 		SET @modds = CASE 
@@ -123,25 +128,33 @@ BEGIN
 				WHEN '1' THEN 2
 				ELSE 1
 				END
-			,WinLost = CASE 
-				WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
-						WHEN odds < 0 THEN 1
-						ELSE (CASE 
-								WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
-								ELSE odds END
-								) END
-						)
-				WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
-						WHEN odds < 0 THEN 1
-						ELSE (CASE 
-								WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
-								ELSE odds END
-								) END
-						) * 0.5
-				WHEN @modds = 0 THEN actual_stake
-				WHEN @modds = - 0.25 THEN actual_stake * 0.5
-				WHEN @modds < - 0.25 THEN 0
-				END
+			-- check winlost or status change to update SettlementTime
+			,@statusId = CASE 
+							WHEN @modds > 0 THEN 112 --WON
+							WHEN @modds = 0 THEN 111 --DRAW
+							WHEN @modds < 0 THEN 113 --LOSE
+						END
+			,@winlost = CASE 
+							WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
+									WHEN odds < 0 THEN 1
+									ELSE (CASE 
+											WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
+											ELSE odds END
+											) END
+									)
+							WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
+									WHEN odds < 0 THEN 1
+									ELSE (CASE 
+											WHEN bettype IN (4, 5, 6, 15, 16,167,177, 1205,430,459,458) THEN odds - 1
+											ELSE odds END
+											) END
+									) * 0.5
+							WHEN @modds = 0 THEN actual_stake
+							WHEN @modds = - 0.25 THEN actual_stake * 0.5
+							WHEN @modds < - 0.25 THEN 0
+						END
+			,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+			,WinLost = @winlost
 			,aWinLost = CASE 
 				WHEN @modds > 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
@@ -232,11 +245,7 @@ BEGIN
 				WHEN @modds = 0 THEN 'DRAW'
 				WHEN @modds < 0 THEN 'LOSE'
 				END
-			,StatusID = CASE 
-				WHEN @modds > 0 THEN 112 --WON
-				WHEN @modds = 0 THEN 111 --DRAW
-				WHEN @modds < 0 THEN 113 --LOSE
-				END
+			,StatusID = @statusId
 			,ruben = 1
 		FROM	#currList t 
 			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 

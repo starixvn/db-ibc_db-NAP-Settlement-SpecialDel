@@ -41,6 +41,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190227@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -79,6 +80,7 @@ BEGIN
 		,@winlost				MONEY
 		,@stake					MONEY
 		,@commBettypeGroupId	SMALLINT
+		,@statusId TINYINT
 	
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT
@@ -144,6 +146,8 @@ BEGIN
 	SELECT @BatchNo = MAX(BatchNo)
 	FROM @tmpBatch
 
+	DECLARE @settlementTime DATETIME
+
 	WHILE (@BatchNo > 0)
 	BEGIN
 		SELECT	@MinCustId = MAX(MinCustId)
@@ -154,6 +158,8 @@ BEGIN
 				,@TransIdOfMaxCust = MAX(TransIdOfMaxCust)
 		FROM	@tmpBatch
 		WHERE	BatchNo = @BatchNo
+
+		SET @settlementTime = GETDATE();
 
 		UPDATE b
 			SET 
@@ -238,6 +244,14 @@ BEGIN
 				,@stake = CASE WHEN c.IsCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
 							ELSE stake 
 						END 
+				-- check winlost or status change to update SettlementTime
+				,@statusId = CASE 
+					WHEN @modds > 0 THEN 112 --WON
+					WHEN @modds = 0 THEN 111 --DRAW
+					WHEN @modds < 0 THEN 113 --LOSE
+					WHEN @modds IS NULL THEN statusID
+					END
+				,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 				,WinLost = @winlost
 				,aWinLost = CASE 
 					WHEN @modds > 0.25 THEN stake * (CASE 
@@ -337,12 +351,7 @@ BEGIN
 					WHEN @modds < 0 THEN 'LOSE'
 					WHEN @modds IS NULL THEN status
 					END
-				,StatusID = CASE 
-					WHEN @modds > 0 THEN 112 --WON
-					WHEN @modds = 0 THEN 111 --DRAW
-					WHEN @modds < 0 THEN 113 --LOSE
-					WHEN @modds IS NULL THEN statusID
-					END
+				,StatusID = @statusId
 				,ruben = CASE WHEN @modds IS NULL THEN ruben
 								ELSE 1
 							END

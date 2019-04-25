@@ -19,6 +19,7 @@ AS
 		 - 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		 - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		 - 20190227@Sol:  New Formula for Comm [Redmine:#109007]
+		 - 20190409@Sol: Settlement Time [Redmine:#99638]
 		 
     Param's Explanation:
 
@@ -62,6 +63,7 @@ BEGIN
 			,@winlost			MONEY
 			,@stake				MONEY
 			,@commBettypeGroupId SMALLINT
+			,@statusId			TINYINT
 		
 	DECLARE @FTHighestQuarter	VARCHAR(10)	
 			,@Q1Home			INT
@@ -75,7 +77,8 @@ BEGIN
 	
 	DECLARE @tmpResultDetail TABLE(ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	CREATE TABLE #tmpTransIds (TransId BIGINT PRIMARY KEY, modds MONEY, custid INT, recommend INT, srecommend INT)	
-	 
+	DECLARE @settlementTime DATETIME
+
 	IF @Action = 'UNDO'
 	BEGIN
 		WHILE 1 = 1
@@ -108,8 +111,10 @@ BEGIN
 	BEGIN
 		WHILE 1 = 1
 		BEGIN
+			SET @settlementTime = GETDATE();
 			UPDATE	TOP (@top) b
 				SET [status] = N'Refund'
+					,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
 					,statusID = 103
 					,winlost = actual_stake
 					,awinlost = 0
@@ -314,7 +319,8 @@ BEGIN
 			IF @@ROWCOUNT = 0 BREAK
 
 			SELECT @MinCustId = MIN(CustId) FROM #currList
-				
+			SET @settlementTime = GETDATE();
+
 			UPDATE	b 
 				SET @modds = t.modds
 					,modds = @modds
@@ -342,6 +348,13 @@ BEGIN
 					, @stake = CASE WHEN c.isCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
 									ELSE stake 
 								END
+					-- check winlost or status change to update SettlementTime
+					,@statusId = CASE
+									WHEN @modds > 0 THEN 112 --WON
+									WHEN @modds = 0 THEN 111 --DRAW
+									WHEN @modds < 0 THEN 113 --LOSE
+								END
+					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					, WinLost = @winlost
 					, aWinLost = CASE 
 						WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 614 THEN odds - 1 ELSE odds END) END) * -apositiontaking
@@ -397,11 +410,7 @@ BEGIN
 						WHEN @modds = 0 THEN 'DRAW'
 						WHEN @modds < 0 THEN N'LOSE'
 						END
-					, StatusID = CASE
-						WHEN @modds > 0 THEN 112 --WON
-						WHEN @modds = 0 THEN 111 --DRAW
-						WHEN @modds < 0 THEN 113 --LOSE
-						END
+					, StatusID = @statusId
 					, ruben = 1
 			FROM	#currList c
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK)

@@ -31,6 +31,8 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -55,7 +57,9 @@ BEGIN
 	DECLARE @modds MONEY
 		,@commWinRate SMALLMONEY
 		,@commLostRate SMALLMONEY
-	
+		,@statusId TINYINT
+		,@winlost MONEY
+
 	
 	DECLARE 
 		 @BatchCount			INT
@@ -91,7 +95,9 @@ BEGIN
 								END
 					ELSE @FGLG2 
 				END
-				
+
+	DECLARE @settlementTime DATETIME
+
 	IF @IsSettleAbandonedMatchIBC = 0 AND @IsSettleAbandonedMatchBetFair = 0 AND @IsSettleAbandonedMatch = 0
 	BEGIN
 		INSERT INTO @tmpBatch (BatchNo, CustId, MinCustId, MaxCustId, MinTransId, MaxTransId, TransIdOfMinCust, TransIdOfMaxCust)
@@ -140,6 +146,8 @@ BEGIN
 			FROM	@tmpBatch
 			WHERE	BatchNo = @BatchNo
 			
+			SET @settlementTime = GETDATE();
+
 			UPDATE b
 			SET @modds = CASE
 					WHEN @bettype = 449 THEN
@@ -194,26 +202,33 @@ BEGIN
 					WHEN '1' THEN 2
 					ELSE 1
 					END
-				,--'s','m'
-				WinLost = CASE 
-					WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
-							WHEN odds < 0 THEN 1
-							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 13, 15, 16, 24, 25, 26, 27, 28, 1224, 151,186,410,431,449,451,454) THEN odds - 1
-									ELSE odds END
-									) END
-							)
-					WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
-							WHEN odds < 0 THEN 1
-							ELSE (CASE 
-									WHEN bettype IN (4, 5, 6, 13, 15, 16, 24, 25, 26, 27, 28, 1224, 151,186,410,431,449,451,454) THEN odds - 1
-									ELSE odds END
-									) END
-							) * 0.5
-					WHEN @modds = 0 THEN actual_stake
-					WHEN @modds = - 0.25 THEN actual_stake * 0.5
-					WHEN @modds < - 0.25 THEN 0
-					END
+				-- check winlost or status change to update SettlementTime
+				,@statusId = CASE 
+								WHEN @modds > 0 THEN 112 --WON
+								WHEN @modds = 0 THEN 111 --DRAW
+								WHEN @modds < 0 THEN 113 --LOSE
+							END
+				,@winlost = CASE 
+								WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
+										WHEN odds < 0 THEN 1
+										ELSE (CASE 
+												WHEN bettype IN (4, 5, 6, 13, 15, 16, 24, 25, 26, 27, 28, 1224, 151,186,410,431,449,451,454) THEN odds - 1
+												ELSE odds END
+												) END
+										)
+								WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
+										WHEN odds < 0 THEN 1
+										ELSE (CASE 
+												WHEN bettype IN (4, 5, 6, 13, 15, 16, 24, 25, 26, 27, 28, 1224, 151,186,410,431,449,451,454) THEN odds - 1
+												ELSE odds END
+												) END
+										) * 0.5
+								WHEN @modds = 0 THEN actual_stake
+								WHEN @modds = - 0.25 THEN actual_stake * 0.5
+								WHEN @modds < - 0.25 THEN 0
+							END
+				,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+				,WinLost = @winlost
 				,aWinLost = CASE 
 					WHEN @modds > 0.25 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
@@ -304,11 +319,7 @@ BEGIN
 					WHEN @modds = 0 THEN 'DRAW'
 					WHEN @modds < 0 THEN 'LOSE'
 					END
-				,StatusID = CASE 
-					WHEN @modds > 0 THEN 112 --WON
-					WHEN @modds = 0 THEN 111 --DRAW
-					WHEN @modds < 0 THEN 113 --LOSE
-					END
+				,StatusID = @statusId
 				,ruben = 1
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
@@ -341,6 +352,8 @@ BEGIN
 	END
 	ELSE
 	BEGIN -- settle determined tickets
+		SET @settlementTime = GETDATE();
+
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
 		SET @modds = CASE
 				WHEN @bettype = 449 THEN CASE 
@@ -372,18 +385,26 @@ BEGIN
                 WHEN '1' THEN 2
                 ELSE 1
                 END
-            ,winlost = CASE 
-                WHEN @modds > 0 THEN actual_stake + stake * (CASE 
-                        WHEN odds < 0 THEN 1
-                        ELSE CASE 
-                                WHEN bettype IN (449,451,454) THEN odds - 1
-                                ELSE odds 
-                                END
-                        END
-                    )
-                WHEN @modds < 0 THEN 0
-                ELSE winlost
-                END
+			-- check winlost or status change to update SettlementTime
+			,@statusId = CASE 
+							WHEN @modds > 0 THEN 112 --WON
+							WHEN @modds < 0 THEN 113 --LOSE
+							ELSE statusID
+						END
+			,@winlost = CASE 
+							WHEN @modds > 0 THEN actual_stake + stake * (CASE 
+									WHEN odds < 0 THEN 1
+									ELSE CASE 
+											WHEN bettype IN (449,451,454) THEN odds - 1
+											ELSE odds 
+											END
+									END
+								)
+							WHEN @modds < 0 THEN 0
+							ELSE winlost
+						END 
+			,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+            ,winlost = @winlost
             ,aWinLost = CASE 
                 WHEN @modds > 0 THEN stake * (CASE 
                         WHEN odds < 0 THEN 1
@@ -445,11 +466,7 @@ BEGIN
                 WHEN @modds < 0 THEN 'LOSE'
                 ELSE status
                 END
-            ,StatusID = CASE 
-                WHEN @modds > 0 THEN 112 --WON
-                WHEN @modds < 0 THEN 113 --LOSE
-                ELSE statusID
-                END
+            ,StatusID = @statusId
             ,ruben = CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
 		WHERE matchid = @matchid AND bettype = @bettype AND
 			--status NOT IN ('VOID', 'REJECT')

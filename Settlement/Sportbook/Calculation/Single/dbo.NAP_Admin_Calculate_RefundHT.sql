@@ -28,6 +28,7 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
 
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -127,6 +128,8 @@ BEGIN
 	SELECT @BatchNo = MAX(BatchNo)
 	FROM @tmpBatch
 
+	DECLARE @settlementTime DATETIME
+
 	WHILE @BatchNo > 0
 	BEGIN
 		SELECT	@MinCustId = MAX(MinCustId)
@@ -138,8 +141,11 @@ BEGIN
 		FROM	@tmpBatch
 		WHERE	BatchNo = @BatchNo
 
+		SET @settlementTime = GETDATE();
+
 		UPDATE b
 			SET [status] = N'Refund'
+				,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
 				,statusID = 103
 				,ruben = 1
 				,winlost = actual_stake

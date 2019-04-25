@@ -12,7 +12,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
-		
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		
 	Param's Explanation:  
 		   
@@ -55,6 +55,9 @@ BEGIN
 			,@odds				SMALLMONEY
 			,@winlost			MONEY
 			,@stake				MONEY
+			,@statusId			TINYINT
+
+	DECLARE @settlementTime DATETIME
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
@@ -77,6 +80,9 @@ BEGIN
 				   ON tmp.srecommend = cs.CustId
 				LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
 					ON tmp.bettype = f.BetType
+
+	
+	SET @settlementTime = GETDATE();
 
 	UPDATE  b
 	SET @modds = sr.modds,
@@ -107,6 +113,13 @@ BEGIN
 		@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
 						ELSE stake 
 					END,
+		-- check winlost or status change to update SettlementTime
+		@statusId = CASE
+						WHEN @modds > 0 THEN 112 --WON
+						WHEN @modds = 0 THEN 111 --DRAW
+						WHEN @modds < 0 THEN 113 --LOSE
+					END,
+		SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END,
 		WinLost = @winlost,
 		aWinLost = CASE
 				WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
@@ -163,11 +176,7 @@ BEGIN
 				WHEN @modds = 0 THEN 'DRAW'
 				WHEN @modds < 0 THEN 'LOSE'
 				END,
-		StatusID = CASE
-				WHEN @modds > 0 THEN 112 --WON
-				WHEN @modds = 0 THEN 111 --DRAW
-				WHEN @modds < 0 THEN 113 --LOSE
-				END,
+		StatusID = @statusId,
 		ruben=1
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid

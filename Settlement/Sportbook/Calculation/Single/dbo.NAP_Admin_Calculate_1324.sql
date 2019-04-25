@@ -24,7 +24,8 @@ AS
 		- 20181004@Kathy: Change CIX on DB053 [Redmine:#102594]
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
-		
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
+
 */
 BEGIN
 	
@@ -54,6 +55,11 @@ BEGIN
 		,@commLostRate		SMALLMONEY
 		,@RemoteCount		INT
 		,@isAutoRefundGame	BIT
+		,@statusId TINYINT
+		,@winlost MONEY
+
+	DECLARE @settlementTime DATETIME
+	SET @settlementTime = GETDATE();
 
 	UPDATE dbo.bettrans WITH (ROWLOCK, UPDLOCK)
 	SET 
@@ -76,26 +82,34 @@ BEGIN
 			WHEN '1' THEN 2
 			ELSE 1
 			END
-		,--'s','m'
-		WinLost = CASE 
-			WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
-					WHEN odds < 0 THEN 1
-					ELSE (CASE 
-							WHEN bettype IN (4, 5, 6, 1201) THEN odds - 1
-							ELSE odds END
-							) END
-					)
-			WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
-					WHEN odds < 0 THEN 1
-					ELSE (CASE 
-							WHEN bettype IN (4, 5, 6, 1201) THEN odds - 1
-							ELSE odds END
-							) END
-					) * 0.5
-			WHEN @modds = 0 THEN actual_stake
-			WHEN @modds = - 0.25 THEN actual_stake * 0.5
-			WHEN @modds < - 0.25 THEN 0
-			END
+		-- check winlost or status change to update SettlementTime
+		,@statusId = CASE
+						WHEN @modds > 0 THEN 112 --WON
+						WHEN @modds = 0 AND @isAutoRefundGame =0 THEN 111 --DRAW
+						WHEN @modds = 0 AND @isAutoRefundGame =1 THEN 103 --REFUND
+						WHEN @modds < 0 THEN 113 --LOSE
+					END
+		,@winlost = CASE 
+						WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 1201) THEN odds - 1
+										ELSE odds END
+										) END
+								)
+						WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
+								WHEN odds < 0 THEN 1
+								ELSE (CASE 
+										WHEN bettype IN (4, 5, 6, 1201) THEN odds - 1
+										ELSE odds END
+										) END
+								) * 0.5
+						WHEN @modds = 0 THEN actual_stake
+						WHEN @modds = - 0.25 THEN actual_stake * 0.5
+						WHEN @modds < - 0.25 THEN 0
+					END 
+		,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+		,WinLost = @winlost
 		,aWinLost = CASE 
 			WHEN @modds > 0.25 THEN stake * (CASE 
 					WHEN odds < 0 THEN 1
@@ -187,12 +201,7 @@ BEGIN
 			WHEN @modds = 0 AND @isAutoRefundGame=1 THEN N'Refund'
 			WHEN @modds < 0 THEN N'LOSE'
 			END,
-		StatusID = CASE
-			WHEN @modds > 0 THEN 112 --WON
-			WHEN @modds = 0 AND @isAutoRefundGame =0 THEN 111 --DRAW
-			WHEN @modds = 0 AND @isAutoRefundGame =1 THEN 103 --REFUND
-			WHEN @modds < 0 THEN 113 --LOSE
-			END,
+		StatusID = @statusId,
 		ruben = 1
 	WHERE	matchid = @matchid 
 			AND bettype = @bettype 
