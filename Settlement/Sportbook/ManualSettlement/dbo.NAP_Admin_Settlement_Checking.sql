@@ -208,22 +208,22 @@ BEGIN
 		END
 		
 	END
-	IF @Mode IN ('CAL-FGLG') AND @IsAutoCalculatePage = 1
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 
-				FROM dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN dbo.f_Set_GetGroupBettypes () f
-						ON b.bettype = f.BetType
-				WHERE b.matchid = @matchid
-				AND (b.statusID = 1 -- waiting status
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-				AND f.IsUsedGoalRecordValue = 1
-				AND 1 = CASE WHEN @Action = 'CAL-HT' AND f.GroupId = 3 THEN 1
-								WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) THEN 1
-						ELSE 0 END
-			)
-			SELECT @isExistWaitingTicket = 1
-	END
+	--IF @Mode IN ('CAL-FGLG') AND @IsAutoCalculatePage = 1
+	--BEGIN
+	--	IF EXISTS (SELECT TOP 1 1 
+	--			FROM dbo.bettrans b WITH(NOLOCK)
+	--				INNER JOIN dbo.f_Set_GetGroupBettypes () f
+	--					ON b.bettype = f.BetType
+	--			WHERE b.matchid = @matchid
+	--			AND (b.statusID = 1 -- waiting status
+	--					 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+	--			AND f.IsUsedGoalRecordValue = 1
+	--			AND 1 = CASE WHEN @Action = 'CAL-HT' AND f.GroupId = 3 THEN 1
+	--							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) THEN 1
+	--					ELSE 0 END
+	--		)
+	--		SELECT @isExistWaitingTicket = 1
+	--END
 	
 	IF @Mode = 'CAL-PS'
 	BEGIN

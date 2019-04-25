@@ -832,47 +832,47 @@ BEGIN
                 );   
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
-    ELSE IF @Command ='NAP_Admin_Settlement-FGLG'
-    BEGIN
-        MERGE   ResultDetail AS TARGET
-        USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
-        WHEN    MATCHED THEN                 
-                UPDATE SET
-                    TARGET.HomeValue            = SOURCE.HomeValue
-                    ,TARGET.AwayValue           = SOURCE.AwayValue  
-                    ,TARGET.OtherInfo           = NULL
-                    ,TARGET.ResultStatusID      = SOURCE.ResultStatusID
-                    ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID -- Completed
-                    ,TARGET.LastModifyBy        = @Creator 
-                    ,TARGET.LastModifyDate      = GETDATE() 
-        WHEN    NOT MATCHED BY TARGET THEN 
-                INSERT(
-                     MatchID
-                    ,ResourceID
-                    ,HomeValue
-                    ,AwayValue
-                    ,OtherInfo 
-                    ,ResultStatusID
-                    ,SettlementStatusID
-                    ,CreateBy
-                    ,CreateDate
-                    ,LastModifyBy
-                    ,LastModifyDate
-                )
-                VALUES(
-                     @MatchID
-                    ,SOURCE.ResourceID
-                    ,SOURCE.HomeValue
-                    ,SOURCE.AwayValue 
-                    ,NULL 
-                    ,SOURCE.ResultStatusID
-                    ,SOURCE.SettlementStatusID -- Completed
-                    ,@Creator
-                    ,GETDATE()
-                    ,@Creator
-                    ,GETDATE()
-                );   
-    END 
+    --ELSE IF @Command ='NAP_Admin_Settlement-FGLG'
+    --BEGIN
+    --    MERGE   ResultDetail AS TARGET
+    --    USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
+    --    WHEN    MATCHED THEN                 
+    --            UPDATE SET
+    --                TARGET.HomeValue            = SOURCE.HomeValue
+    --                ,TARGET.AwayValue           = SOURCE.AwayValue  
+    --                ,TARGET.OtherInfo           = NULL
+    --                ,TARGET.ResultStatusID      = SOURCE.ResultStatusID
+    --                ,TARGET.SettlementStatusID  = SOURCE.SettlementStatusID -- Completed
+    --                ,TARGET.LastModifyBy        = @Creator 
+    --                ,TARGET.LastModifyDate      = GETDATE() 
+    --    WHEN    NOT MATCHED BY TARGET THEN 
+    --            INSERT(
+    --                 MatchID
+    --                ,ResourceID
+    --                ,HomeValue
+    --                ,AwayValue
+    --                ,OtherInfo 
+    --                ,ResultStatusID
+    --                ,SettlementStatusID
+    --                ,CreateBy
+    --                ,CreateDate
+    --                ,LastModifyBy
+    --                ,LastModifyDate
+    --            )
+    --            VALUES(
+    --                 @MatchID
+    --                ,SOURCE.ResourceID
+    --                ,SOURCE.HomeValue
+    --                ,SOURCE.AwayValue 
+    --                ,NULL 
+    --                ,SOURCE.ResultStatusID
+    --                ,SOURCE.SettlementStatusID -- Completed
+    --                ,@Creator
+    --                ,GETDATE()
+    --                ,@Creator
+    --                ,GETDATE()
+    --            );   
+    --END 
     /* END - @Command = 'NAP_Admin_Settlement-FGLG' */
     ELSE IF @Command ='NAP_Admin_Settlement_Corner-CAL'
     BEGIN

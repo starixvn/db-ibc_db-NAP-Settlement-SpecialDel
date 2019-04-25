@@ -352,21 +352,21 @@ BEGIN
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
     END
-    IF @Command = 'NAP_Admin_Settlement-FGLG'
-    BEGIN
-        UPDATE match WITH(ROWLOCK,UPDLOCK)
-        SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus
-                        ELSE @betstatus + ';' END
-            , GoalRecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
-                               WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> ''
-                                    THEN REPLACE(GoalRecord, LEFT(GoalRecord, CHARINDEX(';', GoalRecord)), (LEFT(@goalrecord, CHARINDEX(';', @goalrecord)))) -- only update HT part
-                            ELSE @goalrecord END
-            , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
-            , changetime = GETDATE()
-            --, settleTime = GETDATE()
-        WHERE matchid = @MatchID
+    --IF @Command = 'NAP_Admin_Settlement-FGLG'
+    --BEGIN
+    --    UPDATE match WITH(ROWLOCK,UPDLOCK)
+    --    SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus
+    --                    ELSE @betstatus + ';' END
+    --        , GoalRecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
+    --                           WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> ''
+    --                                THEN REPLACE(GoalRecord, LEFT(GoalRecord, CHARINDEX(';', GoalRecord)), (LEFT(@goalrecord, CHARINDEX(';', @goalrecord)))) -- only update HT part
+    --                        ELSE @goalrecord END
+    --        , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
+    --        , changetime = GETDATE()
+    --        , settleTime = GETDATE()
+    --    WHERE matchid = @MatchID
 
-    END
+    --END
     IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID

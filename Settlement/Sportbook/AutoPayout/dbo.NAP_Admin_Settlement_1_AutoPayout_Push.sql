@@ -124,16 +124,17 @@ BEGIN
                             + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 							+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
-							+ ', @GoalRecord = ' + ISNULL(CONVERT(NVARCHAR(50), @GoalRecord), 'NULL') 
-							+ ', @BetStatus = ' + ISNULL(CONVERT(NVARCHAR(50), @BetStatus), N'NULL') 
-							+ ', @ResourceResult = ' + ISNULL(CONVERT(NVARCHAR(50), @ResourceResult), 'NULL') 
+							+ ', @goalrecord = '+ CASE when @GoalRecord IS NULL THEN 'NULL' ELSE '''' + CONVERT(nvarchar(50),@GoalRecord)+ '''' END 
+							+ ', @betstatus = ' + CASE when @BetStatus IS NULL THEN 'NULL' ELSE 'N''' + CONVERT(nvarchar(50),@BetStatus)+ '''' END 
+							+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+											ELSE '''' + @ResourceResult + '''' END 
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE
 								WHEN @Action = 'CAL-FT' THEN 1
 								ELSE NULL
 							END
-
+							
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL
 	BEGIN
