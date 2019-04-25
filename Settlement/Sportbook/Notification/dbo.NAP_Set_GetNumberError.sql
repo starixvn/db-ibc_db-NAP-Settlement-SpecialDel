@@ -1,9 +1,4 @@
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_GetNumberError] @AdminId INT
 	,@NumberError INT = 0 OUTPUT
 AS
@@ -12,10 +7,13 @@ AS
 	Task: Get number error
 	DB: DBTXN/BODB02
 	Original: 
-	History:
+
+	Revisions:
 		- 20140404@Kathy: Count notification messages for each group (Soccer, Other Sports)
 							Send email in case calculation got notify
 		- 20170112@Kathy: Add AdminId 111 into Soccer Team [Redmine:#70302]		
+		- 20190418@Kathy: - Do not send email when mark/unmark ticket [Redmine:#106823]
+						  -	Add starix56 to view notification
 							
 	Param's Explanation:
 		
@@ -35,7 +33,7 @@ BEGIN
 	UNION ALL SELECT 384559		-- YONG 
 	UNION ALL SELECT 12978541	-- pgmHarris
 	UNION ALL SELECT 4338171	-- pgmKaka  	
-	--UNION ALL SELECT 9503076	-- pgmJacob 
+	UNION ALL SELECT 20442488	-- starix56 
 	UNION ALL SELECT 111		-- Auto Settlement
 
 	INSERT INTO @tblOtherSportTeam
@@ -48,7 +46,7 @@ BEGIN
 	UNION ALL SELECT 5234866	-- OSVENNY
 	UNION ALL SELECT 12978541	-- pgmHarris 
 	UNION ALL SELECT 4338171	-- pgmKaka 
-	--UNION ALL SELECT 9503076	-- pgmJacob 
+	UNION ALL SELECT 20442488	-- starix56  
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tblSoccerTeam WHERE custid = @AdminId)
 			SET @IsSoccer = 1
@@ -69,7 +67,9 @@ BEGIN
 		)
 		
 	INSERT INTO @tblTemp (matchid, matchcode, homeid, awayid, sporttype, IP, starttime, Action, Message, IsSent)
-	SELECT	m.matchid, m.matchcode, m.homeid, m.awayid, m.sporttype, s.IP, s.Starttime, s.Action, s.Message, s.IsSent
+	SELECT	m.matchid, m.matchcode, m.homeid, m.awayid, m.sporttype
+			,s.IP, s.Starttime, s.Action, s.Message
+			,CASE WHEN s.Action IN ('MARK', 'UNMARK', 'VOID') THEN 1 ELSE s.IsSent END
 	FROM	dbo.Settled_Message s WITH (NOLOCK)
 		INNER JOIN match m WITH (NOLOCK) 
 			ON	m.matchid = s.MatchId
@@ -105,8 +105,4 @@ BEGIN
 	WHERE	t.IsSent = 0
 				
 END
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_Set_GetNumberError] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Set_GetNumberError] TO [vnteam] AS [dbo]
