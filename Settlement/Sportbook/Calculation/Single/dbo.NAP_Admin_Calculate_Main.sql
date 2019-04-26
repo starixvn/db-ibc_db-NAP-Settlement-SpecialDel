@@ -233,6 +233,7 @@ AS
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190426@Kathy: Remove redundant param on cricket sp [Redmine:#112572]
 
     Param's Explanation:
         @action             @mode
@@ -1561,8 +1562,7 @@ BEGIN
                     EXEC dbo.NAP_Admin_Calculate_501 @matchid = @matchid
                         ,@bettype = 501
                         ,@betcount = 1
-                        ,@ScoreDiff = @ScoreDiff
-						,@IsReSettledTickets = @IsReSettledTickets
+                        ,@ScoreDiff = @ScoreDiff						
 
                 -- bettype 14 : FT-FGLG
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 14)
