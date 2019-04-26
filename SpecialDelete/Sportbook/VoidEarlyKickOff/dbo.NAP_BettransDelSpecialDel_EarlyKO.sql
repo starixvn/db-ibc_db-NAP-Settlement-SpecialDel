@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO]   
 	 @MatchId			INT  
 	,@KickOffDate		DATETIME  
@@ -86,6 +86,7 @@ Revisions:
 	- 20181017@Alan: Write log new reason chinese simplified [102918]
 	- 20181004@Alan: Add new column SettlementStatus [102423]
 	- 20180821@Alan: Incorporate ESports 2.0 [99448]
+	- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -110,6 +111,7 @@ BEGIN
 	 
 	DECLARE @isExistMatch  BIT = 0  
 		, @isExistMG  BIT = 0 
+		, @isExistFM  BIT = 0 
 		, @isExistParlay BIT = 0  
 		, @avaiableProcess BIT = 0  
 		, @isExistBT	BIT = 0 
@@ -367,8 +369,12 @@ BEGIN
 	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	
 
 	BEGIN --SD checking process  
-	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (9, 29) AND b.Bettype NOT BETWEEN 801 AND 806 THEN 1 ELSE 0 END)  
+	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (9, 29) 
+										AND b.Bettype NOT BETWEEN 801 AND 806 
+										AND b.bettype NOT BETWEEN 221 AND 227
+									THEN 1 ELSE 0 END)  
 		,@isExistMG  = MAX (CASE WHEN b.Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)  
+		,@isExistFM  = MAX (CASE WHEN b.Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
 	FROM dbo.bettrans b WITH (NOLOCK)  
 		INNER JOIN #tblTransIds t   
 		ON t.transid = b.transid  
@@ -407,11 +413,14 @@ BEGIN
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1  
 	UNION ALL  
 	SELECT @matchid AS matchid, 3 AS KeyID WHERE @isExistMG = 1  
+	UNION ALL  
+	SELECT @matchid AS matchid, 6 AS KeyID WHERE @isExistFM = 1  
 
 	-- check and not allow attempt to void tickets of this match while it's being calculated  
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay   = @isExistParlay  
 		, @isExistMG  = @isExistMG  
+		, @isExistFM  = @isExistFM  
 		, @isExistMatch  = @isExistMatch  
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode   = @ErrCode OUTPUT  
@@ -2310,6 +2319,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess  
 				  @isExistParlay  = @isExistParlay  
 				, @isExistMG  	= @isExistMG  
+				, @isExistFM  = @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @IsReleased  	= 1
 		
@@ -2318,6 +2328,17 @@ BEGIN
 				@Mode = 'Original'
 			  , @Action = 'Void'
 			  , @IsReleased = 1  
+	   
+		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+		DECLARE @allTransId VARCHAR(MAX) = ''
+
+		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+		FROM	#BetDelete
+
+		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+			@TransId = @allTransId
+			,@Username = @Username
+			,@MatchId = @MatchId		 
 
 		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
 			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC

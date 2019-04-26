@@ -90,6 +90,7 @@ AS
 		- 20181003@Alan: Add new column SettlementStatus [102423]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
+		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -122,6 +123,7 @@ BEGIN
 			,@isExistBT			BIT = 0
 			,@isExistCashOut	BIT = 0
 			,@isExistSingle		BIT = 0
+			,@isExistFM			BIT = 0
 			,@avaiableProcess	BIT = 0
 	DECLARE @session			NVARCHAR(50)
 	DECLARE @CustIds			VARCHAR(MAX) = ''
@@ -353,7 +355,8 @@ BEGIN
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
 	BEGIN 
-		SELECT TOP 1 @isExistSingle = 1		
+		SELECT @isExistSingle = MAX(CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 0 ELSE 1 END)
+				,@isExistFM = MAX(CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)				
 		FROM dbo.bettrans b WITH (NOLOCK)  
 			INNER JOIN #tblTransIds t ON t.transid = b.transid  
 			INNER JOIN #tblBettype tp ON tp.Id = b.bettype  
@@ -370,10 +373,14 @@ BEGIN
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistSingle = 1 
+	UNION ALL
+	SELECT @MatchId AS matchid, 6 AS KeyId WHERE @isExistFM = 1
+
 	-- checking SD proccess
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistParlay		= @isExistParlay  
 		,@isExistMatch		= @isExistSingle
+		,@isExistFM			= @isExistFM
 		,@avaiableProcess 	= @avaiableProcess OUTPUT
 		,@ErrCode			= @ErrCode OUTPUT
 		,@ErrMsg			= @ErrMsg OUTPUT
@@ -1915,6 +1922,7 @@ BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistSingle
+			,@isExistFM		= @isExistFM
 			,@isExistParlay = @isExistParlay 
 			,@IsReleased	= 1
 		
@@ -1924,7 +1932,19 @@ BEGIN
 			,@Action = 'Void'
 			,@IsReleased = 1	
 			
-	------------------***** End of Special Delete *****------------------
+		------------------***** End of Special Delete *****------------------
+		
+		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+		DECLARE @allTransId VARCHAR(MAX) = ''
+
+		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+		FROM	#BetDelete
+
+		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+			@TransId = @allTransId
+			,@Username = @Username
+			,@MatchId = @MatchId		 
+
 		IF(@FromTransId > 0)
 		BEGIN
 			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 

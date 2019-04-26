@@ -40,6 +40,7 @@ AS
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
+		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 		
 	Param's Explanation:			
 			- @TicketType:
@@ -71,6 +72,7 @@ BEGIN
 		  
 	DECLARE @IsExistParlay				BIT = 0		  
 		  , @isExistMatch				BIT = 0
+		  , @isExistFM					BIT = 0
 		  , @KeyID						INT
 		  , @AvaiableProcess			BIT = 1	
 		  
@@ -1339,12 +1341,15 @@ BEGIN
 		BEGIN
 			IF @CountSingle > 0
 			BEGIN
-				SELECT @KeyID = 1					 
-					 , @isExistMatch = 1			 			 
+				SELECT	@isExistMatch = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 0 ELSE 1 END)
+						,@isExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+				FROM	#SpecialDeleteBets_Single
+					 			 
 							
 				INSERT INTO #tblMatchProcess (matchid, KeyID)
-				SELECT @matchid AS matchid
-					 , @KeyID 	AS KeyID
+				SELECT @matchid AS matchid ,1 AS KeyID WHERE @isExistMatch = 1
+				UNION ALL
+				SELECT @matchid AS matchid ,6 AS KeyID WHERE @isExistFM = 1
 			END
 			
 			IF @CountParlay > 0
@@ -1353,7 +1358,8 @@ BEGIN
 			-------> Check concurrent single, parlay
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsReleased	= 0								
-				, @isExistMatch		= @isExistMatch				
+				, @isExistMatch		= @isExistMatch	
+				, @isExistFM		= @isExistFM				
 				, @IsExistParlay	= @IsExistParlay				
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
@@ -2048,7 +2054,8 @@ BEGIN
 		-------> Release process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @IsReleased		= 1						
-			, @isExistMatch		= @isExistMatch			
+			, @isExistMatch		= @isExistMatch	
+			, @isExistFM		= @isExistFM		
 			, @isExistParlay  = @isExistParlay
 			
 		-------> releasing cash-out process
@@ -2056,6 +2063,17 @@ BEGIN
 				@Mode = 'Original'
 			  , @Action = 'Void'
 			  , @IsReleased = 1			
+
+		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+		DECLARE @allTransId VARCHAR(MAX) = ''
+
+		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+		FROM	#SpecialDeleteBets_Single
+
+		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+			@TransId = @allTransId
+			,@Username = @Username
+			,@MatchId = @MatchID		 
 			
 		-------> write log		
 		EXEC WriteLog_UserLog 

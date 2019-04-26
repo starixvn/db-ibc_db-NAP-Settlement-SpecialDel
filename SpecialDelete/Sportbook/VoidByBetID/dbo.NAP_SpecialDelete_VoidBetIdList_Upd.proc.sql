@@ -71,7 +71,8 @@ AS
 	  - 20181004@Alan: Add new column SettlementStatus [102423]
 	  - 20181120@Alan: Incorporate Happy 5 into Number Game [102845]
 	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
-	
+	  - 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
+
 	 Param's Explanation:   
 	*/
 BEGIN
@@ -82,6 +83,7 @@ BEGIN
 			,@winlostdate				DATETIME
 			,@isExistMatch				BIT = 0
 			,@isExistMG					BIT = 0
+			,@isExistFM					BIT = 0
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
@@ -818,8 +820,9 @@ BEGIN
 	END
 	
 	SELECT @winlostdate 				= MIN (winlostdate)
-			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) THEN 1 ELSE 0 END)
+			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND Bettype NOT BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+			,@isExistFM 				= MAX (CASE WHEN Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
@@ -840,11 +843,13 @@ BEGIN
 	SELECT DISTINCT matchid
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10) 
-					AND Bettype NOT BETWEEN 801 AND 899 
+					AND Bettype NOT BETWEEN 801 AND 899
+					AND Bettype NOT BETWEEN 221 AND 227
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+			WHEN Bettype BETWEEN 221 AND 227 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			ELSE 0
 		END AS KeyID
@@ -854,6 +859,7 @@ BEGIN
 		@isExistParlay 				= @isExistParlay
 		, @isExistOutright 			= @isExistOutright
 		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS
@@ -2577,6 +2583,7 @@ BEGIN
 		@isExistParlay 				= @isExistParlay
 		, @isExistOutright 			= @isExistOutright
 		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS
@@ -2588,7 +2595,18 @@ BEGIN
 			@Mode = 'Original'
 		  , @Action = 'Void' 
 		  , @IsReleased = 1		
-	
+
+	-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
+	DECLARE @allTransId VARCHAR(MAX) = ''
+
+	SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
+	FROM	#BetDelete
+
+	EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
+		@TransId = @allTransId
+		,@Username = @Username
+		,@MatchId = 0		 
+
 	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
 		+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  

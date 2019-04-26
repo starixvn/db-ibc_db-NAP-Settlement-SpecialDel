@@ -11,6 +11,7 @@ AS
 		- 20180824@Alan: Get LicenseeName from RegisteredLicenseeName [100481]
 		- 20181010@Alan: Include Test Licensee with status is soft launch [102917]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
+		- 20190412@Alan: Order by CN88 [108826]
 */
 BEGIN
 SET NOCOUNT ON
@@ -51,7 +52,12 @@ SET NOCOUNT ON
 	ORDER BY CASE GroupName
 		WHEN @China_GroupName THEN 1
 		WHEN @Asia_GroupName THEN 2
-		ELSE 3	END ASC	,Name ASC
+		ELSE 3	END ASC	,
+		CASE Name 
+		WHEN @789y_Name THEN 1
+		WHEN @MBCGroup_Name THEN 2
+		WHEN @cn88_Name THEN 3
+		ELSE 4 END ASC
 
 	SET NOCOUNT OFF
 	DROP TABLE #LicenseeGroupInfo
