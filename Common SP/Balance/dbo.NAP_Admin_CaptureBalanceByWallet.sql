@@ -21,6 +21,7 @@ AS
 	Revisions:  
 		- 20170801@Bobby: Initial
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -123,8 +124,8 @@ BEGIN
 				AND	1 = CASE 
 							WHEN @Mode = 1 THEN --Auto Payout
 								CASE 
-									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1) AND f.IsUsedGoalRecordValue = 0 THEN 1
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2) AND f.IsUsedGoalRecordValue = 0 THEN 1
+									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1, 3) THEN 1 -- inclued FGLG bettype -- #106901
+									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2, 4) THEN 1 -- inclued FGLG bettype -- #106901
 									ELSE 0
 								END
 							WHEN @Mode = 2 THEN --Manual CAL
@@ -154,12 +155,12 @@ BEGIN
 										THEN 1
 									ELSE 0
 								END
-							WHEN @Mode = 4 THEN --FGLG
-								CASE 
-									WHEN @Action = 'CAL-HT' AND f.GroupId IN (3) AND f.IsUsedGoalRecordValue = 1 THEN 1
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1
-									ELSE 0
-								END
+							--WHEN @Mode = 4 THEN --FGLG
+							--	CASE 
+							--		WHEN @Action = 'CAL-HT' AND f.GroupId IN (3) AND f.IsUsedGoalRecordValue = 1 THEN 1
+							--		WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1
+							--		ELSE 0
+							--	END
 							WHEN @Mode = 5 THEN --Conner
 								CASE 
 									WHEN @Action = 'CAL' AND f.GroupId IN (5,6) THEN 1

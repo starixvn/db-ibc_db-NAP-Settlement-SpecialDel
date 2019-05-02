@@ -10,8 +10,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking]
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @ResourceIDs 			VARCHAR(MAX)	= '' 
 	, @IsExcludeCorner 		BIT = 0
-	, @IsExcludeFGLG 		BIT = 0
-	, @IsAutoCalculatePage 	BIT = 0
+	--, @IsExcludeFGLG 		BIT = 0
+	--, @IsAutoCalculatePage 	BIT = 0
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @SelectedQuarter 		VARCHAR(50) = NULL
 	, @SelectedSet			VARCHAR(50)     = NULL 
@@ -42,7 +42,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
-		- 20190425@Sol: Update SettlementTime col when status/winlost changed  [Redmine:#106901]
+		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -176,12 +176,14 @@ BEGIN
 					OR (@Action IN ('CAL-HT', 'REFUND-HT')
 							AND f.GroupId IN (1,3,5) -- HT, HT FGLG, HT Corner 						
 							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 5 THEN 0 ELSE 1 END
-							AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 3 THEN 0 ELSE 1 END)
+							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 3 THEN 0 ELSE 1 END
+						)
 					OR (@Action IN ('CAL-FT', 'REFUND-FT') 
 							AND f.GroupId NOT IN (1,3,5)
 							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 6 THEN 0 ELSE 1 END
-							AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 4 THEN 0 ELSE 1 END
-							AND 1 = CASE WHEN @IsAutoCalculatePage = 1 AND f.IsUsedGoalRecordValue = 1 THEN 0 ELSE 1 END) --exclude bettype [172] in case auto-payout
+							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 4 THEN 0 ELSE 1 END
+							--AND 1 = CASE WHEN @IsAutoCalculatePage = 1 AND f.IsUsedGoalRecordValue = 1 THEN 0 ELSE 1 END
+						) --exclude bettype [172] in case auto-payout
 					)
 				AND 1 = CASE
 							WHEN @SelectedQuarter IS NULL THEN 1

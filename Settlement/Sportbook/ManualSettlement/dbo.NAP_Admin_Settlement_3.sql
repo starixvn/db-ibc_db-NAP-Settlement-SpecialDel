@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3]
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
     , @isExcludeCorner BIT = 0 
-	, @IsAutoCalculatePage BIT = 0
+	--, @IsAutoCalculatePage BIT = 0
 	, @IsReSettledTickets BIT = 1
 AS
 /*
@@ -38,6 +38,7 @@ AS
 	   - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 	   - 20180510@Benjamin: Incorporate new Sports: Sepak Takraw(48)[Redmine:#94608]
 	   - 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+	   - 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
 
     Param's Explanation:
     • @Mode:
@@ -280,8 +281,7 @@ BEGIN
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-HT', 'CAL') 
 				AND 1 = CASE 
-							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (1,5)  THEN 1 
-							WHEN @IsAutoCalculatePage = 0 AND GroupId IN (1,3,5) THEN 1 
+							WHEN GroupId IN (1,3,5) THEN 1 
 							ELSE 0 END -- HT + HT Corner + HT FGLG
 				AND 1 = CASE
 							WHEN @isExcludeCorner = 1 AND GroupId = 5 THEN 0 -- exclude HT corner
@@ -292,13 +292,11 @@ BEGIN
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-FT', 'CAL') 
 				AND 1 = CASE 
-							WHEN @IsAutoCalculatePage = 1 AND GroupId IN (2,6)  THEN 1 
-							WHEN @IsAutoCalculatePage = 0 AND GroupId IN (2,4,6) THEN 1 
+							WHEN GroupId IN (2,4,6) THEN 1 
 							ELSE 0 END -- FT, FT Corner + FT FGLG
 				AND 1 = CASE
 							WHEN @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 -- If this match has been refund HT --> refund all bettypes related to 2nd result 
 							WHEN @isExcludeCorner = 1 AND GroupId = 6 THEN 0 -- exclude FT corner
-							WHEN @IsAutoCalculatePage = 1 AND IsUsedGoalRecordValue = 1 THEN 0
 							ELSE 1
 						END
 				
