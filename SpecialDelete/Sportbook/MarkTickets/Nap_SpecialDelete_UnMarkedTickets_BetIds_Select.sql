@@ -13,69 +13,68 @@ AS
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
-		
+		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	Explanation's Param:
 */
 BEGIN
 SET NOCOUNT ON
-	CREATE TABLE #Tickets (
-		GroupID				BIGINT,
-		transid				BIGINT,
-		custid				INT,
-		username			VARCHAR(50),
-		oddsspread 			MONEY,
-		odds				MONEY, 
-		OddsType			INT, 
-		transdate			DATETIME,
-		bettype				SMALLINT,
-		OriginalBetType		SMALLINT,
-		betteam				NVARCHAR(10),
-		betcheck			NVARCHAR(50),
-		hdp1				SMALLMONEY, 
-		hdp2				SMALLMONEY,
-		IsLiveIndicator		BIT,
-		livehomescore 		SMALLINT, 
-		liveawayscore 		SMALLINT,
-		creator				INT,
-		Stake				MONEY,
-		CurrencyName		VARCHAR(10),
-		IsDeposit			BIT DEFAULT (0),
-		IsCricket			BIT DEFAULT (0),
-		status				NVARCHAR(10), 
-		srecommend			INT,
-		mrecommend			INT, 
-		recommend			INT, 
-		SecAcceptFlag		BIT,
-		betid				BIGINT,
-		betdaqid			BIGINT,
-		TransDesc			NVARCHAR(1000),
-		refno				BIGINT,	
-		ExtraInfo			VARCHAR(1000),
-		MainCashoutId		BIGINT,
-		matchid				INT,
-		WalletType			TINYINT,
-		RefCode				BIGINT,
-		BonusID				INT,
-		MainTransId			BIGINT,
-		WinLost				MONEY,
-		IsCashOutMemberTicket BIT DEFAULT 0,
-		SportType			TINYINT,
-		HomeId				INT,
-		AwayId				INT,
-		LeagueId			INT,
-		IsNeutral			BIT,
-		SettlementStatus	TINYINT,
-		ShowTime			NVARCHAR(50),
-		MatchCode			NVARCHAR(50)
-	)
-
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,matchid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
+	CREATE TABLE #Tickets
+             (GroupID               BIGINT,
+              transid               BIGINT,
+              custid                INT,
+              username              VARCHAR(50),
+              oddsspread            MONEY,
+              odds                  MONEY,
+              OddsType              INT,
+              transdate             DATETIME,
+              bettype               SMALLINT,
+              OriginalBetType       SMALLINT,
+              betteam               NVARCHAR(10),
+              betcheck              NVARCHAR(50),
+              hdp1                  SMALLMONEY,
+              hdp2                  SMALLMONEY,
+              IsLiveIndicator       BIT,
+              livehomescore         SMALLINT,
+              liveawayscore         SMALLINT,
+              creator               INT,
+              Stake                 MONEY,
+              CurrencyName          VARCHAR(10),
+              IsDeposit             BIT DEFAULT(0),
+              IsCricket             BIT DEFAULT(0),
+              status                NVARCHAR(10),
+              srecommend            INT,
+              mrecommend            INT,
+              recommend             INT,
+              SecAcceptFlag         BIT,
+              betid                 BIGINT,
+              betdaqid              BIGINT,
+              TransDesc             NVARCHAR(1000),
+              refno                 BIGINT,
+              ExtraInfo             VARCHAR(1000),
+              MainCashoutId         BIGINT,
+              matchid               INT,
+              WalletType            TINYINT,
+              RefCode               BIGINT,
+              BonusID               INT,
+              MainTransId           BIGINT,
+              WinLost               MONEY,
+              IsCashOutMemberTicket BIT DEFAULT 0,
+              SportType             TINYINT,
+              HomeId                INT,
+              AwayId                INT,
+              LeagueId              INT,
+              IsNeutral             BIT,
+              SettlementStatus      TINYINT,
+              ShowTime              NVARCHAR(50),
+              MatchCode             NVARCHAR(50)
+             );
+CREATE TABLE #tmpRefCodeSummary
+             (RefCode BIGINT,
+              custid  INT,
+              matchid INT,
+              bettype SMALLINT,
+              transid BIGINT
+             );
 	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
@@ -586,7 +585,11 @@ SET NOCOUNT ON
 		b.TransId,
 		b.UserName,
 		b.WinLost,			
-		tl.GroupName,
+		CASE 
+		  WHEN b.recommend IN (52466, 5707545) THEN '8RM/BARM' 
+		  WHEN b.custid IN(1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
+		  ELSE tl.GroupName
+		END GroupName,
 		b.betdaqid,
 		b.ExtraInfo,
 		b.IsCashOutMemberTicket,
@@ -614,10 +617,12 @@ SET NOCOUNT ON
 						ELSE 0
 					END AS IsDeposit) AS T1
 	ORDER BY CASE
-				WHEN tl.GroupName = @cn88_Name THEN 1
-				WHEN tl.GroupName = @789y_Name THEN 2
-				WHEN tl.GroupName = @MBCGroup_Name THEN 3
-				ELSE 4
+				WHEN b.recommend IN (52466, 5707545) THEN 1
+				WHEN b.custid IN(1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 2
+				WHEN tl.GroupName = @cn88_Name THEN 3
+				WHEN tl.GroupName = @789y_Name THEN 4
+				WHEN tl.GroupName = @MBCGroup_Name THEN 5
+				ELSE 6
 		     END ASC
 		   , tl.GroupName ASC
 		   , ISNULL(b.MainTransId, b.transid) ASC

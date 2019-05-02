@@ -20,7 +20,7 @@ AS;
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
-		
+		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	Explanation's Param:
 		- @LiveIndicator:
 			+ 0: Dead
@@ -829,7 +829,11 @@ BEGIN
 		b.TransId,
 		b.UserName,
 		b.WinLost,
-		tl.GroupName,
+		CASE 
+		  WHEN b.recommend IN (52466, 5707545) THEN '8RM/BARM' 
+		  WHEN b.custid IN(1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
+		  ELSE tl.GroupName
+		END GroupName,
 		b.betdaqid,
 		b.ExtraInfo,
 		b.MainCashoutId,
@@ -856,10 +860,12 @@ BEGIN
 						ELSE 0
 					END AS IsDeposit) AS T1
 	ORDER BY CASE
-				WHEN tl.GroupName = @cn88_Name THEN 1
-				WHEN tl.GroupName = @789y_Name THEN 2
-				WHEN tl.GroupName = @MBCGroup_Name THEN 3
-				ELSE 4
+				WHEN b.recommend IN (52466, 5707545) THEN 1
+				WHEN b.custid IN(1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 2
+				WHEN tl.GroupName = @cn88_Name THEN 3
+				WHEN tl.GroupName = @789y_Name THEN 4
+				WHEN tl.GroupName = @MBCGroup_Name THEN 5
+				ELSE 6
 		     END ASC
 		   , tl.GroupName ASC
 		   , ISNULL(b.MainTransId, b.transid) ASC
