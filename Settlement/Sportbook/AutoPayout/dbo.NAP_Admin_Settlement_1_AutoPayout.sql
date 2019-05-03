@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]
 	, @GoalRecord		VARCHAR(50)		= ''
 	, @BetStatus		NVARCHAR(50)	= ''
 	, @ResourceResult	VARCHAR(MAX)	= NULL
+	, @SourceId			TINYINT			= 5 -- default SoccerWay
 	, @ErrCode			INT				= 0		OUTPUT
 	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -240,7 +241,7 @@ BEGIN
 				EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
 					, @mode				= @action
 					, @isExcludeCorner	= @isExcludeCorner
-					, @IsAutoCalculatePage		= 0
+					--, @IsAutoCalculatePage		= 0
 					, @IsReSettledTickets		= @IsReSettledTickets
 			END
 		END
@@ -261,6 +262,7 @@ BEGIN
 									WHEN 'CAL-FT' THEN 2
 						ELSE -1	END --not supported
 		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+																		, @SourceId = @SourceId
 
 	END TRY
 	BEGIN CATCH

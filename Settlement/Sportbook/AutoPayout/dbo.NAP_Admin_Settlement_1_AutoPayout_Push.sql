@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @GoalRecord	VARCHAR(50)		= ''
 	, @BetStatus	NVARCHAR(50)	= ''
 	, @ResourceResult VARCHAR(MAX)	= NULL
+	, @SourceId		TINYINT			= 5 -- default SoccerWay
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -125,10 +126,11 @@ BEGIN
                             + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 							+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
-							+ ', @goalrecord = '+ CASE when @GoalRecord IS NULL THEN 'NULL' ELSE '''' + CONVERT(nvarchar(50),@GoalRecord)+ '''' END 
-							+ ', @betstatus = ' + CASE when @BetStatus IS NULL THEN 'NULL' ELSE 'N''' + CONVERT(nvarchar(50),@BetStatus)+ '''' END 
+							+ ', @goalrecord = '+ CASE WHEN @GoalRecord IS NULL THEN 'NULL' ELSE '''' + CONVERT(NVARCHAR(50),@GoalRecord)+ '''' END 
+							+ ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' ELSE 'N''' + CONVERT(NVARCHAR(50),@BetStatus)+ '''' END 
 							+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
 											ELSE '''' + @ResourceResult + '''' END 
+							+ ', @SourceId = ' + CONVERT(NVARCHAR(3), @SourceId)
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE
