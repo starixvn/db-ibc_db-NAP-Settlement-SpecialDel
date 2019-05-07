@@ -1,6 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsDetail_Select]
-	@MatchId		INT	= 0
+	@MatchId		INT,
+	@UserId	 INT,
+	@CreatedDate DATETIME
 AS
 /*
     Created by: Alan
@@ -129,6 +131,8 @@ SET NOCOUNT ON
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting
 		AND m.MatchId = @MatchId 
+		AND m.UserId = @UserId
+		AND m.CreatedDate = @CreatedDate
 		
 
 	CREATE TABLE #tmpRefCodeSummary (

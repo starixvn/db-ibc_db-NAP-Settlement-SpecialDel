@@ -1,7 +1,7 @@
 ﻿
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update] @MatchIds VARCHAR(MAX)  = NULL,
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update] @Matches  XML           = NULL,
                                                                          @UserId   INT           = 0,
                                                                          @Username NVARCHAR(100) = N'',
                                                                          @IP       VARCHAR(15)   = NULL,
@@ -19,28 +19,39 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		
 	Explanation's Param:
+	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
 */
 
 
      SET NOCOUNT ON;
      CREATE TABLE #Match
-                  (MatchId INT
-                   PRIMARY KEY
+                  (MatchId     INT,
+                   UserId      INT,
+                   CreatedDate DATETIME
                   );
-     INSERT INTO #Match(MatchId)
-            SELECT DISTINCT
-                   val
-            FROM dbo.f_SplitString(@MatchIds, ',')
-            WHERE val <> '' OPTION(MAXRECURSION 0);
+     INSERT INTO #Match
+            (MatchId,
+             UserId,
+             CreatedDate
+            )
+            SELECT x.value('@MatchId', 'INT') AS MatchId,
+                   x.value('@UserId', 'INT') AS UserId,
+                   x.value('@CreatedDate', 'DATETIME') AS CreatedDate
+            FROM @Matches.nodes('Matches/Match') XmlData(x) OPTION(OPTIMIZE FOR(@Matches = NULL));
+    
 
 -- Delete Transaction
-	WHILE (0=0)
-	BEGIN
-		DELETE TOP (2000) m 
-		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-			  INNER JOIN #Match t ON t.MatchId = m.MatchId;
-		IF @@ROWCOUNT = 0 BREAK	  
-	END 
+     WHILE(0 = 0)
+         BEGIN
+             DELETE TOP (2000)
+             m
+             FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+                  INNER JOIN #Match t ON t.MatchId = m.MatchId
+                                         AND t.UserId = m.UserId
+                                         AND m.CreatedDate = t.CreatedDate;
+             IF @@ROWCOUNT = 0
+                 BREAK;
+         END; 
 
 -- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
@@ -63,8 +74,9 @@ AS
                    0,
                    NULL,
                    0
-            FROM #Match t;
-
+            FROM #Match t
+                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.MatchId = m.MatchId
+            WHERE m.MatchId IS NULL;
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
@@ -75,12 +87,12 @@ AS
 -- Write Log
      DECLARE @LogActionId INT= 90501, @LogData VARCHAR(MAX);
      SET @LogData = CAST(
-	   (
-		  SELECT @LogActionId AS '@LogActionId',
-			    @UserId AS '@UserId',
-			    @IP AS '@IP',
-			    'Status: 1, MatchIds: '+@MatchIds AS '@LogData' FOR XML PATH('r'), ROOT('root'), TYPE
-	   ) AS VARCHAR(MAX));
+(
+    SELECT @LogActionId AS '@LogActionId',
+           @UserId AS '@UserId',
+           @IP AS '@IP',
+           'Status: 1, Matches: '+CAST(@Matches AS VARCHAR(MAX)) AS '@LogData' FOR XML PATH('r'), ROOT('root'), TYPE
+) AS VARCHAR(MAX));
      EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage
           @xml = @LogData,
           @functionName = 'TicketVoiding',
