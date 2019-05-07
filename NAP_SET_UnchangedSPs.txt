@@ -46,3 +46,10 @@ Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql
 Settlement\Outright\dbo.NAP_Admin_PreCalculate_10.sql
 Settlement\Outright\dbo.NAP_Admin_Settlement_Outright.sql
 Settlement\Outright\Dot_Admin_SettleOutright_Trans.sql
+Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161_Manual.sql
+Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Live.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Pregame.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Refund.sql
+Common SP\Calculation\dbo.NAP_Admin_Calculate_OtherSports.sql
+Settlement\Happy5\dbo.NAP_Admin_Settlement_s164.sql
