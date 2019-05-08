@@ -27,6 +27,7 @@ BEGIN
 		SELECT	b.bettype
 				,MAX(CASE WHEN f.isFGLG = 1 AND f.GroupId IN (2,4)  THEN 1 ELSE 0 END) AS ExistFGLG
 				,MAX(CASE WHEN f.isFGLG = 1 AND f.GroupId IN (1,3)  THEN 1 ELSE 0 END) AS ExistHTFGLG
+				,MAX(f.GroupId) AS GroupId
 		FROM	dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN @tmpGoalRecordBettypes f
 					ON	b.bettype = f.BetType
@@ -39,6 +40,7 @@ BEGIN
 		SELECT	bm.bettype
 				,MAX(CASE WHEN f.isFGLG = 1 AND f.GroupId IN (2,4)  THEN 1 ELSE 0 END) AS ExistFGLG
 				,MAX(CASE WHEN f.isFGLG = 1 AND f.GroupId IN (1,3)  THEN 1 ELSE 0 END) AS ExistHTFGLG
+				,MAX(f.GroupId) AS GroupId
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 				INNER JOIN @tmpGoalRecordBettypes f
 					ON	bm.bettype = f.BetType
@@ -48,6 +50,8 @@ BEGIN
 	)
 	SELECT  ISNULL(MAX(CASE WHEN ExistFGLG = 1 THEN 1 ELSE 0 END),0) AS IsExistFGLG
 			, ISNULL(MAX(CASE WHEN ExistHTFGLG = 1 THEN 1 ELSE 0 END),0) AS IsExistHTFGLG
+			, ISNULL(MAX(CASE WHEN GroupId IN (1,3) THEN 1 ELSE 0 END), 0) AS IsEnabledGoalRecordHT
+			, ISNULL(MAX(CASE WHEN GroupId IN (2,4) THEN 1 ELSE 0 END), 0) AS IsEnabledGoalRecordFT
 	FROM	cteBettypes
 
 END
