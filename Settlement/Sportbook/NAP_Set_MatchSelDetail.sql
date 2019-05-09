@@ -52,6 +52,7 @@ AS
 		- 20171201@Kathy: Remove the checkbox "Settle determined tickets" on Refund popup page [Redmine:#86890]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190509@Kathy: Add group 0 for default if match do not have any ticket [Redmine:#99638]
 		
 */
 BEGIN
@@ -350,7 +351,7 @@ BEGIN
 
 		INSERT INTO @status (GroupId, BetCount, InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt)
 		SELECT t.GroupId, 0, 0, 0, 0, 0, 0
-		FROM (VALUES (1),(2),(3),(4),(5),(7),(9)) AS t (GroupId)
+		FROM (VALUES (0),(1),(2),(3),(4),(5),(7),(9)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
         SELECT @FTStatus = CASE 
