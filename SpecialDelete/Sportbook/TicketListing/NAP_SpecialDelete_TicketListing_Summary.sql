@@ -11,12 +11,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@LiveHomeScore		SMALLINT 		= NULL
 	,@LiveAwayScore		SMALLINT 		= NULL
 	,@FromTransdate		DATETIME 		= NULL
-	,@ToTransdate		DATETIME 		= NULL
+	,@ToTransdate		DATETIME 		     = NULL
 	,@Type				SMALLINT 		= 0
 	,@SecondAcceptFlag	TINYINT			= 0
-	,@BallSequence		VARCHAR(200)	= ''
+	,@BallSequence		VARCHAR(200)	     = ''
 	,@Quarter			VARCHAR(5)		= 'All'
-	,@BetTeams			XML				= NULL
+	,@BetTeams			XML			= NULL
+	,@SingleOrSubParlay VARCHAR(20)	     = 'All'
 WITH RECOMPILE
 AS
 /*	Created by: Elodie
@@ -49,6 +50,7 @@ AS
 		- 20180814@Alan: Rename SP - Filter basketball tickets by quarter [99786]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20181218@Alan: Filter Esports Tickets [106455]
+		- 20190408@Jacob: Separate Filter Parlay Ticket by 1H & 2H [107682]
 		
 	Param's Explanation:
 	- @Type: sports type
@@ -89,6 +91,10 @@ AS
 					Goal="2"				-- Default : "All" ; Format : Single Number
 		/>
 	<BetTypes/>'
+    - @SingleOrSubParlay: 
+	 + 'All'
+	 + 'Single'
+	 + 'SubParlay'
       
     Example:	declare @p12 int
 				set @p12=0
@@ -192,9 +198,9 @@ BEGIN
 					,b.matchid
 					,COUNT(b.transid) cnt
 				FROM dbo.bettrans b WITH (NOLOCK)		
+				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				WHERE b.matchid = @MatchId
 					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-					AND bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(@BetTypes, ','))
 					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
 						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 						WHEN 1 THEN 0
@@ -224,13 +230,13 @@ BEGIN
 					,b.matchid
 					,COUNT(b.transid) cnt
 				FROM dbo.bettrans b WITH (NOLOCK)
+				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 					OUTER APPLY (SELECT BallSequence 
 								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
 								) AS BS_tmp		
 				WHERE b.matchid = @MatchId
-					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-					AND bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(@BetTypes, ','))
+					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')					
 					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
 						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 						WHEN 1 THEN 0
@@ -465,35 +471,36 @@ BEGIN
 			AND isActive = 1
 			AND siteID NOT IN (29, 35)
 			AND siteID = @LicenseeID
-
-		IF @BetTypes <> '9' AND @BetTypes <> '29' AND @BetTypes <> '2799' AND @BetTypes <> '9,29,2799'
-			INSERT INTO @TmpTotal (
-				OrderNo
-				,TotalTrans
-				,bettype
-				,LiveIndicator
-				,LicenseeName
-				)
-			SELECT 1 AS OrderNo
+		IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
+		BEGIN
+		  INSERT INTO @TmpTotal (
+			 OrderNo
+			 ,TotalTrans
+			 ,bettype
+			 ,LiveIndicator
+			 ,LicenseeName
+			 )
+		    SELECT 1 AS OrderNo
 				,sum(cnt) AS TotalTrans
 				,bettype
 				,CASE 
-					WHEN @type = 1 THEN liveindicator
-					ELSE 0
-					END
+					   WHEN @type = 1 THEN liveindicator
+					   ELSE 0
+					   END
 				,--- because liveindicator only use for indicate live or dead ball of number game. So the sportsbook don't care.
 				@LicenseeName AS LicenseeName
-			FROM #TmpBettrans WITH (NOLOCK)
-			WHERE srecommend IN (
-					SELECT custid
-					FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					WHERE site = @LicenseeName
-					)
-			GROUP BY bettype
-				,LiveIndicator
-
-		---mix parlay
-		IF charindex('9', @BetTypes, 1) <> 0 OR charindex('2799', @BetTypes, 1) <> 0
+		    FROM #TmpBettrans WITH (NOLOCK)
+		    WHERE srecommend IN (
+					   SELECT custid
+					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
+					   WHERE site = @LicenseeName
+					   )
+		    GROUP BY bettype
+		    ,LiveIndicator
+		END
+		-- System parlay - Sportsbook 29
+		IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
+		BEGIN
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -508,12 +515,12 @@ BEGIN
 				,@LicenseeName AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
 				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN dbo.strSplit(@BetTypes, ',') t ON b.bettype = t.val
+				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype IN (9, 29, 2799)
-				AND b.matchid IN (9, 29, 2799)
+				AND b.bettype = 29
+				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -529,12 +536,11 @@ BEGIN
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
-	END
+		  END
 
-	----## IBC Group
-	IF @LicenseeID = - 1
-	BEGIN
-		IF @BetTypes <> '9' AND @BetTypes <> '29' AND @BetTypes <> '2799' AND @BetTypes <> '9,29,2799'
+		 -- System parlay Virtual Sports 2799
+		 IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
+		 BEGIN
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -542,20 +548,64 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				)
-			SELECT 0 AS OrderNo
+			SELECT 1 AS OrderNo
+				,Count(b.transid) AS TotalTrans
+				,b.bettype
+				,0
+				,@LicenseeName AS LicenseeName
+			FROM bettransm bm WITH (NOLOCK)
+				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
+				AND bm.matchid = @MatchId
+				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+				AND b.bettype IN (2799)
+				AND b.matchid IN (2799)
+				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
+								AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
+					WHEN 1 THEN 0
+					WHEN 2 THEN 1
+					END
+				AND (b.betid = 0 OR b.betid IS NULL )
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+			GROUP BY b.bettype
+				,bm.liveIndicator
+			HAVING Count(b.Refno) > 0
+		  END
+	END
+
+	----## IBC Group
+	IF @LicenseeID = - 1
+	BEGIN
+		  IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
+		  BEGIN		
+			 INSERT INTO @TmpTotal (
+				OrderNo
+				,TotalTrans
+				,bettype
+				,LiveIndicator
+				,LicenseeName
+				)
+			 SELECT 0 AS OrderNo
 				,sum(cnt) AS TotalTrans
 				,bettype
 				,CASE 
-					WHEN @type = 1 THEN b.liveindicator
-					ELSE 0
-					END
+					   WHEN @type = 1 THEN b.liveindicator
+					   ELSE 0
+					   END
 				,'MBC' AS LicenseeName
-			FROM #TmpBettrans b WITH (NOLOCK) WHERE b.srecommend NOT IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) )
-			GROUP BY b.bettype
+			 FROM #TmpBettrans b WITH (NOLOCK) WHERE b.srecommend NOT IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) )
+			 GROUP BY b.bettype
 				,b.liveindicator
-
-		---mix parlay
-		IF charindex('9', @BetTypes, 1) <> 0 OR charindex('2799', @BetTypes, 1) <> 0
+		  END
+		
+		  -- System parlay - Sportsbook 29
+		  IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
+		  BEGIN
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -570,12 +620,12 @@ BEGIN
 				,'MBC' AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
 				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN dbo.strSplit(@BetTypes, ',') t ON b.bettype = t.val
+				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.srecommend NOT IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
-				AND b.bettype IN (9, 29, 2799)
-				AND b.matchid IN (9, 29, 2799)
+				AND b.bettype = 29
+				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -591,12 +641,11 @@ BEGIN
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
-	END
-
-	-----## All 
-	IF @LicenseeID = 0
-	BEGIN
-		IF @BetTypes <> '9' AND @BetTypes <> '29' AND @BetTypes <> '2799' AND @BetTypes <> '9,29,2799'
+		  END
+		  
+		  -- System parlay Virtual Sports 2799
+		  IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799) 
+		  BEGIN
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -604,24 +653,68 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				)
-			SELECT CASE WHEN s.site IS NULL THEN 0 ELSE 1 END OrderNo
-				,sum(cnt) AS TotalTrans
-				,bettype
-				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
-				,CASE WHEN s.site IS NULL THEN 'MBC' ELSE s.site END AS LicenseeName
-			FROM #TmpBettrans b WITH (NOLOCK)
-				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
-				LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site
-				AND s.isLicensee = 1
-				AND s.isActive = 1
-				AND s.siteID NOT IN (29, 35)
-			WHERE matchid = @MatchId
+			SELECT 0 AS OrderNo
+				,Count(DISTINCT b.transid) AS TotalTrans
+				,b.bettype
+				,0
+				,'MBC' AS LicenseeName
+			FROM bettransm bm WITH (NOLOCK)
+				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			WHERE b.srecommend NOT IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) )
+				AND bm.matchid = @MatchId
+				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND b.bettype = 2799
+				AND b.matchid = 2799
+				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
+									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
+					WHEN 1 THEN 0
+					WHEN 2 THEN 1
+					END
+				AND ( b.betid = 0 OR b.betid IS NULL )
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
 			GROUP BY b.bettype
-				,b.liveindicator
-				,s.site
+				,bm.liveIndicator
+			HAVING Count(B.Refno) > 0
+		  END
+	END
 
-		---mix parlay
-		IF charindex('9', @BetTypes, 1) <> 0 OR charindex('2799', @BetTypes, 1) <> 0
+	-----## All 
+	IF @LicenseeID = 0
+	BEGIN
+		IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
+		BEGIN
+		    INSERT INTO @TmpTotal (
+				    OrderNo
+				    ,TotalTrans
+				    ,bettype
+				    ,LiveIndicator
+				    ,LicenseeName
+				    )
+		    SELECT CASE WHEN s.site IS NULL THEN 0 ELSE 1 END OrderNo
+				    ,sum(cnt) AS TotalTrans
+				    ,bettype
+				    ,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
+				    ,CASE WHEN s.site IS NULL THEN 'MBC' ELSE s.site END AS LicenseeName
+		    FROM #TmpBettrans b WITH (NOLOCK)
+				    LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
+				    LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site
+				    AND s.isLicensee = 1
+				    AND s.isActive = 1
+				    AND s.siteID NOT IN (29, 35)
+		    WHERE matchid = @MatchId
+		    GROUP BY b.bettype
+			    ,b.liveindicator
+			    ,s.site
+		  END
+
+		  -- System parlay - Sportsbook 29
+		  IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
+		  BEGIN
 			INSERT INTO @TmpTotal (
 				OrderNo
 				,TotalTrans
@@ -636,15 +729,15 @@ BEGIN
 				,CASE WHEN s.site IS NULL THEN 'MBC' ELSE s.site END AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
 				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN dbo.strSplit(@BetTypes, ',') t ON b.bettype = t.val
+				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 				LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site
 				AND s.isLicensee = 1
 				AND s.isActive = 1
 				AND s.siteID NOT IN (29, 35)
 			WHERE bm.matchid = @MatchId
-				AND b.bettype IN (9, 29, 2799)
-				AND b.matchid IN (9, 29, 2799)
+				AND b.bettype = 29
+				AND b.matchid = 29
 				AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
@@ -661,6 +754,50 @@ BEGIN
 			GROUP BY s.site
 				,bm.liveindicator
 				,b.bettype
+		  END
+
+		 -- System parlay Virtual Sports 2799
+		  IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799) 
+		  BEGIN
+			INSERT INTO @TmpTotal (
+				OrderNo
+				,TotalTrans
+				,bettype
+				,LiveIndicator
+				,LicenseeName
+				)
+			SELECT CASE WHEN s.site IS NULL THEN 0 ELSE 1 END OrderNo
+				,Count(DISTINCT b.transid) AS TotalTrans
+				,b.bettype
+				,0
+				,CASE WHEN s.site IS NULL THEN 'MBC' ELSE s.site END AS LicenseeName
+			FROM bettransm bm WITH (NOLOCK)
+				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
+				LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site
+				AND s.isLicensee = 1
+				AND s.isActive = 1
+				AND s.siteID NOT IN (29, 35)
+			WHERE bm.matchid = @MatchId
+				AND b.bettype = 2799
+				AND b.matchid = 2799
+				AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
+				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
+				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
+									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
+				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
+					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
+					WHEN 1 THEN 0
+					WHEN 2 THEN 1
+					END
+				AND ( b.betid = 0 OR b.betid IS NULL )
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+			GROUP BY s.site
+				,bm.liveindicator
+				,b.bettype
+		  END
 	END
 
 	UPDATE t
