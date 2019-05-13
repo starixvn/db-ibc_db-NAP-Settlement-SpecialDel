@@ -10,6 +10,8 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20190312@Vicky: add actionID  [Redmine:#106903]
+
 */
 BEGIN
 	SET NOCOUNT ON
