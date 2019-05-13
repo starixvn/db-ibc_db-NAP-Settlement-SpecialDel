@@ -1121,7 +1121,7 @@ CREATE TABLE #SpecialDeleteBets
 		s.SubOdds,
 		s.SubStatus,
 		@SettlementStatus AS SettlementStatus,
-		s.IsMarked
+		s.IsMarked,
 		@GlobalShowTime AS GlobalShowTime
 	FROM #SpecialDeleteBets s					 
 		 CROSS APPLY (SELECT CASE
