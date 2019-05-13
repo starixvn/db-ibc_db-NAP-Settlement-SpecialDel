@@ -82,15 +82,11 @@ BEGIN
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
 	IF ISNULL(@transIDs,'') <> ''
-		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@transIDs				= @transIDs
-								,@Action				= 'UNDO'
-								,@ActionID				= @actionID
-								,@ErrCode				= @ErrCode		OUTPUT
-								,@ErrMsg				= @ErrMsg		OUTPUT
-	IF @ErrCode <> 0
-		RETURN
-	
+		 EXEC dbo.NAP_Admin_Calculate_Main
+			@matchid = 0
+			,@action = 'UNDO'
+			,@IsSettingByProfile = 1
+			,@strTransIds = @TransIDs	
 		
 	----------REFUND------------------------------------------------------------
 	SET @transIDs 			= (SELECT transID		AS '@t'
@@ -99,14 +95,11 @@ BEGIN
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
 	IF ISNULL(@transIDs,'') <> ''
-		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@transIDs				= @transIDs
-								,@Action				= 'REFUND'
-								,@ActionID				= @actionID
-								,@ErrCode				= @ErrCode		OUTPUT
-								,@ErrMsg				= @ErrMsg		OUTPUT
-	IF @ErrCode <> 0
-		RETURN				
+		 EXEC dbo.NAP_Admin_Calculate_Main
+			@matchid = 0
+			,@action = 'REFUND'
+			,@IsSettingByProfile = 1
+			,@strTransIds = @TransIDs
 		
 		
 	---------------CAL----------------------------------------------------------
@@ -118,12 +111,10 @@ BEGIN
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
 	IF ISNULL(@transIDs,'') <> ''
-		EXEC [dbo].[NAP_Admin_Settlement_TransIDs]
-								@transIDs				= @transIDs
-								,@Action				= 'CAL'
-								,@ActionID				= @actionID
-								,@ErrCode				= @ErrCode		OUTPUT
-								,@ErrMsg				= @ErrMsg		OUTPUT
-	
+		 EXEC dbo.NAP_Admin_Calculate_Main
+			@matchid = 0
+			,@action = 'CAL'
+			,@IsSettingByProfile = 1
+			,@strTransIds = @TransIDs
 END
 GO
