@@ -26,16 +26,14 @@ BEGIN
 	
 	DECLARE @MatchId			INT
 			,@CheckEventStatus	BIT
-			,@IsRefund			BIT				= 0
-			,@MinBetType		INT				= 0
-			,@MaxBetType		INT				= 0
+			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
-	DECLARE @tblBettype TABLE (Bettype INT)
 	DECLARE @TempMatch TABLE (MatchId INT, IsCalculating INT)
 	-------------------------------------------------------------------------------------------------
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
 	FROM dbo.f_SplitString(@Status, ',')
+	option (maxrecursion 0)
 	
 	IF EXISTS(SELECT 1 FROM @tblEventStatus HAVING COUNT(*) > 1)
 		SET @CheckEventStatus = 0
@@ -58,17 +56,6 @@ BEGIN
 			,@LeagueID = 0
 	END
 	
-	
-	INSERT INTO @tblBettype (Bettype)
-	SELECT 38
-	
-	
-	------------------------------------------------------------------------------------------------------
-	SELECT @MinBetType = MIN(Bettype)
-			,@MaxBetType = MAX(Bettype)
-	FROM @tblBettype
-	
-	
 	--Get match info in queue
 	;WITH SingleTicket AS (
 		SELECT matchid
@@ -81,7 +68,7 @@ BEGIN
 	QueueSingleMatch AS (
 		SELECT matchid, MIN(IsCalculating)  IsCalculating
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
-		WHERE Starttime > DATEADD(HH,-1,GETDATE())
+		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
 			AND Sporttype = @SportType
 			AND s.IsCalculating IN (0,1)
 		GROUP BY matchid 
@@ -94,8 +81,6 @@ BEGIN
 	WHERE v.vendorId = @VendorID 
 			AND v.Opened = 1 
 	
-		
-	
 	;WITH cteBettrans AS(
 		SELECT matchID
 				,CASE	WHEN totalTicket = 0 			THEN 'No Ticket'
@@ -107,8 +92,7 @@ BEGIN
 						 ,SUM (CASE WHEN statusID = 0 THEN 1 ELSE 0 END) AS totalTicketRunning
 				  FROM @TempMatch m
 				  		INNER JOIN dbo.Bettrans bt WITH (NOLOCK) ON m.MatchID = bt.MatchID
-				  WHERE bt.Bettype IN (SELECT BetType FROM @tblBettype t)
-						AND bt.Bettype BETWEEN @MinBetType AND @MaxBetType
+				  WHERE bt.Bettype  = 38
 						AND bt.statusID NOT IN (101, 102)
 				  GROUP BY m.matchID
 			  ) AS tbtTicketCount
