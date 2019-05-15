@@ -50,7 +50,23 @@ BEGIN
 			,@procName				NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsSystemSettlement	BIT
+			,@CalType				TINYINT
+			,@HomeValue				VARCHAR(50)
+			,@AwayValue				VARCHAR(50)
 			
+	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
+								WHEN @Action = 'CAL-FT' THEN 2
+								ELSE 0 
+							END, 
+			@HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
+								WHEN @Action = 'CAL-FT' THEN @FullTimeHome
+								ELSE 0 
+							END,
+			@AwayValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeAway 
+								WHEN @Action = 'CAL-FT' THEN @FullTimeAway
+								ELSE 0 
+							END
+
     SELECT @matchcode = m.matchcode
 		, @sporttype  = m.sporttype
 		, @leagueid   = m.leagueid
@@ -146,6 +162,22 @@ BEGIN
 			,@Type			= 4
 			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
+	END
+
+	-- insert waiting status into AutoPayoutResult table - Redmine:#106901
+	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
+		  @MatchId 		= @matchid
+		, @SourceId 	= @SourceId
+		, @TypeId 		= @CalType
+		, @HomeValue 	= @HomeValue
+		, @AwayValue 	= @AwayValue
+		, @StatusId 	= 1 -- waiting
+		, @ErrCode 		= @ErrCode OUTPUT
+		, @ErrMsg		= @ErrMsg OUTPUT
+		
+	IF @ErrCode <> 0
+	BEGIN
+		RETURN
 	END
 
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
