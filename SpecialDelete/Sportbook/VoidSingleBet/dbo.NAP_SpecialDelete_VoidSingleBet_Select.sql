@@ -1,22 +1,19 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select]
-	@MatchId			INT,
+﻿
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 
-	@FromTransId		BIGINT			= 0,
-	@ToTransId			BIGINT			= 0,	
-
-	@Bet				VARCHAR(10)		= NULL,
-	@FromTransdate		DATETIME 		= NULL,
-	@ToTransdate		DATETIME 		= NULL,
-
-	@LiveIndicator		INT				= 0,
-	@LiveHomeScore		SMALLINT 		= NULL,
-    @LiveAwayScore		SMALLINT 		= NULL,
-
-	@BetTypes			XML				= NULL,			
-    @SettledType		VARCHAR(100)	= 'All',
-    @SecondAcceptFlag	TINYINT			= 0	
-AS
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] @MatchId          INT,
+                                                               @FromTransId      BIGINT       = 0,
+                                                               @ToTransId        BIGINT       = 0,
+                                                               @Bet              VARCHAR(10)  = NULL,
+                                                               @FromTransdate    DATETIME     = NULL,
+                                                               @ToTransdate      DATETIME     = NULL,
+                                                               @LiveIndicator    INT          = 0,
+                                                               @LiveHomeScore    SMALLINT     = NULL,
+                                                               @LiveAwayScore    SMALLINT     = NULL,
+                                                               @BetTypes         XML          = NULL,
+                                                               @SettledType      VARCHAR(100) = 'All',
+                                                               @SecondAcceptFlag TINYINT      = 0
+AS;
 /*
     Created by: Kathy
 	Date: 
@@ -71,6 +68,7 @@ AS
 		- 20171029@Alan: Return Licensees Name [103474]
 		- 20181003@Alan: Add new column SettlementStatus [102423]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
+		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -217,94 +215,96 @@ BEGIN
 		END	 	
 	END		 
 	
-	CREATE TABLE #SpecialDeleteBets (
-		GroupID				BIGINT,
-		transid				BIGINT,
-		custid				INT,
-		username			VARCHAR(30),
-		oddsspread 			MONEY,
-		odds				MONEY, 
-		OddsType			INT, 
-		transdate			DATETIME,
-		bettype				SMALLINT,
-		OriginalBetType		SMALLINT,
-		betteam				NVARCHAR(10),
-		betcheck			NVARCHAR(50),
-		hdp1				SMALLMONEY, 
-		hdp2				SMALLMONEY,
-		IsLiveIndicator		BIT,
-		livehomescore 		SMALLINT, 
-		liveawayscore 		SMALLINT,
-		creator				INT,
-		Stake				MONEY,
-		CurrencyName		VARCHAR(10),
-		IsDeposit			BIT DEFAULT (0),
-		IsCricket			BIT DEFAULT (0),
-		status				NVARCHAR(10), 
-		srecommend			INT,
-		mrecommend			INT, 
-		recommend			INT, 
-		SecAcceptFlag		BIT,
-		betid				BIGINT,
-		betdaqid			BIGINT,
-		SportType			SMALLINT,
-		SoldId				BIGINT, -- stored transid of BTrade's subticket (bettype 901)
-		TransDesc			NVARCHAR(1000),
-		refno				BIGINT,		
-		mainstatusid		TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901		
-		ExtraInfo			VARCHAR(1000),
-		MainCashoutId		BIGINT,
-		matchid				INT,
-		WalletType			TINYINT,
-		RefCode				BIGINT,
-		BonusID				INT,
-		MainTransId			BIGINT,
-		WinLost				MONEY,
-		IsMixParlay			BIT DEFAULT (0),
-		SubTransId			BIGINT,
-		SubStatus			NVARCHAR(10),
-		SubBetCheck			NVARCHAR(50),
-		SubBetTeam			NVARCHAR(10),
-		SubBetType			SMALLINT DEFAULT (0),
-		SubHdp1				SMALLMONEY,
-		SubHdp2				SMALLMONEY,
-		SubOdds				MONEY,
-		FilterBettype		SMALLINT,
-		FilterBetTeam		NVARCHAR(10), 
-		FilterSet			VARCHAR(50),
-		FilterGame			VARCHAR(50),
-		FilterValue			SMALLMONEY,	
-		FilterGoal			BIGINT,
-		FilterBetOption		NVARCHAR(50),
-		FilterTimeInterval	SMALLMONEY
-	)
+	CREATE TABLE #SpecialDeleteBets
+             (GroupID            BIGINT,
+              transid            BIGINT,
+              custid             INT,
+              username           VARCHAR(30),
+              oddsspread         MONEY,
+              odds               MONEY,
+              OddsType           INT,
+              transdate          DATETIME,
+              bettype            SMALLINT,
+              OriginalBetType    SMALLINT,
+              betteam            NVARCHAR(10),
+              betcheck           NVARCHAR(50),
+              hdp1               SMALLMONEY,
+              hdp2               SMALLMONEY,
+              IsLiveIndicator    BIT,
+              livehomescore      SMALLINT,
+              liveawayscore      SMALLINT,
+              creator            INT,
+              Stake              MONEY,
+              CurrencyName       VARCHAR(10),
+              IsDeposit          BIT DEFAULT(0),
+              IsCricket          BIT DEFAULT(0),
+              status             NVARCHAR(10),
+              srecommend         INT,
+              mrecommend         INT,
+              recommend          INT,
+              SecAcceptFlag      BIT,
+              betid              BIGINT,
+              betdaqid           BIGINT,
+              SportType          SMALLINT,
+              SoldId             BIGINT, -- stored transid of BTrade's subticket (bettype 901)
+              TransDesc          NVARCHAR(1000),
+              refno              BIGINT,
+              mainstatusid       TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901		
+              ExtraInfo          VARCHAR(1000),
+              MainCashoutId      BIGINT,
+              matchid            INT,
+              WalletType         TINYINT,
+              RefCode            BIGINT,
+              BonusID            INT,
+              MainTransId        BIGINT,
+              WinLost            MONEY,
+              IsMixParlay        BIT DEFAULT(0),
+              SubTransId         BIGINT,
+              SubStatus          NVARCHAR(10),
+              SubBetCheck        NVARCHAR(50),
+              SubBetTeam         NVARCHAR(10),
+              SubBetType         SMALLINT DEFAULT(0),
+              SubHdp1            SMALLMONEY,
+              SubHdp2            SMALLMONEY,
+              SubOdds            MONEY,
+              FilterBettype      SMALLINT,
+              FilterBetTeam      NVARCHAR(10),
+              FilterSet          VARCHAR(50),
+              FilterGame         VARCHAR(50),
+              FilterValue        SMALLMONEY,
+              FilterGoal         BIGINT,
+              FilterBetOption    NVARCHAR(50),
+              FilterTimeInterval SMALLMONEY,
+              IsMarked           BIT
+             );
 
-	CREATE TABLE #SpecialDeleteBetsm (		
-		CustId				INT,
-		OddsSpread 			MONEY,
-		TransDate			DATETIME,
-		LiveIndicator		BIT,
-		LiveHomeScore 		SMALLINT, 
-		LiveAwayScore 		SMALLINT,
-		Creator				INT,
-		TransDesc			NVARCHAR(1000),
-		Refno				BIGINT,
-		SubTransId			BIGINT,
-		SubStatus			NVARCHAR(10),
-		SubBetCheck			NVARCHAR(50),
-		SubBetTeam			NVARCHAR(10),
-		SubBetType			SMALLINT DEFAULT (0),
-		SubHdp1				SMALLMONEY,
-		SubHdp2				SMALLMONEY,
-		SubOdds				MONEY
-	)
+	CREATE TABLE #SpecialDeleteBetsm
+             (CustId        INT,
+              OddsSpread    MONEY,
+              TransDate     DATETIME,
+              LiveIndicator BIT,
+              LiveHomeScore SMALLINT,
+              LiveAwayScore SMALLINT,
+              Creator       INT,
+              TransDesc     NVARCHAR(1000),
+              Refno         BIGINT,
+              SubTransId    BIGINT,
+              SubStatus     NVARCHAR(10),
+              SubBetCheck   NVARCHAR(50),
+              SubBetTeam    NVARCHAR(10),
+              SubBetType    SMALLINT DEFAULT(0),
+              SubHdp1       SMALLMONEY,
+              SubHdp2       SMALLMONEY,
+              SubOdds       MONEY
+             );
 	
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
+	CREATE TABLE #tmpRefCodeSummary
+             (RefCode BIGINT,
+              custid  INT,
+              bettype SMALLINT,
+              transid BIGINT,
+		    IsMarked BIT
+             );
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
@@ -367,6 +367,7 @@ BEGIN
 			,FilterGoal
 			,FilterBetOption
 			,FilterTimeInterval
+			,IsMarked
 		)
 		SELECT
 			b.transid,
@@ -414,10 +415,12 @@ BEGIN
 			b.hdp1 + b.hdp2 AS FilterValue,
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-			b.hdp1 AS FilterTimeInterval
+			b.hdp1 AS FilterTimeInterval,
+			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
+			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId		
 		WHERE
 			b.matchid = @MatchId 
 			AND b.transid BETWEEN @FromTransId AND @ToTransId
@@ -474,6 +477,7 @@ BEGIN
 			,FilterGoal
 			,FilterBetOption
 			,FilterTimeInterval
+			,IsMarked
 		)
 		SELECT
 			b.transid,
@@ -521,10 +525,12 @@ BEGIN
 			b.hdp1 + b.hdp2 AS FilterValue,
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-			b.hdp1 AS FilterTimeInterval
+			b.hdp1 AS FilterTimeInterval,
+			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
+			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 		WHERE
 			b.matchid = @MatchId 
 			AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
@@ -756,12 +762,12 @@ BEGIN
 		WHERE main.WalletType = 1
 	  
 		-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
-		SELECT	RefCode, custid, bettype
+		INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, IsMarked, transid)
+		SELECT	RefCode, custid, bettype, IsMarked
 				, MAX(transid) AS transid
 		FROM	#SpecialDeleteBets
 		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype
+		GROUP BY RefCode, custid, bettype, IsMarked
 		HAVING COUNT(*) = 1	
 	
 		IF @@ROWCOUNT > 0
@@ -800,7 +806,8 @@ BEGIN
 					,RefCode
 					,BonusID
 					,MainTransId
-					,WinLost					
+					,WinLost
+					,IsMarked					
 				)
 			SELECT  b.transid,
 					b.transid,
@@ -838,7 +845,8 @@ BEGIN
 					b.RefCode,
 					b.BonusID,
 					t.transid AS MainTransId,
-					b.WinLost - b.actual_stake AS WinLost	
+					b.WinLost - b.actual_stake AS WinLost,
+					t.IsMarked	
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -901,6 +909,7 @@ BEGIN
 			,BonusID
 			,MainTransId
 			,WinLost
+			,IsMarked
 		)
 	SELECT  main.transid
 			,sub.transid
@@ -936,6 +945,7 @@ BEGIN
 			,sub.BonusID
 			,main.transid AS MainTransId
 			,sub.WinLost - sub.actual_stake AS WinLost
+			,IsMarked
 	FROM	#SpecialDeleteBets main
 		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
 			ON	main.transid = sub.refno
@@ -983,6 +993,7 @@ BEGIN
 			,BonusID
 			,MainTransId
 			,WinLost
+			,IsMarked
 		)
 	SELECT  sub911.transid
 			,sub911.transid
@@ -1020,6 +1031,7 @@ BEGIN
 			,sub911.BonusID
 			,main.transid AS MainTransId
 			,sub911.WinLost - sub911.actual_stake AS WinLost
+			,main.IsMarked
 	FROM dbo.bettrans sub911 WITH (NOLOCK)
 		 INNER JOIN #SpecialDeleteBets main
 				ON	sub911.refno = main.transid	
@@ -1067,6 +1079,7 @@ BEGIN
 			,BonusID
 			,MainTransId
 			,WinLost
+			,IsMarked
 		)
 	SELECT  sub911.transid,
 			b.transid,
@@ -1102,7 +1115,8 @@ BEGIN
 			b.RefCode,
 			b.BonusID,
 			sub911.MainTransId,
-			b.WinLost - b.actual_stake AS WinLost
+			b.WinLost - b.actual_stake AS WinLost,
+			sub911.IsMarked
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (	SELECT b.*
 						FROM dbo.bettrans b WITH (NOLOCK)
@@ -1187,6 +1201,7 @@ BEGIN
 			   ,s.SubHdp1
 			   ,s.SubHdp2
 			   ,s.SubOdds
+			   ,s.IsMarked
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1251,6 +1266,7 @@ BEGIN
 			   ,s.SubHdp1
 			   ,s.SubHdp2
 			   ,s.SubOdds
+			   ,s.IsMarked
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
 		WHERE	s.recommend IN (52466, 5707545)
@@ -1307,6 +1323,7 @@ BEGIN
 			   ,s.SubHdp1
 			   ,s.SubHdp2
 			   ,s.SubOdds
+			   ,s.IsMarked
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1374,6 +1391,7 @@ BEGIN
 			   ,s.SubHdp1
 			   ,s.SubHdp2
 			   ,s.SubOdds
+			   ,s.IsMarked
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1484,6 +1502,7 @@ BEGIN
 			,s.SubOdds
 			,c.site AS LicenseeName
 			,@SettlementStatus AS SettlementStatus
+			,s.IsMarked
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

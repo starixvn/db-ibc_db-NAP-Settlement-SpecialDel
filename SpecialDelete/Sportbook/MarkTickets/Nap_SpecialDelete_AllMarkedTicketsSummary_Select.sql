@@ -18,28 +18,49 @@ AS
 
      SET NOCOUNT ON;
      CREATE TABLE #Tickets
-                  (Total   INT,
-                   MatchId INT
+                  (MatchId     INT,
+                   UserId      INT,
+                   Username    NVARCHAR(100),
+                   CreatedDate DATETIME,
+                   Total       INT
                   );
      INSERT INTO #Tickets
-            (Total,
-             MatchId
+            (MatchId,
+             UserId,
+             Username,
+             CreatedDate,
+             Total
             )
-            SELECT COUNT(m.TransId),
-                   m.MatchId
+            SELECT m.MatchId,
+                   UserId,
+                   c.Username,
+                   CreatedDate,
+                   COUNT(m.TransId)
             FROM dbo.MarkedTransaction m WITH (NOLOCK)
+                 INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = m.TransId
                                                             AND b.MatchId = m.MatchId
             WHERE b.statusID IN(0, 1) -- running, waiting
-            GROUP BY m.MatchId;
+            GROUP BY m.MatchId,
+                     UserId,
+                     c.Username,
+                     CreatedDate;
      SELECT t.MatchId,
+            t.UserId,
+		  t.Username,
+            t.CreatedDate,
             t.Total,
             m.HomeId,
             m.AwayId,
             m.IsNeutral,
             m.SportType
      FROM #Tickets t
-          INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId;
+          INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
+     ORDER BY t.MatchId,
+              t.CreatedDate,
+              t.Username;
      DROP TABLE #Tickets;
      SET NOCOUNT OFF;
 GO
+
+

@@ -1,13 +1,14 @@
+
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
-	@CustID				INT				= NULL 	
-	,@TransIds			VARCHAR(MAX)	= NULL 
-	,@FromDate			DATETIME		= NULL
-	,@ToDate			DATETIME		= NULL
-	,@IncludeMainParlay	BIT				= 0		
-	,@InvalidTransIds	VARCHAR(MAX)	= '' OUTPUT
-	,@MovedTransIds		VARCHAR(MAX)	= '' OUTPUT
-AS
+
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            INT          = NULL,
+                                                            @TransIds          VARCHAR(MAX) = NULL,
+                                                            @FromDate          DATETIME     = NULL,
+                                                            @ToDate            DATETIME     = NULL,
+                                                            @IncludeMainParlay BIT          = 0,
+                                                            @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
+                                                            @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
+AS;
 /*  
 	Created by: Bobby  
 	Date: 20160225
@@ -45,7 +46,8 @@ AS
 		- 20171029@Alan: Return Licensees Name [103474]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190220@Alan: Separate a function from Void By Bet ID to void main parlay ticket [108969]
-		
+		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -69,67 +71,68 @@ BEGIN
 	
 	CREATE TABLE #tempMatch (matchid INT)
 	
-	CREATE TABLE #Data (
-		GroupID			BIGINT
-		,bettype		INT
-		,OriginalBetType SMALLINT
-		,transid		BIGINT
-		,betid			BIGINT
-		,refno			BIGINT
-		,matchcode		NVARCHAR(50)
-		,homeid			INT
-		,awayid			INT
-		,hdp1			SMALLMONEY
-		,hdp2			SMALLMONEY
-		,odds			MONEY
-		,oddsspread 	MONEY DEFAULT 0
-		,finalodds		MONEY
-		,finalodds2		MONEY
-		,OddsType		TINYINT
-		,STATUS			NVARCHAR(50)
-		,comstatus		NVARCHAR(50)
-		,stake			MONEY
-		,transdate		DATETIME
-		,betteam		NVARCHAR(10)
-		,betcheck		NVARCHAR(50)
-		,liveindicator	BIT
-		,modds			MONEY
-		,custid			INT
-		,username		VARCHAR(30)
-		,livehomescore	INT
-		,liveawayscore	INT
-		,leagueid		INT
-		,sporttype		SMALLINT
-		,betfrom		NVARCHAR(1)
-		,matchid		INT
-		,isNeutral		BIT
-		,winlost		MONEY
-		,commission		MONEY
-		,showtime		NVARCHAR(50)
-		,winlostdate	SMALLDATETIME
-		,TransDesc		NVARCHAR(1000)
-		,betdaqid		BIGINT
-		,SoldId			BIGINT
-		,recommend		INT
-		,IsHideComm		BIT DEFAULT(0)
-		,oddsid			INT
-		,ExtraInfo		VARCHAR(1000)
-		,IsCashOutMemberTicket BIT DEFAULT 0
-		,MainCashoutId	BIGINT
-		,CurrencyName	NVARCHAR(50)
-		,WalletType		TINYINT
-		,RefCode		BIGINT
-		,BonusID		INT
-		,MainTransId	BIGINT
-	)
-	
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,matchid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
+	CREATE TABLE #Data
+             (GroupID               BIGINT,
+              bettype               INT,
+              OriginalBetType       SMALLINT,
+              transid               BIGINT,
+              betid                 BIGINT,
+              refno                 BIGINT,
+              matchcode             NVARCHAR(50),
+              homeid                INT,
+              awayid                INT,
+              hdp1                  SMALLMONEY,
+              hdp2                  SMALLMONEY,
+              odds                  MONEY,
+              oddsspread            MONEY DEFAULT 0,
+              finalodds             MONEY,
+              finalodds2            MONEY,
+              OddsType              TINYINT,
+              STATUS                NVARCHAR(50),
+              comstatus             NVARCHAR(50),
+              stake                 MONEY,
+              transdate             DATETIME,
+              betteam               NVARCHAR(10),
+              betcheck              NVARCHAR(50),
+              liveindicator         BIT,
+              modds                 MONEY,
+              custid                INT,
+              username              VARCHAR(30),
+              livehomescore         INT,
+              liveawayscore         INT,
+              leagueid              INT,
+              sporttype             SMALLINT,
+              betfrom               NVARCHAR(1),
+              matchid               INT,
+              isNeutral             BIT,
+              winlost               MONEY,
+              commission            MONEY,
+              showtime              NVARCHAR(50),
+              winlostdate           SMALLDATETIME,
+              TransDesc             NVARCHAR(1000),
+              betdaqid              BIGINT,
+              SoldId                BIGINT,
+              recommend             INT,
+              IsHideComm            BIT DEFAULT(0),
+              oddsid                INT,
+              ExtraInfo             VARCHAR(1000),
+              IsCashOutMemberTicket BIT DEFAULT 0,
+              MainCashoutId         BIGINT,
+              CurrencyName          NVARCHAR(50),
+              WalletType            TINYINT,
+              RefCode               BIGINT,
+              BonusID               INT,
+              MainTransId           BIGINT,
+		    IsMarked			 BIT
+             );
+    CREATE TABLE #tmpRefCodeSummary
+             (RefCode BIGINT,
+              custid  INT,
+              matchid INT,
+              bettype SMALLINT,
+              transid BIGINT,
+		    IsMarked BIT
+             );
 
 	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
@@ -208,7 +211,8 @@ BEGIN
 			,betdaqid
 			,username
 			,recommend
-			,CurrencyName	
+			,CurrencyName
+			,IsMarked	
 		)
 		SELECT	
 			b.translogID AS GroupID
@@ -243,10 +247,12 @@ BEGIN
 			,-1 -- normal ticket
 			,username
 			,recommend
-			,b.CurrencyName	
+			,b.CurrencyName
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked	
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 			ON b.translogid = temp.transid
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -293,6 +299,7 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
+			,IsMarked
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -343,6 +350,7 @@ BEGIN
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -350,6 +358,7 @@ BEGIN
 				AND b.matchid 	= tl.eventid
 			INNER JOIN #transIdTemp temp
 			ON tl.translogid 	= temp.transid			
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102)
@@ -409,9 +418,11 @@ BEGIN
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
-				ON b.transid = temp.transid				
+				ON b.transid = temp.transid
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId					
 		WHERE	b.winlostdate >= @FromDate				
 			AND b.bettype < 19001
 			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
@@ -453,12 +464,12 @@ BEGIN
 		WHERE main.WalletType = 1			
 	  
 		-- Insert more bonus or cash ticket in case only one ticket appears in #Data	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-		SELECT RefCode, custid, matchid, bettype
+		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, IsMarked, transid)
+		SELECT RefCode, custid, matchid, bettype,IsMarked
 			 , MAX(transid) AS transid
 		FROM #Data
 		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, matchid, bettype
+		GROUP BY RefCode, custid, matchid, bettype,IsMarked
 		HAVING COUNT(*) = 1
 		
 		IF @@ROWCOUNT > 0
@@ -503,6 +514,7 @@ BEGIN
 					,RefCode
 					,BonusID
 					,MainTransId
+					,IsMarked
 				)
 				SELECT	
 					b.refno AS GroupId
@@ -553,7 +565,8 @@ BEGIN
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
-					,t.transid AS MainTransId	
+					,t.transid AS MainTransId
+					,t.IsMarked	
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -718,6 +731,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
+			,IsMarked
 		)
 		SELECT	
 			main.transid
@@ -767,6 +781,7 @@ BEGIN
 			,sub.RefCode
 			,sub.BonusID
 			,sub.MainTransId
+			,main.IsMarked
 		FROM CTE_LastTransBT sub WITH(NOLOCK)
 			INNER JOIN #Data main
 			ON	sub.refno 	= main.transid 
@@ -848,6 +863,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
+			,IsMarked
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -897,6 +913,7 @@ BEGIN
 				,sub911.RefCode
 				,sub911.BonusID
 				,main.transid AS MainTransId
+				,main.IsMarked
 		FROM #Data main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -958,7 +975,8 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
-			,MainTransId	
+			,MainTransId
+			,IsMarked	
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -1018,6 +1036,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,sub911.IsMarked
 		FROM #Data sub911
 			 CROSS APPLY (
 							  SELECT b.*
@@ -1118,6 +1137,7 @@ BEGIN
 		,d.RefCode
 		,c.site AS LicenseeName
 		,m.SettlementStatus
+		,d.IsMarked
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid

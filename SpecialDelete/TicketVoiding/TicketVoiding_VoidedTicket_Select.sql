@@ -1,8 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
-	@RequestId	INT
-	,@MatchId	INT
-AS
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select] @RequestId INT,
+                                                          @MatchId   INT
+AS;
 /*	Created by: Kathy
 	Date 20181212
 	Task: get voided ticket [Redmine:#90155]
@@ -10,7 +9,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	Param's explanation:	
 		
 */
@@ -32,60 +31,58 @@ BEGIN
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
-	CREATE TABLE #tmpTicket (
-		TransId			BIGINT
-		,matchid		INT
-		,custid			INT
-		,TransDate		DATETIME
-		,Stake			MONEY
-		,Status			NVARCHAR(10)
-		,Betcheck		NVARCHAR(50)
-		,betdaqid		BIGINT
-		,betid			BIGINT
-		,betfrom		NVARCHAR(1)
-		,Betteam		NVARCHAR(10)
-		,Bettype		SMALLINT
-		,OriginalBettype SMALLINT
-		,Currency		TINYINT
-		,CurrencyName	NVARCHAR(50)
-		,Hdp1			SMALLMONEY
-		,Hdp2			SMALLMONEY
-		,LiveHomeScore	SMALLINT
-		,LiveAwayScore	SMALLINT
-		,Odds			SMALLMONEY
-		,Oddsspread		MONEY
-		,oddstype		TINYINT
-		,WalletType		TINYINT
-		,RefCode		BIGINT
-		,ExtraInfo		VARCHAR(1000)
-		,TransDesc		NVARCHAR(1000)
-		,winlost		MONEY
-
-		,Username		NVARCHAR(50)
-		,creator		INT
-		,CreatorName	NVARCHAR(50)
-		,IsDeposit		BIT	DEFAULT (0)
-		,srecommend		INT
-		,mrecommend		INT
-		,recommend		INT
-
-		,IsMixParlay	BIT DEFAULT (0)
-		,subbetcheck	NVARCHAR(1)
-		,subOdds		SMALLMONEY
-		,subbetteam		NVARCHAR(10)
-		,subbettype		SMALLINT
-		,subhdp1		SMALLINT
-		,subhdp2		SMALLINT
-		,subtransdesc	NVARCHAR(1000)
-
-		,Refno			BIGINT
-		,subTransId		BIGINT	
-		,VoidedTime		DATETIME
-		,isITAdmin		BIT
-		,IsCashOut		BIT
-		,MainTransId 	BIGINT
-		,BonusId		INT
-	)
+	CREATE TABLE #tmpTicket
+             (TransId         BIGINT,
+              matchid         INT,
+              custid          INT,
+              TransDate       DATETIME,
+              Stake           MONEY,
+              Status          NVARCHAR(10),
+              Betcheck        NVARCHAR(50),
+              betdaqid        BIGINT,
+              betid           BIGINT,
+              betfrom         NVARCHAR(1),
+              Betteam         NVARCHAR(10),
+              Bettype         SMALLINT,
+              OriginalBettype SMALLINT,
+              Currency        TINYINT,
+              CurrencyName    NVARCHAR(50),
+              Hdp1            SMALLMONEY,
+              Hdp2            SMALLMONEY,
+              LiveHomeScore   SMALLINT,
+              LiveAwayScore   SMALLINT,
+              Odds            SMALLMONEY,
+              Oddsspread      MONEY,
+              oddstype        TINYINT,
+              WalletType      TINYINT,
+              RefCode         BIGINT,
+              ExtraInfo       VARCHAR(1000),
+              TransDesc       NVARCHAR(1000),
+              winlost         MONEY,
+              Username        NVARCHAR(50),
+              creator         INT,
+              CreatorName     NVARCHAR(50),
+              IsDeposit       BIT DEFAULT(0),
+              srecommend      INT,
+              mrecommend      INT,
+              recommend       INT,
+              IsMixParlay     BIT DEFAULT(0),
+              subbetcheck     NVARCHAR(1),
+              subOdds         SMALLMONEY,
+              subbetteam      NVARCHAR(10),
+              subbettype      SMALLINT,
+              subhdp1         SMALLINT,
+              subhdp2         SMALLINT,
+              subtransdesc    NVARCHAR(1000),
+              Refno           BIGINT,
+              subTransId      BIGINT,
+              VoidedTime      DATETIME,
+              isITAdmin       BIT,
+              IsCashOut       BIT,
+              MainTransId     BIGINT,
+              BonusId         INT,
+              IsMarked        BIT
+             );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
@@ -181,6 +178,7 @@ BEGIN
 				,BonusID = b.BonusId
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
+
 	
 		UPDATE	t
 			SET transid = b.transid
@@ -338,19 +336,28 @@ BEGIN
 		END
 	END
 
+	-- Update IsMarked
+	UPDATE t
+	SET t.IsMarked = CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END 
+	FROM #tmpTicket  t
+	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId		
+
+
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
 	BEGIN		
 		UPDATE sub911
 			SET OriginalBettype = main.bettype
 				,odds = main.odds
 				,MainTransId = main.TransId
+				,IsMarked = main.IsMarked
 		FROM	#tmpTicket sub911
 			INNER JOIN #tmpTicket main WITH(NOLOCK)
 				ON sub911.Refno = main.transid
 		WHERE	sub911.Bettype = 911
 		
 		UPDATE subCO 
-			SET MainTransId = sub911.MainTransId
+			SET MainTransId = sub911.MainTransId,
+			IsMarked = sub911.IsMarked
 		FROM	#tmpTicket subCO
 			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
 				ON subCO.Refno = sub911.transid
@@ -363,6 +370,7 @@ BEGIN
 	BEGIN
 		UPDATE sub 
 			SET maintransid = main.transid
+			,IsMarked = main.IsMarked
 		FROM	#tmpTicket sub  
 			INNER JOIN #tmpTicket main 
 				ON 	main.refcode = sub.refcode
@@ -422,6 +430,7 @@ BEGIN
 			   ,s.winlost
 			   ,s.MainTransId
 			   ,s.BonusId
+			   ,s.IsMarked
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL
@@ -475,6 +484,7 @@ BEGIN
 			   ,s.winlost
 			   ,s.MainTransId
 			   ,s.BonusId
+			   ,s.IsMarked
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
 		WHERE	s.recommend IN (52466, 5707545)
@@ -523,6 +533,7 @@ BEGIN
 			   ,s.winlost
 			   ,s.MainTransId
 			   ,s.BonusId
+			   ,s.IsMarked
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -576,6 +587,7 @@ BEGIN
 		   ,s.winlost
 		   ,s.MainTransId
 		   ,s.BonusId
+		   ,s.IsMarked
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -624,6 +636,7 @@ BEGIN
 			,cr.username AS Creator
 			,s.IsCashOut
 			,s.winlost
+			,s.IsMarked
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 	ORDER BY CASE
