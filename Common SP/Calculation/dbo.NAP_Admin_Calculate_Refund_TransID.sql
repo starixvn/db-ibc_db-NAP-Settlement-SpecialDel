@@ -10,6 +10,8 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190409@Sol: Settlement Time [Redmine:#99638]
+
 	Param's Explanation:
 			@transIds = '<root>
 						<r t="104730774034"/>
@@ -46,8 +48,12 @@ BEGIN
 	FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT) tbl
 	EXEC sp_xml_removedocument @handle  
 	
+	DECLARE @settlementTime DATETIME
+	SET @settlementTime = GETDATE();
+
 	UPDATE	b
 	SET [status] = N'Refund'
+					,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
 					,statusID = 103
 					,winlost = actual_stake
 					,awinlost = 0

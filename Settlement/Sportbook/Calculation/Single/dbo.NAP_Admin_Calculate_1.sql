@@ -41,6 +41,7 @@ AS
         - 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190408@Sol: Settlement Time [Redmine:#99638] 
 */
 BEGIN
 	SET NOCOUNT ON
@@ -72,6 +73,7 @@ BEGIN
 		,@winlost MONEY
 		,@stake MONEY
 		,@commBettypeGroupId SMALLINT
+		,@statusId TINYINT
 	
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
@@ -108,7 +110,9 @@ BEGIN
     CREATE TABLE #currList (custid INT PRIMARY KEY, isCN88 bit)
 	DECLARE @MinCustId INT
 
-    WHILE 1 = 1
+	DECLARE @settlementTime DATETIME
+
+	WHILE 1 = 1
     BEGIN
         DELETE FROM #currList
 
@@ -118,6 +122,8 @@ BEGIN
         IF @@ROWCOUNT = 0 BREAK
 
 		SELECT @MinCustId = MIN(CustId) FROM #currList
+
+		SET @settlementTime = GETDATE();
 
 		UPDATE b
 		SET @fth = CASE WHEN bettype IN (154,155,1311, 1316) AND BetID = 801 AND @SelectedSet LIKE '%1%' THEN @TotalGameHomeSet1 
@@ -179,6 +185,17 @@ BEGIN
 			,@stake = CASE WHEN t.isCN88 = 1 AND @commBettypeGroupId = 1 THEN ABS(@winlost - actual_stake)
 							ELSE stake 
 						END 
+			-- check winlost or status change to update SettlementTime
+			,@statusId = CASE 
+				WHEN @modds > 0 THEN 112 --WON
+				WHEN @modds = 0 AND bettype <> 301 THEN 111 --DRAW
+				WHEN @modds = 0 AND bettype = 301 THEN CASE WHEN oddsspread = 0 THEN 111 
+															WHEN oddsspread > 0 THEN 112
+															ELSE 113
+															END
+				WHEN @modds < 0 THEN 113 --LOSE
+				END
+			,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 			,WinLost = @winlost
 			,aWinLost = CASE 
 				WHEN @modds > 0.25 THEN stake * (CASE 
@@ -309,15 +326,7 @@ BEGIN
 															END
 				WHEN @modds < 0 THEN N'LOSE'
 				END
-			,StatusID = CASE 
-				WHEN @modds > 0 THEN 112 --WON
-				WHEN @modds = 0 AND bettype <> 301 THEN 111 --DRAW
-				WHEN @modds = 0 AND bettype = 301 THEN CASE WHEN oddsspread = 0 THEN 111 
-															WHEN oddsspread > 0 THEN 112
-															ELSE 113
-															END
-				WHEN @modds < 0 THEN 113 --LOSE
-				END
+			,StatusID = @statusId
 			,ruben = 1
 		FROM #currList t 
 			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
