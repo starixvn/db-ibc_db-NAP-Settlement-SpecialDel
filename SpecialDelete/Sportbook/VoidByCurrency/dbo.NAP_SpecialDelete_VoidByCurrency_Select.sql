@@ -328,7 +328,7 @@ BEGIN
 				 , MAX(transid) AS transid
 			FROM #SpecialDeleteBets
 			WHERE	RefCode IS NOT NULL
-			GROUP BY RefCode, custid, bettype
+			GROUP BY RefCode, custid, bettype, IsMarked
 			HAVING COUNT(*) = 1
 		
 			IF @@ROWCOUNT > 0
