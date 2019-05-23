@@ -1,9 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail] 
 	@matchid 				INT
-
     , @IsRefundPage 		BIT = 0
-	, @IsAutoCalculatePage 	BIT = 0
 AS
 /*
     Created by: 20120913
@@ -53,7 +51,8 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190509@Kathy: Add group 0 for default if match do not have any ticket [Redmine:#99638]
-		
+		- 20190523@Sol: Removed @IsAutoCalculatePage param [Redmine:#106901]
+
 */
 BEGIN
     SET NOCOUNT ON
@@ -305,7 +304,7 @@ BEGIN
 		)
 		SELECT	CASE 
 					WHEN g.groupId = 1 THEN 1 -- HT
-					WHEN g.groupId = 4 OR (@IsAutoCalculatePage = 1 AND g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FGLG
+					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FGLG
 					WHEN g.groupId = 3 THEN 3 -- HT FGLG
 					
 					WHEN g.groupId = 5 THEN 4 -- HT Corner
@@ -340,7 +339,7 @@ BEGIN
 				ON	b.bettype = g.BetType
 		GROUP BY CASE 
 					WHEN g.groupId = 1 THEN 1 -- HT
-					WHEN g.groupId = 4 OR (@IsAutoCalculatePage = 1 AND g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FT FGLG
+					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FT FGLG
 					WHEN g.groupId = 3 THEN 3 -- HT FGLG
 					WHEN g.groupId = 5 THEN 4 -- HT Corner
 					WHEN g.groupId = 6 THEN 5 -- FT Corner
@@ -368,13 +367,8 @@ BEGIN
 					,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
 					,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
 			FROM @status
-			WHERE 1 = CASE @IsAutoCalculatePage
-					WHEN 1 THEN 
-						CASE WHEN GroupId = 0 THEN 1 ELSE 0 END
-					WHEN 0 THEN 
-						CASE WHEN GroupId IN (0,2) THEN 1 ELSE 0 END --include FT-FGLG
-					ELSE 0
-				END
+			WHERE 1 = CASE WHEN GroupId IN (0,2) THEN 1 ELSE 0 END --include FT-FGLG
+					
 		) AS t				
 
         SELECT @HTStatus = CASE 
@@ -391,13 +385,7 @@ BEGIN
 					,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
 					,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
 			FROM @status
-			WHERE 1 = CASE @IsAutoCalculatePage
-					WHEN 1 THEN 
-						CASE WHEN GroupId = 1 THEN 1 ELSE 0 END
-					WHEN 0 THEN 
-						CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
-					ELSE 0
-				END
+			WHERE 1 = CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
 		) AS t
 
         SELECT    @HTCornerStatus = CASE 
