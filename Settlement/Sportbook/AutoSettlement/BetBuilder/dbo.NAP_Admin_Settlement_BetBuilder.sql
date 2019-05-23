@@ -602,41 +602,12 @@ BEGIN
 	
 	IF @IsSettleByMarket = 1 AND EXISTS(SELECT TOP 1 1 FROM #tblMarket)
 	BEGIN
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@userID				= @AdminId
-			,@matchID			= @MatchID
-			,@actionID			= @ActionIDLogMarketID
-			,@GoalRecord		= NULL
-			,@Remark			= NULL
-			,@ip				= @ip
-			,@LogDate 			= @LogDate
-			
-		SET @startRowIndex = 0
-		WHILE 1=1
-		BEGIN
-			TRUNCATE TABLE #tblDataByBatch
-			SELECT @Remark = ''
-			
-			SELECT @Remark =  @Remark + ',' + marketID
-			FROM #tblMarket t 
-			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1
-	
-			SELECT @batchCount 		= @@ROWCOUNT
-				  ,@startRowIndex 	= @startRowIndex + @maximumRows
-			
-			IF @batchCount = 0 BREAK
-			
-			SET @Remark = STUFF(@Remark, 1, 1, '')
-			
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Remark_Update 
-										@matchID 			= @matchID
-										,@LogDate			= @LogDate
-										,@actionID			= @ActionIDLogMarketID
-										,@Remark			= @Remark
-										,@LogIDOutput		= @LogIDOutput OUTPUT
-			
-		END
-		SET @SelectedResources = 'MarketIds: please refer to LogId ' + CAST(@LogIDOutput AS VARCHAR(50))
+		SELECT @Remark = ''
+
+		SELECT @Remark = @Remark + CAST(marketID AS VARCHAR(20)) + ','
+		FROM	#tblMarket
+
+		SET @SelectedResources = 'MarketIds: ' + STUFF(@Remark, 1, 1, '')
 	END
 	ELSE
 	BEGIN
@@ -653,7 +624,7 @@ BEGIN
 		)
 		SELECT @SelectedResources = @SelectedResources + ',' + s.SelectionName + (CASE WHEN result IS NULL THEN '' ELSE '(' + result + ')' END)
 		FROM cteData
-			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s ON s.SelectionType = cteData.selectionType
+			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s WITH(NOLOCK) ON s.SelectionType = cteData.selectionType
 			
 		SELECT @SelectedResources = 'Selections:' + STUFF(@SelectedResources, 1, 1, '')
 	END
