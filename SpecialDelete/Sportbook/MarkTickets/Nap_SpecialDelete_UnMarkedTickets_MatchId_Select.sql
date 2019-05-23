@@ -19,6 +19,7 @@ AS;
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20190520@Raymond.Le: Mark Tickets - Not allow to mark Waiting [113518]
 	Explanation's Param:
 		- @LiveIndicator:
 		 + 0: Dead
@@ -308,9 +309,7 @@ SET NOCOUNT ON
 			b.Username,
 			b.stake,
 			b.CurrencyName, 
-			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 
-										   AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				 ELSE b.status END AS status,
+			b.status,
 			b.srecommend,
 			b.mrecommend,
 			b.recommend,
@@ -345,7 +344,8 @@ SET NOCOUNT ON
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
-			AND b.statusID IN (0,1 ) -- running, waiting
+			AND (b.statusID = 0 -- running
+				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP)) -- not in waiting SecAccept
 			AND b.betfrom <> 'p'	
 	END
 	-- Search By TransDate
@@ -414,10 +414,8 @@ SET NOCOUNT ON
 			b.creator,
 			b.Username,
 			b.stake,
-			b.CurrencyName, 
-			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 
-										   AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				 ELSE b.status END AS status,
+			b.CurrencyName,
+			b.status,
 			b.srecommend,
 			b.mrecommend,
 			b.recommend,
@@ -451,7 +449,8 @@ SET NOCOUNT ON
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-			AND b.statusID IN (0,1 ) -- running, waiting
+			AND (b.statusID = 0 -- running
+				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP)) -- not in waiting SecAccept
 			AND b.betfrom <> 'p'	
 			AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE b.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 	END
@@ -586,8 +585,7 @@ SET NOCOUNT ON
 				b.Username,
 				b.stake,
 				b.CurrencyName,
-				CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.status END AS status,
+				b.status,
 				b.srecommend,
 				b.mrecommend,
 				b.recommend,
@@ -610,7 +608,8 @@ SET NOCOUNT ON
 							AND b.matchid = @MatchId
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype 
-			WHERE b.statusID IN (0,1 ) -- running, waiting
+			WHERE b.statusID = 0 -- running
+				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP) -- not in waiting SecAccept
 		END 		
 	END
 
@@ -740,10 +739,7 @@ SET NOCOUNT ON
 				,b.odds
 				,b.oddsspread
 				,b.OddsType
-				,CASE WHEN b.STATUS = 'running'
-					AND IsNull(b.SecAcceptFlag, 0) = 1
-					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.STATUS END AS STATUS
+				,b.STATUS
 				,b.stake
 				,b.transdate
 				,b.betteam
@@ -886,5 +882,3 @@ SET NOCOUNT ON
 
 SET NOCOUNT OFF
 END
-GO
-GO

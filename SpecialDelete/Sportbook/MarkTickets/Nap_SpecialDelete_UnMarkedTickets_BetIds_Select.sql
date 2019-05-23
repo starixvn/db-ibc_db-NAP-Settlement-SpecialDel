@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20190520@Raymond.Le: Mark Tickets - Not allow to mark Waiting [113518]
 	Explanation's Param:
 */
 BEGIN
@@ -130,10 +131,7 @@ CREATE TABLE #tmpRefCodeSummary
 			,b.odds
 			,b.oddsspread
 			,b.OddsType
-			,CASE WHEN b.STATUS = 'running'
-					AND IsNull(b.SecAcceptFlag, 0) = 1
-					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.STATUS END AS STATUS
+			,b.STATUS
 			,b.stake
 			,b.transdate
 			,b.betteam
@@ -163,7 +161,8 @@ CREATE TABLE #tmpRefCodeSummary
 			AND b.bettype NOT IN (911, 912, 913, 914)	-- Cash-out subticket
 			AND b.bettype NOT BETWEEN 1501 AND 1599		-- NOT IN Keno
 			AND b.bettype NOT IN (10, 9, 29, 2799, 38, 500)			-- Outright, Mix Parlay, BetBuilder
-			AND b.statusID IN (0, 1)
+			AND (b.statusID = 0 -- running
+				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP)) -- not in waiting SecAccept
 			AND b.betfrom <> 'p'
 
 	-- update MainTransId
@@ -232,10 +231,7 @@ CREATE TABLE #tmpRefCodeSummary
 					,b.hdp2
 					,b.odds
 					,b.OddsType
-					,CASE WHEN b.STATUS = 'running'
-							AND IsNull(b.SecAcceptFlag, 0) = 1
-							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS END AS STATUS
+					,b.STATUS
 					,b.stake
 					,b.transdate
 					,b.betteam
@@ -263,7 +259,8 @@ CREATE TABLE #tmpRefCodeSummary
 							AND b.custid = t.custid
 							AND b.matchid = t.matchid
 							AND b.bettype = t.bettype
-			WHERE b.statusID IN (0, 1)
+			WHERE b.statusID = 0 -- running
+				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP) -- not in waiting SecAccept
 		END
 	END
 		
@@ -450,10 +447,7 @@ CREATE TABLE #tmpRefCodeSummary
 				,b.odds
 				,b.oddsspread
 				,b.OddsType
-				,CASE WHEN b.STATUS = 'running'
-					AND IsNull(b.SecAcceptFlag, 0) = 1
-					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				ELSE b.STATUS END AS STATUS
+				,b.STATUS
 				,b.stake
 				,b.transdate
 				,b.betteam
@@ -669,5 +663,3 @@ CREATE TABLE #tmpRefCodeSummary
 
 SET NOCOUNT OFF
 END
-GO
-GO
