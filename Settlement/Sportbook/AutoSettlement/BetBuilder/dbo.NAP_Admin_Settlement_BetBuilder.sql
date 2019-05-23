@@ -632,7 +632,7 @@ BEGIN
 	SELECT @TotalAccount_BalanceUpdate = (SELECT COUNT(DISTINCT custID) FROM #tblCustIDBalanceUpdated)
 	
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END
+							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE '; ' + @SelectedResources + '<br/> ' END
 							+ '; IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
 							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
 							+ '<br/> '
