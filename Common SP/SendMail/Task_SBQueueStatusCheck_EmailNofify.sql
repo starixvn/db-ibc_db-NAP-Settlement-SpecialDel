@@ -1,4 +1,7 @@
 /*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
 ALTER PROCEDURE [dbo].[Task_SBQueueStatusCheck_EmailNofify]
 AS
 /*
