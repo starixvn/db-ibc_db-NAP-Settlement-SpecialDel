@@ -10,6 +10,7 @@ AS
 	Revision: 
 		- 20180817@Billy:	Add Letstalk notification - [Redmine: #00000]
 		- 20181219@Helen:	Apply service broker for othersports - [Redmine: 101611]
+		- 20190524@Billy:	Change Letstalk linked server - [Redmine: #113125]
 */
 BEGIN;
 	-- SEND warning email to DBA
@@ -33,7 +34,7 @@ BEGIN;
 	@subject ='Service Broker Alert',
 	@profile_name =@profile_name
 	
-	EXECUTE DBMONDW.MonDBDW.dbo.DBA_Letstalk_NewJobMessage
+	EXECUTE	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage
 				@ServerName	= N'PONTUS'
 			,	@JobId		= NULL
 			,	@JobName	= N'Custom Message'
