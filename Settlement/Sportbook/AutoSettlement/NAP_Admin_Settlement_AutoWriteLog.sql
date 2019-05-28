@@ -119,7 +119,7 @@ BEGIN
 		DECLARE @xml XML
 				,@totalMarketIDs INT			= 0
 				,@totalSettledMarketIDs INT		= 0
-				,@listMarketIDs VARCHAR(MAX) 	= ''
+				,@listMarketIDs VARCHAR(MAX) 	
 				,@maxResultShowed INT			= 1000
 		
 		SET @xml = CAST(@ResourceIDs AS XML)
@@ -128,8 +128,14 @@ BEGIN
 			SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
 			FROM @xml.nodes('/Resources/rsc') AS T(C)
 		)
-		SELECT	@totalMarketIDs = COUNT(*)
-		FROM TmpData d
+		INSERT INTO #tblMarket (marketID)
+		SELECT 	MarketID
+		FROM	TmpData d
+		
+		SET @totalMarketIDs = @@ROWCOUNT
+		
+		SELECT	@listMarketIDs = COALESCE(@listMarketIDs + ',' + MarketID, MarketID)
+		FROM 	#tblMarket
 		
 		IF ISNULL(@Remark,'') <> ''
 		BEGIN
@@ -142,11 +148,11 @@ BEGIN
 		SET @actionid = CASE WHEN @IsSuccess = 1 then 81013 
 						 ELSE 81014
 					END
-
+		
 		SET @Remark = 'NAP: ' + @Product + '</br>'
 						+ ' MatchID: ' + CAST(@MatchId AS VARCHAR) + '; IsAuto: ' + CAST(@IsAuto AS VARCHAR) + '; Action: ' + @Action 
 						+ '<br/>'
-						+ CASE WHEN @totalMarketIDs <= @maxResultShowed THEN 'MarketIDs: ' + @ResourceIDs ELSE ' Total MarketIDs: ' + CAST(@totalMarketIDs AS VARCHAR) END
+						+ CASE WHEN @totalMarketIDs <= @maxResultShowed THEN 'MarketIDs: ' + @listMarketIDs ELSE ' Total MarketIDs: ' + CAST(@totalMarketIDs AS VARCHAR) END
 						+ CASE  WHEN @totalSettledMarketIDs = 0 THEN ''
 								WHEN @totalSettledMarketIDs <= @maxResultShowed THEN '<br/>Settled MarketIDs: ' + @Remark 
 								ELSE '<br/> Total Settled MarketIDs:' + CAST(@totalSettledMarketIDs AS VARCHAR) END
