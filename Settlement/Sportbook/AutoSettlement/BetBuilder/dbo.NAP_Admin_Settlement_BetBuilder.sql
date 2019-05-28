@@ -607,7 +607,7 @@ BEGIN
 		SELECT @Remark = @Remark + CAST(marketID AS VARCHAR(20)) + ','
 		FROM	#tblMarket
 
-		SET @SelectedResources = 'MarketIds: ' + STUFF(@Remark, 1, 1, '')
+		SET @SelectedResources = 'MarketIds: ' + STUFF(@Remark, LEN(@Remark), 1, '')
 	END
 	ELSE
 	BEGIN
