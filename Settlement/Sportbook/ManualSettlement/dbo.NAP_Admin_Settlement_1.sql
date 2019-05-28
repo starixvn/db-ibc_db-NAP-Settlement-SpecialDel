@@ -87,6 +87,7 @@ AS
 		- 20180419@Benjamin: Add ISNULL(@hth,0),ISNULL(@hta,0) IN @LogData [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -870,6 +871,7 @@ BEGIN
 							+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                             + 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
                             + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+							+ CASE WHEN @Sporttype = 1 THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
                             + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
     BEGIN TRY

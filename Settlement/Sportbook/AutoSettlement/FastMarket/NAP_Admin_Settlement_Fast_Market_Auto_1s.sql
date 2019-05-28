@@ -24,6 +24,7 @@ AS
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
+		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -320,6 +321,7 @@ BEGIN
 												) ,'')
 		
 	SELECT @Remark = 'NAP: IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
 			+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
 			
 	BEGIN TRY

@@ -27,6 +27,7 @@ AS
         - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 
     Param's Explanation:
 */    
@@ -299,7 +300,8 @@ BEGIN
 
     SELECT @Remark = 'NAP: ResourceID:' + @ResourceIDs +  ' <br/> ' 
                         + CASE WHEN ISNULL(@Results,'') ='' THEN '' ELSE ' Result:'+ ISNULL(@Results,'') + ' <br/> ' END
-                        + ' SettleDeterminedTickets:' + CAST(@IsSettleAbandonedMatchIBC AS VARCHAR(1))
+                        + ' SettleDeterminedTickets:' + CAST(@IsSettleAbandonedMatchIBC AS VARCHAR(1)) + '<br/>'
+						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
                         + ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
                         + ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
     BEGIN TRY
