@@ -21,6 +21,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket and send notification in case of void all marked ticket [Redmine:#108826]
+		- 20190605@Kathy: Add keyId = 5 for BetBuilder [Redmine:#106898]
 	
 	Param's explanation:	
 		
@@ -37,6 +38,7 @@ BEGIN
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
 			,@isExistFM BIT
+			,@IsExistBB	BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
 			,@session NVARCHAR(50)
@@ -103,7 +105,11 @@ BEGIN
 		
 	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode)
 	SELECT	b.transid, b.custid, b.bettype
-			,CASE WHEN b.bettype BETWEEN 221 AND 227 THEN 6 ELSE 1 END AS KeyId
+			,CASE 
+				WHEN b.bettype = 38 THEN 5
+				WHEN b.bettype BETWEEN 221 AND 227 THEN 6 
+				ELSE 1 				
+			END AS KeyId
 			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
@@ -132,11 +138,13 @@ BEGIN
 	
 	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+			,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 
 	EXEC dbo.NAP_Admin_CheckingProcess
 		 @isExistMG = @isExistMG
 		, @isExistFM = @isExistFM
+		, @isExistBB = @isExistBB
 		, @isExistMatch	= @isExistMatch
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
@@ -173,6 +181,8 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistMatch
 			,@isExistMG = @isExistMG 
+			,@isExistFM = @isExistFM
+			,@isExistBB = @isExistBB
 			,@IsReleased	= 1
 			
 		------ releasing cash-out process
@@ -736,7 +746,8 @@ BEGIN
 		@isExistMatch = @isExistMatch
 		,@isExistMG	= @isExistMG
 		,@isExistFM = @isExistFM
-		, @IsReleased = 1
+		,@isExistBB = @isExistBB
+		,@IsReleased = 1
 
 	------ releasing cash-out process
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
