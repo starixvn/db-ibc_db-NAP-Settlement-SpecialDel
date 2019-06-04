@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Calculate_468] @matchid INT
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_468] @matchid INT
 	,@bettype						SMALLINT
 	,@fth							INT = 0
 	,@fta							INT = 0
@@ -53,6 +53,8 @@ BEGIN
 		,@winlost				MONEY
 		,@totalWinScore			VARCHAR(10)
 		,@odds					MONEY
+		,@posOdds				INT
+		,@posComma				INT
 		,@settlementTime		DATETIME
 
 	DECLARE @tmpBatch AS TABLE (
@@ -111,7 +113,6 @@ BEGIN
 
 	IF @IsSettleAbandonedMatchIBC = 1 OR @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair = 1
 	BEGIN
-
 		WHILE (@BatchNo > 0)
 		BEGIN
 			SELECT	@MinCustId = MAX(MinCustId)
@@ -126,21 +127,17 @@ BEGIN
 			SET @settlementTime = GETDATE();
 
 			UPDATE 	b
-				SET @totalWinScore = CAST( CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
+				SET @totalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
 												WHEN @totalWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
 												ELSE @totalWinScore
-											END AS VARCHAR(10))
-					,@odds = SUBSTRING( 
-										SUBSTRING(betcheck, CHARINDEX(@totalWinScore,betcheck) + LEN (@totalWinScore),6), 
-										1, 
-										CASE WHEN CHARINDEX(',',@odds) > 0 THEN CHARINDEX(',',@odds) -1 
-											ELSE LEN(@odds) 
-										END
-									)
+											END AS INT)
+										AS VARCHAR(10))
+					,@posOdds = CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1
+					,@posComma = CHARINDEX(',', b.betcheck + ',', @posOdds)
+					,@odds = SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds)
 					,@modds = CASE WHEN @odds > 0 THEN 1
 									WHEN @odds < 0 THEN -1 
-									WHEN @odds = 0 THEN 0
-									ELSE -1
+									ELSE NULL
 								END
 					,modds = @modds
 					-- update odds, oddsspread
@@ -161,11 +158,13 @@ BEGIN
 									WHEN @modds > 0 THEN 112 --WON
 									WHEN @modds < 0 THEN 113 --LOSE
 									WHEN @modds = 0 THEN 111 --Draw
+									WHEN @modds IS NULL THEN statusID
 								END
 					,@winlost = CASE 
 									WHEN @modds > 0 THEN actual_stake + stake * odds
 									WHEN @modds = 0 THEN actual_stake
 									WHEN @modds < 0 THEN 0
+									WHEN @modds IS NULL THEN winlost
 								END
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
@@ -173,41 +172,49 @@ BEGIN
 									WHEN @modds > 0 THEN stake * odds * - apositiontaking
 									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * apositiontaking
+									WHEN @modds IS NULL THEN awinlost
 								END
 					,mWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - mpositiontaking
 									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * mpositiontaking
+									WHEN @modds IS NULL THEN mwinlost
 								END
 					,sWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - spositiontaking
 									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * spositiontaking
+									WHEN @modds IS NULL THEN swinlost
 								END
 					,PlayerComm = CASE 
 									WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
 									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
+									WHEN @modds IS NULL THEN playercomm
 								END
 					,Comm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
 								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
+								WHEN @modds IS NULL THEN comm
 							END
 					,aComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
 								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+								WHEN @modds IS NULL THEN acomm
 							END
 					,sComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+								WHEN @modds IS NULL THEN scomm
 							END
 					,STATUS = CASE 
 								WHEN @modds > 0 THEN 'WON'
 								WHEN @modds < 0 THEN 'LOSE'
 								WHEN @modds = 0 THEN 'DRAW'
+								WHEN @modds IS NULL THEN status
 							END
 					,StatusID = @statusId
 					,ruben = 1
@@ -240,7 +247,6 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-
 		WHILE @BatchNo > 0
 		BEGIN
 			SELECT	@MinCustId = MAX(MinCustId)
@@ -256,17 +262,14 @@ BEGIN
 
 			UPDATE  b
 				SET 
-					@totalWinScore = CAST( CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
+					@totalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
 												WHEN @totalWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
 												ELSE @totalWinScore
-											END AS VARCHAR(10))
-					,@odds = SUBSTRING( 
-										SUBSTRING(betcheck, CHARINDEX(@totalWinScore,betcheck) + LEN (@totalWinScore),6), 
-										1, 
-										CASE WHEN CHARINDEX(',',@odds) > 0 THEN CHARINDEX(',',@odds) -1 
-											ELSE LEN(@odds) 
-										END
-									)
+											END AS INT)
+										AS VARCHAR(10))
+					,@posOdds = CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1
+					,@posComma = CHARINDEX(',', b.betcheck + ',', @posOdds)
+					,@odds = SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds)
 					,@modds = CASE WHEN @odds > 0 THEN 1
 									WHEN @odds < 0 THEN -1 
 									WHEN @odds = 0 THEN 0
@@ -342,7 +345,7 @@ BEGIN
 					,StatusID = @statusId
 					,ruben = 1
 			FROM	@tmpBatch c
-				INNER JOIN dbo.bettrans b -- WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN dbo.bettrans b 
 					ON 	c.batchNo = @batchNo
 						AND c.custid = b.custId
 				CROSS APPLY (
