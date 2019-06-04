@@ -40,8 +40,6 @@ BEGIN
 	DECLARE @modds				MONEY
 		,@commWinRate			SMALLMONEY
 		,@commLostRate			SMALLMONEY
-		,@matchdate				DATETIME
-		,@result				NVARCHAR(10)
 
 		,@BatchCount			INT
 		,@BatchNo				INT
@@ -166,36 +164,44 @@ BEGIN
 								END
 					,@winlost = CASE 
 									WHEN @modds > 0 THEN actual_stake + stake * odds
+									WHEN @modds = 0 THEN actual_stake
 									WHEN @modds < 0 THEN 0
 								END
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - apositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * apositiontaking
 								END
 					,mWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - mpositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * mpositiontaking
 								END
 					,sWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - spositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * spositiontaking
 								END
 					,PlayerComm = CASE 
 									WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
 								END
 					,Comm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
 							END
 					,aComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
 							END
 					,sComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 							END
 					,STATUS = CASE 
@@ -288,36 +294,44 @@ BEGIN
 								END
 					,@winlost = CASE 
 									WHEN @modds > 0 THEN actual_stake + stake * odds
+									WHEN @modds = 0 THEN actual_stake
 									WHEN @modds < 0 THEN 0
 								END
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - apositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * apositiontaking
 								END
 					,mWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - mpositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * mpositiontaking
 								END
 					,sWinLost = CASE 
 									WHEN @modds > 0 THEN stake * odds * - spositiontaking
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN actual_stake * spositiontaking
 								END
 					,PlayerComm = CASE 
 									WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
+									WHEN @modds = 0 THEN 0
 									WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
 								END
 					,Comm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
 							END
 					,aComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
 							END
 					,sComm = CASE 
 								WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+								WHEN @modds = 0 THEN 0
 								WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 							END
 					,STATUS = CASE 
