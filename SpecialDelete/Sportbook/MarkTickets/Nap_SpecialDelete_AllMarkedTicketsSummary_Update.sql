@@ -74,9 +74,15 @@ AS
                    0,
                    NULL,
                    0
-            FROM #Match t
-                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.MatchId = m.MatchId
-            WHERE m.MatchId IS NULL;
+            FROM #Match t 
+                LEFT JOIN
+				(
+				    SELECT m.matchid
+				    FROM dbo.MarkedTransaction m WITH (NOLOCK)
+					    INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
+														  AND b.statusID IN(0, 1)
+				) mt ON mt.MatchId = t.MatchId
+            WHERE mt.MatchId IS NULL;
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
