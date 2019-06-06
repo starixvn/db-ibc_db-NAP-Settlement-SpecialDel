@@ -53,7 +53,7 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
-
+		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
     Parameters Explanation:
 
 
@@ -363,7 +363,7 @@ BEGIN
                             ELSE @goalrecord END
             , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
             , changetime = GETDATE()
-            , settleTime = GETDATE()
+            --, settleTime = GETDATE()
         WHERE matchid = @MatchID
 
     END
@@ -382,7 +382,7 @@ BEGIN
                              ELSE RTRIM(ISNULL(betstatus,''))  + @betstatus
                         END
             ,changetime = GETDATE()
-            ,settletime = GETDATE()
+            --,settletime = GETDATE()
         WHERE matchid = @matchid
     END
     IF @Command = 'NAP_Admin_Settlement_Corner-CAL'
@@ -390,7 +390,7 @@ BEGIN
         UPDATE dbo.Match WITH (UPDLOCK,ROWLOCK)
         SET eventstatus = CASE WHEN @NoneCornerBetDone = 1 THEN N'completed' ELSE eventstatus END
             , changetime = CURRENT_TIMESTAMP
-            , settletime = CURRENT_TIMESTAMP
+           -- , settletime = CURRENT_TIMESTAMP
         WHERE MatchID = @MatchID
     END
     IF @Command = 'NAP_Admin_Settlement_s161-Refund'
