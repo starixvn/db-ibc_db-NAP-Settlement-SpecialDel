@@ -1680,6 +1680,23 @@ BEGIN
                         ,@fth = @fth
                         ,@fta = @fta
 						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 468: Score Box Handicap
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 468)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 468
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 469: Score Box Over/Under
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 469
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsReSettledTickets = @IsReSettledTickets
 
             END -- END CAL/CAL-FT
 
@@ -4948,7 +4965,6 @@ BEGIN
                 -- END of mode = 'ABANDONED': For bettype 1H & Refund All (SDT)
 
 				-- Half Time/Full Time Exact Total Goals
-
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 467)
                                         EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
                         ,@bettype = 467
@@ -4961,6 +4977,29 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 468: Score Box Handicap
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 468)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 468
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 469: Score Box Over/Under
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 469
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
             END
 
             IF @mode = 'REFUND'
