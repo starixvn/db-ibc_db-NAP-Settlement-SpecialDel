@@ -9,8 +9,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VA
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
 AS
-
-
 /*
     Created by: Alan
 	Date: 20190325
@@ -21,9 +19,14 @@ AS
 		
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
+		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 */
-
+BEGIN
      SET NOCOUNT ON;
+
+	 DECLARE @xmlLog VARCHAR(MAX)
+			,@LogData VARCHAR(MAX) = '';
+
      CREATE TABLE #transIds
                   (TransId BIGINT
                    PRIMARY KEY
@@ -33,6 +36,7 @@ AS
                    val
             FROM dbo.f_SplitString(@TransIds, ',')
             WHERE val <> '' OPTION(MAXRECURSION 0);
+
      DECLARE @tblInvalidTrans TABLE(transid BIGINT);
      CREATE TABLE #Match(matchid INT);
      CREATE TABLE #tblMatchProcess
@@ -63,7 +67,7 @@ AS
      CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
      CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
     
--- Get tickets insert into transaction
+	-- Get tickets insert into transaction
      INSERT INTO #Tickets
             (TransId,
              MatchId,
@@ -87,13 +91,13 @@ AS
                  LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
             WHERE m.TransId IS NULL;
 			
--- delete cash-out member bet tickets
+	-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
 	WHERE EXISTS (SELECT TOP (1) 1
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
--- Bonus
+	-- Bonus
     IF EXISTS
 	   (
 		  SELECT TOP (1) 1
@@ -149,7 +153,7 @@ AS
                  END;
     END;	
 
--- get sub ticket of Cash-out (911) and cash-out member bet tickets
+	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
     IF(EXISTS
 	   (
 		  SELECT TOP (1) 1
@@ -158,7 +162,7 @@ AS
 			   AND CHARINDEX('p25', extrainfo) > 0
 	   ))
     BEGIN
--- get sub ticket of Cash-out (911)	
+	-- get sub ticket of Cash-out (911)	
         INSERT INTO #Cashout911Tickets
         (TransId,
             MatchId
@@ -173,7 +177,7 @@ AS
                                                                 AND CHARINDEX('p25', main.extrainfo) > 0
                                                                 AND sub911.bettype = 911;			 
 
--- get cash-out member bet tickets
+	-- get cash-out member bet tickets
 	   INSERT INTO #Tickets
 		  (TransId,
 			 MatchId,
@@ -230,7 +234,8 @@ AS
 					 AND b.bettype NOT IN(911, 912, 913)
 			 ) AS b
     END;
---check no data
+
+	--check no data
     IF NOT EXISTS
     (
 	   SELECT TOP (1) 1
@@ -242,7 +247,7 @@ AS
         RETURN;
     END;
 	
--- Check Lock Match
+	-- Check Lock Match
     BEGIN
         DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0;
         SELECT @isExistMatch = MAX(CASE
@@ -282,12 +287,13 @@ AS
                 RETURN;
             END;
     END;
+
     INSERT INTO #Match
-            SELECT DISTINCT
-                   t.MatchId
-            FROM #Tickets t;
+    SELECT DISTINCT
+            t.MatchId
+    FROM #Tickets t;
 	  	  
--- Insert Settled_Message
+	-- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
             ([AdminId],
              [MatchId],
@@ -318,7 +324,7 @@ AS
 	   ) mt ON mt.MatchId = t.MatchId
     WHERE mt.MatchId IS NULL;
     
--- Insert Transaction
+	-- Insert Transaction
     INSERT INTO dbo.MarkedTransaction
             (TransId,
              MatchId,
@@ -335,11 +341,12 @@ AS
             CURRENT_TIMESTAMP
     FROM #Tickets t; 
 
--- Release Match
+	-- Release Match
      EXEC dbo.NAP_Admin_CheckingProcess
           @isExistMatch = @isExistMatch,
           @IsExistFM = @IsExistFM,
           @IsReleased = 1;
+
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
@@ -348,12 +355,12 @@ AS
      FROM #Match b
           LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
 
--- invalid trans
-     SELECT @InvalidTransIds = @InvalidTransIds+CASE
+	-- invalid trans
+     SELECT @InvalidTransIds = @InvalidTransIds + CASE
                                                     WHEN @InvalidTransIds <> ''
                                                     THEN ','
                                                     ELSE ''
-                                                END+CAST(transid AS VARCHAR(100))
+                                                END + CAST(transid AS VARCHAR(100))
      FROM #transIds t
      WHERE NOT EXISTS
 	   (
@@ -361,6 +368,30 @@ AS
 		  FROM #Tickets b
 		  WHERE b.transid = t.transid
 	   );
+
+
+	-- Write Log
+	SET @xmlLog = CAST((
+				SELECT 90500 AS '@LogActionId' -- 90500: Action Mark
+					,@UserId AS '@UserId'
+					,@IP AS '@IP'
+					,m.matchid AS '@MatchId'
+					,STUFF((
+							SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
+							FROM #Tickets AS t
+							WHERE t.MatchId = m.MatchId
+							FOR XML PATH('')
+							), 1, 1, '') AS '@LogData'
+				FROM #Match AS m
+				FOR XML PATH('r')
+					,ROOT('root')
+					,TYPE
+				) AS VARCHAR(MAX));
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
+		,@functionName = 'TicketVoiding'
+		,@MessageType = 'MessageType_TicketVoiding_Log';
+
      DROP TABLE #Tickets;
      DROP TABLE #Cashout911Tickets;
      DROP TABLE #tmpRefCodeSummary;
@@ -368,4 +399,4 @@ AS
      DROP TABLE #Match;
      DROP TABLE #tblMatchProcess;
      SET NOCOUNT OFF;
-GO
+END
