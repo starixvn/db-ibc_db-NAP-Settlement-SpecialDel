@@ -234,6 +234,7 @@ AS
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190426@Kathy: Remove redundant param on cricket sp [Redmine:#112572]
+		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 
     Param's Explanation:
         @action             @mode
@@ -1670,6 +1671,15 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- 467: HT/FT Exact Total Goals	
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 467)
+                    EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 467
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@betcount = 1
 
             END -- END CAL/CAL-FT
 
@@ -4936,6 +4946,21 @@ BEGIN
 
                 END --#67462
                 -- END of mode = 'ABANDONED': For bettype 1H & Refund All (SDT)
+
+				-- Half Time/Full Time Exact Total Goals
+
+                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 467)
+                                        EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 467
+                        ,@fth = @fth
+                        ,@fta = @fta
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsHTCal = @IsHTCal
             END
 
             IF @mode = 'REFUND'
