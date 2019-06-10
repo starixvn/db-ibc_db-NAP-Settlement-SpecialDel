@@ -55,7 +55,6 @@ AS
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 		- 20190425@Sol: Update SettlementTime col when status/winlost changed  [Redmine:#106901]
 		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
-		- 20190425@Sol: Update SettlementTime col when status/winlost changed  [Redmine:#106901]
 		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
 
     Parameters Explanation:
