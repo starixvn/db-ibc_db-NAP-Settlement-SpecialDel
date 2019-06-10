@@ -161,29 +161,29 @@ BEGIN
 									WHEN @modds IS NULL THEN statusID
 								END
 					,@winlost = CASE 
-									WHEN @modds > 0 THEN actual_stake + stake * odds
+									WHEN @modds > 0 THEN actual_stake + stake * @odds
 									WHEN @modds = 0 THEN actual_stake
-									WHEN @modds < 0 THEN 0
+									WHEN @modds < 0 THEN actual_stake + stake * @odds
 									WHEN @modds IS NULL THEN winlost
 								END
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - apositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - apositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * apositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * apositiontaking
 									WHEN @modds IS NULL THEN awinlost
 								END
 					,mWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - mpositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - mpositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * mpositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * mpositiontaking
 									WHEN @modds IS NULL THEN mwinlost
 								END
 					,sWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - spositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - spositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * spositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * spositiontaking
 									WHEN @modds IS NULL THEN swinlost
 								END
 					,PlayerComm = CASE 
@@ -296,26 +296,26 @@ BEGIN
 									WHEN @modds = 0 THEN 111 --Draw
 								END
 					,@winlost = CASE 
-									WHEN @modds > 0 THEN actual_stake + stake * odds
+									WHEN @modds > 0 THEN actual_stake + stake * @odds
 									WHEN @modds = 0 THEN actual_stake
-									WHEN @modds < 0 THEN 0
+									WHEN @modds < 0 THEN actual_stake + stake * @odds
 								END
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - apositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - apositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * apositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * apositiontaking
 								END
 					,mWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - mpositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - mpositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * mpositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * mpositiontaking
 								END
 					,sWinLost = CASE 
-									WHEN @modds > 0 THEN stake * odds * - spositiontaking
+									WHEN @modds > 0 THEN stake * @odds * - spositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN actual_stake * spositiontaking
+									WHEN @modds < 0 THEN ABS(stake * @odds) * spositiontaking
 								END
 					,PlayerComm = CASE 
 									WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
