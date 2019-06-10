@@ -4016,6 +4016,43 @@ BEGIN
 
                 END --#67462
                 --END OF REFUND: ABANDONED-FT
+
+				-- Half Time/Full Time Exact Total Goals
+                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 467)
+                                        EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 467
+                        ,@fth = @fth
+                        ,@fta = @fta
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsHTCal = @IsHTCal
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 468: Score Box Handicap
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 468)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 468
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 469: Score Box Over/Under
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
+                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
+                        ,@bettype = 469
+                        ,@fth = @fth
+                        ,@fta = @fta
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
             END
 
             IF @mode = 'REFUND-FT'
