@@ -40,6 +40,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -207,6 +208,8 @@ BEGIN
 					)mt
 				WHERE	b.matchid = m.matchid
 						AND b.statusID = 0
+						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
+						AND b.bettype <> 38 -- BetBuilder
 						AND mt.transId IS NULL
 				GROUP BY b.matchid
 			)b

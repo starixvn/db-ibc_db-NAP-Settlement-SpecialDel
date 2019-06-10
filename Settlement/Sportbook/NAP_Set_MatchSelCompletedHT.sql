@@ -36,6 +36,7 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		
 */
 BEGIN
@@ -205,6 +206,8 @@ BEGIN
 					)mt
 				WHERE	b.matchid = m.matchid
 						AND b.statusID = 0
+						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
+						AND b.bettype <> 38 -- BetBuilder
 						AND mt.transId IS NULL
 				GROUP BY b.matchid
 			)b
