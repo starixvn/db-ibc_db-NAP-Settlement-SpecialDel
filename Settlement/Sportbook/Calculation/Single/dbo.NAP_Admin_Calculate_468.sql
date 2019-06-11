@@ -135,14 +135,14 @@ BEGIN
 					,@posOdds = CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1
 					,@posComma = CHARINDEX(',', b.betcheck + ',', @posOdds)
 					,@odds = SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds)
-					,@modds = CASE WHEN @odds > 0 THEN 1
-									WHEN @odds < 0 THEN -1 
+					,@modds = CASE WHEN @odds > 0 AND b.bettype = 469 AND b.betteam = 'o' THEN 1
+									WHEN @odds < 0 AND b.bettype = 469 AND b.betteam = 'u' THEN -1 
 									ELSE NULL
 								END
 					,modds = @modds
 					-- update odds, oddsspread
-					,odds = @odds
-					,oddsspread = @totalWinScore
+					,odds = CASE WHEN @modds IS NOT NULL THEN @odds ELSE odds END
+					,oddsspread = CASE WHEN @modds IS NOT NULL THEN @totalWinScore ELSE oddsspread END
 					,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 						WHEN '0' THEN 1
 						WHEN '1' THEN 0
