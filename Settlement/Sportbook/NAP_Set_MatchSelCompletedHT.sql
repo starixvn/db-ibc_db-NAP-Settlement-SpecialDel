@@ -183,41 +183,6 @@ BEGIN
 				ON m.matchid = t.MatchId
 
 	END
-
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
-
-	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	matchid
-	FROM	@DataTmp
-	WHERE	eventstatus = 'completed'
-
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		UPDATE m 
-			SET IsExistRunningTicket = 1
-		FROM	@tmpMatchCompleted m
-			CROSS APPLY (
-				SELECT	b.matchid
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					OUTER APPLY (
-						SELECT TOP 1 mt.transId
-						FROM	#tmpMarkedTransaction mt 
-						WHERE b.transid = mt.TransId
-					)mt
-				WHERE	b.matchid = m.matchid
-						AND b.statusID = 0
-						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
-						AND b.bettype <> 38 -- BetBuilder
-						AND mt.transId IS NULL
-				GROUP BY b.matchid
-			)b
-
-		UPDATE m 
-			SET IsExistRunningTicket = t.IsExistRunningTicket
-		FROM	@DataTmp m
-			INNER JOIN @tmpMatchCompleted t
-				ON m.matchid = t.MatchId
-	END
 			
 	SELECT m.matchid
 		, m.leagueid
