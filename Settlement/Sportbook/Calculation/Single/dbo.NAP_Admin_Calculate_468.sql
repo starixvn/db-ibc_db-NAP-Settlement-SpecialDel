@@ -171,19 +171,19 @@ BEGIN
 					,aWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - apositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * apositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - apositiontaking
 									WHEN @modds IS NULL THEN awinlost
 								END
 					,mWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - mpositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * mpositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - mpositiontaking
 									WHEN @modds IS NULL THEN mwinlost
 								END
 					,sWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - spositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * spositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - spositiontaking
 									WHEN @modds IS NULL THEN swinlost
 								END
 					,PlayerComm = CASE 
@@ -305,17 +305,17 @@ BEGIN
 					,aWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - apositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * apositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - apositiontaking
 								END
 					,mWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - mpositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * mpositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - mpositiontaking
 								END
 					,sWinLost = CASE 
 									WHEN @modds > 0 THEN stake * @odds * - spositiontaking
 									WHEN @modds = 0 THEN 0
-									WHEN @modds < 0 THEN ABS(stake * @odds) * spositiontaking
+									WHEN @modds < 0 THEN stake * @odds * - spositiontaking
 								END
 					,PlayerComm = CASE 
 									WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
