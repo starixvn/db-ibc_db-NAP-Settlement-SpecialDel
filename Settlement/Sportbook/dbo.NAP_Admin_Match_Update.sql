@@ -369,10 +369,10 @@ BEGIN
     --    WHERE matchid = @MatchID
 
     --END
-    IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
-    BEGIN
-        UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID
-    END
+    --IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
+    --BEGIN
+    --    UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID
+    --END
     IF @Command IN ('NAP_Admin_Settlement_Parlay', 'NAP_Admin_Settlement_Refund_MP')
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET multiple=multiple, changetime = GETDATE() WHERE matchid=@MatchID
