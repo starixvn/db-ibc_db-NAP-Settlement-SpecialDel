@@ -53,9 +53,8 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
-		- 20190425@Sol: Update SettlementTime col when status/winlost changed  [Redmine:#106901]
-		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
 		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
+		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
 
     Parameters Explanation:
 
