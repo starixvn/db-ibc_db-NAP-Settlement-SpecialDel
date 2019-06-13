@@ -32,6 +32,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
+		- 20190517@Sol: Tuning performance [Redmine:#112904]
 
 	Param's Explanation:		
 		
@@ -61,16 +62,16 @@ BEGIN
 						  ,ResourceID VARCHAR(20)
 						 )
 						 
-	DECLARE @match TABLE ( matchid INT
+	Create table #Match (matchid INT
 						  ,matchcode NVARCHAR(50)
 						  ,fth SMALLINT
 						  ,fta SMALLINT
 						  ,hth SMALLINT
 						  ,hta SMALLINT
-						  ,betstatus NVARCHAR(50)
-						  ,sporttype SMALLINT
-						 )
-						 
+						  ,sporttype SMALLINT)
+
+	CREATE TABLE #ResultDetail (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
+	CREATE TABLE #ResultDetailES (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	
 	SELECT	 @ErrCode = 0
 			,@ErrMsg = ''
@@ -81,18 +82,56 @@ BEGIN
 	SET @bettype_22 = '22'
     SET @bettype_160 = '160'
     
-	INSERT INTO @match ( matchid, matchcode, fth, fta, hth, hta, betstatus, sporttype)
-	SELECT DISTINCT matchid
-			,matchcode
-			,finalhomescore
-			,finalawayscore
-			,hthomescore
-			,htawayscore
-			,betstatus
-			,sporttype
-	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-	WHERE matchid IN ( SELECT val
-					   FROM dbo.strSplit(@matchids, ',') ) 
+	-- get data from remote table match
+	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+
+	SET @queryMatch = '	SELECT matchid
+								,matchcode
+								,finalhomescore
+								,finalawayscore
+								,hthomescore
+								,htawayscore
+								,sporttype
+						FROM BODB02.dbo.Match m WITH (NOLOCK)
+								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+									ON m.matchid = tm.val
+						OPTION (MAXRECURSION 0)
+					'
+
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(4000)'' , @matchids'
+
+	INSERT INTO #Match ( matchid, matchcode, fth, fta, hth, hta, sporttype)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
+	-- end
+
+	-- get date from remote ResultDetail table 
+	SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+								FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
+										INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+											ON r.matchid = tm.val
+								OPTION (MAXRECURSION 0)
+							'
+
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchIds VARCHAR(4000)'' , @matchids'
+
+	INSERT INTO #ResultDetail (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetail NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetail, @matchids
+	-- end
+
+	-- get date from remote ResultDetailES table 
+	SET @queryResultDetailES = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+									FROM BODB02.dbo.ResultDetailES r WITH (NOLOCK)
+											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+												ON r.matchid = tm.val
+									OPTION (MAXRECURSION 0)
+								'
+
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailES, N''@MatchIds VARCHAR(4000)'' , @matchids'
+
+	INSERT INTO #ResultDetailES (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailES NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailES, @matchids
+	-- end
 	
 	DECLARE @tblFGLGMatch TABLE(matchid INT, matchcode NVARCHAR(50))
 	DECLARE @tblRunningAutoSettle TABLE (matchid INT)
@@ -118,7 +157,7 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.GroupId = 8
 	
-	IF EXISTS (SELECT TOP 1 1 FROM @match WHERE sporttype = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM #Match WHERE sporttype = 1)
 	BEGIN
 		;WITH cteBetStatusM
 		AS(
@@ -130,7 +169,7 @@ BEGIN
 					END AS ResourceId
 						
 			FROM	dbo.bettransm WITH(NOLOCK)
-			WHERE	matchid IN (SELECT matchid FROM @match)
+			WHERE	matchid IN (SELECT matchid FROM #Match)
 					AND statusID = 0
 					AND bettype IN (SELECT BetType FROM @tmpAutoBetRadarBettypes)
 					
@@ -139,7 +178,7 @@ BEGIN
 		INSERT INTO @tblRunningAutoSettle (matchid)
 		SELECT	c.matchid
 		FROM	cteBetStatusM c
-			LEFT JOIN DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)	ON	c.matchid = r.matchid AND r.ResourceId = c.ResourceId
+			LEFT JOIN #ResultDetail r WITH(NOLOCK)	ON	c.matchid = r.matchid AND r.ResourceId = c.ResourceId
 		WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		
 		;WITH cteFGLGBettypes
@@ -161,7 +200,7 @@ BEGIN
 						ELSE '08'
 					END AS ResourceId
 			FROM	dbo.bettransm bm WITH(NOLOCK)
-				INNER JOIN @match m
+				INNER JOIN #Match m
 					ON m.matchid = bm.matchid
 				INNER JOIN @tmpFGLGBettypes bt
 					ON bm.bettype = bt.bettype
@@ -186,14 +225,14 @@ BEGIN
 		INSERT INTO @tblFGLGMatch(matchid, matchcode)
 		SELECT	c.matchid, c.matchcode
 		FROM	cteFGLGBettypes c
-			LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+			LEFT JOIN #ResultDetail r WITH(NOLOCK)
 				ON	c.matchid = r.matchid
 					AND c.ResourceId = r.ResourceId
 		WHERE ISNULL(r.SettlementStatusId,0) <> 4
 		GROUP BY c.matchid, c.matchcode			
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM @match WHERE sporttype = 2)
+	IF EXISTS (SELECT TOP 1 1 FROM #Match WHERE sporttype = 2)
 	BEGIN
 		;WITH cteBetstatus
 		AS(
@@ -201,7 +240,7 @@ BEGIN
 					,bm.bettype
 					,bm.betcheck
 			FROM	dbo.bettransm bm WITH(NOLOCK)
-			WHERE	bm.matchid IN (SELECT matchid FROM @match)
+			WHERE	bm.matchid IN (SELECT matchid FROM #Match)
 					AND bm.statusID = 0
 			GROUP BY bm.matchid, bm.bettype, bm.betcheck
 		)
@@ -229,18 +268,18 @@ BEGIN
 		INSERT INTO @tblRunningBAIO (matchid, QuarterX)
 		SELECT	c.matchid, c.QuarterX
 		FROM	cteResourceID c
-			LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+			LEFT JOIN #ResultDetail r WITH(NOLOCK)
 				ON	c.matchid = r.matchid
 					AND c.ResourceId = r.ResourceId
-		WHERE	ISNULL(r.ResultStatusId,'') <> 5
+		WHERE	ISNULL(r.ResultStatusId,0) <> 5
 		GROUP BY c.matchid, c.QuarterX
 	END
 
 	
-	IF EXISTS (SELECT TOP 1 1 FROM @match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
+	IF EXISTS (SELECT TOP 1 1 FROM #Match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
 	BEGIN
 		DECLARE @sporttype SMALLINT
-		SELECT TOP 1 @sporttype = Sporttype FROM @match
+		SELECT TOP 1 @sporttype = Sporttype FROM #Match
 		
 		;WITH cteBetstatus
 		AS(
@@ -248,7 +287,7 @@ BEGIN
 					,bm.bettype
 					,bm.betcheck
 					,m.sporttype
-			FROM	@match m
+			FROM	#Match m
 				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
 			WHERE bm.statusID = 0
 			GROUP BY bm.matchid, bm.bettype, bm.betcheck,m.sporttype
@@ -270,19 +309,19 @@ BEGIN
 		FROM	cteResourceID c
 			OUTER  APPLY(
 	  			SELECT ResultStatusID
-	  			FROM DBPRO.bodb02.dbo.ResultDetailES rd WITH (NOLOCK) 
+	  			FROM #ResultDetailES rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
 	  				AND rd.matchid = c.matchid
 	  		) AS rs
 			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON c.ResourceID = sd.ResourceID
-		WHERE	ISNULL(rs.ResultStatusId,'') <> 5
+		WHERE	ISNULL(rs.ResultStatusId,0) <> 5
 		GROUP BY c.matchid, sd.RoundName--,c.OrdNo
 		--ORDER BY c.OrdNo
 
 	END
 	
 	IF EXISTS (SELECT 1
-				FROM @match
+				FROM #Match
 				WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL ) AND @action <> 'UNDO'
 		OR EXISTS (SELECT TOP 1 1
 					FROM @tblRunningAutoSettle
@@ -294,13 +333,13 @@ BEGIN
 		
 		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode 
 									+  (CASE WHEN matchid IN (SELECT matchid FROM @tblRunningAutoSettle) THEN '(Early Settle)' ELSE '' END) + ','
-		FROM @match
+		FROM #Match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
 			OR matchid IN (SELECT matchid FROM @tblRunningAutoSettle)
 
 		-- exclude matches were not keyscore yet
 		DELETE
-		FROM @match
+		FROM #Match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
 				OR matchid IN (SELECT matchid FROM @tblRunningAutoSettle)
 				
@@ -313,7 +352,7 @@ BEGIN
 												FOR XML PATH('')),1,1,'') + ')' 
 								+ ',' 
 						
-		FROM @match m
+		FROM #Match m
 			INNER JOIN @tblRunningBAIO t
 				ON	m.matchid = t.matchid		
 		GROUP BY m.matchid, m.matchcode
@@ -322,7 +361,7 @@ BEGIN
 			SET @NotKeyScoreList = LEFT(@NotKeyScoreList,LEN(@NotKeyScoreList)-1)
 			
 		DELETE m
-		FROM @match m
+		FROM #Match m
 		WHERE EXISTS (SELECT TOP 1 1 FROM @tblRunningBAIO WHERE matchid = m.matchid)
 		
 	END
@@ -333,23 +372,23 @@ BEGIN
 		FROM @tblFGLGMatch
 		
 		DELETE 
-		FROM	@match
+		FROM	#Match
 		WHERE	matchid IN (SELECT matchid FROM @tblFGLGMatch)
 	END	
 	
 	IF EXISTS (SELECT 1
-				FROM @match
+				FROM #Match
 				WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1))
 				OR matchid IN (SELECT matchid from Parlay_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1)) )
 	BEGIN
 		SELECT @NotAllowCalculating = COALESCE(@NotAllowCalculating + ',' + matchcode, matchcode)
-		FROM @match 
+		FROM #Match 
 		WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1) )
 		OR matchid IN (SELECT matchid FROM Parlay_Calculate_Queue with(NOLOCK) WHERE IsCalculating IN (0,1) ) 
 
 		-- exclude matches were not allow to calculate
 		DELETE
-		FROM @match
+		FROM #Match
 		WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1) )
 		OR matchid IN (SELECT matchid FROM Parlay_Calculate_Queue with(NOLOCK) WHERE IsCalculating IN (0,1) ) 
 	END
@@ -361,10 +400,11 @@ BEGIN
 	
 	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + m.matchcode, m.matchcode)
 	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.matchid IN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ','))
+				INNER JOIN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ',')) tm
+					ON m.matchid = tm.val
 	OPTION (maxrecursion 0) 
 	
-	DELETE FROM @match
+	DELETE FROM #Match
 	WHERE	matchid IN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ','))
 	OPTION (maxrecursion 0) 
 
@@ -375,10 +415,13 @@ BEGIN
 	
 	SELECT @HaveWaitingTicket = COALESCE(@HaveWaitingTicket + ',' + m.matchcode, m.matchcode)
 	FROM dbo.match m WITH(NOLOCK)
-	WHERE m.matchid IN (SELECT val FROM dbo.strSplit(@MatchIds, ','))
+			INNER JOIN (SELECT val FROM dbo.f_SplitString(@MatchIds, ',')) tm
+				ON m.matchid = tm.val
+	OPTION (maxrecursion 0)
 	
-	DELETE FROM @match
-	WHERE matchid IN (SELECT val FROM dbo.strSplit(@MatchIds, ','))
+	DELETE FROM #Match
+	WHERE matchid IN (SELECT val FROM dbo.f_SplitString(@MatchIds, ','))
+	OPTION (maxrecursion 0)
 	
 	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
 	BEGIN
@@ -410,7 +453,7 @@ BEGIN
 	
 	IF EXISTS (
 				SELECT TOP 1 1
-				FROM @match
+				FROM #Match
 				)
 	BEGIN
 		IF @procName LIKE '%_xtest' or @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
@@ -419,7 +462,7 @@ BEGIN
 			WHILE(1 = 1)
 			BEGIN
 				SELECT TOP 1 @matchid = matchid
-				FROM @match
+				FROM #Match
 
 				IF @@ROWCOUNT = 0
 					BREAK
@@ -460,7 +503,7 @@ BEGIN
 				WHERE VName = 'isCalculatingParlay'
 
 				DELETE 
-				FROM @match
+				FROM #Match
 				WHERE matchid = @matchid
 			END
 			
@@ -469,7 +512,7 @@ BEGIN
 		BEGIN		
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action)
 			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action
-			FROM @match
+			FROM #Match
 		END
 	END
 END

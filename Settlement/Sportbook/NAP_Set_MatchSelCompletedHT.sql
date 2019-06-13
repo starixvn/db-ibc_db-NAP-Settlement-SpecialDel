@@ -36,6 +36,7 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		
 */
 BEGIN
@@ -181,39 +182,6 @@ BEGIN
 			INNER JOIN @tmpMatchMarked t
 				ON m.matchid = t.MatchId
 
-	END
-
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
-
-	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	matchid
-	FROM	@DataTmp
-	WHERE	eventstatus = 'completed'
-
-	IF @@ROWCOUNT <> 0
-	BEGIN
-		UPDATE m 
-			SET IsExistRunningTicket = 1
-		FROM	@tmpMatchCompleted m
-			CROSS APPLY (
-				SELECT	b.matchid
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					OUTER APPLY (
-						SELECT TOP 1 mt.transId
-						FROM	#tmpMarkedTransaction mt 
-						WHERE b.transid = mt.TransId
-					)mt
-				WHERE	b.matchid = m.matchid
-						AND b.statusID = 0
-						AND mt.transId IS NULL
-				GROUP BY b.matchid
-			)b
-
-		UPDATE m 
-			SET IsExistRunningTicket = t.IsExistRunningTicket
-		FROM	@DataTmp m
-			INNER JOIN @tmpMatchCompleted t
-				ON m.matchid = t.MatchId
 	END
 			
 	SELECT m.matchid
