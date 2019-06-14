@@ -11,13 +11,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@LiveHomeScore		SMALLINT 		= NULL
 	,@LiveAwayScore		SMALLINT 		= NULL
 	,@FromTransdate		DATETIME 		= NULL
-	,@ToTransdate		DATETIME 		     = NULL
+	,@ToTransdate		DATETIME 		= NULL
 	,@Type				SMALLINT 		= 0
 	,@SecondAcceptFlag	TINYINT			= 0
-	,@BallSequence		VARCHAR(200)	     = ''
-	,@Quarter			VARCHAR(5)		= 'All'
-	,@BetTeams			XML			= NULL
-	,@SingleOrSubParlay VARCHAR(20)	     = 'All'
+	,@BallSequence		VARCHAR(200)	= ''
+	,@Quarter			VARCHAR(200)	= 'All'
+	,@BetTeams			XML				= NULL
+	,@SingleOrSubParlay VARCHAR(20)	    = 'All'
 WITH RECOMPILE
 AS
 /*	Created by: Elodie
@@ -53,6 +53,8 @@ AS
 		- 20190408@Jacob: Separate Filter Parlay Ticket by 1H & 2H [107682]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190601@Jacob: Ticket listing cannot show detail Parlay for CN88 [114437]
+		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
+
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
@@ -122,7 +124,8 @@ BEGIN
 		,LicenseeName	VARCHAR(50)
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
-		
+	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
+			
 	DECLARE @tmpBettransList TABLE (
 		transid				BIGINT --PRIMARY KEY
 		,srecommend			INT
@@ -174,6 +177,14 @@ BEGIN
 	FROM	dbo.f_SplitString(@BetTypes, ',')
 	GROUP BY val
 	OPTION (maxrecursion 0)
+
+	IF (@Quarter <> 'All')
+	BEGIN
+		INSERT INTO @tmpQuarter (Id)
+		SELECT val
+		FROM dbo.f_SplitString(@Quarter, ',')
+		OPTION (maxrecursion 0) 
+	END
 
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
@@ -287,7 +298,8 @@ BEGIN
 				WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 				WHEN 1 THEN 0
 				WHEN 2 THEN 1 END
-			AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
+			AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE b.betid LIKE q.Id + '%')))  
 		UNION ALL
 		SELECT bl.translogid transid 
 			,bl.srecommend
@@ -325,8 +337,8 @@ BEGIN
 			(
 				Id				SMALLINT PRIMARY KEY,
 				BetTeam			NVARCHAR(MAX), 
-				[Set]			VARCHAR(10),
-				Game			VARCHAR(3),
+				[Set]			VARCHAR(500),
+				Game			VARCHAR(500),
 				BetOption		NVARCHAR(250),
 				[Value]			VARCHAR(500),
 				Goal			VARCHAR(10)
@@ -346,8 +358,8 @@ BEGIN
 			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
 			SELECT t.c.value('@Id','SMALLINT') AS Id
 					, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-					, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
-					, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
+					, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
+					, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice
 					, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 					, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
 					, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
@@ -365,17 +377,19 @@ BEGIN
 			FROM (
 				SELECT cte.Id
 					 , bt.val AS BetTeam 
-					 , cte.[Set]
-					 , cte.Game
+					 , se.val AS [Set]
+					 , ga.val AS Game
 					 , bop.val AS BetOption
 					 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
 								ELSE v.val END AS SMALLMONEY) AS [Value]
 					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 								ELSE cte.Goal END AS BIGINT) AS Goal
 				FROM #tblBetType cte
-					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+					 CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
+					 CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
+					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 			) cte
 
 			DELETE b
@@ -440,7 +454,8 @@ BEGIN
 							AND b.matchid = @MatchId
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype
-							AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)  
+							AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																													WHERE b.betid LIKE q.Id + '%')))  
 			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
 		END
 
@@ -534,7 +549,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%'))) 
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
@@ -573,7 +589,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%')))  
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
@@ -648,7 +665,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%'))) 
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -691,7 +709,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%'))) 
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -758,7 +777,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%'))) 
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -797,7 +817,8 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%')))   
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -879,7 +900,8 @@ BEGIN
 				    WHEN 2 THEN 1
 				    END
 			 AND ( b.betid = 0 OR b.betid IS NULL )
-			 AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%'))) 
 		  GROUP BY s.site
 			 ,bm.liveindicator
 			 ,b.bettype
@@ -927,7 +949,8 @@ BEGIN
 				    WHEN 2 THEN 1
 				    END
 			 AND ( b.betid = 0 OR b.betid IS NULL )
-			 AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))  
 		  GROUP BY s.site
 			 ,bm.liveindicator
 			 ,b.bettype
@@ -960,4 +983,3 @@ BEGIN
 	DROP TABLE #TmpBallSequence
 	DROP TABLE #tmpRefCodeSummary
 END
-GO

@@ -12,12 +12,11 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] @MatchId         
                                                                @Type             SMALLINT      = 0,
                                                                @SecondAcceptFlag TINYINT       = 0,
                                                                @BallSequence     VARCHAR(200)  = '',
-                                                               @Quarter          VARCHAR(5)    = 'All',
-	@BetTeams			XML				= NULL,
-	@SingleOrSubParlay VARCHAR(20)	     = 'All'
+                                                               @Quarter          VARCHAR(200)  = 'All',
+															   @BetTeams			XML		   = NULL,
+															   @SingleOrSubParlay VARCHAR(20)  = 'All'
 WITH RECOMPILE
 AS;
-
 /*	Created by: Elodie
 	Date: 20130606
 	Task: Show Tickets Listing Detail and Export to excel for NAP system
@@ -56,6 +55,8 @@ AS;
 		- 20190408@Jacob: Separate Filter Parlay Ticket by 1H & 2H [107682]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190601@Jacob: Ticket listing cannot show detail Parlay for CN88 [114437]
+		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
+
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
@@ -110,6 +111,7 @@ BEGIN
 	IF @Type <> 0 SELECT @LiveType = 2
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
 	SELECT 'match' AS [matchtype]
 	  , matchid
@@ -215,6 +217,14 @@ BEGIN
 	FROM	dbo.f_SplitString(@p_bettypes, ',')
 	GROUP BY val
 	OPTION (maxrecursion 0)
+
+	IF (@Quarter <> 'All')
+	BEGIN
+		INSERT INTO @tmpQuarter (Id)
+		SELECT val
+		FROM dbo.f_SplitString(@Quarter, ',')
+		OPTION (maxrecursion 0) 
+	END
 
 	INSERT INTO #TmpBallSequence(Seq)
 	SELECT  val
@@ -404,7 +414,8 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 								AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END  
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)
+					AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))  
 				UNION ALL
 				SELECT	b.username,
 						b.gameID AS bettype,				
@@ -661,7 +672,8 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)
+					AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))  
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
@@ -910,7 +922,8 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)
+					AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))  
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
@@ -1154,7 +1167,8 @@ BEGIN
 					AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)
+					AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))  
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,				
@@ -1223,8 +1237,8 @@ BEGIN
 			(
 				Id				SMALLINT PRIMARY KEY,
 				BetTeam			NVARCHAR(MAX), 
-				[Set]			VARCHAR(10),
-				Game			VARCHAR(3),
+				[Set]			VARCHAR(500),
+				Game			VARCHAR(500),
 				BetOption		NVARCHAR(250),
 				[Value]			VARCHAR(500),
 				Goal			VARCHAR(10)
@@ -1244,8 +1258,8 @@ BEGIN
 			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
 			SELECT t.c.value('@Id','SMALLINT') AS Id
 					, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-					, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
-					, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
+					, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
+					, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice
 					, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 					, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
 					, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
@@ -1263,17 +1277,19 @@ BEGIN
 			FROM (
 				SELECT cte.Id
 					 , bt.val AS BetTeam 
-					 , cte.[Set]
-					 , cte.Game
+					 , se.val AS [Set]
+					 , ga.val AS Game
 					 , bop.val AS BetOption
 					 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
 								ELSE v.val END AS SMALLMONEY) AS [Value]
 					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 								ELSE cte.Goal END AS BIGINT) AS Goal
 				FROM #tblBetType cte
-					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+					 CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
+					 CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
+					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 			) cte
 
 			DELETE b
@@ -1385,7 +1401,8 @@ BEGIN
 								AND b.matchid = @MatchId
 								AND b.custid = t.custid
 								AND b.bettype = t.bettype
-								AND (@Quarter = 'All' OR b.betid IS NULL OR b.betid LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(b.betid AS VARCHAR(20)) END)
+								AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																														WHERE b.betid LIKE q.Id + '%')))  
 					 INNER JOIN match m WITH (NOLOCK) 
 							 ON b.matchid = m.matchid 						
 				WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
@@ -1478,7 +1495,8 @@ BEGIN
 									AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))  
 		END
 		
 		---IBC
@@ -1566,7 +1584,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))  
 			OPTION	(RECOMPILE)			
 		END 
 
@@ -1651,7 +1670,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))  
 			OPTION	(RECOMPILE)			
 		END 
 
@@ -1735,7 +1755,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END) 
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 		END 		
 	END 
 
@@ -1822,7 +1843,8 @@ BEGIN
 									AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))   
 		END
 		ELSE 
 		
@@ -1910,7 +1932,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 			OPTION	(RECOMPILE)			
 		END 
 		---CN88
@@ -1993,7 +2016,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END)  
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 			OPTION	(RECOMPILE)			
 		END 
 		---ALL
@@ -2075,7 +2099,8 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR bm.betcheck LIKE CASE WHEN b.bettype BETWEEN 609 AND 617 THEN @Quarter + '%' ELSE CAST(bm.betcheck AS VARCHAR(20)) END) 
+				AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))  
 		END 		
 	END 
 	SELECT  username,
@@ -2150,4 +2175,3 @@ BEGIN
 	DROP TABLE #T_Match
 	DROP TABLE #tmpRefCodeSummary
 END	 
-GO
