@@ -15,7 +15,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_3]
     ,@IsSettleAbandonedMatch			BIT = 0
     ,@IsSettleAbandonedMatchBetFair		BIT = 0
     ,@IsSettleAbandonedMatchIBC			BIT = 0
-    ,@isExcludeCorner					BIT = 0 
 	,@IsReSettledTickets				BIT	= 1
     -- add any params, please modify script in 'special section'
 AS
@@ -54,6 +53,7 @@ AS
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -303,7 +303,6 @@ BEGIN
 			WHERE matchid = @matchid AND bettype = @bettype 
 				AND b.custid >= @MinCustId
 				AND statusID NOT IN (101, 102)         
-				AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (197,198,204,205) THEN 0 ELSE 1 END 
 				AND 1 = CASE 
 						WHEN @IsSettleAbandonedMatch = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
 						WHEN @IsSettleAbandonedMatchBetFair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
@@ -345,8 +344,8 @@ BEGIN
 										END	 
 					WHEN betteam = N'h' THEN @totalgoal - hdp1
 					WHEN betteam = N'a' THEN hdp1 - @totalgoal
-					WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,197,198,1312,401,402,461,462
-					WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,197,198,1312,401,402,461,462 
+					WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,1312,401,402,461,462
+					WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,1312,401,402,461,462 
 					WHEN betteam = 'ho' AND @scorediff > 0 THEN @totalgoal - hdp1
 					WHEN betteam = 'hu' AND @scorediff > 0 THEN hdp1 - @totalgoal
 					WHEN betteam = 'ao' AND @scorediff < 0 THEN @totalgoal - hdp1
@@ -545,7 +544,6 @@ BEGIN
 					AND b.custid >= @MinCustId
 					AND bettype = @bettype 
 					AND statusID NOT IN (101, 102)						
-					AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (197,198,204,205) THEN 0 ELSE 1 END 
 					AND 1 = CASE WHEN @bettype NOT IN (156,1312) THEN 1 
 									WHEN @Bettype IN (156,1312) AND @SelectedSet LIKE '%1%' AND BetID = 801 THEN 1 
 									WHEN @Bettype IN (156,1312) AND @SelectedSet LIKE '%2%' AND BetID = 802 THEN 1 

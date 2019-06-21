@@ -24,6 +24,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -185,12 +186,6 @@ BEGIN
 										THEN 1
 									ELSE 0
 								END
-							--WHEN @Mode = 4 THEN --FGLG
-							--	CASE 
-							--		WHEN @Action = 'CAL-HT' AND f.GroupId IN (3) AND f.IsUsedGoalRecordValue = 1 THEN 1
-							--		WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1
-							--		ELSE 0
-							--	END
 							WHEN @Mode = 5 THEN --Conner
 								CASE 
 									WHEN @Action = 'CAL' AND f.GroupId IN (5,6) THEN 1

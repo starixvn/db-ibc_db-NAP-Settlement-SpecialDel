@@ -45,18 +45,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@TennisTotal                   SMALLINT    = NULL
     ,@T_Home                        SMALLINT    = NULL
     ,@T_Away                        SMALLINT    = NULL
-    ,@fthCorners                    INT         = NULL
-    ,@ftaCorners                    INT         = NULL
-    ,@hthCorners                    INT         = NULL
-    ,@htaCorners                    INT         = NULL
-    ,@oddevenCorners                SMALLMONEY  = NULL
-    ,@oddevenCorners_ht             SMALLMONEY  = NULL
-    ,@totalCorners                  SMALLMONEY  = NULL
-    ,@totalCorners_ht               SMALLMONEY  = NULL
-    ,@FTFCorner                     VARCHAR(10) = NULL
-    ,@FTLCorner                     VARCHAR(10) = NULL
-    ,@HTFCorner                     VARCHAR(10) = NULL
-    ,@HTLCorner                     VARCHAR(10) = NULL
     ,@SelectedSet                   VARCHAR(50) = NULL
     ,@SelectedSettleFinishedGame    VARCHAR(50) = NULL
     ,@TotalGameHomeMatch            INT         = NULL
@@ -175,7 +163,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@IsSettleAbandonedMatchIBC     BIT         = 0
     ,@LGOnly                        BIT         = NULL
     ,@IncludeLG                     BIT         = NULL
-    ,@isExcludeCorner               BIT         = 0
     ,@matchdate                     DATETIME    = NULL
     ,@xmlData                       VARCHAR(MAX)= NULL
 	,@strTransCashout				VARCHAR (MAX) = NULL OUTPUT
@@ -235,6 +222,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190426@Kathy: Remove redundant param on cricket sp [Redmine:#112572]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
     Param's Explanation:
         @action             @mode
@@ -329,19 +317,7 @@ BEGIN
             + CASE WHEN @ht_lg IS NULL THEN '' ELSE ',@ht_lg = ' + '''' + CONVERT(NVARCHAR(50), @ht_lg) + '''' END
             + CASE WHEN @TennisTotal IS NULL THEN '' ELSE ',@TennisTotal = ' + CONVERT(NVARCHAR(50), @TennisTotal) END
             + CASE WHEN @T_Home IS NULL THEN '' ELSE ',@T_Home = ' + CONVERT(NVARCHAR(50), @T_Home) END
-            + CASE WHEN @T_Away IS NULL THEN '' ELSE ',@T_Away = ' + CONVERT(NVARCHAR(50), @T_Away) END
-            + CASE WHEN @fthCorners IS NULL THEN '' ELSE ',@fthCorners = ' + CONVERT(NVARCHAR(50), @fthCorners) END
-            + CASE WHEN @ftaCorners IS NULL THEN '' ELSE ',@ftaCorners = ' + CONVERT(NVARCHAR(50), @ftaCorners) END
-            + CASE WHEN @hthCorners IS NULL THEN '' ELSE ',@hthCorners = ' + CONVERT(NVARCHAR(50), @hthCorners) END
-            + CASE WHEN @htaCorners IS NULL THEN '' ELSE ',@htaCorners = ' + CONVERT(NVARCHAR(50), @htaCorners) END
-            + CASE WHEN @oddevenCorners IS NULL THEN '' ELSE ',@oddevenCorners = ' + CONVERT(NVARCHAR(50), @oddevenCorners) END
-            + CASE WHEN @oddevenCorners_ht IS NULL THEN '' ELSE ',@oddevenCorners_ht = ' + CONVERT(NVARCHAR(50), @oddevenCorners_ht) END
-            + CASE WHEN @totalCorners IS NULL THEN '' ELSE ',@totalCorners = ' + CONVERT(NVARCHAR(50), @totalCorners) END
-            + CASE WHEN @totalCorners_ht IS NULL THEN '' ELSE ',@totalCorners_ht = ' + CONVERT(NVARCHAR(50), @totalCorners_ht) END
-            + CASE WHEN @ftFCorner IS NULL THEN '' ELSE ',@ftFCorner = ' + '''' + CONVERT(NVARCHAR(50), @ftFCorner) + '''' END
-            + CASE WHEN @ftLCorner IS NULL THEN '' ELSE ',@ftLCorner = ' + '''' + CONVERT(NVARCHAR(50), @ftLCorner) + '''' END
-            + CASE WHEN @htFCorner IS NULL THEN '' ELSE ',@htFCorner = ' + '''' + CONVERT(NVARCHAR(50), @htFCorner) + '''' END
-            + CASE WHEN @htLCorner IS NULL THEN '' ELSE ',@htLCorner = ' + '''' + CONVERT(NVARCHAR(50), @htLCorner) + '''' END
+            + CASE WHEN @T_Away IS NULL THEN '' ELSE ',@T_Away = ' + CONVERT(NVARCHAR(50), @T_Away) END    
             + CASE WHEN @SelectedSet IS NULL THEN '' ELSE ',@SelectedSet = ' + '''' + CONVERT(NVARCHAR(50), @SelectedSet) + '''' END
             + CASE WHEN @SelectedSettleFinishedGame IS NULL THEN '' ELSE ',@SelectedSettleFinishedGame = ' + '''' + CONVERT(NVARCHAR(50), @SelectedSettleFinishedGame) + '''' END
             + CASE WHEN @TotalGameHomeMatch IS NULL THEN '' ELSE ',@TotalGameHomeMatch = ' + CONVERT(NVARCHAR(50), @TotalGameHomeMatch) END
@@ -453,7 +429,6 @@ BEGIN
             + CASE WHEN @IsSettleAbandonedMatchIBC IS NULL THEN '' ELSE ',@IsSettleAbandonedMatchIBC = ' + CONVERT(NVARCHAR(50), @IsSettleAbandonedMatchIBC) END
             + CASE WHEN @LGOnly IS NULL THEN '' ELSE ',@LGOnly = ' + CONVERT(NVARCHAR(50), @LGOnly) END
             + CASE WHEN @IncludeLG IS NULL THEN '' ELSE ',@IncludeLG = ' + CONVERT(NVARCHAR(50), @IncludeLG) END
-            + CASE WHEN @isExcludeCorner IS NULL THEN '' ELSE ',@isExcludeCorner = ' + CONVERT(NVARCHAR(50), @isExcludeCorner) END
             + CASE WHEN @matchdate IS NULL THEN '' ELSE ',@matchdate = ' + '''' + CONVERT(NVARCHAR(50), @matchdate) + '''' END
             + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + CONVERT(VARCHAR(MAX), @strBettypes) + '''' END
             + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + CONVERT(VARCHAR(MAX), @strTransIds) + '''' END
@@ -1057,84 +1032,7 @@ BEGIN
                         ,@hth = @hth
                         ,@hta = @hta
                         ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 194 : Corners Odd/Even
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 194)
-                                        EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                        ,@bettype = 194
-                        ,@oddeven = @oddevenCorners
-                        ,@oddevenht = NULL
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 195 :Home Team Exact Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 195)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 195
-                        ,@totalgoal = @fthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 196 :Away Team Exact Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 196)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 196
-                        ,@totalgoal = @ftaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-
-                -- bettype 197 :Home Team Total Corners Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 197)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 197
-                        ,@totalgoal = @fthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 198 :Home Team Total Corners Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 198)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 198
-                        ,@totalgoal = @ftaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 199 :Total Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 199)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 199
-                        ,@totalgoal = @totalCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype: 206: First Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 206)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid = @matchid
-                        ,@bettype = 206
-                        ,@result = @ftFCorner
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype: 208: Last Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 208)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid = @matchid
-                        ,@bettype = 208
-                        ,@result = @ftLCorner
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
+						,@IsReSettledTickets = @IsReSettledTickets        
             --*** Betradar 2: END *****
 
             --Bettrade
@@ -1882,81 +1780,7 @@ BEGIN
                         ,@scorediff = @scorediff_ht
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 200 :1H Home Team Exact Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 200)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 200
-                        ,@totalgoal = @hthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 201 :1H Away Team Exact Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 201)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 201
-                        ,@totalgoal = @htaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 202 :1H Total Corners
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 202)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 202
-                        ,@totalgoal = @totalCorners_ht
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 203 : 1H Corners Odd/Even
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 203)
-                                        EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                        ,@bettype = 203
-                        ,@oddeven = @oddevenCorners_ht
-                        ,@oddevenht = NULL
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 204 :1H Home Corner Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 204)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 204
-                        ,@totalgoal = @hthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype 205 :1H Away Corner Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 205)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 205
-                        ,@totalgoal = @htaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype: 207: 1H First Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 207)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid = @matchid
-                        ,@bettype = 207
-                        ,@result = @htFCorner
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                -- bettype: 209: 1H Last Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 209)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid = @matchid
-                        ,@bettype = 209
-                        ,@result = @htLCorner
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+             
             --*** Betradar 2: END ****
 
                 --Bettrade
@@ -2868,151 +2692,6 @@ BEGIN
             END
         END
 
-        IF @action ='CAL-CORNER'
-        BEGIN
-            /* HT Corners */
-
-                -- bettype 200 :1H Home Team Exact Corners
-            IF @betcount_200 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 200
-                    ,@totalgoal = @hthCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_200
-
-
-                -- bettype 201 :1H Away Team Exact Corners
-            IF @betcount_201 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 201
-                    ,@totalgoal = @htaCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_201
-
-                -- bettype 202 :1H Total Corners
-            IF @betcount_202 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 202
-                    ,@totalgoal = @totalCorners_ht
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_202
-
-                -- bettype 203 : 1H Corners Odd/Even
-            IF @betcount_203 > 0
-                                EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                    ,@bettype = 203
-                    ,@oddeven = @oddevenCorners_ht
-                    ,@oddevenht = NULL
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_203
-
-                -- bettype 204 :1H Home Corner Over/Under
-            IF @betcount_204 >0
-                EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                    ,@bettype = 204
-                    ,@totalgoal = @hthCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_204
-
-                -- bettype 205 :1H Away Corner Over/Under
-            IF @betcount_205 > 0
-                EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                    ,@bettype = 205
-                    ,@totalgoal = @htaCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_205
-
-                -- bettype: 207: 1H First Corner
-            IF @betcount_207 > 0
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 207
-                    ,@result = @htFCorner
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_207
-
-                -- bettype: 209: 1H Last Corner
-            IF @betcount_209 >0
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 209
-                    ,@result = @htLCorner
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_209
-            /*END: HT Corners */
-
-            /* FT Corners */
-                -- bettype 194 : Corners Odd/Even
-            IF @betcount_194 > 0
-                                EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                    ,@bettype = 194
-                    ,@oddeven = @oddevenCorners
-                    ,@oddevenht = NULL
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_194
-
-                -- bettype 195 :Home Team Exact Corners
-            IF @betcount_195 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 195
-                    ,@totalgoal = @fthCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_195
-
-                -- bettype 196 :Away Team Exact Corners
-            IF @betcount_196 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 196
-                    ,@totalgoal = @ftaCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_196
-
-
-                -- bettype 197 :Home Team Total Corners Over/Under
-            IF @betcount_197 > 0
-                EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                    ,@bettype = 197
-                    ,@totalgoal = @fthCorners
-                    ,@isExcludeCorner = @isExcludeCorner
-                    ,@betcount = @betcount_197
-
-                -- bettype 198 :Home Team Total Corners Over/Under
-            IF @betcount_198 > 0
-                EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                    ,@bettype = 198
-                    ,@totalgoal = @ftaCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_198
-
-                -- bettype 199 :Total Corners
-            IF @betcount_199 > 0
-                                EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                    ,@bettype = 199
-                    ,@totalgoal = @totalCorners
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_199
-
-                -- bettype: 206: First Corner
-            IF @betcount_206 > 0
-                EXEC dbo.NAP_Admin_Calculate_135
-                        @matchid = @matchid
-                    ,@bettype = 206
-                    ,@result = @ftFCorner
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_206
-
-                -- bettype: 208: Last Corner
-            IF @betcount_208 > 0
-                EXEC dbo.NAP_Admin_Calculate_135
-                        @matchid = @matchid
-                    ,@bettype = 208
-                    ,@result = @ftLCorner
-                    ,@isExcludeCorner = 0
-                    ,@betcount = @betcount_208
-            /* END: FT Corners */
-
-        END
-
         IF @action = 'REFUND'
         BEGIN
             -- For bettype FT ONLY (SDT)
@@ -3373,45 +3052,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsHTCal = @IsHTCal
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 195)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 195
-                        ,@totalgoal = @fthCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 196)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 196
-                        ,@totalgoal = @ftaCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 199)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 199
-                        ,@totalgoal = @totalCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 206)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                            @matchid                    = @matchid
-                        ,@bettype                    = 206
-                        ,@result                    = @FTFCorner
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@betcount                    = 1
 
                 /* Myanmar odds*/
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 302)
@@ -3893,28 +3533,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 
-                --197: Home Team Total Corners Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 197)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 197
-                        ,@totalgoal = @fthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-
-                --198: Home Team Total Corners Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 198)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 198
-                        ,@totalgoal = @ftaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-
                 --434: Both Halves Over 1.5 Yes/No (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 434)
                     EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
@@ -4368,84 +3986,7 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 195)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 195
-                        ,@totalgoal = @fthCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 196)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 196
-                        ,@totalgoal = @ftaCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 199)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 199
-                        ,@totalgoal = @totalCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 200)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 200
-                        ,@totalgoal = @hthCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 201)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 201
-                        ,@totalgoal = @htaCorners
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 202)
-                                        EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-                        ,@bettype = 202
-                        ,@totalgoal = @totalCorners_ht
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 206)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid                    = @matchid
-                        ,@bettype                    = 206
-                        ,@result                    = @FTFCorner
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@betcount                    = 1
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 207)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid                    = @matchid
-                        ,@bettype                    = 207
-                        ,@result                    = @HTFCorner
-                        ,@IsSettleAbandonedMatch    = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@betcount                    = 207
-
+              
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 216)
                     EXEC dbo.NAP_Admin_Calculate_135
                          @matchid                       = @matchid
@@ -4850,50 +4391,8 @@ BEGIN
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                --197: Home Team Total Corners Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 197)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 197
-                        ,@totalgoal = @fthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-
-                --198: Home Team Total Corners Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 198)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 198
-                        ,@totalgoal = @ftaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-
-                --204: 1H Home Corner Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 204)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 204
-                        ,@totalgoal = @hthCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-
-                --205: 1H Away Corner Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 205)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 205
-                        ,@totalgoal = @htaCorners
-                        ,@isExcludeCorner = @isExcludeCorner
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair 
+            
                 --435: Both Halves Under 1.5 Yes/No (own)
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 435)
                     EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid

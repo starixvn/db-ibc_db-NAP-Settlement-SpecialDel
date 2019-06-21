@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -17,7 +13,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	, @TennisTotal 		INT = NULL
 	, @TotalGameHomeMatch INT = NULL
 	, @TotalGameAwayMatch INT = NULL
-	, @resultDetail_cb 	VARCHAR(MAX) = NULL
 	, @resultDetail_ss 	VARCHAR(MAX) = NULL
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
 	, @resultDetail		VARCHAR(MAX) = NULL
@@ -37,6 +32,7 @@ AS
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -50,16 +46,6 @@ BEGIN
 		, @ft_lg 			VARCHAR(10)
 		, @ht_fg 			VARCHAR(10)
 		, @ht_lg 			VARCHAR(10)
-		
-		-- coner bets
-		,@fthCorners        INT = NULL 
-		,@ftaCorners        INT = NULL 
-		,@hthCorners        INT = NULL 
-		,@htaCorners        INT = NULL     
-		,@FTFCorner         VARCHAR(10)    = NULL 
-		,@FTLCorner         VARCHAR(10)    = NULL 
-		,@HTFCorner         VARCHAR(10)    = NULL 
-		,@HTLCorner         VARCHAR(10)    = NULL
 		
 	DECLARE
 		@homeScoreSet1         tinyint
@@ -199,32 +185,13 @@ BEGIN
 						END
 					WHEN @Mode IN ('REFUND-FT', 'ABANDONED-2H') THEN 
 						CASE 
-							WHEN f.GroupId IN (1,3,5,7) AND @IsRefundHT = 0 THEN 1 
+							WHEN f.GroupId IN (1,3,7) AND @IsRefundHT = 0 THEN 1 
 							ELSE 0
 						END
 					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype IN (2,5)) THEN 1
 					ELSE 0
 				END
 			AND f.GroupId NOT IN (8,9) --Exclude BetRadar, FM
-	
-	IF @Sporttype = 1 AND @resultDetail_cb IS NOT NULL -- corners bets 
-	BEGIN
-		DECLARE @xmlCorner	XML
-		
-		SET @xmlCorner = CONVERT(XML, @resultDetail_cb)    
-		
-		SELECT @fthCorners = ISNULL(T.C.value('./@fthCorners[1]', 'int'), 0)
-			,@ftaCorners = ISNULL(T.C.value('./@ftaCorners[1]', 'int'), 0)
-			,@hthCorners = ISNULL(T.C.value('./@hthCorners[1]', 'int'), 0)
-			,@htaCorners = ISNULL(T.C.value('./@htaCorners[1]', 'int'), 0)
-			,@ftfCorner = ISNULL(T.C.value('./@ftfCorner[1]', 'varchar(10)'), '')
-			,@htfCorner = ISNULL(T.C.value('./@htfCorner[1]', 'varchar(10)'), '')
-			,@ftlCorner = ISNULL(T.C.value('./@ftlCorner[1]', 'varchar(10)'), '')
-			,@htlCorner = ISNULL(T.C.value('./@htlCorner[1]', 'varchar(10)'), '')
-		FROM @xmlCorner.nodes('/root/r') as [T](C) --T: table, C: column    
-		OPTION ( OPTIMIZE FOR ( @xmlCorner = NULL ) )    
-	
-	END
 	
 	IF @sportType = 1 AND @resultDetail IS NOT NULL
 	BEGIN
@@ -502,15 +469,7 @@ BEGIN
 						, @SetxGameyDRAW
 						, @SetxGameyREFUND
 						, @SelectedSetCAL
-						, @SelectedSetREFUND
-						, @fthCorners
-						, @ftaCorners
-						, @hthCorners
-						, @htaCorners
-						, @FTFCorner
-						, @FTLCorner
-						, @HTFCorner
-						, @HTLCorner
+						, @SelectedSetREFUND					
 						, @penaltyshootout
 						, @matchDecidedMethod
 						, @first10Min1x2
@@ -580,6 +539,3 @@ BEGIN
 	RETURN
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_Calculate] TO [bodbAdminNet]
-GO
-

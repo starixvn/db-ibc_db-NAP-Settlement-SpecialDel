@@ -34,6 +34,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
 		- 20190611@Sol: Incorporate PHAIO 4 - Remove bettype 9 [Redmine:#112885]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 	Param's Explanation:
 */
@@ -122,7 +123,6 @@ BEGIN
 
 		-- for Tennis/VolleyBall/Badminton/Squash
 		DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
-		DECLARE @resultDetail_cb VARCHAR(MAX) -- for cornersBets
 		DECLARE @resultDetail_ss VARCHAR(MAX) -- sporttingSolution
 		DECLARE @resultDetail_br VARCHAR(MAX) -- for betRadar
 		DECLARE @resultDetail_bb VARCHAR(MAX) -- basketball
@@ -243,10 +243,6 @@ BEGIN
 		BEGIN
 			IF @Sporttype = 1
 			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'cornersBets'
-					,@matchid = @matchID
-					,@str_resultDetail = @resultDetail_cb OUTPUT
-
 				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
 					,@matchid = @matchID
 					,@str_resultDetail = @resultDetail OUTPUT
@@ -295,7 +291,6 @@ BEGIN
 				@SelectedSet = @SelectedSet,
 				@TennisTotal = @TennisTotal,
 				@ResourceIDs = @ResourceIDs,
-				@resultDetail_cb = @resultDetail_cb,
 				@resultDetail = @resultDetail,
 				@strBettypes = @strBettypes,
 				@betstatus	= @betstatus,

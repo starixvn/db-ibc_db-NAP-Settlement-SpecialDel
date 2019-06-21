@@ -14,10 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @Action                     VARCHAR(10)         = NULL,
     @FTDone                     BIT = 0,
     @HTDone                     BIT = 0,
-    @NoneCornerBetDone          BIT = 0,
-    @HTNoneCornerBetDone        BIT = 0,
-    @isExcludeCorner            BIT = 0,
-    @isExistRunningCornerBet    BIT = 0,
     @RowCount                   INT = 0 OUTPUT,
 	@Creator 					INT = 0,
 	@IsFinalRound               BIT = NULL
@@ -56,7 +52,7 @@ AS
 		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
-
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
     Parameters Explanation:
 
 
@@ -102,14 +98,10 @@ BEGIN
             goalrecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
                               WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> '' AND CHARINDEX(';',GoalRecord) > 0 THEN REPLACE(GoalRecord,LEFT(GoalRecord,CHARINDEX(';',GoalRecord)),(LEFT(@goalrecord,CHARINDEX(';',@goalrecord)))) -- only update HT part
                               ELSE @goalrecord END,
-            eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (1,2,5)		THEN N'completed'
-								WHEN @action = 'CAL' AND Sporttype = 1 AND @isExcludeCorner = 0 THEN N'completed'
-								WHEN @action = 'CAL' AND Sporttype = 1 AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
+            eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (2,5)		THEN N'completed'
 								WHEN @action = 'CAL' AND ((Sporttype = 5 AND @SelectedSet LIKE '%6%') OR (sporttype = 2 AND @SelectedQuarter LIKE '%FT%')) THEN N'completed'
-								WHEN @action = 'CAL-HT' AND @FTDone = 1 AND @isExcludeCorner = 0 THEN N'completed'
-								WHEN @action = 'CAL-HT' AND @FTDone = 1 AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
-								WHEN @action = 'CAL-FT' AND @HTDone = 1 AND @isExcludeCorner = 0 THEN N'completed'
-								WHEN @action = 'CAL-FT' AND @HTDone = 1 AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'								
+								WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
+								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 							ELSE eventstatus END,
             changetime = GETDATE(),
             settleTime = CASE
@@ -306,9 +298,7 @@ BEGIN
             ,eventstatus = CASE WHEN @HTDone=1 THEN 'Completed' ELSE eventstatus END
             ,changetime  = GETDATE(), settleTime = GETDATE()
         WHERE matchid=@MatchID
-              AND (@HTDone = 1
-                    OR  @HTNoneCornerBetDone = 1
-                  )
+              AND @HTDone = 1                  
 
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
@@ -355,25 +345,7 @@ BEGIN
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
     END
-    --IF @Command = 'NAP_Admin_Settlement-FGLG'
-    --BEGIN
-    --    UPDATE match WITH(ROWLOCK,UPDLOCK)
-    --    SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus
-    --                    ELSE @betstatus + ';' END
-    --        , GoalRecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
-    --                           WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> ''
-    --                                THEN REPLACE(GoalRecord, LEFT(GoalRecord, CHARINDEX(';', GoalRecord)), (LEFT(@goalrecord, CHARINDEX(';', @goalrecord)))) -- only update HT part
-    --                        ELSE @goalrecord END
-    --        , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
-    --        , changetime = GETDATE()
-    --        , settleTime = GETDATE()
-    --    WHERE matchid = @MatchID
 
-    --END
-    --IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
-    --BEGIN
-    --    UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID
-    --END
     IF @Command IN ('NAP_Admin_Settlement_Parlay', 'NAP_Admin_Settlement_Refund_MP')
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET multiple=multiple, changetime = GETDATE() WHERE matchid=@MatchID
@@ -387,14 +359,6 @@ BEGIN
             ,changetime = GETDATE()
             --,settletime = GETDATE()
         WHERE matchid = @matchid
-    END
-    IF @Command = 'NAP_Admin_Settlement_Corner-CAL'
-    BEGIN
-        UPDATE dbo.Match WITH (UPDLOCK,ROWLOCK)
-        SET eventstatus = CASE WHEN @NoneCornerBetDone = 1 THEN N'completed' ELSE eventstatus END
-            , changetime = CURRENT_TIMESTAMP
-           -- , settletime = CURRENT_TIMESTAMP
-        WHERE MatchID = @MatchID
     END
     IF @Command = 'NAP_Admin_Settlement_s161-Refund'
     BEGIN

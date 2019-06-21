@@ -6,8 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_135] @matchid INT
 	,@result						NVARCHAR(MAX)   = ''
 	,@IsSettleAbandonedMatchIBC		BIT = 0
 	,@IsSettleAbandonedMatch		BIT = 0
-	,@IsSettleAbandonedMatchBetFair BIT = 0
-	,@isExcludeCorner				BIT = 0 
+	,@IsSettleAbandonedMatchBetFair BIT = 0	
 	,@IsReSettledTickets			BIT	= 1
 	-- add any params, please modify script in 'special section'
 AS
@@ -30,6 +29,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190408@Sol: Settlement Time [Redmine:#99638]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 */
 BEGIN 
 	SET NOCOUNT ON
@@ -102,9 +102,7 @@ BEGIN
 
 			UPDATE dbo.bettrans WITH (ROWLOCK, UPDLOCK)
 			SET @modds = CASE 
-							WHEN bettype = 216 AND  CHARINDEX(betteam,@result)>0 THEN 1 
-							WHEN bettype IN (206,207) AND Betteam=@Result AND @Result IN('H','A') THEN 1
-							WHEN bettype IN (206,207) AND Betteam<>@Result AND @Result IN('H','A') THEN -1 
+							WHEN bettype = 216 AND  CHARINDEX(betteam,@result)>0 THEN 1 				
 							ELSE NULL
 						END
 				,modds = @modds
@@ -122,7 +120,7 @@ BEGIN
 								WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 										WHEN odds < 0 THEN 1
 										ELSE CASE 
-												WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
+												WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
 												ELSE odds 
 												END
 										END
@@ -141,7 +139,7 @@ BEGIN
 				WHEN @modds > 0 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE CASE 
-								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
+								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
 								ELSE odds
 								END
 						END
@@ -154,7 +152,7 @@ BEGIN
 				WHEN @modds > 0 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE CASE 
-								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
+								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
 								ELSE odds 
 								END
 						END
@@ -167,7 +165,7 @@ BEGIN
 				WHEN @modds > 0 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE CASE 
-								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
+								WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,22,455) THEN odds - 1
 								ELSE odds 
 								END
 						END
@@ -212,7 +210,6 @@ BEGIN
 					 END
 			WHERE	matchid = @matchid 
 					AND bettype = @bettype 
-					AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (206,207,208,209) THEN 0 ELSE 1 END 
 					AND statusID NOT IN (101, 102)
 					AND 1 = CASE 
 								WHEN @IsSettleAbandonedMatch = 1 AND (custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
@@ -293,7 +290,7 @@ BEGIN
 									WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 											WHEN odds < 0 THEN 1
 											ELSE CASE 
-													WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
+													WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
 													ELSE odds 
 													END
 											END
@@ -310,7 +307,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
+									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
 									ELSE odds
 									END
 							END
@@ -322,7 +319,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
+									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
 									ELSE odds 
 									END
 							END
@@ -334,7 +331,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,206,207,208,209,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
+									WHEN bettype IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217,424,22,455) THEN odds - 1
 									ELSE odds 
 									END
 							END
@@ -389,7 +386,6 @@ BEGIN
 				) mt
 			WHERE	matchid = @matchid 
 					AND bettype = @bettype 
-					AND 1 = CASE WHEN @isExcludeCorner = 1 AND @bettype IN (206,207,208,209) THEN 0 ELSE 1 END 
 					AND 1 = CASE 
 								WHEN @Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(betID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
 								WHEN @Bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(betID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 

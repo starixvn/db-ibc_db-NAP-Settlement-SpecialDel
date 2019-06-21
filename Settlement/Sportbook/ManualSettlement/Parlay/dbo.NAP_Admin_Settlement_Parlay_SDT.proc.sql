@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_SDT] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -29,6 +25,7 @@ AS
 	Revisions:		
 		- 20170719@Kathy: add metadata
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
@@ -42,17 +39,6 @@ BEGIN
 		, @hScore2H			TINYINT
 		, @aScore2H			TINYINT
 		
-	--conners result
-		, @hthCorners		TINYINT
-		, @htaCorners		TINYINT
-		, @fthCorners		TINYINT
-		, @ftaCorners		TINYINT
-		, @ftFCorner		VARCHAR(1)
-		, @htFCorner		VARCHAR(1)
-		
-		, @totalConner		TINYINT
-		, @totalConner1H 	TINYINT
-		
 		, @ft_fg 			VARCHAR(10)
 		, @ft_lg 			VARCHAR(10)
 		, @ht_fg 			VARCHAR(10)
@@ -60,14 +46,7 @@ BEGIN
 		
 		, @xmlResultDetail		XML
 		
-	DECLARE @rsQuery			NVARCHAR(MAX)
-	
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
-	CREATE TABLE #tmpResultDetail (
-		ResourceID 			VARCHAR(20)
-		, HomeValue 		VARCHAR(50)
-		, AwayValue 		VARCHAR(50)
-	)	
 	
 	SELECT @IsHT			= CASE WHEN @Mode IN ('ABANDONED-1H') THEN 1 ELSE 0 END 
 		, @hScore1H 		= @hthomescore
@@ -75,13 +54,6 @@ BEGIN
 		, @hScore2H			= CASE WHEN @IsHT = 0 THEN @fthomescore - @hthomescore ELSE 0 END
 		, @aScore2H			= CASE WHEN @IsHT = 0 THEN @ftawayscore - @htawayscore ELSE 0 END
 								
-		--conners--------------
-		, @hthCorners		= 0
-		, @htaCorners		= 0
-		, @fthCorners		= 0
-		, @ftaCorners		= 0
-		, @ftFCorner		= ''
-		, @htFCorner		= ''
 		, @ticketCount		= 0
 		
 	
@@ -125,37 +97,6 @@ BEGIN
 	WHERE r.SettlementStatusID = 4
 	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
 		
-	SET @rsQuery = '
-		INSERT INTO #tmpResultDetail(ResourceID, HomeValue, AwayValue)	
-		SELECT ResourceID, HomeValue, AwayValue
-		FROM OPENQUERY([DBPRO],''SELECT ResourceID, HomeValue, AwayValue
-		FROM bodb02.dbo.ResultDetail rs WITH(NOLOCK)
-		WHERE matchid = '+CAST(@matchid AS VARCHAR(10))+' 
-			AND SettlementStatusID = ' + 
-			CASE WHEN @IsHT = 1 THEN '5' ELSE '6' END
-			+ ''') AS rs'
-	
-	EXEC sp_executesql @rsQuery
-	
-	IF(@@ROWCOUNT > 0)
-	BEGIN
-		SELECT @hthCorners		= CASE WHEN ResourceID = '05' THEN CAST(HomeValue AS TINYINT) ELSE @hthCorners END
-			, @htaCorners		= CASE WHEN ResourceID = '05' THEN CAST(AwayValue AS TINYINT) ELSE @htaCorners END
-			, @fthCorners		= CASE WHEN ResourceID = '04' THEN CAST(HomeValue AS TINYINT) ELSE @fthCorners END
-			, @ftaCorners		= CASE WHEN ResourceID = '04' THEN CAST(AwayValue AS TINYINT) ELSE @ftaCorners END
-			, @ftFCorner		= CASE WHEN ResourceID = '206' THEN HomeValue ELSE @ftFCorner END
-			, @htFCorner		= CASE WHEN ResourceID = '207' THEN HomeValue ELSE @htFCorner END
-			
-		FROM #tmpResultDetail
-	END
-	
-	SELECT @totalConner			= CASE WHEN @IsHT = 1 THEN (@hthCorners + @htaCorners) ELSE (@fthCorners + @ftaCorners) END
-		, @totalConner1H 		= (@hthCorners + @htaCorners)
-		--------reset FT conners results
-		, @fthCorners			= CASE WHEN @IsHT = 1 THEN @hthCorners 	ELSE @fthCorners END
-		, @ftaCorners			= CASE WHEN @IsHT = 1 THEN @htaCorners 	ELSE @ftaCorners END
-		, @ftFCorner			= CASE WHEN @IsHT = 1 THEN @htFCorner 	ELSE @ftFCorner END
-	
 	INSERT INTO #SDTBettypes (bettype)
 	SELECT f.BetType
 	FROM dbo.f_Set_GetGroupBettypes() f
@@ -163,8 +104,8 @@ BEGIN
 				WHEN @IsHT = 1 THEN 1
 				WHEN @IsHT = 0 THEN  -- FT, FT corner, HTFT-FGLG
 					CASE 
-						WHEN @IsRefundHT = 0 AND f.GroupId IN (2,4,6) THEN 1
-						WHEN @IsRefundHT = 1 AND f.GroupId IN (2,4,6) AND f.Is3x30 = 0 THEN 1
+						WHEN @IsRefundHT = 0 AND f.GroupId IN (2,4) THEN 1
+						WHEN @IsRefundHT = 1 AND f.GroupId IN (2,4) AND f.Is3x30 = 0 THEN 1
 						ELSE 0
 					END
 				ELSE 0
@@ -236,24 +177,6 @@ BEGIN
 							WHERE modds IS NOT NULL
 							UNION ALL
 							SELECT modds, StatusId 
-							FROM [dbo].[f_Set_Parlay_SDT_CalModds_Corner](
-								b.bettype
-								, b.betteam
-								, b.hdp1
-								, b.hdp2
-								, @totalConner
-								, @totalConner1H
-								, @ftFCorner
-								, @htFCorner
-								, @hthCorners
-								, @htaCorners
-								, @fthCorners
-								, @ftaCorners
-								, @IsHT
-							)
-							WHERE modds IS NOT NULL
-							UNION ALL
-							SELECT modds, StatusId 
 							FROM [dbo].[f_Set_Parlay_SDT_CalModds_GoalRecord](
 								b.bettype
 								, b.betteam
@@ -272,12 +195,6 @@ BEGIN
 				) AS b FOR XML AUTO
 			) AS VARCHAR(MAX))
 					
-			--select @matchid
-			--	,@matchdate
-			--	,@mode AS mode
-			--	,'REFUND' AS [action] 		
-			--	,@strTicket AS strTransIds
-			
 			IF(@strTicket IS NOT NULL)
 			BEGIN
 				EXEC dbo.NAP_Admin_Calculate_MP_broker 
@@ -294,14 +211,10 @@ BEGIN
 		
 		END
 		
-	END
-	
+	END	
 	
 	DROP TABLE #SDTBettypes
-	DROP TABLE #tmpResultDetail
 	
 	RETURN
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_SDT] TO [bodbAdminNet]
 GO

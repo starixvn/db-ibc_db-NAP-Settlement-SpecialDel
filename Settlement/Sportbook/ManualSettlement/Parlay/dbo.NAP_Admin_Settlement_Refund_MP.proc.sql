@@ -19,6 +19,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 
 	Param's Explanation:		
@@ -33,7 +34,6 @@ BEGIN
 		, @stop 				DATETIME
 		, @ActionID 			INT
 		, @IsDetermined 		BIT
-		, @resultDetail_cb 		VARCHAR(MAX) = NULL -- for corners bets
 		, @resultDetail_ss 		VARCHAR(MAX)
 		, @resultDetail_bb		VARCHAR(MAX) -- for basketball
 		, @resultDetail			VARCHAR(MAX)
@@ -142,11 +142,6 @@ BEGIN
 	IF @Sporttype = 1
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_2 
-			@mode 				= 'cornersBets'
-			,@matchid 			= @matchID
-			,@str_resultDetail 	= @resultDetail_cb OUTPUT
-		
-		EXEC dbo.NAP_Admin_Settlement_2 
 			@mode 				= 'all'
 			,@matchid 			= @matchID
 			,@str_resultDetail 	= @resultDetail OUTPUT
@@ -228,7 +223,6 @@ BEGIN
 				,@Sporttype			= @Sporttype
 				,@betstatus 		= @betstatus
 				,@GoalSequence 		= @GoalRecord
-				,@resultDetail_cb	= @resultDetail_cb
 				,@resultDetail_ss	= @resultDetail_ss
 				,@resultDetail_bb	= @resultDetail_bb
 				,@resultDetail		= @resultDetail

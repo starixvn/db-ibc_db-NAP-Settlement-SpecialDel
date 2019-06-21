@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push] 
     @MatchId                        INT
     ,@AdminId                       INT
@@ -12,11 +8,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push]
     ,@IsSettleAbandonedMatchBetFair BIT             = 0
     ,@HalfTimeHome                	INT             = NULL
     ,@HalfTimeAway                	INT             = NULL
-    ,@isExistTotalCorner            BIT            	= 0 
-    ,@isExistHTFCorner            	BIT            	= 0 
-    ,@isExistHTLCorner            	BIT            	= 0 
-    ,@isExistFTFCorner            	BIT            	= 0 
-    ,@isExistFTLCorner            	BIT            	= 0
     ,@ResourceResult				VARCHAR(MAX)	= NULL
     ,@IP                            VARCHAR(15)   	= ''
     ,@ErrCode                       INT           	= 0     OUTPUT
@@ -37,7 +28,8 @@ AS
 		- 20170321@Bobby: #73407 - CashOut integration
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
-    
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
     • @IsExcludeBetdaq: Is Exclude betdaq tickets or not
@@ -121,11 +113,6 @@ BEGIN
                                                                  + ', @IsSettleAbandonedMatchBetFair = ' + CONVERT(NVARCHAR(1), @IsSettleAbandonedMatchBetFair) 
                                                                  + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
                                                                  + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
-                                                                  + ', @isExistTotalCorner = ' + CONVERT(NVARCHAR(1), @isExistTotalCorner)
-                                                                 + ', @isExistHTFCorner = ' + CONVERT(NVARCHAR(1), @isExistHTFCorner)
-                                                                 + ', @isExistHTLCorner = ' + CONVERT(NVARCHAR(1), @isExistHTLCorner)
-                                                                 + ', @isExistFTFCorner = ' + CONVERT(NVARCHAR(1), @isExistFTFCorner)
-                                                                 + ', @isExistFTLCorner = ' + CONVERT(NVARCHAR(1), @isExistFTLCorner)
                                                                  + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @ResourceResult + '''' END 
                                                                  + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
@@ -163,25 +150,6 @@ BEGIN
 
             RETURN
         END CATCH
-
-        SELECT @fth            = m.finalhomescore
-            ,@fta             = m.finalawayscore
-            ,@hth             = m.hthomescore
-            ,@hta             = m.htawayscore
-            ,@GoalRecord    = m.GoalRecord
-            ,@BetStatus        = m.betstatus
-        FROM DBPRO.BODB02.dbo.match m WITH (NOLOCK)
-        WHERE m.matchid = @MatchId
-
-        EXEC Acc_Set_ConfirmedAction 
-            @matchid         = @MatchId
-            ,@action         = 11
-            ,@fth             = @fth
-            ,@fta             = @fta
-            ,@hth             = @hth
-            ,@hta             = @hta
-            ,@goalrecord    = @GoalRecord
-            ,@betstatus        = @BetStatus
     END
     ELSE
     BEGIN

@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	@bettype SMALLINT
 	, @betteam VARCHAR(50)
@@ -39,14 +35,6 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @SetxGameyREFUND VARCHAR(MAX) = NULL
 	, @SelectedSetCAL VARCHAR(50) = NULL
 	, @SelectedSetREFUND VARCHAR(50) = NULL
-	, @fthCorners INT = NULL
-	, @ftaCorners INT = NULL
-	, @hthCorners INT = NULL
-	, @htaCorners INT = NULL
-	, @FTFCorner VARCHAR(10) = NULL
-	, @FTLCorner VARCHAR(10) = NULL
-	, @HTFCorner VARCHAR(10) = NULL
-	, @HTLCorner VARCHAR(10) = NULL
 	, @penaltyshootout VARCHAR(10) = NULL
 	, @matchDecidedMethod VARCHAR(10) = NULL
 	, @first10Min1x2 VARCHAR(10) = NULL
@@ -100,6 +88,7 @@ AS
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20180123@Helen: Hotfix - match 3x30 - Just change position of input params totalgoal & scorediff of this function ONLY [Redmine:#89388]
 			- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 			
     Parameters Explanation:    
 	
@@ -766,109 +755,6 @@ RETURN (
 						WHEN @betteam = 'h' AND (@hth - @hta) > 0 THEN 1
 						WHEN @betteam = 'a' AND (@hth - @hta) < 0 THEN 1
 						ELSE -1
-						END
-				WHEN 194 THEN
-					CASE 
-						WHEN @betteam =N'o' AND ((@fthCorners + @ftaCorners) &1) = 1 THEN 1 
-						WHEN @betteam =N'e' AND ((@fthCorners + @ftaCorners) &1) = 0 THEN 1 
-						ELSE - 1 
-						END   
-				WHEN 195 THEN 
-					CASE 
-						WHEN @betteam = '0-2' AND @fthCorners <=2 THEN 1            
-						WHEN @betteam = '3-4' AND @fthCorners IN (3, 4) THEN 1    
-						WHEN @betteam = '5-6' AND @fthCorners IN(5, 6) THEN 1    
-						WHEN @betteam = '7-over' AND @fthCorners >= 7 THEN 1        
-						ELSE -1
-						END 
-				WHEN 196 THEN 
-					CASE 
-						WHEN @betteam = '0-2' AND @ftaCorners <=2 THEN 1            
-						WHEN @betteam = '3-4' AND @ftaCorners IN (3, 4) THEN 1    
-						WHEN @betteam = '5-6' AND @ftaCorners IN(5, 6) THEN 1    
-						WHEN @betteam = '7-over' AND @ftaCorners >= 7 THEN 1        
-						ELSE -1
-						END 
-				WHEN 197 THEN 
-					CASE    
-						WHEN @betteam = N'o' THEN @fthCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@fthCorners    
-						ELSE -1
-						END
-				WHEN 198 THEN
-					CASE    
-						WHEN @betteam = N'o' THEN @ftaCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@ftaCorners    
-						ELSE -1
-						END
-				WHEN 199 THEN 
-					CASE 
-						WHEN @betteam ='0-8' AND (@fthCorners + @ftaCorners) <=8 THEN 1
-						WHEN @betteam ='9-11' AND (@fthCorners + @ftaCorners) IN(9,10,11) THEN 1
-						WHEN @betteam ='12-over' AND (@fthCorners + @ftaCorners)>=12 THEN 1 
-					ELSE -1
-					END
-				WHEN 200 THEN
-					CASE 
-						WHEN @betteam = '0-1' AND @hthCorners <= 1 THEN 1    
-						WHEN @betteam ='2' AND @hthCorners = 2 THEN 1
-						WHEN @betteam ='3' AND @hthCorners = 3 THEN 1
-						WHEN @betteam ='4-over' AND @hthCorners >=4 THEN 1
-						ELSE -1
-						END
-				WHEN 201 THEN
-					CASE 
-						WHEN @betteam = '0-1' AND @htaCorners <= 1 THEN 1    
-						WHEN @betteam ='2' AND @htaCorners = 2 THEN 1
-						WHEN @betteam ='3' AND @htaCorners = 3 THEN 1
-						WHEN @betteam ='4-over' AND @htaCorners >=4 THEN 1
-						ELSE -1
-						END
-				WHEN 202 THEN
-					CASE 
-						WHEN @betteam ='0-4' AND  (@hthCorners+@htaCorners)<=4 THEN 1
-						WHEN @betteam = '5-6' AND (@hthCorners+@htaCorners) IN(5, 6) THEN 1
-						WHEN @betteam ='7-over' AND (@hthCorners+@htaCorners) >= 7 THEN 1    
-						ELSE -1
-						END
-				WHEN 203 THEN 
-					CASE 
-						WHEN @betteam =N'o' AND ((@hthCorners + @htaCorners) &1) = 1 THEN 1 
-						WHEN @betteam =N'e' AND ((@hthCorners + @htaCorners) &1) = 0 THEN 1 
-						ELSE - 1 
-						END  
-
-				WHEN 204 THEN 
-					CASE 
-						WHEN @betteam = N'o' THEN @hthCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@hthCorners    
-						ELSE -1
-						END
-				WHEN 205 THEN 
-					CASE 
-						WHEN @betteam = N'o' THEN @htaCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@htaCorners    
-						ELSE -1
-						END    
-				WHEN 206 THEN
-					CASE 
-						WHEN @betteam = @FTFCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 207 THEN
-					CASE 
-						WHEN @betteam = @HTFCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 208 THEN
-					CASE 
-						WHEN @betteam = @FTLCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 209 THEN
-					CASE 
-						WHEN @betteam = @HTLCorner THEN 1
-						ELSE -1 
 						END
 				WHEN 401 THEN --Home Team Over/Under
 					CASE

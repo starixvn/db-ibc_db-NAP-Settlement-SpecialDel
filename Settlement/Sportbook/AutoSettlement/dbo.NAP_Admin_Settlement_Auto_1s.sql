@@ -4,7 +4,6 @@ CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
     ,@MatchID                       INT
     ,@ResourceIDs                   VARCHAR(MAX)	= '' 
     ,@Results                       VARCHAR(MAX)    = ''
-    ,@IsSettleAbandonedMatchIBC     BIT             = 0 
     ,@Action                    	VARCHAR(10)     = 'CAL'
     ,@IsAuto                        BIT             = 1
     ,@IP                            VARCHAR(15)     = ''
@@ -28,6 +27,7 @@ AS
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
+		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 
     Param's Explanation:
 */    
@@ -47,8 +47,8 @@ BEGIN
             ,@strAutoBetRadarBettypes   VARCHAR(MAX)
             ,@strBettypes               VARCHAR(MAX)   
             ,@strXML					VARCHAR(MAX)                             
-			, @avaiableProcess			BIT
-            , @sportType                INT
+			,@avaiableProcess			BIT
+            ,@sportType                INT
 			,@bettype_22				VARCHAR(20)
 			,@bettype_160				VARCHAR(20)
     
@@ -96,7 +96,7 @@ BEGIN
 	
 	SELECT     @strAutoBetRadarBettypes = COALESCE(@strAutoBetRadarBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
     FROM    dbo.f_Set_GetGroupBettypes() f 
-    WHERE      f.GroupId = 8 -- auto betradar
+    WHERE      f.GroupId = 8 -- auto 
 	
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---

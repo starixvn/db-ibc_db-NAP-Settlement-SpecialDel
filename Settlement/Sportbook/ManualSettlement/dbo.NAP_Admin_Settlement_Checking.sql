@@ -9,9 +9,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking]
 	, @Action 				VARCHAR(10) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @ResourceIDs 			VARCHAR(MAX)	= '' 
-	, @IsExcludeCorner 		BIT = 0
-	--, @IsExcludeFGLG 		BIT = 0
-	--, @IsAutoCalculatePage 	BIT = 0
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @SelectedQuarter 		VARCHAR(50) = NULL
 	, @SelectedSet			VARCHAR(50)     = NULL 
@@ -43,6 +40,7 @@ AS
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -53,7 +51,7 @@ AS
 		REFUND			REFUND, REFUND-HT, REFUND-FT, BetDaq, BetFair		
 		REFUND-FGLG		REFUND, REFUND-HT, REFUND-FT
 		CAL-AUTO		CAL, REFUND
-		CAL-CORNER		CAL 
+		
 		
 */
 
@@ -120,21 +118,7 @@ BEGIN
 				)
 			SELECT @isExistWaitingTicket = 1
 	END
-	IF @Mode ='CAL-CORNER'
-	BEGIN
-		IF EXISTS (	SELECT TOP 1 1 
-					FROM	dbo.bettrans b WITH(NOLOCK)
-					WHERE	b.matchid = @matchid
-							AND (b.statusID = 1 -- waiting status
-								OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate ))
-								
-							AND ((@Action IN ('CAL') AND b.bettype IN (194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209))
-									OR (@Action IN ('CAL-HT') AND b.bettype IN (200,201,202,203,204,205,207,209))
-									OR (@Action IN ('CAL-FT') AND b.bettype IN (194,195,196,197,198,199,206,208))
-								)
-		)
-		SELECT @isExistWaitingTicket = 1
-	END
+	
 	IF @Mode IN ('CAL', 'REFUND')
 	BEGIN	
 		IF @isSettingByProfile = 1
@@ -174,15 +158,10 @@ BEGIN
 				AND f.IsAuto = 0
 				AND ((@Action IN ('CAL', 'REFUND'))
 					OR (@Action IN ('CAL-HT', 'REFUND-HT')
-							AND f.GroupId IN (1,3,5) -- HT, HT FGLG, HT Corner 						
-							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 5 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 3 THEN 0 ELSE 1 END
+							AND f.GroupId IN (1,3) -- HT, HT FGLG						
 						)
 					OR (@Action IN ('CAL-FT', 'REFUND-FT') 
-							AND f.GroupId NOT IN (1,3,5)
-							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 6 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 4 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsAutoCalculatePage = 1 AND f.IsUsedGoalRecordValue = 1 THEN 0 ELSE 1 END
+							AND f.GroupId NOT IN (1,3)
 						) --exclude bettype [172] in case auto-payout
 					)
 				AND 1 = CASE
@@ -211,22 +190,6 @@ BEGIN
 		END
 		
 	END
-	--IF @Mode IN ('CAL-FGLG') AND @IsAutoCalculatePage = 1
-	--BEGIN
-	--	IF EXISTS (SELECT TOP 1 1 
-	--			FROM dbo.bettrans b WITH(NOLOCK)
-	--				INNER JOIN dbo.f_Set_GetGroupBettypes () f
-	--					ON b.bettype = f.BetType
-	--			WHERE b.matchid = @matchid
-	--			AND (b.statusID = 1 -- waiting status
-	--					 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-	--			AND f.IsUsedGoalRecordValue = 1
-	--			AND 1 = CASE WHEN @Action = 'CAL-HT' AND f.GroupId = 3 THEN 1
-	--							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) THEN 1
-	--					ELSE 0 END
-	--		)
-	--		SELECT @isExistWaitingTicket = 1
-	--END
 	
 	IF @Mode = 'CAL-PS'
 	BEGIN
