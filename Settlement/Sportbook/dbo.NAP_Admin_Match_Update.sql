@@ -55,6 +55,7 @@ AS
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
 		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
+		- 20190621@Sol: Auto Payout Phase 2 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#106901]
 
     Parameters Explanation:
 
@@ -514,8 +515,8 @@ BEGIN
         WHERE   matchid = @matchid
     END
     IF (
-        @Command = 'NAP_Admin_Settlement_1_InstantCalculation'
-        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation_Undo'
+        @Command = 'NAP_Admin_Settlement_1-InstantCalculation'
+        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
     )
     BEGIN
 
