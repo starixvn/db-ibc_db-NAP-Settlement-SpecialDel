@@ -10,7 +10,6 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update] @Status          SM
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
 AS
-
 /*
     Created by: Alan
 	Date: 20190325
@@ -24,46 +23,32 @@ AS
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
+		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 */
+BEGIN
+	SET NOCOUNT ON;
 
-     SET NOCOUNT ON;
 	-- Not Marked:
-     IF @Status = 0
-         BEGIN
-             EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_Update]
-                  @TransIds = @TransIds,
-                  @UserId = @UserId,
-                  @Username = @Username,
-                  @IP = @IP,
-                  @InvalidTransIds = @InvalidTransIds OUTPUT,
-                  @ErrMsg = @ErrMsg OUTPUT,
-                  @ErrCode = @ErrCode OUTPUT;
-         END
-
+	IF @Status = 0
+	BEGIN
+		EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_Update] @TransIds = @TransIds
+			,@UserId = @UserId
+			,@Username = @Username
+			,@IP = @IP
+			,@InvalidTransIds = @InvalidTransIds OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@ErrCode = @ErrCode OUTPUT;
+	END
 	-- Marked;
-         ELSE
-         BEGIN
-             EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update]
-                  @TransIds = @TransIds,
-                  @UserId = @UserId,
-                  @Username = @Username,
-                  @IP = @IP,
-                  @ErrMsg = @ErrMsg OUTPUT,
-                  @ErrCode = @ErrCode OUTPUT;
-         END;
+	ELSE
+	BEGIN
+		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds
+			,@UserId = @UserId
+			,@Username = @Username
+			,@IP = @IP
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@ErrCode = @ErrCode OUTPUT;
+	END;
 
-	-- Write Log
-     DECLARE @LogActionId INT= 90500, @LogData VARCHAR(MAX);
-     SET @LogData = CAST(
-(
-    SELECT @LogActionId AS '@LogActionId',
-           @UserId AS '@UserId',
-           @IP AS '@IP',
-           'Status: '+CAST(@Status AS VARCHAR(10))+', TransIds: '+@TransIds AS '@LogData' FOR XML PATH('r'), ROOT('root'), TYPE
-) AS VARCHAR(MAX));
-     EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage
-          @xml = @LogData,
-          @functionName = 'TicketVoiding',
-          @MessageType = 'MessageType_TicketVoiding_Log';
-     SET NOCOUNT OFF;
-GO
+	SET NOCOUNT OFF;
+END

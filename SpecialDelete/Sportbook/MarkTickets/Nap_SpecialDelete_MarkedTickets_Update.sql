@@ -8,7 +8,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds VARCHAR(MAX
                                                            @ErrMsg   NVARCHAR(200) = '' OUTPUT,
                                                            @ErrCode  INT           = 0 OUTPUT
 AS
-
 /*
     Created by: Alan
 	Date: 20190325
@@ -19,13 +18,24 @@ AS
 		
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
+		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 */
-
+BEGIN
      SET NOCOUNT ON;
-     CREATE TABLE #TransIds
+
+	DECLARE @xmlLog VARCHAR(MAX)
+			,@LogData VARCHAR(MAX) = '';
+
+    CREATE TABLE #TransIds
                   (TransId BIGINT
                    PRIMARY KEY
                   );
+
+	CREATE TABLE #MarkedTransactionDeleted (
+		TransId BIGINT
+		,MatchId INT
+		);
+
      INSERT INTO #TransIds(TransId)
             SELECT DISTINCT
                    val
@@ -56,10 +66,10 @@ AS
      CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
      CREATE TABLE #Match(MatchId INT);
      INSERT INTO #Match
-            SELECT DISTINCT
-                   m.MatchId
-            FROM #TransIds t
-                 INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId;
+		SELECT DISTINCT
+				m.MatchId
+		FROM #TransIds t
+				INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId;
 	
 -- Get tickets insert into transaction
      INSERT INTO #Tickets
@@ -199,16 +209,43 @@ AS
 						AND b.bettype NOT IN(911, 912, 913)
 				    ) AS b
     END;
--- Delete Transaction
+
+	-- Delete Transaction
 	WHILE (0=0)
 	BEGIN
 		DELETE TOP (2000) m 
+		OUTPUT DELETED.TransId
+			,DELETED.MatchId
+		INTO #MarkedTransactionDeleted(TransId, MatchId)
 		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
         INNER JOIN #TransIds t ON t.TransId = m.TransId;
 		IF @@ROWCOUNT = 0 BREAK	  
 	END 
 
- -- Insert Settled_Message
+	-- Write Log
+	SET @xmlLog = CAST((
+				SELECT 90501 AS '@LogActionId' -- 90501: Action Unmark
+					,@UserId AS '@UserId'
+					,@IP AS '@IP'
+					,m.matchid AS '@MatchId'
+					,STUFF((
+							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
+							FROM #MarkedTransactionDeleted AS d
+							WHERE d.MatchId = m.MatchId
+							FOR XML PATH('')
+							), 1, 1, '') AS '@LogData'
+				FROM #Match AS m
+				FOR XML PATH('r')
+					,ROOT('root')
+					,TYPE
+				) AS VARCHAR(MAX));
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
+		,@functionName = 'TicketVoiding'
+		,@MessageType = 'MessageType_TicketVoiding_Log';
+
+
+	-- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
             ([AdminId],
              [MatchId],
@@ -238,9 +275,12 @@ AS
 														  AND b.statusID IN(0, 1)
 				) mt ON mt.MatchId = t.MatchId
             WHERE mt.MatchId IS NULL;
+
      DELETE b
      FROM #Match b
           INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+
+	-- Return matches don't have marked ticket ??
      SELECT b.MatchId,
             m.HomeId,
             m.AwayId,
@@ -248,7 +288,10 @@ AS
             m.IsNeutral
      FROM #Match b
           LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+
      DROP TABLE #TransIds;
      DROP TABLE #Match;
+     DROP TABLE #MarkedTransactionDeleted;
+
      SET NOCOUNT OFF;
-GO
+END
