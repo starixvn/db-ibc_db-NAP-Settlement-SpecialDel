@@ -41,14 +41,14 @@ BEGIN
 		, @SelectedSetREFUND 	VARCHAR(50)
 		--ticket count
 		, @ticketCountTotal		INT		
-		, @ticketCountBetRadar	INT
+		, @ticketCountEarly		INT
 		, @ticketCountCAL		INT
 		, @ticketCountSDT		INT
 		, @ticketCountREFUND	INT
 	--------------------------------
 		,@minRefno				BIGINT
 		,@maxRefno				BIGINT
-		,@IsBetRadar			BIT
+		,@IsExistEarlyBettype	BIT
 		,@IsSettleBySetting 	BIT			= 0
 	
 	DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
@@ -62,7 +62,7 @@ BEGIN
 		, @IsDetermined = CASE WHEN @action IN ('ABANDONED-1H', 'ABANDONED-2H') THEN 1 ELSE 0 END
 		, @start 		= CURRENT_TIMESTAMP
 		, @ticketCountTotal		= 0
-		, @ticketCountBetRadar	= 0
+		--, @ticketCountBetRadar	= 0
 		, @ticketCountCAL		= 0
 		, @ticketCountSDT		= 0
 		, @ticketCountREFUND	= 0
@@ -110,7 +110,21 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 	
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	IF @SportType = 1
+	BEGIN
+		SELECT TOP(1) @IsExistEarlyBettype = 1
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			CROSS APPLY (
+				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType
+				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				WHERE	s.BetType = bm.bettype 
+			) AS f
+		WHERE matchid 		= @matchId
+			AND f.SportType = @SportType
+			AND statusID	NOT IN (101, 102)
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype)) OR @IsExistEarlyBettype = 1
     BEGIN
         SET @IsSettleBySetting = 1
     END
@@ -166,26 +180,15 @@ BEGIN
 	
 	
 	BEGIN TRY
-	
-		SELECT TOP(1) @IsBetRadar = 1
-		FROM dbo.bettransm bm WITH (NOLOCK)
-			CROSS APPLY (
-				SELECT TOP 1 1 AS IsBetRadar
-				FROM dbo.f_Set_GetGroupBettypes() AS f 
-				WHERE BetType = bm.bettype AND f.GroupId = 8
-			) AS f
-		WHERE matchid 		= @matchId
-			AND statusID	NOT IN (101, 102)
-
-		--CHECK Auto-Bettype first if any
-		IF (@IsBetRadar = 1)
-		BEGIN		
-			EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar -- Early 22, 455
-				@MatchId			= @MatchId
-				,@matchdate			= @matchdate
-				,@Mode				= @Action
-				,@ticketCount		= @ticketCountBetRadar OUTPUT
-		END	
+		--CHECK Early-Bettype first if any
+		--IF (@IsExistEarlyBettype = 1)
+		--BEGIN		
+		--	EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar -- Early 22, 455
+		--		@MatchId			= @MatchId
+		--		,@matchdate			= @matchdate
+		--		,@Mode				= @Action
+		--		,@ticketCount		= @ticketCountEarly OUTPUT
+		--END	
 		
 		--CHECK for CAL fisrt
 		IF @IsSettleBySetting = 1
@@ -280,7 +283,7 @@ BEGIN
 			, @ticketCountREFUND	AS TC_REFUND
 		*/
 		
-		SET @ticketCountTotal		= ISNULL(@ticketCountBetRadar, 0) + ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
+		SET @ticketCountTotal		= ISNULL(@ticketCountEarly, 0) + ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
 	
 	END TRY
 	BEGIN CATCH

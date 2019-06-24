@@ -128,7 +128,6 @@ BEGIN
         ,@TotalAccount_BalanceUpdate    INT
         ,@HTDone                        BIT
         ,@FTDone                        BIT
-        --,@isExistRunningCornerBet       BIT = 0
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)	
@@ -486,17 +485,6 @@ BEGIN
             FROM    @status
             WHERE    FTBet = 1
 
-            --IF @Sporttype = 1 
-            --BEGIN
-            --    IF EXISTS(    SELECT TOP 1 1 FROM Bettrans WITH (NOLOCK) 
-            --                WHERE    bettype IN (194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209)
-            --                        AND matchID = @MatchID 
-            --                        AND statusID = 0     
-            --                        AND @isExcludeCorner = 1 
-            --    )
-            --    SELECT    @isExistRunningCornerBet = 1 
-            --END
-
             /* Mode
             CAL : (default) Settle ALL BetTypes
             CAL-FT : Full Time Only
@@ -579,13 +567,11 @@ BEGIN
                 EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
                     @Command        = 'NAP_Admin_Settlement_1-CAL',
                     @MatchID        = @MatchID,
-                    @ResourceIDs    = NULL,
-                    @Results        = NULL,
                     @fth             = @fth,
                     @fta             = @fta,
                     @hth             = @hth,
                     @hta             = @hta,
-                    @ResourceResult	= @ResourceResult,
+                    @ResourceResult	 = @ResourceResult,
                     @Action            = @Action,
                     @IsAuto            = 0,
                     @creator        = @creator

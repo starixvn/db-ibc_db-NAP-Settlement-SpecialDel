@@ -32,6 +32,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 	
 	Param's explanation:  
 		
@@ -76,7 +77,7 @@ BEGIN
 		,IsExistRunningTicket			BIT
 	)
 	
-	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsFGLG BIT)
+	CREATE TABLE #tblBettype (bettype SMALLINT, ResourceId VARCHAR(20), GroupId SMALLINT, IsFGLG BIT)
 	
 	CREATE TABLE #tblResultDetail (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusID TINYINT, SettlementStatusID TINYINT)
 	
@@ -147,7 +148,7 @@ BEGIN
 		SELECT	BetType
 				,CASE 
 					WHEN BetType = 22 THEN '160__'
-					WHEN BetType IN (160,164,169,180,216) OR GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
+					WHEN GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
 					ELSE CAST(BetType AS VARCHAR(20))
 				END AS ResourceId
 				,GroupId

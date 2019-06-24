@@ -44,6 +44,7 @@ AS
 	- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 	- 20190528@Sol: Auto payout phase 3 - Removed unused field IsNeedToCalculateFGLG [Redmine:#116073]
+	- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -144,9 +145,6 @@ BEGIN
 		, IsExistHTFGLG BIT -- is exist ticket of bettype 127
 		
 		, AutoSetting TINYINT
-		, IsExistRunningCorner BIT
-		, IsExistRunningHTCorner BIT
-		, IsNeedToCalculateCorner BIT
 		, AutoSettingForLeague TINYINT
 		, BetCount INT
 		, IsEnabledGoalRecordHT BIT
@@ -185,7 +183,7 @@ BEGIN
 	INSERT INTO #matchList (HalfTimeHomeScore, HalfTimeAwayScore, IsCalculated, IsFTCalculated, IsMultiCaled, IsRefund, IsCalRefund
 		,matchid , leagueid, homeid, awayid, matchcode, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
-		,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateCorner, AutoSettingForLeague
+		,AutoSetting, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
 		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket
 	)
@@ -217,9 +215,6 @@ BEGIN
 		, 0 AS IsExistFGLG
 		, 0 AS IsExistHTFGLG		
 		, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
-		, 0 AS IsExistRunningCorner
-		, 0 AS IsExistRunningHTCorner
-		, 0 AS IsNeedToCalculateCorner
 		, ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 		, 0 AS BetCount
 		, 0 AS IsEnabledGoalRecordHT
@@ -325,8 +320,6 @@ BEGIN
 				, SUM(CASE WHEN f.GroupId IN (2,4) AND f.IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistFGLG
 				, SUM(CASE WHEN f.GroupId IN (1,3) AND f.IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistHTFGLG	
 				, SUM(CASE WHEN f.GroupId = 2 AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) AS IsExistGoalRecordBettypeFT			
-				, SUM(CASE WHEN f.GroupId = 6 AND b.runningBet > 0 THEN 1 ELSE 0 END) AS IsExistRunningCorner
-				, SUM(CASE WHEN f.GroupId = 5 AND b.runningBet > 0 THEN 1 ELSE 0 END) AS IsExistRunningHTCorner
 				, SUM(CASE WHEN f.GroupId = 3 AND f.IsUsedGoalRecordValue = 1 AND b.betCount > 0 THEN 1 ELSE 0 END) AS IsEnabledGoalRecordHT
 				, SUM(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 AND b.betCount > 0 THEN 1 ELSE 0 END) AS IsEnabledGoalRecordFT
 				, SUM(CASE WHEN f.GroupId = 3 AND f.IsUsedGoalRecordValue = 1 AND b.runningBet > 0 THEN 1 ELSE 0 END) AS IsExistRunningUseGoalRecordHT
@@ -340,8 +333,6 @@ BEGIN
 		SET IsExistFGLG = CASE WHEN tt.IsExistFGLG > 0 THEN 1 ELSE 0 END
 			, IsExistHTFGLG = CASE WHEN tt.IsExistHTFGLG > 0 THEN 1 ELSE 0 END		
 			, IsExistGoalRecordBettypeFT = CASE WHEN tt.IsExistGoalRecordBettypeFT > 0 THEN 1 ELSE 0 END		
-			, IsExistRunningCorner = CASE WHEN tt.IsExistRunningCorner > 0 THEN 1 ELSE 0 END
-			, IsExistRunningHTCorner = CASE WHEN tt.IsExistRunningHTCorner > 0 THEN 1 ELSE 0 END
 			, IsEnabledGoalRecordHT = CASE WHEN tt.IsEnabledGoalRecordHT > 0 THEN 1 ELSE 0 END
 			, IsEnabledGoalRecordFT = CASE WHEN tt.IsEnabledGoalRecordFT > 0 THEN 1 ELSE 0 END
 			, IsExistRunningUseGoalRecordHT = CASE WHEN tt.IsExistRunningUseGoalRecordHT > 0 THEN 1 ELSE 0 END
@@ -425,7 +416,6 @@ BEGIN
 			, IsExistFTLG = tt.IsExistFTLG
 			, IsExistHTFGNG = tt.IsExistHTFGNG
 			, IsExistHTLG = tt.IsExistHTLG
-			
 		FROM #matchList t
 			INNER JOIN BetStatusM tt 
 			ON t.matchid = tt.matchid
@@ -474,31 +464,31 @@ BEGIN
 		GROUP BY t.MatchId
 		
 	)
-	--update status of match in order to can be calc FGLG & Corner bettype manually
-	UPDATE t
-	SET IsNeedToCalculateCorner = CASE WHEN rs.HTStatus = 1
-										AND t.IsHalfTimeCal = 1
-										AND rs.FTStatus IN (0, 1) 
-										AND t.IsExistRunningHTCorner = 1 THEN 1 --can calc HT Corner
-									WHEN rs.FTStatus = 1
-										AND t.IsHalfTimeCal = 1
-										AND t.IsExistRunningCorner = 1 THEN 1 --can calc FT Corner
-								ELSE 0 END
-									
-	FROM #matchList t
-		INNER JOIN PayoutResult rs ON t.matchid = rs.MatchId
-		OUTER APPLY (
-			SELECT	MIN(CASE WHEN rd.ResourceId = '08' THEN rd.ResultStatusId END) AS GoalRecordFTResultStatusId
-					,MIN(CASE WHEN rd.ResourceId = '127F' THEN rd.ResultStatusId END) AS HTFGNGResultStatusId
-					,MIN(CASE WHEN rd.ResourceId = '14F' THEN rd.ResultStatusId END) AS FTFGNGResultStatusId
-
-					,MIN(CASE WHEN rd.ResourceId = '127L' THEN rd.ResultStatusId END) AS HTLGResultStatusId
-					,MIN(CASE WHEN rd.ResourceId = '14L' THEN rd.ResultStatusId END) AS FTLGResultStatusId
-			FROM	DBPRO.bodb02.dbo.ResultDetail rd WITH(NOLOCK)
-			WHERE	t.matchid = rd.matchid
-					AND rd.ResourceId IN ('14F', '14L', '127F', '127L', '08')
-		) rd
-	
+		
+	--Checking for Inst match info
+	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
+	BEGIN 
+		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
+		SELECT t.MatchId
+			, 0 AS HomeValue
+			, 0 AS AwayValue
+			, 0 AS StatusId
+			, 0 AS CalculationType
+			, 4 AS Priority
+			, t.SettlementStatus
+			, 0  AS InstantKey
+		FROM #matchList t 
+		WHERE 2 & t.AutoSetting = 2
+			AND (t.eventstatus IN ('running') OR t.eventstatus LIKE 'Refund%') --#86964
+		
+		;WITH InstantScores AS (
+			SELECT *
+			FROM (
+				SELECT prd.MatchId
+					, prd.HomeValue
+					, prd.AwayValue
+					, prd.TypeId AS CalculationType
+					, prd.IsC	
 	--Checking for Inst match info
 	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
 	BEGIN 
@@ -767,7 +757,6 @@ BEGIN
 		, t.IsCalculatingSingle
 		, t.IsCalculatingMP
 		, AutoSetting
-		, IsNeedToCalculateCorner
 		, AutoSettingForLeague
 		, IsEnabledGoalRecordHT
 		, IsEnabledGoalRecordFT

@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@creator		INT
 	,@action		VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND
 	,@SelectedSet	VARCHAR(50)		= NULL
-	--,@ResourceIDs	VARCHAR(MAX)	= NULL
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IP			VARCHAR(15)		= ''
@@ -124,7 +123,6 @@ BEGIN
 		-- for Tennis/VolleyBall/Badminton/Squash
 		DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
 		DECLARE @resultDetail_ss VARCHAR(MAX) -- sporttingSolution
-		--DECLARE @resultDetail_br VARCHAR(MAX) -- for betRadar
 		DECLARE @resultDetail_bb VARCHAR(MAX) -- basketball
 		DECLARE @resultDetail VARCHAR(MAX)
 
@@ -246,31 +244,6 @@ BEGIN
 				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
 					,@matchid = @matchID
 					,@str_resultDetail = @resultDetail OUTPUT
-
-				----need to settle auto first for either calculate or refund action (of course, only if there is autobet ticket)
-				--IF (EXISTS (
-				--			SELECT TOP 1 1
-				--			FROM DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
-				--			WHERE matchid = @matchid
-				--				AND SettlementStatusID > 0
-				--				AND (ResourceId IN (SELECT CAST(BetType AS VARCHAR(20)) FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId = 8)
-				--					OR len(ResourceID) = 5 AND SUBSTRING(ResourceID, 1, 3) IN ('160')
-				--				)
-				--		)
-				--) AND @action IN ('CAL','REFUND-HT','REFUND-FT','REFUND') --Soccer Auto Bets Radar
-				--BEGIN
-				--	EXEC dbo.NAP_Admin_Settlement_2 @mode = 'betradar'
-				--		,@matchid = @matchID
-				--		,@str_resultDetail = @resultDetail_br OUTPUT
-
-				--	EXEC dbo.NAP_Admin_Calculate_MP_broker
-				--		@matchid = @matchid
-				--		,@matchdate = @matchdate
-				--		,@IsRefundHT = @IsRefundHT
-				--		,@mode = 'autobetradar_m'
-				--		,@resultDetail_br = @resultDetail_br
-				--		,@strBettypes = @strBettypes
-				--END
 			END
 
 			-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
@@ -290,7 +263,6 @@ BEGIN
 				@matchdate = @matchdate,
 				@SelectedSet = @SelectedSet,
 				@TennisTotal = @TennisTotal,
-				--@ResourceIDs = @ResourceIDs,
 				@resultDetail = @resultDetail,
 				@strBettypes = @strBettypes,
 				@betstatus	= @betstatus,

@@ -20,9 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@TotalGameHomeMatch    INT = NULL
     ,@TotalGameAwayMatch    INT = NULL
     ,@GoalSequence          VARCHAR(50) = NULL
-    --,@ResourceIDs           VARCHAR(MAX) = NULL
     ,@resultDetail_ss VARCHAR(MAX) = NULL -- sportting solution
-    ,@resultDetail_br VARCHAR(MAX) = NULL -- for betradar
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
     ,@SelectedQuarter VARCHAR(MAX) = NULL
@@ -96,9 +94,7 @@ BEGIN
                 + CASE WHEN @TotalGameHomeMatch IS NULL THEN '' ELSE ',@TotalGameHomeMatch = ' + CONVERT(NVARCHAR(50), @TotalGameHomeMatch) END
                 + CASE WHEN @TotalGameAwayMatch IS NULL THEN '' ELSE ',@TotalGameAwayMatch = ' + CONVERT(NVARCHAR(50), @TotalGameAwayMatch) END
                 + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
-                --+ CASE WHEN @ResourceIDs IS NULL THEN '' ELSE ',@ResourceIDs = ''' + @ResourceIDs + '''' END
                 + CASE WHEN @resultDetail_ss IS NULL THEN '' ELSE ',@resultDetail_ss = ''' + @resultDetail_ss + '''' END
-                + CASE WHEN @resultDetail_br IS NULL THEN '' ELSE ',@resultDetail_br = ''' + @resultDetail_br + '''' END
                 + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
                 + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END
                 + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ''' + @SelectedQuarter + '''' END
@@ -164,7 +160,6 @@ BEGIN
             , @SelectedSet = @SelectedSet
             , @TennisTotal = @TennisTotal
             , @GoalSequence = @GoalSequence
-            --, @ResourceIDs = @ResourceIDs
             , @resultDetail = @resultDetail
             , @strBettypes = @strBettypes
             , @betstatus = @betstatus

@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
@@ -112,7 +108,6 @@ BEGIN
     
 	IF @Sporttype = 1 
     BEGIN
-		
 		EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
 			,@matchid = @MatchId
 			,@str_resultDetail = @strResultDetail OUTPUT

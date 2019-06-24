@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @BAQuarter 		VARCHAR(100)	= NULL
 	, @TennisSet    	VARCHAR(100)	= NULL
 	, @BAResults		VARCHAR(MAX)	= NULL
-	, @ResourceIDs      VARCHAR(MAX)	= NULL 
+	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
 	, @TransIDs		    VARCHAR(MAX)    = NULL
 AS
@@ -33,7 +33,6 @@ AS
 			   2: Used for Manual settle process
 			   3: Used for Manual refund process
 			   4: Used for CAL FGLG
-			   6: Used for Early Settlement Soccer
 			   7: Used for Fast Market
 			   8: Used for Early Settlement Basketball
 		
@@ -73,7 +72,6 @@ BEGIN
 		, @handle			INT
 				
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId SMALLINT, GroupName VARCHAR(50))
-	DECLARE @tmpEarlyBettypesSoccer TABLE (bettype SMALLINT)
 	DECLARE @tmpResourceIdsBasketBall TABLE (ResourceId VARCHAR(20), bettype SMALLINT)
     DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT)
     DECLARE @matchid_tmp INT
@@ -90,7 +88,7 @@ BEGIN
 	
 	--Check for doing capture balance by bet ticket or NOT
 	SELECT @isCheckBet	= CASE 
-							WHEN @sportType IN (2,5) OR @Mode IN (6,7,8) THEN 1 
+							WHEN @sportType IN (2,5) OR @Mode IN (7,8) THEN 1 
 							ELSE 0 
 						END
 		
@@ -271,7 +269,7 @@ BEGIN
 	END
 	ELSE --Capturing Balance M2
 	BEGIN
-		IF(@Mode IN (2,3,6,8)) --Tennis, BAIO & Early Payout
+		IF(@Mode IN (2,3,8)) --Tennis, BAIO & Early Payout
 		BEGIN
 			IF @Mode = 8  -- Early Settlement Basketball
 			BEGIN
@@ -286,17 +284,6 @@ BEGIN
 						ON	rs.ResourceId LIKE CAST(f.bettype AS VARCHAR) + '%'
 			END 
 
-			IF @Mode = 6 -- Early Settlement Soccer
-			BEGIN
-				INSERT INTO @tmpEarlyBettypesSoccer(bettype)
-				SELECT	CAST(LEFT(val,3) AS INT) AS Bettype
-				FROM	dbo.f_SplitString(ISNULL(@ResourceIDs, ''),',')
-				OPTION (maxrecursion 0)
-
-				IF EXISTS (SELECT TOP 1 1 FROM @tmpEarlyBettypesSoccer WHERE bettype = 160)
-					INSERT INTO @tmpEarlyBettypesSoccer (bettype) VALUES (22) -- bettype 22 & 160 are using the same ResourceId 160xx
-			END
-
 			INSERT INTO @tmpBettypes(groupId, GroupName, bettype)
 			SELECT	DISTINCT
 					f.GroupId
@@ -305,36 +292,11 @@ BEGIN
 			FROM	f_Set_GetGroupBettypes() f
 				LEFT JOIN @tmpResourceIdsBasketBall AS eb -- Early Settlement for Basketball
 					ON	f.Bettype = eb.Bettype
-				LEFT JOIN @tmpEarlyBettypesSoccer AS abt -- Early Settlement for Soccer
-					ON	f.Bettype = abt.Bettype
 			WHERE	1 = CASE
 							WHEN @Mode IN (2,3) AND f.IsAuto = 0 THEN 1 -- Manual CAL/REFUND 
-							WHEN @Mode = 6 AND f.GroupId = 8 AND abt.Bettype > 0 THEN 1 --Early Settlement for Soccer
 							WHEN @Mode = 8 AND eb.bettype > 0 THEN 1 -- Early Settlement for Basketball
 							ELSE 0
 						END						
-
-			-- get main transid of Bettrade
-			IF @Mode = 6 -- ONLY apply for Early Settlement for Soccer
-			BEGIN
-				INSERT INTO #tmpReferTransId(transid)
-				SELECT	b.transId
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN @tmpEarlyBettypesSoccer t
-						ON t.bettype = b.bettype
-				WHERE	b.matchid = @matchid
-						AND b.betdaqid = 0 
-						AND 1 = CASE 
-									WHEN @ResourceIDs IS NULL THEN 1
-									WHEN @ResourceIds IS NOT NULL
-											AND b.bettype = 22
-											AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),'22','160'),@ResourceIDs)>0 THEN 1 -- bettype 22 & 160 are using the same ResourceId 160xx
-									WHEN @ResourceIDs IS NOT NULL 
-											AND b.Bettype <> 22 
-											AND CHARINDEX(CAST(b.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
-									ELSE 0 
-								END 
-			END 
 
 			SELECT	@MatchId AS matchid
 					,b.custid
@@ -379,17 +341,6 @@ BEGIN
 										WHEN bt.GroupId = 10 AND @BAQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1 -- 801, 802, 803, 804
 										ELSE 0
 									END
-								WHEN @Mode = 6 THEN -- Early Settlement for Soccer
-									CASE 
-										WHEN @ResourceIDs IS NULL THEN 1
-										WHEN @ResourceIds IS NOT NULL
-												AND b.bettype = 22
-												AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),'22','160'),@ResourceIDs)>0 THEN 1 -- bettype 22 & 160 are using the same ResourceId 160xx
-										WHEN @ResourceIDs IS NOT NULL 
-												AND b.Bettype <> 22
-												AND CHARINDEX(CAST(b.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
-										ELSE 0 
-									END  
 								WHEN @Mode = 8 THEN -- Early Settlement for Basketball
 					 				CASE 
 										WHEN EXISTS(SELECT 1 FROM @tmpResourceIdsBasketBall WHERE ResourceId = rs.ResourceId) THEN 1
@@ -397,18 +348,6 @@ BEGIN
 									END
 								ELSE 0 --unsupported SportType
 							END
-				UNION ALL
-				SELECT	b.custid
-						,2 AS WalletType  -- Cash wallet
-						,0 AS BonusId -- not join bonus
-						,b.winlost
-						,b.actual_stake
-						,b.playercomm
-				FROM	dbo.bettrans b WITH(ROWLOCK)
-				WHERE	@Mode = 6 -- Early Settlement for Soccer
-						AND b.matchid = @matchId
-						AND b.bettype IN (901, 902, 903)	
-						AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.refno)
 				) b
 				GROUP BY b.custid
 					, b.WalletType

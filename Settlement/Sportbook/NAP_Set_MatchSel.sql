@@ -42,6 +42,7 @@ AS
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
       
  Param explanation:  
 	@MatchCode: match code
@@ -485,7 +486,7 @@ BEGIN
 	AS(
 		SELECT	CASE 
 					WHEN Bettype = 22 THEN '160__'
-					WHEN BetType IN (160,164,169,180,216) OR GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
+					WHEN GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
 					ELSE CAST(BetType AS VARCHAR(20))
 				END AS ResourceId
 				,GroupId

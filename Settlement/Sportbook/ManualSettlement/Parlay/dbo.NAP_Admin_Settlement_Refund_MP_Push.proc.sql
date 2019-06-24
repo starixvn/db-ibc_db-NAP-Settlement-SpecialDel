@@ -23,6 +23,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
+		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -50,19 +51,14 @@ BEGIN
 		,@sqlCommand			NVARCHAR(1000)
 		,@IsExistNetPosition	BIT = 0
 		,@Mode					VARCHAR(20)
-		,@IsEarlyMatch			BIT = 0
-		,@bettype_22			VARCHAR(20)
-		,@bettype_160			VARCHAR(20)
-    
-    SET @bettype_22 = '22'
-    SET @bettype_160 = '160'
+		,@IsExistsResourceEarlyRunning	BIT = 0
+	
 	SET @currentdate = CURRENT_TIMESTAMP
     
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
 	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY, GroupID INT, IsFGLG BIT)
-	DECLARE @tmpAutoBetRadarBettypes TABLE (bettype SMALLINT PRIMARY KEY)
 	
-	DECLARE @tmpRunningAutoSettle TABLE (matchid INT)
+	DECLARE @tmpRunningEarlySettle TABLE (matchid INT)
 	DECLARE @tmpFGLGMatch TABLE (matchid INT)
 	DECLARE @tmpRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50), OrdNo SMALLINT)
 	
@@ -97,11 +93,6 @@ BEGIN
 	SELECT	f.BetType,f.GroupId,f.IsFGLG
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.IsUsedGoalRecordValue = 1
-	
-	INSERT INTO @tmpAutoBetRadarBettypes(bettype)
-	SELECT	f.BetType
-	FROM	dbo.f_Set_GetGroupBettypes() f
-	WHERE	f.GroupId = 8
 	
 	INSERT INTO @match ( matchid, matchcode, fth, fta, hth, hta, sporttype, leagueid, betstatus)
 	SELECT matchid
@@ -156,18 +147,18 @@ BEGIN
 		;WITH cteBetStatusM
 		AS (
 			SELECT DISTINCT matchid
-					,CASE 
-						WHEN Bettype = 22 THEN ISNULL(REPLACE(SUBSTRING(betcheck, 2, LEN(betcheck)),@bettype_22,@bettype_160), '')
-						WHEN Bettype IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck, 2, LEN(betcheck)), '')
-						ELSE CONVERT(VARCHAR(20),bettype)
-					END AS ResourceId
-			FROM	dbo.bettransm WITH(NOLOCK)
+					,s.ResourceID
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+					ON	bm.bettype = s.BetType
+						AND (s.BetID = 0 OR s.BetID = bm.betcheck)
 			WHERE	matchid = @MatchId
+					AND s.SportType = @sporttype
+					AND s.SettleType = 'EAR'
 					AND statusID = 0
-					AND bettype IN (SELECT bettype FROM @tmpAutoBetRadarBettypes)
 				
 		)
-		INSERT INTO @tmpRunningAutoSettle(matchid)
+		INSERT INTO @tmpRunningEarlySettle(matchid)
 		SELECT	@matchid
 		WHERE EXISTS (
 			SELECT TOP 1 1
@@ -225,9 +216,9 @@ BEGIN
 		)
 		
 		IF EXISTS (SELECT TOP 1 1
-					FROM @tmpRunningAutoSettle)
+					FROM @tmpRunningEarlySettle)
 			BEGIN
-				SET @IsEarlyMatch = 1
+				SET @IsExistsResourceEarlyRunning = 1
 			END		
 					
 		
@@ -328,13 +319,10 @@ BEGIN
 						ELSE 0
 					END
 		)
-		OR EXISTS (
-			SELECT TOP 1 1
-			FROM @tmpRunningAutoSettle
-		)		
+		OR @IsExistsResourceEarlyRunning = 1
 	)
 	BEGIN
-		SELECT @NotKeyScoreList = @matchcode + (CASE WHEN @IsEarlyMatch = 1 THEN '(Early Settle)' ELSE '' END)
+		SELECT @NotKeyScoreList = @matchcode + (CASE WHEN @IsExistsResourceEarlyRunning = 1 THEN '(Early Settle)' ELSE '' END)
 	END
 	
 	IF EXISTS (SELECT TOP 1 1
