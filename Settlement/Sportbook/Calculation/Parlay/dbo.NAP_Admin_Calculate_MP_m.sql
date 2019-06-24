@@ -15,9 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@TotalGameHomeMatch INT = NULL
     ,@TotalGameAwayMatch INT = NULL         
     ,@GoalSequence VARCHAR(50) = NULL         
-    ,@ResourceIDs VARCHAR(MAX)= NULL
     ,@resultDetail_ss VARCHAR(MAX) = NULL -- sportting solution
-    ,@resultDetail_br VARCHAR(MAX) = NULL -- for betradar
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
     ,@SelectedQuarter VARCHAR(MAX) = NULL
@@ -93,12 +91,7 @@ BEGIN
             ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
             ,@SelectedSetCAL        VARCHAR(50)  = NULL
             ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-            ,@NextGoal                VARCHAR(MAX)= NULL
-            ,@FirstGoalMethod			VARCHAR(2) = NULL
-            ,@TimeFirstGoal			VARCHAR(10) = NULL
-            ,@ResourceIDsCAL        VARCHAR(MAX)= NULL
-            ,@ResourceIDsREFUND        VARCHAR(MAX)= NULL
-            
+           
             ,@ht_fg 				VARCHAR(10)
 			,@ht_lg 				VARCHAR(10)
 			,@ft_fg 				VARCHAR(10)
@@ -121,10 +114,7 @@ BEGIN
 			,@Q1Away			INT
 			,@Q2Away			INT
 			,@Q3Away			INT
-			,@Q4Away			INT
-			,@bettype_22 VARCHAR(20)
-			,@bettype_160 VARCHAR(20)
-    
+			,@Q4Away			INT    
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
         
@@ -135,10 +125,7 @@ BEGIN
         SET @totalgoal = @fth + @fta
         SET @scorediff = @fth - @fta
         SET @totalht = (@hth + @hta)
-        SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)
-        
-        SET @bettype_22 = '22'
-		SET @bettype_160 = '160'			
+        SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)		
     
         INSERT INTO @tblBettypes (bettype, groupId, groupname, is3x30, isAuto, isEarly)
         SELECT    T.c.value('./@t','SMALLINT')
@@ -180,16 +167,6 @@ BEGIN
                 OPTION ( OPTIMIZE FOR ( @xml = NULL ) )    
             END
                 
-            IF @resultDetail_br IS NOT NULL -- for betradar
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_br)
-                
-                SELECT TOP(1)
-                    @ResourceIDsREFUND = ISNULL(T.C.value('./@ResourceIDsREFUND[1]', 'varchar(MAX)'), '')                
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-            END
-            
             IF @resultDetail_bb IS NOT NULL -- for basketball
             BEGIN
 				SET @xml = CONVERT(XML, @resultDetail_bb)
@@ -244,7 +221,6 @@ BEGIN
 							END AS QuarterX
 				)q
             WHERE matchid = @matchid                 
-                --AND bettype NOT IN (14, 127) 
                 AND statusID NOT IN (101, 102)
                 AND 1 = CASE WHEN @SelectedSetREFUND IS NULL AND @SelectedSetCAL IS NULL THEN 1 
                              WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '801%' THEN 1  --Exclude 1324
@@ -254,10 +230,6 @@ BEGIN
                              WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '805%' THEN 1
                              WHEN @SelectedSetREFUND LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
                              ELSE 0 END
-                AND 1 = CASE WHEN @ResourceIDsREFUND IS NULL AND t.groupId <> 8 THEN 1  
-							 WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsREFUND)>0 THEN 1 
-							 WHEN @ResourceIDsREFUND IS NOT NULL AND t.groupId = 8	AND bm.Bettype <> 22 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
-							 ELSE 0 END   --Betradar 2 Auto Bettype
 				AND 1 = CASE
 							WHEN @basketball_ResourceIdsREFUND IS NULL THEN 1 --s basketball
 							WHEN t.isEarly = 1 THEN CASE
@@ -286,16 +258,6 @@ BEGIN
         -- ===================================================
         IF @doing = 'REFUND-FT'
         BEGIN
-            IF @resultDetail_br IS NOT NULL -- for betradar
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_br)
-                
-                SELECT TOP(1) 
-                    @ResourceIDsREFUND = ISNULL(T.C.value('./@ResourceIDsREFUND[1]', 'varchar(MAX)'), '')                
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-            END
-            
             CREATE TABLE #RefundFTResult (transid BIGINT, refno BIGINT)
             
             UPDATE	bm
@@ -309,14 +271,9 @@ BEGIN
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
             WHERE	matchid = @matchid 
-					AND t.groupId NOT IN (1,3,4,5)
+					AND t.groupId NOT IN (1,3,5)
 					AND statusID NOT IN (101, 102)
-					AND 1 = CASE 
-								WHEN @ResourceIDsREFUND IS NULL AND t.groupId <> 8 THEN 1  
-								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsREFUND)>0 THEN 1 
-								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype <> 22 AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
-						ELSE 0 END   --Betradar 2 Auto Bettype
-
+				
             UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
@@ -331,16 +288,6 @@ BEGIN
 
         IF @doing = 'REFUND-HT'
         BEGIN
-            IF @resultDetail_br IS NOT NULL -- for betradar
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_br)
-                
-                SELECT TOP(1) 
-                    @ResourceIDsREFUND = ISNULL(T.C.value('./@ResourceIDsREFUND[1]', 'varchar(MAX)'), '')                
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-            END
-            
             CREATE TABLE #RefundHTResult (transid BIGINT, refno BIGINT)
             
             -- Refund sub tickets of 11 bet types (FT) from BetRadar in case '30x3' match has been suspended
@@ -460,10 +407,6 @@ BEGIN
                              WHEN @SelectedSet LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '805%' THEN 1
                              WHEN @SelectedSet LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
                              ELSE 0 END
-                AND 1 = CASE WHEN @ResourceIDs IS NULL AND t.groupId <> 8 THEN 1 
-							 WHEN @ResourceIDs IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
-                             WHEN @ResourceIDs IS NOT NULL AND bm.Bettype <> 22 AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
-                             ELSE 0 END 
               AND 1 = CASE -- basketball
 							WHEN @SelectedQuarter IS NULL THEN 1
 							WHEN t.isEarly = 1 THEN CASE
@@ -518,20 +461,6 @@ BEGIN
                 
             END
 
-            IF @resultDetail_br IS NOT NULL -- for betradar
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_br)
-                
-                SELECT TOP(1) 
-                    @NextGoal = ISNULL(T.C.value('./@NextGoal[1]', 'varchar(MAX)'), '')
-                    ,@FirstGoalMethod = ISNULL(T.C.value('./@FirstGoalMethod[1]', 'varchar(2)'), '')
-                    ,@TimeFirstGoal = ISNULL(T.C.value('./@TimeFirstGoal[1]', 'varchar(10)'), '')
-                    ,@ResourceIDsCAL = ISNULL(T.C.value('./@ResourceIDsCAL[1]', 'varchar(MAX)'), '')
-                    ,@ResourceIDsREFUND = ISNULL(T.C.value('./@ResourceIDsREFUND[1]', 'varchar(MAX)'), '')                
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-            END        
-            
             IF @resultDetail_bb IS NOT NULL -- for basketball
             BEGIN
 									
@@ -1496,11 +1425,6 @@ BEGIN
                                                END THEN 1
                                 ELSE -1
                             END
-                        WHEN 424 THEN
-							CASE 
-								WHEN betteam = @FirstGoalMethod THEN 1
-								ELSE -1
-							END	
                         WHEN 425 THEN
                             CASE
                                 WHEN betteam = @WinFromBehind THEN 1
@@ -1912,16 +1836,6 @@ BEGIN
 							END
 						
 						--STARTING for new bettype for PHAIO 3
-						-- 22: Next Goal
-						 WHEN 22 THEN 
-                            CASE WHEN CHARINDEX((REPLACE(SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,5),@bettype_22,@bettype_160) + betteam),@NextGoal)> 0 THEN 1 
-                                 ELSE - 1 
-                                 END
-                        -- 455: Time Of First Goal
-                         WHEN 455 THEN 
-                            CASE WHEN Betteam = @TimeFirstGoal THEN 1 
-                                 ELSE - 1
-                                 END 
 						-- 456: 1H Both Teams To Score / Result
 						WHEN 456 THEN 
 									CASE WHEN bm.betteam = (CASE 
@@ -2138,10 +2052,6 @@ BEGIN
                             WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype = 1324 AND betcheck LIKE '805%' THEN 1  
                             ELSE 0 
                             END 
-                    AND 1 = CASE WHEN @ResourceIDsCAL IS NULL AND t.groupId <> 8 THEN 1  
-								WHEN @ResourceIDsCAL IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsCAL)>0 THEN 1 	
-								WHEN @ResourceIDsCAL IS NOT NULL AND t.groupId = 8 AND bm.Bettype <> 22 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsCAL)>0 THEN 1 
-								ELSE 0 END  --Betradar 2 Auto Bettypes 
                     AND 1 = CASE -- basketball
 								WHEN @resultDetail_bb IS NULL THEN 1
 								WHEN t.isEarly = 1 THEN CASE
