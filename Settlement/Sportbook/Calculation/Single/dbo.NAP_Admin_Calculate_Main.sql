@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     @matchid                        INT
     ,@mode                          VARCHAR(15) = 'CAL'
@@ -86,29 +82,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@SetxGameyDRAW                 VARCHAR(MAX)= NULL
     ,@SetxGameyREFUND               VARCHAR(MAX)= NULL
     ,@SetxGameyFinishedGame         VARCHAR(MAX)= NULL
-    ,@ResourceIDs                   VARCHAR(MAX)= NULL  --Auto settlement
-    ,@penaltyshootout               VARCHAR(10) = NULL    --Auto settlement
-    ,@matchDecidedMethod            VARCHAR(10) = NULL
-    ,@1st10Min1x2                   VARCHAR(10) = NULL
-    ,@1stGoalTime10Min              VARCHAR(10) = NULL
-    ,@1stGoalTime15Min              VARCHAR(10) = NULL
-    ,@WhoAdvancesNextRound          VARCHAR(10) = NULL
-    ,@ExtraTimeandGoal              VARCHAR(10) = NULL
-    ,@ExtraTimeYN                   VARCHAR(10) = NULL
-    ,@GoalScorerFirst               VARCHAR(10) = NULL
-    ,@PlayerSentOff                 VARCHAR(10) = NULL
-    ,@HTPlayerSentOff               VARCHAR(10) = NULL
-    ,@PlayerSentOffHome             VARCHAR(10) = NULL
-    ,@HTPlayerSentOffHome           VARCHAR(10) = NULL
-    ,@PlayerSentOffAway             VARCHAR(10) = NULL
-    ,@HTPlayerSentOffAway           VARCHAR(10) = NULL
-    ,@1HNextGoal                    VARCHAR(MAX)= NULL
-    ,@NextGoal                      VARCHAR(MAX)= NULL
-    ,@NextGoalTime15Min             VARCHAR(MAX)= NULL
-    ,@ExtraNextGoal                 VARCHAR(MAX)= NULL
-    ,@GoalScorerAnytime             VARCHAR(MAX)= NULL
-    ,@FirstGoalMethod               VARCHAR(10) = NULL
-    ,@TimeFirstGoal                 VARCHAR(10) = NULL
+    ,@ResourceIDs                   VARCHAR(MAX)= NULL  
     ,@isRefundHT                    BIT         = NULL
     ,@IsHTCal                       BIT         = NULL
     ,@betcount_1                    INT         = NULL
@@ -119,23 +93,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@betCount_154                  INT         = NULL
     ,@betCount_155                  INT         = NULL
     ,@betCount_156                  INT         = NULL
-    ,@betcount_194                  INT         = NULL
-    ,@betcount_195                  INT         = NULL
-    ,@betcount_196                  INT         = NULL
-    ,@betcount_197                  INT         = NULL
-    ,@betcount_198                  INT         = NULL
-    ,@betcount_199                  INT         = NULL
-    ,@betcount_200                  INT         = NULL
-    ,@betcount_201                  INT         = NULL
-    ,@betcount_202                  INT         = NULL
-    ,@betcount_203                  INT         = NULL
-    ,@betcount_204                  INT         = NULL
-    ,@betcount_205                  INT         = NULL
-    ,@betcount_206                  INT         = NULL
-    ,@betcount_207                  INT         = NULL
-    ,@betcount_208                  INT         = NULL
-    ,@betcount_209                  INT         = NULL
-
     ,@betcount_1301                 INT         = NULL        -- Tennis SS
     ,@betCount_1302                 INT         = NULL
     ,@betCount_1303                 INT         = NULL
@@ -222,7 +179,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190426@Kathy: Remove redundant param on cricket sp [Redmine:#112572]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
-		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 
     Param's Explanation:
         @action             @mode
@@ -230,9 +187,7 @@ AS
         + CAL-FGLG          CAL, CAL-HT, CAL-FT
         + REFUND            ALL, HT, FT, BetDaq, BetFair
         + REFUND-FGLG       REFUND-FT, REFUND-HT
-        + CAL-PS            CAL
         + CAL-SET           CAL        --Tennis
-        + CAL-AUTO          CAL
         + CAL-CORNER
         + CAL-INST          INST-HT,INST-FT
 */
@@ -360,28 +315,6 @@ BEGIN
             + CASE WHEN @SetxGameyREFUND IS NULL THEN '' ELSE ',@SetxGameyREFUND = ' + '''' + @SetxGameyREFUND + '''' END
             + CASE WHEN @SetxGameyFinishedGame IS NULL THEN '' ELSE ',@SetxGameyFinishedGame = ' + '''' + @SetxGameyFinishedGame + '''' END
             + CASE WHEN @ResourceIDs IS NULL THEN '' ELSE ',@ResourceIDs = ' + '''' + @ResourceIDs + '''' END
-            + CASE WHEN @penaltyshootout IS NULL THEN '' ELSE ',@penaltyshootout = ' + '''' + @penaltyshootout + '''' END
-            + CASE WHEN @matchDecidedMethod IS NULL THEN '' ELSE ',@matchDecidedMethod = ' + '''' + @matchDecidedMethod + '''' END
-            + CASE WHEN @1st10Min1x2 IS NULL THEN '' ELSE ',@1st10Min1x2 = ' + '''' + @1st10Min1x2 + '''' END
-            + CASE WHEN @1stGoalTime10Min IS NULL THEN '' ELSE ',@1stGoalTime10Min = ' + '''' + @1stGoalTime10Min + '''' END
-            + CASE WHEN @1stGoalTime15Min IS NULL THEN '' ELSE ',@1stGoalTime15Min = ' + '''' + @1stGoalTime15Min + '''' END
-            + CASE WHEN @WhoAdvancesNextRound IS NULL THEN '' ELSE ',@WhoAdvancesNextRound = ' + '''' + @WhoAdvancesNextRound + '''' END
-            + CASE WHEN @ExtraTimeandGoal IS NULL THEN '' ELSE ',@ExtraTimeandGoal = ' + '''' + @ExtraTimeandGoal + '''' END
-            + CASE WHEN @ExtraTimeYN IS NULL THEN '' ELSE ',@ExtraTimeYN = ' + '''' + @ExtraTimeYN + '''' END
-            + CASE WHEN @GoalScorerFirst IS NULL THEN '' ELSE ',@GoalScorerFirst = ' + '''' + @GoalScorerFirst + '''' END
-            + CASE WHEN @PlayerSentOff IS NULL THEN '' ELSE ',@PlayerSentOff = ' + '''' + @PlayerSentOff + '''' END
-            + CASE WHEN @HTPlayerSentOff IS NULL THEN '' ELSE ',@HTPlayerSentOff = ' + '''' + @HTPlayerSentOff + '''' END
-            + CASE WHEN @PlayerSentOffHome IS NULL THEN '' ELSE ',@PlayerSentOffHome = ' + '''' + @PlayerSentOffHome + '''' END
-            + CASE WHEN @HTPlayerSentOffHome IS NULL THEN '' ELSE ',@HTPlayerSentOffHome = ' + '''' + @HTPlayerSentOffHome + '''' END
-            + CASE WHEN @PlayerSentOffAway IS NULL THEN '' ELSE ',@PlayerSentOffAway = ' + '''' + @PlayerSentOffAway + '''' END
-            + CASE WHEN @HTPlayerSentOffAway IS NULL THEN '' ELSE ',@HTPlayerSentOffAway = ' + '''' + @HTPlayerSentOffAway + '''' END
-            + CASE WHEN @1HNextGoal IS NULL THEN '' ELSE ',@1HNextGoal = ' + '''' + @1HNextGoal + '''' END
-            + CASE WHEN @NextGoal IS NULL THEN '' ELSE ',@NextGoal = ' + '''' + @NextGoal + '''' END
-            + CASE WHEN @NextGoalTime15Min IS NULL THEN '' ELSE ',@NextGoalTime15Min = ' + '''' + @NextGoalTime15Min + '''' END
-            + CASE WHEN @ExtraNextGoal IS NULL THEN '' ELSE ',@ExtraNextGoal = ' + '''' + @ExtraNextGoal + '''' END
-            + CASE WHEN @GoalScorerAnytime IS NULL THEN '' ELSE ',@GoalScorerAnytime = ' + '''' + @GoalScorerAnytime + '''' END
-            + CASE WHEN @FirstGoalMethod IS NULL THEN '' ELSE ',@FirstGoalMethod = ' + '''' + @FirstGoalMethod + '''' END
-            + CASE WHEN @TimeFirstGoal IS NULL THEN '' ELSE ',@TimeFirstGoal = ' + '''' + @TimeFirstGoal + '''' END
             + CASE WHEN @WinFromBehind IS NULL THEN '' ELSE ',@WinFromBehind = ' + '''' + @WinFromBehind + '''' END
             + CASE WHEN @isRefundHT IS NULL THEN '' ELSE ',@isRefundHT = ' + CONVERT(NVARCHAR(50),@isRefundHT,0) END
             + CASE WHEN @IsHTCal IS NULL THEN '' ELSE ',@IsHTCal = ' + CONVERT(NVARCHAR(50),@IsHTCal,0) END
@@ -393,22 +326,6 @@ BEGIN
             + CASE WHEN @betCount_154 IS NULL THEN '' ELSE ',@betCount_154 = ' + CONVERT(NVARCHAR(50), @betCount_154) END
             + CASE WHEN @betCount_155 IS NULL THEN '' ELSE ',@betCount_155 = ' + CONVERT(NVARCHAR(50), @betCount_155) END
             + CASE WHEN @betCount_156 IS NULL THEN '' ELSE ',@betCount_156 = ' + CONVERT(NVARCHAR(50), @betCount_156) END
-            + CASE WHEN @betCount_194 IS NULL THEN '' ELSE ',@betCount_194 = ' + CONVERT(NVARCHAR(50), @betCount_194) END
-            + CASE WHEN @betCount_195 IS NULL THEN '' ELSE ',@betCount_195 = ' + CONVERT(NVARCHAR(50), @betCount_195) END
-            + CASE WHEN @betCount_196 IS NULL THEN '' ELSE ',@betCount_196 = ' + CONVERT(NVARCHAR(50), @betCount_196) END
-            + CASE WHEN @betCount_197 IS NULL THEN '' ELSE ',@betCount_197 = ' + CONVERT(NVARCHAR(50), @betCount_197) END
-            + CASE WHEN @betCount_198 IS NULL THEN '' ELSE ',@betCount_198 = ' + CONVERT(NVARCHAR(50), @betCount_198) END
-            + CASE WHEN @betCount_199 IS NULL THEN '' ELSE ',@betCount_199 = ' + CONVERT(NVARCHAR(50), @betCount_199) END
-            + CASE WHEN @betCount_200 IS NULL THEN '' ELSE ',@betCount_200 = ' + CONVERT(NVARCHAR(50), @betCount_200) END
-            + CASE WHEN @betCount_201 IS NULL THEN '' ELSE ',@betCount_201 = ' + CONVERT(NVARCHAR(50), @betCount_201) END
-            + CASE WHEN @betCount_202 IS NULL THEN '' ELSE ',@betCount_202 = ' + CONVERT(NVARCHAR(50), @betCount_202) END
-            + CASE WHEN @betCount_203 IS NULL THEN '' ELSE ',@betCount_203 = ' + CONVERT(NVARCHAR(50), @betCount_203) END
-            + CASE WHEN @betCount_204 IS NULL THEN '' ELSE ',@betCount_204 = ' + CONVERT(NVARCHAR(50), @betCount_204) END
-            + CASE WHEN @betCount_205 IS NULL THEN '' ELSE ',@betCount_205 = ' + CONVERT(NVARCHAR(50), @betCount_205) END
-            + CASE WHEN @betCount_206 IS NULL THEN '' ELSE ',@betCount_206 = ' + CONVERT(NVARCHAR(50), @betCount_206) END
-            + CASE WHEN @betCount_207 IS NULL THEN '' ELSE ',@betCount_207 = ' + CONVERT(NVARCHAR(50), @betCount_207) END
-            + CASE WHEN @betCount_208 IS NULL THEN '' ELSE ',@betcount_208 = ' + CONVERT(NVARCHAR(50), @betCount_208) END
-            + CASE WHEN @betCount_209 IS NULL THEN '' ELSE ',@betCount_209 = ' + CONVERT(NVARCHAR(50), @betCount_209) END
             + CASE WHEN @betCount_1301 IS NULL THEN '' ELSE ',@betcount_1301 = ' + CONVERT(NVARCHAR(50), @betCount_1301) END
             + CASE WHEN @betCount_1302 IS NULL THEN '' ELSE ',@betCount_1302 = ' + CONVERT(NVARCHAR(50), @betCount_1302) END
             + CASE WHEN @betCount_1303 IS NULL THEN '' ELSE ',@betCount_1303 = ' + CONVERT(NVARCHAR(50), @betCount_1303) END
@@ -2201,251 +2118,6 @@ BEGIN
             END
         END
 
-        -- For Early Settlement ONLY
-        IF @action = 'CAL-AUTO'  -- 'CAL-PS'
-        BEGIN
-            SET @xml = CONVERT(XML, REPLACE('<root><r t="' + @strBettypes + '"/></root>', ',','"/><r t="'))
-
-            INSERT INTO @tblBettypes (bettype)
-            SELECT T.c.value('./@t','SMALLINT')
-            FROM @xml.nodes('/root/r') AS T(c)
-            OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-
-            -- bettype: 135: PenaltyShootout
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 135)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 135
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @penaltyshootout
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-
-            -- bettype: 160: Next Goal (3rd)
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 160)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 160
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @NextGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 164: Extra Time Next Goal
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 164)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 164
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @ExtraNextGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 168: Who advances to next round
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 168)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 168
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @WhoAdvancesNextRound
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 169: Next Goal Time (15 Min)
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 169)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 169
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @NextGoalTime15Min
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 173: Extra Time Yes/No
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 173)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 173
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @ExtraTimeYN
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 174: Extra Time and Goal
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 174)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 174
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @ExtraTimeandGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 175 : Match Decided Method
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 175)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 175
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @matchDecidedMethod
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 176 : First 10 Min 1x2
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 176)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 176
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @1st10Min1x2
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 180 : 1H Next Goal
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 180)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 180
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @1HNextGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 192 : First Goal Time (10 Min)
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 192)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 192
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @1stGoalTime10Min
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 193 : First Goal Time (15 Min)
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 193)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 193
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @1stGoalTime15Min
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 210 : Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 210)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 210
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @PlayerSentOff
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 211 : 1H Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 211)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 211
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @HTPlayerSentOff
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-
-            -- bettype: 212 : Home Team Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 212)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 212
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @PlayerSentOffHome
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 213 : HT Home Team Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 213)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 213
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @HTPlayerSentOffHome
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-
-            -- bettype: 214 : Away Team Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 214)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 214
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @PlayerSentOffAway
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 215 : 1H Away Team Player Sent Off
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 215)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 215
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @HTPlayerSentOffAway
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 216 : Goal Scorer - Anytime
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 216)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 216
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @GoalScorerAnytime
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype: 217 : Goal Scorer - First
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 217)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 217
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @GoalScorerFirst
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype 424 : First Goal Method
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 424)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 424
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @FirstGoalMethod
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype 22:  Next Goal
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 22
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @NextGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-            -- bettype 455: Time Of First Goal
-            IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 455)
-                EXEC dbo.NAP_Admin_Calculate_135
-                     @matchid = @matchid
-                    ,@bettype = 455
-                    ,@ResourceIDs = @ResourceIDs
-                    ,@result = @TimeFirstGoal
-                    ,@betcount = 1
-					,@IsReSettledTickets = @IsReSettledTickets
-
-        END
-
         IF @action = 'CAL-FM'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_221 @matchid = @matchid
@@ -3986,15 +3658,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-              
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 216)
-                    EXEC dbo.NAP_Admin_Calculate_135
-                         @matchid                       = @matchid
-                        ,@bettype                       = 216
-                        ,@ResourceIDs                   = @ResourceIDs
-                        ,@result                        = @GoalScorerAnytime
-                        ,@IsSettleAbandonedMatchIBC     = @IsSettleAbandonedMatchIBC
-                        ,@betcount                      = 1
 
                 -- Set x Game y Winner
                 IF @betcount_1324 > 0

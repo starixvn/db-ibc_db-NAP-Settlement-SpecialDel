@@ -1,9 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	 @AdminId					INT				= 148		-- calculated by system (default)
 	,@MatchId					INT
-	,@ResourceIDs				VARCHAR(MAX)	= '' 
-	,@Results					VARCHAR(MAX)	= '' 
+	,@SelectedResources			VARCHAR(MAX)	= '' 
 	,@Action					VARCHAR(10)		= 'CAL'
 	,@IsAuto					BIT				= 1
 	,@IP						VARCHAR(15)		= ''
@@ -22,25 +21,29 @@ AS
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
-
 		
 	Param's Explanation:
+		 @SelectedResources: <Resources>
+						    	<Resource Id="" Home="" Away="" />
+						    	<Resource Id="" Home="" Away="" />
+						      </Resources>
 */		
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE	 @matchcode		NVARCHAR(50)
+	IF @IsAuto = 1
+		RETURN
+
+	DECLARE	@matchcode		NVARCHAR(50)
 			,@sporttype		INT
 			,@leagueid		INT
 			,@sqlCommand	NVARCHAR(MAX)
 			,@procName		NVARCHAR(50)
-			,@betstatus		NVARCHAR(50)
 
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
-			,@betstatus		= m.betstatus
-	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
 	IF @@ROWCOUNT = 0
@@ -49,45 +52,6 @@ BEGIN
 				,@ErrMsg	= 'Match does not exist!'
 
 		RETURN
-	END
-
-	DECLARE	@InvalidResourceIDs VARCHAR(MAX)=''
-
-	DECLARE @tmpResultDetail TABLE(
-		ResourceID		VARCHAR(20)
-		,Value			VARCHAR(50)
-		,ResultStatusID	TINYINT
-	)
-	INSERT INTO @tmpResultDetail(ResourceID, Value, ResultStatusID)
-	SELECT	ResourceID
-			,HomeValue
-			,ResultStatusID
-	FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
-	WHERE	MatchID = @MatchID 
-			AND ResourceID IN( SELECT Val FROM dbo.strSplit(@ResourceIDs,',') WHERE ISNULL(@ResourceIDs,'')<>'')
-
-	IF @isAuto = 1 
-	BEGIN
-		IF (EXISTS(	SELECT	TOP 1 1 FROM	@tmpResultDetail WHERE	ResultStatusID = 5)
-				OR ISNULL(@ResourceIDs,'')=''
-		)
-		BEGIN
-			SELECT	 @ErrCode	= 1001012
-					,@ErrMsg	= 'The auto-settlement failed due to a result that has been settled previously by manual.'
-
-			RETURN
-		END
-
-		IF(EXISTS(SELECT TOP 1 1 FROM @tmpResultDetail WHERE Value IS NULL) OR ISNULL(@ResourceIDs,'')='') 
-		BEGIN
-			SELECT	@InvalidResourceIDs = @InvalidResourceIDs + ResourceID +',' 
-			FROM	@tmpResultDetail WHERE Value IS NULL
-
-			SELECT	 @ErrCode	= 1001015
-					,@ErrMsg	= 'The auto-settlement failed due to following result(s) with invalid value:' + @InvalidResourceIDs
-
-			RETURN
-		END
 	END
 
 	IF EXISTS (
@@ -112,10 +76,11 @@ BEGIN
 	EXEC NAP_Admin_Settlement_Checking
 		@MatchId = @MatchId
 		,@Action = @Action
-		,@Mode = 'CAL-AUTO'
-		,@ResourceIDs = @ResourceIDs
+		,@Mode = 'CAL-EARLY'
+		,@xmlData = @SelectedResources
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
+
 	IF @ErrCode <> 0
 	BEGIN
 		SELECT @ErrCode
@@ -129,8 +94,7 @@ BEGIN
 			,@procName		= OBJECT_NAME(@@procid)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
-															+ ', @ResourceIDs = ''' + CONVERT(VARCHAR(MAX), @ResourceIDs) + ''''
-															+ ', @Results = ''' + CONVERT(VARCHAR(MAX), @Results) + ''''
+															+ ', @SelectedResources = ''' + @SelectedResources + ''''
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 															+ ', @isAuto = ' + CONVERT(NVARCHAR(50), @isAuto) 														
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
@@ -138,13 +102,6 @@ BEGIN
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														
-	IF LEN(@sqlCommand)> 1000 --Max Field 
-	BEGIN
-		SELECT   @ErrCode = 1001010
-				,@ErrMsg  = 'There are too many inputted results to proceed at one time. Please select each one to execute separately.'	
-		RETURN 
-	END
-	
 	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
 	BEGIN
 		BEGIN TRY
@@ -180,7 +137,7 @@ BEGIN
 			,@sporttype
 			,@AdminId
 			,@IP
-			,'CAL-AUTO'
+			,'CAL-EARLY'
 			,@sqlCommand
 	END
 

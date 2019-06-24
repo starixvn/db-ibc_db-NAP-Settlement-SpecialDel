@@ -33,7 +33,6 @@ AS
 			   2: Used for Manual settle process
 			   3: Used for Manual refund process
 			   4: Used for CAL FGLG
-			   5: Used for Conner
 			   6: Used for Early Settlement Soccer
 			   7: Used for Fast Market
 			   8: Used for Early Settlement Basketball
@@ -162,8 +161,8 @@ BEGIN
 							WHEN @Mode = 2 THEN --Manual CAL
 								CASE 
 									WHEN @Action = 'CAL' THEN 1
-									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1,3,5) THEN 1
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6)
+									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1,3) THEN 1
+									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4)
 											AND 1 = CASE 
 														WHEN @IsRefundHT = 0 THEN 1
 														WHEN @IsRefundHT = 1 AND f.Is3x30 = 0 THEN 1
@@ -177,7 +176,7 @@ BEGIN
 								CASE 
 									WHEN @Action = 'CAL' THEN 1
 									WHEN @Action = 'CAL-HT' AND f.Is3x30 = 1 THEN 1
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4,6) 
+									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) 
 											AND 1 = CASE 
 														WHEN @IsRefundHT = 0 THEN 1
 														WHEN @IsRefundHT = 1 AND f.Is3x30 = 0 THEN 1
@@ -186,14 +185,6 @@ BEGIN
 										THEN 1
 									ELSE 0
 								END
-							WHEN @Mode = 5 THEN --Conner
-								CASE 
-									WHEN @Action = 'CAL' AND f.GroupId IN (5,6) THEN 1
-									WHEN @Action = 'CAL-HT' AND f.GroupId IN (5) THEN 1
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (6) THEN 1
-									ELSE 0
-								END
-					
 							ELSE 0 
 						END
 				
@@ -339,10 +330,7 @@ BEGIN
 											AND b.bettype = 22
 											AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),'22','160'),@ResourceIDs)>0 THEN 1 -- bettype 22 & 160 are using the same ResourceId 160xx
 									WHEN @ResourceIDs IS NOT NULL 
-											AND b.Bettype IN (160,164,169,180) 
-											AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-									WHEN @ResourceIDs IS NOT NULL 
-											AND b.Bettype NOT IN (160,164,169,180,22) 
+											AND b.Bettype <> 22 
 											AND CHARINDEX(CAST(b.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
 									ELSE 0 
 								END 
@@ -398,10 +386,7 @@ BEGIN
 												AND b.bettype = 22
 												AND CHARINDEX(REPLACE(SUBSTRING(CAST(b.betID AS VARCHAR(20)),2,5),'22','160'),@ResourceIDs)>0 THEN 1 -- bettype 22 & 160 are using the same ResourceId 160xx
 										WHEN @ResourceIDs IS NOT NULL 
-												AND b.Bettype IN (160,164,169,180) 
-												AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-										WHEN @ResourceIDs IS NOT NULL 
-												AND b.Bettype NOT IN (160,164,169,180,22) 
+												AND b.Bettype <> 22
 												AND CHARINDEX(CAST(b.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
 										ELSE 0 
 									END  

@@ -46,7 +46,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20190606@Sol: Incorporate PHAIO 4 [Redmine:#112885]
-		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		
     Param's Explanation:
        
@@ -93,26 +93,7 @@ BEGIN
             ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
             ,@SelectedSetCAL        VARCHAR(50)  = NULL
             ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-            ,@penaltyshootout        VARCHAR(10)    = NULL
-            ,@matchDecidedMethod    VARCHAR(10)    = NULL
-            ,@first10Min1x2            VARCHAR(10)    = NULL
-            ,@firstGoalTime10Min    VARCHAR(10)    = NULL
-            ,@firstGoalTime15Min    VARCHAR(10)    = NULL
-            ,@WhoAdvancesNextRound    VARCHAR(10) = NULL
-            ,@ExtraTimeandGoal        VARCHAR(10)    = NULL
-            ,@ExtraTimeYN            VARCHAR(10) = NULL
-            ,@PlayerSentOff            VARCHAR(10) = NULL
-            ,@HTPlayerSentOff        VARCHAR(10) = NULL
-            ,@PlayerSentOffHome        VARCHAR(10) = NULL
-            ,@HTPlayerSentOffHome    VARCHAR(10) = NULL
-            ,@PlayerSentOffAway        VARCHAR(10) = NULL
-            ,@HTPlayerSentOffAway    VARCHAR(10) = NULL
-            ,@GoalScorerFirst        VARCHAR(10) = NULL                
-            ,@firstHNextGoal        VARCHAR(MAX)= NULL
             ,@NextGoal                VARCHAR(MAX)= NULL
-            ,@NextGoalTime15Min        VARCHAR(MAX)= NULL
-            ,@ExtraNextGoal            VARCHAR(MAX)= NULL
-            ,@GoalScorerAnytime        VARCHAR(MAX)= NULL
             ,@FirstGoalMethod			VARCHAR(2) = NULL
             ,@TimeFirstGoal			VARCHAR(10) = NULL
             ,@ResourceIDsCAL        VARCHAR(MAX)= NULL
@@ -275,8 +256,7 @@ BEGIN
                              ELSE 0 END
                 AND 1 = CASE WHEN @ResourceIDsREFUND IS NULL AND t.groupId <> 8 THEN 1  
 							 WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsREFUND)>0 THEN 1 
-							 WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@ResourceIDsREFUND)>0 THEN 1 
-							 WHEN @ResourceIDsREFUND IS NOT NULL AND t.groupId = 8	AND bm.Bettype NOT IN (160,164,169,180,22) AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
+							 WHEN @ResourceIDsREFUND IS NOT NULL AND t.groupId = 8	AND bm.Bettype <> 22 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
 							 ELSE 0 END   --Betradar 2 Auto Bettype
 				AND 1 = CASE
 							WHEN @basketball_ResourceIdsREFUND IS NULL THEN 1 --s basketball
@@ -334,8 +314,7 @@ BEGIN
 					AND 1 = CASE 
 								WHEN @ResourceIDsREFUND IS NULL AND t.groupId <> 8 THEN 1  
 								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsREFUND)>0 THEN 1 
-								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@ResourceIDsREFUND)>0 THEN 1 
-								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype NOT IN (160,164,169,180,22) AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
+								WHEN @ResourceIDsREFUND IS NOT NULL AND bm.Bettype <> 22 AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsREFUND)>0 THEN 1 
 						ELSE 0 END   --Betradar 2 Auto Bettype
 
             UPDATE pd
@@ -483,8 +462,7 @@ BEGIN
                              ELSE 0 END
                 AND 1 = CASE WHEN @ResourceIDs IS NULL AND t.groupId <> 8 THEN 1 
 							 WHEN @ResourceIDs IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
-                             WHEN @ResourceIDs IS NOT NULL AND bm.Bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(betcheck AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-                             WHEN @ResourceIDs IS NOT NULL AND bm.Bettype NOT IN (160,164,169,180,22) AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
+                             WHEN @ResourceIDs IS NOT NULL AND bm.Bettype <> 22 AND t.groupId = 8 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDs)>0 THEN 1 
                              ELSE 0 END 
               AND 1 = CASE -- basketball
 							WHEN @SelectedQuarter IS NULL THEN 1
@@ -544,26 +522,8 @@ BEGIN
             BEGIN
                 SET @xml = CONVERT(XML, @resultDetail_br)
                 
-                SELECT TOP(1) @penaltyshootout = ISNULL(T.C.value('./@penaltyshootout[1]', 'varchar(10)'), '')
-                    ,@WhoAdvancesNextRound = ISNULL(T.C.value('./@WhoAdvancesNextRound[1]', 'varchar(10)'), '')
-                    ,@ExtraTimeYN = ISNULL(T.C.value('./@ExtraTimeYN[1]', 'varchar(10)'), '')
-                    ,@ExtraTimeandGoal = ISNULL(T.C.value('./@ExtraTimeandGoal[1]', 'varchar(10)'), '')
-                    ,@matchDecidedMethod = ISNULL(T.C.value('./@matchDecidedMethod[1]', 'varchar(10)'), '')
-                    ,@first10Min1x2 = ISNULL(T.C.value('./@first10Min1x2[1]', 'varchar(10)'), '')
-                    ,@firstGoalTime10Min = ISNULL(T.C.value('./@firstGoalTime10Min[1]', 'varchar(10)'), '')
-                    ,@firstGoalTime15Min = ISNULL(T.C.value('./@firstGoalTime15Min[1]', 'varchar(10)'), '')
-                    ,@PlayerSentOff = ISNULL(T.C.value('./@PlayerSentOff[1]', 'varchar(10)'), '')
-                    ,@HTPlayerSentOff = ISNULL(T.C.value('./@HTPlayerSentOff[1]', 'varchar(10)'), '')
-                    ,@PlayerSentOffHome = ISNULL(T.C.value('./@PlayerSentOffHome[1]', 'varchar(10)'), '')
-                    ,@HTPlayerSentOffHome = ISNULL(T.C.value('./@HTPlayerSentOffHome[1]', 'varchar(10)'), '')
-                    ,@PlayerSentOffAway = ISNULL(T.C.value('./@PlayerSentOffAway[1]', 'varchar(10)'), '')
-                    ,@HTPlayerSentOffAway = ISNULL(T.C.value('./@HTPlayerSentOffAway[1]', 'varchar(10)'), '')
-                    ,@GoalScorerFirst = ISNULL(T.C.value('./@GoalScorerFirst[1]', 'varchar(10)'), '')
-                    ,@NextGoal = ISNULL(T.C.value('./@NextGoal[1]', 'varchar(MAX)'), '')
-                    ,@ExtraNextGoal = ISNULL(T.C.value('./@ExtraNextGoal[1]', 'varchar(MAX)'), '')
-                    ,@NextGoalTime15Min = ISNULL(T.C.value('./@NextGoalTime15Min[1]', 'varchar(MAX)'), '')
-                    ,@firstHNextGoal = ISNULL(T.C.value('./@firstHNextGoal[1]', 'varchar(MAX)'), '')
-                    ,@GoalScorerAnytime = ISNULL(T.C.value('./@GoalScorerAnytime[1]', 'varchar(MAX)'), '')
+                SELECT TOP(1) 
+                    @NextGoal = ISNULL(T.C.value('./@NextGoal[1]', 'varchar(MAX)'), '')
                     ,@FirstGoalMethod = ISNULL(T.C.value('./@FirstGoalMethod[1]', 'varchar(2)'), '')
                     ,@TimeFirstGoal = ISNULL(T.C.value('./@TimeFirstGoal[1]', 'varchar(10)'), '')
                     ,@ResourceIDsCAL = ISNULL(T.C.value('./@ResourceIDsCAL[1]', 'varchar(MAX)'), '')
@@ -1053,12 +1013,7 @@ BEGIN
                             CASE 
                                 WHEN betteam = @csHTFT THEN 1
                                 ELSE -1
-                                END 
-                        WHEN 135 THEN -- Penalty Shootout
-                            CASE 
-                                WHEN betteam = @penaltyshootout THEN 1
-                                ELSE -1
-                                END        
+                                END  
                         WHEN 128 THEN -- HT/FT Odd/Even
                             CASE
                                 WHEN betteam = 'oo' AND (@hth + @hta) % 2 = 1 AND (@fth + @fta) % 2 = 1 THEN 1
@@ -1162,94 +1117,6 @@ BEGIN
                                 WHEN N'o' THEN (i.TotalGameHomeSetx + i.TotalGameAwaySetx) - hdp1 
                                 WHEN N'u' THEN hdp1 - (i.TotalGameHomeSetx + i.TotalGameAwaySetx) 
                                 END
-                        -- Betradar 2 
-                        WHEN 160 THEN 
-                            CASE WHEN CHARINDEX((SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,5) + betteam),@NextGoal)> 0 THEN 1 
-                                 ELSE - 1 
-                                 END
-                                                                                                
-                        WHEN 164 THEN 
-                            CASE WHEN CHARINDEX((SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,5) + betteam),@ExtraNextGoal)> 0 THEN 1 
-                                 ELSE - 1 
-                                 END
-
-                        WHEN 168 THEN 
-                            CASE WHEN Betteam = @WhoAdvancesNextRound THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 169 THEN 
-                            CASE WHEN CHARINDEX((SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,5) + betteam),@NextGoalTime15Min)> 0 THEN 1 
-                                 ELSE - 1 
-                                 END
-                        WHEN 173 THEN 
-                            CASE WHEN Betteam = @ExtraTimeYN THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 174 THEN 
-                            CASE WHEN Betteam = @ExtraTimeandGoal THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 175 THEN 
-                            CASE WHEN Betteam = @matchDecidedMethod THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 176 THEN 
-                            CASE WHEN Betteam = @first10Min1x2 THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 180 THEN 
-                            CASE WHEN CHARINDEX((SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,5) + betteam),@firstHNextGoal)> 0 THEN 1 
-                                 ELSE - 1 
-                                 END
-                        WHEN 192 THEN 
-                            CASE WHEN Betteam = @firstGoalTime10Min THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 193 THEN 
-                            CASE WHEN Betteam = @firstGoalTime15Min THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 210 THEN 
-                            CASE WHEN Betteam = @PlayerSentOff THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 211 THEN 
-                            CASE WHEN Betteam = @HTPlayerSentOff THEN 1 
-                                 ELSE - 1
-                                 END 
-                        WHEN 212 THEN 
-                            CASE WHEN Betteam = @PlayerSentOffHome THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 213 THEN 
-                            CASE WHEN Betteam = @HTPlayerSentOffHome THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 214 THEN 
-                            CASE WHEN Betteam = @PlayerSentOffAway THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 215 THEN 
-                            CASE WHEN Betteam = @HTPlayerSentOffAway THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 216 THEN 
-                            CASE WHEN CHARINDEX(betteam,@GoalScorerAnytime)>0 THEN 1 
-                                 ELSE - 1
-                                 END 
-
-                        WHEN 217 THEN 
-                            CASE WHEN Betteam = @GoalScorerFirst THEN 1 
-                                 ELSE - 1
-                                 END 
-
                         -- Betradar 2 Manual Bettype 
                         WHEN 157 THEN 
                             CASE WHEN betteam =N'h' AND ((@fth + @fta) &1) = 1 THEN 1 
@@ -2273,8 +2140,7 @@ BEGIN
                             END 
                     AND 1 = CASE WHEN @ResourceIDsCAL IS NULL AND t.groupId <> 8 THEN 1  
 								WHEN @ResourceIDsCAL IS NOT NULL AND bm.Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDsCAL)>0 THEN 1 	
-								WHEN @ResourceIDsCAL IS NOT NULL AND bm.Bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(Betcheck AS VARCHAR(20)),2,5),@ResourceIDsCAL)>0 THEN 1 
-								WHEN @ResourceIDsCAL IS NOT NULL AND t.groupId = 8 AND bm.Bettype NOT IN (160,164,169,180,22) AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsCAL)>0 THEN 1 
+								WHEN @ResourceIDsCAL IS NOT NULL AND t.groupId = 8 AND bm.Bettype <> 22 AND CHARINDEX(CAST(bm.Bettype AS VARCHAR(20)),@ResourceIDsCAL)>0 THEN 1 
 								ELSE 0 END  --Betradar 2 Auto Bettypes 
                     AND 1 = CASE -- basketball
 								WHEN @resultDetail_bb IS NULL THEN 1

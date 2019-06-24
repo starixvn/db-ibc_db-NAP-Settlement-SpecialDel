@@ -34,7 +34,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
 		- 20190611@Sol: Incorporate PHAIO 4 - Remove bettype 9 [Redmine:#112885]
-		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 
 	Param's Explanation:
 */
@@ -254,7 +254,7 @@ BEGIN
 							WHERE matchid = @matchid
 								AND SettlementStatusID > 0
 								AND (ResourceId IN (SELECT CAST(BetType AS VARCHAR(20)) FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId = 8)
-									OR len(ResourceID) = 5 AND SUBSTRING(ResourceID, 1, 3) IN ('160', '164', '169', '180', '216')
+									OR len(ResourceID) = 5 AND SUBSTRING(ResourceID, 1, 3) IN ('160')
 								)
 						)
 				) AND @action IN ('CAL','REFUND-HT','REFUND-FT','REFUND') --Soccer Auto Bets Radar

@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
   @Command                      VARCHAR(100) 
  ,@MatchID                      INT
- ,@ResourceIDs                  VARCHAR(MAX)= NULL 
- ,@Results                      VARCHAR(MAX)= NULL 
+ ,@SelectedResources			VARCHAR(MAX)= NULL
  ,@fth                          SMALLINT    = NULL
  ,@fta                          SMALLINT    = NULL
  ,@hth                          SMALLINT    = NULL
@@ -31,7 +30,7 @@ AS
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
-		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
         
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -39,6 +38,11 @@ AS
                     <Results>
                         <Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
                     </Results>
+
+		+ @SelectedResources: <Resources>
+						    	<Resource Id="" Home="" Away="" />
+						    	<Resource Id="" Home="" Away="" />
+						      </Resources>
 */
 BEGIN
     SET NOCOUNT ON 
@@ -50,6 +54,7 @@ BEGIN
         ,@SettlementStatusID    TINYINT 
         ,@ResultStatusID        TINYINT
         ,@xmlResourceResult     XML
+		,@xmlSelectedResources  XML
         
     DECLARE @tmpResultDetail TABLE(
             ResourceID              VARCHAR(20)
@@ -60,11 +65,6 @@ BEGIN
             ,SourceType             BIT DEFAULT(0) -- 0: DB, 1: Web
     )
     
-    DECLARE @tmpResourceIDs TABLE(
-         ID         INT IDENTITY(1,1)
-        ,ResourceID VARCHAR(20)
-    )
-    
     SELECT  @sporttype  = Sporttype 
             ,@GoalSequence  = GoalRecord
             ,@betstatus = betstatus
@@ -73,12 +73,6 @@ BEGIN
     
     IF @sporttype <> 1 RETURN -- Apply for Soccer ONLY
 
-    IF @ResourceIDs IS NOT NULL 
-    BEGIN
-        INSERT INTO @tmpResourceIDs(ResourceID)
-        SELECT  Val FROM dbo.StrSplit(@ResourceIDs,',') 
-    END 
-    
     -- 14, 127, GoalRecord bettypes
     IF @ResourceResult IS NOT NULL
     BEGIN
@@ -101,6 +95,22 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlResourceResult = NULL ) )   
     END 
     
+	IF @SelectedResources IS NOT NULL
+	BEGIN
+		SET @xmlSelectedResources = CAST(@SelectedResources AS XML)
+
+        ;WITH cteSelectedResources
+        AS
+        (
+            SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+                    ,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
+            FROM    @xmlSelectedResources.nodes('/Resources/Resource') AS T(C)
+        )
+        INSERT INTO @tmpResultDetail(ResourceID, HomeValue)
+        SELECT   ResourceId, HomeValue
+        FROM    cteSelectedResources 
+	END
+
     IF @Command ='NAP_Admin_Settlement_Auto_1s-CAL'
     BEGIN
         IF @IsAuto = 1 
@@ -111,69 +121,22 @@ BEGIN
                     ,LastModifyBy       = @Creator 
                     ,LastModifyDate     = GETDATE() 
             WHERE   MatchID = @MatchID
-                    AND ResourceID IN (SELECT ResourceID FROM @tmpResourceIDs)
+                    AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
         END
         ELSE IF @IsAuto = 0 
         BEGIN 
-            DECLARE @tmpResults TABLE(
-                 ID         INT IDENTITY(1,1)
-                ,Value      VARCHAR(50)
-            )
-
-            IF @Results IS NOT NULL 
-            BEGIN
-                INSERT INTO @tmpResults(Value)
-                SELECT  Val FROM dbo.StrSplit(@Results,',') 
-            END 
-
-            UPDATE  @tmpResults
-            SET     Value = NULL
-            WHERE   Value ='NL' --Blank result of Goal Scorer 
-
-            DECLARE @tmpOdds TABLE(
-                 MatchID        INT 
-                ,Bettype        INT
-                ,BetChoice      VARCHAR(20)
-                ,OddsInfo       VARCHAR(50)
-            )
-
-            IF EXISTS(
-                SELECT TOP 1 1 
-                FROM    @tmpResourceIDs
-                WHERE   ResourceID LIKE '216__'
-                        OR ResourceID ='217'
-            )
-            BEGIN
-                INSERT INTO @tmpOdds(MatchID,Bettype, BetChoice, OddsInfo)
-                SELECT  DISTINCT 
-                         o.MatchID 
-                        ,o.bettype
-                        ,x.betChoice 
-                        ,x.OddsInfo
-                FROM    [dbo].[odds_flex] x WITH (NOLOCK)
-                        INNER JOIN [dbo].[odds] o WITH (NOLOCK) ON x.oddsid = o.oddsid
-                WHERE   o.MatchID = @MatchID
-                        AND o.Bettype BETWEEN 216 AND 217  
-                ORDER BY o.bettype 
-            END 
-
             MERGE   ResultDetail AS TARGET
             USING(
                 SELECT   @MatchID AS MatchID
                         ,r.ResourceID 
-                        ,CASE WHEN r.ResourceID NOT IN ('214','215') THEN t.Value ELSE NULL END AS HomeValue 
-                        ,CASE WHEN r.ResourceID IN ('214','215') THEN t.Value ELSE NULL END AS AwayValue 
-                        ,CASE WHEN r.ResourceID LIKE '216__' OR r.ResourceID = '217' THEN o.OddsInfo ELSE NULL END AS OtherInfo  
-                FROM    @tmpResourceIDs r 
-                        INNER JOIN @tmpResults t ON r.ID = t.ID 
-                        LEFT JOIN @tmpOdds o ON ( (r.ResourceID = '217' AND o.Bettype = 217 AND t.Value = o.BetChoice) OR (r.ResourceID LIKE '216__' AND o.Bettype = 216 AND t.Value = o.BetChoice)) 
-                                                    
-            ) AS SOURCE ON (TARGET.MatchID = SOURCE.MatchID AND TARGET.ResourceID = SOURCE.ResourceID)
+                        ,r.HomeValue
+                FROM    @tmpResultDetail r 
+            ) AS SOURCE 
+				ON	TARGET.MatchID = SOURCE.MatchID 
+					AND TARGET.ResourceID = SOURCE.ResourceID
             WHEN    MATCHED THEN                 
                     UPDATE SET
                         TARGET.HomeValue            = SOURCE.HomeValue
-                        ,TARGET.AwayValue           = SOURCE.AwayValue  
-                        ,TARGET.OtherInfo           = CASE WHEN ((TARGET.ResourceID ='217' OR TARGET.ResourceID LIKE '216__') AND SOURCE.OtherInfo IS NULL AND SOURCE.HomeValue IS NOT NULL) THEN TARGET.OtherInfo ELSE SOURCE.OtherInfo END
                         ,TARGET.ResultStatusID      = 5     -- Manual Settlement 
                         ,TARGET.SettlementStatusID  = 4     -- Completed
                         ,TARGET.LastModifyBy        = @Creator 
@@ -183,8 +146,6 @@ BEGIN
                          MatchID
                         ,ResourceID
                         ,HomeValue
-                        ,AwayValue
-                        ,OtherInfo 
                         ,ResultStatusID
                         ,SettlementStatusID
                         ,CreateBy
@@ -196,8 +157,6 @@ BEGIN
                          SOURCE.MatchID
                         ,SOURCE.ResourceID
                         ,SOURCE.HomeValue
-                        ,SOURCE.AwayValue 
-                        ,SOURCE.OtherInfo 
                         ,5 -- Manual Settlement 
                         ,4 -- Completed
                         ,@Creator
@@ -220,13 +179,13 @@ BEGIN
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
         WHERE   MatchID = @MatchID
-                AND ResourceID IN (SELECT ResourceID FROM @tmpResourceIDs)
+                AND ResourceID IN (SELECT ResourceID FROM @tmpResultDetail)
     END
     /* END - @Command = 'NAP_Admin_Settlement_Auto_1s-UNDO' */
     ELSE IF @Command ='NAP_Admin_Settlement_Auto_1s-REFUND'
     BEGIN
         MERGE   ResultDetail AS TARGET
-        USING   @tmpResourceIDs AS SOURCE ON TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID 
+        USING   @tmpResultDetail AS SOURCE ON TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID 
         WHEN MATCHED THEN 
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
