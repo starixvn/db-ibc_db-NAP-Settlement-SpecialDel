@@ -42,6 +42,7 @@ AS
 	- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 	- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 	- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+	- 20190528@Sol: Auto payout phase 2 - Removed unused field IsNeedToCalculateFGLG [Redmine:#106901]
 	- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 	
  Param explanation:  
