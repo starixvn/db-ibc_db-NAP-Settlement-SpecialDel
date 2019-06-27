@@ -24,7 +24,7 @@ AS
 		- 20180816@Alan: Incorporate ESports 2.0 [99448]
 		- 20190222@Sol: New Formula for Comm [109007]
 		- 20190527@Sol: Incorporate PHAIO 4 [Redmine:#112885]
-		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types
+		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 	
     Parameters Explanation:    
     
@@ -392,8 +392,8 @@ RETURN (
 	UNION ALL SELECT 1,476,1,0,1,0,'1H',1,0,0
 	UNION ALL SELECT 2,477,0,0,0,0,'FT',0,0,0
 	UNION ALL SELECT 1,478,0,0,1,0,'1H',0,0,0
-	UNION ALL SELECT 8,479,1,0,0,1,'FT',0,0,0
-	UNION ALL SELECT 8,481,1,0,0,1,'2H',0,0,0
+	UNION ALL SELECT 8,479,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,481,0,0,0,1,'2H',0,0,0
 	UNION ALL SELECT 2,482,1,0,0,0,'FT',3,0,0
 	UNION ALL SELECT 2,483,1,0,0,0,'FT',3,0,0
 	UNION ALL SELECT 1,484,1,0,1,0,'1H',1,0,0

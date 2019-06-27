@@ -180,6 +180,7 @@ AS
 		- 20190426@Kathy: Remove redundant param on cricket sp [Redmine:#112572]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
     Param's Explanation:
         @action             @mode
@@ -1513,6 +1514,24 @@ BEGIN
                         ,@fta = @fta
 						,@IsReSettledTickets = @IsReSettledTickets
 
+		-- bettype 470: Corners Odd/Even (own)
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 470)
+		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+			,@bettype = 470
+			,@oddeven = @oddeven
+			,@oddevenht = NULL
+			,@betcount = 1
+			,@IsReSettledTickets = @IsReSettledTickets
+
+		-- bettype 472: 2H Corners Odd/Even
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 472)
+		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+			,@bettype = 472
+			,@oddeven = @oddeven
+			,@oddevenht = NULL
+			,@betcount = 1
+			,@IsReSettledTickets = @IsReSettledTickets
+
             END -- END CAL/CAL-FT
 
             IF @Mode IN ('CAL-HT', 'CAL')
@@ -1879,7 +1898,14 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
-
+				-- bettype 471: 1H Corners Odd/Even
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 471)
+					EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+                        ,@bettype = 471
+                        ,@oddeven = @oddeven
+                        ,@oddevenht = NULL
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
             END
 
             IF @Mode = 'CAL' AND @sporttype = 2
