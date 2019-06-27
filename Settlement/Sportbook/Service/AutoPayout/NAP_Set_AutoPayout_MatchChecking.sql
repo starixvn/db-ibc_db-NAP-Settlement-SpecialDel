@@ -55,3 +55,4 @@ BEGIN
 	FROM	cteBettypes
 
 END
+GO
