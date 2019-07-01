@@ -43,6 +43,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190822@Kathy: Correct scomm formula when settling determined ticket [Redmine:#119092]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -142,7 +143,11 @@ BEGIN
 																WHEN @totalht > 0 AND betteam = 'NG' THEN -1
 																ELSE NULL
 															  END
-															
+									  WHEN bettype = 476 THEN CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
+														WHEN betteam = 'u' AND @totalht >= hdp1 THEN -1
+														WHEN betteam = 'e' AND @totalht > hdp1 THEN -1
+														ELSE NULL
+													END
 									  ELSE NULL 
 									  END 
 				,modds = @modds                                        
@@ -362,6 +367,12 @@ BEGIN
 					WHEN betteam = 'du' AND @scorediff_ht = 0 THEN hdp1 - @totalht    
 					WHEN bettype IN (426, 608) THEN CASE
 												WHEN betteam = @result THEN 1
+												ELSE -1
+											END
+					WHEN bettype = 476 THEN 
+											CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
+												WHEN betteam = 'u' AND @totalht < hdp1 THEN 1
+												WHEN betteam = 'e' AND @totalht = hdp1 THEN 1
 												ELSE -1
 											END
 					ELSE -1

@@ -33,6 +33,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
 */
 BEGIN
@@ -123,6 +124,23 @@ BEGIN
 																									END
 															ELSE NULL
 														END
+								-- Total Corners
+								WHEN bettype = 473 THEN 
+													CASE WHEN betteam = '0-5' and @totalgoal > 5 THEN -1
+														WHEN betteam = '6-8' and @totalgoal > 8 THEN -1
+														WHEN betteam = '9-11' and @totalgoal > 11 THEN -1
+														WHEN betteam = '12-14' and @totalgoal > 14 THEN -1
+														WHEN betteam = '15+' and @totalgoal >= 15 THEN 1
+														ELSE NULL
+													END
+								-- 1H Total Corners
+								WHEN bettype = 474 THEN 
+													CASE WHEN betteam = '0-2' and @totalgoal > 2 THEN -1
+														WHEN betteam = '3-4' and @totalgoal > 4 THEN -1
+														WHEN betteam = '5-6' and @totalgoal > 6 THEN -1
+														WHEN betteam = '7+' and @totalgoal >= 7 THEN 1
+														ELSE NULL 
+													END
 
 								ELSE NULL
 							 END
@@ -363,6 +381,24 @@ BEGIN
 													WHEN betteam = @result THEN 1
 													ELSE -1
 												END
+						-- Total Corners
+						WHEN bettype = 473 THEN 
+											CASE WHEN betteam = '0-5' and @totalgoal <= 5 THEN 1
+												WHEN betteam = '6-8' and @totalgoal in (6,7,8) THEN 1
+												WHEN betteam = '9-11' and @totalgoal in (9,10,11) THEN 1
+												WHEN betteam = '12-14' and @totalgoal in (12,13,14) THEN 1
+												WHEN betteam = '15+' and @totalgoal >= 15 THEN 1
+												ELSE -1 
+											END
+						-- 1H Total Corners
+						WHEN bettype = 474 THEN 
+											CASE WHEN betteam = '0-2' and @totalgoal <= 2 THEN 1
+												WHEN betteam = '3-4' and @totalgoal in (3,4) THEN 1
+												WHEN betteam = '5-6' and @totalgoal in (5,6) THEN 1
+												WHEN betteam = '7+' and @totalgoal >= 7 THEN 1
+												ELSE -1 
+											END
+
 						ELSE - 1
 						END
 					,modds = @modds

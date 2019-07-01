@@ -1514,6 +1514,7 @@ BEGIN
                         ,@fta = @fta
 						,@IsReSettledTickets = @IsReSettledTickets
 
+		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		-- bettype 470: Corners Odd/Even (own)
 		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 470)
 		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
@@ -1527,15 +1528,42 @@ BEGIN
 		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 472)
 		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
 			,@bettype = 472
-			,@oddeven = @oddeven
-			,@oddevenht = NULL
-			,@betcount = 1
+						,@oddeven = @oddeven_2H
+                        ,@oddevenht = NULL
+                        ,@betcount = 1
 			,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 473: Total Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
+					EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+						,@bettype = 473
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 475: Alternative Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)
+					EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+						,@bettype = 475
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+				
+				-- bettype 477 : Corner 3-way handicap
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 477)
+                    EXEC dbo.NAP_Admin_Calculate_28 @matchid = @matchid
+                        ,@bettype = 477
+                        ,@fth = @fth
+                        ,@fta = @fta
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END -- END CAL/CAL-FT
 
             IF @Mode IN ('CAL-HT', 'CAL')
-                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186)
+                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186, 472)
             BEGIN
                 -- exec in all cases, both 'FT' and 'HT'
                 -- bettype 7 : 1st Handicap
@@ -1898,14 +1926,42 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 				-- bettype 471: 1H Corners Odd/Even
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 471)
 					EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
                         ,@bettype = 471
-                        ,@oddeven = @oddeven
-                        ,@oddevenht = NULL
+                        ,@oddeven = NULL
+                        ,@oddevenht = @oddevenht
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 474: 1H Total Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 474)
+					EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+						,@bettype = 474
+                        ,@totalgoal = @totalht
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 476 : 1H Alternative Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 476)
+					EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
+                        ,@bettype = 476
+                        ,@totalht = @totalht
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 478 : 1H 3-way handicap
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 478)
+                    EXEC dbo.NAP_Admin_Calculate_28 @matchid = @matchid
+                        ,@bettype = 478
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+
             END
 
             IF @Mode = 'CAL' AND @sporttype = 2
@@ -3358,6 +3414,31 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 						,@IsReSettledTickets = @IsReSettledTickets
+						
+		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		-- bettype 473: Total Corners
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
+	            EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+			,@bettype = 473
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets			
+	
+		-- bettype 475: Alternative Corners
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)
+		    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+			,@bettype = 475
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets
+		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+
             END
 
             IF @mode = 'REFUND-FT'
@@ -4203,6 +4284,52 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 						,@IsReSettledTickets = @IsReSettledTickets
+				
+		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		-- bettype 473: Total Corners
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
+		    EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+			,@bettype = 473
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets
+
+		-- bettype 474: 1H Total Corners
+	  	IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 474)
+	  	    EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+			,@bettype = 474
+                        ,@totalgoal = @totalht
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets
+
+		-- bettype 475: Alternative Corners
+		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)				
+		    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+			,@bettype = 475
+                        ,@totalgoal = @totalht
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 476 : 1H Alternative Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 476)
+					EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
+                        ,@bettype = 476
+                        ,@totalht = @totalht
+                        ,@betcount = 1
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+			,@IsReSettledTickets = @IsReSettledTickets
+		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 
             IF @mode = 'REFUND'

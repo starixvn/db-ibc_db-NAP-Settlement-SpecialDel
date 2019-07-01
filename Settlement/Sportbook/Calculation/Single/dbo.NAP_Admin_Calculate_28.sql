@@ -24,7 +24,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
-		
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -133,7 +133,7 @@ BEGIN
 		UPDATE b
 		SET @modds = CASE 
 						-- FOR bettype 453: 1H 3-Way Handicap
-						WHEN bettype = 453 THEN 
+						WHEN bettype IN (453, 478) THEN 
 									CASE
 										WHEN betteam = '1' AND ((@hth - [hdp1]) - (@hta - [hdp2])) > 0  THEN 1
 										WHEN betteam = '2' AND ((@hth - [hdp1]) - (@hta - [hdp2])) < 0  THEN 1

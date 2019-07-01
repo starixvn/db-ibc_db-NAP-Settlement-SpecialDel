@@ -840,6 +840,39 @@ RETURN (
 								ELSE NULL
 							END
 					END               			  							 					
+				-- Total Corners
+				WHEN @bettype IN (473) THEN--Total Goal
+											CASE 
+												 WHEN @betteam = '0-5' and IP.TotalGoal > 5 THEN -1
+												WHEN @betteam = '6-8' and IP.TotalGoal > 8 THEN -1
+												WHEN @betteam = '9-11' and IP.TotalGoal > 11 THEN -1
+												WHEN @betteam = '12-14' and IP.TotalGoal > 14 THEN -1
+												WHEN @betteam = '15+' and IP.TotalGoal >= 15 THEN 1
+												ELSE NULL
+											END		  		
+						
+				-- 1H Total Corners			
+				WHEN @bettype IN (474) THEN--Total Goal
+											CASE WHEN @betteam = '0-2' and IP.TotalGoal1H > 2 THEN -1
+												WHEN @betteam = '3-4' and IP.TotalGoal1H > 4 THEN -1
+												WHEN @betteam = '5-6' and IP.TotalGoal1H > 6 THEN -1
+												WHEN @betteam = '7+' and IP.TotalGoal1H >= 7 THEN 1
+												ELSE NULL 
+											END		 			
+					
+				-- Alternative Corners
+				WHEN @bettype IN (475) THEN 
+											CASE WHEN @betteam = 'o' AND IP.TotalGoal > @hdp1 THEN 1
+												WHEN @betteam = 'u' AND IP.TotalGoal >= @hdp1 THEN -1
+												WHEN @betteam = 'e' AND IP.TotalGoal > @hdp1 THEN -1
+												ELSE NULL
+											END		
+				-- 1H Alternative Corners
+				WHEN @bettype IN (476) THEN CASE WHEN @betteam = 'o' AND IP.TotalGoal1H > @hdp1 THEN 1
+														WHEN @betteam = 'u' AND IP.TotalGoal1H >= @hdp1 THEN -1
+														WHEN @betteam = 'e' AND IP.TotalGoal1H > @hdp1 THEN -1
+														ELSE NULL
+													END
 				---------------------------------------
 				ELSE NULL -- else non-supported bettype
 			END AS modds

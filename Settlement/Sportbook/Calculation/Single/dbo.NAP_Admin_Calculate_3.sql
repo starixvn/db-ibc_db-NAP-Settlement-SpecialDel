@@ -54,6 +54,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -156,7 +157,11 @@ BEGIN
 							WHEN betteam IN ('a', 'u') THEN hdp1 - @totalgoal
 							WHEN RIGHT(betteam,1) = 'u' THEN hdp1 - @totalgoal    -- 144 ,163
 							WHEN bettype = 408 AND betteam = 'NG' AND @totalgoal > 0 THEN -1 --408: No Goal
-						
+							WHEN bettype = 475 THEN CASE WHEN betteam = 'o' AND @totalgoal > hdp1 THEN 1
+														WHEN betteam = 'u' AND @totalgoal >= hdp1 THEN -1
+														WHEN betteam = 'e' AND @totalgoal > hdp1 THEN -1
+														ELSE NULL
+													END
 							ELSE NULL 
 						END
 				,modds = @modds 
@@ -377,7 +382,7 @@ BEGIN
 											WHEN betteam = 'A21+' AND @scorediff <= -21 THEN 1
 											ELSE -1
 										END		
-				WHEN bettype = 602 THEN CASE
+					WHEN bettype = 602 THEN CASE
 											WHEN betteam = 'H1-5' AND @scorediff BETWEEN 1 AND 5 THEN 1
 											WHEN betteam = 'H6-10' AND @scorediff BETWEEN 6 AND 10 THEN 1
 											WHEN betteam = 'H11-15' AND @scorediff BETWEEN 11 AND 15 THEN 1
@@ -392,6 +397,13 @@ BEGIN
 											WHEN betteam = 'A26+' AND @scorediff <= -26 THEN 1	
 											ELSE -1
 										END
+					WHEN bettype = 475 THEN 
+											CASE WHEN betteam = 'o' AND @totalgoal > hdp1 THEN 1
+												WHEN betteam = 'u' AND @totalgoal < hdp1 THEN 1
+												WHEN betteam = 'e' AND @totalgoal = hdp1 THEN 1
+												ELSE -1
+											END
+
 					ELSE - 1                    
 					END
 				,modds = @modds
