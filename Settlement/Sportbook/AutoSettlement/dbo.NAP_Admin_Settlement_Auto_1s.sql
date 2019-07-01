@@ -155,7 +155,7 @@ BEGIN
 	  			WHERE	b.BetType = t.BetType 
 						AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		) sr
-	  		CROSS APPLY dbo.f_Set_Calculate_modds_Early(sr.pfID, b.betteam, sr.HomeValue, sr.AwayValue, b.betid) m
+	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101,102)
 				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END

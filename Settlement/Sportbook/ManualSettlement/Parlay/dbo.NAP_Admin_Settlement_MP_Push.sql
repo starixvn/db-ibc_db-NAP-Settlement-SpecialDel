@@ -33,6 +33,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20190517@Sol: Tuning performance [Redmine:#112904]
+		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 
 	Param's Explanation:		
 		

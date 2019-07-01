@@ -67,10 +67,6 @@ RETURN
 					WHEN @betteam = 'a' AND fm < 0 THEN 1
 					WHEN fm = 0 THEN 0
 					ELSE -1 END
-
-			WHEN @pfID = 22 THEN --betteam = homevalue 
-			   CASE WHEN @betteam = @HomeValue THEN 1
-					ELSE -1 END
 						
 			WHEN @pfID = 100 THEN --betteam = homevalue (home/away/none/draw)
 			   CASE WHEN @betteam IN ('h', 'a') AND @betteam = @HomeValue THEN 1
@@ -87,6 +83,10 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					ELSE -1 END
 					
+			WHEN @pfID = 424 THEN --betteam = homevalue 
+			   CASE WHEN @betteam = @HomeValue THEN 1
+					ELSE -1 END
+
 			----Happy5
 			WHEN @pfID = 8101 THEN
 			   CASE WHEN @betteam = 'b' AND fm >= 53 THEN 1
