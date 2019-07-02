@@ -1618,6 +1618,13 @@ BEGIN
                          @matchid = @matchid
                         ,@bettype = 492
                         ,@ResultString = @GoalRecord
+						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+				-- bettype 482: Home Team Corners Over/Under
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 482)
+                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+                        ,@bettype = 482
+                        ,@totalgoal = @totalhome
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -3532,6 +3539,16 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 
 
+				-- bettype 482: Home Team Over/Under
+                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 482)
+                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+                        ,@bettype = 482
+                        ,@totalgoal = @fth
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END
@@ -4445,6 +4462,16 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 
+				-- bettype 482: Home Team Over/Under
+                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 482)
+                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+                        ,@bettype = 482
+                        ,@totalgoal = @fth
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 

@@ -134,7 +134,7 @@ BEGIN
     BEGIN
         DECLARE    @comparedValue SMALLMONEY    --@totalgoal - 0.5 -- Get tickets had result 
         SELECT    @comparedValue = CASE 
-										WHEN @bettype IN (3,18,178,401,402,461,462) THEN @totalgoal - 0.25 -- Apply half WON|LOSE 
+										WHEN @bettype IN (3,18,178,401,402,461,462,482) THEN @totalgoal - 0.25 -- Apply half WON|LOSE 
 										ELSE @totalgoal - 0.5 --full Winloss
 									END
 		WHILE 1 = 1
@@ -349,8 +349,8 @@ BEGIN
 										END	 
 					WHEN betteam = N'h' THEN @totalgoal - hdp1
 					WHEN betteam = N'a' THEN hdp1 - @totalgoal
-					WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,1312,401,402,461,462
-					WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,1312,401,402,461,462 
+					WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,1312,401,402,461,462,482
+					WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,1312,401,402,461,462,482 
 					WHEN betteam = 'ho' AND @scorediff > 0 THEN @totalgoal - hdp1
 					WHEN betteam = 'hu' AND @scorediff > 0 THEN hdp1 - @totalgoal
 					WHEN betteam = 'ao' AND @scorediff < 0 THEN @totalgoal - hdp1
