@@ -46,7 +46,7 @@ AS
 		- 20190606@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes
 						  PH AIO phase 4 [Redmine:#109584]
-		
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
     Param's Explanation:
        
 */
@@ -2108,6 +2108,104 @@ BEGIN
 										WHEN @LastGoal1H = '' THEN 0
 										ELSE -1
 									END
+
+						--Start #115232
+						-- 470: Corners Odd/Even (own)
+						WHEN 470 THEN 
+									CASE WHEN betteam =N'o' AND ((@fth + @fta) % 2) = 1 THEN 1 
+											WHEN betteam =N'e' AND ((@fth + @fta) % 2) = 0 THEN 1 
+											ELSE - 1 
+										END
+
+						-- 471: 1H Corners Odd/Even (own)
+						WHEN 471 THEN 
+									CASE WHEN betteam =N'o' AND ((@hth + @hta) % 2) = 1 THEN 1 
+											WHEN betteam =N'e' AND ((@hth + @hta) % 2) = 0 THEN 1 
+											ELSE - 1 
+										END
+
+						-- 472: 2H Corners Odd/Even
+						WHEN 472 THEN 
+									CASE WHEN betteam =N'o' AND ((@fth + @fta - @hth - @hta) % 2) = 1 THEN 1 
+											WHEN betteam =N'e' AND ((@fth + @fta - @hth - @hta) % 2) = 0 THEN 1 
+											ELSE - 1 
+										END 
+						-- Total Corners
+						WHEN 473 THEN 
+									CASE WHEN betteam = '0-5' and @totalgoal <= 5 THEN 1
+										WHEN betteam = '6-8' and @totalgoal in (6,7,8) THEN 1
+										WHEN betteam = '9-11' and @totalgoal in (9,10,11) THEN 1
+										WHEN betteam = '12-14' and @totalgoal in (12,13,14) THEN 1
+										WHEN betteam = '15+' and @totalgoal >= 15 THEN 1
+										ELSE -1 
+									END
+						-- 1H Total Corners
+						WHEN 474 THEN 
+									CASE WHEN betteam = '0-2' and @totalgoal <= 2 THEN 1
+										WHEN betteam = '3-4' and @totalgoal in (3,4) THEN 1
+										WHEN betteam = '5-6' and @totalgoal in (5,6) THEN 1
+										WHEN betteam = '7+' and @totalgoal >= 7 THEN 1
+										ELSE -1 
+									END
+						-- Alternative Corners
+						WHEN 475 THEN 
+									CASE WHEN betteam = 'o' AND @totalgoal > hdp1 THEN 1
+											WHEN betteam = 'u' AND @totalgoal < hdp1 THEN 1
+											WHEN betteam = 'e' AND @totalgoal = hdp1 THEN 1
+											ELSE -1
+										END
+						-- 1H Alternative Corners
+						WHEN 476 THEN 
+							CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
+								WHEN betteam = 'u' AND @totalht < hdp1 THEN 1
+								WHEN betteam = 'e' AND @totalht = hdp1 THEN 1
+								ELSE -1
+							END
+						-- Corner 3-way handicap
+						WHEN 477 THEN 
+							CASE 
+								WHEN betteam = '1' AND (hdp2 - hdp1 + @fth - @fta) > 0 THEN 1
+								WHEN betteam = '2' AND (hdp1 - hdp2 + @fta - @fth) > 0 THEN 1
+								WHEN betteam = 'x' AND ((hdp1 - hdp2) - (@fth - @fta)) = 0 THEN 1
+								ELSE -1
+								END
+						-- 478: 1H Corners 3-Way Handicap
+						WHEN 478 THEN 
+									CASE
+										WHEN betteam = '1' AND ((@hth - hdp1) - (@hta - hdp2)) > 0  THEN 1
+										WHEN betteam = '2' AND ((@hth - hdp1) - (@hta - hdp2)) < 0  THEN 1
+										WHEN betteam = 'x' AND ((@hth - hdp1) - (@hta - hdp2)) = 0  THEN 1
+										ELSE -1
+									END
+						-- 482: Home Team Corners Over/Under
+						WHEN 482 THEN 
+                            CASE
+                                WHEN betteam = 'o' THEN @fth - hdp1
+                                WHEN betteam = 'u' THEN hdp1 - @fth
+                                ELSE -1 
+							END
+						-- 483: Away Team Corners Over/Under
+						WHEN 483 THEN 
+                            CASE
+                                WHEN betteam = 'o' THEN @fta - hdp1
+                                WHEN betteam = 'u' THEN hdp1 - @fta
+                                ELSE -1 
+							END
+						-- 484: 1H Home Team Corners Over/Under
+						WHEN 484 THEN 
+                            CASE
+                                WHEN betteam = 'o' THEN @hth - hdp1
+                                WHEN betteam = 'u' THEN hdp1 - @hth
+                                ELSE -1 
+							END
+						-- 485: --1H Away Team Corners Over/Under
+						WHEN 485 THEN 
+                            CASE
+                                WHEN betteam = 'o' THEN @hta - hdp1
+                                WHEN betteam = 'u' THEN hdp1 - @hta
+                                ELSE -1 
+							END
+						--End
                         ELSE NULL -- Not support bettype
                         END AS modds
 						,CAST(CASE 

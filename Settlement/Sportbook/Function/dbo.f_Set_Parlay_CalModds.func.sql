@@ -1600,6 +1600,13 @@ RETURN (
 										WHEN @betteam = 'e' AND @totalgoal = @hdp1 THEN 1
 										ELSE -1
 									END
+				-- 1H Alternative Corners
+				WHEN 476 THEN 
+							CASE WHEN @betteam = 'o' AND @totalht > @hdp1 THEN 1
+								WHEN @betteam = 'u' AND @totalht < @hdp1 THEN 1
+								WHEN @betteam = 'e' AND @totalht = @hdp1 THEN 1
+								ELSE -1
+							END
 				-- Corner 3-way handicap
 				WHEN 477 THEN 
 					CASE 
@@ -1608,7 +1615,7 @@ RETURN (
 						WHEN @betteam = 'x' AND ((@hdp1 - @hdp2) - (@fth - @fta)) = 0 THEN 1
 						ELSE - 1
 						END
-				-- 478: 1H 3-Way Handicap
+				-- 478: 1H Corner 3-Way Handicap
 				WHEN 478 THEN 
 							CASE
 								WHEN @betteam = '1' AND ((@hth - @hdp1) - (@hta - @hdp2)) > 0  THEN 1
@@ -1658,6 +1665,34 @@ RETURN (
 								WHEN @LastGoal1H = '' THEN 0
 								ELSE -1
 							END
+				-- 482: Home Team Corners Over/Under
+				WHEN 482 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fth
+						ELSE -1 
+					END
+				-- 483: Away Team Corners Over/Under
+				WHEN 483 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fta
+						ELSE -1 
+					END
+				-- 484: 1H Home Team Corners Over/Under
+				WHEN 484 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hth - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hth
+                        ELSE -1 
+					END
+				-- 485: --1H Away Team Corners Over/Under
+				WHEN 485 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hta - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hta
+                        ELSE -1 
+					END
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

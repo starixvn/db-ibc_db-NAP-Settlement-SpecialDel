@@ -64,10 +64,10 @@ RETURN (
 					WHEN @bettype IN(3) THEN (@hScore1H + @aScore1H) + (@hScore2H + @aScore2H)
 					WHEN @bettype IN(8) THEN (@hScore1H + @aScore1H)
 					WHEN @bettype IN (18, 178) THEN  (@hScore2H + @aScore2H)
-					WHEN @bettype IN (401, 461) THEN (@hScore1H + @hScore2H)
-					WHEN @bettype IN (402, 462) THEN (@aScore1H + @aScore2H)
-					WHEN @bettype IN (403, 463) THEN @hScore1H
-					WHEN @bettype IN (404, 464) THEN @aScore1H
+					WHEN @bettype IN (401, 461, 482) THEN (@hScore1H + @hScore2H)
+					WHEN @bettype IN (402, 462, 483) THEN (@aScore1H + @aScore2H)
+					WHEN @bettype IN (403, 463, 484) THEN @hScore1H
+					WHEN @bettype IN (404, 464, 485) THEN @aScore1H
 					ELSE 0
 				END AS TotalGoalOU
 				,CASE WHEN @bettype = 416 THEN SUBSTRING(@betteam,0,CHARINDEX('/',@betteam)) ELSE NULL END AS betteam1H
@@ -80,7 +80,7 @@ RETURN (
 			SELECT 
 				CASE
 				--#3-8-18-178-401-402-403-404
-				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464) THEN -- apply half WON|LOSE
+				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464,482,483,484,485) THEN -- apply half WON|LOSE
 					CASE 
 						WHEN @betteam IN ('h', 'o') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN ip.TotalGoalOU - @hdp1 
 						WHEN @betteam IN ('a', 'u') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN @hdp1 - ip.TotalGoalOU
