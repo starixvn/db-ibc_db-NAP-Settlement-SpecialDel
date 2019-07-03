@@ -166,14 +166,14 @@ BEGIN
 				WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						)
 				WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * 0.5
@@ -188,14 +188,14 @@ BEGIN
 				WHEN @modds > 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - apositiontaking
 				WHEN @modds = 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - apositiontaking * 0.5
@@ -208,14 +208,14 @@ BEGIN
 				WHEN @modds > 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - mpositiontaking
 				WHEN @modds = 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - mpositiontaking * 0.5
@@ -228,14 +228,14 @@ BEGIN
 				WHEN @modds > 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - spositiontaking
 				WHEN @modds = 0.25 THEN stake * (CASE 
 						WHEN odds < 0 THEN 1
 						ELSE (CASE 
-								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429) THEN odds - 1
+								WHEN bettype IN (6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,406,407,409,412,429,473,474) THEN odds - 1
 								ELSE odds END
 								) END
 						) * - spositiontaking * 0.5
@@ -422,14 +422,14 @@ BEGIN
 									WHEN @modds > 0.25 THEN actual_stake + stake * (CASE 
 											WHEN odds < 0 THEN 1
 											ELSE (CASE 
-													WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+													WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132, 159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 													ELSE odds END
 													) END
 											)
 									WHEN @modds = 0.25 THEN actual_stake + stake * (CASE 
 											WHEN odds < 0 THEN 1
 											ELSE (CASE 
-													WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+													WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 													ELSE odds END
 													) END
 											) * 0.5
@@ -443,14 +443,14 @@ BEGIN
 						WHEN @modds > 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - apositiontaking
 						WHEN @modds = 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - apositiontaking * 0.5
@@ -462,14 +462,14 @@ BEGIN
 						WHEN @modds > 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - mpositiontaking
 						WHEN @modds = 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - mpositiontaking * 0.5
@@ -481,14 +481,14 @@ BEGIN
 						WHEN @modds > 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - spositiontaking
 						WHEN @modds = 0.25 THEN stake * (CASE 
 								WHEN odds < 0 THEN 1
 								ELSE (CASE 
-										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429) THEN odds - 1
+										WHEN bettype IN (4, 5, 6, 126, 129, 130, 131, 132,159,161,162,179,181,182,187,1206,406,407,409,412,429,473,474) THEN odds - 1
 										ELSE odds END
 										) END
 								) * - spositiontaking * 0.5
