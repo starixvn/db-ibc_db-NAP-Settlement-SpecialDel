@@ -26,6 +26,7 @@ AS
 		- 20170719@Kathy: add metadata
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+						  Incorporate PHAIO 4b - 27 Corners Bet Types 
 
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
@@ -44,6 +45,16 @@ BEGIN
 		, @ht_fg 			VARCHAR(10)
 		, @ht_lg 			VARCHAR(10)
 		
+		,@Char				VARCHAR(1)
+		,@Position			TINYINT
+		,@HomeRaceTo		TINYINT
+		,@AwayRaceTo		TINYINT
+		,@NeitherRaceTo		TINYINT
+		,@NeitherRaceTo1H	TINYINT
+		,@LenGoalRecord		TINYINT
+		,@ResultCornerRace	VARCHAR(200)
+		,@ResultCornerRace1H VARCHAR(200)
+
 		, @xmlResultDetail		XML
 		
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
@@ -53,10 +64,14 @@ BEGIN
 		, @aScore1H 		= @htawayscore
 		, @hScore2H			= CASE WHEN @IsHT = 0 THEN @fthomescore - @hthomescore ELSE 0 END
 		, @aScore2H			= CASE WHEN @IsHT = 0 THEN @ftawayscore - @htawayscore ELSE 0 END
-								
+		, @goalRecord		= ISNULL(@goalRecord, '')								
 		, @ticketCount		= 0
 		
-	
+		-- for bettype 486 Corner Race, 487 1H Corner Race
+		, @Position = 0
+		, @HomeRaceTo = 0
+		, @AwayRaceTo = 0
+
 	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
 	
 	;WITH cteResult
@@ -96,13 +111,76 @@ BEGIN
 	FROM	cteResult r
 	WHERE r.SettlementStatusID = 4
 	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
-		
+	
+	-- 486 Corner Race
+	BEGIN
+		SELECT @LenGoalRecord = LEN(@goalRecord)
+			
+		WHILE (@Position < @LenGoalRecord)
+		BEGIN
+			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+	END
+
+	-- 487 1H Corner Race
+	BEGIN
+		SELECT	@LenGoalRecord = 0
+				,@HomeRaceTo = 0
+				,@AwayRaceTo = 0
+				,@Position = 0
+						
+		SELECT @LenGoalRecord = LEN(SUBSTRING(@goalRecord, 1, CHARINDEX(';',@goalRecord)))
+			
+		WHILE (@Position < @LenGoalRecord)
+		BEGIN
+			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo1H = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+	END
+				
 	INSERT INTO #SDTBettypes (bettype)
 	SELECT f.BetType
 	FROM dbo.f_Set_GetGroupBettypes() f
 	WHERE 1 = CASE 
 				WHEN @IsHT = 1 THEN 1
-				WHEN @IsHT = 0 THEN  -- FT, FT corner, HTFT-FGLG
+				WHEN @IsHT = 0 THEN  -- FT, HTFT-FGLG
 					CASE 
 						WHEN @IsRefundHT = 0 AND f.GroupId IN (2,4) THEN 1
 						WHEN @IsRefundHT = 1 AND f.GroupId IN (2,4) AND f.Is3x30 = 0 THEN 1
@@ -185,8 +263,12 @@ BEGIN
 								, @ht_lg
 								, @ft_fg
 								, @ft_lg
-								, @IsHT
-								
+								--, @IsHT
+								, b.hdp1
+								, @ResultCornerRace
+								, @NeitherRaceTo
+								, @ResultCornerRace1H
+								, @NeitherRaceTo1H
 							)
 							WHERE modds IS NOT NULL
 						)  AS odds

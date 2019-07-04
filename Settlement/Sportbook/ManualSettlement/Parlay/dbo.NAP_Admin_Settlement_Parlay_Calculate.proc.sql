@@ -65,27 +65,27 @@ BEGIN
         ,@SelectedSetCAL        VARCHAR(50)  = NULL
         ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
             
-        ,@penaltyshootout        VARCHAR(10)    = NULL
-        ,@matchDecidedMethod    VARCHAR(10)    = NULL
-        ,@first10Min1x2            VARCHAR(10)    = NULL
-        ,@firstGoalTime10Min    VARCHAR(10)    = NULL
-        ,@firstGoalTime15Min    VARCHAR(10)    = NULL
-        ,@WhoAdvancesNextRound    VARCHAR(10) = NULL
-        ,@ExtraTimeandGoal        VARCHAR(10)    = NULL
-        ,@ExtraTimeYN            VARCHAR(10) = NULL
-        ,@PlayerSentOff            VARCHAR(10) = NULL
-        ,@HTPlayerSentOff        VARCHAR(10) = NULL
-        ,@PlayerSentOffHome        VARCHAR(10) = NULL
-        ,@HTPlayerSentOffHome    VARCHAR(10) = NULL
-        ,@PlayerSentOffAway        VARCHAR(10) = NULL
-        ,@HTPlayerSentOffAway    VARCHAR(10) = NULL
-        ,@GoalScorerFirst        VARCHAR(10) = NULL                
-        ,@firstHNextGoal        VARCHAR(MAX)= NULL
-        ,@NextGoal                VARCHAR(MAX)= NULL
-        ,@NextGoalTime15Min        VARCHAR(MAX)= NULL
-        ,@ExtraNextGoal            VARCHAR(MAX)= NULL
-        ,@GoalScorerAnytime        VARCHAR(MAX)= NULL
-        ,@FirstGoalMethod			VARCHAR(2) = NULL
+        --,@penaltyshootout        VARCHAR(10)    = NULL
+        --,@matchDecidedMethod    VARCHAR(10)    = NULL
+        --,@first10Min1x2            VARCHAR(10)    = NULL
+        --,@firstGoalTime10Min    VARCHAR(10)    = NULL
+        --,@firstGoalTime15Min    VARCHAR(10)    = NULL
+        --,@WhoAdvancesNextRound    VARCHAR(10) = NULL
+        --,@ExtraTimeandGoal        VARCHAR(10)    = NULL
+        --,@ExtraTimeYN            VARCHAR(10) = NULL
+        --,@PlayerSentOff            VARCHAR(10) = NULL
+        --,@HTPlayerSentOff        VARCHAR(10) = NULL
+        --,@PlayerSentOffHome        VARCHAR(10) = NULL
+        --,@HTPlayerSentOffHome    VARCHAR(10) = NULL
+        --,@PlayerSentOffAway        VARCHAR(10) = NULL
+        --,@HTPlayerSentOffAway    VARCHAR(10) = NULL
+        --,@GoalScorerFirst        VARCHAR(10) = NULL                
+        --,@firstHNextGoal        VARCHAR(MAX)= NULL
+        --,@NextGoal                VARCHAR(MAX)= NULL
+        --,@NextGoalTime15Min        VARCHAR(MAX)= NULL
+        --,@ExtraNextGoal            VARCHAR(MAX)= NULL
+        --,@GoalScorerAnytime        VARCHAR(MAX)= NULL
+        --,@FirstGoalMethod			VARCHAR(2) = NULL
         
         ,@scorediff			SMALLINT = 0
 		,@totalgoal			SMALLINT = 0
@@ -122,8 +122,103 @@ BEGIN
 						END
 
 	DECLARE @FirstGoal NVARCHAR(50) 
+			,@FirstGoal2H	VARCHAR(1)
+			,@LastGoal		VARCHAR(1)
+			,@LastGoal1H	VARCHAR(1)
+
+			,@Char			VARCHAR(1)
+			,@Position		TINYINT
+			,@HomeRaceTo	TINYINT
+			,@AwayRaceTo	TINYINT
+			,@NeitherRaceTo TINYINT
+			,@NeitherRaceTo1H TINYINT
+			,@LenGoalSequence TINYINT
+			,@ResultCornerRace VARCHAR(200)
+			,@ResultCornerRace1H VARCHAR(200)
+
 	SELECT  @FirstGoal=''
-	SELECT  @FirstGoal = LEFT(REPLACE(ISNULL(@GoalSequence,''),';',''),1) --172  --@GoalSequence = GoalRecord 
+			,@GoalSequence = ISNULL(@GoalSequence, '')
+			,@FirstGoal2H = ''
+			,@LastGoal = ''
+			,@LastGoal1H = ''
+
+			-- for bettype 486 Corner Race, 487 1H Corner Race
+			,@Position = 0
+			,@HomeRaceTo = 0
+			,@AwayRaceTo = 0
+
+	SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
+			,@FirstGoal2h = CASE 
+						WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence)+1,1) 
+						ELSE '' 
+					END
+			,@LastGoal = RIGHT(REPLACE(@GoalSequence,';',''),1)
+			,@LastGoal1H = CASE 
+								WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence) - 1,1) 
+								ELSE '' 
+							END
+	-- 486 Corner Race
+	BEGIN
+		SELECT @LenGoalSequence = LEN(@GoalSequence)
+			
+		WHILE (@Position < @LenGoalSequence)
+		BEGIN
+			SET @Char = SUBSTRING(@LenGoalSequence, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+	END
+
+	-- 487 1H Corner Race
+	BEGIN
+		SELECT	@LenGoalSequence = 0
+				,@HomeRaceTo = 0
+				,@AwayRaceTo = 0
+				,@Position = 0
+						
+		SELECT @LenGoalSequence = LEN(SUBSTRING(@GoalSequence, 1, CHARINDEX(';',@GoalSequence)))
+			
+		WHILE (@Position < @LenGoalSequence)
+		BEGIN
+			SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo1H = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+	END
 	
 	DECLARE    
 		@home_firstteam2goals    INT
@@ -470,29 +565,32 @@ BEGIN
 						, @SetxGameyREFUND
 						, @SelectedSetCAL
 						, @SelectedSetREFUND					
-						, @penaltyshootout
-						, @matchDecidedMethod
-						, @first10Min1x2
-						, @firstGoalTime10Min
-						, @firstGoalTime15Min
-						, @WhoAdvancesNextRound
-						, @ExtraTimeandGoal
-						, @ExtraTimeYN
-						, @PlayerSentOff
-						, @HTPlayerSentOff
-						, @PlayerSentOffHome
-						, @HTPlayerSentOffHome
-						, @PlayerSentOffAway
-						, @HTPlayerSentOffAway
-						, @GoalScorerFirst
-						, @firstHNextGoal
-						, @NextGoal
-						, @NextGoalTime15Min
-						, @ExtraNextGoal
-						, @GoalScorerAnytime
-						, @FirstGoalMethod
+						--, @penaltyshootout
+						--, @matchDecidedMethod
+						--, @first10Min1x2
+						--, @firstGoalTime10Min
+						--, @firstGoalTime15Min
+						--, @WhoAdvancesNextRound
+						--, @ExtraTimeandGoal
+						--, @ExtraTimeYN
+						--, @PlayerSentOff
+						--, @HTPlayerSentOff
+						--, @PlayerSentOffHome
+						--, @HTPlayerSentOffHome
+						--, @PlayerSentOffAway
+						--, @HTPlayerSentOffAway
+						--, @GoalScorerFirst
+						--, @firstHNextGoal
+						--, @NextGoal
+						--, @NextGoalTime15Min
+						--, @ExtraNextGoal
+						--, @GoalScorerAnytime
+						--, @FirstGoalMethod
 						, @WinFromBehind
 						, @FirstGoal
+						, @FirstGoal2H
+						, @LastGoal
+						, @LastGoal1H
 						, @csHTFT
 						, @home_firstteam2goals
 						, @away_firstteam2goals
@@ -507,7 +605,10 @@ BEGIN
 						, @oddeven
 						, @totalht
 						, @totalgoal_2H
-						
+						, @ResultCornerRace
+						, @NeitherRaceTo
+						, @ResultCornerRace1H
+						, @NeitherRaceTo1H
 					) AS odds
 				WHERE b.matchId = @matchId
 			) AS b FOR XML AUTO

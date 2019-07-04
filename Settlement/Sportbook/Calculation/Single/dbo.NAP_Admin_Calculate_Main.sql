@@ -1558,6 +1558,69 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- bettype 486	Corners Race
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 486
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 487	1H Corners Race
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 487)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 487
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 488	First Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 488)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 488
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 489	1H First Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 489)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 489
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 490	2H First Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 490)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 490
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 491	Last Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 491)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 491
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 492	1H Last Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 492)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 492
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
 				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END -- END CAL/CAL-FT
@@ -3437,6 +3500,38 @@ BEGIN
 			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
 			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 			,@IsReSettledTickets = @IsReSettledTickets
+				
+				-- 486	Corners Race
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
+					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
+                        ,@bettype = 486
+						,@ResultString = @GoalRecord
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- 488	First Corner
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 488)
+					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
+                        ,@bettype = 488
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- 490	2H First Corner
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 490)
+					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
+                        ,@bettype = 490
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END
@@ -4329,6 +4424,27 @@ BEGIN
 			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
 			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 			,@IsReSettledTickets = @IsReSettledTickets
+
+				-- 487	1H Corners Race
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 487)
+					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
+                        ,@bettype = 487
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- 489	1H First Corner
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 489)
+					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
+                        ,@bettype = 489
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 

@@ -44,7 +44,8 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20190606@Sol: Incorporate PHAIO 4 [Redmine:#112885]
-		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes
+						  PH AIO phase 4 [Redmine:#109584]
 		
     Param's Explanation:
        
@@ -574,9 +575,105 @@ BEGIN
                         + CASE WHEN @fth + @fta >=4 THEN '4+'
                                 ELSE CAST(@fth AS nvarchar(10)) + ':' + CAST(@fta AS nvarchar(10))
                                 END
-            DECLARE @FirstGoal NVARCHAR(50) 
-            SELECT    @FirstGoal=''
-            SELECT    @FirstGoal = LEFT(REPLACE(ISNULL(@GoalSequence,''),';',''),1) --172  --@GoalSequence = GoalRecord 
+            DECLARE		@FirstGoal		NVARCHAR(50) 
+						,@FirstGoal2H	VARCHAR(1)
+						,@LastGoal		VARCHAR(1)
+						,@LastGoal1H	VARCHAR(1)
+
+						,@Char			VARCHAR(1)
+						,@Position		TINYINT
+						,@HomeRaceTo	TINYINT
+						,@AwayRaceTo	TINYINT
+						,@NeitherRaceTo TINYINT
+						,@NeitherRaceTo1H TINYINT
+						,@LenGoalSequence TINYINT
+						,@ResultCornerRace VARCHAR(200)
+						,@ResultCornerRace1H VARCHAR(200)
+
+            SELECT  @GoalSequence = ISNULL(@GoalSequence, '')
+					,@FirstGoal=''
+					,@FirstGoal2H = ''
+					,@LastGoal = ''
+					,@LastGoal1H = ''
+
+					-- for bettype 486 Corner Race, 487 1H Corner Race
+					,@Position = 0
+					,@HomeRaceTo = 0
+					,@AwayRaceTo = 0
+
+            SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
+					,@FirstGoal2h = CASE 
+								WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence)+1,1) 
+								ELSE '' 
+							END
+					,@LastGoal = RIGHT(REPLACE(@GoalSequence,';',''),1)
+					,@LastGoal1H = CASE 
+										WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence) - 1,1) 
+										ELSE '' 
+									END
+
+			-- 486 Corner Race
+			BEGIN
+				SELECT @LenGoalSequence = LEN(@GoalSequence)
+			
+				WHILE (@Position < @LenGoalSequence)
+				BEGIN
+					SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
+	
+					IF @Char = 'H'	
+					BEGIN
+						SET @HomeRaceTo = @HomeRaceTo + 1
+
+						IF @HomeRaceTo > @AwayRaceTo
+							SET  @ResultCornerRace = @ResultCornerRace + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+					END
+					ELSE IF @Char = 'A' 
+					BEGIN
+						SET @AwayRaceTo = @AwayRaceTo + 1
+
+						IF @AwayRaceTo > @HomeRaceTo
+							SET  @ResultCornerRace = @ResultCornerRace + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+					END
+
+					SET @Position = @Position + 1	 	
+				END
+
+				SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+			END
+
+			-- 487 1H Corner Race
+			BEGIN
+				SELECT	@LenGoalSequence = 0
+						,@HomeRaceTo = 0
+						,@AwayRaceTo = 0
+						,@Position = 0
+						
+				SELECT @LenGoalSequence = LEN(SUBSTRING(@GoalSequence, 1, CHARINDEX(';',@GoalSequence)))
+			
+				WHILE (@Position < @LenGoalSequence)
+				BEGIN
+					SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
+	
+					IF @Char = 'H'	
+					BEGIN
+						SET @HomeRaceTo = @HomeRaceTo + 1
+
+						IF @HomeRaceTo > @AwayRaceTo
+							SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+					END
+					ELSE IF @Char = 'A' 
+					BEGIN
+						SET @AwayRaceTo = @AwayRaceTo + 1
+
+						IF @AwayRaceTo > @HomeRaceTo
+							SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+					END
+
+					SET @Position = @Position + 1	 	
+				END
+
+				SET @NeitherRaceTo1H = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+			END
             
             DECLARE  @home_firstteam2goals    INT
                     ,@away_firstteam2goals    INT
@@ -589,6 +686,7 @@ BEGIN
             SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@GoalSequence, @home_firstteam2goals + 1) ELSE 0 END
             SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@GoalSequence, @away_firstteam2goals + 1) ELSE 0 END    
 			SET @oddeven = (@fth + @fta) % 2
+
             -- Win from behind
             DECLARE @WinFromBehind NVARCHAR(1)
                     ,@curHome INT = 0
@@ -1968,6 +2066,48 @@ BEGIN
 										END) = betteam THEN 1 
 									ELSE -1
 								END   
+						-- Corners Race
+						WHEN 486 THEN CASE 
+										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace) > 0 THEN 1
+										WHEN betteam = 'N' AND @NeitherRaceTo <= hdp1 THEN 1
+										ELSE -1
+									END
+						-- 1H Corners Race
+						WHEN 487 THEN CASE 
+										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace1H) > 0 THEN 1
+										WHEN betteam = 'N' AND @NeitherRaceTo1H <= hdp1 THEN 1
+										ELSE -1
+									END
+						-- First Corner
+						WHEN 488 THEN CASE
+										WHEN bm.betteam = @FirstGoal THEN 1
+										WHEN @FirstGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 1H First Corner
+						WHEN 489 THEN CASE
+										WHEN bm.betteam = @FirstGoal THEN 1
+										WHEN @FirstGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 2H First Corner
+						WHEN 490 THEN CASE
+										WHEN bm.betteam = @FirstGoal2H  THEN 1
+										WHEN @FirstGoal2H = '' THEN 0
+										ELSE -1
+									END
+						-- Last Corner
+						WHEN 491 THEN CASE
+										WHEN bm.betteam = @LastGoal THEN 1
+										WHEN @LastGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 1H Last Corner
+						WHEN 492 THEN CASE
+										WHEN bm.betteam = @LastGoal1H THEN 1
+										WHEN @LastGoal1H = '' THEN 0
+										ELSE -1
+									END
                         ELSE NULL -- Not support bettype
                         END AS modds
 						,CAST(CASE 

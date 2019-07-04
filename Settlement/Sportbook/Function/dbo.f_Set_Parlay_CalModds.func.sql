@@ -35,29 +35,32 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @SetxGameyREFUND VARCHAR(MAX) = NULL
 	, @SelectedSetCAL VARCHAR(50) = NULL
 	, @SelectedSetREFUND VARCHAR(50) = NULL
-	, @penaltyshootout VARCHAR(10) = NULL
-	, @matchDecidedMethod VARCHAR(10) = NULL
-	, @first10Min1x2 VARCHAR(10) = NULL
-	, @firstGoalTime10Min VARCHAR(10) = NULL
-	, @firstGoalTime15Min VARCHAR(10) = NULL
-	, @WhoAdvancesNextRound VARCHAR(10) = NULL
-	, @ExtraTimeandGoal VARCHAR(10) = NULL
-	, @ExtraTimeYN VARCHAR(10) = NULL
-	, @PlayerSentOff VARCHAR(10) = NULL
-	, @HTPlayerSentOff VARCHAR(10) = NULL
-	, @PlayerSentOffHome VARCHAR(10) = NULL
-	, @HTPlayerSentOffHome VARCHAR(10) = NULL
-	, @PlayerSentOffAway VARCHAR(10) = NULL
-	, @HTPlayerSentOffAway VARCHAR(10) = NULL
-	, @GoalScorerFirst VARCHAR(10) = NULL
-	, @firstHNextGoal VARCHAR(MAX) = NULL
-	, @NextGoal VARCHAR(MAX) = NULL
-	, @NextGoalTime15Min VARCHAR(MAX) = NULL
-	, @ExtraNextGoal VARCHAR(MAX) = NULL
-	, @GoalScorerAnytime VARCHAR(MAX) = NULL
-	, @FirstGoalMethod VARCHAR(2) = NULL
+	--, @penaltyshootout VARCHAR(10) = NULL
+	--, @matchDecidedMethod VARCHAR(10) = NULL
+	--, @first10Min1x2 VARCHAR(10) = NULL
+	--, @firstGoalTime10Min VARCHAR(10) = NULL
+	--, @firstGoalTime15Min VARCHAR(10) = NULL
+	--, @WhoAdvancesNextRound VARCHAR(10) = NULL
+	--, @ExtraTimeandGoal VARCHAR(10) = NULL
+	--, @ExtraTimeYN VARCHAR(10) = NULL
+	--, @PlayerSentOff VARCHAR(10) = NULL
+	--, @HTPlayerSentOff VARCHAR(10) = NULL
+	--, @PlayerSentOffHome VARCHAR(10) = NULL
+	--, @HTPlayerSentOffHome VARCHAR(10) = NULL
+	--, @PlayerSentOffAway VARCHAR(10) = NULL
+	--, @HTPlayerSentOffAway VARCHAR(10) = NULL
+	--, @GoalScorerFirst VARCHAR(10) = NULL
+	--, @firstHNextGoal VARCHAR(MAX) = NULL
+	--, @NextGoal VARCHAR(MAX) = NULL
+	--, @NextGoalTime15Min VARCHAR(MAX) = NULL
+	--, @ExtraNextGoal VARCHAR(MAX) = NULL
+	--, @GoalScorerAnytime VARCHAR(MAX) = NULL
+	--, @FirstGoalMethod VARCHAR(2) = NULL
 	, @WinFromBehind NVARCHAR(1)
 	, @FirstGoal NVARCHAR(50)
+	, @FirstGoal2H VARCHAR(1)
+	, @LastGoal VARCHAR(1)
+	, @LastGoal1H VARCHAR(1)
 	, @csHTFT NVARCHAR(10)
 	, @home_firstteam2goals INT
 	, @away_firstteam2goals INT
@@ -72,6 +75,10 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @oddeven SMALLINT = 0
 	, @totalht SMALLINT = 0
     , @totalgoal_2H SMALLINT = 0
+	, @ResultCornerRace VARCHAR(200)
+	, @NeitherRaceTo TINYINT
+	, @ResultCornerRace1H VARCHAR(200)
+	, @NeitherRaceTo1H TINYINT
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -421,11 +428,11 @@ RETURN (
 						WHEN @betteam = @csHTFT THEN 1
 						ELSE -1
 						END 
-				WHEN 135 THEN -- Penalty Shootout
-					CASE 
-						WHEN @betteam = @penaltyshootout THEN 1
-						ELSE -1
-						END        
+				--WHEN 135 THEN -- Penalty Shootout
+				--	CASE 
+				--		WHEN @betteam = @penaltyshootout THEN 1
+				--		ELSE -1
+				--		END        
 				WHEN 128 THEN -- HT/FT Odd/Even
 					CASE
 						WHEN @betteam = 'oo' AND (@hth + @hta) % 2 = 1 AND (@fth + @fta) % 2 = 1 THEN 1
@@ -509,91 +516,91 @@ RETURN (
 						ELSE -1
 						END        
 				-- Betradar 2 
-				WHEN 160 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END 
-				WHEN 164 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@ExtraNextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END
+				--WHEN 160 THEN 
+				--	CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoal)> 0 THEN 1 
+				--		 ELSE - 1 
+				--		 END 
+				--WHEN 164 THEN 
+				--	CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@ExtraNextGoal)> 0 THEN 1 
+				--		 ELSE - 1 
+				--		 END
 
-				WHEN 168 THEN 
-					CASE WHEN @betteam = @WhoAdvancesNextRound THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 169 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoalTime15Min)> 0 THEN 1 
-						 ELSE - 1 
-						 END
-				WHEN 173 THEN 
-					CASE WHEN @betteam = @ExtraTimeYN THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 168 THEN 
+				--	CASE WHEN @betteam = @WhoAdvancesNextRound THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 169 THEN 
+				--	CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoalTime15Min)> 0 THEN 1 
+				--		 ELSE - 1 
+				--		 END
+				--WHEN 173 THEN 
+				--	CASE WHEN @betteam = @ExtraTimeYN THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 174 THEN 
-					CASE WHEN @betteam = @ExtraTimeandGoal THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 175 THEN 
-					CASE WHEN @betteam = @matchDecidedMethod THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 174 THEN 
+				--	CASE WHEN @betteam = @ExtraTimeandGoal THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 175 THEN 
+				--	CASE WHEN @betteam = @matchDecidedMethod THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 176 THEN 
-					CASE WHEN @betteam = @first10Min1x2 THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 176 THEN 
+				--	CASE WHEN @betteam = @first10Min1x2 THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 180 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@firstHNextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END
-				WHEN 192 THEN 
-					CASE WHEN @betteam = @firstGoalTime10Min THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 193 THEN 
-					CASE WHEN @betteam = @firstGoalTime15Min THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 210 THEN 
-					CASE WHEN @betteam = @PlayerSentOff THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 211 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOff THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 212 THEN 
-					CASE WHEN @betteam = @PlayerSentOffHome THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 180 THEN 
+				--	CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@firstHNextGoal)> 0 THEN 1 
+				--		 ELSE - 1 
+				--		 END
+				--WHEN 192 THEN 
+				--	CASE WHEN @betteam = @firstGoalTime10Min THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 193 THEN 
+				--	CASE WHEN @betteam = @firstGoalTime15Min THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 210 THEN 
+				--	CASE WHEN @betteam = @PlayerSentOff THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 211 THEN 
+				--	CASE WHEN @betteam = @HTPlayerSentOff THEN 1 
+				--		 ELSE - 1
+				--		 END 
+				--WHEN 212 THEN 
+				--	CASE WHEN @betteam = @PlayerSentOffHome THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 213 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOffHome THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 213 THEN 
+				--	CASE WHEN @betteam = @HTPlayerSentOffHome THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 214 THEN 
-					CASE WHEN @betteam = @PlayerSentOffAway THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 214 THEN 
+				--	CASE WHEN @betteam = @PlayerSentOffAway THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 215 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOffAway THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 215 THEN 
+				--	CASE WHEN @betteam = @HTPlayerSentOffAway THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 216 THEN 
-					CASE WHEN CHARINDEX(@betteam,@GoalScorerAnytime)>0 THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 216 THEN 
+				--	CASE WHEN CHARINDEX(@betteam,@GoalScorerAnytime)>0 THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
-				WHEN 217 THEN 
-					CASE WHEN @betteam = @GoalScorerFirst THEN 1 
-						 ELSE - 1
-						 END 
+				--WHEN 217 THEN 
+				--	CASE WHEN @betteam = @GoalScorerFirst THEN 1 
+				--		 ELSE - 1
+				--		 END 
 
 				-- Betradar 2 Manual @bettype 
 				WHEN 157 THEN 
@@ -974,11 +981,11 @@ RETURN (
 									   END THEN 1
 						ELSE -1
 					END
-				WHEN 424 THEN
-					CASE 
-						WHEN @betteam = @FirstGoalMethod THEN 1
-						ELSE -1
-					END	
+				--WHEN 424 THEN
+				--	CASE 
+				--		WHEN @betteam = @FirstGoalMethod THEN 1
+				--		ELSE -1
+				--	END	
 				WHEN 425 THEN
 					CASE
 						WHEN @betteam = @WinFromBehind THEN 1
@@ -1609,6 +1616,48 @@ RETURN (
 								WHEN @betteam = 'x' AND ((@hth - @hdp1) - (@hta - @hdp2)) = 0  THEN 1
 								ELSE - 1
 							END	
+				-- Corners Race
+				WHEN 486 THEN CASE 
+								WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
+								WHEN @betteam = 'N' AND @NeitherRaceTo <= @hdp1 THEN 1
+								ELSE -1
+							END
+				-- 1H Corners Race
+				WHEN 487 THEN CASE 
+								WHEN CHARINDEX(CAST(@hdp1 AS VARCHAR) + @betteam, @ResultCornerRace1H) > 0 THEN 1
+								WHEN @betteam = 'N' AND @NeitherRaceTo1H <= @hdp1 THEN 1
+								ELSE -1
+							END
+				-- First Corner
+				WHEN 488 THEN CASE
+								WHEN @betteam = @FirstGoal THEN 1
+								WHEN @FirstGoal = '' THEN 0
+								ELSE -1
+							END
+				-- 1H First Corner
+				WHEN 489 THEN CASE
+								WHEN @betteam = @FirstGoal THEN 1
+								WHEN @FirstGoal = '' THEN 0
+								ELSE -1
+							END
+				-- 2H First Corner
+				WHEN 490 THEN CASE
+								WHEN @betteam = @FirstGoal2H  THEN 1
+								WHEN @FirstGoal2H = '' THEN 0
+								ELSE -1
+							END
+				-- Last Corner
+				WHEN 491 THEN CASE
+								WHEN @betteam = @LastGoal THEN 1
+								WHEN @LastGoal = '' THEN 0
+								ELSE -1
+							END
+				-- 1H Last Corner
+				WHEN 492 THEN CASE
+								WHEN @betteam = @LastGoal1H THEN 1
+								WHEN @LastGoal1H = '' THEN 0
+								ELSE -1
+							END
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

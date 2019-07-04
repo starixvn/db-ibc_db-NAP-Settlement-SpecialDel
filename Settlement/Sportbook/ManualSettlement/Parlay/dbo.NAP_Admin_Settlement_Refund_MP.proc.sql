@@ -124,7 +124,7 @@ BEGIN
 			AND statusID	NOT IN (101, 102)
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype)) OR @IsExistEarlyBettype = 1
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
     BEGIN
         SET @IsSettleBySetting = 1
     END
@@ -181,14 +181,15 @@ BEGIN
 	
 	BEGIN TRY
 		--CHECK Early-Bettype first if any
-		--IF (@IsExistEarlyBettype = 1)
-		--BEGIN		
-		--	EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar -- Early 22, 455
-		--		@MatchId			= @MatchId
-		--		,@matchdate			= @matchdate
-		--		,@Mode				= @Action
-		--		,@ticketCount		= @ticketCountEarly OUTPUT
-		--END	
+		IF (@IsExistEarlyBettype = 1)
+		BEGIN		
+			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
+                @matchid 			= @matchid
+                ,@matchdate 		= @matchdate
+                ,@mode 				= 'CAL'
+                ,@SportType 		= @SportType
+                ,@ticketCount		= @ticketCountEarly OUTPUT
+		END	
 		
 		--CHECK for CAL fisrt
 		IF @IsSettleBySetting = 1
