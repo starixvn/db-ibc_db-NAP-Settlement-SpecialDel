@@ -23,6 +23,7 @@ AS
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		
     Parameters Explanation:    
 		- @hScore1H: Home score in 1H
@@ -873,6 +874,68 @@ RETURN (
 														WHEN @betteam = 'e' AND IP.TotalGoal1H > @hdp1 THEN -1
 														ELSE NULL
 													END
+				-- HT/FT Total Corners
+				WHEN @bettype IN (493) THEN 
+					CASE WHEN @IsHT = 1 THEN -- suspended in HT 
+							CASE 
+								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) < IP.TotalGoal1H THEN -1
+								ELSE NULL
+							END
+						WHEN @IsHT = 0 THEN -- suspended in FT
+							CASE 
+								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' THEN 1
+								WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 AND @betteam = '0/8+' THEN 1
+								WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 AND @betteam = '1/9+' THEN 1
+								WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 AND @betteam = '2/10+' THEN 1
+								WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 AND @betteam = '3/11+' THEN 1
+								WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 AND @betteam = '4/12+' THEN 1
+								WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 AND @betteam = '5/13+' THEN 1
+								WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 AND @betteam = '6/14+' THEN 1
+								WHEN IP.TotalGoal1H = 7 AND IP.TotalGoal >= 15 AND @betteam = '7/15+' THEN 1
+								WHEN IP.TotalGoal1H = 8 AND IP.TotalGoal >= 15 AND @betteam = '8/15+' THEN 1
+								WHEN IP.TotalGoal1H = 9 AND IP.TotalGoal >= 15 AND @betteam = '9/15+' THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) <> IP.TotalGoal1H THEN -1
+								WHEN SUBSTRING(@betteam, 1,1) = IP.TotalGoal1H AND REPLACE(SUBSTRING(@betteam, CHARINDEX('/',@betteam) + 1, LEN(@betteam)),'+','') < IP.TotalGoal THEN -1
+								WHEN SUBSTRING(@betteam, 1,1) = IP.TotalGoal1H AND REPLACE(SUBSTRING(@betteam, CHARINDEX('/',@betteam) + 1, LEN(@betteam)),'+','') >= IP.TotalGoal THEN NULL
+								ELSE NULL
+							END
+						END
+				-- Corner Highest Scoring Half
+				WHEN @bettype IN (496) AND @IsHT = 0 THEN 
+						CASE @betteam
+							WHEN '1h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H <= ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							WHEN '2h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN 1
+									ELSE NULL
+								END
+							WHEN 'tie' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							ELSE NULL
+						END
+				-- Corner Highest Scoring Half (2-Way)
+				WHEN @bettype IN (497) AND @IsHT = 0 THEN 
+						CASE @betteam
+							WHEN '1h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							WHEN '2h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN 1
+									ELSE NULL
+								END
+							ELSE NULL
+						END
 				---------------------------------------
 				ELSE NULL -- else non-supported bettype
 			END AS modds
