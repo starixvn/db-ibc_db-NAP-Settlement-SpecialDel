@@ -11,6 +11,7 @@ AS
 		- 20170817@Kathy: Get LeagueId [Redmine:#80704]
 		- 20181002@Kathy: get SettlementStatus [Redmine:#102028]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
+		- 20190704@Sol: Auto payout phase 3 - Modify returned fields [Redmine:#116073]
 	Param's Explanation:
  
 */
@@ -23,16 +24,14 @@ BEGIN
 	VALUES(1) --half time
 		, (2) --full time
 
-	SELECT MatchId, HomeValue, AwayValue, TypeId, IsHalfTimeConfirmed
+	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
 	FROM (
 		SELECT m.matchid AS MatchId
-			, CASE WHEN mr.ConfirmHT > 0 AND f.typeId = 1 THEN m.hthomescore
-				WHEN mr.ConfirmFT > 0 AND f.typeId = 2 THEN m.finalhomescore
-				ELSE NULL END AS HomeValue
-			, CASE WHEN mr.ConfirmHT > 0 AND f.typeId = 1 THEN m.htawayscore
-				WHEN mr.ConfirmFT > 0 AND f.typeId = 2 THEN m.finalawayscore
-				ELSE NULL END AS AwayValue
+			, m.hthomescore
+			, m.finalhomescore
+			, m.htawayscore
+			, m.finalawayscore
 			, f.TypeId
 			, CASE WHEN f.TypeId = 1 THEN mr.ConfirmHT
 					WHEN f.TypeId = 2 THEN mr.ConfirmFT
