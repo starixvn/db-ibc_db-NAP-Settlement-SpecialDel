@@ -901,6 +901,24 @@ RETURN (
 								ELSE NULL
 							END
 						END
+				-- 1H Correct Corners
+				WHEN @bettype IN (494) THEN 
+					CASE WHEN @IsHT = 1 THEN
+							CASE 
+								WHEN (IP.HomeScore1H >= 6 OR IP.AwayScore1H >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore1H AND SUBSTRING(@betteam, 1,1) >= IP.AwayScore1H THEN NULL
+								ELSE -1
+							END
+					END
+				-- 2H Correct Corners
+				WHEN @bettype IN (495) THEN 
+					CASE WHEN @IsHT = 0 THEN
+							CASE 
+								WHEN (IP.HomeScore2H >= 6 OR IP.AwayScore2H >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore2H AND SUBSTRING(@betteam, 1,1) >= IP.AwayScore2H THEN NULL
+								ELSE -1
+							END
+					END
 				-- Corner Highest Scoring Half
 				WHEN @bettype IN (496) AND @IsHT = 0 THEN 
 						CASE @betteam

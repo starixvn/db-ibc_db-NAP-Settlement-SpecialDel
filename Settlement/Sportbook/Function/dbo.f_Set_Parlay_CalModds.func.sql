@@ -1711,6 +1711,24 @@ RETURN (
 								END) = @betteam THEN 1 
 								ELSE -1
 							END
+				-- 1H Correct Corners
+				WHEN 494 THEN CASE WHEN 
+									(
+									CASE 
+										WHEN (@hth >= 6 OR @hta >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 'AOS'
+										ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
+									END) = @betteam THEN 1 
+									ELSE -1
+								END
+				-- 2H Correct Corners
+				WHEN 495 THEN CASE WHEN 
+									(
+									CASE 
+										WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 'AOS'
+										ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
+									END) = @betteam THEN 1 
+									ELSE -1
+								END
 				-- 496: Corner Highest Scoring Half
 				WHEN 496 THEN 
 								CASE 

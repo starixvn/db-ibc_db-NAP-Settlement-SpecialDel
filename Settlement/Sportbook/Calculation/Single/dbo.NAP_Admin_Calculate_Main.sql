@@ -1648,6 +1648,17 @@ BEGIN
 						,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- bettype 495 : 2H Correct Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 495)
+                    EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 495
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@fth = @fth
+                        ,@fta = @fta
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
 				-- bettype 496 : Corner Highest Scoring Half
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 496)
 					EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
@@ -2087,6 +2098,15 @@ BEGIN
 						,@bettype = 485
 						,@totalht = @hta
 						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 494 : 1H Correct Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 494)
+                    EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 494
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
@@ -3633,6 +3653,20 @@ BEGIN
                         ,@IsHTCal = @IsHTCal
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- bettype 495 : 2H Correct Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 495)
+                    EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 495
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@fth = @fth
+                        ,@fta = @fta
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsHTCal = @IsHTCal
+
 				-- bettype 496: Corner Highest Scoring Half
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 496)
 					EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
@@ -4633,6 +4667,18 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
 						,@IsReSettledTickets = @IsReSettledTickets
+
+				-- bettype 494 : 1H Correct Corners
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 494)
+                    EXEC dbo.NAP_Admin_Calculate_9999 @matchid = @matchid
+                        ,@bettype = 494
+                        ,@hth = @hth
+                        ,@hta = @hta
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+						,@IsHTCal = @IsHTCal
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 
