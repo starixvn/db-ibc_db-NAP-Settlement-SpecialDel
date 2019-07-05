@@ -62,7 +62,6 @@ BEGIN
 		, @IsDetermined = CASE WHEN @action IN ('ABANDONED-1H', 'ABANDONED-2H') THEN 1 ELSE 0 END
 		, @start 		= CURRENT_TIMESTAMP
 		, @ticketCountTotal		= 0
-		--, @ticketCountBetRadar	= 0
 		, @ticketCountCAL		= 0
 		, @ticketCountSDT		= 0
 		, @ticketCountREFUND	= 0
@@ -276,13 +275,6 @@ BEGIN
 				,@resultDetail_ss	= @resultDetail_ss
 				,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
-		
-		/*
-		SELECT @ticketCountBetRadar	AS TC_BetRadar
-			, @ticketCountCAL		AS TC_CAL
-			, @ticketCountSDT		AS TC_SDT
-			, @ticketCountREFUND	AS TC_REFUND
-		*/
 		
 		SET @ticketCountTotal		= ISNULL(@ticketCountEarly, 0) + ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
 	

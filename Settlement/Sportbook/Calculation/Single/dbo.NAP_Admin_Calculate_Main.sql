@@ -1583,29 +1583,11 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
-				-- bettype 487	1H Corners Race
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 487)
-					EXEC dbo.NAP_Admin_Calculate_13
-                         @matchid = @matchid
-                        ,@bettype = 487
-                        ,@ResultString = @GoalRecord
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
 				-- bettype 488	First Corner
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 488)
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 488
-                        ,@ResultString = @GoalRecord
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-				-- bettype 489	1H First Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 489)
-					EXEC dbo.NAP_Admin_Calculate_13
-                         @matchid = @matchid
-                        ,@bettype = 489
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
@@ -1626,15 +1608,6 @@ BEGIN
                         ,@bettype = 491
                         ,@ResultString = @GoalRecord
                         ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-				-- bettype 492	1H Last Corner
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 492)
-					EXEC dbo.NAP_Admin_Calculate_13
-                         @matchid = @matchid
-                        ,@bettype = 492
-                        ,@ResultString = @GoalRecord
-						,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 493: HT/FT Total Corners	
@@ -2097,6 +2070,34 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
 						,@bettype = 485
 						,@totalht = @hta
+						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+				
+				-- bettype 487	1H Corners Race
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 487)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 487
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+						
+				-- bettype 489	1H First Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 489)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 489
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+						
+						
+				-- bettype 492	1H Last Corner
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 492)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 492
+                        ,@ResultString = @GoalRecord
 						,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 

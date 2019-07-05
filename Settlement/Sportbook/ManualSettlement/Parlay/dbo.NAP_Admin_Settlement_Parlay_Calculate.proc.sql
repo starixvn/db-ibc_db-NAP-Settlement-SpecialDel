@@ -64,29 +64,6 @@ BEGIN
         ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
         ,@SelectedSetCAL        VARCHAR(50)  = NULL
         ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-            
-        --,@penaltyshootout        VARCHAR(10)    = NULL
-        --,@matchDecidedMethod    VARCHAR(10)    = NULL
-        --,@first10Min1x2            VARCHAR(10)    = NULL
-        --,@firstGoalTime10Min    VARCHAR(10)    = NULL
-        --,@firstGoalTime15Min    VARCHAR(10)    = NULL
-        --,@WhoAdvancesNextRound    VARCHAR(10) = NULL
-        --,@ExtraTimeandGoal        VARCHAR(10)    = NULL
-        --,@ExtraTimeYN            VARCHAR(10) = NULL
-        --,@PlayerSentOff            VARCHAR(10) = NULL
-        --,@HTPlayerSentOff        VARCHAR(10) = NULL
-        --,@PlayerSentOffHome        VARCHAR(10) = NULL
-        --,@HTPlayerSentOffHome    VARCHAR(10) = NULL
-        --,@PlayerSentOffAway        VARCHAR(10) = NULL
-        --,@HTPlayerSentOffAway    VARCHAR(10) = NULL
-        --,@GoalScorerFirst        VARCHAR(10) = NULL                
-        --,@firstHNextGoal        VARCHAR(MAX)= NULL
-        --,@NextGoal                VARCHAR(MAX)= NULL
-        --,@NextGoalTime15Min        VARCHAR(MAX)= NULL
-        --,@ExtraNextGoal            VARCHAR(MAX)= NULL
-        --,@GoalScorerAnytime        VARCHAR(MAX)= NULL
-        --,@FirstGoalMethod			VARCHAR(2) = NULL
-        
         ,@scorediff			SMALLINT = 0
 		,@totalgoal			SMALLINT = 0
 		,@oddeven			SMALLINT = 0
@@ -163,7 +140,7 @@ BEGIN
 			
 		WHILE (@Position < @LenGoalSequence)
 		BEGIN
-			SET @Char = SUBSTRING(@LenGoalSequence, @Position, 1)
+			SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
 	
 			IF @Char = 'H'	
 			BEGIN
@@ -564,28 +541,7 @@ BEGIN
 						, @SetxGameyDRAW
 						, @SetxGameyREFUND
 						, @SelectedSetCAL
-						, @SelectedSetREFUND					
-						--, @penaltyshootout
-						--, @matchDecidedMethod
-						--, @first10Min1x2
-						--, @firstGoalTime10Min
-						--, @firstGoalTime15Min
-						--, @WhoAdvancesNextRound
-						--, @ExtraTimeandGoal
-						--, @ExtraTimeYN
-						--, @PlayerSentOff
-						--, @HTPlayerSentOff
-						--, @PlayerSentOffHome
-						--, @HTPlayerSentOffHome
-						--, @PlayerSentOffAway
-						--, @HTPlayerSentOffAway
-						--, @GoalScorerFirst
-						--, @firstHNextGoal
-						--, @NextGoal
-						--, @NextGoalTime15Min
-						--, @ExtraNextGoal
-						--, @GoalScorerAnytime
-						--, @FirstGoalMethod
+						, @SelectedSetREFUND										
 						, @WinFromBehind
 						, @FirstGoal
 						, @FirstGoal2H
@@ -614,12 +570,6 @@ BEGIN
 			) AS b FOR XML AUTO
 		) AS VARCHAR(MAX))
 		
-		/*select @matchid
-			,@matchdate
-			,@mode AS mode
-			,'CAL' AS [action] 		
-			,@strTicket AS strTransIds*/
-			
 		IF(@strTicket IS NOT NULL)
 		BEGIN
 			EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
@@ -630,8 +580,6 @@ BEGIN
 				,@strTransIds	= @strTicket
 		END
 	
-		--BREAK;
-			
 		IF(@batchCount < @batchNo) BREAK
 	END
 	

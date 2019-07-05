@@ -263,7 +263,6 @@ BEGIN
 								, @ht_lg
 								, @ft_fg
 								, @ft_lg
-								--, @IsHT
 								, b.hdp1
 								, @ResultCornerRace
 								, @NeitherRaceTo
@@ -286,9 +285,7 @@ BEGIN
 					,@action 		= 'REFUND'
 					,@strTransIds	= @strTicket
 			END
-			
-			--BREAK;
-			
+		
 			IF(@batchCount < @batchNo) BREAK
 		
 		END
