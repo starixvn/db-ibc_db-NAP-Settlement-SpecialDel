@@ -878,7 +878,7 @@ RETURN (
 				WHEN @bettype IN (493) THEN 
 					CASE WHEN @IsHT = 1 THEN -- suspended in HT 
 							CASE 
-								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' THEN 1
+								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
 								WHEN SUBSTRING(@betteam, 1,1) < IP.TotalGoal1H THEN -1
 								ELSE NULL
 							END

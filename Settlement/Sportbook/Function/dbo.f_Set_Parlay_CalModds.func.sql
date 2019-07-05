@@ -1623,9 +1623,37 @@ RETURN (
 								WHEN @betteam = 'x' AND ((@hth - @hdp1) - (@hta - @hdp2)) = 0  THEN 1
 								ELSE - 1
 							END	
+				-- 482: Home Team Corners Over/Under
+				WHEN 482 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fth
+						ELSE -1 
+					END
+				-- 483: Away Team Corners Over/Under
+				WHEN 483 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fta
+						ELSE -1 
+					END
+				-- 484: 1H Home Team Corners Over/Under
+				WHEN 484 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hth - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hth
+                        ELSE -1 
+					END
+				-- 485: --1H Away Team Corners Over/Under
+				WHEN 485 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hta - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hta
+                        ELSE -1 
+					END
 				-- Corners Race
 				WHEN 486 THEN CASE 
-								WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
+								WHEN CHARINDEX(CAST(@hdp1 AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
 								WHEN @betteam = 'N' AND @NeitherRaceTo <= @hdp1 THEN 1
 								ELSE -1
 							END
@@ -1665,34 +1693,7 @@ RETURN (
 								WHEN @LastGoal1H = '' THEN 0
 								ELSE -1
 							END
-				-- 482: Home Team Corners Over/Under
-				WHEN 482 THEN 
-					CASE
-						WHEN @betteam = 'o' THEN @fth - @hdp1
-						WHEN @betteam = 'u' THEN @hdp1 - @fth
-						ELSE -1 
-					END
-				-- 483: Away Team Corners Over/Under
-				WHEN 483 THEN 
-					CASE
-						WHEN @betteam = 'o' THEN @fta - @hdp1
-						WHEN @betteam = 'u' THEN @hdp1 - @fta
-						ELSE -1 
-					END
-				-- 484: 1H Home Team Corners Over/Under
-				WHEN 484 THEN 
-                    CASE
-                        WHEN @betteam = 'o' THEN @hth - @hdp1
-                        WHEN @betteam = 'u' THEN @hdp1 - @hth
-                        ELSE -1 
-					END
-				-- 485: --1H Away Team Corners Over/Under
-				WHEN 485 THEN 
-                    CASE
-                        WHEN @betteam = 'o' THEN @hta - @hdp1
-                        WHEN @betteam = 'u' THEN @hdp1 - @hta
-                        ELSE -1 
-					END
+				
 				-- HT/FT Total Corners
 				WHEN 493 THEN CASE WHEN 
 									(

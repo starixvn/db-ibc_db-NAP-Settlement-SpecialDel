@@ -2066,48 +2066,6 @@ BEGIN
 										END) = betteam THEN 1 
 									ELSE -1
 								END   
-						-- Corners Race
-						WHEN 486 THEN CASE 
-										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace) > 0 THEN 1
-										WHEN betteam = 'N' AND @NeitherRaceTo <= hdp1 THEN 1
-										ELSE -1
-									END
-						-- 1H Corners Race
-						WHEN 487 THEN CASE 
-										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace1H) > 0 THEN 1
-										WHEN betteam = 'N' AND @NeitherRaceTo1H <= hdp1 THEN 1
-										ELSE -1
-									END
-						-- First Corner
-						WHEN 488 THEN CASE
-										WHEN bm.betteam = @FirstGoal THEN 1
-										WHEN @FirstGoal = '' THEN 0
-										ELSE -1
-									END
-						-- 1H First Corner
-						WHEN 489 THEN CASE
-										WHEN bm.betteam = @FirstGoal THEN 1
-										WHEN @FirstGoal = '' THEN 0
-										ELSE -1
-									END
-						-- 2H First Corner
-						WHEN 490 THEN CASE
-										WHEN bm.betteam = @FirstGoal2H  THEN 1
-										WHEN @FirstGoal2H = '' THEN 0
-										ELSE -1
-									END
-						-- Last Corner
-						WHEN 491 THEN CASE
-										WHEN bm.betteam = @LastGoal THEN 1
-										WHEN @LastGoal = '' THEN 0
-										ELSE -1
-									END
-						-- 1H Last Corner
-						WHEN 492 THEN CASE
-										WHEN bm.betteam = @LastGoal1H THEN 1
-										WHEN @LastGoal1H = '' THEN 0
-										ELSE -1
-									END
 
 						--Start #115232
 						-- 470: Corners Odd/Even (own)
@@ -2205,6 +2163,48 @@ BEGIN
                                 WHEN betteam = 'u' THEN hdp1 - @hta
                                 ELSE -1 
 							END
+						-- Corners Race
+						WHEN 486 THEN CASE 
+										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace) > 0 THEN 1
+										WHEN betteam = 'N' AND @NeitherRaceTo <= hdp1 THEN 1
+										ELSE -1
+									END
+						-- 1H Corners Race
+						WHEN 487 THEN CASE 
+										WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @ResultCornerRace1H) > 0 THEN 1
+										WHEN betteam = 'N' AND @NeitherRaceTo1H <= hdp1 THEN 1
+										ELSE -1
+									END
+						-- First Corner
+						WHEN 488 THEN CASE
+										WHEN bm.betteam = @FirstGoal THEN 1
+										WHEN @FirstGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 1H First Corner
+						WHEN 489 THEN CASE
+										WHEN bm.betteam = @FirstGoal THEN 1
+										WHEN @FirstGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 2H First Corner
+						WHEN 490 THEN CASE
+										WHEN bm.betteam = @FirstGoal2H  THEN 1
+										WHEN @FirstGoal2H = '' THEN 0
+										ELSE -1
+									END
+						-- Last Corner
+						WHEN 491 THEN CASE
+										WHEN bm.betteam = @LastGoal THEN 1
+										WHEN @LastGoal = '' THEN 0
+										ELSE -1
+									END
+						-- 1H Last Corner
+						WHEN 492 THEN CASE
+										WHEN bm.betteam = @LastGoal1H THEN 1
+										WHEN @LastGoal1H = '' THEN 0
+										ELSE -1
+									END
 						-- HT/FT Total Corners
 						WHEN 493 THEN CASE WHEN 
 											(

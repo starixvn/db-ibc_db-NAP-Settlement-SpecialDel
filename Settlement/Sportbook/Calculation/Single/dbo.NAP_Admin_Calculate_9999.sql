@@ -1020,9 +1020,27 @@ BEGIN
 																		WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
 																		WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
 																		ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
-																END) = betteam THEN 1 
-																ELSE -1
-															END
+																	END) = betteam THEN 1 
+																	ELSE -1
+																END
+												-- 1H Correct Corners
+												WHEN 494 THEN CASE WHEN 
+																	(
+																	CASE 
+																		WHEN (@hth >= 6 OR @hta >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 'AOS'
+																		ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
+																	END) = betteam THEN 1 
+																	ELSE -1
+																END
+												-- 2H Correct Corners
+												WHEN 495 THEN CASE WHEN 
+																	(
+																	CASE 
+																		WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 'AOS'
+																		ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
+																	END) = betteam THEN 1 
+																	ELSE -1
+																END
 												-- Corner Highest Scoring Half
 												WHEN 496 THEN 
 																CASE 
@@ -1352,7 +1370,7 @@ BEGIN
 												WHEN 493 THEN 
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
 															CASE 
-																WHEN (@hth + @hta) >= 10 AND betteam = 'AOS' THEN 1
+																WHEN (@hth + @hta) >= 10 AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
 																WHEN SUBSTRING(betteam, 1,1) < (@hth + @hta) THEN -1
 																ELSE NULL
 															END
@@ -1375,6 +1393,24 @@ BEGIN
 																ELSE NULL
 															END
 														END
+												-- 1H Correct Corners
+												WHEN 494 THEN 
+													CASE WHEN @IsHTCal = 0 THEN
+															CASE 
+																WHEN (@hth >= 6 OR @hta >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
+																WHEN SUBSTRING(betteam, 1,1) >= @hth AND SUBSTRING(betteam, 1,1) >= @hta THEN NULL
+																ELSE -1
+															END
+													END
+												-- 2H Correct Corners
+												WHEN 495 THEN 
+													CASE WHEN @IsHTCal = 1 THEN
+															CASE 
+																WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
+																WHEN SUBSTRING(betteam, 1,1) >= (@fth - @hth) AND SUBSTRING(betteam, 1,1) >= (@fta - @hta) THEN NULL
+																ELSE -1
+															END
+													END
 												-- Corner Highest Scoring Half
 												WHEN 496 THEN 
 													CASE @IsHTCal
