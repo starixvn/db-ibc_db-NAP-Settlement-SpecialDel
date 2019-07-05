@@ -111,8 +111,9 @@ BEGIN
 			,@HomeRaceTo = 0
 			,@AwayRaceTo = 0
 
-	SET @ResultString = ISNULL(@ResultString, '')
-
+			,@ResultString = ISNULL(@ResultString, '')
+			,@result = ''
+			
 	SELECT	@FirstGoal = LEFT(REPLACE(@ResultString,';',''),1) 
 			,@FirstGoal2H = CASE 
 								WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, CHARINDEX(';', @ResultString)+1,1) 
@@ -146,6 +147,7 @@ BEGIN
 					WHEN 490 THEN @FirstGoal2H
 					WHEN 491 THEN @LastGoal
 					WHEN 492 THEN @LastGoal1H
+					ELSE @result
 				  END
 
 	IF @bettype IN (486, 487) -- Corner Race, 1H Corner Race
@@ -155,13 +157,15 @@ BEGIN
 		WHILE (@Position < @LenResultString)
 		BEGIN
 			SET @Char = SUBSTRING(@ResultString, @Position, 1)
-	
+			
 			IF @Char = 'H'	
 			BEGIN
 				SET @HomeRaceTo = @HomeRaceTo + 1
 
 				IF @HomeRaceTo > @AwayRaceTo
 					SET  @result = @result + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+
+					
 			END
 			ELSE IF @Char = 'A' 
 			BEGIN
@@ -205,7 +209,7 @@ BEGIN
 										END		
 				WHEN bettype IN (486, 487) 
 					THEN CASE
-							WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @result) > 0 THEN 1
+							WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
 							WHEN betteam = 'N' AND hdp1 < @NeitherRaceTo THEN - 1
 							ELSE NULL
 						END
@@ -437,7 +441,7 @@ BEGIN
 								END
 						WHEN bettype IN (486, 487) -- Corner Race
 							THEN CASE 
-									WHEN CHARINDEX(CAST(hdp1 AS VARCHAR) + betteam, @result) > 0 THEN 1
+									WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
 									WHEN betteam = 'N' AND @NeitherRaceTo <= hdp1 THEN 1
 									ELSE -1
 								END
