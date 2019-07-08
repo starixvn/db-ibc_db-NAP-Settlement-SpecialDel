@@ -595,6 +595,8 @@ BEGIN
 					,@FirstGoal2H = ''
 					,@LastGoal = ''
 					,@LastGoal1H = ''
+					,@ResultCornerRace = ''
+					,@ResultCornerRace1H = ''
 
 					-- for bettype 486 Corner Race, 487 1H Corner Race
 					,@Position = 1

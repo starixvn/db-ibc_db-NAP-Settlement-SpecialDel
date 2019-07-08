@@ -71,6 +71,8 @@ BEGIN
 		, @Position = 1
 		, @HomeRaceTo = 0
 		, @AwayRaceTo = 0
+		, @ResultCornerRace = ''
+		, @ResultCornerRace1H = ''
 
 	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
 	
