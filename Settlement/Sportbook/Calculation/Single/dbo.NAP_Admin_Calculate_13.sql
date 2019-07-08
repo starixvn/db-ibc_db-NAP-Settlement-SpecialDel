@@ -107,7 +107,7 @@ BEGIN
 			,@LastGoal1H = ''
 			
 			-- for bettype 486 Corner Race, 487 1H Corner Race
-			,@Position = 0
+			,@Position = 1
 			,@HomeRaceTo = 0
 			,@AwayRaceTo = 0
 
@@ -117,12 +117,12 @@ BEGIN
 	SELECT	@FirstGoal = LEFT(REPLACE(@ResultString,';',''),1) 
 			,@FirstGoal2H = CASE 
 								WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, CHARINDEX(';', @ResultString)+1,1) 
-								ELSE '' 
+								ELSE LEFT(@ResultString,1) 
 							END
 			,@LastGoal = RIGHT(REPLACE(@ResultString,';',''),1)
 			,@LastGoal1H = CASE 
 								WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, CHARINDEX(';', @ResultString) - 1,1) 
-								ELSE '' 
+								ELSE RIGHT(@ResultString,1) 
 							END
 	
 	SET @home_firstteam2goals = CHARINDEX('H',@ResultString,(CHARINDEX('H',@ResultString)+1))
@@ -152,9 +152,16 @@ BEGIN
 
 	IF @bettype IN (486, 487) -- Corner Race, 1H Corner Race
 	BEGIN
-		SELECT @LenResultString = LEN(CASE WHEN @bettype = 487 THEN SUBSTRING(@ResultString, 1, CHARINDEX(';',@ResultString)) ELSE @ResultString END)
+		SELECT @LenResultString = LEN(CASE 
+										WHEN @bettype = 487 
+											THEN CASE 
+													WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, 1, CHARINDEX(';',@ResultString)) 
+													ELSE @ResultString
+												END
+										ELSE @ResultString 
+									END)
 			
-		WHILE (@Position < @LenResultString)
+		WHILE (@Position <= @LenResultString)
 		BEGIN
 			SET @Char = SUBSTRING(@ResultString, @Position, 1)
 			
@@ -164,7 +171,6 @@ BEGIN
 
 				IF @HomeRaceTo > @AwayRaceTo
 					SET  @result = @result + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
-
 					
 			END
 			ELSE IF @Char = 'A' 
@@ -174,13 +180,14 @@ BEGIN
 				IF @AwayRaceTo > @HomeRaceTo
 					SET  @result = @result + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
 			END
-
+			
 			SET @Position = @Position + 1	 	
 		END
 
 		SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+		
 	END
-
+	
 	DECLARE @settlementTime DATETIME
 
 	IF @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1
@@ -415,7 +422,7 @@ BEGIN
 			WHERE	BatchNo = @BatchNo
 
 			SET @settlementTime = GETDATE();
-
+	
 			UPDATE	b
 				SET @modds = CASE 
 						WHEN betteam = 'hy' AND @fta = 0 THEN 1

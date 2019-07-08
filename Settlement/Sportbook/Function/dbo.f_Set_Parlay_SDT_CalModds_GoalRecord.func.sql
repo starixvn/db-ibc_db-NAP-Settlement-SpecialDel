@@ -53,12 +53,12 @@ RETURN (
 				,LEFT(REPLACE(@GoalRecord,';',''),1) AS FirstGoal
 				, CASE 
 					WHEN CHARINDEX(';', @GoalRecord) > 0 THEN SUBSTRING(@GoalRecord, CHARINDEX(';', @GoalRecord)+1,1) 
-					ELSE '' 
+					ELSE LEFT(@GoalRecord,1) 
 				END AS FirstGoal2h 
 				, RIGHT(REPLACE(@GoalRecord,';',''),1) AS LastGoal
 				, CASE 
 					WHEN CHARINDEX(';', @GoalRecord) > 0 THEN SUBSTRING(@GoalRecord, CHARINDEX(';', @GoalRecord) - 1,1) 
-					ELSE '' 
+					ELSE RIGHT(@GoalRecord,1) 
 				END AS LastGoal1H
 		) AS ip
 		CROSS APPLY (
@@ -141,13 +141,13 @@ RETURN (
 					
 					-- Corners Race
 					WHEN @bettype = 486 THEN CASE 
-									WHEN CHARINDEX(CAST(@hdp1 AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
+									WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
 									WHEN @betteam = 'N' AND @NeitherRaceTo < @hdp1 THEN -1
 									ELSE NULL
 								END
 					-- 1H Corners Race
 					WHEN @bettype = 487 THEN CASE 
-									WHEN CHARINDEX(CAST(@hdp1 AS VARCHAR) + @betteam, @ResultCornerRace1H) > 0 THEN 1 
+									WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam, @ResultCornerRace1H) > 0 THEN 1 
 									WHEN @betteam = 'N' AND @NeitherRaceTo1H < @hdp1 THEN -1
 									ELSE NULL
 								END

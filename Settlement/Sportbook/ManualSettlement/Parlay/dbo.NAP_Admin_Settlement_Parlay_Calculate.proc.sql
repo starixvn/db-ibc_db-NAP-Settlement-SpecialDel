@@ -120,25 +120,25 @@ BEGIN
 			,@LastGoal1H = ''
 
 			-- for bettype 486 Corner Race, 487 1H Corner Race
-			,@Position = 0
+			,@Position = 1
 			,@HomeRaceTo = 0
 			,@AwayRaceTo = 0
 
 	SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
 			,@FirstGoal2h = CASE 
 						WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence)+1,1) 
-						ELSE '' 
+						ELSE LEFT(@GoalSequence,1) 
 					END
 			,@LastGoal = RIGHT(REPLACE(@GoalSequence,';',''),1)
 			,@LastGoal1H = CASE 
 								WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence) - 1,1) 
-								ELSE '' 
+								ELSE RIGHT(@GoalSequence,1)
 							END
 	-- 486 Corner Race
 	BEGIN
 		SELECT @LenGoalSequence = LEN(@GoalSequence)
 			
-		WHILE (@Position < @LenGoalSequence)
+		WHILE (@Position <= @LenGoalSequence)
 		BEGIN
 			SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
 	
@@ -168,11 +168,15 @@ BEGIN
 		SELECT	@LenGoalSequence = 0
 				,@HomeRaceTo = 0
 				,@AwayRaceTo = 0
-				,@Position = 0
+				,@Position = 1
 						
-		SELECT @LenGoalSequence = LEN(SUBSTRING(@GoalSequence, 1, CHARINDEX(';',@GoalSequence)))
+		SELECT @LenGoalSequence = LEN(CASE 
+										WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, 1, CHARINDEX(';',@GoalSequence))
+										ELSE @GoalSequence
+										END
+								)
 			
-		WHILE (@Position < @LenGoalSequence)
+		WHILE (@Position <= @LenGoalSequence)
 		BEGIN
 			SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
 	

@@ -68,7 +68,7 @@ BEGIN
 		, @ticketCount		= 0
 		
 		-- for bettype 486 Corner Race, 487 1H Corner Race
-		, @Position = 0
+		, @Position = 1
 		, @HomeRaceTo = 0
 		, @AwayRaceTo = 0
 
@@ -116,7 +116,7 @@ BEGIN
 	BEGIN
 		SELECT @LenGoalRecord = LEN(@goalRecord)
 			
-		WHILE (@Position < @LenGoalRecord)
+		WHILE (@Position <= @LenGoalRecord)
 		BEGIN
 			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
 	
@@ -146,11 +146,14 @@ BEGIN
 		SELECT	@LenGoalRecord = 0
 				,@HomeRaceTo = 0
 				,@AwayRaceTo = 0
-				,@Position = 0
+				,@Position = 1
 						
-		SELECT @LenGoalRecord = LEN(SUBSTRING(@goalRecord, 1, CHARINDEX(';',@goalRecord)))
+		SELECT @LenGoalRecord = LEN(CASE 
+										WHEN CHARINDEX(';', @goalRecord) > 0 THEN SUBSTRING(@goalRecord, 1, CHARINDEX(';',@goalRecord))
+										ELSE @goalRecord
+									END)
 			
-		WHILE (@Position < @LenGoalRecord)
+		WHILE (@Position <= @LenGoalRecord)
 		BEGIN
 			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
 	
