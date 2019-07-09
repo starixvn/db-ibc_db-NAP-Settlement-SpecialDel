@@ -104,10 +104,11 @@ BEGIN
         (
             SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
                     ,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
+					,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
             FROM    @xmlSelectedResources.nodes('/Resources/Resource') AS T(C)
         )
-        INSERT INTO @tmpResultDetail(ResourceID, HomeValue)
-        SELECT   ResourceId, HomeValue
+        INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue)
+        SELECT   ResourceId, HomeValue, AwayValue
         FROM    cteSelectedResources 
 	END
 
@@ -130,6 +131,7 @@ BEGIN
                 SELECT   @MatchID AS MatchID
                         ,r.ResourceID 
                         ,r.HomeValue
+						,r.AwayValue
                 FROM    @tmpResultDetail r 
             ) AS SOURCE 
 				ON	TARGET.MatchID = SOURCE.MatchID 
@@ -137,6 +139,7 @@ BEGIN
             WHEN    MATCHED THEN                 
                     UPDATE SET
                         TARGET.HomeValue            = SOURCE.HomeValue
+						,TARGET.AwayValue			= SOURCE.AwayValue
                         ,TARGET.ResultStatusID      = 5     -- Manual Settlement 
                         ,TARGET.SettlementStatusID  = 4     -- Completed
                         ,TARGET.LastModifyBy        = @Creator 
@@ -146,6 +149,7 @@ BEGIN
                          MatchID
                         ,ResourceID
                         ,HomeValue
+						,AwayValue
                         ,ResultStatusID
                         ,SettlementStatusID
                         ,CreateBy
@@ -157,6 +161,7 @@ BEGIN
                          SOURCE.MatchID
                         ,SOURCE.ResourceID
                         ,SOURCE.HomeValue
+						,SOURCE.AwayValue
                         ,5 -- Manual Settlement 
                         ,4 -- Completed
                         ,@Creator

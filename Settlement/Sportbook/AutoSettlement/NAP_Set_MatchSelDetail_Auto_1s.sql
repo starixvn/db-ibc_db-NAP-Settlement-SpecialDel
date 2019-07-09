@@ -84,17 +84,17 @@ BEGIN
     GROUP BY f.ResourceID
 		
 	-- Detail 
-    SELECT  ResourceID = COALESCE(r.ResourceID,t.ResourceID,p.ResourceID) 
-            ,TicketStatus = CASE 
-								WHEN t.InRunning > 0 THEN 'Running'
-								WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
-								WHEN t.betMarkedCount > 0 THEN 'Marked'
-								WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
-								WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
-                                ELSE 'Calculated'
-                            END
-             ,HomeValue = r.HomeValue
-            ,r.OtherInfo
+    SELECT  COALESCE(r.ResourceID,t.ResourceID,p.ResourceID) AS ResourceID
+            ,CASE 
+				WHEN t.InRunning > 0 THEN 'Running'
+				WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
+				WHEN t.betMarkedCount > 0 THEN 'Marked'
+				WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
+				WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
+                ELSE 'Calculated'
+            END AS TicketStatus
+            ,r.HomeValue
+			,r.AwayValue
             ,r.ResultStatusID
             ,r.SettlementStatusID
     FROM    @tmpTicketStatus t

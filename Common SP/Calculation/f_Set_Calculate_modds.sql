@@ -86,6 +86,11 @@ RETURN
 			WHEN @pfID = 424 THEN --betteam = homevalue 
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
+			
+			WHEN @pfID = 479 THEN 
+			   CASE WHEN @betteam = 'Y' AND @HomeValue > 0 AND @HomeValue < @hdp1 THEN 1
+					WHEN @betteam = 'N' AND (@HomeValue = 0 OR @HomeValue >= @hdp1) THEN 1
+					ELSE -1 END
 
 			----Happy5
 			WHEN @pfID = 8101 THEN

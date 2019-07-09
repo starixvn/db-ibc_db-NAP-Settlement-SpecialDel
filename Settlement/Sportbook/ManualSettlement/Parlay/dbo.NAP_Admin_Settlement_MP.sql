@@ -69,6 +69,7 @@ BEGIN
 			,@GoalRecord		VARCHAR(50)
 			,@IsRefundHT		BIT
 			,@priorAction		VARCHAR(20)
+			,@IsExistEarlyBettype BIT
 
 	SELECT	@matchdate = eventdate
 			,@finalhomescore = CASE sporttype WHEN 10 THEN finalawayscore ELSE finalhomescore END -- Golf, using Stroke count, so swap the score to make it become normal style
@@ -88,6 +89,20 @@ BEGIN
 				,@ErrMsg = 'Match does not exist!'
 
 		RETURN -- incorrect matchid? maybe
+	END
+
+	IF @SportType = 1
+	BEGIN
+		SELECT TOP(1) @IsExistEarlyBettype = 1
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			CROSS APPLY (
+				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType
+				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				WHERE	s.BetType = bm.bettype 
+			) AS f
+		WHERE matchid 		= @matchId
+			AND f.SportType = @SportType
+			AND statusID	NOT IN (101, 102)
 	END
 
 	IF @SelectedResources IS NOT NULL OR EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
@@ -161,34 +176,36 @@ BEGIN
 				,@TotalAway = @TotalGameAwayMatch OUTPUT
 		END
 
-	IF @IsSettleBySetting = 1 
-    BEGIN
-    	--Need to cal refund before settle
-		IF @Action = 'CAL'
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
-		    EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
-	            @matchid = @matchid
-	            ,@matchdate = @matchdate
-	            ,@mode = 'REFUND'
-	            ,@sportType = @SportType
-	            ,@resultDetail = @SelectedResources
-	            ,@ticketCount = @ticketCountTotal OUTPUT
-	    END
+    		--Need to cal refund before settle
+			IF @Action = 'CAL'
+			BEGIN
+				EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
+					@matchid = @matchid
+					,@matchdate = @matchdate
+					,@mode = 'REFUND'
+					,@sportType = @SportType
+					,@resultDetail = @SelectedResources
+					,@ticketCount = @ticketCountTotal OUTPUT
+			END
 	       
-	    IF @Action IN ('CAL','UNDO')
-		BEGIN
-	        EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
-	            @matchid = @matchid
-	            ,@matchdate = @matchdate
-	            ,@mode = @Action
-	            ,@sportType = @SportType
-	            ,@resultDetail = @SelectedResources
-	            ,@ticketCount = @ticketCountTotal OUTPUT
+			IF @Action IN ('CAL','UNDO')
+			BEGIN
+				EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
+					@matchid = @matchid
+					,@matchdate = @matchdate
+					,@mode = @Action
+					,@sportType = @SportType
+					,@resultDetail = @SelectedResources
+					,@ticketCount = @ticketCountTotal OUTPUT
+			END
 		END
-    END
-    
-    ELSE IF @Sporttype = 5 AND @action IN ('REFUND', 'CAL')--Tennis
+
+		IF @IsSettleBySetting = 0
 		BEGIN
+			IF @Sporttype = 5 AND @action IN ('REFUND', 'CAL')--Tennis
+			BEGIN
 				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'sporttingSolution'
 					,@matchid = @matchID
 					,@Total = @TennisTotal OUTPUT
@@ -196,80 +213,81 @@ BEGIN
 					,@TotalAway = @TotalGameAwayMatch OUTPUT
 					,@str_resultDetail = @resultDetail_ss OUTPUT
 
-			-- get @SelectedSetCAL/	@SelectedSetREFUND from XML for update match_remark
-			DECLARE @xml_ss XML = CONVERT(XML, @resultDetail_ss)
+				-- get @SelectedSetCAL/	@SelectedSetREFUND from XML for update match_remark
+				DECLARE @xml_ss XML = CONVERT(XML, @resultDetail_ss)
 
-			SELECT TOP(1) @SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
-				,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
-			FROM @xml_ss.nodes('/root/r') as [T](C) --T: table, C: column
-			OPTION ( OPTIMIZE FOR ( @xml_ss = NULL ) )
-			------------------------------
+				SELECT TOP(1) @SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
+					,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
+				FROM @xml_ss.nodes('/root/r') as [T](C) --T: table, C: column
+				OPTION ( OPTIMIZE FOR ( @xml_ss = NULL ) )
+				------------------------------
 
-			EXEC dbo.NAP_Admin_Calculate_MP_broker
-				@matchid = @matchid
-				,@matchdate = @matchdate
-				,@mode = 'sporttingSolution_m'
-				,@fth = @finalhomescore
-				,@fta = @finalawayscore
-				,@hth = @hthomescore
-				,@hta = @htawayscore
-				,@IsRefundHT = @IsRefundHT
-				,@TennisTotal = @TennisTotal
-				,@TotalGameHomeMatch = @TotalGameHomeMatch
-				,@TotalGameAwayMatch = @TotalGameAwayMatch
-				,@resultDetail_ss = @resultDetail_ss
-				,@strBettypes = @strBettypes
-		END
-		ELSE IF @SportType = 2 AND @Action IN ('REFUND', 'CAL') -- Basketball
-		BEGIN
-			EXEC dbo.NAP_Admin_Settlement_2 @mode = 'basketball'
-				,@matchid = @matchid
-				,@str_resultDetail = @resultDetail_bb OUTPUT
-
-			EXEC dbo.NAP_Admin_Calculate_MP_broker
-				@matchid = @matchid
-				,@matchdate = @matchdate
-				,@mode = 'basketball_m'
-				,@fth = @finalhomescore
-				,@fta = @finalawayscore
-				,@hth = @hthomescore
-				,@hta = @htawayscore
-				,@resultDetail_bb = @resultDetail_bb
-				,@strBettypes = @strBettypes
-		END
-		ELSE
-		BEGIN
-			IF @Sporttype = 1
-			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
-					,@matchid = @matchID
-					,@str_resultDetail = @resultDetail OUTPUT
+				EXEC dbo.NAP_Admin_Calculate_MP_broker
+					@matchid = @matchid
+					,@matchdate = @matchdate
+					,@mode = 'sporttingSolution_m'
+					,@fth = @finalhomescore
+					,@fta = @finalawayscore
+					,@hth = @hthomescore
+					,@hta = @htawayscore
+					,@IsRefundHT = @IsRefundHT
+					,@TennisTotal = @TennisTotal
+					,@TotalGameHomeMatch = @TotalGameHomeMatch
+					,@TotalGameAwayMatch = @TotalGameAwayMatch
+					,@resultDetail_ss = @resultDetail_ss
+					,@strBettypes = @strBettypes
 			END
+			ELSE IF @SportType = 2 AND @Action IN ('REFUND', 'CAL') -- Basketball
+			BEGIN
+				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'basketball'
+					,@matchid = @matchid
+					,@str_resultDetail = @resultDetail_bb OUTPUT
 
-			-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
-			IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
+				EXEC dbo.NAP_Admin_Calculate_MP_broker
+					@matchid = @matchid
+					,@matchdate = @matchdate
+					,@mode = 'basketball_m'
+					,@fth = @finalhomescore
+					,@fta = @finalawayscore
+					,@hth = @hthomescore
+					,@hta = @htawayscore
+					,@resultDetail_bb = @resultDetail_bb
+					,@strBettypes = @strBettypes
+			END
+			ELSE
+			BEGIN
+				IF @Sporttype = 1
+				BEGIN
+					EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
+						,@matchid = @matchID
+						,@str_resultDetail = @resultDetail OUTPUT
+				END
 
-			EXEC dbo.NAP_Admin_Calculate_MP_broker
-				@matchid = @matchid,
-				@mode = 'm',
-				@priorAction = @priorAction,
-				@action = @action,
-				@IsRefundHT = @IsRefundHT,
-				@GoalSequence = @GoalRecord,
-				@fth = @finalhomescore ,
-				@fta = @finalawayscore,
-				@hth = @hthomescore,
-				@hta = @htawayscore,
-				@matchdate = @matchdate,
-				@SelectedSet = @SelectedSet,
-				@TennisTotal = @TennisTotal,
-				@resultDetail = @resultDetail,
-				@strBettypes = @strBettypes,
-				@betstatus	= @betstatus,
-				@SelectedQuarter = @SelectedQuarter
+				-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
+				IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
+			
+				EXEC dbo.NAP_Admin_Calculate_MP_broker
+					@matchid = @matchid,
+					@mode = 'm',
+					@priorAction = @priorAction,
+					@action = @action,
+					@IsRefundHT = @IsRefundHT,
+					@GoalSequence = @GoalRecord,
+					@fth = @finalhomescore ,
+					@fta = @finalawayscore,
+					@hth = @hthomescore,
+					@hta = @htawayscore,
+					@matchdate = @matchdate,
+					@SelectedSet = @SelectedSet,
+					@TennisTotal = @TennisTotal,
+					@resultDetail = @resultDetail,
+					@strBettypes = @strBettypes,
+					@betstatus	= @betstatus,
+					@SelectedQuarter = @SelectedQuarter
 
 
-		END --@Sporttype = 1
+			END --@Sporttype = 1
+		END
 	END --END: handle bettransM ------------------------------------------
 
 	DECLARE @rowCnt29 int
