@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@action		VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND
 	,@SelectedSet	VARCHAR(50)		= NULL
 	,@ResourceIDs	VARCHAR(MAX)	= NULL
-	,@SelectedQuarter VARCHAR(MAX)	= NULL
+	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IP			VARCHAR(15)		= ''
 	,@ErrCode		INT				= 0		OUTPUT
