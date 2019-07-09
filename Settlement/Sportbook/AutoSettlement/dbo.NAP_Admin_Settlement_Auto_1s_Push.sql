@@ -137,7 +137,7 @@ BEGIN
 			,@sporttype
 			,@AdminId
 			,@IP
-			,'CAL-EARLY'
+			,@Action + '-' + 'EARLY'
 			,@sqlCommand
 	END
 

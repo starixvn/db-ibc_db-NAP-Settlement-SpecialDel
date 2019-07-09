@@ -49,6 +49,7 @@ BEGIN
             ,@Remark			VARCHAR(500)
             ,@LogData           NVARCHAR(300)
 			,@handle			INT
+			,@Command			VARCHAR(100)
                                 
 			,@avaiableProcess	BIT
             ,@sportType			INT
@@ -99,6 +100,12 @@ BEGIN
 			,@SelectedRID = ''
 			,@batchNo = 2000
 			,@strTransIds = ''
+			,@Command = CASE 
+							WHEN @Action = 'CAL' THEN 'NAP_Admin_Settlement_Auto_1s-CAL'
+							WHEN @Action = 'REFUND' THEN 'NAP_Admin_Settlement_Auto_1s-REFUND'
+							WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_Auto_1s-UNDO'
+							ELSE ''
+						END
 
     --Write Log Settle
     SELECT   @fth            = finalhomescore
@@ -185,24 +192,12 @@ BEGIN
 	  			AND	b.statusID NOT IN (103, 101, 102)
 	END 
 	
-	 IF @Action='CAL'
-    BEGIN
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-CAL',
-            @MatchID            = @MatchID,
-			@SelectedResources	= @SelectedResources,
-            @IsAuto             = @IsAuto,
-            @creator            = @AdminID             
-    END
-	ELSE IF @Action = 'REFUND'
-    BEGIN
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-REFUND',
-            @MatchID            = @MatchID,
-            @SelectedResources  = @SelectedResources, 
-            @IsAuto            	= @IsAuto,
-            @creator            = @AdminID     
-	END
+    EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+        @Command            = @Command,
+        @MatchID            = @MatchID,
+		@SelectedResources	= @SelectedResources,
+        @IsAuto             = @IsAuto,
+        @creator            = @AdminID             
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------    
@@ -314,14 +309,6 @@ BEGIN
             ,@action			= 'UNDO'
             ,@SelectedResources = @SelectedResources
             ,@IP				= @IP
-                
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-UNDO',
-            @MatchID            = @MatchID,
-            @SelectedResources  = @SelectedResources, 
-            @IsAuto             = @IsAuto,
-            @creator            = @AdminID 
-
     END
     
 	 ------ releasing Settlement process

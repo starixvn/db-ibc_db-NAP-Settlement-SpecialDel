@@ -179,21 +179,9 @@ BEGIN
 	
 	
 	BEGIN TRY
-		--CHECK Early-Bettype first if any
-		IF (@IsExistEarlyBettype = 1)
-		BEGIN		
-			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
-                @matchid 			= @matchid
-                ,@matchdate 		= @matchdate
-                ,@mode 				= 'CAL'
-                ,@SportType 		= @SportType
-                ,@ticketCount		= @ticketCountEarly OUTPUT
-		END	
-		
 		--CHECK for CAL fisrt
-		IF @IsSettleBySetting = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
-			
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid
                 ,@matchdate 		= @matchdate
@@ -201,37 +189,31 @@ BEGIN
                 ,@SportType 		= @SportType
                 ,@ticketCount		= @ticketCountCAL OUTPUT
 		END 
-		ELSE IF(
-			@action IN ('REFUND-HT', 'ABANDONED-2H','REFUND-FT')
-		) OR (@SportType IN (2,5) AND @Action = 'REFUND')
+
+		IF @IsSettleBySetting = 0
 		BEGIN
-			/*IF(@action IN ('REFUND-HT')) --REFUND Is3x30 AND CAL the REST
+			IF @action IN ('REFUND-HT', 'ABANDONED-2H', 'REFUND-FT') 
+				OR (@SportType IN (2,5) AND @Action = 'REFUND')
 			BEGIN
-				TODO
-			END
-			IF(@action IN ('ABANDONED-2H', 'REFUND-FT')) --CAL-HT and REFUND/ABANDONED the REST
-			BEGIN
-				TODO
-			END*/
-			
-			--DO calculation
-			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate
-				@MatchId			= @MatchId
-				,@matchdate			= @matchdate
-				,@mode				= @Action
-				,@hth		 		= @hthomescore
-				,@hta		 		= @htawayscore
-				,@fth				= @fthomescore
-				,@fta				= @ftawayscore
-				,@Sporttype			= @Sporttype
-				,@betstatus 		= @betstatus
-				,@GoalSequence 		= @GoalRecord
-				,@resultDetail_ss	= @resultDetail_ss
-				,@resultDetail_bb	= @resultDetail_bb
-				,@resultDetail		= @resultDetail
-				,@IsRefundHT		= @IsRefundHT
-				,@ticketCount		= @ticketCountCAL OUTPUT
+				--DO calculation
+				EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate
+					@MatchId			= @MatchId
+					,@matchdate			= @matchdate
+					,@mode				= @Action
+					,@hth		 		= @hthomescore
+					,@hta		 		= @htawayscore
+					,@fth				= @fthomescore
+					,@fta				= @ftawayscore
+					,@Sporttype			= @Sporttype
+					,@betstatus 		= @betstatus
+					,@GoalSequence 		= @GoalRecord
+					,@resultDetail_ss	= @resultDetail_ss
+					,@resultDetail_bb	= @resultDetail_bb
+					,@resultDetail		= @resultDetail
+					,@IsRefundHT		= @IsRefundHT
+					,@ticketCount		= @ticketCountCAL OUTPUT
 				
+			END
 		END
 		
 		--CALL settle determinable first
@@ -255,7 +237,7 @@ BEGIN
 		END
 
 		--REFUND the REST
-		IF @IsSettleBySetting = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid
@@ -264,7 +246,8 @@ BEGIN
                 ,@SportType 		= @SportType
                 ,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
-		ELSE
+		
+		IF @IsSettleBySetting = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Refund
 				@MatchId			= @MatchId
@@ -276,7 +259,7 @@ BEGIN
 				,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
 		
-		SET @ticketCountTotal		= ISNULL(@ticketCountEarly, 0) + ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
+		SET @ticketCountTotal		= ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
 	
 	END TRY
 	BEGIN CATCH

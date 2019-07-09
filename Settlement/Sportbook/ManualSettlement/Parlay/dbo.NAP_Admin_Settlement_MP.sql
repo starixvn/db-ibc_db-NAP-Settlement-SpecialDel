@@ -105,10 +105,12 @@ BEGIN
 			AND statusID	NOT IN (101, 102)
 	END
 
-	IF @SelectedResources IS NOT NULL OR EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
 	BEGIN
 	  	SET @IsSettleBySetting = 1
 	END
+	ELSE 
+		SET @IsSettleBySetting = 0
 
 	IF @action <> 'UNDO'
 	BEGIN
@@ -175,7 +177,7 @@ BEGIN
 				,@TotalHome = @TotalGameHomeMatch OUTPUT
 				,@TotalAway = @TotalGameAwayMatch OUTPUT
 		END
-
+		
 		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
     		--Need to cal refund before settle
@@ -201,7 +203,7 @@ BEGIN
 					,@ticketCount = @ticketCountTotal OUTPUT
 			END
 		END
-
+		
 		IF @IsSettleBySetting = 0
 		BEGIN
 			IF @Sporttype = 5 AND @action IN ('REFUND', 'CAL')--Tennis
