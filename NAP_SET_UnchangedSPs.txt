@@ -23,3 +23,6 @@ Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Checking.sql
 Settlement\Sportbook\NAP_Admin_Settlement_1_CheckBetStatus.sql
 Settlement\Sportbook\NAP_Set_CheckingMarkedTransaction.sql
 Settlement\Sportbook\NAP_Set_MatchSelDetail.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_RefundAll.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_RefundFT.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_RefundHT.sql
