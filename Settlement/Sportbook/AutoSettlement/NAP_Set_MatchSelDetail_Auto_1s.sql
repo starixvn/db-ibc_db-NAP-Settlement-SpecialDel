@@ -21,7 +21,7 @@ AS
 BEGIN
     SET NOCOUNT ON 
    
-    DECLARE    @tmpTicketStatus TABLE(
+    DECLARE @tmpTicketStatus TABLE(
          ResourceID			VARCHAR(20)
         ,BetCount			INT
         ,InRunning			INT
@@ -31,7 +31,7 @@ BEGIN
 		,betMarkedCount		INT 
     )
 
-    DECLARE    @tmpTicketStatusParlay TABLE(
+    DECLARE @tmpTicketStatusParlay TABLE(
          ResourceID			VARCHAR(20)
         ,BetCount			INT
         ,InRunning			INT
@@ -40,13 +40,14 @@ BEGIN
     )
 
 	DECLARE @tmpAutoBettypes TABLE (
-		bettype SMALLINT
+		bettype		SMALLINT
 		,ResourceId VARCHAR(20)
-		,BetId BIGINT
+		,BetId		BIGINT
+		,OrdNo		SMALLINT
 	)
 	
-	INSERT INTO @tmpAutoBettypes (bettype, ResourceId, BetId)
-	SELECT	f.bettype, s.ResourceID, s.BetID
+	INSERT INTO @tmpAutoBettypes (bettype, ResourceId, BetId, OrdNo)
+	SELECT	f.bettype, s.ResourceID, s.BetID, s.OrdNo
 	FROM	dbo.f_Set_GetGroupBettypes() f
 		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 			ON	f.BetType = s.BetType
@@ -84,36 +85,42 @@ BEGIN
     GROUP BY f.ResourceID
 		
 	-- Detail 
-    SELECT  COALESCE(r.ResourceID,t.ResourceID,p.ResourceID) AS ResourceID
-            ,CASE 
-				WHEN t.InRunning > 0 THEN 'Running'
-				WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
-				WHEN t.betMarkedCount > 0 THEN 'Marked'
-				WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
-				WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
-                ELSE 'Calculated'
-            END AS TicketStatus
-            ,r.HomeValue
+	SELECT	tp.ResourceID
+			,tp.TicketStatus
+			,r.HomeValue
 			,r.AwayValue
-            ,r.ResultStatusID
-            ,r.SettlementStatusID
-    FROM    @tmpTicketStatus t
-		FULL JOIN @tmpTicketStatusParlay p	
-			ON	t.resourceId = p.ResourceID
+			,r.ResultStatusID
+			,r.SettlementStatusID
+	FROM (
+		SELECT  COALESCE(t.ResourceID,p.ResourceID) AS ResourceID
+				,CASE 
+					WHEN t.InRunning > 0 THEN 'Running'
+					WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
+					WHEN t.betMarkedCount > 0 THEN 'Marked'
+					WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
+					WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
+					ELSE 'Calculated'
+				END AS TicketStatus
+		FROM    @tmpTicketStatus t
+			FULL JOIN @tmpTicketStatusParlay p	
+				ON	t.resourceId = p.ResourceID
+	) tp
         OUTER APPLY( 
-			SELECT  r.MatchID  
-					,r.ResourceId
+			SELECT  r.ResourceId
 					,r.HomeValue
 					,r.AwayValue
-					,r.OtherInfo
 					,r.ResultStatusID
 					,r.SettlementStatusID                      
 			FROM    DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
-			WHERE	r.ResourceID = COALESCE(t.ResourceID,p.ResourceID) 
+			WHERE	r.ResourceID = tp.ResourceID
 					AND r.MatchId =  @MatchID
 			) AS r
-						
-    ORDER BY COALESCE(r.ResourceID,t.ResourceID,p.ResourceID) ASC 
+		CROSS APPLY (
+			SELECT	DISTINCT OrdNo
+			FROM	@tmpAutoBettypes 
+			WHERE	ResourceId = tp.ResourceID
+		)o
+	ORDER BY o.OrdNo
 
 	-- number of ticket
 	SELECT	8 AS GroupId 
