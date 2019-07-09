@@ -1316,8 +1316,8 @@ BEGIN
 												WHEN 467 THEN -- HT/FT Exact Total Goal
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
 															CASE 
-																WHEN SUBSTRING(betteam, 2,1) < @totalHTScore OR REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') < @totalFTScore THEN - 1
 																WHEN @totalHTScore >= 7 AND betteam = 'G7+/G7+' THEN 1
+																WHEN (SUBSTRING(betteam, 2,1) < @totalHTScore AND SUBSTRING(betteam, 2,1) < 7) THEN -1
 																ELSE NULL
 															END
 														WHEN @IsHTCal = 1 THEN -- suspended in FT
@@ -1330,11 +1330,12 @@ BEGIN
 																WHEN @totalHTScore = 4 AND @totalFTScore >= 8 AND betteam = 'G4/G8+' THEN 1
 																WHEN @totalHTScore = 5 AND @totalFTScore >= 9 AND betteam = 'G5/G9+' THEN 1
 																WHEN @totalHTScore = 6 AND @totalFTScore >= 10 AND betteam = 'G6/G10+' THEN 1
-																WHEN SUBSTRING(betteam, 2,1) <> @totalHTScore AND @totalHTScore < 7 THEN -1
+																WHEN SUBSTRING(betteam, 2,1) <> @totalHTScore THEN -1
 																WHEN SUBSTRING(betteam, 2,1) = @totalHTScore AND REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') < @totalFTScore THEN -1
-																WHEN SUBSTRING(betteam, 2,1) = @totalHTScore AND REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') > @totalFTScore AND @totalFTScore < 7 THEN NULL
+																WHEN SUBSTRING(betteam, 2,1) = @totalHTScore AND REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') >= @totalFTScore THEN NULL
+																ELSE NULL
 															END
-													END
+														END
 										END 
 								END    
 				,modds = @modds                                    

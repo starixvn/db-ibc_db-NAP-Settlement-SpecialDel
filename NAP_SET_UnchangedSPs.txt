@@ -14,6 +14,7 @@ Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP.
 Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP_Push.proc.sql
 Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Calculate.proc.sql
 Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_SDT.proc.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Refund.proc.sql
 Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout.sql
 Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql

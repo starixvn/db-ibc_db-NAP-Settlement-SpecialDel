@@ -52,6 +52,7 @@ BEGIN
 		,@statusId				TINYINT
 		,@winlost				MONEY
 		,@totalWinScore			VARCHAR(10)
+		,@tmpTotalWinScore		VARCHAR(10)
 		,@odds					MONEY
 		,@posOdds				INT
 		,@posComma				INT
@@ -127,12 +128,12 @@ BEGIN
 			SET @settlementTime = GETDATE();
 
 			UPDATE 	b
-				SET @totalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
+				SET @tmpTotalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
 												WHEN @totalWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
 												ELSE @totalWinScore
 											END AS INT)
 										AS VARCHAR(10))
-					,@posOdds = CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1
+					,@posOdds = CHARINDEX(@tmpTotalWinScore + ':', b.betcheck) + LEN(@tmpTotalWinScore) + 1
 					,@posComma = CHARINDEX(',', b.betcheck + ',', @posOdds)
 					,@odds = SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds)
 					,@modds = CASE WHEN @odds > 0 AND b.bettype = 469 AND b.betteam = 'o' THEN 1
@@ -142,7 +143,7 @@ BEGIN
 					,modds = @modds
 					-- update odds, oddsspread
 					,odds = CASE WHEN @modds IS NOT NULL THEN @odds ELSE odds END
-					,oddsspread = CASE WHEN @modds IS NOT NULL THEN @totalWinScore ELSE oddsspread END
+					,oddsspread = CASE WHEN @modds IS NOT NULL THEN @tmpTotalWinScore ELSE oddsspread END
 					,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 						WHEN '0' THEN 1
 						WHEN '1' THEN 0
@@ -262,12 +263,12 @@ BEGIN
 
 			UPDATE  b
 				SET 
-					@totalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
+					@tmpTotalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
 												WHEN @totalWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
 												ELSE @totalWinScore
 											END AS INT)
 										AS VARCHAR(10))
-					,@posOdds = CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1
+					,@posOdds = CHARINDEX(@tmpTotalWinScore + ':', b.betcheck) + LEN(@tmpTotalWinScore) + 1
 					,@posComma = CHARINDEX(',', b.betcheck + ',', @posOdds)
 					,@odds = SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds)
 					,@modds = CASE WHEN @odds > 0 THEN 1
@@ -278,7 +279,7 @@ BEGIN
 					,modds = @modds
 					-- update odds, oddsspread
 					,odds = @odds
-					,oddsspread = @totalWinScore
+					,oddsspread = @tmpTotalWinScore
 					,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 						WHEN '0' THEN 1
 						WHEN '1' THEN 0

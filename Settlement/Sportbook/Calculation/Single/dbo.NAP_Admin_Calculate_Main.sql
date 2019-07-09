@@ -4032,17 +4032,6 @@ BEGIN
                         ,@IsHTCal = @IsHTCal
 						,@IsReSettledTickets = @IsReSettledTickets
 
-				-- 468: Score Box Handicap
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 468)
-                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
-                        ,@bettype = 468
-                        ,@fth = @fth
-                        ,@fta = @fta
-						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
-
 				-- 469: Score Box Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
                     EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
@@ -5015,18 +5004,7 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
 						,@IsReSettledTickets = @IsReSettledTickets
-
-				-- 468: Score Box Handicap
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 468)
-                    EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
-                        ,@bettype = 468
-                        ,@fth = @fth
-                        ,@fta = @fta
-						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
-
+				
 				-- 469: Score Box Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
                     EXEC dbo.NAP_Admin_Calculate_468 @matchid = @matchid
