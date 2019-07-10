@@ -47,11 +47,12 @@ BEGIN
 			,@NotExecutedFGLG VARCHAR(200)
 			,@procName nvarchar(50)	
 			,@matchid int
-			,@bettype_22 VARCHAR(20)
-			,@bettype_160 VARCHAR(20)
+			--,@bettype_22 VARCHAR(20)
+			--,@bettype_160 VARCHAR(20)
 
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
+			,@IsExistsResourceEarlyRunning BIT = 0
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -80,8 +81,8 @@ BEGIN
 			,@subErrCode = 0
 			,@subErrMsg = ''
 	
-	SET @bettype_22 = '22'
-    SET @bettype_160 = '160'
+	--SET @bettype_22 = '22'
+ --   SET @bettype_160 = '160'
     
 	-- get data from remote table match
 	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = ''
@@ -135,13 +136,11 @@ BEGIN
 	-- end
 	
 	DECLARE @tblFGLGMatch TABLE(matchid INT, matchcode NVARCHAR(50))
-	DECLARE @tblRunningAutoSettle TABLE (matchid INT)
-	
+	DECLARE @tmpRunningEarlySettle TABLE (matchid INT)
 	DECLARE @tblRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50), OrdNo SMALLINT)
-	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)
-	
+
+	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)	
 	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY)
-	DECLARE @tmpAutoBetRadarBettypes TABLE (bettype SMALLINT PRIMARY KEY)
 	
 	INSERT INTO @tmpBettypes(bettype, groupId, groupname, isEarly)
 	SELECT	f.BetType, f.GroupId, f.GroupName
@@ -153,35 +152,32 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.IsUsedGoalRecordValue = 1
 	
-	INSERT INTO @tmpAutoBetRadarBettypes(bettype)
-	SELECT	f.BetType
-	FROM	dbo.f_Set_GetGroupBettypes() f
-	WHERE	f.GroupId = 8
-	
 	IF EXISTS (SELECT TOP 1 1 FROM #Match WHERE sporttype = 1)
 	BEGIN
 		;WITH cteBetStatusM
 		AS(
 			SELECT	DISTINCT matchid
-					,CASE 
-						WHEN Bettype = 22 THEN ISNULL(REPLACE(SUBSTRING(betcheck, 2, LEN(betcheck)),@bettype_22,@bettype_160), '')
-						WHEN Bettype IN (160,164,169,180) THEN ISNULL(SUBSTRING(betcheck, 2, LEN(betcheck)), '')
-						ELSE CAST(BetType AS VARCHAR(20))
-					END AS ResourceId
-						
-			FROM	dbo.bettransm WITH(NOLOCK)
+					,s.ResourceId						
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+					ON	s.BetType = bm.bettype
+						AND (s.BetID = 0 OR s.BetID = bm.betcheck)
 			WHERE	matchid IN (SELECT matchid FROM #Match)
+					AND s.SettleType = 'EAR'
 					AND statusID = 0
-					AND bettype IN (SELECT BetType FROM @tmpAutoBetRadarBettypes)
-					
 		)
 		
-		INSERT INTO @tblRunningAutoSettle (matchid)
+		INSERT INTO @tmpRunningEarlySettle (matchid)
 		SELECT	c.matchid
 		FROM	cteBetStatusM c
-			LEFT JOIN #ResultDetail r WITH(NOLOCK)	ON	c.matchid = r.matchid AND r.ResourceId = c.ResourceId
+			LEFT JOIN #ResultDetail r WITH(NOLOCK)	
+				ON	c.matchid = r.matchid 
+					AND r.ResourceId = c.ResourceId
 		WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		
+		IF @@ROWCOUNT > 0
+			SET @IsExistsResourceEarlyRunning = 1
+
 		;WITH cteFGLGBettypes
 		AS(
 			SELECT	bm.matchid
@@ -324,25 +320,23 @@ BEGIN
 	IF EXISTS (SELECT 1
 				FROM #Match
 				WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL ) AND @action <> 'UNDO'
-		OR EXISTS (SELECT TOP 1 1
-					FROM @tblRunningAutoSettle
-				)	
+		OR @IsExistsResourceEarlyRunning = 1	
 		OR EXISTS (SELECT TOP 1 1
 					FROM @tblRunningBAIO
 				)					
 	BEGIN
 		
 		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode 
-									+  (CASE WHEN matchid IN (SELECT matchid FROM @tblRunningAutoSettle) THEN '(Early Settle)' ELSE '' END) + ','
+									+  (CASE WHEN @IsExistsResourceEarlyRunning = 1 THEN '(Early Settle)' ELSE '' END) + ','
 		FROM #Match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
-			OR matchid IN (SELECT matchid FROM @tblRunningAutoSettle)
+			OR @IsExistsResourceEarlyRunning = 1
 
 		-- exclude matches were not keyscore yet
 		DELETE
 		FROM #Match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
-				OR matchid IN (SELECT matchid FROM @tblRunningAutoSettle)
+				OR @IsExistsResourceEarlyRunning = 1
 				
 		
 		SELECT @NotKeyScoreList = @NotKeyScoreList 

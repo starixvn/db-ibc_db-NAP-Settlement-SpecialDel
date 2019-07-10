@@ -169,6 +169,10 @@ BEGIN
 			WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
 		)
 		
+		IF @@ROWCOUNT > 0
+			SET @IsExistsResourceEarlyRunning = 1
+					
+		
 		;WITH cteBetStatusM
 		AS(
 			SELECT	bm.matchid
@@ -214,14 +218,6 @@ BEGIN
 			WHERE ISNULL(r.SettlementStatusId,0) = 0
 			GROUP BY c.matchid
 		)
-		
-		IF EXISTS (SELECT TOP 1 1
-					FROM @tmpRunningEarlySettle)
-			BEGIN
-				SET @IsExistsResourceEarlyRunning = 1
-			END		
-					
-		
 	END
 
 	IF @sporttype = 2
