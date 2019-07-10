@@ -128,6 +128,66 @@ BEGIN
 	FROM	dbo.f_SplitString(@BallSequence, ',')
 	OPTION (maxrecursion 0)
 
+	---
+	CREATE TABLE #tblBetType
+	(
+		Id				SMALLINT PRIMARY KEY,
+		BetTeam			NVARCHAR(MAX), 
+		[Set]			VARCHAR(500),
+		Game			VARCHAR(500),
+		BetOption		NVARCHAR(250),
+		[Value]			VARCHAR(500),
+		Goal			VARCHAR(10)
+	)
+	CREATE TABLE #tblBetType_Detail
+	(
+		Id				SMALLINT,
+		BetTeam			NVARCHAR(10), 
+		[Set]			VARCHAR(10),
+		Game			VARCHAR(3),
+		BetOption		NVARCHAR(50),
+		[Value]			SMALLMONEY,	
+		Goal			BIGINT
+	)
+
+	-- Parse xml @BetTeams
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+	SELECT t.c.value('@Id','SMALLINT') AS Id
+			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
+			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
+			, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice
+			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
+			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
+	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
+			 
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+	SELECT cte.Id
+			, cte.BetTeam
+			, cte.[Set]
+			, cte.Game
+			, cte.BetOption
+			, cte.[Value] 
+			, cte.Goal
+	FROM (
+		SELECT cte.Id
+				, bt.val AS BetTeam 
+				, se.val AS [Set]
+				, ga.val AS Game
+				, bop.val AS BetOption
+				, CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
+						ELSE v.val END AS SMALLMONEY) AS [Value]			 
+				, CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
+						ELSE cte.Goal END AS BIGINT) AS Goal
+		FROM #tblBetType cte
+			CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+			CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
+			CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
+			CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+			CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
+	) cte
+
 	BEGIN
 		IF @Type = 1 -- Number Game
 		BEGIN
@@ -218,65 +278,6 @@ BEGIN
 
 			IF @SportType = 43 -- E-Sports
 			BEGIN
-				CREATE TABLE #tblBetType
-				(
-					Id				SMALLINT PRIMARY KEY,
-					BetTeam			NVARCHAR(MAX), 
-					[Set]			VARCHAR(500),
-					Game			VARCHAR(500),
-					BetOption		NVARCHAR(250),
-					[Value]			VARCHAR(500),
-					Goal			VARCHAR(10)
-				)
-				CREATE TABLE #tblBetType_Detail
-				(
-					Id				SMALLINT,
-					BetTeam			NVARCHAR(10), 
-					[Set]			VARCHAR(10),
-					Game			VARCHAR(3),
-					BetOption		NVARCHAR(50),
-					[Value]			SMALLMONEY,	
-					Goal			BIGINT
-				)
-
-				-- Parse xml @BetTeams
-				INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
-				SELECT t.c.value('@Id','SMALLINT') AS Id
-						, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-						, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
-						, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice
-						, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
-						, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-						, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-				FROM @BetTeams.nodes('BetTypes/BetType') t(c)
-				OPTION (OPTIMIZE FOR (@BetTeams = NULL))
-			 
-				INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
-				SELECT cte.Id
-					 , cte.BetTeam
-					 , cte.[Set]
-					 , cte.Game
-					 , cte.BetOption
-					 , cte.[Value] 
-					 , cte.Goal
-				FROM (
-					SELECT cte.Id
-						 , bt.val AS BetTeam 
-						 , se.val AS [Set]
-						 , ga.val AS Game
-						 , bop.val AS BetOption
-						 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
-									ELSE v.val END AS SMALLMONEY) AS [Value]			 
-						 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
-									ELSE cte.Goal END AS BIGINT) AS Goal
-					FROM #tblBetType cte
-					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
-					 CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
-					 CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
-					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
-				) cte
-
 				DELETE b
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
@@ -306,21 +307,25 @@ BEGIN
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 					WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
-
-				DROP TABLE #tblBetType
-				DROP TABLE #tblBetType_Detail
 			END
 		END 
 	END
 
 	-- System parlay - Sportsbook 29
-     IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799) OR @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
+     IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (username, transid, CustId)	
+		INSERT INTO #SpecialDeleteBets (username, transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption)	
 		SELECT	b.username,
 				b.transid,
-				b.custid
-		FROM	dbo.bettransm bm WITH (NOLOCK)	
+				b.custid,
+				bm.bettype AS FilterBetType,
+				bm.betteam AS FilterBetTeam,
+				bm.betcheck AS FilterSet,
+				RIGHT(bm.betcheck, 2) AS FilterGame,
+				bm.hdp1 + bm.hdp2 AS FilterValue,
+				ISNULL(bm.betcheck, 0) AS FilterGoal,
+				CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
+		FROM dbo.bettransm bm WITH (NOLOCK)	
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
@@ -335,8 +340,41 @@ BEGIN
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
-			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))  
+			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))
+																									
+		IF @SportType = 43 -- E-Sports
+		BEGIN
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam ))
+
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%'  ))
+
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
+
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
+
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
+		END																								  
 	END
 
     -- System parlay Virtual Sports 2799
@@ -360,7 +398,7 @@ BEGIN
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
-			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))  
 	END
 
@@ -372,6 +410,7 @@ BEGIN
 	ORDER BY transid
 	
 	DROP TABLE #SpecialDeleteBets
-	DROP TABLE #TmpBallSequence
-	
+	DROP TABLE #TmpBallSequence	
+	DROP TABLE #tblBetType
+	DROP TABLE #tblBetType_Detail
 END
