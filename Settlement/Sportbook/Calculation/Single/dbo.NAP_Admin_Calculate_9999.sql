@@ -1010,7 +1010,7 @@ BEGIN
 												WHEN 493 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN (@hth + @hta) >= 10 AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 'AOS'
+																		WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
 																		WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
 																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
 																		WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
@@ -1027,7 +1027,7 @@ BEGIN
 												WHEN 494 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN (@hth >= 6 OR @hta >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 'AOS'
+																		WHEN betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
 																		ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																	ELSE -1
@@ -1036,7 +1036,7 @@ BEGIN
 												WHEN 495 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 'AOS'
+																		WHEN betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
 																		ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																	ELSE -1
@@ -1370,13 +1370,13 @@ BEGIN
 												WHEN 493 THEN 
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
 															CASE 
-																WHEN (@hth + @hta) >= 10 AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
+																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 1
 																WHEN SUBSTRING(betteam, 1,1) < (@hth + @hta) THEN -1
 																ELSE NULL
 															END
 														WHEN @IsHTCal = 1 THEN -- suspended in FT
 															CASE 
-																WHEN (@hth + @hta) >= 10 AND betteam = 'AOS' THEN 1
+																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 1
 																WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
 																WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
 																WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 AND betteam = '2/10+' THEN 1
@@ -1397,8 +1397,8 @@ BEGIN
 												WHEN 494 THEN 
 													CASE WHEN @IsHTCal = 0 THEN
 															CASE 
-																WHEN (@hth >= 6 OR @hta >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
-																WHEN SUBSTRING(betteam, 1,1) >= @hth AND SUBSTRING(betteam, 1,1) >= @hta THEN NULL
+																WHEN betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 1
+																WHEN SUBSTRING(betteam, 1,1) >= @hth AND SUBSTRING(betteam, 3,1) >= @hta THEN NULL
 																ELSE -1
 															END
 													END
@@ -1406,8 +1406,8 @@ BEGIN
 												WHEN 495 THEN 
 													CASE WHEN @IsHTCal = 1 THEN
 															CASE 
-																WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND betteam = 'AOS' AND CHARINDEX('AOS', transdesc) = 0 THEN 1
-																WHEN SUBSTRING(betteam, 1,1) >= (@fth - @hth) AND SUBSTRING(betteam, 1,1) >= (@fta - @hta) THEN NULL
+																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 1
+																WHEN SUBSTRING(betteam, 1,1) >= (@fth - @hth) AND SUBSTRING(betteam, 3,1) >= (@fta - @hta) THEN NULL
 																ELSE -1
 															END
 													END

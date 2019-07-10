@@ -878,13 +878,13 @@ RETURN (
 				WHEN @bettype IN (493) THEN 
 					CASE WHEN @IsHT = 1 THEN -- suspended in HT 
 							CASE 
-								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
+								WHEN @betteam = 'AOS' AND CHARINDEX(CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5)), @transdesc) = 0 THEN 1
 								WHEN SUBSTRING(@betteam, 1,1) < IP.TotalGoal1H THEN -1
 								ELSE NULL
 							END
 						WHEN @IsHT = 0 THEN -- suspended in FT
 							CASE 
-								WHEN IP.TotalGoal1H >= 10 AND @betteam = 'AOS' THEN 1
+								WHEN @betteam = 'AOS' AND CHARINDEX(CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5)), @transdesc) = 0 THEN 1
 								WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 AND @betteam = '0/8+' THEN 1
 								WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 AND @betteam = '1/9+' THEN 1
 								WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 AND @betteam = '2/10+' THEN 1
@@ -905,8 +905,8 @@ RETURN (
 				WHEN @bettype IN (494) THEN 
 					CASE WHEN @IsHT = 1 THEN
 							CASE 
-								WHEN (IP.HomeScore1H >= 6 OR IP.AwayScore1H >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
-								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore1H AND SUBSTRING(@betteam, 1,1) >= IP.AwayScore1H THEN NULL
+								WHEN @betteam = 'AOS' AND CHARINDEX(CAST(IP.HomeScore1H AS VARCHAR(5)) + '-' + CAST(IP.AwayScore1H AS VARCHAR(5)), @transdesc) = 0 THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore1H AND SUBSTRING(@betteam, 3,1) >= IP.AwayScore1H THEN NULL
 								ELSE -1
 							END
 					END
@@ -914,8 +914,8 @@ RETURN (
 				WHEN @bettype IN (495) THEN 
 					CASE WHEN @IsHT = 0 THEN
 							CASE 
-								WHEN (IP.HomeScore2H >= 6 OR IP.AwayScore2H >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 1
-								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore2H AND SUBSTRING(@betteam, 1,1) >= IP.AwayScore2H THEN NULL
+								WHEN @betteam = 'AOS' AND CHARINDEX(CAST(IP.HomeScore2H AS VARCHAR(5)) + '-' + CAST(IP.AwayScore2H AS VARCHAR(5)), @transdesc) = 0 THEN 1
+								WHEN SUBSTRING(@betteam, 1,1) >= IP.HomeScore2H AND SUBSTRING(@betteam, 3,1) >= IP.AwayScore2H THEN NULL
 								ELSE -1
 							END
 					END

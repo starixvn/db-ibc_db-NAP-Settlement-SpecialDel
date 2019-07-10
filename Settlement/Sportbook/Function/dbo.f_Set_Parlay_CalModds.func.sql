@@ -1591,7 +1591,7 @@ RETURN (
 				WHEN 493 THEN CASE WHEN 
 									(
 									CASE 
-										WHEN (@hth + @hta) >= 10 AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 'AOS'
+										WHEN @betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS'
 										WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
 										WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
 										WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
@@ -1608,7 +1608,7 @@ RETURN (
 				WHEN 494 THEN CASE WHEN 
 									(
 									CASE 
-										WHEN (@hth >= 6 OR @hta >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 'AOS'
+										WHEN @betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS'
 										ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
 									END) = @betteam THEN 1 
 									ELSE -1
@@ -1617,7 +1617,7 @@ RETURN (
 				WHEN 495 THEN CASE WHEN 
 									(
 									CASE 
-										WHEN ((@fth - @hth) >= 6 OR (@fta - @hta) >= 6) AND @betteam = 'AOS' AND CHARINDEX('AOS', @transdesc) = 0 THEN 'AOS'
+										WHEN @betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS'
 										ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
 									END) = @betteam THEN 1 
 									ELSE -1
