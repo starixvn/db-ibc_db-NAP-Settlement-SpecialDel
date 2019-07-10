@@ -99,6 +99,7 @@ AS
 			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20180123@Helen: Hotfix - match 3x30 - Just change position of input params totalgoal & scorediff of this function ONLY [Redmine:#89388]
+			- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 			
     Parameters Explanation:    
 	
