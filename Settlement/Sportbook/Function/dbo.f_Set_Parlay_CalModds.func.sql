@@ -1591,17 +1591,29 @@ RETURN (
 				WHEN 493 THEN CASE WHEN 
 									(
 									CASE 
-										WHEN @betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS'
-										WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
-										WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
-										WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
-										WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
-										WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
-										WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
-										WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
-										WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
-										ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
-								END) = @betteam THEN 1 
+										WHEN @betteam = 'AOS' AND CHARINDEX(CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+																				WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+																				WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+																				WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+																				WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+																				WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+																				WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+																				WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+																				ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+																			END , @transdesc) = 0 THEN 'AOS'
+										ELSE 
+											CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+												WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+												WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+												WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+												WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+												WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+												WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+												WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+												ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+											END
+										
+									END) = @betteam THEN 1 
 								ELSE -1
 							END
 				-- 1H Correct Corners

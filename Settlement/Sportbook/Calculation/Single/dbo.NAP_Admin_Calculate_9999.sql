@@ -786,6 +786,18 @@ BEGIN
 								ELSE CAST(@fth AS nvarchar(10)) + ':' + CAST(@fta AS nvarchar(10))
 						END
 			
+		SELECT @result = CASE WHEN @bettype = 493 
+								THEN CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+											WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+											WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+											WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+											WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+											WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+											WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+											WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+											ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+										END
+						END
 			-- process batch by batch
         WHILE @BatchNo > 0
 		BEGIN
@@ -1010,16 +1022,8 @@ BEGIN
 												WHEN 493 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
-																		WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
-																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
-																		WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
-																		WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
-																		WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
-																		WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
-																		WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
-																		WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
-																		ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+																		WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 'AOS'
+																		ELSE @result
 																	END) = betteam THEN 1 
 																	ELSE -1
 																END
@@ -1370,27 +1374,29 @@ BEGIN
 												WHEN 493 THEN 
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 1
-																WHEN SUBSTRING(betteam, 1,1) < (@hth + @hta) THEN -1
+																WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 1
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) < (@hth + @hta) THEN -1
 																ELSE NULL
 															END
 														WHEN @IsHTCal = 1 THEN -- suspended in FT
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5)), transdesc) = 0 THEN 1
-																WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
-																WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
-																WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 AND betteam = '2/10+' THEN 1
-																WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 AND betteam = '3/11+' THEN 1
-																WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 AND betteam = '4/12+' THEN 1
-																WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 AND betteam = '5/13+' THEN 1
-																WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 AND betteam = '6/14+' THEN 1
-																WHEN (@hth + @hta) = 7 AND (@fth + @fta) >= 15 AND betteam = '7/15+' THEN 1
-																WHEN (@hth + @hta) = 8 AND (@fth + @fta) >= 15 AND betteam = '8/15+' THEN 1
-																WHEN (@hth + @hta) = 9 AND (@fth + @fta) >= 15 AND betteam = '9/15+' THEN 1
-																WHEN SUBSTRING(betteam, 1,1) <> (@hth + @hta) THEN -1
-																WHEN SUBSTRING(betteam, 1,1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') < (@fth + @fta) THEN -1
-																WHEN SUBSTRING(betteam, 1,1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') >= (@fth + @fta) THEN NULL
-																ELSE NULL
+																WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 1
+																ELSE 
+																	CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
+																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
+																		WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 AND betteam = '2/10+' THEN 1
+																		WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 AND betteam = '3/11+' THEN 1
+																		WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 AND betteam = '4/12+' THEN 1
+																		WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 AND betteam = '5/13+' THEN 1
+																		WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 AND betteam = '6/14+' THEN 1
+																		WHEN (@hth + @hta) = 7 AND (@fth + @fta) >= 15 AND betteam = '7/15+' THEN 1
+																		WHEN (@hth + @hta) = 8 AND (@fth + @fta) >= 15 AND betteam = '8/15+' THEN 1
+																		WHEN (@hth + @hta) = 9 AND (@fth + @fta) >= 15 AND betteam = '9/15+' THEN 1
+																		WHEN LEFT(betteam, 1) <> (@hth + @hta) THEN -1
+																		WHEN LEFT(betteam, 1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') < (@fth + @fta) THEN -1
+																		WHEN LEFT(betteam, 1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') >= (@fth + @fta) THEN NULL
+																		ELSE NULL
+																	END
 															END
 														END
 												-- 1H Correct Corners
@@ -1398,7 +1404,7 @@ BEGIN
 													CASE WHEN @IsHTCal = 0 THEN
 															CASE 
 																WHEN betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 1
-																WHEN SUBSTRING(betteam, 1,1) >= @hth AND SUBSTRING(betteam, 3,1) >= @hta THEN NULL
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= @hth AND RIGHT(betteam, 1) >= @hta THEN NULL
 																ELSE -1
 															END
 													END
@@ -1407,7 +1413,7 @@ BEGIN
 													CASE WHEN @IsHTCal = 1 THEN
 															CASE 
 																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 1
-																WHEN SUBSTRING(betteam, 1,1) >= (@fth - @hth) AND SUBSTRING(betteam, 3,1) >= (@fta - @hta) THEN NULL
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= (@fth - @hth) AND RIGHT(betteam, 1) >= (@fta - @hta) THEN NULL
 																ELSE -1
 															END
 													END
