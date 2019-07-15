@@ -1021,17 +1021,19 @@ BEGIN
 												-- HT/FT Total Corners
 												WHEN 493 THEN CASE WHEN 
 																	(
-																	CASE 
-																		WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 'AOS'
-																		ELSE @result
-																	END) = betteam THEN 1 
+																		CASE WHEN betteam = 'AOS' THEN
+																									CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 'AOS' ELSE '' END
+																			ELSE @result
+																		END
+																	) = betteam THEN 1 
 																	ELSE -1
 																END
 												-- 1H Correct Corners
 												WHEN 494 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
+																		WHEN betteam = 'AOS' THEN 
+																								CASE WHEN CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 'AOS' ELSE '' END
 																		ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																	ELSE -1
@@ -1040,7 +1042,8 @@ BEGIN
 												WHEN 495 THEN CASE WHEN 
 																	(
 																	CASE 
-																		WHEN betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS'
+																		WHEN betteam = 'AOS' THEN 
+																								CASE WHEN CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS' ELSE '' END
 																		ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																	ELSE -1
@@ -1374,13 +1377,13 @@ BEGIN
 												WHEN 493 THEN 
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 1
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 ELSE NULL END
 																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) < (@hth + @hta) THEN -1
 																ELSE NULL
 															END
 														WHEN @IsHTCal = 1 THEN -- suspended in FT
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(@result, transdesc) = 0 THEN 1
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 ELSE NULL END
 																ELSE 
 																	CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
 																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
@@ -1403,7 +1406,7 @@ BEGIN
 												WHEN 494 THEN 
 													CASE WHEN @IsHTCal = 0 THEN
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 1
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 1 ELSE NULL END
 																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= @hth AND RIGHT(betteam, 1) >= @hta THEN NULL
 																ELSE -1
 															END
@@ -1412,7 +1415,7 @@ BEGIN
 												WHEN 495 THEN 
 													CASE WHEN @IsHTCal = 1 THEN
 															CASE 
-																WHEN betteam = 'AOS' AND CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 1
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 1 ELSE NULL END
 																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= (@fth - @hth) AND RIGHT(betteam, 1) >= (@fta - @hta) THEN NULL
 																ELSE -1
 															END
