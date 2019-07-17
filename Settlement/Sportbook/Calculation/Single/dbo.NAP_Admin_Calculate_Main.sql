@@ -2231,22 +2231,16 @@ BEGIN
 
             IF @Mode = 'UNDO'
             BEGIN
-                
-                     EXEC dbo.NAP_Admin_Calculate_Undo
-                           @matchid       = @matchid
-                          ,@SelectedSet   = @SelectedSet
-                          ,@ResourceIDs   = @ResourceIDs
-                          ,@strBettypes   = @strBettypes
-                          ,@SelectedQuarter = @SelectedQuarter
+                EXEC dbo.NAP_Admin_Calculate_Undo
+                    @matchid       = @matchid
+                    ,@SelectedSet   = @SelectedSet
+                    ,@strBettypes   = @strBettypes
+                    ,@SelectedQuarter = @SelectedQuarter
 
-
-                      EXEC dbo.NAP_Admin_Calculate_901
-                             @matchid = @matchid
-                            ,@action = @action
-                            ,@mode = @mode
-                            ,@ResourceIDs = @ResourceIDs
-
-
+                EXEC dbo.NAP_Admin_Calculate_901
+                    @matchid = @matchid
+                    ,@action = @action
+                    ,@mode = @mode
             END
         END
 
@@ -4714,14 +4708,12 @@ BEGIN
                     ,@SelectedSet                = @SelectedSet
                     ,@SelectedSettleFinishedGame= @SelectedSettleFinishedGame
                     ,@SetxGameyFinishedGame        = @SetxGameyFinishedGame
-                    ,@ResourceIDs                = @ResourceIDs
                     ,@strBettypes                   = @strBettypes
                     ,@SelectedQuarter           = @SelectedQuarter
 
                 EXEC dbo.NAP_Admin_Calculate_Refund_901
                     @matchid                    = @matchid
                     ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                    ,@ResourceIDs               = @ResourceIDs
                     ,@action                    = @action
                     ,@mode                      = @mode
                 

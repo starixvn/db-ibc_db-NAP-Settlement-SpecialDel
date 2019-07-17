@@ -47,8 +47,6 @@ BEGIN
 			,@NotExecutedFGLG VARCHAR(200)
 			,@procName nvarchar(50)	
 			,@matchid int
-			--,@bettype_22 VARCHAR(20)
-			--,@bettype_160 VARCHAR(20)
 
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
@@ -80,9 +78,6 @@ BEGIN
 			,@procName = OBJECT_NAME(@@procid)
 			,@subErrCode = 0
 			,@subErrMsg = ''
-	
-	--SET @bettype_22 = '22'
- --   SET @bettype_160 = '160'
     
 	-- get data from remote table match
 	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = ''

@@ -21,6 +21,7 @@ AS
 		- 20180530@Benjamin: Convert HomeValue, AwayValue to number before comparing [Redmine:#86964]
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
+		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		
 	Param's explanation: 
 */
@@ -160,15 +161,9 @@ BEGIN
 	;WITH cteAutoResultDetail
 	AS(
 		SELECT	CASE 
-					WHEN BetType IN (160,164,169,180,216,22) OR GroupId = 9 
-						THEN CASE 
-								WHEN BetType = 22 THEN  CAST('160' AS VARCHAR(20)) + '__' 
-								ELSE CAST(BetType AS VARCHAR(20)) + '__'
-							END
-								
+					WHEN GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'								
 					WHEN isFGLG = 1 AND GroupId IN (1,3) THEN '127_'
 					WHEN isFGLG = 1 AND GroupId IN (2,4) THEN '14_'
-					--WHEN BetType IN (14, 127) THEN CAST(BetType AS VARCHAR(20)) + '_'
 					WHEN IsUsedGoalRecordValue = 1 THEN '08'					
 					ELSE CAST(BetType AS VARCHAR(20))
 				END AS ResourceId

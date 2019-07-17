@@ -27,7 +27,7 @@ AS
 		- 20181218@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
-		- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove corner betradar, auto betradar bettypes [Redmine:#109584]
 		
 	Param's explanation: 
 		
@@ -55,8 +55,6 @@ BEGIN
 		,IsExistHTFGLG					BIT
 		,IsExistFGLG					BIT
 		,IsExistGoalRecordBettypeFT		BIT
-		--,IsExistRunningHTCorner			BIT
-		--,IsExistRunningCorner			BIT
 		,IsEnabledGoalRecordHT			BIT
 		,IsEnabledGoalRecordFT			BIT
 		,IsExistRunningUseGoalRecordHT	BIT
@@ -80,7 +78,7 @@ BEGIN
 		, IsExistFTLG		  BIT
 	)
 	
-	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsAuto BIT, IsUsedGoalRecordValue BIT, IsFGLG BIT)
+	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, GroupId SMALLINT, IsUsedGoalRecordValue BIT, IsFGLG BIT)
 	
 	DECLARE @tblMatchInfo TABLE (matchid INT, leagueId INT, HalfTimeHomeScore INT, HalfTimeAwayScore INT, IsCalculated BIT, IsFTCalculated BIT, IsMultiCaled BIT
 		, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode NVARCHAR(50), finalhomescore INT, finalawayscore INT
@@ -156,19 +154,13 @@ BEGIN
 	GROUP BY MatchId
 	
 	BEGIN
-		INSERT INTO #tblBettype (bettype, ResourceId, GroupId, IsAuto,IsUsedGoalRecordValue, IsFGLG)
+		INSERT INTO #tblBettype (bettype, GroupId,IsUsedGoalRecordValue, IsFGLG)
 		SELECT	BetType
-				,CASE 
-					WHEN Bettype = 22 THEN '160__'
-					WHEN GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
-					ELSE CAST(BetType AS VARCHAR(20))
-				END AS ResourceId
 				,GroupId
-				,IsAuto
 				,IsUsedGoalRecordValue
 				,IsFGLG
 		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	GroupId IN (3,4,5,6) OR IsAuto = 1 OR IsUsedGoalRecordValue = 1
+		WHERE	IsUsedGoalRecordValue = 1
 		
 		SELECT @MinBettype = MIN(bettype)
 			,@MaxBettype = MAX(bettype)
