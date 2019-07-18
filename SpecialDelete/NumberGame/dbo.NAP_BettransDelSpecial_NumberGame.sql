@@ -672,8 +672,8 @@ BEGIN
 				ON b.srecommend = s.custid
 
 		DROP TABLE #BeforeUpd
-
 		DROP TABLE #AfterUpd
+		DROP TABLE #CTE_CustInfo
 
 	END
 	
@@ -686,7 +686,6 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransId
 	DROP TABLE #BetDelete
-	DROP TABLE #CTE_CustInfo
 	DROP TABLE #TmpBallSequence
 	
 END

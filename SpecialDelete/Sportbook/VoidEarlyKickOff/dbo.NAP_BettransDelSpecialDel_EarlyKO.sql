@@ -2548,7 +2548,7 @@ BEGIN
 								 END
 					ELSE al.transid
 				 END
-
+		DROP TABLE #CTE_CustInfo
 		--Metric API Calling  
 		SELECT al.refno  
 			,al.Bettype  
