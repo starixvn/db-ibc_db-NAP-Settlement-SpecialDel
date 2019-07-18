@@ -2060,7 +2060,8 @@ BEGIN
 					THEN CASE WHEN al.MainTransId IS NULL THEN 1
 						ELSE 2 END
 					ELSE al.transid
-				 END	
+				 END
+		DROP TABLE #CTE_CustInfo
 	END		
 	
 	DROP TABLE #tblBettype
@@ -2075,6 +2076,5 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #NegativeBalance
-	DROP TABLE #CTE_CustInfo
 	
 END
