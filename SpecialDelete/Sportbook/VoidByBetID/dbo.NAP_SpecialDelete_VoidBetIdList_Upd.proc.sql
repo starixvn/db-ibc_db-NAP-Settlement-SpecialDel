@@ -72,6 +72,7 @@ AS
 	  - 20181120@Alan: Incorporate Happy 5 into Number Game [102845]
 	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
 	  - 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
+	  - 20190718@Charles: Drop table #CTE_CustInfo [115870]
 
 	 Param's Explanation:   
 	*/
@@ -2716,7 +2717,7 @@ BEGIN
 							 END
 				ELSE b.transid
 			 END	 	
-	
+	DROP TABLE #CTE_CustInfo
 	--Metric API Calling  
 	SELECT	tmp.refno 
 			,tmp.Bettype
@@ -2743,6 +2744,7 @@ BEGIN
 	DROP TABLE #tblTransIdSolds
 	DROP TABLE #BetDelete
 	DROP TABLE #tblMatch
+
 	
 	RETURN
 END

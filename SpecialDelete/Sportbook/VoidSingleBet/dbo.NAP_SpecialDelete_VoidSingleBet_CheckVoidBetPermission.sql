@@ -43,11 +43,11 @@ BEGIN
 
 	--> Get status of match
 	SELECT @IsHTCal = ISNULL(IsHTCal, 0)
-	FROM match_remark(NOLOCK)
+	FROM dbo.match_remark WITH (NOLOCK)
 	WHERE matchid = @MatchId
 
 	SELECT @eventstatus = ISNULL(eventstatus, '')
-	FROM match(NOLOCK)
+	FROM dbo.match WITH (NOLOCK)
 	WHERE matchid = @MatchId
 
 	--> Build bettype list supported for instant settlement based on settlement status of match

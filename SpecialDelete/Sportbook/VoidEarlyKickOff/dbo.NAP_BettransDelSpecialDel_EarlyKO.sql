@@ -87,7 +87,8 @@ Revisions:
 	- 20181004@Alan: Add new column SettlementStatus [102423]
 	- 20180821@Alan: Incorporate ESports 2.0 [99448]
 	- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
-	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]	
+	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+	- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
