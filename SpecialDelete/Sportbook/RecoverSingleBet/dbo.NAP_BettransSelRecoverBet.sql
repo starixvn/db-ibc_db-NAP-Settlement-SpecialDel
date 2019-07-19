@@ -36,6 +36,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 
 	Param's Explanation:
 			- @Opition: 
@@ -102,9 +103,6 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	DECLARE @before_yesterday DATETIME
-
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - 2, GETDATE()), 120)
 	
 	IF @Option = 0 -- By MatchID
 	BEGIN
@@ -199,7 +197,6 @@ BEGIN
 		WHERE	z.transid BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.bettype = 10
-				AND z.winlostdate >= @before_yesterday
 				AND b.betfrom <> 'p'
 		
 		-- match
@@ -295,7 +292,6 @@ BEGIN
 		WHERE	b.transid BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.Bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
-				AND z.winlostdate >= @before_yesterday
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
 				AND b.betfrom <> 'p'				
 		
@@ -390,7 +386,6 @@ BEGIN
 		WHERE	z.refno BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.Bettype IN (801, 803, 804, 805, 806)
-				AND z.winlostdate >= @before_yesterday
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
 	END
 	ELSE IF @Option = 1
@@ -493,7 +488,6 @@ BEGIN
 				FROM @tblTransIds s
 				)
 			AND z.bettype = 10
-			AND z.winlostdate >= @before_yesterday
 			AND b.betfrom <> 'p'
 			
 		-- Match
@@ -588,7 +582,6 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId
 		WHERE b.transid IN (SELECT s.transid FROM @tblTransIds s)		
 			AND z.bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
-			AND z.winlostdate >= @before_yesterday	
 			AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
 			AND b.betfrom <> 'p'			
 			
@@ -681,8 +674,7 @@ BEGIN
 				ON m.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId		
 		WHERE	z.refno IN (SELECT s.transid FROM @tblTransIds s)		
-			AND z.bettype IN (801, 803, 804, 805, 806)
-			AND z.winlostdate >= @before_yesterday		
+			AND z.bettype IN (801, 803, 804, 805, 806)	
 			AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
 	END				
 	
@@ -1239,4 +1231,3 @@ BEGIN
 	FROM @tblTransIds t
 	WHERE t.transid NOT IN (SELECT * FROM validTransId)
 END
-GO

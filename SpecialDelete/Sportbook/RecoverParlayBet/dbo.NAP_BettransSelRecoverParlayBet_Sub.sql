@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_BettransSelRecoverParlayBet_Sub]    Script Date: 10/11/2016 11:30:25 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
 	@BetType		VARCHAR(20) = 'all'
 	,@MatchId		BIGINT			= 0	
@@ -18,6 +12,7 @@ AS
 	Revisions: 		
 		- 20161011@Kent: Select sub voided Parlay tickets [Redmine:#65531]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 
 	Param's Explanation:			
 			- @BetType:
@@ -27,8 +22,6 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	DECLARE @beforeDaysNum INT = 2
 		
 	DECLARE @tblRecoverBet TABLE (
 		SubTransID				BIGINT		 
@@ -67,9 +60,6 @@ BEGIN
 		,betcheck				NVARCHAR(50)		
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	DECLARE @before_yesterday DATETIME	
-
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - @beforeDaysNum, GETDATE()), 120)
 	
 	INSERT INTO @tblTransIds
 	SELECT ss.val
@@ -154,7 +144,6 @@ BEGIN
 	WHERE	bm.matchid = @MatchId
 			AND b.bettype = 29	
 			AND bm.statusid = 102
-			AND bm.winlostdate >= @before_yesterday
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 			AND (m.sporttype BETWEEN 1 AND 99)		
 			AND CASE
@@ -263,4 +252,3 @@ BEGIN
 				ON ISNULL(b.refno, b14.refno) = bm14.refno
 				   AND bm14.matchid = @MatchId		
 END
-GO

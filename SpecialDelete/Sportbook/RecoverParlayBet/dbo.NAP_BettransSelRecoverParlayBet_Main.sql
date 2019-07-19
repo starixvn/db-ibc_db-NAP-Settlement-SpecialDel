@@ -12,6 +12,7 @@ AS
 		- 20161011@Kent: Select main voided Parlay tickets [Redmine:#65531]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 
 	Param's Explanation:			
 			- @BetType:
@@ -21,9 +22,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	DECLARE @beforeDaysNum INT = 2
-	
+
 	DECLARE @tblRecoverBet TABLE (		
 		custid					INT
 		,isdeposit				BIT
@@ -48,9 +47,6 @@ BEGIN
 		,transdesc				NVARCHAR(1000)
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	DECLARE @before_yesterday DATETIME	
-
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - @beforeDaysNum, GETDATE()), 120)
 	
 	INSERT INTO @tblTransIds
 	SELECT ss.val
@@ -108,7 +104,6 @@ BEGIN
 				AND z.custid = b.custid	
 				AND z.bettype = b.bettype
 	WHERE b.bettype = 29	
-		AND b.winlostdate >= @before_yesterday
 		AND b.statusid = 102
 		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		AND CASE
@@ -176,4 +171,3 @@ BEGIN
 	FROM @tblTransIds t
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet r WHERE r.transid = t.transid)
 END
-GO

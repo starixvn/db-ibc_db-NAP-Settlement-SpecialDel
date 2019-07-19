@@ -23,6 +23,7 @@ AS
 		- 20170727@Kathy: Update statuswinlost, creator when recover [Redmine:#80135]
 		- 20171106@Kent: Implement Notifications Center [Redmine:#84330]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -50,9 +51,6 @@ BEGIN
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @beforeDaysNum INT = 2
-	DECLARE @before_yesterday DATETIME	
-
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - @beforeDaysNum, GETDATE()), 120)
 
 	CREATE TABLE #tblRecoverBet( transid		BIGINT
 								,matchid		INT
@@ -112,7 +110,6 @@ BEGIN
 		FROM	@tblTransIds s 
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid
 		WHERE b.matchid = 29 AND b.bettype = 29
-			AND b.winlostdate >= @before_yesterday
 			AND b.statusid = 102
 			AND CASE
 					WHEN @BetType = 'all' THEN 1
@@ -368,4 +365,3 @@ BEGIN
 		RETURN
 	END CATCH		
 END
-GO

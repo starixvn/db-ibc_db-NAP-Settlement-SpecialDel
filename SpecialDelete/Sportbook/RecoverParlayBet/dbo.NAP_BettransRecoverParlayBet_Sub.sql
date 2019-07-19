@@ -22,7 +22,8 @@ AS
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
-		
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
+
 	Param's Explanation:			
 			- @BetType:
 			'all': All
@@ -32,11 +33,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @beforeDaysNum INT = 2
-		  , @RecoverPatchSize INT = 100
+	DECLARE @RecoverPatchSize INT = 100
 	
-	DECLARE @before_yesterday	DATETIME		   
-		   ,@MatchDate			DATETIME
+	DECLARE @MatchDate			DATETIME
 		   ,@transids_29		VARCHAR(MAX) = ''
 		   ,@refnos_29			VARCHAR(MAX) = ''
 		   ,@LogData			NVARCHAR(500)
@@ -111,8 +110,7 @@ BEGIN
 	
 	DECLARE @tblCreditPending TVP_BalanceList					
 	
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(day, - @beforeDaysNum, GETDATE()), 120)
-		  ,@ErrCode = 0
+	SELECT @ErrCode = 0
 		  ,@ErrMsg = ''
 		  
 	--> parse @MainTransIds
@@ -231,7 +229,6 @@ BEGIN
 		WHERE bm.matchid = @MatchId
 		  AND b.bettype = 29	
 		  AND bm.statusid = 102
-		  AND bm.winlostdate >= @before_yesterday
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
 		  AND (m.sporttype BETWEEN 1 AND 99)
 		  AND CASE
@@ -522,4 +519,3 @@ BEGIN
 		
 	RETURN;							
 END
-GO
