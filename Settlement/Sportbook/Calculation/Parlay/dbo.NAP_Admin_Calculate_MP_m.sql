@@ -50,6 +50,7 @@ AS
 		- 20171121@Kathy: Prevent lock escalation on table bettransM & betParlayDetail [Redmine:#75827]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
+		- 20190606@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		
     Param's Explanation:
        
@@ -2301,6 +2302,22 @@ BEGIN
 											WHEN betteam = 'NG'  AND @ft_fg = 'N' THEN 1
 											ELSE -1
 										END
+						-- -- #112885 - PH4 - 467: HT/FT Exact Total Goal
+						WHEN 467 THEN CASE WHEN 
+											(CASE WHEN @totalht IN (0,1,2,3) AND @totalgoal >= 7 
+												THEN 'G' + CAST(@totalht AS VARCHAR(5)) + '/G7+'
+											WHEN @totalht = 4 AND @totalgoal >= 8 
+												THEN 'G4/G8+'
+											WHEN @totalht = 5 AND @totalgoal >= 9 
+												THEN 'G5/G9+'  
+											WHEN @totalht = 6 AND @totalgoal >= 10 
+												THEN 'G6/G10+'
+											WHEN @totalht >= 7 AND @totalgoal >= 7 
+												THEN 'G7+/G7+'
+											ELSE 'G' + CAST(@totalht AS VARCHAR(5)) + '/G' + CAST(@totalgoal AS VARCHAR(5))
+										END) = betteam THEN 1 
+									ELSE -1
+								END   
                         ELSE NULL -- Not support bettype
                         END AS modds
 						,CAST(CASE 

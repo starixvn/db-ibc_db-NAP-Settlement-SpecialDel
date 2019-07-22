@@ -99,6 +99,7 @@ AS
 			- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20180123@Helen: Hotfix - match 3x30 - Just change position of input params totalgoal & scorediff of this function ONLY [Redmine:#89388]
+			- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 			
     Parameters Explanation:    
 	
@@ -1644,7 +1645,23 @@ RETURN (
 								WHEN @betteam = 'NG'  AND @FGLG1 = 'N' THEN 1
 								ELSE -1
 							END
-										
+				
+				-- #112885 - PH4
+				WHEN 467 THEN CASE WHEN -- HT/FT Exact Total Goal
+										(CASE WHEN @totalht IN (0,1,2,3) AND @totalgoal >= 7 
+											THEN 'G' + CAST(@totalht AS VARCHAR(5)) + '/G7+'
+										WHEN @totalht = 4 AND @totalgoal >= 8 
+											THEN 'G4/G8+'
+										WHEN @totalht = 5 AND @totalgoal >= 9 
+											THEN 'G5/G9+'  
+										WHEN @totalht = 6 AND @totalgoal >= 10 
+											THEN 'G6/G10+'
+										WHEN @totalht >= 7 AND @totalgoal >= 7 
+											THEN 'G7+/G7+'
+										ELSE 'G' + CAST(@totalht AS VARCHAR(5)) + '/G' + CAST(@totalgoal AS VARCHAR(5))
+									END) = @betteam THEN 1 
+								ELSE -1
+							END 	
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

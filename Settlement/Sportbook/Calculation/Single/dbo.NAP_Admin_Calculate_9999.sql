@@ -39,6 +39,7 @@ AS
 		- 20190318@Kathy: update modds column [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 
 */
 BEGIN
@@ -77,10 +78,14 @@ BEGIN
         ,@ftbetteam NVARCHAR(10)
 		,@statusId TINYINT
 		,@winlost MONEY
+		,@totalHTScore	TINYINT
+		,@totalFTScore	TINYINT
     
     SELECT @fth2H = @fth - @hth
         ,@fta2H	= @fta - @hta
         ,@totalht = @hth + @hta
+		,@totalHTScore = @hth + @hta
+		,@totalFTScore = @fth + @fta
     
     DECLARE 
 		 @BatchCount			INT
@@ -144,7 +149,7 @@ BEGIN
 	
 	DECLARE @settlementTime DATETIME
 
-	IF @bettype NOT IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152, 189, 190, 416, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444)
+	IF @bettype NOT IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152, 189, 190, 416, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 467)
 	BEGIN
 		IF @IsSettleAbandonedMatchIBC = 0 AND @IsSettleAbandonedMatchBetFair = 0 AND @IsSettleAbandonedMatch = 0
 		BEGIN
@@ -982,8 +987,23 @@ BEGIN
 																WHEN betteam = 'tie' AND @hta = (@fta - @hta) THEN 1
 																WHEN betteam = '2h' AND @hta < (@fta - @hta) THEN 1
 																ELSE -1
-																END                                                                                                                                                                                       
-												END                                            
+																END       
+												-- #112885 - PH4
+												WHEN 467 THEN CASE WHEN -- HT/FT Exact Total Goal
+																		(CASE WHEN @totalHTScore IN (0,1,2,3) AND @totalFTScore >= 7 
+																			THEN 'G' + CAST(@totalHTScore AS VARCHAR(5)) + '/G7+'
+																		WHEN @totalHTScore = 4 AND @totalFTScore >= 8 
+																			THEN 'G4/G8+'
+																		WHEN @totalHTScore = 5 AND @totalFTScore >= 9 
+																			THEN 'G5/G9+'  
+																		WHEN @totalHTScore = 6 AND @totalFTScore >= 10 
+																			THEN 'G6/G10+'
+																		WHEN @totalHTScore >= 7 AND @totalFTScore >= 7 
+																			THEN 'G7+/G7+'
+																		ELSE 'G' + CAST(@totalHTScore AS VARCHAR(5)) + '/G' + CAST(@totalFTScore AS VARCHAR(5))
+																	END) = betteam THEN 1 
+																ELSE -1
+															END                                                                                          	END                                            
 									WHEN @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1 
 										THEN CASE bettype
 												WHEN 133 THEN
@@ -1291,8 +1311,32 @@ BEGIN
 														WHEN betteam = 'n' AND @hta + @hth < 1.5 AND (@fth2H + @fta2H > 1.5) THEN 1
 													END
 												--#67462
-												END 
 
+												-- #112885 - PH4
+												WHEN 467 THEN -- HT/FT Exact Total Goal
+													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
+															CASE 
+																WHEN @totalHTScore >= 7 AND betteam = 'G7+/G7+' THEN 1
+																WHEN (SUBSTRING(betteam, 2,1) < @totalHTScore AND SUBSTRING(betteam, 2,1) < 7) THEN -1
+																ELSE NULL
+															END
+														WHEN @IsHTCal = 1 THEN -- suspended in FT
+															CASE 
+																WHEN @totalHTScore >= 7 AND betteam = 'G7+/G7+' THEN 1
+																WHEN @totalHTScore = 0 AND @totalFTScore >= 7 AND betteam = 'G0/G7+' THEN 1
+																WHEN @totalHTScore = 1 AND @totalFTScore >= 7 AND betteam = 'G1/G7+' THEN 1
+																WHEN @totalHTScore = 2 AND @totalFTScore >= 7 AND betteam = 'G2/G7+' THEN 1
+																WHEN @totalHTScore = 3 AND @totalFTScore >= 7 AND betteam = 'G3/G7+' THEN 1
+																WHEN @totalHTScore = 4 AND @totalFTScore >= 8 AND betteam = 'G4/G8+' THEN 1
+																WHEN @totalHTScore = 5 AND @totalFTScore >= 9 AND betteam = 'G5/G9+' THEN 1
+																WHEN @totalHTScore = 6 AND @totalFTScore >= 10 AND betteam = 'G6/G10+' THEN 1
+																WHEN SUBSTRING(betteam, 2,1) <> @totalHTScore THEN -1
+																WHEN SUBSTRING(betteam, 2,1) = @totalHTScore AND REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') < @totalFTScore THEN -1
+																WHEN SUBSTRING(betteam, 2,1) = @totalHTScore AND REPLACE(SUBSTRING(betteam, CHARINDEX('/G',betteam) + 2, LEN(betteam)),'+','') >= @totalFTScore THEN NULL
+																ELSE NULL
+															END
+														END
+										END 
 								END    
 				,modds = @modds                                    
 				,@commWinRate = CASE comstatus
@@ -1315,7 +1359,7 @@ BEGIN
 								WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 										WHEN odds < 0 THEN 1
 										ELSE CASE 
-												WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444) THEN odds - 1
+												WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
 												ELSE odds 
 												END
 										END
@@ -1329,7 +1373,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
 									ELSE odds
 									END
 							END
@@ -1341,7 +1385,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
 									ELSE odds 
 									END
 							END
@@ -1353,7 +1397,7 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
 									ELSE odds 
 									END
 							END

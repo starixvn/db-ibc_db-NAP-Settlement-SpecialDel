@@ -26,8 +26,8 @@ AS
 		- 20180301@Benjamin: Add Bettype: 226,227 - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180419@Benjamin: Adding 2 New Bet Types: 465,466 for Asian 1x2 [Redmine:#93654]
 		- 20180816@Alan: Incorporate ESports 2.0 [99448]
-		- 20190222@Sol:  New Formula for Comm [109007]
-		
+		- 20190222@Sol: New Formula for Comm [109007]
+		- 20190527@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 	
     Parameters Explanation:    
     
@@ -43,6 +43,10 @@ AS
 			   10 - new bettypes of Basketball
 			   11 - E-Sports 2.0
 	- CommBettypeGroupId: 1 - Major group
+
+	- DeterminedType: (from right to left) value will be 1 or 2 or 3
+		+ Bit 1 - HT - Refund All
+		+ Bit 2 - FT - Refund Fulltime
 */
 
 RETURN (
@@ -400,7 +404,41 @@ RETURN (
 	--#93654	
 	UNION ALL SELECT 2,465,0,0,0,0,'FT',0, 0,0
 	UNION ALL SELECT 1,466,0,0,1,0,'1H',0, 0,0
-	
+
+	-- Start - Redmine: #112885 - Incorporate PHAIO 4
+	UNION ALL SELECT 2,467,1,0,1,0,'FT',3,0,0
+	UNION ALL SELECT 2,468,0,0,0,0,'FT',0,0,0
+	UNION ALL SELECT 2,469,1,0,0,0,'FT',3,0,0
+
+	----- Early bettype - corner bettypes
+	--UNION ALL SELECT 8,470,0,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,471,0,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,472,0,0,0,1,'2H',0,0,0
+	--UNION ALL SELECT 8,473,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,474,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,475,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,476,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,477,0,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,478,0,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,479,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,481,1,0,0,1,'2H',0,0,0
+	--UNION ALL SELECT 8,482,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,483,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,484,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,485,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,486,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,487,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,488,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,489,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,490,1,0,0,1,'2H',0,0,0
+	--UNION ALL SELECT 8,491,0,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,492,0,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,493,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,494,1,0,0,1,'1H',0,0,0
+	--UNION ALL SELECT 8,495,1,0,0,1,'2H',0,0,0
+	--UNION ALL SELECT 8,496,1,0,0,1,'FT',0,0,0
+	--UNION ALL SELECT 8,497,1,0,0,1,'FT',0,0,0
+	---- End
 	)
 GO
 
