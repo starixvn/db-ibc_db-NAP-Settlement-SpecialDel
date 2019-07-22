@@ -52,6 +52,7 @@ AS
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190220@Alan: Support New Ticket Status Abnormal Bet [106654]
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket [Redmine:#108826]
+		- 20190529@Raymond.Le: Implement recover for ScoreBox bettype (468, 469) [Redmine:#108826]
 		
 	Param's Explanation:
 */
@@ -1145,7 +1146,7 @@ BEGIN
 	FROM	#tblTransInfo t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
-	---- recover : normal, main bettrade, main cash-out, cash-out member bet ticket
+	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
 	UPDATE main
 	SET winlost = 0
 	    ,ruben = 0
@@ -1159,9 +1160,66 @@ BEGIN
 							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
 							ELSE main.transdesc END
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
-	FROM   bettrans main WITH(ROWLOCK, UPDLOCK)
+	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
-	
+	WHERE t.bettype NOT IN (468, 469)
+
+	---- recover: bettype ScoreBox (468, 469)
+	;WITH CTE_Betcheck_1
+	AS (
+		SELECT t.transid
+			,b.id
+			,b.val AS betop
+		FROM #tblTransInfo AS t
+			CROSS APPLY dbo.strSplit(t.betcheck, ',') AS b
+		WHERE t.bettype IN (468, 469)
+		)
+		,CTE_Betcheck_2
+	AS (
+		SELECT b.transid
+			,b.id
+			,op.rank -- ([1]:[2])
+			,CAST(op.val AS MONEY) AS val
+		FROM CTE_Betcheck_1 AS b
+			CROSS APPLY dbo.strSplit(b.betop, ':') AS op
+		)
+		,CTE_Betcheck_Odds
+	AS (
+		SELECT t.transid AS transid
+			,MIN(odds.val) AS odds
+		FROM CTE_Betcheck_2 AS t
+			LEFT JOIN CTE_Betcheck_2 AS odds ON t.transid = odds.transid
+			AND t.id = odds.id
+			AND odds.rank = 2
+		GROUP BY t.transid
+		)
+		,CTE_Betcheck_Final
+	AS (
+		SELECT o.transid
+			,score.val AS score
+			,o.odds
+		FROM CTE_Betcheck_Odds AS o
+			LEFT JOIN CTE_Betcheck_2 AS t ON t.transid = o.transid
+			AND t.rank = 2
+			AND t.val = o.odds
+			LEFT JOIN CTE_Betcheck_2 AS score ON score.transid = o.transid
+			AND score.id = t.id
+			AND score.rank = 1
+		)
+	UPDATE main WITH(ROWLOCK, UPDLOCK)
+	SET winlost = 0
+	    ,ruben = 0
+	    ,statuswinlost = NULL
+	    ,STATUS = 'running'
+	    ,statusID = 0
+	    ,creator = t.creator
+		,odds = bc.odds
+		,oddsspread = bc.score
+	FROM bettrans main 
+		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
+		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
+	WHERE t.bettype IN (468, 469)
+
 	--update translog
 	UPDATE tl
 	SET    STATUS = 'running',
@@ -1935,4 +1993,3 @@ BEGIN
 		
 	RETURN;
 END
-GO

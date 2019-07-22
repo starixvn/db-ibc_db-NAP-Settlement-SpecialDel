@@ -52,7 +52,8 @@ AS;
 	- 20181004@Alan: Add new column SettlementStatus [102423]
 	- 20180821@Alan: Incorporate ESports 2.0 [99448]
 	- 20190426@Jacob: Mark Tickets - Enhancement [112480]
-					  
+	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]		  
+
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
 	- @BetTeam6: bettype=6: Total Goal; bettype = 126: 1st Total Goal
@@ -199,14 +200,10 @@ BEGIN
 		 , cte.[Set]
 		 , cte.Game
 		 , cte.BetOption
-		 , CAST(CASE
-					WHEN cte.Id NOT BETWEEN 221 AND 227 THEN cte.[Value]
-					ELSE 9999.00
-				END AS SMALLMONEY) AS [Value]
-		 , CAST(CASE
-					WHEN cte.Id BETWEEN 221 AND 227 THEN cte.[Value]
-					ELSE 9999.00
-				END AS SMALLMONEY) AS TimeInterval
+		 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 227) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
+					ELSE 9999.00 END AS SMALLMONEY) AS [Value]
+		 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 227) OR (cte.Id IN (479, 481)) THEN cte.[Value]
+					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 		 , cte.Goal
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
@@ -1394,4 +1391,3 @@ BEGIN
 	
 	DROP TABLE #SpecialDeleteBets
 END
-GO

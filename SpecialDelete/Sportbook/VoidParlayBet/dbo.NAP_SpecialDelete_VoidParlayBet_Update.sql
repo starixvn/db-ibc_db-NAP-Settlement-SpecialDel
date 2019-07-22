@@ -42,7 +42,8 @@ AS
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
-		
+		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+
 	 Param's Explanation:   
 		@BetTypes : 
 		'<BetTypes>
@@ -73,6 +74,7 @@ BEGIN
 		[Set]			VARCHAR(10),
 		Game			VARCHAR(3),
 		[Value]			SMALLMONEY,
+		TimeInterval	SMALLMONEY,
 		Goal			BIGINT
 	)
 			
@@ -151,7 +153,7 @@ BEGIN
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, TimeInterval)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -163,6 +165,8 @@ BEGIN
 		 , cte.Game
 		 , cte.[Value]
 		 , cte.Goal
+		 , CAST(CASE WHEN cte.Id IN (479, 481) THEN cte.[Value]
+					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -664,7 +668,7 @@ BEGIN
 
 	DROP TABLE #tblTransId  
 	DROP TABLE #BetDelete    
+	DROP TABLE #tblBettype
 	   
 	SET NOCOUNT OFF  
 END
-GO
