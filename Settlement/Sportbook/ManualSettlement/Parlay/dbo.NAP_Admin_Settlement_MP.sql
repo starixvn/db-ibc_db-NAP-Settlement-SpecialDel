@@ -99,6 +99,7 @@ BEGIN
 				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType
 				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 				WHERE	s.BetType = bm.bettype 
+						AND s.SettleType = 'EAR'
 			) AS f
 		WHERE matchid 		= @matchId
 			AND f.SportType = @SportType

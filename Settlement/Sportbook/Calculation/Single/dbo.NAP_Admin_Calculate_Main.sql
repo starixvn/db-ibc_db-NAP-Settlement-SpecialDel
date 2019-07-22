@@ -1659,7 +1659,7 @@ BEGIN
             END -- END CAL/CAL-FT
 
             IF @Mode IN ('CAL-HT', 'CAL')
-                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186, 472)
+                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186)
             BEGIN
                 -- exec in all cases, both 'FT' and 'HT'
                 -- bettype 7 : 1st Handicap
@@ -3545,7 +3545,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- 469: Score Box Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
@@ -3556,30 +3555,27 @@ BEGIN
 						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 						
-		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
-		-- bettype 473: Total Corners
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
-	            EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-			,@bettype = 473
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets			
+				-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+				-- bettype 473: Total Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
+						EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+					,@bettype = 473
+								,@totalgoal = @totalgoal
+								,@betcount = 1
+					,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+					,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+					,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 	
-		-- bettype 475: Alternative Corners
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)
-		    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-			,@bettype = 475
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets
+				-- bettype 475: Alternative Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)
+					EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+					,@bettype = 475
+								,@totalgoal = @totalgoal
+								,@betcount = 1
+					,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+					,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+					,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 				
 				-- bettype 482: Home Team Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 482)
@@ -3590,7 +3586,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 483: Away Team Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 483)
@@ -3601,7 +3596,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- 486	Corners Race
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
@@ -3646,7 +3640,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 495 : 2H Correct Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 495)
@@ -3675,7 +3668,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 497: Corner Highest Scoring Half
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 497)
@@ -3690,7 +3682,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END
@@ -4526,7 +4517,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 				
 				-- 469: Score Box Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 469)
@@ -4537,41 +4527,38 @@ BEGIN
 						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 				
-		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
-		-- bettype 473: Total Corners
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
-		    EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-			,@bettype = 473
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets
+				-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+				-- bettype 473: Total Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
+					EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+						,@bettype = 473
+						,@totalgoal = @totalgoal
+						,@betcount = 1
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+						,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+						,@IsReSettledTickets = @IsReSettledTickets
 
-		-- bettype 474: 1H Total Corners
-	  	IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 474)
-	  	    EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
-			,@bettype = 474
-                        ,@totalgoal = @totalht
-                        ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets
+				-- bettype 474: 1H Total Corners
+	  			IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 474)
+	  				EXEC dbo.NAP_Admin_Calculate_6 @matchid = @matchid
+						,@bettype = 474
+						,@totalgoal = @totalht
+						,@betcount = 1
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+						,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 
-		-- bettype 475: Alternative Corners
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)				
-		    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-			,@bettype = 475
-                        ,@totalgoal = @totalht
-                        ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets
+				-- bettype 475: Alternative Corners
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 475)				
+					EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+						,@bettype = 475
+						,@totalgoal = @totalht
+						,@betcount = 1
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+						,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 
 				-- bettype 476 : 1H Alternative Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 476)
@@ -4579,10 +4566,9 @@ BEGIN
                         ,@bettype = 476
                         ,@totalht = @totalht
                         ,@betcount = 1
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-			,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-			,@IsReSettledTickets = @IsReSettledTickets
+						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+						,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
 
 				-- bettype 482: Home Team Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 482)
@@ -4593,7 +4579,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 483: Away Team Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 483)
@@ -4604,7 +4589,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 484: 1H Home Team Corners Over/Under
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 484)
@@ -4615,7 +4599,6 @@ BEGIN
 						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 485: 1H Away Team Corners Over/Under
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 485)
@@ -4626,7 +4609,6 @@ BEGIN
 						,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-						,@IsReSettledTickets = @IsReSettledTickets
 				
 				-- 486	Corners Race
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
@@ -4681,7 +4663,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 494 : 1H Correct Corners
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 494)

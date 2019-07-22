@@ -406,12 +406,7 @@ RETURN (
 					CASE 
 						WHEN @betteam = @csHTFT THEN 1
 						ELSE -1
-						END 
-				--WHEN 135 THEN -- Penalty Shootout
-				--	CASE 
-				--		WHEN @betteam = @penaltyshootout THEN 1
-				--		ELSE -1
-				--		END        
+						END     
 				WHEN 128 THEN -- HT/FT Odd/Even
 					CASE
 						WHEN @betteam = 'oo' AND (@hth + @hta) % 2 = 1 AND (@fth + @fta) % 2 = 1 THEN 1
@@ -874,11 +869,6 @@ RETURN (
 									   END THEN 1
 						ELSE -1
 					END
-				--WHEN 424 THEN
-				--	CASE 
-				--		WHEN @betteam = @FirstGoalMethod THEN 1
-				--		ELSE -1
-				--	END	
 				WHEN 425 THEN
 					CASE
 						WHEN @betteam = @WinFromBehind THEN 1

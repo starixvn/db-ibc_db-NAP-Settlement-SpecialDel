@@ -1016,7 +1016,7 @@ BEGIN
 																		ELSE 'G' + CAST(@totalHTScore AS VARCHAR(5)) + '/G' + CAST(@totalFTScore AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																ELSE -1
-															END                                                                                          	END                                            
+															END                                                                                          	
 												-- #115232
 												-- HT/FT Total Corners
 												WHEN 493 THEN CASE WHEN 
@@ -1064,7 +1064,8 @@ BEGIN
 																WHEN betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
 																ELSE -1
 																END     
-												-- End #115232                                                                                                                                                                                  
+												-- End #115232   
+											END                                                                                                                                                                               
 									WHEN @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1 
 										THEN CASE bettype
 												WHEN 133 THEN
