@@ -114,7 +114,7 @@ BEGIN
 		SELECT TOP(1) @IsExistEarlyBettype = 1
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			CROSS APPLY (
-				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType
+				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType, s.SettleType
 				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 				WHERE	s.BetType = bm.bettype 
 			) AS f
