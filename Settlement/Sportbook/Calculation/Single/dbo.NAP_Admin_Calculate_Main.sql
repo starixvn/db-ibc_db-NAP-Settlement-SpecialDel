@@ -1669,7 +1669,7 @@ BEGIN
             END -- END CAL/CAL-FT
 
             IF @Mode IN ('CAL-HT', 'CAL')
-                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186, 472)
+                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186)
             BEGIN
                 -- exec in all cases, both 'FT' and 'HT'
                 -- bettype 7 : 1st Handicap

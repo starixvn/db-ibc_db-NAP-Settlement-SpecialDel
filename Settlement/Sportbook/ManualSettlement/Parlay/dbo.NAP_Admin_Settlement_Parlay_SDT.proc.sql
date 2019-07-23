@@ -55,7 +55,6 @@ BEGIN
 		,@LenGoalRecord		TINYINT
 		,@ResultCornerRace	VARCHAR(200)
 		,@ResultCornerRace1H VARCHAR(200)
-		,@RemovedSemicolonResultString NVARCHAR(50)
 		, @xmlResultDetail		XML
 		
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
@@ -74,7 +73,6 @@ BEGIN
 		, @AwayRaceTo = 0
 		, @ResultCornerRace = ''
 		, @ResultCornerRace1H = ''
-		, @RemovedSemicolonResultString = REPLACE(ISNULL(@goalRecord, ''),';','') 
 
 	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
 	
@@ -275,7 +273,6 @@ BEGIN
 								, @NeitherRaceTo
 								, @ResultCornerRace1H
 								, @NeitherRaceTo1H
-								, @RemovedSemicolonResultString
 								, b.betcheck
 							)
 							WHERE modds IS NOT NULL
