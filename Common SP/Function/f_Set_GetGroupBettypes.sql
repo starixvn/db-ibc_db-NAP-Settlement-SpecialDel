@@ -25,6 +25,7 @@ AS
 		- 20190222@Sol: New Formula for Comm [109007]
 		- 20190527@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 	
     Parameters Explanation:    
     
@@ -377,7 +378,7 @@ RETURN (
 	UNION ALL SELECT 2,458,0,0,0,0,'FT',0, 0,0
 	UNION ALL SELECT 1,459,0,0,1,0,'1H',0, 0,0
 	UNION ALL SELECT 2,460,0,0,0,0,'FT',0, 0,0
-	UNION ALL SELECT 2,22,0,0,0,0,'FT',0, 0,0
+	UNION ALL SELECT 2,22,1,1,0,0,'FT',3, 0,0
 	--#93654	
 	UNION ALL SELECT 2,465,0,0,0,0,'FT',0, 0,0
 	UNION ALL SELECT 1,466,0,0,1,0,'1H',0, 0,0

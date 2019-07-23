@@ -58,6 +58,7 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @NeitherRaceTo TINYINT
 	, @ResultCornerRace1H VARCHAR(200)
 	, @NeitherRaceTo1H TINYINT
+	, @RemovedSemicolonResultString NVARCHAR(50)
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -76,6 +77,7 @@ AS
 			- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 			- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 			
     Parameters Explanation:    
 	
@@ -1646,6 +1648,13 @@ RETURN (
 								WHEN @betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
 								ELSE -1
 								END
+				WHEN 22 THEN 
+							CASE
+								WHEN @betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
+								WHEN @betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
+								WHEN @betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN 1
+								ELSE -1
+							END
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

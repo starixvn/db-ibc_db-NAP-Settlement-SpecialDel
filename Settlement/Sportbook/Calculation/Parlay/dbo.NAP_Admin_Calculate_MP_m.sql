@@ -47,6 +47,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes
 						  PH AIO phase 4 [Redmine:#109584]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
     Param's Explanation:
        
 */
@@ -589,6 +590,7 @@ BEGIN
 						,@LenGoalSequence TINYINT
 						,@ResultCornerRace VARCHAR(200)
 						,@ResultCornerRace1H VARCHAR(200)
+						,@RemovedSemicolonResultString NVARCHAR(50)
 
             SELECT  @GoalSequence = ISNULL(@GoalSequence, '')
 					,@FirstGoal=''
@@ -602,6 +604,7 @@ BEGIN
 					,@Position = 1
 					,@HomeRaceTo = 0
 					,@AwayRaceTo = 0
+					,@RemovedSemicolonResultString = REPLACE(ISNULL(@GoalSequence, ''),';','') 
 
             SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
 					,@FirstGoal2h = CASE 
@@ -2261,6 +2264,13 @@ BEGIN
 										WHEN betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
 										ELSE -1
 										END
+						WHEN 22 
+							THEN CASE
+									WHEN betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(betcheck,2) AS INT),1) = 'H' THEN 1
+									WHEN betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(betcheck,2) AS INT),1) = 'A' THEN 1
+									WHEN betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(betcheck,2) AS INT),1) = '' THEN 1
+									ELSE -1
+							END
 						--End
                         ELSE NULL -- Not support bettype
                         END AS modds

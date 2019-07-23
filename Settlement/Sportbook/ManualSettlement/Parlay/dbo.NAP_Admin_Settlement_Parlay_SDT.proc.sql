@@ -27,6 +27,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 						  Incorporate PHAIO 4b - 27 Corners Bet Types 
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
@@ -54,7 +55,7 @@ BEGIN
 		,@LenGoalRecord		TINYINT
 		,@ResultCornerRace	VARCHAR(200)
 		,@ResultCornerRace1H VARCHAR(200)
-
+		,@RemovedSemicolonResultString NVARCHAR(50)
 		, @xmlResultDetail		XML
 		
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
@@ -73,6 +74,7 @@ BEGIN
 		, @AwayRaceTo = 0
 		, @ResultCornerRace = ''
 		, @ResultCornerRace1H = ''
+		, @RemovedSemicolonResultString = REPLACE(ISNULL(@goalRecord, ''),';','') 
 
 	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
 	
@@ -273,6 +275,8 @@ BEGIN
 								, @NeitherRaceTo
 								, @ResultCornerRace1H
 								, @NeitherRaceTo1H
+								, @RemovedSemicolonResultString
+								, b.betcheck
 							)
 							WHERE modds IS NOT NULL
 						)  AS odds

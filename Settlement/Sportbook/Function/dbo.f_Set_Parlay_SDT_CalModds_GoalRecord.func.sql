@@ -12,6 +12,8 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_SDT_CalModds_GoalRecord] (
 	, @NeitherRaceTo	TINYINT		= NULL
 	, @ResultCornerRace1H	VARCHAR(200) = NULL
 	, @NeitherRaceTo1H	TINYINT		= NULL
+	, @RemovedSemicolonResultString NVARCHAR(50) = NULL
+	, @betcheck NVARCHAR(50)
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -23,6 +25,7 @@ AS
     Revisions:
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190626@Kathy: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 	
     Parameters Explanation:  
     
@@ -175,6 +178,13 @@ RETURN (
 																		END
 									ELSE NULL
 								END
+					WHEN @bettype = 22 
+							THEN CASE
+								WHEN @betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
+								WHEN @betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
+								WHEN @betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN NULL
+								ELSE -1
+							END
 					---------------------------------------
 					ELSE NULL -- else non-supported bettype
 			END AS modds

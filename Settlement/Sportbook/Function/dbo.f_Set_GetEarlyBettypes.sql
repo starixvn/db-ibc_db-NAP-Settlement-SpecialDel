@@ -12,6 +12,7 @@ AS
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 	
     Parameters Explanation:    
    

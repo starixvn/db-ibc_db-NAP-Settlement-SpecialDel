@@ -181,6 +181,7 @@ AS
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 
     Param's Explanation:
         @action             @mode
@@ -1654,12 +1655,21 @@ BEGIN
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
+				-- bettype 22: Next Goal
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 22
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
 				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
             END -- END CAL/CAL-FT
 
             IF @Mode IN ('CAL-HT', 'CAL')
-                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186)
+                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186, 472)
             BEGIN
                 -- exec in all cases, both 'FT' and 'HT'
                 -- bettype 7 : 1st Handicap
@@ -3684,6 +3694,17 @@ BEGIN
                         ,@IsHTCal = @IsHTCal
 		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
+				-- bettype 22: Next Goal
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 22
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 
             IF @mode = 'REFUND-FT'
@@ -4675,7 +4696,19 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 						,@IsHTCal = @IsHTCal
-		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+
+				-- bettype 22: Next Goal
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 22
+                        ,@ResultString = @GoalRecord
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
             END
 
             IF @mode = 'REFUND'

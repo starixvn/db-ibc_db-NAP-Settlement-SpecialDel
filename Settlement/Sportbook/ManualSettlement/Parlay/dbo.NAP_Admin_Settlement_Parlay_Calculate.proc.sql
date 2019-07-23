@@ -33,6 +33,7 @@ AS
 			- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -112,6 +113,7 @@ BEGIN
 			,@LenGoalSequence TINYINT
 			,@ResultCornerRace VARCHAR(200)
 			,@ResultCornerRace1H VARCHAR(200)
+			,@RemovedSemicolonResultString NVARCHAR(50)
 
 	SELECT  @FirstGoal=''
 			,@GoalSequence = ISNULL(@GoalSequence, '')
@@ -125,6 +127,7 @@ BEGIN
 			,@Position = 1
 			,@HomeRaceTo = 0
 			,@AwayRaceTo = 0
+			,@RemovedSemicolonResultString = REPLACE(ISNULL(@GoalSequence, ''),';','') 
 
 	SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
 			,@FirstGoal2h = CASE 
@@ -571,6 +574,7 @@ BEGIN
 						, @NeitherRaceTo
 						, @ResultCornerRace1H
 						, @NeitherRaceTo1H
+						, @RemovedSemicolonResultString
 					) AS odds
 				WHERE b.matchId = @matchId
 			) AS b FOR XML AUTO
