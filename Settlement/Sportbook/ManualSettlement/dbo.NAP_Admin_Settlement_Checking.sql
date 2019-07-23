@@ -250,7 +250,7 @@ BEGIN
 		BEGIN
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT Id, sp.BetType, sp.BetID
+		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
 		    FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id    VARCHAR(20)
 					                                           ,Home VARCHAR(50)
 					                                           ,Away VARCHAR(50)

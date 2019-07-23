@@ -347,8 +347,7 @@ BEGIN
 		
 		SELECT  @strBettypesParlay = COALESCE(@strBettypesParlay + ',' + CAST(BetType AS VARCHAR),CAST(BetType AS VARCHAR))
 		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	GroupId IN (3,4,8)
-				OR IsUsedGoalRecordValue = 1
+		WHERE	IsUsedGoalRecordValue = 1
 		
 		INSERT INTO #tempBettrans (matchid, bettype, runningBet, betCount, IsParlay, IsExistFTFGNG, IsExistFTLG, IsExistHTFGNG, IsExistHTLG)
 		SELECT	m.matchid

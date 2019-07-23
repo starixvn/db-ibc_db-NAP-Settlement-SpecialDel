@@ -160,8 +160,7 @@ BEGIN
 			
 	;WITH cteAutoResultDetail
 	AS(
-		SELECT	CASE 
-					WHEN GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'								
+		SELECT	CASE 							
 					WHEN isFGLG = 1 AND GroupId IN (1,3) THEN '127_'
 					WHEN isFGLG = 1 AND GroupId IN (2,4) THEN '14_'
 					WHEN IsUsedGoalRecordValue = 1 THEN '08'					
@@ -170,8 +169,7 @@ BEGIN
 				,GroupId
 				,IsUsedGoalRecordValue
 		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	IsAuto = 1
-				OR IsUsedGoalRecordValue = 1
+		WHERE	IsUsedGoalRecordValue = 1
 	)
 	UPDATE	m
 		SET 

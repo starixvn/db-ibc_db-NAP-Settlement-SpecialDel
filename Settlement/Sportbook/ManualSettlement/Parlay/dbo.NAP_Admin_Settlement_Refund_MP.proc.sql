@@ -120,6 +120,7 @@ BEGIN
 			) AS f
 		WHERE matchid 		= @matchId
 			AND f.SportType = @SportType
+			AND s.SettleType = 'EAR'
 			AND statusID	NOT IN (101, 102)
 	END
 

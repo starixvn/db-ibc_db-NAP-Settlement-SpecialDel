@@ -53,6 +53,7 @@ BEGIN
 			ON	f.BetType = s.BetType
 	WHERE	f.GroupId = 8
 			AND s.SportType = 1
+			AND s.SettleType = 'EAR'
 	
     INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
     SELECT  f.ResourceId            
