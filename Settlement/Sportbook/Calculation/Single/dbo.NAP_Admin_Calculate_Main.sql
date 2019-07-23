@@ -1515,24 +1515,24 @@ BEGIN
                         ,@fta = @fta
 						,@IsReSettledTickets = @IsReSettledTickets
 
-		-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
-		-- bettype 470: Corners Odd/Even (own)
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 470)
-		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-			,@bettype = 470
-			,@oddeven = @oddeven
-			,@oddevenht = NULL
-			,@betcount = 1
-			,@IsReSettledTickets = @IsReSettledTickets
+				-- Start - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+				-- bettype 470: Corners Odd/Even (own)
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 470)
+					EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+						,@bettype = 470
+						,@oddeven = @oddeven
+						,@oddevenht = NULL
+						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
-		-- bettype 472: 2H Corners Odd/Even
-		IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 472)
-		    EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-			,@bettype = 472
+				-- bettype 472: 2H Corners Odd/Even
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 472)
+					EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+						,@bettype = 472
 						,@oddeven = @oddeven_2H
-                        ,@oddevenht = NULL
-                        ,@betcount = 1
-			,@IsReSettledTickets = @IsReSettledTickets
+						,@oddevenht = NULL
+						,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
 				-- bettype 473: Total Corners
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 473)
@@ -3692,7 +3692,6 @@ BEGIN
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsHTCal = @IsHTCal
-		-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
 				-- bettype 22: Next Goal
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 22)
