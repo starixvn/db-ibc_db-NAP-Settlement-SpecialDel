@@ -9,7 +9,7 @@ AS
     Original: 
     
     Revisions:            
-		- 20190507@Sol: Checking FGLG bettypes exist in match - [Redmine:#106901]
+		- 20190507@Sol: Auto payout phase 3 - Checking FGLG bettypes exist in match - [Redmine:#116073]
 */
 BEGIN
     SET NOCOUNT ON

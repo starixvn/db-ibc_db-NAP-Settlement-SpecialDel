@@ -38,7 +38,7 @@ AS
 	   - 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 	   - 20180510@Benjamin: Incorporate new Sports: Sepak Takraw(48)[Redmine:#94608]
 	   - 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
-	   - 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
+	   - 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 
     Param's Explanation:
     • @Mode:

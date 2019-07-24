@@ -31,7 +31,7 @@ AS
 		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
-		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
+		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 
     Param's Explanation:
         

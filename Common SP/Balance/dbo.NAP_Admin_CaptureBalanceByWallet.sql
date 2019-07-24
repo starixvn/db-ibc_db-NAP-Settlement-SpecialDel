@@ -21,7 +21,7 @@ AS
 	Revisions:  
 		- 20170801@Bobby: Initial
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
+		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event

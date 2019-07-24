@@ -51,7 +51,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190509@Kathy: Add group 0 for default if match do not have any ticket [Redmine:#99638]
-		- 20190523@Sol: Auto Payout Phase 2 - Removed @IsAutoCalculatePage param [Redmine:#106901]
+		- 20190523@Sol: Auto Payout Phase 3 - Removed @IsAutoCalculatePage param [Redmine:#116073]
 
 */
 BEGIN

@@ -30,7 +30,7 @@ AS
 		- 20181109@Helen: Wrong member balance while doing Cashout /Bettrade at the same time of Instant settle [Redmine:101652]
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190305@Sol:  New Formula for Comm [Redmine:#109007]
-		- 20190621@Sol: Auto Payout Phase 2 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#106901]
+		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
 
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']

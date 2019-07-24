@@ -11,7 +11,7 @@ AS
 		- 20180806@Kathy: Get waiting time for auto instant [Redmine:#99465]
 		- 20180821@Kathy: Get LeagueID to detect test league [Redmine:#99465]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
-		- 20190624@Helen: Unable to run Auto Instant HT if Auto Payout HT has already completed [Redmine:#106901]
+		- 20190624@Helen: Unable to run Auto Instant HT if Auto Payout HT has already completed [Redmine:#116073]
 		
 */
 

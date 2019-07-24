@@ -44,7 +44,7 @@ AS
         - 20180720@Vicky: Refund FT without Settle Determined [Redmine:#92859]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
-		- 20190425@Sol: Auto Payout Phase 2 [Redmine:#106901]
+		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
         
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
