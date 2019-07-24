@@ -37,6 +37,7 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
+		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 		
 		
 	Param's Explanation: 
@@ -672,8 +673,8 @@ BEGIN
 				ON b.srecommend = s.custid
 
 		DROP TABLE #BeforeUpd
-
 		DROP TABLE #AfterUpd
+		DROP TABLE #CTE_CustInfo
 
 	END
 	
@@ -686,7 +687,6 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransId
 	DROP TABLE #BetDelete
-	DROP TABLE #CTE_CustInfo
 	DROP TABLE #TmpBallSequence
 	
 END

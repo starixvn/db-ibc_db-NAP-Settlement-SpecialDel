@@ -92,6 +92,7 @@ AS
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -2060,7 +2061,8 @@ BEGIN
 					THEN CASE WHEN al.MainTransId IS NULL THEN 1
 						ELSE 2 END
 					ELSE al.transid
-				 END	
+				 END
+		DROP TABLE #CTE_CustInfo
 	END		
 	
 	DROP TABLE #tblBettype
@@ -2075,6 +2077,5 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #NegativeBalance
-	DROP TABLE #CTE_CustInfo
 	
 END
