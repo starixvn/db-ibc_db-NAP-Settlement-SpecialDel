@@ -136,20 +136,22 @@ BEGIN
 			SET @settlementTime = GETDATE();
 
 			UPDATE b
-			SET @modds = CASE WHEN betteam IN ('h', 'o') THEN @totalht - hdp1
-									  WHEN betteam IN ('a', 'u') THEN hdp1 - @totalht
-									  WHEN RIGHT(betteam,1) ='u' THEN hdp1 - @totalht    -- 143 
-									  WHEN bettype = 426 THEN CASE
-																WHEN @totalht > 0 AND betteam = 'NG' THEN -1
-																ELSE NULL
-															  END
-									  WHEN bettype = 476 THEN CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
-														WHEN betteam = 'u' AND @totalht >= hdp1 THEN -1
-														WHEN betteam = 'e' AND @totalht > hdp1 THEN -1
-														ELSE NULL
+			SET @modds = CASE
+							WHEN bettype = 476 THEN CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
+													WHEN betteam = 'u' AND @totalht >= hdp1 THEN -1
+													WHEN betteam = 'e' AND @totalht > hdp1 THEN -1
+													ELSE NULL
+												END
+							WHEN betteam IN ('h', 'o') THEN @totalht - hdp1
+							WHEN betteam IN ('a', 'u') THEN hdp1 - @totalht
+							WHEN RIGHT(betteam,1) ='u' THEN hdp1 - @totalht    -- 143 
+							WHEN bettype = 426 THEN CASE
+													WHEN @totalht > 0 AND betteam = 'NG' THEN -1
+													ELSE NULL
 													END
-									  ELSE NULL 
-									  END 
+									  
+							ELSE NULL 
+							END 
 				,modds = @modds                                        
 				,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 					WHEN '0' THEN 1
@@ -357,6 +359,12 @@ BEGIN
 
 			UPDATE b
 			SET @modds = CASE 
+					WHEN bettype = 476 THEN 
+											CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
+												WHEN betteam = 'u' AND @totalht < hdp1 THEN 1
+												WHEN betteam = 'e' AND @totalht = hdp1 THEN 1
+												ELSE -1
+											END
 					WHEN betteam IN ('h', 'o') THEN @totalht - hdp1
 					WHEN betteam IN ('a', 'u') THEN hdp1 - @totalht
 					WHEN betteam = 'ho' AND @scorediff_ht > 0 THEN @totalht - hdp1
@@ -367,12 +375,6 @@ BEGIN
 					WHEN betteam = 'du' AND @scorediff_ht = 0 THEN hdp1 - @totalht    
 					WHEN bettype IN (426, 608) THEN CASE
 												WHEN betteam = @result THEN 1
-												ELSE -1
-											END
-					WHEN bettype = 476 THEN 
-											CASE WHEN betteam = 'o' AND @totalht > hdp1 THEN 1
-												WHEN betteam = 'u' AND @totalht < hdp1 THEN 1
-												WHEN betteam = 'e' AND @totalht = hdp1 THEN 1
 												ELSE -1
 											END
 					ELSE -1

@@ -153,15 +153,15 @@ BEGIN
 			SET 
 				 @totalgoal = CASE WHEN bettype = 3 AND @totalgoal = 0 AND @SelectedSet LIKE '%6%' THEN ISNULL(@TotalSetMatch,0) ELSE @totalgoal END 
 				,@modds = CASE 
-							WHEN betteam IN ('h', 'o') THEN @totalgoal - hdp1
-							WHEN betteam IN ('a', 'u') THEN hdp1 - @totalgoal
-							WHEN RIGHT(betteam,1) = 'u' THEN hdp1 - @totalgoal    -- 144 ,163
-							WHEN bettype = 408 AND betteam = 'NG' AND @totalgoal > 0 THEN -1 --408: No Goal
 							WHEN bettype = 475 THEN CASE WHEN betteam = 'o' AND @totalgoal > hdp1 THEN 1
 														WHEN betteam = 'u' AND @totalgoal >= hdp1 THEN -1
 														WHEN betteam = 'e' AND @totalgoal > hdp1 THEN -1
 														ELSE NULL
 													END
+							WHEN betteam IN ('h', 'o') THEN @totalgoal - hdp1
+							WHEN betteam IN ('a', 'u') THEN hdp1 - @totalgoal
+							WHEN RIGHT(betteam,1) = 'u' THEN hdp1 - @totalgoal    -- 144 ,163
+							WHEN bettype = 408 AND betteam = 'NG' AND @totalgoal > 0 THEN -1 --408: No Goal
 							ELSE NULL 
 						END
 				,modds = @modds 
@@ -347,64 +347,63 @@ BEGIN
 											WHEN betteam = 'A' AND @ScoreDiff <= -5 THEN 1
 											ELSE -1
 										END	 
-					WHEN betteam = N'h' THEN @totalgoal - hdp1
-					WHEN betteam = N'a' THEN hdp1 - @totalgoal
-					WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,1312,401,402,461,462,482,483
-					WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,1312,401,402,461,462,482,483
-					WHEN betteam = 'ho' AND @scorediff > 0 THEN @totalgoal - hdp1
-					WHEN betteam = 'hu' AND @scorediff > 0 THEN hdp1 - @totalgoal
-					WHEN betteam = 'ao' AND @scorediff < 0 THEN @totalgoal - hdp1
-					WHEN betteam = 'au' AND @scorediff < 0 THEN hdp1 - @totalgoal
-					WHEN betteam = 'do' AND @scorediff = 0 THEN @totalgoal - hdp1
-					WHEN betteam = 'du' AND @scorediff = 0 THEN hdp1 - @totalgoal        
-					WHEN betteam = 'h1' AND @scorediff = 1 THEN 1        --171,408 
-					WHEN betteam = 'h2' AND @scorediff = 2 THEN 1 
-					WHEN betteam = 'h3' AND @scorediff >=3 THEN 1
-					WHEN betteam = 'd' AND ((@scorediff = 0 AND bettype <> 408) OR (bettype = 408 AND @scorediff = 0 AND @totalgoal <> 0)) THEN 1
-					WHEN betteam = 'NG' AND @totalgoal = 0 THEN 1 --No Goal
-					WHEN betteam = 'a1' AND @scorediff =-1 THEN 1 
-					WHEN betteam = 'a2' AND @scorediff =-2 THEN 1 
-					WHEN betteam = 'a3' AND @scorediff<=-3 THEN 1
-					WHEN bettype = 601 THEN CASE 
-											WHEN betteam = 'H1-2' AND @scorediff BETWEEN 1 AND 2 THEN 1
-											WHEN betteam = 'H3-6' AND @scorediff BETWEEN 3 AND 6 THEN 1
-											WHEN betteam = 'H7-9' AND @scorediff BETWEEN 7 AND 9 THEN 1
-											WHEN betteam = 'H10-13' AND @scorediff BETWEEN 10 AND 13 THEN 1
-											WHEN betteam = 'H14-16' AND @scorediff BETWEEN 14 AND 16 THEN 1
-											WHEN betteam = 'H17-20' AND @scorediff BETWEEN 17 AND 20 THEN 1
-											WHEN betteam = 'H21+' AND @scorediff >= 21 THEN 1
-											WHEN betteam = 'A1-2' AND @scorediff BETWEEN -2 AND -1 THEN 1
-											WHEN betteam = 'A3-6' AND @scorediff BETWEEN -6 AND -3 THEN 1
-											WHEN betteam = 'A7-9' AND @scorediff BETWEEN -9 AND -7 THEN 1
-											WHEN betteam = 'A10-13' AND @scorediff BETWEEN -13 AND -10 THEN 1
-											WHEN betteam = 'A14-16' AND @scorediff BETWEEN -16 AND -14 THEN 1
-											WHEN betteam = 'A17-20' AND @scorediff BETWEEN -20 AND -17 THEN 1
-											WHEN betteam = 'A21+' AND @scorediff <= -21 THEN 1
-											ELSE -1
-										END		
-					WHEN bettype = 602 THEN CASE
-											WHEN betteam = 'H1-5' AND @scorediff BETWEEN 1 AND 5 THEN 1
-											WHEN betteam = 'H6-10' AND @scorediff BETWEEN 6 AND 10 THEN 1
-											WHEN betteam = 'H11-15' AND @scorediff BETWEEN 11 AND 15 THEN 1
-											WHEN betteam = 'H16-20' AND @scorediff BETWEEN 16 AND 20 THEN 1
-											WHEN betteam = 'H21-25' AND @scorediff BETWEEN 21 AND 25 THEN 1
-											WHEN betteam = 'H26+' AND @scorediff >= 26 THEN 1
-											WHEN betteam = 'A1-5' AND @scorediff BETWEEN -5 AND -1 THEN 1
-											WHEN betteam = 'A6-10' AND @scorediff BETWEEN -10 AND -6 THEN 1
-											WHEN betteam = 'A11-15' AND @scorediff BETWEEN -15 AND -11 THEN 1
-											WHEN betteam = 'A16-20' AND @scorediff BETWEEN -20 AND -16 THEN 1
-											WHEN betteam = 'A21-25' AND @scorediff BETWEEN -25 AND -21 THEN 1
-											WHEN betteam = 'A26+' AND @scorediff <= -26 THEN 1	
-											ELSE -1
-										END
-					WHEN bettype = 475 THEN 
+						WHEN bettype = 475 THEN 
 											CASE WHEN betteam = 'o' AND @totalgoal > hdp1 THEN 1
 												WHEN betteam = 'u' AND @totalgoal < hdp1 THEN 1
 												WHEN betteam = 'e' AND @totalgoal = hdp1 THEN 1
 												ELSE -1
 											END
-
-					ELSE - 1                    
+						WHEN betteam = N'h' THEN @totalgoal - hdp1
+						WHEN betteam = N'a' THEN hdp1 - @totalgoal
+						WHEN betteam = N'o' THEN @totalgoal-hdp1    -- 156,178,1312,401,402,461,462,482,483
+						WHEN betteam = N'u' THEN hdp1-@totalgoal    -- 156,178,1312,401,402,461,462,482,483
+						WHEN betteam = 'ho' AND @scorediff > 0 THEN @totalgoal - hdp1
+						WHEN betteam = 'hu' AND @scorediff > 0 THEN hdp1 - @totalgoal
+						WHEN betteam = 'ao' AND @scorediff < 0 THEN @totalgoal - hdp1
+						WHEN betteam = 'au' AND @scorediff < 0 THEN hdp1 - @totalgoal
+						WHEN betteam = 'do' AND @scorediff = 0 THEN @totalgoal - hdp1
+						WHEN betteam = 'du' AND @scorediff = 0 THEN hdp1 - @totalgoal        
+						WHEN betteam = 'h1' AND @scorediff = 1 THEN 1        --171,408 
+						WHEN betteam = 'h2' AND @scorediff = 2 THEN 1 
+						WHEN betteam = 'h3' AND @scorediff >=3 THEN 1
+						WHEN betteam = 'd' AND ((@scorediff = 0 AND bettype <> 408) OR (bettype = 408 AND @scorediff = 0 AND @totalgoal <> 0)) THEN 1
+						WHEN betteam = 'NG' AND @totalgoal = 0 THEN 1 --No Goal
+						WHEN betteam = 'a1' AND @scorediff =-1 THEN 1 
+						WHEN betteam = 'a2' AND @scorediff =-2 THEN 1 
+						WHEN betteam = 'a3' AND @scorediff<=-3 THEN 1
+						WHEN bettype = 601 THEN CASE 
+												WHEN betteam = 'H1-2' AND @scorediff BETWEEN 1 AND 2 THEN 1
+												WHEN betteam = 'H3-6' AND @scorediff BETWEEN 3 AND 6 THEN 1
+												WHEN betteam = 'H7-9' AND @scorediff BETWEEN 7 AND 9 THEN 1
+												WHEN betteam = 'H10-13' AND @scorediff BETWEEN 10 AND 13 THEN 1
+												WHEN betteam = 'H14-16' AND @scorediff BETWEEN 14 AND 16 THEN 1
+												WHEN betteam = 'H17-20' AND @scorediff BETWEEN 17 AND 20 THEN 1
+												WHEN betteam = 'H21+' AND @scorediff >= 21 THEN 1
+												WHEN betteam = 'A1-2' AND @scorediff BETWEEN -2 AND -1 THEN 1
+												WHEN betteam = 'A3-6' AND @scorediff BETWEEN -6 AND -3 THEN 1
+												WHEN betteam = 'A7-9' AND @scorediff BETWEEN -9 AND -7 THEN 1
+												WHEN betteam = 'A10-13' AND @scorediff BETWEEN -13 AND -10 THEN 1
+												WHEN betteam = 'A14-16' AND @scorediff BETWEEN -16 AND -14 THEN 1
+												WHEN betteam = 'A17-20' AND @scorediff BETWEEN -20 AND -17 THEN 1
+												WHEN betteam = 'A21+' AND @scorediff <= -21 THEN 1
+												ELSE -1
+											END		
+						WHEN bettype = 602 THEN CASE
+												WHEN betteam = 'H1-5' AND @scorediff BETWEEN 1 AND 5 THEN 1
+												WHEN betteam = 'H6-10' AND @scorediff BETWEEN 6 AND 10 THEN 1
+												WHEN betteam = 'H11-15' AND @scorediff BETWEEN 11 AND 15 THEN 1
+												WHEN betteam = 'H16-20' AND @scorediff BETWEEN 16 AND 20 THEN 1
+												WHEN betteam = 'H21-25' AND @scorediff BETWEEN 21 AND 25 THEN 1
+												WHEN betteam = 'H26+' AND @scorediff >= 26 THEN 1
+												WHEN betteam = 'A1-5' AND @scorediff BETWEEN -5 AND -1 THEN 1
+												WHEN betteam = 'A6-10' AND @scorediff BETWEEN -10 AND -6 THEN 1
+												WHEN betteam = 'A11-15' AND @scorediff BETWEEN -15 AND -11 THEN 1
+												WHEN betteam = 'A16-20' AND @scorediff BETWEEN -20 AND -16 THEN 1
+												WHEN betteam = 'A21-25' AND @scorediff BETWEEN -25 AND -21 THEN 1
+												WHEN betteam = 'A26+' AND @scorediff <= -26 THEN 1	
+												ELSE -1
+											END
+						ELSE - 1                    
 					END
 				,modds = @modds
 				,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
