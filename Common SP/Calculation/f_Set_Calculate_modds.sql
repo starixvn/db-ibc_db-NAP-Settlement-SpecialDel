@@ -88,8 +88,8 @@ RETURN
 					ELSE -1 END
 			
 			WHEN @pfID = 479 THEN 
-			   CASE WHEN @betteam = 'Y' AND @HomeValue > 0 AND @HomeValue < @hdp1 THEN 1
-					WHEN @betteam = 'N' AND (@HomeValue = 0 OR @HomeValue >= @hdp1) THEN 1
+			   CASE WHEN @betteam = 'Y' AND (@HomeValue > 0 OR (@HomeValue = 0 AND @AwayValue > 0)) AND @HomeValue < @hdp1 THEN 1
+					WHEN @betteam = 'N' AND ((@HomeValue = 0 AND @AwayValue = 0) OR @HomeValue >= @hdp1) THEN 1
 					ELSE -1 END
 
 			----Happy5
