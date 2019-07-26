@@ -31,6 +31,7 @@ AS
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
+		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
         
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -289,14 +290,14 @@ BEGIN
     ELSE IF @Command = 'NAP_Admin_Settlement_1-UNDO'
     BEGIN
         UPDATE ResultDetail WITH (UPDLOCK,ROWLOCK)
-        SET     HomeValue           = CASE WHEN ResourceID = '08' THEN '' ELSE NULL END 
+        SET     HomeValue           = CASE WHEN ResourceID IN ('08','09') THEN '' ELSE NULL END 
                 ,AwayValue          = NULL
                 ,ResultStatusID     = 0     -- Initial 
                 ,SettlementStatusID = 0     -- Initial
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
         WHERE   MatchID = @MatchID
-                AND ResourceID IN ('00','01','08','14F','14L','127F','127L')
+                AND ResourceID IN ('00','01','08','09','14F','14L','127F','127L')
 
     END 
     /* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */

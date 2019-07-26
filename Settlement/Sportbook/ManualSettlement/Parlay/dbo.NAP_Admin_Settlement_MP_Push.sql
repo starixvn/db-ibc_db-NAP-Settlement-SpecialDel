@@ -34,6 +34,7 @@ AS
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20190517@Sol: Tuning performance [Redmine:#112904]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 
 	Param's Explanation:		
 		
@@ -135,15 +136,15 @@ BEGIN
 	DECLARE @tblRunningBAIO TABLE (matchid INT, QuarterX NVARCHAR(50), OrdNo SMALLINT)
 
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId INT, groupname VARCHAR(50), isEarly BIT)	
-	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpFGLGBettypes TABLE (bettype SMALLINT PRIMARY KEY, groupId INT)
 	
 	INSERT INTO @tmpBettypes(bettype, groupId, groupname, isEarly)
 	SELECT	f.BetType, f.GroupId, f.GroupName
 			,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
 	FROM	dbo.f_Set_GetGroupBettypes() f 
 	
-	INSERT INTO @tmpFGLGBettypes(bettype)
-	SELECT	f.BetType
+	INSERT INTO @tmpFGLGBettypes(bettype, groupId)
+	SELECT	f.BetType, f.GroupId
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.IsUsedGoalRecordValue = 1
 	
@@ -179,9 +180,7 @@ BEGIN
 					,m.matchcode
 					,CASE 
 						WHEN bm.bettype = 448 THEN '14L'
-						
 						WHEN bm.bettype IN (415,454,172) THEN '14F'
-						
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -189,6 +188,7 @@ BEGIN
 										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
 										ELSE ''
 									END 
+						WHEN bt.groupId = 1 THEN '09'
 						ELSE '08'
 					END AS ResourceId
 			FROM	dbo.bettransm bm WITH(NOLOCK)
@@ -201,9 +201,7 @@ BEGIN
 					,m.matchcode
 					,CASE 
 						WHEN bm.bettype = 448 THEN '14L'
-						
 						WHEN bm.bettype IN (415,454,172) THEN '14F'
-						
 						WHEN bm.bettype IN (14, 127) 
 							THEN CAST(bm.bettype AS VARCHAR) 
 									+ CASE 
@@ -211,6 +209,7 @@ BEGIN
 										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
 										ELSE ''
 									END 
+						WHEN bt.groupId = 1 THEN '09'
 						ELSE '08'
 					END
 		)

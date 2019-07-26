@@ -24,6 +24,7 @@ AS
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -186,6 +187,7 @@ BEGIN
 										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
 										ELSE ''
 									END 
+						WHEN bt.GroupID = 1 THEN '09'
 						ELSE '08'
 					END AS ResourceId
 			FROM	dbo.bettransm bm WITH(NOLOCK)
@@ -204,6 +206,7 @@ BEGIN
 										WHEN RIGHT(bm.betteam,1) = '2' THEN 'L'
 										ELSE ''
 									END 
+						WHEN bt.GroupID = 1 THEN '09'
 						ELSE '08'
 					END
 		)
