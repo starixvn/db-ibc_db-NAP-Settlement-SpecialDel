@@ -54,6 +54,9 @@ AS
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190411@Kathy: Change command for calculate FGLG to avoid wrong replacing SP deployment [Redmine:#106823]
 		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
+		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
+
     Parameters Explanation:
 
 
@@ -352,25 +355,25 @@ BEGIN
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
     END
-    IF @Command = 'NAP_Admin_Settlement-FGLG'
-    BEGIN
-        UPDATE match WITH(ROWLOCK,UPDLOCK)
-        SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus
-                        ELSE @betstatus + ';' END
-            , GoalRecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
-                               WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> ''
-                                    THEN REPLACE(GoalRecord, LEFT(GoalRecord, CHARINDEX(';', GoalRecord)), (LEFT(@goalrecord, CHARINDEX(';', @goalrecord)))) -- only update HT part
-                            ELSE @goalrecord END
-            , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
-            , changetime = GETDATE()
-            --, settleTime = GETDATE()
-        WHERE matchid = @MatchID
+    --IF @Command = 'NAP_Admin_Settlement-FGLG'
+    --BEGIN
+    --    UPDATE match WITH(ROWLOCK,UPDLOCK)
+    --    SET betstatus = CASE WHEN RIGHT(@BetStatus,1) = ';' THEN @betstatus
+    --                    ELSE @betstatus + ';' END
+    --        , GoalRecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
+    --                           WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> ''
+    --                                THEN REPLACE(GoalRecord, LEFT(GoalRecord, CHARINDEX(';', GoalRecord)), (LEFT(@goalrecord, CHARINDEX(';', @goalrecord)))) -- only update HT part
+    --                        ELSE @goalrecord END
+    --        , eventstatus = CASE WHEN @action = 'CAL-FT' AND ISNULL(@FTDone, 0) = 1 THEN N'completed' ELSE eventstatus END
+    --        , changetime = GETDATE()
+    --        , settleTime = GETDATE()
+    --    WHERE matchid = @MatchID
 
-    END
-    IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
-    BEGIN
-        UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID
-    END
+    --END
+    --IF @Command = 'NAP_Admin_Settlement_Refund_FGLG'
+    --BEGIN
+    --    UPDATE match WITH(ROWLOCK,UPDLOCK) SET betstatus = @BetStatus, changetime = GETDATE() WHERE matchid=@MatchID
+    --END
     IF @Command IN ('NAP_Admin_Settlement_Parlay', 'NAP_Admin_Settlement_Refund_MP')
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET multiple=multiple, changetime = GETDATE() WHERE matchid=@MatchID
@@ -512,8 +515,8 @@ BEGIN
         WHERE   matchid = @matchid
     END
     IF (
-        @Command = 'NAP_Admin_Settlement_1_InstantCalculation'
-        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation_Undo'
+        @Command = 'NAP_Admin_Settlement_1-InstantCalculation'
+        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
     )
     BEGIN
 

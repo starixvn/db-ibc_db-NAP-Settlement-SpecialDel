@@ -43,6 +43,7 @@ AS
 	- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 	- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+	- 20190528@Sol: Auto payout phase 3 - Removed unused field IsNeedToCalculateFGLG [Redmine:#116073]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -145,7 +146,6 @@ BEGIN
 		, AutoSetting TINYINT
 		, IsExistRunningCorner BIT
 		, IsExistRunningHTCorner BIT
-		, IsNeedToCalculateFGLG BIT
 		, IsNeedToCalculateCorner BIT
 		, AutoSettingForLeague TINYINT
 		, BetCount INT
@@ -185,7 +185,7 @@ BEGIN
 	INSERT INTO #matchList (HalfTimeHomeScore, HalfTimeAwayScore, IsCalculated, IsFTCalculated, IsMultiCaled, IsRefund, IsCalRefund
 		,matchid , leagueid, homeid, awayid, matchcode, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
-		,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateFGLG, IsNeedToCalculateCorner, AutoSettingForLeague
+		,AutoSetting, IsExistRunningCorner, IsExistRunningHTCorner, IsNeedToCalculateCorner, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
 		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket
 	)
@@ -219,7 +219,6 @@ BEGIN
 		, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
 		, 0 AS IsExistRunningCorner
 		, 0 AS IsExistRunningHTCorner
-		, 0 AS IsNeedToCalculateFGLG
 		, 0 AS IsNeedToCalculateCorner
 		, ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 		, 0 AS BetCount
@@ -477,38 +476,7 @@ BEGIN
 	)
 	--update status of match in order to can be calc FGLG & Corner bettype manually
 	UPDATE t
-	SET IsNeedToCalculateFGLG = CASE WHEN rs.HTStatus = 1 
-										AND t.IsHalfTimeCal = 1 
-										AND rs.FTStatus IN (0, 1) 
-										AND (t.IsExistRunningUseGoalRecordHT = 1 
-											OR (
-												t.IsExistHTFGNG = 1
-												AND ISNULL(rd.HTFGNGResultStatusId,0) = 0
-											)
-											OR (
-												t.IsExistHTLG = 1
-												AND ISNULL(rd.HTLGResultStatusId,0) = 0
-											)
-										)
-										THEN 1 --can calc HT FGLG
-									WHEN rs.FTStatus = 1
-										AND t.IsHalfTimeCal = 1
-										AND (t.IsExistRunningUseGoalRecordFT = 1 
-											OR (t.IsExistGoalRecordBettypeFT = 1
-												AND ISNULL(rd.GoalRecordFTResultStatusId,0) <> 5
-											)
-											OR (
-												t.IsExistFTFGNG = 1
-												AND ISNULL(rd.FTFGNGResultStatusId,0) = 0
-											)
-											OR (
-												t.IsExistFTLG = 1
-												AND ISNULL(rd.FTLGResultStatusId,0) = 0
-											)
-										)
-										THEN 1 --can calc FT FGLG
-								ELSE 0 END
-		, IsNeedToCalculateCorner = CASE WHEN rs.HTStatus = 1
+	SET IsNeedToCalculateCorner = CASE WHEN rs.HTStatus = 1
 										AND t.IsHalfTimeCal = 1
 										AND rs.FTStatus IN (0, 1) 
 										AND t.IsExistRunningHTCorner = 1 THEN 1 --can calc HT Corner
@@ -799,7 +767,6 @@ BEGIN
 		, t.IsCalculatingSingle
 		, t.IsCalculatingMP
 		, AutoSetting
-		, IsNeedToCalculateFGLG
 		, IsNeedToCalculateCorner
 		, AutoSettingForLeague
 		, IsEnabledGoalRecordHT

@@ -9,6 +9,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
     , @Action		VARCHAR(10)     = 'CAL-FT'
     , @IP			VARCHAR(15)     = ''
 	, @IsReSettledTickets	BIT		= 1
+	, @GoalRecord	VARCHAR(50)		= ''
+	, @BetStatus	NVARCHAR(50)	= ''
+	, @ResourceResult VARCHAR(MAX)	= NULL
+	, @SourceId		TINYINT			= 5 -- default SoccerWay
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -27,6 +31,7 @@ AS
 		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 
     Param's Explanation:
         
@@ -45,7 +50,23 @@ BEGIN
 			,@procName				NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsSystemSettlement	BIT
+			,@CalType				TINYINT
+			,@HomeValue				VARCHAR(50)
+			,@AwayValue				VARCHAR(50)
 			
+	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
+								WHEN @Action = 'CAL-FT' THEN 2
+								ELSE 0 
+							END, 
+			@HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
+								WHEN @Action = 'CAL-FT' THEN @FullTimeHome
+								ELSE 0 
+							END,
+			@AwayValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeAway 
+								WHEN @Action = 'CAL-FT' THEN @FullTimeAway
+								ELSE 0 
+							END
+
     SELECT @matchcode = m.matchcode
 		, @sporttype  = m.sporttype
 		, @leagueid   = m.leagueid
@@ -100,8 +121,8 @@ BEGIN
         , @Action = @Action
         , @Mode	= 'CAL'
 		, @IsExcludeCorner = 1
-		, @IsExcludeFGLG = 1
-		, @IsAutoCalculatePage = 1
+		--, @IsExcludeFGLG = 0
+		--, @IsAutoCalculatePage = 0
         , @ErrCode = @ErrCode OUTPUT
         , @ErrMsg = @ErrMsg OUTPUT
         
@@ -121,13 +142,18 @@ BEGIN
                             + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                             + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 							+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
+							+ ', @goalrecord = '+ CASE WHEN @GoalRecord IS NULL THEN 'NULL' ELSE '''' + CONVERT(NVARCHAR(50),@GoalRecord)+ '''' END 
+							+ ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' ELSE 'N''' + CONVERT(NVARCHAR(50),@BetStatus)+ '''' END 
+							+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+											ELSE '''' + @ResourceResult + '''' END 
+							+ ', @SourceId = ' + CONVERT(NVARCHAR(3), @SourceId)
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE
 								WHEN @Action = 'CAL-FT' THEN 1
 								ELSE NULL
 							END
-
+							
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL
 	BEGIN
@@ -136,6 +162,22 @@ BEGIN
 			,@Type			= 4
 			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
+	END
+
+	-- insert waiting status into AutoPayoutResult table - Redmine:#106901
+	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
+		  @MatchId 		= @matchid
+		, @SourceId 	= @SourceId
+		, @TypeId 		= @CalType
+		, @HomeValue 	= @HomeValue
+		, @AwayValue 	= @AwayValue
+		, @StatusId 	= 1 -- waiting
+		, @ErrCode 		= @ErrCode OUTPUT
+		, @ErrMsg		= @ErrMsg OUTPUT
+		
+	IF @ErrCode <> 0
+	BEGIN
+		RETURN
 	END
 
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
