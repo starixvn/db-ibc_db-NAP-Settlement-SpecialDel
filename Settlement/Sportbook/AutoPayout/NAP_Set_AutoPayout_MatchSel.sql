@@ -449,45 +449,6 @@ BEGIN
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
 
-	;WITH PayoutResult AS (
-		SELECT t.MatchId
-			, MAX(CASE WHEN rs.CalculationType = 1 THEN 1 ELSE 0 END) AS HTStatus
-			, MAX(CASE WHEN rs.CalculationType = 2 THEN 1 ELSE 0 END) AS FTStatus
-		FROM #matchList t 
-			INNER JOIN DBPRO.bodb02.dbo.AutoPayoutResult rs WITH(NOLOCK) 
-			ON t.matchId = rs.matchId
-		WHERE t.eventstatus IN ('running', 'Completed')
-			AND 1 & t.AutoSetting = 1
-			AND rs.StatusId IN (1, 2)
-			AND rs.CalculationType IN (1, 2)
-		GROUP BY t.MatchId
-		
-	)
-		
-	--Checking for Inst match info
-	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
-	BEGIN 
-		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
-		SELECT t.MatchId
-			, 0 AS HomeValue
-			, 0 AS AwayValue
-			, 0 AS StatusId
-			, 0 AS CalculationType
-			, 4 AS Priority
-			, t.SettlementStatus
-			, 0  AS InstantKey
-		FROM #matchList t 
-		WHERE 2 & t.AutoSetting = 2
-			AND (t.eventstatus IN ('running') OR t.eventstatus LIKE 'Refund%') --#86964
-		
-		;WITH InstantScores AS (
-			SELECT *
-			FROM (
-				SELECT prd.MatchId
-					, prd.HomeValue
-					, prd.AwayValue
-					, prd.TypeId AS CalculationType
-					, prd.IsC	
 	--Checking for Inst match info
 	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
 	BEGIN 

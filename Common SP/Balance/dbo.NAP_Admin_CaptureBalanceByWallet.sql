@@ -29,8 +29,8 @@ AS
 	Param's Explanation:   
 		- @MatchId: Id of match event
 		- @Action : [CAL, CAL-HT, CAL-FT]
-		- @Mode: 1: Used for Auto payout process
-			   2: Used for Manual settle process
+		- @Mode:
+			   2: Used for Manual settle process, Auto Payout process
 			   3: Used for Manual refund process
 			   4: Used for CAL FGLG
 			   7: Used for Fast Market
@@ -150,13 +150,7 @@ BEGIN
 		FROM f_Set_GetGroupBettypes() AS f			
 		WHERE	f.IsAuto = 0
 				AND	1 = CASE 
-							WHEN @Mode = 1 THEN --Auto Payout
-								CASE 
-									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1, 3) THEN 1 -- inclued FGLG bettype -- #106901
-									WHEN @Action = 'CAL-FT' AND f.GroupId IN (2, 4) THEN 1 -- inclued FGLG bettype -- #106901
-									ELSE 0
-								END
-							WHEN @Mode = 2 THEN --Manual CAL
+							WHEN @Mode = 2 THEN --Manual CAL/ Auto CAL
 								CASE 
 									WHEN @Action = 'CAL' THEN 1
 									WHEN @Action = 'CAL-HT' AND f.GroupId IN (1,3) THEN 1

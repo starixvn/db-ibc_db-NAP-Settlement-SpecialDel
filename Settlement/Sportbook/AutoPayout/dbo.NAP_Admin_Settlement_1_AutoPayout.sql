@@ -41,7 +41,6 @@ BEGIN
 		, @stop							DATETIME
 		, @LogData						NVARCHAR(300)
 		, @eventstatus					NVARCHAR(50)
-		, @sporttype					SMALLINT
 		, @TicketCount					INT	
 		, @Remark						VARCHAR(500)
 		, @ActionID						INT
@@ -66,10 +65,6 @@ BEGIN
 										WHEN 'CAL-FT'	THEN 158
 										WHEN 'CAL-HT'	THEN 157
 										END
- 
-	SELECT	@sporttype = m.sporttype
-	FROM	DBPRO.BODB02.dbo.match m WITH(NOLOCK)
-	WHERE	m.matchid = @matchid
  
 	IF @@ROWCOUNT = 0
 	BEGIN
@@ -130,9 +125,9 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
+		, @sportType 	= 1
 		, @Action		= @Action
-		, @Mode 		= 1 --@Mode auto payout
+		, @Mode 		= 2
 		
  
 	--SET total affected accounts
@@ -180,27 +175,19 @@ BEGIN
 			, @HTDone					= @HTDone
 			, @creator					= @creator
  
-		IF @Sporttype = 1 AND LEFT(@Action, 3) = 'CAL'
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
-				, @MatchID			= @MatchID
-				, @fth 				= @fth
-				, @fta 				= @fta
-				, @hth 				= @hth
-				, @hta 				= @hta
-				, @Action			= @Action
-				, @creator			= @creator
-				, @ResourceResult	= @ResourceResult
-		END
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
+			, @MatchID			= @MatchID
+			, @fth 				= @fth
+			, @fta 				= @fta
+			, @hth 				= @hth
+			, @hta 				= @hta
+			, @Action			= @Action
+			, @creator			= @creator
+			, @ResourceResult	= @ResourceResult
  
-		IF LEFT(@action, 3) = 'CAL'
-		BEGIN
-			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
-					, @mode				= @action
-					, @IsReSettledTickets		= @IsReSettledTickets
-			END
-		END
+		EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
+			, @mode				= @action
+			, @IsReSettledTickets		= @IsReSettledTickets
  
 		IF @eventstatus = 'completed'
 		BEGIN
@@ -233,9 +220,9 @@ BEGIN
 		)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 		= @matchId
-			, @sportType 	= @sporttype
+			, @sportType 	= 1
 			, @Action		= @Action
-			, @Mode 		= 1 --@Mode auto payout
+			, @Mode 		= 2
 		
 		-- Compare Balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -270,9 +257,9 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
+		, @sportType 	= 1
 		, @Action		= @Action
-		, @Mode 		= 1 --@Mode auto payout
+		, @Mode 		= 2
  
 	-------------------------------------------------------------
 	---                   compare BALANCE                     ---
