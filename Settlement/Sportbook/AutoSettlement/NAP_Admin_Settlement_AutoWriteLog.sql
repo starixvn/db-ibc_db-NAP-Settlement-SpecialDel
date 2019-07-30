@@ -61,14 +61,6 @@ BEGIN
 	SET @actionid = CASE WHEN @IsSuccess = 1 then 143 
 						 ELSE 144
 					END
-
-	SELECT   @fth = finalhomescore
-			,@fta = finalawayscore
-			,@hth = hthomescore
-			,@hta = htawayscore
-			,@goalrecord = GoalRecord
-	FROM DBPRO.bodb02.dbo.match with(NOLOCK)
-	WHERE matchid = @matchid
 	
 	IF @Product = 'BetRadar'
 	BEGIN
@@ -88,6 +80,14 @@ BEGIN
 				,@xmlData XML
 		
 		SET @xmlData = CAST(@Results AS XML)
+		
+		SELECT   @fth = finalhomescore
+				,@fta = finalawayscore
+				,@hth = hthomescore
+				,@hta = htawayscore
+				,@goalrecord = GoalRecord
+		FROM	dbo.match with(NOLOCK)
+		WHERE 	matchid = @matchid
 		
 		;WITH TmpData AS (
 			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
