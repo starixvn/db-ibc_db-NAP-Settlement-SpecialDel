@@ -123,10 +123,7 @@ BEGIN
 								ELSE LEFT(@ResultString,1) 
 							END
 			,@LastGoal = RIGHT(REPLACE(@ResultString,';',''),1)
-			,@LastGoal1H = CASE 
-								WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, CHARINDEX(';', @ResultString) - 1,1) 
-								ELSE RIGHT(@ResultString,1) 
-							END
+			,@LastGoal1H = RIGHT(@ResultString,1) 
 	
 	SET @home_firstteam2goals = CHARINDEX('H',@ResultString,(CHARINDEX('H',@ResultString)+1))
 	SET @away_firstteam2goals = CHARINDEX('A',@ResultString,(CHARINDEX('A',@ResultString)+1))	
@@ -155,14 +152,7 @@ BEGIN
 
 	IF @bettype IN (486, 487) -- Corner Race, 1H Corner Race
 	BEGIN
-		SELECT @LenResultString = LEN(CASE 
-										WHEN @bettype = 487 
-											THEN CASE 
-													WHEN CHARINDEX(';', @resultstring) > 0 THEN SUBSTRING(@ResultString, 1, CHARINDEX(';',@ResultString)) 
-													ELSE @ResultString
-												END
-										ELSE @ResultString 
-									END)
+		SELECT @LenResultString = LEN(@ResultString)
 			
 		WHILE (@Position <= @LenResultString)
 		BEGIN

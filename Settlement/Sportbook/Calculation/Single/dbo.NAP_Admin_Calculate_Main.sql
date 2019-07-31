@@ -12,6 +12,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@sporttype                     SMALLINT    = NULL
     ,@betstatus                     NVARCHAR(50)= NULL
     ,@GoalRecord                    VARCHAR(50) = NULL
+	,@goalsequenceFT				VARCHAR(50) = NULL
+	,@goalsequenceHT				VARCHAR(50) = NULL
     ,@matchCode                     NVARCHAR(50)= NULL
     ,@oddeven                       SMALLMONEY  = NULL
     ,@oddevenht                     SMALLMONEY  = NULL
@@ -247,6 +249,8 @@ BEGIN
             + CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
             + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ' + '''' + CONVERT(NVARCHAR(50), @betstatus) + '''' END
             + CASE WHEN @GoalRecord IS NULL THEN '' ELSE ',@GoalRecord = ' + '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
+			+ CASE WHEN @goalsequenceHT IS NULL THEN '' ELSE ',@goalsequenceHT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceHT) + '''' END
+			+ CASE WHEN @goalsequenceFT IS NULL THEN '' ELSE ',@goalsequenceFT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceFT) + '''' END
             + CASE WHEN @matchCode IS NULL THEN '' ELSE ',@matchCode = ' + '''' + CONVERT(NVARCHAR(50), @matchCode) + '''' END
             + CASE WHEN @oddeven IS NULL THEN '' ELSE ',@oddeven = ' + CONVERT(NVARCHAR(50), @oddeven) END
             + CASE WHEN @oddevenht IS NULL THEN '' ELSE ',@oddevenht = ' + CONVERT(NVARCHAR(50), @oddevenht) END
@@ -1580,7 +1584,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 486
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -1589,7 +1593,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 488
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -1598,7 +1602,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 490
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -1607,7 +1611,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 491
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -2088,7 +2092,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 487
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceHT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 						
@@ -2097,7 +2101,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 489
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceHT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 						
@@ -2107,7 +2111,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 492
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceHT
 						,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -3611,7 +3615,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 486
-						,@ResultString = @GoalRecord
+						,@ResultString = @goalsequenceFT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3621,7 +3625,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 488)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 488
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3631,7 +3635,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 490)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 490
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4634,7 +4638,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 486)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 486
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4644,7 +4648,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 487)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 487
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceHT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4654,7 +4658,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 488)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 488
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4664,7 +4668,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 489)
 					EXEC dbo.NAP_Admin_Calculate_13 @matchid = @matchid
                         ,@bettype = 489
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceHT
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair

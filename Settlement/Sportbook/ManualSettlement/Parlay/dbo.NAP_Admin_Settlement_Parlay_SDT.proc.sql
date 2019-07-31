@@ -55,8 +55,10 @@ BEGIN
 		,@LenGoalRecord		TINYINT
 		,@ResultCornerRace	VARCHAR(200)
 		,@ResultCornerRace1H VARCHAR(200)
-		, @xmlResultDetail		XML
-		
+		,@xmlResultDetail		XML
+		,@goalsequenceHT	VARCHAR(50)
+		,@goalsequenceFT	VARCHAR(50)
+
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
 	
 	SELECT @IsHT			= CASE WHEN @Mode IN ('ABANDONED-1H') THEN 1 ELSE 0 END 
@@ -109,18 +111,19 @@ BEGIN
 			-- for bettype 14 (FT) , 448, 454: 
 			,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 			,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')	
-						
+			,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+			,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 	FROM	cteResult r
 	WHERE r.SettlementStatusID = 4
 	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
 	
 	-- 486 Corner Race
 	BEGIN
-		SELECT @LenGoalRecord = LEN(@goalRecord)
+		SELECT @LenGoalRecord = LEN(@goalsequenceFT)
 			
 		WHILE (@Position <= @LenGoalRecord)
 		BEGIN
-			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
+			SET @Char = SUBSTRING(@goalsequenceFT, @Position, 1)
 	
 			IF @Char = 'H'	
 			BEGIN
@@ -150,14 +153,11 @@ BEGIN
 				,@AwayRaceTo = 0
 				,@Position = 1
 						
-		SELECT @LenGoalRecord = LEN(CASE 
-										WHEN CHARINDEX(';', @goalRecord) > 0 THEN SUBSTRING(@goalRecord, 1, CHARINDEX(';',@goalRecord))
-										ELSE @goalRecord
-									END)
+		SELECT @LenGoalRecord = LEN(@goalsequenceHT)
 			
 		WHILE (@Position <= @LenGoalRecord)
 		BEGIN
-			SET @Char = SUBSTRING(@goalRecord, @Position, 1)
+			SET @Char = SUBSTRING(@goalsequenceHT, @Position, 1)
 	
 			IF @Char = 'H'	
 			BEGIN
@@ -264,6 +264,8 @@ BEGIN
 								b.bettype
 								, b.betteam
 								, @GoalRecord
+								, @goalsequenceFT
+								, @goalsequenceHT
 								, @ht_fg
 								, @ht_lg
 								, @ft_fg

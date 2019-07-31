@@ -98,6 +98,8 @@ BEGIN
 			,@ht_lg 				VARCHAR(10)
 			,@ft_fg 				VARCHAR(10)
 			,@ft_lg 				VARCHAR(10)
+			,@goalsequenceHT		VARCHAR(50)
+			,@goalsequenceFT		VARCHAR(50)
 			
 			,@scorediff				SMALLINT = 0
 			,@totalgoal				SMALLINT = 0
@@ -561,7 +563,8 @@ BEGIN
 						
 						,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 						,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
-																					
+						,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+						,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')													
 				FROM	cteResult r
 				OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
 				
@@ -608,22 +611,19 @@ BEGIN
 
             SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
 					,@FirstGoal2h = CASE 
-								WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence)+1,1) 
-								ELSE LEFT(@GoalSequence,1) 
+								WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
+								ELSE LEFT(@goalsequenceFT,1) 
 							END
-					,@LastGoal = RIGHT(REPLACE(@GoalSequence,';',''),1)
-					,@LastGoal1H = CASE 
-										WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, CHARINDEX(';', @GoalSequence) - 1,1) 
-										ELSE RIGHT(@GoalSequence,1) 
-									END
+					,@LastGoal = RIGHT(REPLACE(@goalsequenceFT,';',''),1)
+					,@LastGoal1H =RIGHT(@goalsequenceHT,1)
 
 			-- 486 Corner Race
 			BEGIN
-				SELECT @LenGoalSequence = LEN(@GoalSequence)
+				SELECT @LenGoalSequence = LEN(@goalsequenceFT)
 			
 				WHILE (@Position <= @LenGoalSequence)
 				BEGIN
-					SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
+					SET @Char = SUBSTRING(@goalsequenceFT, @Position, 1)
 	
 					IF @Char = 'H'	
 					BEGIN
@@ -653,14 +653,11 @@ BEGIN
 						,@AwayRaceTo = 0
 						,@Position = 1
 						
-				SELECT @LenGoalSequence = LEN(CASE 
-												WHEN CHARINDEX(';', @GoalSequence) > 0 THEN SUBSTRING(@GoalSequence, 1, CHARINDEX(';',@GoalSequence))
-												ELSE @GoalSequence
-											END)
+				SELECT @LenGoalSequence = LEN(@goalsequenceHT)
 			
 				WHILE (@Position <= @LenGoalSequence)
 				BEGIN
-					SET @Char = SUBSTRING(@GoalSequence, @Position, 1)
+					SET @Char = SUBSTRING(@goalsequenceHT, @Position, 1)
 	
 					IF @Char = 'H'	
 					BEGIN

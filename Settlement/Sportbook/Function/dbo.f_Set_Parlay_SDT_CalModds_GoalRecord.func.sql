@@ -3,6 +3,8 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_SDT_CalModds_GoalRecord] (
 	@bettype 			SMALLINT
 	, @betteam 			VARCHAR(50)
 	, @GoalRecord		VARCHAR(50) = NULL
+	, @goalsequenceHT	VARCHAR(50) = NULL 
+	, @goalsequenceFT	VARCHAR(50) = NULL
 	, @ht_fg 			VARCHAR(10) = NULL
 	, @ht_lg 			VARCHAR(10) = NULL
 	, @ft_fg 			VARCHAR(10) = NULL
@@ -54,14 +56,11 @@ RETURN (
 				END AS [betteam423]
 				,LEFT(REPLACE(@GoalRecord,';',''),1) AS FirstGoal
 				, CASE 
-					WHEN CHARINDEX(';', @GoalRecord) > 0 THEN SUBSTRING(@GoalRecord, CHARINDEX(';', @GoalRecord)+1,1) 
-					ELSE LEFT(@GoalRecord,1) 
+					WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
+					ELSE LEFT(@goalsequenceFT,1) 
 				END AS FirstGoal2h 
-				, RIGHT(REPLACE(@GoalRecord,';',''),1) AS LastGoal
-				, CASE 
-					WHEN CHARINDEX(';', @GoalRecord) > 0 THEN SUBSTRING(@GoalRecord, CHARINDEX(';', @GoalRecord) - 1,1) 
-					ELSE RIGHT(@GoalRecord,1) 
-				END AS LastGoal1H
+				, RIGHT(REPLACE(@goalsequenceFT,';',''),1) AS LastGoal
+				, RIGHT(@goalsequenceHT,1) AS LastGoal1H
 		) AS ip
 		CROSS APPLY (
 			-- Modds calculation

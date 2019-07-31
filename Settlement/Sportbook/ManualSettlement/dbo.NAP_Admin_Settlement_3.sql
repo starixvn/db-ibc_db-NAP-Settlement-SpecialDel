@@ -53,7 +53,7 @@ BEGIN
             ,@away_2nd            	INT 
             ,@sporttype				SMALLINT
             ,@betstatus				NVARCHAR(50)
-            ,@GoalRecord			VARCHAR(50)
+            ,@GoalRecord			VARCHAR(50) 
             ,@matchCode				NVARCHAR(50)
             ,@oddeven				SMALLMONEY
             ,@oddevenht				SMALLMONEY
@@ -76,6 +76,8 @@ BEGIN
             ,@HTFT					NVARCHAR(10)
             ,@isRefundHT			BIT
             ,@WinFromBehind			NVARCHAR(1)
+			,@goalsequenceHT		VARCHAR(50)
+			,@goalsequenceFT		VARCHAR(50)
                         
             -- for tennis
             ,@TennisTotal			SMALLINT
@@ -147,6 +149,8 @@ BEGIN
 				-- for bettype 14,448
 				,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
+				,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+				,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 		FROM	cteResult r
 		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )		
     END 
@@ -287,6 +291,8 @@ BEGIN
         ,@sporttype = @sporttype
         ,@betstatus = @betstatus
         ,@GoalRecord = @GoalRecord
+		,@goalsequenceFT = @goalsequenceFT
+		,@goalsequenceHT = @goalsequenceHT
         ,@matchCode = @matchCode
         ,@oddeven = @oddeven
         ,@oddevenht = @oddevenht
