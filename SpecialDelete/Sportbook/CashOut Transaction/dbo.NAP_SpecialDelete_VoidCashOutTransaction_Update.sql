@@ -29,6 +29,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]	
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181207@Alan: Support Chinese Email [105976]
+		- 20190731@Raymond.Le: Return column for display Deposit name in Email [Redmine: #117896]
 
 */
 BEGIN	
@@ -63,6 +64,7 @@ BEGIN
 		TransDesc			NVARCHAR(1000),
 		MainStatusId		TINYINT,
 		UserName			VARCHAR(30),
+		UserName2			VARCHAR(50),
 		TransDate			DATETIME,
 		OriginalBetType		SMALLINT,
 		ExtraInfo			VARCHAR(1000),
@@ -118,6 +120,14 @@ BEGIN
 		matchid INT,
 		CONSTRAINT PK_tblCustCashOut912 PRIMARY KEY(matchid, custid)
 	) --store Cash-Out's custid	
+
+	CREATE TABLE #tblCustInfo (
+		custid INT,
+		username NVARCHAR(30),
+		username2 NVARCHAR(50),
+		currency TINYINT,
+		[site] VARCHAR(10)		
+	)
 	
 	SELECT @ErrCode	= 0
 		 , @ErrMsg = ''
@@ -854,6 +864,32 @@ BEGIN
 	-- CHECK IT GROUP or NOT ?   
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 	
+	--- Return all additional information for mailing 
+	;WITH CTE_CustIdAll AS (
+		SELECT DISTINCT t.custid
+		FROM #SpecialDeleteBets b
+		CROSS APPLY (
+			VALUES (custid)
+			,(recommend)
+			,(mrecommend)
+			,(srecommend)
+		) AS t (custid)
+	)
+	INSERT INTO #tblCustInfo (
+		custid
+		,username
+		,username2
+		,site
+		,currency
+	)
+	SELECT ci.custid
+		,ci.username
+		,ci.username2
+		,ci.site
+		,ci.currency
+	FROM CustDB.dbo.Customer AS ci WITH (NOLOCK)
+	INNER JOIN CTE_CustIdAll AS ca ON ci.custid = ca.custid		
+	
 	SELECT	d.TransId,
 			d.BetType AS BetTypeId,
 			d.BetTeam,
@@ -872,6 +908,7 @@ BEGIN
 			d.TransDesc,
 			d.MainStatusId,
 			d.UserName,
+			ci.username2,
 			d.TransDate,
 			d.OriginalBetType,
 			d.ExtraInfo,
@@ -900,18 +937,26 @@ BEGIN
 			d.SportTypeId,
 			d.IsNeutral,
 			d.MatchCode 
-	FROM #SpecialDeleteBets d		 
-		 INNER JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
-				 ON d.recommend = ag.custid
-		 INNER JOIN CustDB.dbo.Customer ma WITH(NOLOCK)
-				 ON d.mrecommend = ma.custid
-		 INNER JOIN CustDB.dbo.Customer su WITH(NOLOCK)
-				 ON d.srecommend = su.custid
+	FROM #SpecialDeleteBets AS d
+	LEFT JOIN #tblCustInfo AS ci ON d.custid = ci.custid
+	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	
+	LEFT JOIN #tblCustInfo AS ma ON d.mrecommend = ma.custid
+	LEFT JOIN #tblCustInfo AS su ON d.srecommend = su.custid
 	WHERE d.BetType NOT IN (912,913)
 	ORDER BY ag.site ASC
 		   , CASE WHEN d.BetType = 911 THEN d.TransId ELSE d.RefNo END
-		   , d.TransId		
-	
+		   , d.TransId
+		   		
+	DROP TABLE #tblTransIds
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblCashOutProcess
+	DROP TABLE #SpecialDeleteBets
+	DROP TABLE #CashOutSubTicket
+	DROP TABLE #CashOutMainTicket
+	DROP TABLE #tblCustCashOut912
+	DROP TABLE #tblCustInfo
+	DROP TABLE #CustList
+
 	SET NOCOUNT OFF
 END
 GO
