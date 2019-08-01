@@ -297,7 +297,7 @@ BEGIN
 			,@Position = 1
 			,@HomeRaceTo = 0
 			,@AwayRaceTo = 0
-			,@RemovedSemicolonResultString = REPLACE(ISNULL(@GoalSequence, ''),';','') 
+			,@RemovedSemicolonResultString = REPLACE(ISNULL(@goalsequenceFT, ''),';','') 
 			
 	SET @home_firstteam2goals = CHARINDEX('H',@GoalSequence,(CHARINDEX('H',@GoalSequence)+1))
 	SET @away_firstteam2goals = CHARINDEX('A',@GoalSequence,(CHARINDEX('A',@GoalSequence)+1))    

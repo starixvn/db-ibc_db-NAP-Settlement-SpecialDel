@@ -28,6 +28,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: Remove corner betradar, auto betradar bettypes [Redmine:#109584]
+		- 20190801@Sol: Removed unused code IsNeedToCalculateFGLG [Redmine:#115232]
 		
 	Param's explanation: 
 		
@@ -95,7 +96,6 @@ BEGIN
 		, InstantCalculationType		    TINYINT DEFAULT(0)
 		, InstantKey				    INT
 		, InstantScoreDiff			    TINYINT DEFAULT(0)
-		
 		, GoalRecordFTResultStatusId	    TINYINT
 		, FTFGNGResultStatusId		    TINYINT
 		, FTLGResultStatusId		    TINYINT
@@ -362,33 +362,6 @@ BEGIN
 			,ISNULL(m.IsExistHTFGLG,0) AS IsExistHTFGLG
 			,ISNULL(m.SingleStatus, i.IsCalculatingSingle) AS IsCalculatingSingle
 			,m.ParlayStatus AS IsCalculatingMP
-			,CASE 
-				WHEN i.HTStatus IS NOT NULL AND i.HTStatus = 1 
-					AND i.FTStatus IS NOT NULL AND i.FTStatus IN (0, 1)
-					AND i.IsHTCal = 1 
-					AND (ISNULL(m.IsExistRunningUseGoalRecordHT, 0) = 1
-						OR( m.IsExistHTFGNG = 1
-							AND ISNULL(i.HTFGNGResultStatusId,0) = 0
-						)
-						OR (m.IsExistHTLG = 1
-							AND ISNULL(i.HTLGResultStatusId,0) = 0
-						)
-					) THEN 1 --can calc HT FGLG
-				WHEN i.FTStatus IS NOT NULL AND i.FTStatus = 1
-					AND i.IsHTCal = 1
-					AND (ISNULL(m.IsExistRunningUseGoalRecordFT, 0) = 1
-						OR ( m.IsExistGoalRecordBettypeFT = 1
-							AND ISNULL(i.GoalRecordFTResultStatusId,0) <> 5
-						)
-						OR(m.IsExistFTFGNG = 1
-							AND ISNULL(i.FTFGNGResultStatusId,0) = 0
-						)
-						OR(m.IsExistFTLG = 1
-							AND ISNULL(i.FTLGResultStatusId,0) = 0
-						)
-					) THEN 1 --can calc FT FGLG
-				ELSE 0 
-			END AS IsNeedToCalculateFGLG
 			,i.suspenderHalfTime
 			,i.suspenderFullTime
 			,i.AutoSetting

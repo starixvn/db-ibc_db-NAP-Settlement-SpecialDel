@@ -1664,7 +1664,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 22
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -3702,7 +3702,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 22
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4705,7 +4705,7 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_13
                          @matchid = @matchid
                         ,@bettype = 22
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @goalsequenceFT
                         ,@betcount = 1
 						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair

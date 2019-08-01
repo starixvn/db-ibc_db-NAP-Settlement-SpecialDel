@@ -607,7 +607,7 @@ BEGIN
 					,@Position = 1
 					,@HomeRaceTo = 0
 					,@AwayRaceTo = 0
-					,@RemovedSemicolonResultString = REPLACE(ISNULL(@GoalSequence, ''),';','') 
+					,@RemovedSemicolonResultString = REPLACE(ISNULL(@goalsequenceFT, ''),';','') 
 
             SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
 					,@FirstGoal2h = CASE 
