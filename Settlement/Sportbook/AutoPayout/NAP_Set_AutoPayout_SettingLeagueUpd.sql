@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_SettingLeagueUpd] 
 	@LeagueId 			INT
 	, @AutoType			TINYINT
@@ -6,8 +6,9 @@ ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_SettingLeagueUpd]
 	, @IsApplyAll 		BIT
 	, @AdminId 			INT
 	, @IP 				VARCHAR(20) = ''
-	, @ErrCode 			INT = 0 OUTPUT
-	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
+	, @UpdatedMatchIDs	VARCHAR(MAX)=''		OUTPUT
+	, @ErrCode 			INT = 0 			OUTPUT
+	, @ErrMsg 			NVARCHAR(200) = '' 	OUTPUT
 AS
 /*	Creator: 20160303@Patrick
 	Task: Auto Payout - update setting on league
@@ -18,6 +19,7 @@ AS
 		- 20161212@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170123@Kathy: Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
+		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -27,6 +29,7 @@ AS
 			+ 1: Auto Payout
 			+ 2: Inst Calculation
 			+ 3: Fast Market
+			+ 4: BetBuilder
  
 */
 BEGIN
@@ -40,11 +43,13 @@ BEGIN
 		
 	DECLARE @tmpUpdatedMatches TABLE (matchid INT)
 		
+	SET @UpdatedMatchIDs = ''
 	SELECT	@StarTime = GETDATE()
 			,@actionLogId = CASE 
 									WHEN @AutoType = 1 THEN 159 
 									WHEN @AutoType = 2 THEN 180
 									WHEN @AutoType = 3 THEN 183
+									WHEN @AutoType = 4 THEN 81006
 									ELSE -1 
 								END
 
@@ -94,6 +99,7 @@ BEGIN
 				AND 1 = CASE 
 							WHEN @AutoType IN (1,3) AND eventstatus <> 'completed' THEN 1
 							WHEN @AutoType = 2 AND eventstatus IN ('running', 'closed') THEN 1
+							WHEN @AutoType = 4 THEN 1
 							ELSE 0 
 						END
 		
@@ -117,6 +123,12 @@ BEGIN
 	END
 
 	SELECT @EndTime = GETDATE()
+	
+	
+	--RETURN DATA
+	SELECT @UpdatedMatchIDs =  CAST(matchID AS VARCHAR) + ',' + @UpdatedMatchIDs
+	FROM @tmpUpdatedMatches
+	
 	
 	SELECT @Remark = 'NAP: Update auto setting on league:' + CAST(@LeagueId AS NVARCHAR(10)) 
 		+ ' AutoSetting:' + CAST(ISNULL(@AutoSetting, 0) AS NVARCHAR(10))

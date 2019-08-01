@@ -7,6 +7,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsExistNG				BIT = 0
 	, @IsExistVS				BIT = 0
 	, @IsExistParlayVSBetradar 	BIT = 0
+	, @IsExistBB				BIT	= 0  --BetBuilder
+	, @checkKeyValue2			BIT = 0
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
 	, @AvaiableProcess			BIT = 0 OUTPUT
@@ -24,11 +26,14 @@ AS
 	-20160413@bobby.nguyen: #55756 - Update changes for checking process
 	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 	- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
+	- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 	
  Param's Explanation:   
  
  Dependences:
 	1. CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	OR CREATE TABLE #tblMatchProcessKeyValue2 (matchid INT, KeyID TINYINT, KeyValue2 VARCHAR(20))  -- BetBuilder
+	
 */
 BEGIN
 	SET NOCOUNT ON
@@ -46,11 +51,12 @@ BEGIN
 										OR @isExistNG = 1
 										OR @isExistVS = 1
 										OR @IsExistFM = 1
+										OR @isExistBB = 1
 									) THEN 1 ELSE 0 
 								END
 	-- checking dependency				
 	IF (@isExistTempVariable = 1
-		AND OBJECT_ID('tempdb..#tblMatchProcess') IS NULL
+		AND (OBJECT_ID('tempdb..#tblMatchProcess') IS NULL AND OBJECT_ID('tempdb..#tblMatchProcessKeyValue2') IS NULL)
 	)
 	BEGIN
 		SELECT @ErrCode		= 109
@@ -67,7 +73,7 @@ BEGIN
 		BEGIN
 			IF EXISTS(
 				SELECT 1 
-				FROM dbo.SystemSettings WITH (NOLOCK) 
+				FROM dbo.SystemSettings WITH (NOLOCK)
 				WHERE VValue 	= 1 
 				AND VName 		= 'isCalculatingParlay'
 			)  
@@ -76,12 +82,12 @@ BEGIN
 					,@ErrMsg 	= 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'  
 				
 				RETURN
-			END  
+			END
 			ELSE
 			BEGIN
-				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 				SET VValue 		= '1'  
-				WHERE VName 	= 'isCalculatingParlay' 
+				WHERE VName 	= 'isCalculatingParlay'
 				
 				SET @avaiableProcess = 1
 			END
@@ -103,7 +109,7 @@ BEGIN
 			END  
 			ELSE
 			BEGIN
-				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+				UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
 				SET VValue 		= '1'  
 				WHERE VName 	= 'isCalculatingParlayVSBetradar' 
 				
@@ -141,7 +147,47 @@ BEGIN
 				SET @avaiableProcess = 1
 			END
 		END
-
+		
+		IF (@checkKeyValue2 = 1)
+		BEGIN
+			IF EXISTS(SELECT 1
+					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
+							INNER JOIN #tblMatchProcessKeyValue2 tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = tp.KeyValue2
+					  UNION ALL
+					  SELECT 1
+					  FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
+							INNER JOIN #tblMatchProcessKeyValue2 tp ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+					  WHERE tp.KeyID > 0 AND ck.KeyValue2 = '0'
+					)
+			BEGIN
+				SELECT @ErrCode = 103
+						,@ErrMsg	= 'These matches are being calculated or some tickets of matches are being voided, please wait a few seconds until the on-going process is completed and try again.'
+				SELECT @avaiableProcess = 0
+				 
+				RETURN
+			END
+			BEGIN TRY
+					
+				INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, KeyValue2) 
+				SELECT DISTINCT KeyID, matchid, KeyValue2
+				FROM #tblMatchProcessKeyValue2
+				WHERE KeyID > 0
+				
+				SET @avaiableProcess = 1
+				
+			END TRY
+			BEGIN CATCH
+				
+				SELECT @ErrCode = 103
+					,@ErrMsg	= 'These matches are being calculated or some tickets of matches are being voided, please wait a few seconds until the on-going process is completed and try again.'
+				
+				SELECT @avaiableProcess = 0	
+			END CATCH
+			
+			RETURN
+		END
+		
 		IF (@isExistTempVariable = 1)
 		BEGIN
 				 
@@ -153,6 +199,7 @@ BEGIN
 					WHEN @isExistMG = 1 		AND ck.KeyId = 3 THEN 3	-- MG
 					WHEN @isExistVS = 1 		AND ck.KeyId = 4 THEN 4	-- VS Racing
 					WHEN @isExistFM = 1 		AND ck.KeyId = 6 THEN 6	-- Fast market
+					WHEN @IsExistBB = 1			AND ck.KeyId = 5 THEN 5 -- BetBuilder
 					ELSE 0
 				END AS KeyId
 			FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
@@ -250,7 +297,18 @@ BEGIN
 		SET VValue 			= '0'
 		WHERE VName 		= 'isCalculatingNGManual'
 		AND @isExistNG 		= 1
-				
+		
+		IF (@checkKeyValue2 = 1)
+		BEGIN
+			DELETE ck
+			FROM dbo.TempVariableNumber ck
+				INNER JOIN #tblMatchProcessKeyValue2 tp
+				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+			WHERE ck.KeyValue2 = tp.KeyValue2
+			
+			RETURN
+		END
+		
 		IF (@isExistTempVariable = 1)
 		BEGIN
 			DELETE ck

@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @ErrMsg VARCHAR(500)
 	, @AdminId INT
 	, @IP VARCHAR(20)
+	, @ActionIDInput INT				= 0
 AS
 /*
 	Created: 20160325@Patrick
@@ -14,6 +15,7 @@ AS
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
 		-20180124@Benjamin: Add @IsAutoInst variable for Auto Instant [Redmine:#86964]
+		-20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -33,32 +35,38 @@ BEGIN
 		 
 	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
 
+	IF @ActionIDInput <> 0
+	BEGIN
+		SELECT @ActionId = @ActionIdInput
+	END
+	ELSE
+	BEGIN
+		SELECT @Mode = CASE 
+							WHEN CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) > 0 THEN 7
+							WHEN (
+								CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation', @sqlCommand) > 0 
+								AND 
+								CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) = 0 -- dont count undo-instant process
+							) THEN 6
+							WHEN CHARINDEX('NAP_Admin_Settlement_1_AutoPayout', @sqlCommand) > 0 THEN 5
+							WHEN CHARINDEX('NAP_Admin_Settlement_FGLG', @sqlCommand) > 0
+								OR CHARINDEX('NAP_Admin_Settlement_Refund_FGLG', @sqlCommand) > 0 THEN 2
+							WHEN CHARINDEX('NAP_Admin_Settlement_Corner', @sqlCommand) > 0 THEN 3
+							WHEN CHARINDEX('NAP_Admin_Settlement_Parlay', @sqlCommand) > 0 THEN 4
+							WHEN CHARINDEX('NAP_Admin_Settlement_1', @sqlCommand) > 0
+								OR CHARINDEX('NAP_Admin_Settlement_RefundHT', @sqlCommand) > 0
+								OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 THEN 1
+						ELSE NULL END
+		IF @Mode IS NULL
+			RETURN
 	
-	SELECT @Mode = CASE 
-						WHEN CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) > 0 THEN 7
-						WHEN (
-							CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation', @sqlCommand) > 0 
-							AND 
-							CHARINDEX('NAP_Admin_Settlement_1_InstantCalculation_Undo', @sqlCommand) = 0 -- dont count undo-instant process
-						) THEN 6
-						WHEN CHARINDEX('NAP_Admin_Settlement_1_AutoPayout', @sqlCommand) > 0 THEN 5
-						WHEN CHARINDEX('NAP_Admin_Settlement_FGLG', @sqlCommand) > 0
-							OR CHARINDEX('NAP_Admin_Settlement_Refund_FGLG', @sqlCommand) > 0 THEN 2
-						WHEN CHARINDEX('NAP_Admin_Settlement_Corner', @sqlCommand) > 0 THEN 3
-						WHEN CHARINDEX('NAP_Admin_Settlement_Parlay', @sqlCommand) > 0 THEN 4
-						WHEN CHARINDEX('NAP_Admin_Settlement_1', @sqlCommand) > 0
-							OR CHARINDEX('NAP_Admin_Settlement_RefundHT', @sqlCommand) > 0
-							OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 THEN 1
-					ELSE NULL END
-	IF @Mode IS NULL
+		SELECT @ActionId = ActionId 
+		FROM dbo.f_Set_GetListAction() 
+		WHERE Mode = @Mode AND ActionName = @Action
+		
+		IF @ActionId IS NULL
 		RETURN
-
-	SELECT @ActionId = ActionId 
-	FROM dbo.f_Set_GetListAction() 
-	WHERE Mode = @Mode AND ActionName = @Action
-
-	IF @ActionId IS NULL
-		RETURN
+	END
 	
 	SELECT @Remark = 'Failed: ' + @ErrMsg
 		, @fth = m.finalhomescore

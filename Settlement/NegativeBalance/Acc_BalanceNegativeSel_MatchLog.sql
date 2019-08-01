@@ -16,6 +16,7 @@ AS
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
 		- 20181116@Helen: action=165 Calculate Fast Markets,do NOT get for userid=111  [Redmine:82430]
 		- 20190405@Patrick: Support archive date range [Redmine: #111476]
+		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -209,7 +210,8 @@ BEGIN
 								END
 							
 							WHEN l.ActionID IN (157,158) THEN REPLACE(la.ActionNameEN,'Auto Payout - ','')
-							
+							WHEN l.ActionID = 81009 THEN 'Calculate Single Match Parlay'
+							WHEN l.ActionID = 81010 THEN 'Undo Single Match Parlay Settlement'
 							ELSE la.ActionNameEN 
 							
 						END AS ActionNameEN
@@ -223,6 +225,8 @@ BEGIN
 										END
 									ELSE REPLACE(la.ActionNameCS, 'VS BetRadar', '') --remove product name
 								END
+							WHEN l.ActionID = 81009 THEN N'结算Single Match Parlay'
+							WHEN l.ActionID = 81010 THEN N'撤消Single Match Parlay'
 							ELSE la.ActionNameCS 
 						END AS ActionNameCS
 				) AS act

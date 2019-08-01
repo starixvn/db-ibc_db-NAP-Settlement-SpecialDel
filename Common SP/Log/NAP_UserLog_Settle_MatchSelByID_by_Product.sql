@@ -1,0 +1,81 @@
+/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_UserLog_Settle_MatchSelByID_by_Product]
+		@Matchid 				INT
+		,@ProductTypeList		VARCHAR(20)
+AS
+/*
+	Creator: Vicky
+	Date: 20181228
+	Task: BetBuilder Auto/Manual Settlement
+	DB: DBLOG-bodb_CustomerLog
+
+	Revisions: 
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20190517@Kathy: archive a part of old log records to new database [Redmine: #106903]
+		
+	Param's Explanation:
+		@ProductTypeList:  list of product, separated by ","
+		
+	Example: 
+		@ProductTypeList = 'BBD'
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @__archiveDate DATETIME 		 
+	SELECT @__archiveDate = DATEADD(DAY, 1, dbo.f_CustomerLog_GetArchiveDate())
+
+	DECLARE @tblActionID TABLE (ActionID INT)
+	----------------------------------------------------------------------------
+	
+	IF @ProductTypeList LIKE '%BBD%'
+	BEGIN
+		INSERT INTO @tblActionID(ActionID)
+		VALUES (81007),(81009), (81010),(81012), (81013), (81014)
+	END 
+	
+	SELECT 
+		l.logid,
+		l.logdate AS SettlementDate,	
+		o.username,
+		la.ActionNameEN AS Action,
+		l.finalhomescore,
+		l.finalawayscore,  
+		l.hthomescore AS HalfTimeHomeScore,
+		l.htawayscore AS HalfTimeAwayScore,
+		l.GoalRecord,
+		l.betstatus,
+		l.Remark,
+		l.IP,
+		l.ActionID
+	FROM Userlog_Settle l WITH(NOLOCK)
+		INNER JOIN @tblActionID a ON a.ActionID = l.ActionID
+		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
+		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
+	WHERE	l.matchid = @matchid
+			AND l.LogDate >= @__archiveDate
+	UNION ALL
+	SELECT 
+		l.logid,
+		l.logdate AS SettlementDate,	
+		o.username,
+		la.ActionNameEN AS Action,
+		l.finalhomescore,
+		l.finalawayscore,  
+		l.hthomescore AS HalfTimeHomeScore,
+		l.htawayscore AS HalfTimeAwayScore,
+		l.GoalRecord,
+		l.betstatus,
+		l.Remark,
+		l.IP,
+		l.ActionID
+	FROM bodb_CustomerLog_Archive.dbo.Userlog_Settle l WITH(NOLOCK)
+		INNER JOIN @tblActionID a ON a.ActionID = l.ActionID
+		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
+		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
+	WHERE	l.matchid = @matchid
+			AND l.LogDate < @__archiveDate
+	ORDER BY logdate ASC
+
+END
+GO

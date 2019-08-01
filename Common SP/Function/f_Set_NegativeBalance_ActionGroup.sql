@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBLOG-bodb_CustomerLog" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBLOG-bodb_CustomerLog" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_NegativeBalance_ActionGroup] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -10,6 +10,7 @@ AS
   
   Revisions:
     - 20180104@Helen: List of ActionID for Negative Balance [Redmine:#80774]
+    - 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 
   Parameters Explanation:    
 */
@@ -55,7 +56,8 @@ RETURN (
 			,(106, 2, 1) -- Refund Mix Parlay FT
 			,(107, 2, 1) -- Refund Mix Parlay All
 			,(120, 2, 1) -- Refund Mix Parlay HT
-			
+			,(81009, 2, 1) -- CAL BetBuilder Settlement
+			,(81010, 2, 1) -- UNDO BetBuilder Settlement
         ) AS t (ActionId, GroupId, IsActive)
     ) AS t ON t.GroupId = g.GroupId
   WHERE t.IsActive = 1
