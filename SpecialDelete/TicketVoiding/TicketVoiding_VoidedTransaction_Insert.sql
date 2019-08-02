@@ -1,9 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTransaction_Insert]
-	@TransIds		VARCHAR(MAX)					
-	,@MessageId		INT
-	,@ReasonId		INT 
-	,@MatchId		INT = NULL
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTransaction_Insert] @TransIds VARCHAR(MAX)
+	,@MessageId INT
+	,@ReasonId INT
+	,@MatchId INT = NULL
+	,@IssueTypeId INT = NULL
+	,@SubIssueTypeId INT = NULL
+	,@XmlCustInfo XML
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -12,6 +14,7 @@ AS
 	
 	Revisions: 
 		- 20181221@Kathy: Create new SP [Redmine:#106655]
+		- 20190802@Raymond.Le: Insert info for dectect problem account [Redmine: #116617]
 	
 	Param's explanation:	
 		
@@ -21,14 +24,48 @@ BEGIN
 
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
 
-	INSERT INTO @tmpTransId(TransId)
-	SELECT	val
-	FROM	dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	CREATE TABLE #tblCustInfo (
+		TransId BIGINT
+		,CustId INT
+		)
 
-	INSERT INTO dbo.TicketVoiding_VoidedTransaction (TransId, MessageId, ReasonId, MatchId)
-	SELECT TransId, @MessageId, @ReasonId, @MatchId
-	FROM	@tmpTransId
+	--
+	SELECT @IssueTypeId = NULLIF(@IssueTypeId, 0)
+		,@SubIssueTypeId = NULLIF(@SubIssueTypeId, 0)
 
+	--
+	INSERT INTO @tmpTransId (TransId)
+	SELECT val
+	FROM dbo.f_SplitString(@TransIds, ',')
+	OPTION (MAXRECURSION 0)
+
+	--
+	INSERT INTO #tblCustInfo (
+		TransId
+		,CustId
+		)
+	SELECT Info.Item.value('@TransId', 'bigint')
+		,Info.Item.value('@CustId', 'int')
+	FROM @XmlCustInfo.nodes('/CustInfo/Item') AS Info(Item)
+
+	INSERT INTO dbo.TicketVoiding_VoidedTransaction (
+		TransId
+		,MessageId
+		,ReasonId
+		,MatchId
+		,IssueTypeId
+		,SubIssueTypeId
+		,CustID
+		)
+	SELECT t.TransId
+		,@MessageId
+		,@ReasonId
+		,@MatchId
+		,@IssueTypeId
+		,@SubIssueTypeId
+		,c.CustId
+	FROM @tmpTransId AS t
+		LEFT JOIN #tblCustInfo AS c ON t.TransId = c.TransId
+
+	DROP TABLE #tblCustInfo
 END
-GO
