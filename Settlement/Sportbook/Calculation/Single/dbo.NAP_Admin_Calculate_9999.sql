@@ -1505,6 +1505,7 @@ BEGIN
 				-- check winlost or status change to update SettlementTime
 				,@statusId = CASE 
 								WHEN @modds > 0 THEN 112 --WON
+								WHEN @modds = 0 THEN 111 --DRAW
 								WHEN @modds < 0 THEN 113 --LOSE
 								ELSE statusID
 							END
@@ -1517,6 +1518,7 @@ BEGIN
 												END
 										END
 									)
+								WHEN @modds = 0 THEN actual_stake
 								WHEN @modds < 0 THEN 0
 								ELSE winlost
 							END
@@ -1531,6 +1533,7 @@ BEGIN
 									END
 							END
 							) * - apositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * apositiontaking
 					ELSE awinlost
 					END
@@ -1543,6 +1546,7 @@ BEGIN
 									END
 							END
 							) * - mpositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * mpositiontaking
 					ELSE mwinlost
 					END
@@ -1555,31 +1559,37 @@ BEGIN
 									END
 							END
 							) * - spositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * spositiontaking
 					ELSE swinlost
 					END
 				,PlayerComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
 					ELSE playercomm
 					END
 				,Comm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
 					ELSE comm
 					END
 				,aComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
 					ELSE acomm
 					END
 				,sComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 					ELSE scomm
 					END
 				,STATUS = CASE 
 					WHEN @modds > 0 THEN 'WON'
+					WHEN @modds = 0 THEN 'DRAW'
 					WHEN @modds < 0 THEN 'LOSE'
 					ELSE status
 					END
