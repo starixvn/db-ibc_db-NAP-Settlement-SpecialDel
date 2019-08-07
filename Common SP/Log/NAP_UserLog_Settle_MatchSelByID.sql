@@ -1,6 +1,7 @@
 /*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_UserLog_Settle_MatchSelByID]
-	@matchid INT
+	@matchid INT, 
+	@LogType VARCHAR(20) = 'ALL'
 AS
 /*
 Created: Dan
@@ -13,6 +14,7 @@ Revisions:
 	- 20160428@Patrick: Fast market integration [Redmine: #56367]
 	- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 	- 20190411@Lukas: archive a part of old log records to new database [Redmine: #111476]
+	- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -39,6 +41,11 @@ BEGIN
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE l.matchid = @matchid
 		AND l.ActionID NOT BETWEEN 81006 AND 81014 --exclude Betbuilder
+		AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
+		AND 1 = CASE WHEN @LogType = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @LogType = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184) THEN 1 --exclude FastMarket
+						WHEN @LogType = 'ALL' THEN 1
+				END
 		AND LogDate >= @__archiveDate
 	UNION ALL
 	SELECT 
@@ -60,6 +67,11 @@ BEGIN
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE l.matchid = @matchid
 		AND l.ActionID NOT BETWEEN 81006 AND 81014 --exclude Betbuilder
+		AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
+		AND 1 = CASE WHEN @LogType = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @LogType = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184) THEN 1 --exclude FastMarket
+						WHEN @LogType = 'ALL' THEN 1
+				END
 		AND LogDate < @__archiveDate
 	ORDER BY logdate ASC
 
