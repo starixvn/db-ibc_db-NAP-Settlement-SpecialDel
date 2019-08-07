@@ -156,6 +156,12 @@ BEGIN
 		INSERT INTO #tmpTransID(TransID, modds, oddstype)
 	  	SELECT	transid, m.modds, sr.oddstype
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transId
+						AND mt.CustId = t.custid
+			)mt
 	  		CROSS APPLY(
 	  			SELECT TOP 1 pfID, HomeValue, AwayValue, t.oddstype
 	  			FROM	@tmpSelectedRID t
@@ -166,6 +172,7 @@ BEGIN
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101,102)
 				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND mt.transId IS NULL
 	END
 	ELSE IF @action = 'UNDO'
 	BEGIN
