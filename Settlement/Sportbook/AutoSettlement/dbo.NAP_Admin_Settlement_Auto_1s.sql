@@ -154,13 +154,12 @@ BEGIN
   	IF @Action = 'CAL'
   	BEGIN
 		INSERT INTO #tmpTransID(TransID, modds, oddstype)
-	  	SELECT	transid, m.modds, sr.oddstype
+	  	SELECT	b.transid, m.modds, sr.oddstype
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP (1) mt.TransId
 				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 				WHERE	mt.TransId = b.transId
-						AND mt.CustId = t.custid
 			)mt
 	  		CROSS APPLY(
 	  			SELECT TOP 1 pfID, HomeValue, AwayValue, t.oddstype
