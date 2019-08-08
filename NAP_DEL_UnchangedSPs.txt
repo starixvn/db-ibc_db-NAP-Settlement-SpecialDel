@@ -1,1 +1,2 @@
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
+SpecialDelete\Sportbook\NAP_BetTypeSel.sql
+SpecialDelete\Sportbook\TicketListing\NAP_SpecialDelete_TicketListing_Summary.sql
