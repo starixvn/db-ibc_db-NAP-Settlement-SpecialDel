@@ -12,12 +12,16 @@ AS
 	Revisions: 
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190517@Kathy: archive a part of old log records to new database [Redmine: #106903]
-		
+		- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
+
 	Param's Explanation:
 		@ProductTypeList:  list of product, separated by ","
 		
 	Example: 
-		@ProductTypeList = 'BBD'
+		@ProductTypeList = 'BBD' -- BetBuilder
+		@ProductTypeList = 'FM' -- FastMarket
+		@ProductTypeList = 'OTHERS' -- All excluded MetricGaming, FastMarket, BetBuilder
+		@ProductTypeList = 'ALL' -- All excluded MetricGaming, BetBuilder
 */
 BEGIN
 	SET NOCOUNT ON
@@ -27,12 +31,6 @@ BEGIN
 
 	DECLARE @tblActionID TABLE (ActionID INT)
 	----------------------------------------------------------------------------
-	
-	IF @ProductTypeList LIKE '%BBD%'
-	BEGIN
-		INSERT INTO @tblActionID(ActionID)
-		VALUES (81007),(81009), (81010),(81012), (81013), (81014)
-	END 
 	
 	SELECT 
 		l.logid,
@@ -49,11 +47,19 @@ BEGIN
 		l.IP,
 		l.ActionID
 	FROM Userlog_Settle l WITH(NOLOCK)
-		INNER JOIN @tblActionID a ON a.ActionID = l.ActionID
 		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE	l.matchid = @matchid
-			AND l.LogDate >= @__archiveDate
+			AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
+			AND 1 = CASE WHEN @ProductTypeList = 'BBD' AND l.ActionID IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 
+						WHEN @ProductTypeList = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @ProductTypeList = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
+																				) THEN 1 
+						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude BetBuilder
+						ELSE 0
+					END
+			AND LogDate >= @__archiveDate
 	UNION ALL
 	SELECT 
 		l.logid,
@@ -70,11 +76,19 @@ BEGIN
 		l.IP,
 		l.ActionID
 	FROM bodb_CustomerLog_Archive.dbo.Userlog_Settle l WITH(NOLOCK)
-		INNER JOIN @tblActionID a ON a.ActionID = l.ActionID
 		LEFT JOIN LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 		LEFT JOIN bodb02.dbo.CustInfo o WITH(NOLOCK) ON o.custid = l.userid
 	WHERE	l.matchid = @matchid
-			AND l.LogDate < @__archiveDate
+			AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
+			AND 1 = CASE WHEN @ProductTypeList = 'BBD' AND l.ActionID IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 
+						WHEN @ProductTypeList = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @ProductTypeList = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
+																				) THEN 1 
+						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude FastMarket
+						ELSE 0
+					END
+			AND LogDate >= @__archiveDate
 	ORDER BY logdate ASC
 
 END
