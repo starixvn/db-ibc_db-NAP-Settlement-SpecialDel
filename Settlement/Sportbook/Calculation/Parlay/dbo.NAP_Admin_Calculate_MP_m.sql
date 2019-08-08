@@ -122,7 +122,7 @@ BEGIN
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
         
-        DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT, groupname VARCHAR(50), is3x30 BIT, isAuto BIT, isEarly BIT)
+        DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT, groupname VARCHAR(50), is3x30 BIT, isEarly BIT)
             
         SET @xmlBettypes = CONVERT(XML, @strBettypes)
         
@@ -131,12 +131,11 @@ BEGIN
         SET @totalht = (@hth + @hta)
         SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)		
     
-        INSERT INTO @tblBettypes (bettype, groupId, groupname, is3x30, isAuto, isEarly)
+        INSERT INTO @tblBettypes (bettype, groupId, groupname, is3x30, isEarly)
         SELECT    T.c.value('./@t','SMALLINT')
                 ,T.c.value('./@g','SMALLINT')
                 ,T.c.value('./@n','VARCHAR(50)')
                 ,T.c.value('./@is3x','BIT')
-                ,T.c.value('./@isAuto','BIT')
                 ,T.c.value('./@isEarly','BIT')
         FROM    @xmlBettypes.nodes('/root/r') AS T(c)
         OPTION ( OPTIMIZE FOR ( @xmlBettypes = NULL ) )
@@ -2340,7 +2339,6 @@ BEGIN
 					ON r.ResourceId = rd.ResourceId
             WHERE   bm.matchid = @matchid
 					AND bm.statusID NOT IN (101, 102)  
-					AND t.groupId <> 8 -- Early Soccer
 					AND 1 = CASE 
 							WHEN @SelectedSetCAL IS NULL AND @SelectedSetREFUND IS NULL THEN 1 
                             WHEN @SelectedSetCAL LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 

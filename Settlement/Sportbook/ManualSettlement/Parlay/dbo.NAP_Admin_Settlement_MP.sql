@@ -151,9 +151,9 @@ BEGIN
 										,GroupId '@g'
 										,GroupName '@n'
 										,Is3x30 '@is3x'
-										,IsAuto '@isAuto'
 										,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
 								FROM	dbo.f_Set_GetGroupBettypes() f
+								WHERE	f.GroupId <> 8 -- Early Soccer
 								FOR XML PATH ('r'), ROOT('root'), TYPE
 							) AS VARCHAR(MAX))
 
