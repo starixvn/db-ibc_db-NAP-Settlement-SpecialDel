@@ -100,9 +100,9 @@ BEGIN
 				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 				WHERE	s.BetType = bm.bettype 
 						AND s.SettleType = 'EAR'
+						AND s.sportType = @sportType
 			) AS f
 		WHERE matchid 		= @matchId
-			AND f.SportType = @SportType
 			AND statusID	NOT IN (101, 102)
 	END
 
@@ -205,7 +205,7 @@ BEGIN
 			END
 		END
 		
-		IF @IsSettleBySetting = 0
+		IF @IsSettleBySetting = 0 AND @SelectedResources IS NULL
 		BEGIN
 			IF @Sporttype = 5 AND @action IN ('REFUND', 'CAL')--Tennis
 			BEGIN
