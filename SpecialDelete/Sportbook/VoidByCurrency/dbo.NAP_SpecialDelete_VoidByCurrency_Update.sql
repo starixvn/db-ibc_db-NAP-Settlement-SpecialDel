@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update] 
 	@MatchID			INT = 0,
 	@LicenseeNames		VARCHAR(MAX),
-	@TicketType			VARCHAR(100) = 'All',
 	@CurrencyIDs		VARCHAR(MAX),
 	@TransIDs			VARCHAR(MAX),
 	@SoldTransIds		VARCHAR(MAX) = '', -- just for BetTrade's subticket (transid of bettype 901)		
@@ -41,12 +40,9 @@ AS
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
+		- 20190228@Alan: Implement Bet Builder - [106898]
 		
-	Param's Explanation:			
-			- @TicketType:
-			'All': All
-			'SingleTicket': Single ticket
-			'ParlayTicket': Parlay ticket
+	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
@@ -56,37 +52,38 @@ BEGIN
 		 , @InvalidTransIds = ''
 	
 	-- Constant
-	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
-		  , @789y_Name	   VARCHAR(50) = '789y'	
-		  , @y987_Name	   VARCHAR(50) = 'y987'
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+	SELECT @SettlementStatus = m.SettlementStatus
+			,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WHERE m.matchid = @MatchId
+
+	DECLARE @MBCGroup_Name		VARCHAR(50) = 'MBC Group'
+		  , @789y_Name			VARCHAR(50) = '789y'	
+		  , @y987_Name			VARCHAR(50) = 'y987'	  
 		  , @cn88_Name		VARCHAR(50) = 'CN88'	  
-		  , @VoidPatchSize INT = 100
+		  , @VoidPatchSize		INT = 100
 	
-	DECLARE @LogData					NVARCHAR(500) = ''
-		  , @GeneralErrMsg				NVARCHAR(200) = 'Unable to void these tickets'
-		  , @CurrencyCodes				VARCHAR(MAX)
-		  , @SearchSingle				BIT = 0
-		  , @CountSingle				INT = 0
-		  , @SearchParlay				BIT = 0
-		  , @CountParlay				INT = 0
+	DECLARE @LogData			NVARCHAR(500) = ''
+		  , @GeneralErrMsg		NVARCHAR(200) = 'Unable to void these tickets'
+		  , @CurrencyCodes		VARCHAR(MAX)
+		  , @SearchSingle		BIT = 0
+		  , @CountSingle		INT = 0
+		  , @SearchParlay		BIT = 0
+		  , @CountParlay		INT = 0
 		  
-	DECLARE @IsExistParlay				BIT = 0		  
-		  , @isExistMatch				BIT = 0
+	DECLARE @IsExistParlay		BIT = 0		  
+		  , @isExistMatch		BIT = 0
 		  , @isExistFM					BIT = 0
-		  , @KeyID						INT
-		  , @AvaiableProcess			BIT = 1	
+		  , @IsExistBB			BIT = 0
+		  , @AvaiableProcess	BIT = 1	
+		  , @isExistBT			BIT = 0 
+		  , @isExistCashOut		BIT = 0
 		  
-	DECLARE @isExistBT	BIT = 0 
-		  , @isExistCashOut	BIT = 0
-		  
-	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''
-	
+	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
-	
-	DECLARE @tblTransIds TABLE (transid BIGINT)
-	
-	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tblTransIds TABLE (transid BIGINT)	
+	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange		
 	
@@ -235,9 +232,6 @@ BEGIN
 	
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
-	
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
 	SELECT ss.val AS LicenseeName, ss.val AS GroupName
@@ -322,23 +316,10 @@ BEGIN
 		
 		RETURN
 	END						 	  
-			
-	IF @TicketType = 'All'	
-		SELECT @SearchSingle = 1
-			 , @SearchParlay = 1	
-	ELSE IF @TicketType = 'SingleTicket'	
-		SELECT @SearchSingle = 1			 			 			 				 			 			
-	ELSE IF @TicketType = 'ParlayTicket'	
-		SELECT @SearchParlay = 1			 		 
-	ELSE
-	BEGIN					 
-		RETURN		 
-	END		
-	
+
 	BEGIN TRY	
 		-------> Get tickets to void
-		--> Get single tickets		
-		IF @SearchSingle = 1
+		--> Get single tickets	
 		BEGIN
 			INSERT INTO #SpecialDeleteBets_Single(
 						GroupID,
@@ -350,16 +331,16 @@ BEGIN
 						BetType,
 						Currency,
 						CurrencyCode,
-						Creator,						
+						Creator,
 						Hdp1,
 						Hdp2,
 						HomeId,
 						IsLiveIndicator,
-						IsNeutral,						
+						IsNeutral,
 						LiveAwayScore,
 						LiveHomeScore,
 						Odds,
-						Oddsspread,						
+						Oddsspread,
 						OddsType,
 						RefNo,
 						SportType,
@@ -377,7 +358,7 @@ BEGIN
 						custid,
 						balance,
 						betdaqid,
-						IsBetTrade,						
+						IsBetTrade,
 						BettradeGroupID,
 						ExtraInfo,
 						MainCashoutId,
@@ -404,16 +385,16 @@ BEGIN
 					b.BetType,
 					b.currency,
 					te.currency AS CurrencyCode,
-					b.Creator,					
+					b.Creator,
 					b.Hdp1,
 					b.Hdp2,
 					m.HomeId,
 					b.LiveIndicator AS IsLiveIndicator,
-					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 					b.LiveAwayScore,
 					b.LiveHomeScore,
 					b.Odds,	
-					b.Oddsspread,					
+					b.Oddsspread,
 					b.OddsType,
 					b.RefNo,
 					m.SportType,
@@ -431,14 +412,10 @@ BEGIN
 					b.custid,
 					b.winlost - b.actual_stake + b.playercomm AS balance,
 					b.betdaqid,
-					CASE WHEN b.betdaqid = 0 AND b.ExtraInfo IS NULL THEN 1 ELSE 0 END AS IsBetTrade,					
+					CASE WHEN b.betdaqid = 0 AND b.ExtraInfo IS NULL THEN 1 ELSE 0 END AS IsBetTrade,
 					b.transid AS BettradeGroupID,
 					b.ExtraInfo,
-					CASE
-						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-								THEN b.transid
-						ELSE NULL
-					END AS MainCashoutId,
+					CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId,
 					b.awinlost,
 					b.matchid,
 					b.WalletType,
@@ -451,7 +428,7 @@ BEGIN
 					NULL AS SubBetType,
 					NULL AS SubHdp1,
 					NULL AS SubHdp2,
-					NULL AS SubOdds		
+					NULL AS SubOdds	
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -673,9 +650,7 @@ BEGIN
 			
 			DELETE bd
 			FROM #SpecialDeleteBets_Single bd
-				 INNER JOIN #tblCashOutProcess rp
-						 ON bd.TransId = rp.transid							
-							AND rp.IsAvailable = 0	
+				 INNER JOIN #tblCashOutProcess rp ON bd.TransId = rp.transid AND rp.IsAvailable = 0	
 			SET @CountSingle = @CountSingle - @@ROWCOUNT										
 					
 			-- return invalid transId	
@@ -1174,9 +1149,9 @@ BEGIN
 					 LEFT JOIN match m WITH (NOLOCK)
 							 ON b.matchid = m.matchid
 					 LEFT JOIN CustDB.dbo.exchange te WITH(NOLOCK)
-							 ON b.currency = te.exchangeid											 								 
+							 ON b.currency = te.exchangeid
 					
-				SET @CountSingle = @CountSingle + @@ROWCOUNT																		
+				SET @CountSingle = @CountSingle + @@ROWCOUNT
 				
 				--Insert multiple cash-out transaction (912,913)
 				INSERT INTO #CashOutTransActive(bettype, transId, MainTransId)
@@ -1186,8 +1161,8 @@ BEGIN
 							ON sub911.transId = sub_912_913.refno
 							   AND sub911.matchid = sub_912_913.matchid							   					
 							   AND sub_912_913.bettype IN (912,913)
-							   AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT													
-				
+							   AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT
+							   				
 				--insert custCashOut912
 				INSERT INTO @tblCustCashOut912( custid)
 				SELECT DISTINCT custid
@@ -1196,8 +1171,7 @@ BEGIN
 			END		
 		END
 		
-		--> Get parlay tickets		
-		IF @SearchParlay = 1
+		--> Get parlay tickets	
 		BEGIN
 			INSERT INTO #SpecialDeleteBets_Parlay(
 						Stake,
@@ -1317,17 +1291,16 @@ BEGIN
 				AND main.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 				AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND main.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
-				AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)					
-			
-			SET @CountParlay = @@ROWCOUNT
-		END				
-		
+				AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
+			SET @CountParlay = @@ROWCOUNT				
+		END
+
 		-------> Check No ticket found
 		IF @CountSingle + @CountParlay = 0
 		BEGIN			
 			IF @InvalidTransIds = ''
 				SELECT @ErrorCode = 99
-					 , @ErrorMsg = 'No ticket found.'						
+					 , @ErrorMsg = 'No ticket found.'
 			
 			-------> releasing cash-out process
 			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -1341,15 +1314,19 @@ BEGIN
 		BEGIN
 			IF @CountSingle > 0
 			BEGIN
-				SELECT	@isExistMatch = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 0 ELSE 1 END)
-						,@isExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
-				FROM	#SpecialDeleteBets_Single
+
+				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND BetType NOT BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
+					,@isExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
+				FROM #SpecialDeleteBets_Single b
 					 			 
-							
+
 				INSERT INTO #tblMatchProcess (matchid, KeyID)
-				SELECT @matchid AS matchid ,1 AS KeyID WHERE @isExistMatch = 1
+				SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1 
 				UNION ALL
 				SELECT @matchid AS matchid ,6 AS KeyID WHERE @isExistFM = 1
+				UNION ALL
+				SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1  
 			END
 			
 			IF @CountParlay > 0
@@ -1357,13 +1334,14 @@ BEGIN
 				
 			-------> Check concurrent single, parlay
 			EXEC dbo.NAP_Admin_CheckingProcess
-				  @IsReleased	= 0								
+				  @IsReleased	= 0
 				, @isExistMatch		= @isExistMatch	
 				, @isExistFM		= @isExistFM				
-				, @IsExistParlay	= @IsExistParlay				
+				, @IsExistParlay	= @IsExistParlay
+				, @isExistBB		= @isExistBB
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
-				, @ErrMsg			= @ErrorMsg OUTPUT															
+				, @ErrMsg			= @ErrorMsg OUTPUT
 				
 			IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
 			BEGIN				
@@ -1371,10 +1349,9 @@ BEGIN
 				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 						@Mode = 'Original'
 					  , @Action = 'Void'
-					  , @IsReleased = 1				
-				
+					  , @IsReleased = 1
 				RETURN
-			END									
+			END
 		END
 		
 		INSERT INTO #t_CustID_501(custid)
@@ -2056,7 +2033,8 @@ BEGIN
 			  @IsReleased		= 1						
 			, @isExistMatch		= @isExistMatch	
 			, @isExistFM		= @isExistFM		
-			, @isExistParlay  = @isExistParlay
+			, @isExistBB		= @isExistBB		
+			, @isExistParlay	= @isExistParlay
 			
 		-------> releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2126,6 +2104,7 @@ BEGIN
 				s.SubBetTeam,
 				s.SubBetCheck,
 				@SettlementStatus AS SettlementStatus,
+				@GlobalShowTime AS GlobalShowTime,
 				-----------------------
 				s.custid,
 				s.UserName,
@@ -2190,8 +2169,8 @@ BEGIN
 			  , @IsReleased = 1						  
 	
 		SELECT @ErrorCode = 100,
-				@ErrorMsg = @GeneralErrMsg											
-							
+				@ErrorMsg = @GeneralErrMsg
+
 		RETURN				
 	END CATCH		
 			

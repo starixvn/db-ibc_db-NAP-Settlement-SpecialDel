@@ -47,6 +47,7 @@ AS;
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190220@Alan: Separate a function from Void By Bet ID to void main parlay ticket [108969]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20190227@Alan: Implement Bet Builder - [106898]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -446,7 +447,7 @@ BEGIN
 	BEGIN
 		DELETE b
 		FROM #Data b
-		WHERE b.bettype IN (9, 29, 2799)
+		WHERE b.bettype IN (9, 29, 2799, 38)
 	END
 	
 	-- update MainTransId
@@ -1138,6 +1139,8 @@ BEGIN
 		,c.site AS LicenseeName
 		,m.SettlementStatus
 		,d.IsMarked
+		,m.GlobalShowTime
+		,c.custid
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid

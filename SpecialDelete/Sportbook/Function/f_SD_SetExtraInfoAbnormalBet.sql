@@ -28,7 +28,8 @@ BEGIN
 	DECLARE @XmlData XML = CAST(ISNULL(@ExtraInfo, '') AS XML)
 	
 	-- Add the T-SQL statements to compute the return value here
-	IF(@SportType NOT BETWEEN 1 AND 99 OR @BetType IN (10,29,2799,801,803,804,805,806))
+	IF(	@SportType NOT BETWEEN 1 AND 99 OR 
+		@BetType IN (10,29,38,2799,901,902,903,904,911,912,913,914,801,803,804,805,806))
 	BEGIN
 		SET @Result = @ExtraInfo
 	END

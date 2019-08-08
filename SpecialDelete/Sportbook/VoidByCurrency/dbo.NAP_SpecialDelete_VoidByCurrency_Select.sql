@@ -21,6 +21,7 @@ AS;
 		- 20181004@Alan: Add new column SettlementStatus [102423]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20190228@Alan: Implement Bet Builder - [106898]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -38,9 +39,15 @@ BEGIN
 	
 	DECLARE @SearchSingle BIT
 		  , @SearchParlay BIT
-	
-	CREATE TABLE #SpecialDeleteBets
+
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+	SELECT @SettlementStatus = m.SettlementStatus
+			,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WHERE m.matchid = @MatchId
+CREATE TABLE #SpecialDeleteBets
              (GroupID               BIGINT,
+	
               Stake                 MONEY,
               AwayId                INT,
               BetCheck              NVARCHAR(50),
@@ -161,10 +168,7 @@ BEGIN
 	ELSE IF @TicketType = 'SingleTicket'
 		SET @SearchSingle = 1
 	ELSE IF @TicketType = 'ParlayTicket'
-		SET @SearchParlay = 1		
-		
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	   
+		SET @SearchParlay = 1
 	
 	--> single
 	IF @SearchSingle = 1
@@ -178,7 +182,7 @@ BEGIN
 					BetTeam,
 					BetType,
 					CurrencyCode,
-					Creator,					
+					Creator,
 					Hdp1,
 					Hdp2,
 					HomeId,
@@ -227,7 +231,7 @@ BEGIN
 				b.BetTeam,
 				b.BetType,
 				te.currency AS CurrencyCode,
-				b.Creator,				
+				b.Creator,
 				b.Hdp1,
 				b.Hdp2,
 				m.HomeId,
@@ -257,11 +261,7 @@ BEGIN
 				b.betdaqid,	
 				CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBetTrade,
 				b.ExtraInfo,
-				CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				END AS MainCashoutId,
+				CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId,
 				b.custid,
 				b.WalletType,
 				b.RefCode,
@@ -294,13 +294,14 @@ BEGIN
 			AND b.betfrom <> 'P' -- exclude phone betting
 			AND b.matchid = @MatchID -- filer for @MatchID	
 			AND b.bettype <> 500 -- exclude charge comm
+			AND b.bettype <> 38 -- exclude Bet Builder
 			
 			AND b.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
 			AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 			AND b.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 			AND b.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
-			AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)											
-		
+			AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
+					
 		-- delete cash-out member bet tickets
 		DELETE t
 		FROM #SpecialDeleteBets t
@@ -421,10 +422,7 @@ BEGIN
 						b.betdaqid,	
 						CASE WHEN b.betdaqid = 0 THEN 1 ELSE 0 END AS IsBetTrade,				
 						b.ExtraInfo,
-						CASE
-							WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-									THEN b.transid
-							ELSE NULL
+						CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL
 						END AS MainCashoutId,				
 						b.custid,
 						b.WalletType,
@@ -855,6 +853,7 @@ BEGIN
 		
 	--> parlay
 	IF @SearchParlay = 1	
+	BEGIN
 		INSERT INTO #SpecialDeleteBets(
 					Stake,
 					AwayId,
@@ -964,8 +963,116 @@ BEGIN
 			AND main.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 			AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 			AND main.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
-			AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)										 							 	
-	
+			AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
+		-- Insert Bet Builder
+		INSERT INTO #SpecialDeleteBets(
+					GroupID,
+					Stake,
+					AwayId,
+					BetCheck,
+					BetId,
+					BetTeam,
+					BetType,
+					CurrencyCode,
+					Creator,
+					Hdp1,
+					Hdp2,
+					HomeId,
+					IsLiveIndicator,
+					IsNeutral,
+					IsSecondAcceptFlag,
+					LiveAwayScore,
+					LiveHomeScore,
+					Odds,
+					Oddsspread,
+					IsMixParlay,
+					OddsType,
+					RefNo,
+					SportType,
+					Status,
+					TransDate,
+					TransDesc,
+					TransId,
+					UserName,
+					NetWinLost,
+					srecommend,
+					GroupName,
+					betdaqid,
+					IsBetTrade,	
+					ExtraInfo,
+					MainCashoutId,
+					custid,	
+					WalletType,
+					RefCode,
+					BonusID,
+					SubTransId,
+					SubStatus
+				)
+		SELECT 	b.transid AS GroupID,
+				b.Stake,
+				m.AwayId,
+				b.BetCheck,
+				b.BetId,
+				b.BetTeam,
+				b.BetType,
+				te.currency AS CurrencyCode,
+				b.Creator,
+				b.Hdp1,
+				b.Hdp2,
+				m.HomeId,
+				b.LiveIndicator AS IsLiveIndicator,
+				ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+				b.SecAcceptFlag AS IsSecondAcceptFlag,
+				b.LiveAwayScore,
+				b.LiveHomeScore,
+				b.Odds,
+				b.Oddsspread,
+				0 AS IsMixParlay,
+				b.OddsType,
+				b.RefNo,
+				m.SportType,
+				CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP 
+					THEN 'waiting' ELSE b.status END AS STATUS,
+				b.TransDate,
+				b.TransDesc,
+				b.TransId,
+				b.UserName,
+				b.WinLost - b.actual_stake AS NetWinLost,
+				b.srecommend,
+				tl.GroupName AS GroupName,
+				b.betdaqid,	
+				CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBetTrade,
+				b.ExtraInfo,
+				CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+						THEN b.transid ELSE NULL END AS MainCashoutId,
+				b.custid,
+				b.WalletType,
+				b.RefCode,
+				b.BonusID,
+				b.TransId AS SubTransId,
+				b.status AS SubStatus
+		FROM bettrans b WITH (NOLOCK)
+			 INNER JOIN #t_exchanges te WITH (NOLOCK)
+					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
+			 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+					 ON b.recommend = c.custid
+			 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
+					 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
+			 INNER JOIN match m WITH (NOLOCK)
+					 ON b.matchid = m.matchid			 							 		 
+		WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only			
+			AND b.bettype = 38 -- Bet Builder
+			AND b.statusID NOT IN (101, 102) -- reject, void
+			AND b.betfrom <> 'P' -- exclude phone betting
+			AND b.matchid = @MatchID -- filer for @MatchID
+			
+			AND b.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
+			AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
+			AND b.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
+			AND b.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
+			AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)	
+	END
+
 	SELECT 
 		s.Stake,
 		s.AwayId,
@@ -1014,7 +1121,8 @@ BEGIN
 		s.SubOdds,
 		s.SubStatus,
 		@SettlementStatus AS SettlementStatus,
-		s.IsMarked
+		s.IsMarked,
+		@GlobalShowTime AS GlobalShowTime
 	FROM #SpecialDeleteBets s					 
 		 CROSS APPLY (SELECT CASE
 									WHEN EXISTS (SELECT d.custid 
@@ -1032,14 +1140,7 @@ BEGIN
 		   , s.GroupName ASC
 		   , s.IsMixParlay ASC
 		   , ISNULL(s.MainTransId, s.transid) ASC									 
-		   , CASE 
-				WHEN s.BonusID IS NOT NULL
-						THEN CASE 
-								WHEN s.MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE s.transid
-			 END							 
+		   , CASE WHEN s.BonusID IS NOT NULL THEN CASE WHEN s.MainTransId IS NULL THEN 1 ELSE 2 END ELSE s.transid END							 
 			
 	SET NOCOUNT OFF
 END

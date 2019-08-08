@@ -73,6 +73,7 @@ AS
 	  - 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
 	  - 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 	  - 20190718@Charles: Drop table #CTE_CustInfo [115870]
+	  - 20190228@Alan: Implement Bet Builder - [106898]
 
 	 Param's Explanation:   
 	*/
@@ -95,6 +96,7 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
+			,@IsExistBB					BIT = 0
 			,@Remark					VARCHAR (500) = ''
 			,@startTime					DATETIME
 			,@isExistLucky3		BIT = 0
@@ -834,6 +836,7 @@ BEGIN
 			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 	FROM	#BetDelete
 	
@@ -843,7 +846,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT DISTINCT matchid
 		, CASE 
-			WHEN Bettype NOT IN (9, 29, 2799, 10) 
+			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
 					AND Bettype NOT BETWEEN 801 AND 899
 					AND Bettype NOT BETWEEN 221 AND 227
 					AND Bettype NOT IN (1231,1232,1233)
@@ -852,6 +855,7 @@ BEGIN
 			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
 			WHEN Bettype BETWEEN 221 AND 227 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			ELSE 0
 		END AS KeyID
 	FROM #BetDelete
@@ -864,6 +868,7 @@ BEGIN
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS
+		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
@@ -2588,6 +2593,7 @@ BEGIN
 		, @isExistMatch				= @isExistMatch
 		, @isExistNG				= @isExistNG
 		, @isExistVS				= @isExistVS
+		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @IsReleased				= 1
 		
@@ -2680,6 +2686,7 @@ BEGIN
 		,b.Hdp1 AS Handicap1
 		,b.Hdp2 AS Handicap2
 		,m.SettlementStatus
+		,m.GlobalShowTime
 		--------------------
 		,ci.username
 		,ci.username2

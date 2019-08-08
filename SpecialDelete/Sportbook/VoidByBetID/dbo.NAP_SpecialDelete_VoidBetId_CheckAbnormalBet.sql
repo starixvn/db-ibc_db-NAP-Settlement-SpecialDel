@@ -11,6 +11,7 @@ AS
 
 	Revisions:  
 		- 20190625@Raymond.Le: Create new SP [Redmine: #115583]
+		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -86,6 +87,7 @@ BEGIN
 		AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
 		AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
+		AND b.bettype NOT IN (38) -- Bet Builder
 		AND b.statusID NOT IN (101, 102)
 		
 	-- invalid transId
@@ -121,12 +123,12 @@ BEGIN
 			END
 	FROM t_invalid
 
-	SELECT @DifferentMatchTransIds = STUFF((
-				SELECT ', ' + CAST(v.transid AS VARCHAR(100))
+	SELECT @DifferentMatchTransIds = ISNULL(STUFF((
+				SELECT ',' + CAST(v.transid AS VARCHAR(100))
 				FROM #validTransId AS v
 				WHERE v.isInMatch = 0
 				FOR XML PATH('')
-				), 1, 2, '')
+				), 1, 1, ''), '')
 
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId

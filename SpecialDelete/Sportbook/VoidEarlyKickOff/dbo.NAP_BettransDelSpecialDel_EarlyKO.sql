@@ -89,6 +89,7 @@ Revisions:
 	- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 	- 20190718@Charles: Drop table #CTE_CustInfo [115870]
+	- 20190301@Alan: Implement Bet Builder - [106898]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -111,13 +112,14 @@ BEGIN
 		,@Remark VARCHAR(500) 
 		,@CountTransId	INT 
 	 
-	DECLARE @isExistMatch  BIT = 0  
-		, @isExistMG  BIT = 0 
+	DECLARE @isExistMatch		BIT = 0  
+			,@isExistMG			BIT = 0 
 		, @isExistFM  BIT = 0 
-		, @isExistParlay BIT = 0  
-		, @avaiableProcess BIT = 0  
-		, @isExistBT	BIT = 0 
-		, @isExistCashOut	BIT = 0
+			,@isExistParlay		BIT = 0  
+			,@avaiableProcess	BIT = 0  
+			,@isExistBT			BIT = 0 
+			,@isExistCashOut	BIT = 0
+			,@IsExistBB			BIT = 0
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 	
@@ -248,8 +250,13 @@ BEGIN
 		 , @ErrMsg = ''
 		 , @InvalidTransIds = ''
 
-	SELECT @eventdate = eventdate   
-	FROM match WITH (NOLOCK)  
+	DECLARE @SettlementStatus TINYINT = NULL
+			,@GlobalShowTime SMALLDATETIME
+
+	SELECT @eventdate = m.eventdate 
+		,@SettlementStatus = m.SettlementStatus 
+		,@GlobalShowTime = m.GlobalShowTime
+	FROM dbo.match m WITH (NOLOCK)  
 	WHERE matchid = @matchid  
 
 	IF NOT EXISTS (  
@@ -362,22 +369,18 @@ BEGIN
 				ELSE 1
 		  END = 1
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
-	
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId	
 
 	BEGIN --SD checking process  
-	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (9, 29) 
+	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
 										AND b.Bettype NOT BETWEEN 801 AND 806 
 										AND b.bettype NOT BETWEEN 221 AND 227
 									THEN 1 ELSE 0 END)  
-		,@isExistMG  = MAX (CASE WHEN b.Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)  
+			
 		,@isExistFM  = MAX (CASE WHEN b.Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
+			,@isExistBB		= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 	FROM dbo.bettrans b WITH (NOLOCK)  
-		INNER JOIN #tblTransIds t   
-		ON t.transid = b.transid  
-		INNER JOIN #tblBettype tp   
-		ON tp.Id = b.bettype  
+		INNER JOIN #tblTransIds t ON t.transid = b.transid  
+		INNER JOIN #tblBettype tp ON tp.Id = b.bettype  
 		WHERE b.matchid = @matchid  
 
 	IF (ISNULL(@isExistMG, 0) = 0   
@@ -413,16 +416,19 @@ BEGIN
 	SELECT @matchid AS matchid, 3 AS KeyID WHERE @isExistMG = 1  
 	UNION ALL  
 	SELECT @matchid AS matchid, 6 AS KeyID WHERE @isExistFM = 1  
+	UNION ALL
+	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1  
 
 	-- check and not allow attempt to void tickets of this match while it's being calculated  
 	EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay   = @isExistParlay  
-		, @isExistMG  = @isExistMG  
+		@isExistParlay		= @isExistParlay  
+		, @isExistMG		= @isExistMG  
 		, @isExistFM  = @isExistFM  
-		, @isExistMatch  = @isExistMatch  
+		, @isExistMatch		= @isExistMatch  
+		, @isExistBB		= @isExistBB
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
-		, @ErrCode   = @ErrCode OUTPUT  
-		, @ErrMsg   = @ErrMsg OUTPUT  
+		, @ErrCode			= @ErrCode OUTPUT  
+		, @ErrMsg			= @ErrMsg OUTPUT  
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0)   
 	BEGIN		
@@ -954,6 +960,7 @@ BEGIN
 				@isExistParlay  = @isExistParlay  
 				, @isExistMG  	= @isExistMG  
 				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
 				, @IsReleased  	= 1  
 		
 		------ releasing cash-out process
@@ -2315,10 +2322,11 @@ BEGIN
 		
 		------ releasing SD process  
 		EXEC dbo.NAP_Admin_CheckingProcess  
-				  @isExistParlay  = @isExistParlay  
+				@isExistParlay	= @isExistParlay  
 				, @isExistMG  	= @isExistMG  
 				, @isExistFM  = @isExistFM  
 				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
 				, @IsReleased  	= 1
 		
 		------ releasing cash-out process
@@ -2421,6 +2429,7 @@ BEGIN
 			,al.choiceBetTeam AS SubBetteam
 			,al.ChoiceBetCheck AS SubBetCheck
 			,@SettlementStatus AS SettlementStatus
+			,@GlobalShowTime AS GlobalShowTime
 			-----------------------------  
 			,ci.currency
 			,ci.username

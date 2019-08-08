@@ -8,7 +8,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 	
 	@ErrCode			INT				= 0		OUTPUT,
 	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
-	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT
+	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT,
+	@AutoReSettledTransIds   VARCHAR(MAX)	= '' OUTPUT
 AS
 /*
 	Created: Kathy
@@ -53,6 +54,7 @@ AS
 		- 20190220@Alan: Support New Ticket Status Abnormal Bet [106654]
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket [Redmine:#108826]
 		- 20190529@Raymond.Le: Implement recover for ScoreBox bettype (468, 469) [Redmine:#108826]
+		- 20190305@Alan: Implement Bet Builder - [106898]
 		
 	Param's Explanation:
 */
@@ -68,6 +70,7 @@ BEGIN
 			,@isExistFM			BIT = 0
 			,@isExistBT			BIT = 0
 			,@isExistCashOut	BIT = 0
+			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 
 	SELECT	@before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
@@ -236,11 +239,7 @@ BEGIN
 				,b.srecommend
 				,b.SecAcceptFlag
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -327,22 +326,10 @@ BEGIN
 				,b.srecommend
 				,b.SecAcceptFlag
 				,b.ExtraInfo
-				,CASE 
-					WHEN b.betdaqid = 0 AND b.extrainfo is null 
-							THEN 1
-					ELSE 0
-				 END AS IsBettrade
-				,CASE 
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 
-							THEN 1
-					ELSE 0
-				 END AS IsCashOut
+				,CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBettrade
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN 1 ELSE 0 END AS IsCashOut
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -350,12 +337,12 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
-				ON	b.transid = z.transid																		
+				ON	b.transid = z.transid
 					AND z.custid = b.custid
 					AND z.matchid = b.matchid
-					AND z.bettype = b.bettype						
+					AND z.bettype = b.bettype
 			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON m.matchid = b.matchid		
+				ON m.matchid = b.matchid
 		WHERE	z.bettype NOT BETWEEN 801 AND 806
 				AND b.winlostdate >= @before_yesterday
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
@@ -436,11 +423,7 @@ BEGIN
 				,o.teamid
 				,0 AS awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
+				,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -496,21 +479,9 @@ BEGIN
 					,b.srecommend
 					,b.SecAcceptFlag
 					,b.ExtraInfo
-					,CASE 
-						WHEN b.betdaqid = 0 AND b.extrainfo is null 
-								THEN 1
-						ELSE 0
-					 END AS IsBettrade
-					,CASE 
-						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 
-								THEN 1
-						ELSE 0
-					 END AS IsCashOut				
-					,CASE
-						WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-								THEN b.transid
-						ELSE NULL
-					 END AS MainCashoutId
+					,CASE WHEN b.betdaqid = 0 AND b.extrainfo is null THEN 1 ELSE 0 END AS IsBettrade
+					,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN 1 ELSE 0 END AS IsCashOut				
+					,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
@@ -635,9 +606,9 @@ BEGIN
 		FROM #tblCashOutProcess
 		WHERE IsAvailable = 0					
 		
-		--- check exists BT + Cash-out or not
-		SELECT @isExistBT 	= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-			 , @isExistCashOut = MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+		--- check exists BT, Cash-out, Bet Builder
+		SELECT @isExistBT 		= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+			 , @isExistCashOut	= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
 		FROM #tblTransInfo
 		
 		IF (@isExistBT = 1 AND ISNULL(@TransIdSolds, '') <> '')
@@ -1020,11 +991,11 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
+				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
 				WHEN bettype BETWEEN 221 AND 227 THEN 6
-				ELSE 0 
-			END AS KeyId
+				WHEN Bettype = 38 THEN 5 -- Bet Builder
+				ELSE 0 END AS KeyId
 		FROM #tblTransInfo
 	)
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
@@ -1035,6 +1006,7 @@ BEGIN
 	SELECT @isExistMatch 	= MAX(CASE WHEN KeyId = 1 THEN 1 ELSE 0 END )
 		, @isExistMG 		= MAX(CASE WHEN KeyId = 3 THEN 1 ELSE 0 END )
 		, @isExistFM 		= MAX(CASE WHEN KeyId = 6 THEN 1 ELSE 0 END )
+		, @isExistBB		= MAX(CASE WHEN KeyId = 5 THEN 1 ELSE 0 END)
 	FROM #tblMatchProcess
 	
 	-- checking SD proccess
@@ -1042,6 +1014,7 @@ BEGIN
 		@isExistMatch		= @isExistMatch
 		, @isExistMG 		= @isExistMG
 		, @isExistFM 		= @isExistFM
+		, @isExistBB		= @isExistBB
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -1580,6 +1553,42 @@ BEGIN
 					AND b.[Status] IN ('Accept', 'Confirm')
 		END
 	END
+
+	-- Re-Cal Bet Builder
+	IF(@IsExistBB = 1)
+	BEGIN
+		BEGIN TRY
+			CREATE TABLE #BetBuilderTransId(TransId BIGINT PRIMARY KEY);
+			INSERT INTO #BetBuilderTransId
+			SELECT b.TransId FROM #tblTransInfo b
+			WHERE b.bettype = 38;
+
+			DECLARE @xmlData xml;
+			SET @xmlData = (SELECT TransId AS [@Id] FROM #BetBuilderTransId 
+			FOR XML PATH('Resource'), ROOT('Resources'));
+
+			DECLARE @Resources VARCHAR(MAX) = CAST(@xmlData AS VARCHAR(MAX));
+
+			EXEC dbo.NAP_Admin_Settlement_BetBuilder_Recover
+				@AdminId = @UserId, @Resources = @Resources, @Ip = @Ip
+				,@ErrCode	= @ErrCode	OUTPUT
+				,@ErrMsg	= @ErrMsg	OUTPUT
+			
+			SET @AutoReSettledTransIds = ''			
+			SELECT @AutoReSettledTransIds = @AutoReSettledTransIds
+											+ CASE WHEN @AutoReSettledTransIds <> '' THEN ',' ELSE '' END
+											+ CAST(t.Transid AS VARCHAR(100))
+			FROM #BetBuilderTransId t
+				 INNER JOIN bettrans b (NOLOCK) ON t.TransId = b.transid
+			WHERE b.statusID IN (111, 112, 113, 103)
+
+			DROP TABLE #BetBuilderTransId;
+		END TRY 
+		BEGIN CATCH
+			SELECT @ErrCode = 38
+				,@ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'
+		END CATCH
+	END
 	
 	-- get data after update
 	INSERT INTO @tblAfterBalance(matchid, custid, balanceType, BonusID, WalletType, balance)
@@ -1749,7 +1758,7 @@ BEGIN
 		inner JOIN match m WITH(NOLOCK) 
 			ON	t.matchid = m.matchid
 	where	m.eventstatus = 'completed'
-			and t.bettype <> 10
+			and t.bettype NOT IN (10, 38)
 	UNION ALL
 	select	t.transid AS inputtransid,
 			t.custid,
@@ -1821,6 +1830,7 @@ BEGIN
 		@isExistMG 			= @isExistMG
 		, @isExistMatch		= @isExistMatch
 		, @isExistFM 		= @isExistFM
+		, @isExistBB		= @isExistBB
 		, @IsReleased		= 1	
 		
 	------ releasing cash-out process
@@ -1957,6 +1967,7 @@ BEGIN
 			,t.WalletType
 			,t.RefCode
 			,m.SettlementStatus
+			,m.GlobalShowTime
 	FROM CTE t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	ORDER BY site
