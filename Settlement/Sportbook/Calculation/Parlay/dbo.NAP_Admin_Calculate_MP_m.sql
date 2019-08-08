@@ -226,6 +226,7 @@ BEGIN
 				)q
             WHERE matchid = @matchid                 
                 AND statusID NOT IN (101, 102)
+				AND t.groupId <> 8 -- Early Soccer
                 AND 1 = CASE WHEN @SelectedSetREFUND IS NULL AND @SelectedSetCAL IS NULL THEN 1 
                              WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '801%' THEN 1  --Exclude 1324
                              WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '802%' THEN 1
@@ -275,7 +276,7 @@ BEGIN
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
             WHERE	matchid = @matchid 
-					AND t.groupId NOT IN (1,3,5)
+					AND t.groupId NOT IN (1,3,5,8)
 					AND statusID NOT IN (101, 102)
 				
             UPDATE pd
@@ -403,6 +404,7 @@ BEGIN
 				)r
             WHERE matchid = @matchid  
                 AND statusID NOT IN (101, 102, 1)
+				AND t.groupId <> 8 -- Early Soccer
                 AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
                              WHEN @SelectedSet LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
                              WHEN @SelectedSet LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '802%' THEN 1
