@@ -393,8 +393,8 @@ BEGIN
 		ON m.matchid = ext.matchid
 	
 	-- check bettransm
-	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId)
-	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId
+	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
+	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
 	FROM (
 		SELECT TOP (@n) MatchId FROM #matchList
 	) AS m
