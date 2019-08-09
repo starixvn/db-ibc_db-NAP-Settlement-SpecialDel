@@ -207,9 +207,16 @@ BEGIN
 																			END
 											ELSE NULL
 										END		
-				WHEN bettype IN (486, 487) 
+				WHEN bettype IN (486, 487)
 					THEN CASE
-							WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
+							WHEN betteam IN ('H', 'A')
+								THEN CASE
+										WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
+										WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) 
+														+ CASE 
+															WHEN betteam = 'H' THEN 'A' 
+															ELSE 'H' 
+															END, @result) > 0 THEN -1
 							WHEN betteam = 'N' AND hdp1 < @NeitherRaceTo THEN - 1
 							ELSE NULL
 						END
