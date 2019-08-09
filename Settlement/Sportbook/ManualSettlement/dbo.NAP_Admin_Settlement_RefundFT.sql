@@ -308,7 +308,8 @@ BEGIN
 					-- for bettype 14,448
 					@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 					, @ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')					
-					
+					,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+					,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 			FROM	cteResult r
 			OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )				
 		END
