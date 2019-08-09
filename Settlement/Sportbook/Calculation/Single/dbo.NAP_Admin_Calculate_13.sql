@@ -217,6 +217,8 @@ BEGIN
 															WHEN betteam = 'H' THEN 'A' 
 															ELSE 'H' 
 															END, @result) > 0 THEN -1
+										ELSE NULL
+									END
 							WHEN betteam = 'N' AND hdp1 < @NeitherRaceTo THEN - 1
 							ELSE NULL
 						END
