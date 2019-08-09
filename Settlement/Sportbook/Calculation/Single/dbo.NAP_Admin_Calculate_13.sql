@@ -226,7 +226,7 @@ BEGIN
 							THEN CASE
 								WHEN betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(CAST(betid AS VARCHAR(50)),2) AS INT),1) = 'H' THEN 1
 								WHEN betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(CAST(betid AS VARCHAR(50)),2) AS INT),1) = 'A' THEN 1
-								WHEN betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(CAST(betid AS VARCHAR(50)),2) AS INT),1) = '' THEN NULL
+								WHEN SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(CAST(betid AS VARCHAR(50)),2) AS INT),1) = '' THEN NULL
 								ELSE -1
 							END
 				ELSE NULL

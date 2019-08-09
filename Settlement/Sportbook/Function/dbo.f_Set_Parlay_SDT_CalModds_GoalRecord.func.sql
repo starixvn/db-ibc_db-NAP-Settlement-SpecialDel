@@ -192,7 +192,7 @@ RETURN (
 							THEN CASE
 								WHEN @betteam = '1' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
 								WHEN @betteam = '2' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
-								WHEN @betteam = 'X' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN NULL
+								WHEN SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN NULL
 								ELSE -1
 							END
 					---------------------------------------
