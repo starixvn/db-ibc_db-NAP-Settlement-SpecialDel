@@ -121,6 +121,7 @@ BEGIN
         DECLARE    @comparedValue SMALLMONEY    --@totalht - 0.5 -- Get tickets had result 
         SELECT    @comparedValue = CASE 
 									WHEN @bettype IN (8,403,404,463,464,484,485) THEN @totalht - 0.25 -- Apply half WON|LOSE
+									WHEN @bettype = 476 THEN @totalht
 									ELSE @totalht - 0.5 -- full Winloss
 								END
 
