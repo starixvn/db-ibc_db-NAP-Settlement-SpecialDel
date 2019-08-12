@@ -908,6 +908,30 @@ RETURN (
 																				ELSE CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5))
 																				END, @transdesc
 																			) = 0 THEN 1
+																WHEN CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) AND IP.TotalGoal >= 15 THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				ELSE CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5))
+																				END, @transdesc
+																			) > 0
+																			AND 
+																			CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				END, @transdesc
+																			) > 0 THEN -1
 																ELSE NULL END
 								ELSE CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 AND @betteam = '0/8+' THEN 1
 											WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 AND @betteam = '1/9+' THEN 1

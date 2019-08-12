@@ -81,6 +81,7 @@ BEGIN
 		,@winlost MONEY
 		,@totalHTScore	TINYINT
 		,@totalFTScore	TINYINT
+		,@ResultPlus NVARCHAR(10)
     
     SELECT @fth2H = @fth - @hth
         ,@fta2H	= @fta - @hta
@@ -797,6 +798,17 @@ BEGIN
 											WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
 											ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
 										END
+						END, 
+				@ResultPlus = CASE WHEN @bettype = 493 
+								THEN CASE WHEN (@hth + @hta) = 0 THEN '0/8+'
+											WHEN (@hth + @hta) = 1 THEN '1/9+'  
+											WHEN (@hth + @hta) = 2 THEN '2/10+'
+											WHEN (@hth + @hta) = 3 THEN '3/11+'
+											WHEN (@hth + @hta) = 4 THEN '4/12+'
+											WHEN (@hth + @hta) = 5 THEN '5/13+'
+											WHEN (@hth + @hta) = 6 THEN '6/14+'
+											WHEN (@hth + @hta) IN (7,8,9) THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+										END
 						END
 			-- process batch by batch
         WHILE @BatchNo > 0
@@ -1384,7 +1396,12 @@ BEGIN
 															END
 														WHEN @IsHTCal = 1 THEN -- suspended in FT
 															CASE 
-																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 ELSE NULL END
+																WHEN betteam = 'AOS' THEN 
+																						CASE 
+																							WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 
+																							WHEN CHARINDEX(@result, transdesc) > 0 AND CHARINDEX(@ResultPlus, transdesc) > 0 THEN -1 
+																							ELSE NULL 
+																						END
 																ELSE 
 																	CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
 																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
