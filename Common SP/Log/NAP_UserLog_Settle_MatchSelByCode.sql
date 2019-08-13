@@ -1,18 +1,20 @@
-CREATE PROCEDURE [NAP_UserLog_Settle_MatchSelByCode] 
+/*<info serverAlias="DBAGE-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [NAP_UserLog_Settle_MatchSelByCode] 
 	@MatchCode varchar(50) = '',
 	@FromDate DATETIME = '',
 	@ToDate DATETIME = '',
 	@BalanceUpDay DATETIME = ''
 AS
 /*
-Created: Dan
-Date: 20121003
-Task : View match info - settlement log
-DB: DBAGE/bodb02
-Original: Acc_UserLog_Settle_MatchSelByCode
+	Created: Dan
+	Date: 20121003
+	Task : View match info - settlement log
+	DB: DBAGE/bodb02
+	Original: Acc_UserLog_Settle_MatchSelByCode
 
-Revisions: 	
-	- 20130121@Dan: change linked server DB06 to DBARC
+	Revisions: 	
+		- 20130121@Dan: change linked server DB06 to DBARC
+		- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
 	
 */
 SET NOCOUNT ON
@@ -31,17 +33,15 @@ DECLARE  @TMP_ALL_MatchInfo TABLE (
 									awayid INT, 
 									eventdate DATETIME, 
 									leagueid INT, 
-									isneutral BIT, 
 									sporttype INT,
 									showtime nvarchar(50),
-									homeid2 INT
+									matchcode nvarchar(50)
 								)
 
 IF @Todate >= @BalanceUpDay    
 BEGIN
 	INSERT INTO @TMP_ALL_MatchInfo
-	SELECT matchid , homeid , awayid ,  eventdate , leagueid, isneutral, sporttype, showtime, 
-		   ISNULL(homeid2,0) as homeid2  -- contains bettype of Live Casino 
+	SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
 	FROM match WITH (NOLOCK)
 	WHERE (matchId = @matchid or matchcode = @MatchCode )
 		and eventdate BETWEEN @FromDate and @ToDate
@@ -50,8 +50,7 @@ BEGIN
 		SELECT @BalanceUpDay=@FromDate  
 
 	INSERT INTO @TMP_ALL_MatchInfo
-	SELECT matchid , homeid , awayid ,  eventdate , leagueid, isneutral, sporttype, showtime,
-		   ISNULL(homeid2,0) as homeid2  -- contains bettype of Live Casino 
+	SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
 	FROM match14 WITH (NOLOCK)
 	WHERE (matchId = @matchid or matchcode = @MatchCode )
 		and eventdate BETWEEN @BalanceUpDay and @ToDate
@@ -63,23 +62,14 @@ BEGIN
 		SELECT @ToDate = DATEADD(dd, -1, @BalanceUpDay)  
 
 	INSERT INTO @TMP_ALL_MatchInfo
-	SELECT matchid , homeid , awayid , eventdate , leagueid, isneutral, sporttype, showtime,
-		   ISNULL(homeid2,0) as homeid2  -- contains bettype of Live Casino 
+	SELECT matchid , homeid , awayid , eventdate , leagueid, sporttype, showtime, matchcode
 	FROM DBARC.bodb_Archive.dbo.match_BK WITH (NOLOCK) 
 	WHERE (matchId = @matchid or matchcode = @MatchCode )
 		AND eventdate BETWEEN @FromDate and @ToDate
 END
 
-SELECT t.matchid , t.homeid , t.awayid , t.eventdate , t.leagueid, isneutral, sporttype, showtime, homeid2 
+SELECT t.matchid , t.homeid , t.awayid , t.eventdate , t.leagueid, sporttype, showtime, matchcode
 FROM @TMP_ALL_MatchInfo t
 
 
 GO
-
-GRANT EXECUTE ON [NAP_UserLog_Settle_MatchSelByCode] TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION ON [NAP_UserLog_Settle_MatchSelByCode] TO [vnteam] AS [dbo]
-GO
-
-
