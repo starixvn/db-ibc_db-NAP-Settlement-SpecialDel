@@ -19,9 +19,11 @@ AS
 		
 	Example: 
 		@ProductTypeList = 'BBD' -- BetBuilder
-		@ProductTypeList = 'FM' -- FastMarket
-		@ProductTypeList = 'OTHERS' -- All excluded MetricGaming, FastMarket, BetBuilder
-		@ProductTypeList = 'ALL' -- All excluded MetricGaming, BetBuilder
+		@ProductTypeList = 'FMK' -- FastMarket
+		@ProductTypeList = 'OTH' -- All - excluded MetricGaming, FastMarket, BetBuilder, Number Game, Happy 5
+		@ProductTypeList = 'ALL' -- All - excluded MetricGaming, BetBuilder, Number Game, Happy 5
+		@ProductTypeList = 'NBG' -- Number game
+		@ProductTypeList = 'HPF' -- Happy 5
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,11 +54,15 @@ BEGIN
 	WHERE	l.matchid = @matchid
 			AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
 			AND 1 = CASE WHEN @ProductTypeList = 'BBD' AND l.ActionID IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 
-						WHEN @ProductTypeList = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
-						WHEN @ProductTypeList = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+						WHEN @ProductTypeList = 'FMK' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @ProductTypeList = 'NBG' AND l.ActionID IN (115, 116, 117, 118, 119) THEN 1
+						WHEN @ProductTypeList = 'HPF' AND l.ActionID IN (81000, 81001) THEN 1
+						WHEN @ProductTypeList = 'OTH' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+																				115, 116, 117, 118, 119, -- exclude NumberGame
+																				81000, 81001, -- exclude Happy 5
 																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
 																				) THEN 1 
-						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude BetBuilder
+						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude NumberGame, Happy5, BetBuilder
 						ELSE 0
 					END
 			AND LogDate >= @__archiveDate
@@ -81,11 +87,15 @@ BEGIN
 	WHERE	l.matchid = @matchid
 			AND l.ActionID NOT IN (152, 153, 154) --exclude MetricGaming
 			AND 1 = CASE WHEN @ProductTypeList = 'BBD' AND l.ActionID IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 
-						WHEN @ProductTypeList = 'FM' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
-						WHEN @ProductTypeList = 'OTHERS' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+						WHEN @ProductTypeList = 'FMK' AND l.ActionID IN (143, 144, 165, 166, 167, 183, 184) THEN 1
+						WHEN @ProductTypeList = 'NBG' AND l.ActionID IN (115, 116, 117, 118, 119) THEN 1
+						WHEN @ProductTypeList = 'HPF' AND l.ActionID IN (81000, 81001) THEN 1
+						WHEN @ProductTypeList = 'OTH' AND l.ActionID NOT IN (143, 144, 165, 166, 167, 183, 184, --exclude FastMarket
+																				115, 116, 117, 118, 119, -- exclude NumberGame
+																				81000, 81001, -- exclude Happy 5
 																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
 																				) THEN 1 
-						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude FastMarket
+						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude NumberGame, Happy5, BetBuilder
 						ELSE 0
 					END
 			AND LogDate >= @__archiveDate
