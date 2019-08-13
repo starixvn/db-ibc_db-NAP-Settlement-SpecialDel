@@ -41,6 +41,7 @@ AS
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 		- 20190228@Alan: Implement Bet Builder - [106898]
+		- 20190812@Charles: Add new column IsMarked [118437]
 		
 	Param's Explanation:
 */
@@ -145,7 +146,8 @@ BEGIN
 			SubBetType			SMALLINT,
 			SubHdp1				SMALLMONEY,
 			SubHdp2				SMALLMONEY,
-			SubOdds				MONEY
+			SubOdds				MONEY,
+			IsMarked			BIT
 	)	
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -153,6 +155,7 @@ BEGIN
 		 ,custid	INT
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
+		 ,IsMarked	BIT
 	)
 	
 	SELECT * INTO #SpecialDeleteBets_Single FROM #SpecialDeleteBets WHERE 1 = 0	
@@ -374,7 +377,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds		
+						SubOdds,
+						IsMarked		
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
@@ -428,7 +432,8 @@ BEGIN
 					NULL AS SubBetType,
 					NULL AS SubHdp1,
 					NULL AS SubHdp2,
-					NULL AS SubOdds	
+					NULL AS SubOdds,
+					CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked	
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -439,7 +444,8 @@ BEGIN
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 				 INNER JOIN match m WITH (NOLOCK)
-						 ON b.matchid = m.matchid				 							 		 
+						 ON b.matchid = m.matchid
+				 LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON t.transid = mt.TransId
 			WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
@@ -458,11 +464,11 @@ BEGIN
 			SET @CountSingle = @@ROWCOUNT						
 			
 			-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets			
-			INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
-			SELECT RefCode, custid, bettype, MAX(transid)
+			INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, IsMarked, transid)
+			SELECT RefCode, custid, bettype, IsMarked, MAX(transid)
 			FROM #SpecialDeleteBets_Single
 			WHERE RefCode IS NOT NULL		
-			GROUP BY RefCode, custid, bettype
+			GROUP BY RefCode, custid, bettype, IsMarked
 			HAVING COUNT(*) = 1
 
 			IF @@ROWCOUNT > 0
@@ -520,7 +526,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds		
+							SubOdds,
+							IsMarked		
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
@@ -578,7 +585,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds	
+						NULL AS SubOdds,
+						r.IsMarked	
 				FROM #tmpRefCodeSummary r
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = r.RefCode
@@ -768,7 +776,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds
+							SubOdds,
+							IsMarked
 						)
 				SELECT  tmpmain.TransId AS GroupID,
 						tmpmain.Stake,
@@ -822,7 +831,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						tmpmain.IsMarked
 				FROM #SpecialDeleteBets_Single tmpmain										
 					 INNER JOIN #BTTransActive sub
 							 ON tmpmain.transid = sub.refno															
@@ -897,7 +907,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds
+							SubOdds,
+							IsMarked
 						)
 				OUTPUT inserted.transid
 					 , inserted.bettype 
@@ -965,7 +976,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						tmpmain.IsMarked
 				FROM dbo.bettrans sub WITH(NOLOCK)
 					 INNER JOIN #SpecialDeleteBets_Single tmpmain
 							 ON	sub.refno = tmpmain.transid	
@@ -1033,7 +1045,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds		
+						SubOdds,
+						IsMarked		
 					)
 				SELECT  sub911.TransId AS GroupID,
 						b.Stake,
@@ -1089,7 +1102,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						b.IsMarked
 				FROM #CashOutTransActive sub911					 
 					 CROSS APPLY (
 						SELECT b.Stake,
@@ -1127,8 +1141,10 @@ BEGIN
 							b.WalletType,
 							b.RefCode,
 							b.BonusID,
-							b.matchid
+							b.matchid,
+							CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 						FROM dbo.bettrans b WITH (NOLOCK)
+						LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId
 						WHERE b.refno = sub911.transid
 						AND b.matchid = sub911.matchid
 						AND b.bettype = sub911.OriginalBetType
@@ -1218,7 +1234,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds		
+						SubOdds,
+						IsMarked		
 					)
 			SELECT  main.Stake,
 					m.AwayId,
@@ -1264,7 +1281,8 @@ BEGIN
 					sub.bettype AS SubBetType,
 					sub.hdp1 AS SubHdp1,
 					sub.hdp2 AS SubHdp2,
-					sub.odds AS SubOdds		
+					sub.odds AS SubOdds,
+					CAST(0 AS BIT) AS IsMarked	
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER JOIN dbo.bettransm sub WITH (NOLOCK)	
 						 ON t.transid = sub.transid
@@ -2115,6 +2133,7 @@ BEGIN
 				ac.username AS AgUserName,
 				mc.username AS MagUserName,
 				sc.username AS SagUserName,
+				s.IsMarked,
 				-----------------------
 				CASE
 					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 

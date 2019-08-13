@@ -99,7 +99,7 @@ CREATE TABLE #SpecialDeleteBets
               SubHdp2               SMALLMONEY,
               SubOdds               MONEY,
               SubStatus             NVARCHAR(10),
-		    IsMarked			 BIT
+			  IsMarked			 	BIT
              );
    CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,

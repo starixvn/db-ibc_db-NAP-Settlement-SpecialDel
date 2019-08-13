@@ -120,7 +120,7 @@ BEGIN
               RefCode               BIGINT,
               BonusID               INT,
               MainTransId           BIGINT,
-		    IsMarked			 BIT
+			  IsMarked			 	BIT
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,

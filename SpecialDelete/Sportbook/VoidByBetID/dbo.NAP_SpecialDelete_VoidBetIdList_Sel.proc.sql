@@ -124,7 +124,7 @@ BEGIN
               RefCode               BIGINT,
               BonusID               INT,
               MainTransId           BIGINT,
-		    IsMarked			 BIT
+			  IsMarked			 BIT
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -132,7 +132,7 @@ BEGIN
               matchid INT,
               bettype SMALLINT,
               transid BIGINT,
-		    IsMarked BIT
+		      IsMarked BIT
              );
 
 	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
