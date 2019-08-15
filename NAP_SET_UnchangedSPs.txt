@@ -22,3 +22,4 @@ Settlement\Sportbook\NAP_Set_MatchSelCompletedHT.sql
 Settlement\Sportbook\Result\NAP_Set_MatchGetResult.sql
 Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_RefundFT.sql
 Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_RefundHT.sql
+Settlement\Sportbook\Service\AutoPayout\NAP_Set_AutoPayout_MatchChecking.sql
