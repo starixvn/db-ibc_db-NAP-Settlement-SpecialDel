@@ -114,7 +114,7 @@ BEGIN
 			,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
 			,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 	FROM	cteResult r
-	WHERE r.SettlementStatusID = 4
+	WHERE r.SettlementStatusID > 0
 	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
 	
 	-- 486 Corner Race
@@ -264,8 +264,8 @@ BEGIN
 								b.bettype
 								, b.betteam
 								, @GoalRecord
-								, @goalsequenceFT
 								, @goalsequenceHT
+								, @goalsequenceFT
 								, @ht_fg
 								, @ht_lg
 								, @ft_fg
@@ -283,7 +283,7 @@ BEGIN
 					WHERE b.matchId = @matchId
 				) AS b FOR XML AUTO
 			) AS VARCHAR(MAX))
-					
+
 			IF(@strTicket IS NOT NULL)
 			BEGIN
 				EXEC dbo.NAP_Admin_Calculate_MP_broker 
