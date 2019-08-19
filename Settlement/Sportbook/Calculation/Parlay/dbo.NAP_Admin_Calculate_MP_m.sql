@@ -2122,10 +2122,10 @@ BEGIN
 									END
 						-- 1H Total Corners
 						WHEN 474 THEN 
-									CASE WHEN betteam = '0-2' and @totalgoal <= 2 THEN 1
-										WHEN betteam = '3-4' and @totalgoal in (3,4) THEN 1
-										WHEN betteam = '5-6' and @totalgoal in (5,6) THEN 1
-										WHEN betteam = '7+' and @totalgoal >= 7 THEN 1
+									CASE WHEN betteam = '0-2' and @totalht <= 2 THEN 1
+										WHEN betteam = '3-4' and @totalht in (3,4) THEN 1
+										WHEN betteam = '5-6' and @totalht in (5,6) THEN 1
+										WHEN betteam = '7+' and @totalht >= 7 THEN 1
 										ELSE -1 
 									END
 						-- Alternative Corners
