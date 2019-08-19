@@ -158,7 +158,7 @@ RETURN (
 										THEN CASE
 												WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam, @ResultCornerRace1H) > 0 THEN 1 
 												WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) 
-													+ CASE WHEN @betteam = 'H' THEN 'A' ELSE 'H' END, @ResultCornerRace1H) > 0 THEN 1 
+													+ CASE WHEN @betteam = 'H' THEN 'A' ELSE 'H' END, @ResultCornerRace1H) > 0 THEN -1 
 												ELSE NULL
 												END
 									WHEN @betteam = 'N' AND @hdp1 < @NeitherRaceTo1H THEN -1
