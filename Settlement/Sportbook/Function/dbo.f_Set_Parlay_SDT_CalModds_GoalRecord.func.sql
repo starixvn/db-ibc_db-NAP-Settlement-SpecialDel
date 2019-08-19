@@ -149,7 +149,7 @@ RETURN (
 														+ CASE WHEN @betteam = 'H' THEN 'A' ELSE 'H' END, @ResultCornerRace) > 0 THEN -1
 												ELSE NULL
 											END
-									WHEN @betteam = 'N' AND @NeitherRaceTo < @hdp1 THEN -1
+									WHEN @betteam = 'N' AND @hdp1 < @NeitherRaceTo THEN -1
 									ELSE NULL
 								END
 					-- 1H Corners Race
@@ -161,7 +161,7 @@ RETURN (
 													+ CASE WHEN @betteam = 'H' THEN 'A' ELSE 'H' END, @ResultCornerRace1H) > 0 THEN 1 
 												ELSE NULL
 												END
-									WHEN @betteam = 'N' AND @NeitherRaceTo1H < @hdp1 THEN -1
+									WHEN @betteam = 'N' AND @hdp1 < @NeitherRaceTo1H THEN -1
 									ELSE NULL
 								END
 					-- First Corner, 1H First Corner
