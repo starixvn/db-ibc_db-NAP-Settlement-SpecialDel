@@ -678,10 +678,9 @@ BEGIN
 		,b.transdesc
 		,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked				
 	FROM dbo.translog b WITH (NOLOCK)  
-		INNER JOIN #tblTransIds t   
-		ON t.transid = b.translogid  
-		INNER JOIN #tblBettype tp   
-		ON tp.Id = b.GameIDLEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.TranslogID = m.TransId
+		INNER JOIN #tblTransIds t ON t.transid = b.translogid  
+		INNER JOIN #tblBettype tp ON tp.Id = b.GameID
+		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.TranslogID = m.TransId
 	WHERE b.transdate >= @KickOffDate  
 		AND b.GameID IN (805, 806)   
 		AND b.liveindicator = 0  
@@ -763,17 +762,11 @@ BEGIN
 			,sub.creator 
 			,main.statusID AS mainstatusID 
 		FROM dbo.bettransm AS sub WITH (NOLOCK)  
-			INNER JOIN #tblTransIds t   
-			ON t.transid = sub.transid  
-			INNER JOIN dbo.bettrans main WITH (NOLOCK)   
-			ON sub.refno = main.refno   
-			 AND main.matchid IN (9,29)  
-			INNER JOIN #tblBettype tp   
-			ON tp.Id = main.bettype    
-			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)  
-			ON c.custid = sub.custid  
-			INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK)  
-			ON cr.custid = main.creator  
+			INNER JOIN #tblTransIds t ON t.transid = sub.transid  
+			INNER JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid IN (9,29)  
+			INNER JOIN #tblBettype tp ON tp.Id = main.bettype    
+			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = sub.custid  
+			INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON cr.custid = main.creator  
 		WHERE sub.matchid = @matchid  
 			AND sub.transdate >= @KickOffDate  
 			AND sub.liveindicator = 0  

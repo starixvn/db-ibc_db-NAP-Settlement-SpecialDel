@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_EarlyKO] @MatchID     INT,
                                                           @KickOffDate DATETIME,
                                                           @BetTypes    XML      = NULL
@@ -54,7 +54,7 @@ AS;
 	- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]		  
 	- 20190301@Alan: Implement Bet Builder - [106898]
-
+	- 20190812@Charles: Add new column IsMarked [118437]
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
 	- @BetTeam6: bettype=6: Total Goal; bettype = 126: 1st Total Goal

@@ -22,6 +22,7 @@ AS;
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190228@Alan: Implement Bet Builder - [106898]
+		- 20190812@Charles: Add new column IsMarked [118437]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All

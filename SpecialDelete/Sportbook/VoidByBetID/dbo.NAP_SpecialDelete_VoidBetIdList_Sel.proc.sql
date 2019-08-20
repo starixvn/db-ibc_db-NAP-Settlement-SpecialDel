@@ -48,7 +48,7 @@ AS;
 		- 20190220@Alan: Separate a function from Void By Bet ID to void main parlay ticket [108969]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190227@Alan: Implement Bet Builder - [106898]
-
+		- 20190812@Charles: Add new column IsMarked [118437]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
