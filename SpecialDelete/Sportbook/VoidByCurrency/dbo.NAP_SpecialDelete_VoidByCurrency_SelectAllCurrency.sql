@@ -26,8 +26,3 @@ BEGIN
 	SET NOCOUNT OFF
 END
 GO
-
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_VoidByCurrency_SelectAllCurrency]  TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_VoidByCurrency_SelectAllCurrency]  TO [vnteam] AS [dbo]
-GO

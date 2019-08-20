@@ -114,6 +114,3 @@ BEGIN
     SET NOCOUNT OFF
 END
 GO
-GRANT EXECUTE ON [dbo].[Acc_SpecialDel_CheckMatchIDwithRefno] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[Acc_SpecialDel_CheckMatchIDwithRefno] TO [vnteam] AS [dbo]

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main] 
 	@BetType				VARCHAR(20)		= 'All',
 	@TransIds				VARCHAR(MAX)	= '',

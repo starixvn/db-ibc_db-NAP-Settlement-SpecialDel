@@ -37,12 +37,4 @@ BEGIN
 	END
 END
 
-
-
-
 GO
-GRANT EXECUTE ON [dbo].[Dot_Msg_SetUsrMessage] TO [bodbAdminNet]
-GO
-GRANT EXECUTE ON [dbo].[Dot_Msg_SetUsrMessage] TO [Dot_Admin]
-GO
-GRANT VIEW DEFINITION ON [dbo].[Dot_Msg_SetUsrMessage] TO [vnteam]

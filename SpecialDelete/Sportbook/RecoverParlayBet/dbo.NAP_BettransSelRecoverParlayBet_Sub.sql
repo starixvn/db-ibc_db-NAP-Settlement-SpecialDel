@@ -264,8 +264,3 @@ BEGIN
 				   AND bm14.matchid = @MatchId		
 END
 GO
-
-GO
-GRANT EXECUTE ON [dbo].[NAP_BettransSelRecoverParlayBet_Sub] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_BettransSelRecoverParlayBet_Sub] TO [vnteam] AS [dbo]

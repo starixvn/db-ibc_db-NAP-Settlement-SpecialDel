@@ -62,6 +62,3 @@ BEGIN
 END
 
 GO
-GRANT EXECUTE ON [dbo].[Acc_MatchSelByID] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[Acc_MatchSelByID] TO [vnteam] AS [dbo]

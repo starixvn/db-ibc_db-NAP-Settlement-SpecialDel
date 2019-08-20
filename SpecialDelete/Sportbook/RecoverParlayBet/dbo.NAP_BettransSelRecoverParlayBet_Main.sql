@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Main] 
 	@BetType		VARCHAR(20) = 'all'
 	,@TransIds		VARCHAR(MAX)	= ''
@@ -176,10 +176,4 @@ BEGIN
 	FROM @tblTransIds t
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet r WHERE r.transid = t.transid)
 END
-GO
-
-GO
-GRANT EXECUTE ON [dbo].[NAP_BettransSelRecoverParlayBet_Main] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_BettransSelRecoverParlayBet_Main] TO [vnteam] AS [dbo]
 GO

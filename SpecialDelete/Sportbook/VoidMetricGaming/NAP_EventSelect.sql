@@ -47,11 +47,4 @@ BEGIN
     ORDER BY GameID,Custom1
 END
 
-
-
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_EventSelect] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_EventSelect] TO [vnteam] AS [dbo]

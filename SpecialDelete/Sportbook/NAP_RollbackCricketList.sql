@@ -64,6 +64,3 @@ BEGIN
 
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_RollbackCricketList] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_RollbackCricketList] TO [vnteam] AS [dbo]

@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-BODB_ACC" executers="bodbAdminNet" viewers="vnteam" isFunction="0" isNested="0"></info>*/
+﻿/*<info serverAlias="DBACC-BODB_ACC" executers="bodbAdminNet" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_MailingListUpd]
 	@Userid INT,		
 	@Siteid INT = 0, 
