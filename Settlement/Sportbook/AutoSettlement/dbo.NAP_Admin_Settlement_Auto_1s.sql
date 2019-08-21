@@ -335,6 +335,7 @@ BEGIN
 	SELECT @SelectedResources = @SelectedResources
 			+ T.c.value('@Id', 'VARCHAR(20)')
 			+ '(' + T.c.value('@Home', 'VARCHAR(50)')
+			+ CASE WHEN T.c.value('@Away', 'VARCHAR(50)') IS NOT NULL THEN '-' + T.c.value('@Away', 'VARCHAR(50)') ELSE '' END
 			+ '),'
 	FROM	@xmlResults.nodes('Resources/Resource') T(c)
 
