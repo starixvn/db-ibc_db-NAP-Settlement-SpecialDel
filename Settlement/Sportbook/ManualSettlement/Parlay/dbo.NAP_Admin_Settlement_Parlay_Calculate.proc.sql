@@ -100,6 +100,7 @@ BEGIN
 						END
 
 	DECLARE @FirstGoal NVARCHAR(50) 
+			,@FirstGoal1H 	VARCHAR(1)
 			,@FirstGoal2H	VARCHAR(1)
 			,@LastGoal		VARCHAR(1)
 			,@LastGoal1H	VARCHAR(1)
@@ -286,6 +287,7 @@ BEGIN
 	END
 	
 	SELECT  @FirstGoal=''
+			,@FirstGoal1H = ''
 			,@GoalSequence = ISNULL(@GoalSequence, '')
 			,@FirstGoal2H = ''
 			,@LastGoal = ''
@@ -336,6 +338,7 @@ BEGIN
 	END
 
 	SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
+			,@FirstGoal1H = LEFT(@goalsequenceHT,1)
 			,@FirstGoal2h = CASE 
 						WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
 						ELSE LEFT(@goalsequenceFT,1) 
@@ -551,6 +554,7 @@ BEGIN
 						, @SelectedSetREFUND										
 						, @WinFromBehind
 						, @FirstGoal
+						, @FirstGoal1H
 						, @FirstGoal2H
 						, @LastGoal
 						, @LastGoal1H

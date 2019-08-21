@@ -37,6 +37,7 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @SelectedSetREFUND VARCHAR(50) = NULL
 	, @WinFromBehind NVARCHAR(1)
 	, @FirstGoal NVARCHAR(50)
+	, @FirstGoal1H VARCHAR(1)
 	, @FirstGoal2H VARCHAR(1)
 	, @LastGoal VARCHAR(1)
 	, @LastGoal1H VARCHAR(1)
@@ -1556,8 +1557,8 @@ RETURN (
 							END
 				-- 1H First Corner
 				WHEN 489 THEN CASE
-								WHEN @betteam = @FirstGoal THEN 1
-								WHEN @FirstGoal = '' THEN 0
+								WHEN @betteam = @FirstGoal1H THEN 1
+								WHEN @FirstGoal1H = '' THEN 0
 								ELSE -1
 							END
 				-- 2H First Corner

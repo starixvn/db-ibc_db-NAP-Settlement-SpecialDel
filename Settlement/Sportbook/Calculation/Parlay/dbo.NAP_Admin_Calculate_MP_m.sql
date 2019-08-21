@@ -581,6 +581,7 @@ BEGIN
                                 ELSE CAST(@fth AS nvarchar(10)) + ':' + CAST(@fta AS nvarchar(10))
                                 END
             DECLARE		@FirstGoal		NVARCHAR(50) 
+						,@FirstGoal1H	VARCHAR(1)
 						,@FirstGoal2H	VARCHAR(1)
 						,@LastGoal		VARCHAR(1)
 						,@LastGoal1H	VARCHAR(1)
@@ -599,6 +600,7 @@ BEGIN
 
             SELECT  @GoalSequence = ISNULL(@GoalSequence, '')
 					,@FirstGoal=''
+					,@FirstGoal1H = ''
 					,@FirstGoal2H = ''
 					,@LastGoal = ''
 					,@LastGoal1H = ''
@@ -613,6 +615,7 @@ BEGIN
 					,@ResultAOS = ''
 
             SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
+					,@FirstGoal1H = LEFT(@goalsequenceHT,1)
 					,@FirstGoal2h = CASE 
 								WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
 								ELSE LEFT(@goalsequenceFT,1) 
@@ -2206,8 +2209,8 @@ BEGIN
 									END
 						-- 1H First Corner
 						WHEN 489 THEN CASE
-										WHEN bm.betteam = @FirstGoal THEN 1
-										WHEN @FirstGoal = '' THEN 0
+										WHEN bm.betteam = @FirstGoal1H THEN 1
+										WHEN @FirstGoal1H = '' THEN 0
 										ELSE -1
 									END
 						-- 2H First Corner

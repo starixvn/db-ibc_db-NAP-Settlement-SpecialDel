@@ -55,6 +55,7 @@ RETURN (
 					ELSE 'N'
 				END AS [betteam423]
 				,LEFT(REPLACE(@GoalRecord,';',''),1) AS FirstGoal
+				,LEFT(REPLACE(@goalsequenceHT,';',''),1) AS FirstGoal1H
 				, CASE 
 					WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
 					ELSE LEFT(@goalsequenceFT,1) 
@@ -164,10 +165,18 @@ RETURN (
 									WHEN @betteam = 'N' AND @hdp1 < @NeitherRaceTo1H THEN -1
 									ELSE NULL
 								END
-					-- First Corner, 1H First Corner
-					WHEN @bettype IN(488, 489) THEN CASE
+					-- First Corner
+					WHEN @bettype = 488 THEN CASE
 									WHEN ip.FirstGoal IN ('H', 'A') THEN CASE
 																			WHEN ip.FirstGoal = @betteam THEN 1
+																			ELSE -1
+																		END
+									ELSE NULL
+								END
+					-- 1H First Corner
+					WHEN @bettype = 489 THEN CASE
+									WHEN ip.FirstGoal1H IN ('H', 'A') THEN CASE
+																			WHEN ip.FirstGoal1H = @betteam THEN 1
 																			ELSE -1
 																		END
 									ELSE NULL
