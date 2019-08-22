@@ -1335,7 +1335,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
-				,sub911.IsMarked
+				,b.IsMarked
 		FROM #CashOutTransActive sub911
 			 CROSS APPLY ( 
 				SELECT b.transid
