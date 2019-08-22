@@ -98,7 +98,7 @@ BEGIN
 						WHEN @ProductTypeList = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude NumberGame, Happy5, BetBuilder
 						ELSE 0
 					END
-			AND LogDate >= @__archiveDate
+			AND LogDate < @__archiveDate
 	ORDER BY logdate ASC
 
 END
