@@ -1040,7 +1040,44 @@ BEGIN
 				,sub911.IsMarked
 		FROM #Data sub911
 			 CROSS APPLY (
-							  SELECT b.*
+							  SELECT b.bettype
+									,b.transid
+									,b.BetID
+									,b.refno			
+									,b.hdp1
+									,b.hdp2
+									,b.odds
+									,b.oddsspread
+									,b.OddsType
+									,b.STATUS
+									,b.SecAcceptFlag
+									,b.checktime
+									,b.comstatus
+									,b.stake				
+									,b.transdate
+									,b.betteam
+									,b.betcheck
+									,b.liveindicator
+									,b.modds
+									,b.custid
+									,b.livehomescore
+									,b.liveawayscore				
+									,b.betfrom
+									,b.matchid				
+									,b.winlost
+									,b.actual_stake
+									,b.playercomm				
+									,b.winlostdate
+									,b.transdesc
+									,b.betdaqid
+									,b.username
+									,b.recommend				
+									,b.oddsid
+									,b.ExtraInfo
+									,b.CurrencyName
+									,b.WalletType
+									,b.RefCode
+									,b.BonusID
 							  FROM dbo.bettrans b WITH (NOLOCK)
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid

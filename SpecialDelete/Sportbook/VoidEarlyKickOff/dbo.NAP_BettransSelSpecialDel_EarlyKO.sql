@@ -1057,7 +1057,36 @@ BEGIN
 				,sub911.IsMarked
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (
-						  SELECT b.*
+						  SELECT b.transid
+						  		,b.refno
+								,b.custid
+								,b.odds
+								,b.oddsspread
+								,b.OddsType
+								,b.transdate
+								,b.bettype
+								,b.betteam
+								,b.betcheck
+								,b.hdp1
+								,b.hdp2
+								,b.livehomescore
+								,b.liveawayscore
+								,b.creator
+								,b.stake
+								,b.CurrencyName
+								,b.STATUS
+								,b.SecAcceptFlag
+								,b.checktime
+								,b.srecommend
+								,b.mrecommend
+								,b.recommend
+								,b.betid
+								,b.Transdesc
+								,b.betdaqid
+								,b.ExtraInfo
+								,b.WalletType
+								,b.RefCode
+								,b.BonusID	
 						  FROM dbo.bettrans b WITH (NOLOCK)
 						  WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					

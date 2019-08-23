@@ -1127,7 +1127,24 @@ BEGIN
 				,sub911.IsMarked
 		FROM @tblRecoverBet sub911	
 			CROSS APPLY (
-							 SELECT b.*
+							 SELECT b.Username
+							 		,b.transid
+							 		,b.recommend
+									,b.transdate
+									,b.oddsspread
+									,b.oddstype
+									,b.betid
+									,b.transdesc
+									,b.actual_stake
+									,b.srecommend
+									,b.betdaqid
+									,b.ExtraInfo
+									,b.WalletType
+									,b.RefCode
+									,b.BonusID
+									,b.custid
+									,b.matchid
+									,b.bettype
 							 FROM dbo.bettrans b WITH (NOLOCK)
 							 WHERE b.refno = sub911.transid
 							   AND b.matchid = sub911.matchid

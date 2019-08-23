@@ -936,22 +936,52 @@ BEGIN
 					,b.RefCode
 					,b.BonusID
 					,sub911.MainTransId
-					,b.IsMarked
-			FROM #CashOutSubTicket sub911					
-				CROSS APPLY (
-								 SELECT b.*
-								 FROM dbo.bettrans b WITH(NOLOCK)
-								 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-								 WHERE b.refno = sub911.transid
-								   AND b.matchid = sub911.matchid													   
-								   AND b.bettype = sub911.OriginalBetType
-							) AS b
-				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)				
-					ON	z.transid = b.transid	
+					,sub911.IsMarked
+			FROM #tblTransInfo sub911
+			 CROSS APPLY (
+							  SELECT b.transdate
+							  		,b.transid
+							  		,b.custid
+									,b.odds
+									,b.oddsspread
+									,b.oddstype
+									,b.bettype
+									,b.actual_stake
+									,b.betteam
+									,b.betcheck
+									,b.hdp1
+									,b.hdp2
+									,b.betfrom
+									,b.stake
+									,b.matchid
+									,b.liveindicator
+									,b.livehomescore
+									,b.liveawayscore
+									,b.CurrencyName
+									,b.betid
+									,b.transdesc
+									,b.refno
+									,b.betdaqid
+									,b.recommend
+									,b.mrecommend
+									,b.srecommend
+									,b.SecAcceptFlag
+									,b.ExtraInfo
+									,b.WalletType
+									,b.RefCode
+									,b.BonusID
+							  FROM dbo.bettrans b WITH (NOLOCK)
+							  WHERE b.refno = sub911.transid
+								AND b.matchid = sub911.matchid
+								AND b.bettype = sub911.OriginalBetType
+						 ) AS b
+					INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)				
+						ON	z.transid = b.transid	
 						AND z.custid = b.custid
 						AND z.matchid = b.matchid
 						AND z.bettype = b.bettype
-						AND z.betcheck = sub911.zzzBetcheck							
+						AND z.betcheck = sub911.zzzBetcheck
+			WHERE sub911.bettype = 911						
 						
 			-- insert 912,913
 			INSERT INTO #CashOutSubTicket(transid

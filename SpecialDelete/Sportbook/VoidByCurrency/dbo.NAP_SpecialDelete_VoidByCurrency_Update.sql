@@ -1103,56 +1103,54 @@ BEGIN
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
 						NULL AS SubOdds,
-						b.IsMarked
-				FROM #CashOutTransActive sub911					 
-					 CROSS APPLY (
-						SELECT b.Stake,
-							b.BetCheck,
-							b.BetId,
-							b.BetTeam,
-							b.BetType,
-							b.Currency,
-							b.Creator,
-							b.Hdp1,
-							b.Hdp2,
-							b.LiveIndicator,
-							b.LiveAwayScore,
-							b.LiveHomeScore,
-							b.Odds,	
-							b.Oddsspread,
-							b.OddsType,
-							b.RefNo,
-							b.status,
-							b.TransDate,
-							b.TransDesc,
-							b.TransId,
-							b.UserName,
-							b.WinLost,
-							b.actual_stake,
-							b.betfrom,
-							b.srecommend,
-							b.mrecommend,
-							b.recommend,
-							b.custid,
-							b.playercomm,
-							b.betdaqid,
-							b.ExtraInfo,
-							b.awinlost,
-							b.WalletType,
-							b.RefCode,
-							b.BonusID,
-							b.matchid,
-							CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-						FROM dbo.bettrans b WITH (NOLOCK)
-						LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId
-						WHERE b.refno = sub911.transid
-						AND b.matchid = sub911.matchid
-						AND b.bettype = sub911.OriginalBetType
-						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-					) AS b					
-					 LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-						 ON b.recommend = c.custid					
-					 LEFT JOIN (SELECT [site] AS LicenseeName
+						sub911.IsMarked
+				FROM #SpecialDeleteBets_Single sub911
+			 		CROSS APPLY (
+							  SELECT b.Stake,
+							  		b.BetCheck,
+									b.BetId,
+									b.BetTeam,
+									b.BetType,
+									b.Currency,
+									b.Creator,					
+									b.Hdp1,
+									b.Hdp2,
+									b.LiveIndicator,				
+									b.LiveAwayScore,
+									b.LiveHomeScore,
+									b.Odds,	
+									b.Oddsspread,						
+									b.OddsType,
+									b.RefNo,
+									b.status,
+									b.TransDate,
+									b.TransDesc,
+									b.TransId,
+									b.UserName,
+									b.WinLost,
+									b.actual_stake,
+									b.betfrom,
+									b.srecommend,
+									b.mrecommend,
+									b.recommend,
+									b.custid,
+									b.playercomm,
+									b.betdaqid,	
+									b.ExtraInfo,
+									b.awinlost,
+									b.WalletType,
+									b.RefCode,
+									b.BonusID,
+									b.matchid
+							  FROM dbo.bettrans b WITH (NOLOCK)
+							  WHERE b.refno = sub911.transid
+								AND b.matchid = sub911.matchid
+								AND b.bettype = sub911.OriginalBetType
+								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+						 ) AS b
+						LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
+						 	ON b.recommend = c.custid					
+					 	LEFT JOIN (SELECT [site] AS LicenseeName
 									 , CASE 
 											WHEN isLicensee = 0		  
 												 AND isActive = 1	
@@ -1162,11 +1160,12 @@ BEGIN
 									   END AS GroupName
 								FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK)) tl
 							 ON tl.LicenseeName = c.site
-					 LEFT JOIN match m WITH (NOLOCK)
+					 	LEFT JOIN match m WITH (NOLOCK)
 							 ON b.matchid = m.matchid
-					 LEFT JOIN CustDB.dbo.exchange te WITH(NOLOCK)
+					 	LEFT JOIN CustDB.dbo.exchange te WITH(NOLOCK)
 							 ON b.currency = te.exchangeid
-					
+				WHERE sub911.bettype = 911
+
 				SET @CountSingle = @CountSingle + @@ROWCOUNT
 				
 				--Insert multiple cash-out transaction (912,913)

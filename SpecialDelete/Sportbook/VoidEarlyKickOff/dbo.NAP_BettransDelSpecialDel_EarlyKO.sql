@@ -231,7 +231,8 @@ BEGIN
 		,creator  INT  
 		,modds   MONEY  
 		,transdesc  NVARCHAR(1000)
-		,mainstatusID INT  
+		,mainstatusID INT
+		,IsMarked BIT  
 	)  
 
 	DECLARE @Status TABLE (statusID TINYINT)  
@@ -1251,46 +1252,45 @@ BEGIN
 				,b.RefCode
 				,b.BonusID 
 				,sub911.MainTransId
-				,b.IsMarked
-			FROM #CashOutSubTicket sub911
-				 CROSS APPLY ( 
-					SELECT b.transid
-						,b.refno
-						,b.betid  
-						,b.stake  
-						,b.odds  
-						,b.oddsspread
-						,b.custid  
-						,b.recommend  
-						,b.mrecommend  
-						,b.srecommend  
-						,b.betfrom  
-						,b.STATUS  
-						,b.statusID  
-						,b.creator  
-						,b.Bettype    
-						,b.betdaqid  
-						,b.oddstype  
-						,b.transdate  
-						,b.betteam      
-						,b.hdp1  
-						,b.hdp2  
-						,b.CurrencyName  
-						,b.betcheck  
-						,b.transdesc 
-						,b.ExtraInfo
-						,b.awinlost
-						,b.WalletType
-						,b.RefCode
-						,b.BonusID
-						,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-						FROM dbo.bettrans b WITH (NOLOCK)
-							 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-						WHERE b.refno = sub911.transid
-						AND b.matchid = sub911.matchid
-						AND b.bettype = sub911.OriginalBetType
-						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-					) AS b
+				,sub911.IsMarked
+			FROM #BetDelete sub911
+			 CROSS APPLY (
+							  SELECT b.transid
+							  		,b.refno  
+									,b.betid  
+									,b.stake  
+									,b.odds  
+									,b.oddsspread
+									,b.custid  
+									,b.recommend  
+									,b.mrecommend  
+									,b.srecommend  
+									,b.betfrom  
+									,b.STATUS  
+									,b.statusID  
+									,b.creator  
+									,b.Bettype     
+									,b.betdaqid  
+									,b.oddstype  
+									,b.transdate  
+									,b.betteam      
+									,b.hdp1  
+									,b.hdp2  
+									,b.CurrencyName  
+									,b.betcheck  
+									,b.transdesc 
+									,b.ExtraInfo
+									,b.awinlost
+									,b.WalletType
+									,b.RefCode
+									,b.BonusID
+							  FROM dbo.bettrans b WITH (NOLOCK)
+							  WHERE b.refno = sub911.transid
+								AND b.matchid = sub911.matchid
+								AND b.bettype = sub911.OriginalBetType
+								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+						 ) AS b
+			WHERE sub911.bettype = 911
 			
 			-- insert 912,913
 			INSERT INTO #CashOutSubTicket(transid
@@ -2550,6 +2550,7 @@ BEGIN
 			,NULL AS RefCode
 			,NULL AS BonusID 
 			,NULL AS MainTransId
+			,0 AS IsMarked
 			FROM #BetmDelete bm  
 		) AS al  
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK)  
