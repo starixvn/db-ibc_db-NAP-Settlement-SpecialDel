@@ -1,4 +1,4 @@
-/*<info serverAlias="DBACC-BODB_ACC" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBACC-BODB_ACC" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_MailingListSel] 
 	@FuncID int = 287  -- [SpecialDeleteMailing]
 AS 

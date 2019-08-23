@@ -582,8 +582,3 @@ BEGIN
 	SET NOCOUNT OFF
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_InvalidGoalScorerTicketVoid] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT EXECUTE ON [dbo].[NAP_InvalidGoalScorerTicketVoid] TO [Dot_CoreAPI] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_InvalidGoalScorerTicketVoid] TO [vnteam] AS [dbo]

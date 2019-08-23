@@ -310,9 +310,4 @@ BEGIN
 	SET NOCOUNT OFF
 END
 
-
-
 GO
-GRANT EXECUTE ON [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select] TO [vnteam] AS [dbo]

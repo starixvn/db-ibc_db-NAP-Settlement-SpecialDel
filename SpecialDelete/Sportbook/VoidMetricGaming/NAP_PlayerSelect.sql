@@ -34,6 +34,3 @@ END
 
 
 GO
-GRANT EXECUTE ON [dbo].[NAP_PlayerSelect] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_PlayerSelect] TO [vnteam] AS [dbo]

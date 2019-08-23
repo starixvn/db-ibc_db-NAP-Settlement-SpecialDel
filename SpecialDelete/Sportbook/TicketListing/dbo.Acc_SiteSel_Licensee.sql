@@ -24,9 +24,3 @@ ORDER BY site
  
 
 GO
-GRANT EXECUTE ON [dbo].[Acc_SiteSel_Licensee] TO [bodbAdminNet]
-GO
-GRANT VIEW DEFINITION ON [dbo].[Acc_SiteSel_Licensee] TO [vnteam]
-GO
- 
- 
