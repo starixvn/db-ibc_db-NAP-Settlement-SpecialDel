@@ -15,6 +15,7 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_SDT_CalModds_GoalRecord] (
 	, @ResultCornerRace1H	VARCHAR(200) = NULL
 	, @NeitherRaceTo1H	TINYINT		= NULL
 	, @betcheck NVARCHAR(50)
+	, @IsHT				BIT = 0
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -56,7 +57,7 @@ RETURN (
 				END AS [betteam423]
 				,LEFT(REPLACE(@GoalRecord,';',''),1) AS FirstGoal
 				,LEFT(REPLACE(@goalsequenceHT,';',''),1) AS FirstGoal1H
-				, CASE 
+				,CASE 
 					WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
 					ELSE LEFT(@goalsequenceFT,1) 
 				END AS FirstGoal2h 
@@ -183,7 +184,7 @@ RETURN (
 								END
 					-- 2H First Corner
 					WHEN @bettype = 490 THEN CASE
-									WHEN ip.FirstGoal2H IN ('H', 'A') THEN CASE
+									WHEN @IsHT = 0 AND ip.FirstGoal2H IN ('H', 'A') THEN CASE
 																			WHEN ip.FirstGoal2H = @betteam THEN 1
 																			ELSE -1
 																		END
@@ -191,7 +192,7 @@ RETURN (
 								END
 					-- 1H Last Corner
 					WHEN @bettype = 492 THEN CASE
-									WHEN ip.LastGoal1H IN ('H', 'A') THEN CASE
+									WHEN @IsHT = 0 AND ip.LastGoal1H IN ('H', 'A') THEN CASE
 																			WHEN ip.LastGoal1H = @betteam THEN 1
 																			ELSE -1
 																		END

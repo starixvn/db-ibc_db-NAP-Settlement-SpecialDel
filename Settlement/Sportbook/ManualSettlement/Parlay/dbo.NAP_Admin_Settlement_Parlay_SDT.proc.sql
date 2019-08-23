@@ -276,6 +276,7 @@ BEGIN
 								, @ResultCornerRace1H
 								, @NeitherRaceTo1H
 								, b.betcheck
+								, @IsHT
 							)
 							WHERE modds IS NOT NULL
 						)  AS odds
