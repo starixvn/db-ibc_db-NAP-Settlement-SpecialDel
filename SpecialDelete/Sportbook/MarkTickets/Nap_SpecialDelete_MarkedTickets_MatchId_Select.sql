@@ -21,7 +21,8 @@ AS;
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
-		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]	
+		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+		- 20190812@Charles: Add new column IsMarked [118437]	
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -851,7 +852,8 @@ BEGIN
 		m.sporttype,
 		m.SettlementStatus,
 		c.site AS LicenseeName,
-		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
+		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit,
+		1 AS IsMarked
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

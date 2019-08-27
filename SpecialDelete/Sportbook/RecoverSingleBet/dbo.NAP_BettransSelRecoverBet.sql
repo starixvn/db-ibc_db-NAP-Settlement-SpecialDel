@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet] 
 	@Option BIT = 0
 	,@MatchId		BIGINT			= 0
@@ -35,6 +35,7 @@ AS
 		- 20180301@Benjamin: Add oddsspread - Fast Markets Phase 2 [Redmine:#90667]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
+		- 20190812@Charles: Add new column IsMarked [118437]
 
 	Param's Explanation:
 			- @Opition: 
@@ -85,7 +86,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
-		
+		,IsMarked		BIT
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	
@@ -95,6 +96,7 @@ BEGIN
 		 ,matchid	INT
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
+		 ,IsMarked	BIT
 	)
 	
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
@@ -143,6 +145,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -183,6 +186,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM	zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 				ON	b.transid = z.transid
@@ -191,6 +195,7 @@ BEGIN
 					AND b.bettype = z.bettype				
 			INNER JOIN outright o WITH (NOLOCK) 
 				ON	z.matchid = o.orid
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON z.transid = m.TransId
 		WHERE	z.transid BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.bettype = 10
@@ -235,6 +240,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -276,6 +282,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -284,6 +291,7 @@ BEGIN
 					AND z.bettype = b.bettype					
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	m.matchid = b.matchid
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId
 		WHERE	b.transid BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.Bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
@@ -328,6 +336,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -368,6 +377,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -376,6 +386,7 @@ BEGIN
 					AND z.bettype = b.bettype					
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	m.matchid = b.matchid
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId
 		WHERE	z.refno BETWEEN @FromTransId AND @ToTransId
 				AND z.matchid = @MatchId
 				AND z.Bettype IN (801, 803, 804, 805, 806)
@@ -426,6 +437,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -466,6 +478,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 					ON b.transid = z.transid
@@ -474,6 +487,7 @@ BEGIN
 					   AND b.bettype = z.bettype
 			INNER JOIN outright o WITH (NOLOCK) 
 					ON o.orid = z.matchid
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON z.transid = m.TransId
 		WHERE z.transid IN (
 				SELECT s.transid
 				FROM @tblTransIds s
@@ -520,6 +534,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -561,6 +576,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -569,6 +585,7 @@ BEGIN
 					AND z.bettype = b.bettype
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = b.matchid
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId
 		WHERE b.transid IN (SELECT s.transid FROM @tblTransIds s)		
 			AND z.bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
 			AND z.winlostdate >= @before_yesterday	
@@ -612,6 +629,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,IsMarked
 		)
 		SELECT	z.transid
 				,z.transid
@@ -652,6 +670,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -659,7 +678,8 @@ BEGIN
 					AND z.matchid = b.matchid					
 					AND z.bettype = b.bettype
 			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON m.matchid = b.matchid	
+				ON m.matchid = b.matchid
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON z.transid = mt.TransId		
 		WHERE	z.refno IN (SELECT s.transid FROM @tblTransIds s)		
 			AND z.bettype IN (801, 803, 804, 805, 806)
 			AND z.winlostdate >= @before_yesterday		
@@ -687,12 +707,12 @@ BEGIN
 	WHERE main.WalletType = 1
 	  
 	-- Insert more bonus or cash ticket in case only one ticket appears in @tblRecoverBet 	
-	INSERT INTO #tmpRefCodeSummary (refcode, custid, matchid, bettype, transid)
-	SELECT RefCode, custid, matchid, bettype
+	INSERT INTO #tmpRefCodeSummary (refcode, custid, matchid, bettype, IsMarked, transid)
+	SELECT RefCode, custid, matchid, bettype, IsMarked
 		 , MAX(transid) AS transid
 	FROM @tblRecoverBet
 	WHERE	refcode IS NOT NULL
-	GROUP BY RefCode, custid, matchid, bettype
+	GROUP BY RefCode, custid, matchid, bettype, IsMarked
 	HAVING COUNT(*) = 1
 	
 	IF @@ROWCOUNT > 0
@@ -720,6 +740,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,t.transid AS MainTransId
+				,t.IsMarked
 					INTO #CTE_bettrans	
 		FROM #tmpRefCodeSummary t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
@@ -767,6 +788,7 @@ BEGIN
 					,RefCode
 					,BonusID
 					,MainTransId
+					,IsMarked
 			)
 			SELECT	 z.transid
 					,z.transid
@@ -804,7 +826,8 @@ BEGIN
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
-					,b.MainTransId	
+					,b.MainTransId
+					,b.IsMarked	
 		FROM #CTE_bettrans b
 			 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -864,6 +887,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
+				,IsMarked
 		)
 	SELECT	main.transid
 			,sub.transid
@@ -901,6 +925,7 @@ BEGIN
 			,sub.RefCode
 			,sub.BonusID
 			,main.transid AS MainTransId
+			,t.IsMarked
 	FROM	dbo.bettrans sub WITH(NOLOCK)
 		INNER JOIN @tblRecoverBet t
 			ON	sub.refno = t.transid
@@ -959,6 +984,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
+				,IsMarked
 		)
 	SELECT	sub.transid
 			,sub.transid
@@ -997,6 +1023,7 @@ BEGIN
 			,sub.RefCode
 			,sub.BonusID
 			,main.transid AS MainTransId
+			,t.IsMarked
 	FROM zzzbettrans z WITH(NOLOCK)			
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			ON	z.transid = sub.transid	
@@ -1057,6 +1084,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
+				,IsMarked
 		)
 		SELECT	sub911.transid
 				,z.transid
@@ -1096,9 +1124,27 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,sub911.IsMarked
 		FROM @tblRecoverBet sub911	
 			CROSS APPLY (
-							 SELECT b.*
+							 SELECT b.Username
+							 		,b.transid
+							 		,b.recommend
+									,b.transdate
+									,b.oddsspread
+									,b.oddstype
+									,b.betid
+									,b.transdesc
+									,b.actual_stake
+									,b.srecommend
+									,b.betdaqid
+									,b.ExtraInfo
+									,b.WalletType
+									,b.RefCode
+									,b.BonusID
+									,b.custid
+									,b.matchid
+									,b.bettype
 							 FROM dbo.bettrans b WITH (NOLOCK)
 							 WHERE b.refno = sub911.transid
 							   AND b.matchid = sub911.matchid
@@ -1151,6 +1197,7 @@ BEGIN
 			,t.RefCode
 			,m.SettlementStatus
 			,m.GlobalShowTime
+			,t.IsMarked
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid

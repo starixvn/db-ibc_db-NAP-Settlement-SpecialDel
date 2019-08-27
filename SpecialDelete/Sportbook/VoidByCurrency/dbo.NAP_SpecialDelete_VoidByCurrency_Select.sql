@@ -22,6 +22,7 @@ AS;
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190228@Alan: Implement Bet Builder - [106898]
+		- 20190812@Charles: Add new column IsMarked [118437]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -99,7 +100,7 @@ CREATE TABLE #SpecialDeleteBets
               SubHdp2               SMALLMONEY,
               SubOdds               MONEY,
               SubStatus             NVARCHAR(10),
-		    IsMarked			 BIT
+			  IsMarked			 	BIT
              );
    CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -836,7 +837,38 @@ CREATE TABLE #SpecialDeleteBets
 				sub911.IsMarked
 			FROM #SpecialDeleteBets sub911
 				 CROSS APPLY (
-								  SELECT b.*
+								  SELECT b.Stake,
+								  		b.BetCheck,
+										b.BetId,
+										b.BetTeam,
+										b.BetType,
+										b.Creator,				
+										b.Hdp1,
+										b.Hdp2,
+										b.LiveIndicator,
+										b.SecAcceptFlag,
+										b.LiveAwayScore,
+										b.LiveHomeScore,
+										b.Odds,
+										b.oddsspread,
+										b.OddsType,
+										b.RefNo,
+										b.status,
+										b.checktime,
+										b.TransDate,
+										b.TransDesc,
+										b.TransId,
+										b.UserName,
+										b.WinLost,
+										b.actual_stake,
+										b.srecommend,
+										b.betdaqid,
+										b.ExtraInfo,	
+										b.WalletType,
+										b.RefCode,
+										b.BonusID,				
+										b.currency,
+										b.matchid
 								  FROM dbo.bettrans b WITH (NOLOCK)
 								  WHERE b.refno = sub911.transid
 									AND b.matchid = sub911.matchid

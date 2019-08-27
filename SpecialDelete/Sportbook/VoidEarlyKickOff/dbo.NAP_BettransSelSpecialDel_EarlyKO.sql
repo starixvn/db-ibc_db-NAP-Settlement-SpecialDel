@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_EarlyKO] @MatchID     INT,
                                                           @KickOffDate DATETIME,
                                                           @BetTypes    XML      = NULL
@@ -54,7 +54,7 @@ AS;
 	- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]		  
 	- 20190301@Alan: Implement Bet Builder - [106898]
-
+	- 20190812@Charles: Add new column IsMarked [118437]
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
 	- @BetTeam6: bettype=6: Total Goal; bettype = 126: 1st Total Goal
@@ -120,7 +120,7 @@ BEGIN
               RefCode               BIGINT,
               BonusID               INT,
               MainTransId           BIGINT,
-		    IsMarked			 BIT
+			  IsMarked			 	BIT
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -1057,7 +1057,36 @@ BEGIN
 				,sub911.IsMarked
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (
-						  SELECT b.*
+						  SELECT b.transid
+						  		,b.refno
+								,b.custid
+								,b.odds
+								,b.oddsspread
+								,b.OddsType
+								,b.transdate
+								,b.bettype
+								,b.betteam
+								,b.betcheck
+								,b.hdp1
+								,b.hdp2
+								,b.livehomescore
+								,b.liveawayscore
+								,b.creator
+								,b.stake
+								,b.CurrencyName
+								,b.STATUS
+								,b.SecAcceptFlag
+								,b.checktime
+								,b.srecommend
+								,b.mrecommend
+								,b.recommend
+								,b.betid
+								,b.Transdesc
+								,b.betdaqid
+								,b.ExtraInfo
+								,b.WalletType
+								,b.RefCode
+								,b.BonusID	
 						  FROM dbo.bettrans b WITH (NOLOCK)
 						  WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					
