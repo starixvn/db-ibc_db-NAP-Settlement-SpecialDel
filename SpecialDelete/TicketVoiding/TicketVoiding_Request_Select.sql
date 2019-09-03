@@ -9,6 +9,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20190815@Raymond.Le: Return column IssueTypeId [#116617]
 	
 	Param's explanation:	
 	
@@ -17,6 +18,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	SELECT	r.Sporttype
+			,si.IssueTypeId
 			,r.SubIssueTypeId
 			,r.ActionId
 			,r.MistakenBy
@@ -29,6 +31,7 @@ BEGIN
 			,r.Source
 			,r.Remark
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
+	LEFT JOIN dbo.TicketVoiding_SubIssueType AS si WITH (NOLOCK) ON r.SubIssueTypeId = si.SubIssueTypeId
 	WHERE	r.RequestId = @RequestId
 
 	SELECT	rd.MatchId
@@ -48,4 +51,3 @@ BEGIN
 	WHERE	rd.RequestId = @RequestId
 
 END
-GO
