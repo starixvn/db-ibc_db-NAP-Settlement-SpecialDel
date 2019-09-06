@@ -1,3 +1,4 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_SelSports] @isGetAll BIT = 0
 AS
 /*
@@ -7,6 +8,7 @@ AS
 	Original: Acc_SelSports
 	
 	Revisions:
+		- 20190903@Sol: Multi Sports on One Page - Changed column list return - [Redmind: #118379]
 
 	Param's Explanation:
 		@isGetAll: 1 - get all sports for view result, 0- get only sportbook
@@ -15,18 +17,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT *
+	SELECT SportType, SportName
 	FROM Sports WITH (NOLOCK)
 	WHERE (SportType <= 99 OR SportType = 154) OR (@isGetAll = 1 AND SportType IN (151, 152, 153))
 END
 
 
-GO
-
-GRANT EXECUTE ON [NAP_SelSports] TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION ON [NAP_SelSports] TO [vnteam] AS [dbo]
 GO
 
 
