@@ -126,6 +126,10 @@ BEGIN
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 	
+	DECLARE @ResultDetail3rd AS TABLE ([ResultID] [int] ,[GameID] [int] ,[Custom1] [nvarchar](50) )
+	DECLARE @queryResultDetail NVARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+	
 	CREATE TABLE #tblBetType
 	(
 		Id				SMALLINT,		 				
@@ -630,66 +634,79 @@ BEGIN
 	END	 		  
 
 	--Metric Gaming Super Live  
-	IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id IN (805,806) )   
-	-- translog  
-	INSERT INTO #BetDelete (  
-		grouptransid  
-		,transid  
-		,refno  
-		,betid  
-		,stake  
-		,odds  
-		,oddsspread
-		,custid  
-		,recommend  
-		,mrecommend  
-		,srecommend  
-		,betfrom  
-		,STATUS  
-		,statusID  
-		,creator  
-		,Bettype  
-		,betdaqid  
-		,OddsType      
-		,Transdate                
-		,currencyName      
-		,Transdesc
-		,IsMarked
-	)  
-	SELECT   
+	IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id IN (805,806) )  
+	BEGIN 
+		-- translog  
+		INSERT INTO #BetDelete (  
+			grouptransid  
+			,transid  
+			,refno  
+			,betid  
+			,stake  
+			,odds  
+			,oddsspread
+			,custid  
+			,recommend  
+			,mrecommend  
+			,srecommend  
+			,betfrom  
+			,STATUS  
+			,statusID  
+			,creator  
+			,Bettype  
+			,betdaqid  
+			,OddsType      
+			,Transdate                
+			,currencyName      
+			,Transdesc
+			,IsMarked
+		)  
+		SELECT   
 
-		b.translogid grouptransid  
-		,b.translogID transid  
-		,b.translogID  refno  
-		,0 betid  
-		,b.stake  
-		,b.odds 
-		,0 AS oddsspread		
-		,b.custid  
-		,b.recommend  
-		,b.mrecommend  
-		,b.srecommend  
-		,b.betfrom  
-		,b.STATUS  
-		,b.statusID  
-		,b.creator   
-		,b.GameID  
-		,-1     
-		,b.custom1   
-		,b.transdate             
-		,b.CurrencyName      
-		,b.transdesc
-		,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked				
-	FROM dbo.translog b WITH (NOLOCK)  
-		INNER JOIN #tblTransIds t ON t.transid = b.translogid  
-		INNER JOIN #tblBettype tp ON tp.Id = b.GameID
-		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.TranslogID = m.TransId
-	WHERE b.transdate >= @KickOffDate  
-		AND b.GameID IN (805, 806)   
-		AND b.liveindicator = 0  
-		AND b.betfrom <> 'P'  
-		AND b.statusID IN (0, 103) -- RUNNING, REFUND	   	
-	
+			b.translogid grouptransid  
+			,b.translogID transid  
+			,b.translogID  refno  
+			,0 betid  
+			,b.stake  
+			,b.odds 
+			,0 AS oddsspread		
+			,b.custid  
+			,b.recommend  
+			,b.mrecommend  
+			,b.srecommend  
+			,b.betfrom  
+			,b.STATUS  
+			,b.statusID  
+			,b.creator   
+			,b.GameID  
+			,-1     
+			,b.custom1   
+			,b.transdate             
+			,b.CurrencyName      
+			,b.transdesc
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked				
+		FROM dbo.translog b WITH (NOLOCK)  
+			INNER JOIN #tblTransIds t ON t.transid = b.translogid  
+			INNER JOIN #tblBettype tp ON tp.Id = b.GameID
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.TranslogID = m.TransId
+		WHERE b.transdate >= @KickOffDate  
+			AND b.GameID IN (805, 806)   
+			AND b.liveindicator = 0  
+			AND b.betfrom <> 'P'  
+			AND b.statusID IN (0, 103) -- RUNNING, REFUND	
+		 
+		-- get date from remote ResultDetail3rd table 
+		SET @queryResultDetail = '	SELECT rs.ResultID, rs.GameID, rs.custom1 
+									FROM bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK)
+									WHERE rs.VendorID = 5 AND rs.MatchID = @matchid AND GameID IN (805, 806)
+								'
+
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchId INT'' , @matchid'
+
+		INSERT INTO @ResultDetail3rd (ResultID, GameID, custom1)
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetail NVARCHAR(MAX), @MatchId INT', @queryResultDetail, @MatchId
+			   	
+	END
 	--GET sub ticket of the matchid for mix parlay  
 	IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id = 29)  
 	BEGIN  
@@ -1807,26 +1824,19 @@ BEGIN
 			,acomm = 0  
 			,scomm = 0  
 			,statusID = 102  
-			,status = 'VOID'  
-			,betid = CASE WHEN main.Bettype IN (805,806) AND main.BetID IS NULL THEN (   
-			 SELECT rs.ResultID   
-			 FROM DBPRO.bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK)   
-			 WHERE (  
-			   (ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, main.transdesc,0) <> 0)  
-			   OR  
-			   main.bettype = 806  
-			  )  
-			  AND rs.GameID = main.bettype   
-			  AND rs.VendorID = 5    
-			  AND rs.MatchID = main.matchid     
-		   )  
-		   ELSE main.betid  
-		   END  
+			,status = 'VOID' 
+			,betid =  CASE WHEN main.Bettype IN (805,806) AND main.BetID IS NULL THEN rs_tmp.ResultID ELSE main.betid END
 		FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)  
-			INNER JOIN #BetDelete AS tmpmain  
-		ON main.transid = tmpmain.transid  
-			AND main.transid = tmpmain.grouptransid  
-			AND main.matchid = @matchid  
+			INNER JOIN #BetDelete AS tmpmain ON main.transid = tmpmain.transid  AND main.transid = tmpmain.grouptransid  
+			OUTER APPLY (SELECT TOP 1 rs.ResultID
+						 FROM @ResultDetail3rd rs
+						 WHERE ((ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, main.transdesc,0) <> 0)  
+							   OR  
+							   main.bettype = 806  
+							  )  
+							  AND rs.GameID = main.bettype   
+							 ) AS rs_tmp
+		WHERE main.matchid = @matchid  
 
 		-- recover actual_stake from translog  
 		UPDATE mainMG  
