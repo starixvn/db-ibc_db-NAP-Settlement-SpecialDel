@@ -91,6 +91,8 @@ Revisions:
 	- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 	- 20190301@Alan: Implement Bet Builder - [106898]
 	- 20190812@Charles: Add new column IsMarked [118437]
+	- 20190911@Helen: Tuning Performance for Void Early KO Function - [Redmine:120058]
+
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -689,7 +691,7 @@ BEGIN
 		AND b.statusID IN (0, 103) -- RUNNING, REFUND	   	
 	
 	--GET sub ticket of the matchid for mix parlay  
-	IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id IN (9, 29))  
+	IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id = 29)  
 	BEGIN  
 		INSERT INTO #BetmDelete (  
 			transid  
@@ -762,17 +764,16 @@ BEGIN
 			,sub.transdesc  
 			,sub.creator 
 			,main.statusID AS mainstatusID 
-		FROM dbo.bettransm AS sub WITH (NOLOCK)  
-			INNER JOIN #tblTransIds t ON t.transid = sub.transid  
-			INNER JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid IN (9,29)  
-			INNER JOIN #tblBettype tp ON tp.Id = main.bettype    
+		FROM #tblTransIds t
+			INNER LOOP JOIN dbo.bettransm AS sub WITH (NOLOCK) ON t.transid = sub.transid  
+			INNER HASH JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid = 29
 			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = sub.custid  
 			INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON cr.custid = main.creator  
 		WHERE sub.matchid = @matchid  
 			AND sub.transdate >= @KickOffDate  
 			AND sub.liveindicator = 0  
 			AND sub.betfrom <> 'P'  
-			AND main.bettype IN (9, 29)  
+			AND main.bettype = 29
 			AND sub.statusID NOT IN (101, 102)  
 			AND (  
 			 main.betid = 0  
