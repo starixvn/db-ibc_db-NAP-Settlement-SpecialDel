@@ -407,7 +407,7 @@ BEGIN
 			AND b.gameid BETWEEN 801 AND 899  
 	END  
 
-	IF(EXISTS (SELECT 1 FROM #tblBettype WHERE Id IN(9,29)))    
+	IF(EXISTS (SELECT 1 FROM #tblBettype WHERE Id = 29))    
 	BEGIN  
 		SELECT TOP 1 @isExistParlay = 1  
 		FROM dbo.bettransm AS sub WITH (NOLOCK)  
@@ -415,8 +415,8 @@ BEGIN
 			ON sub.refno = main.refno  
 			INNER JOIN #tblTransIds t   
 			ON t.transid = sub.transid  
-		WHERE main.matchid  IN (9, 29)  
-			AND main.bettype IN (9, 29)  
+		WHERE main.matchid  = 29 
+			AND main.bettype = 29 
 			AND sub.matchid  = @matchid  
 	END  
 
@@ -525,7 +525,7 @@ BEGIN
 	WHERE b.matchid = @matchid  
 	  AND b.transdate >= @KickOffDate  
 	  AND b.liveindicator = 0  
-	  AND b.bettype NOT IN (805, 806, 9, 29)	 
+	  AND b.bettype NOT IN (805, 806, 29)	 
 	  AND b.betfrom <> 'P'
 	  -- filter for BetTeam
 	  AND EXISTS (SELECT TOP 1 1
@@ -698,7 +698,7 @@ BEGIN
 		-- get date from remote ResultDetail3rd table 
 		SET @queryResultDetail = '	SELECT rs.ResultID, rs.GameID, rs.custom1 
 									FROM bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK)
-									WHERE rs.VendorID = 5 AND rs.MatchID = @matchid AND GameID IN (805, 806)
+									WHERE rs.VendorID = 5 AND rs.MatchID = @matchid AND rs.GameID IN (805, 806)
 								'
 
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchId INT'' , @matchid'
