@@ -56,6 +56,7 @@ AS
 		- 20190529@Raymond.Le: Implement recover for ScoreBox bettype (468, 469) [Redmine:#108826]
 		- 20190305@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		
 	Param's Explanation:
 */
@@ -65,7 +66,6 @@ BEGIN
 	DECLARE @LogData			NVARCHAR(500)
 			,@Remark			VARCHAR(500) = ''
 			,@today				DATETIME
-			,@before_yesterday	DATETIME
 			,@isExistMatch		BIT = 1
 			,@isExistMG			BIT = 0
 			,@isExistFM			BIT = 0
@@ -74,8 +74,7 @@ BEGIN
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 
-	SELECT	@before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
-			,@ErrCode = 0
+	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
 			,@InvalidTransIds = ''
 
@@ -257,8 +256,7 @@ BEGIN
 					AND z.matchid = b.matchid
 					AND z.bettype = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId
-		WHERE	b.winlostdate >= @before_yesterday
-				AND z.bettype BETWEEN 801 AND 806
+		WHERE z.bettype BETWEEN 801 AND 806
 		
 		-- Normal tickets
 		INSERT INTO #tblTransInfo(
@@ -353,7 +351,6 @@ BEGIN
 				ON m.matchid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON t.transid = mt.TransId
 		WHERE	z.bettype NOT BETWEEN 801 AND 806
-				AND b.winlostdate >= @before_yesterday
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
 				AND b.betfrom <> 'p'
 		
@@ -450,7 +447,6 @@ BEGIN
 				ON o.orid = b.matchid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId
 		WHERE	z.bettype = 10
-				AND b.winlostdate >= @before_yesterday
 				AND b.betfrom <> 'p'
 				
 		-- Insert more bonus or cash ticket in case only one ticket appears in #tblTransInfo		
@@ -719,8 +715,7 @@ BEGIN
 						AND z.bettype = 901
 						AND tmpmain.betdaqid = 0
 						AND tmpmain.extrainfo is null
-			WHERE	z.transid IN (SELECT s.val FROM dbo.strSplit(isnull(@TransIdSolds, ''), ',') s)
-					AND sub.winlostdate >= @before_yesterday						
+			WHERE	z.transid IN (SELECT s.val FROM dbo.strSplit(isnull(@TransIdSolds, ''), ',') s)					
 			
 			--insert custBT 
 			INSERT INTO @tblCustBT902( custid, matchid )
@@ -850,7 +845,6 @@ BEGIN
 						AND z.bettype = 911
 						AND tmpmain.betdaqid = 0 -- main ticket is Cash-out
 						AND charindex ('p25',tmpmain.extrainfo)> 0 -- main ticket is Cash-out
-			WHERE sub.winlostdate >= @before_yesterday
 			
 			-- get cash-out member bet tickets
 			INSERT INTO #tblTransInfo(
