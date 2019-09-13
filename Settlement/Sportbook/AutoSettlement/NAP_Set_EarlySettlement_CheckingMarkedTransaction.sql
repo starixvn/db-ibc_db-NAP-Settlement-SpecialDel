@@ -12,6 +12,7 @@ AS
     
     Revisions:
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190702@Kathy: PH AIO phase 4 [Redmine:#115232]
 		
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'

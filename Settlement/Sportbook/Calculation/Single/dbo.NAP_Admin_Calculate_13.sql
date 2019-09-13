@@ -211,12 +211,12 @@ BEGIN
 					THEN CASE
 							WHEN betteam IN ('H', 'A')
 								THEN CASE
-										WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
-										WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) 
+										WHEN CHARINDEX(';' + CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam + ';', ';' + @result) > 0 THEN 1
+										WHEN CHARINDEX(';' + CAST(CAST(hdp1 AS INT) AS VARCHAR) 
 														+ CASE 
 															WHEN betteam = 'H' THEN 'A' 
 															ELSE 'H' 
-															END, @result) > 0 THEN -1
+															END + ';', ';' + @result) > 0 THEN -1
 										ELSE NULL
 									END
 							WHEN betteam = 'N' AND hdp1 < @NeitherRaceTo THEN - 1
@@ -457,7 +457,7 @@ BEGIN
 								END
 						WHEN bettype IN (486, 487) -- Corner Race
 							THEN CASE 
-									WHEN CHARINDEX(CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam, @result) > 0 THEN 1
+									WHEN CHARINDEX(';' + CAST(CAST(hdp1 AS INT) AS VARCHAR) + betteam + ';', ';' + @result) > 0 THEN 1
 									WHEN betteam = 'N' AND @NeitherRaceTo <= hdp1 THEN 1
 									ELSE -1
 								END

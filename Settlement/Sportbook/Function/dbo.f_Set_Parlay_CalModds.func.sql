@@ -1539,13 +1539,13 @@ RETURN (
 					END
 				-- Corners Race
 				WHEN 486 THEN CASE 
-								WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam, @ResultCornerRace) > 0 THEN 1
+								WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @ResultCornerRace) > 0 THEN 1
 								WHEN @betteam = 'N' AND @NeitherRaceTo <= @hdp1 THEN 1
 								ELSE -1
 							END
 				-- 1H Corners Race
 				WHEN 487 THEN CASE 
-								WHEN CHARINDEX(CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam, @ResultCornerRace1H) > 0 THEN 1
+								WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @ResultCornerRace1H) > 0 THEN 1
 								WHEN @betteam = 'N' AND @NeitherRaceTo1H <= @hdp1 THEN 1
 								ELSE -1
 							END
