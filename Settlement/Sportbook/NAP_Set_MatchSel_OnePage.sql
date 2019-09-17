@@ -25,7 +25,6 @@ BEGIN
 			@StartTime DATETIME
 			,@EndTime	DATETIME
 			,@SqlCommand VARCHAR(MAX)
-			,@isSettingByProfile BIT = 0
 	
 	Declare @SportTypeTable table (SportTypeId tinyint)
 
@@ -36,20 +35,6 @@ BEGIN
 	SELECT Val 
 	FROM dbo.f_SplitString(@SportTypeList, ',')
 	OPTION (maxrecursion 0)
-
-	IF EXISTS (
-				SELECT TOP 1 1 
-				FROM @SportTypeTable t 
-						CROSS APPLY 
-						(
-							SELECT spf.Sporttype
-							FROM dbo.f_Set_SettingByProfile(SportTypeId) spf 
-							WHERE t.SportTypeId = spf.SportType
-						) s
-				) 
-	BEGIN
-		SELECT @isSettingByProfile = 1
-	END
 
 	CREATE TABLE #matchList (
 		HalfTimeHomeScore INT
@@ -71,13 +56,6 @@ BEGIN
 		,betstatus NVARCHAR(50)
 		,IsNeutral BIT
 		)
-
-	DECLARE @strmatchid VARCHAR(MAX)
-		,@betstatus VARCHAR(8000)
-		,@intDocHandle INT
-		,@rowcount INT
-		,@max_matchid INT
-	DECLARE @tmp_match TABLE (matchid INT)
 
 	INSERT INTO #matchList (
 		HalfTimeHomeScore,HalfTimeAwayScore, matchid ,leagueid ,homeid ,awayid ,matchcode ,
