@@ -92,6 +92,7 @@ Revisions:
 	- 20190301@Alan: Implement Bet Builder - [106898]
 	- 20190812@Charles: Add new column IsMarked [118437]
 	- 20190911@Helen: Tuning Performance for Void Early KO Function - [Redmine:120058]
+	- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 
 
 Param's Explanation: Special bet delete option  
@@ -1815,7 +1816,7 @@ BEGIN
 		SET   
 			winlost = main.actual_stake  
 			,ruben = 1  
-			,statuswinlost = 6  
+			--,statuswinlost = 6  
 			,creator = @UserID  
 			,mwinlost = 0  
 			,swinlost = 0  
@@ -1886,7 +1887,7 @@ BEGIN
 				UPDATE sub  
 				SET winlost = sub.actual_stake  
 					,ruben = 1  
-					,statuswinlost = 6  
+					--,statuswinlost = 6  
 					,creator = @UserID 
 					,awinlost = 0 
 					,mwinlost = 0  
@@ -1910,7 +1911,7 @@ BEGIN
 				UPDATE b  
 				SET winlost = b.actual_stake  
 					,ruben = 1  
-					,statuswinlost = 6  
+					--,statuswinlost = 6  
 					,creator = @UserID  
 					,awinlost = 0
 					,mwinlost = 0  

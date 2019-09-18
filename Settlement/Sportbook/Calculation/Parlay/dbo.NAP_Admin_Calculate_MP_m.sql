@@ -44,10 +44,11 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20190606@Sol: Incorporate PHAIO 4 [Redmine:#112885]
-		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes
-						  PH AIO phase 4 [Redmine:#109584]
+		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes  PH AIO phase 4 [Redmine:#109584]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
+		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
+		
     Param's Explanation:
        
 */
@@ -336,7 +337,7 @@ BEGIN
                     ELSE stake * ABS(odds)
                     END
                 ,ruben = 1
-                ,statuswinlost = 0
+                --,statuswinlost = 0
                 ,STATUS = 'VOID'
                 ,creator = @UserID
                 ,statusID = 102

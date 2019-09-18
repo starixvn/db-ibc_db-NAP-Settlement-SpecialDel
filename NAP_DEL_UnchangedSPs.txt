@@ -1,2 +1,1 @@
-SpecialDelete\Sportbook\NAP_BetTypeSel.sql
-SpecialDelete\Sportbook\TicketListing\NAP_SpecialDelete_TicketListing_Summary.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
