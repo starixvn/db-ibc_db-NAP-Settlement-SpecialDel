@@ -30,6 +30,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
+		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Corect @HTDone value [Redmine:#115232]
 		
 	Param's Explanation:
 		 
@@ -157,8 +158,6 @@ BEGIN
 								ELSE m.eventstatus END
 			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
 						ELSE @FTDone END
-			, @HTDone = CASE WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN 0
-						ELSE @HTDone END
 		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
 		WHERE m.matchid = @matchid
  
@@ -337,4 +336,3 @@ BEGIN
 	RETURN	
 	
 END
-GO
