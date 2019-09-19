@@ -32,6 +32,7 @@ AS
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Removed @IsExcludeCorner [Redmine:#115232]
 
     Param's Explanation:
         
@@ -120,9 +121,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId = @MatchId
         , @Action = @Action
         , @Mode	= 'CAL'
-		, @IsExcludeCorner = 1
-		--, @IsExcludeFGLG = 0
-		--, @IsAutoCalculatePage = 0
         , @ErrCode = @ErrCode OUTPUT
         , @ErrMsg = @ErrMsg OUTPUT
         
@@ -204,5 +202,6 @@ BEGIN
 			, @AdminId, @IP, @Action, @sqlCommand, NULL
     END
 END
+
 GO
 
