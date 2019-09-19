@@ -19,6 +19,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
 
 	Param's Explanation:		
@@ -33,7 +34,6 @@ BEGIN
 		, @stop 				DATETIME
 		, @ActionID 			INT
 		, @IsDetermined 		BIT
-		, @resultDetail_cb 		VARCHAR(MAX) = NULL -- for corners bets
 		, @resultDetail_ss 		VARCHAR(MAX)
 		, @resultDetail_bb		VARCHAR(MAX) -- for basketball
 		, @resultDetail			VARCHAR(MAX)
@@ -41,14 +41,14 @@ BEGIN
 		, @SelectedSetREFUND 	VARCHAR(50)
 		--ticket count
 		, @ticketCountTotal		INT		
-		, @ticketCountBetRadar	INT
+		, @ticketCountEarly		INT
 		, @ticketCountCAL		INT
 		, @ticketCountSDT		INT
 		, @ticketCountREFUND	INT
 	--------------------------------
 		,@minRefno				BIGINT
 		,@maxRefno				BIGINT
-		,@IsBetRadar			BIT
+		,@IsExistEarlyBettype	BIT
 		,@IsSettleBySetting 	BIT			= 0
 	
 	DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
@@ -62,7 +62,6 @@ BEGIN
 		, @IsDetermined = CASE WHEN @action IN ('ABANDONED-1H', 'ABANDONED-2H') THEN 1 ELSE 0 END
 		, @start 		= CURRENT_TIMESTAMP
 		, @ticketCountTotal		= 0
-		, @ticketCountBetRadar	= 0
 		, @ticketCountCAL		= 0
 		, @ticketCountSDT		= 0
 		, @ticketCountREFUND	= 0
@@ -110,6 +109,21 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 	
+	IF @SportType = 1
+	BEGIN
+		SELECT TOP(1) @IsExistEarlyBettype = 1
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			CROSS APPLY (
+				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType, s.SettleType
+				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				WHERE	s.BetType = bm.bettype 
+			) AS f
+		WHERE matchid 		= @matchId
+			AND f.SportType = @SportType
+			AND f.SettleType = 'EAR'
+			AND statusID	NOT IN (101, 102)
+	END
+
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
     BEGIN
         SET @IsSettleBySetting = 1
@@ -142,11 +156,6 @@ BEGIN
 	IF @Sporttype = 1
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_2 
-			@mode 				= 'cornersBets'
-			,@matchid 			= @matchID
-			,@str_resultDetail 	= @resultDetail_cb OUTPUT
-		
-		EXEC dbo.NAP_Admin_Settlement_2 
 			@mode 				= 'all'
 			,@matchid 			= @matchID
 			,@str_resultDetail 	= @resultDetail OUTPUT
@@ -171,31 +180,9 @@ BEGIN
 	
 	
 	BEGIN TRY
-	
-		SELECT TOP(1) @IsBetRadar = 1
-		FROM dbo.bettransm bm WITH (NOLOCK)
-			CROSS APPLY (
-				SELECT TOP 1 1 AS IsBetRadar
-				FROM dbo.f_Set_GetGroupBettypes() AS f 
-				WHERE BetType = bm.bettype AND f.GroupId = 8
-			) AS f
-		WHERE matchid 		= @matchId
-			AND statusID	NOT IN (101, 102)
-
-		--CHECK Auto-Bettype first if any
-		IF (@IsBetRadar = 1)
-		BEGIN		
-			EXEC dbo.NAP_Admin_Settlement_Parlay_BetRadar -- Early 22, 455
-				@MatchId			= @MatchId
-				,@matchdate			= @matchdate
-				,@Mode				= @Action
-				,@ticketCount		= @ticketCountBetRadar OUTPUT
-		END	
-		
 		--CHECK for CAL fisrt
-		IF @IsSettleBySetting = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
-			
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid
                 ,@matchdate 		= @matchdate
@@ -203,38 +190,31 @@ BEGIN
                 ,@SportType 		= @SportType
                 ,@ticketCount		= @ticketCountCAL OUTPUT
 		END 
-		ELSE IF(
-			@action IN ('REFUND-HT', 'ABANDONED-2H','REFUND-FT')
-		) OR (@SportType IN (2,5) AND @Action = 'REFUND')
+
+		IF @IsSettleBySetting = 0
 		BEGIN
-			/*IF(@action IN ('REFUND-HT')) --REFUND Is3x30 AND CAL the REST
+			IF @action IN ('REFUND-HT', 'ABANDONED-2H', 'REFUND-FT') 
+				OR (@SportType IN (2,5) AND @Action = 'REFUND')
 			BEGIN
-				TODO
-			END
-			IF(@action IN ('ABANDONED-2H', 'REFUND-FT')) --CAL-HT and REFUND/ABANDONED the REST
-			BEGIN
-				TODO
-			END*/
-			
-			--DO calculation
-			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate
-				@MatchId			= @MatchId
-				,@matchdate			= @matchdate
-				,@mode				= @Action
-				,@hth		 		= @hthomescore
-				,@hta		 		= @htawayscore
-				,@fth				= @fthomescore
-				,@fta				= @ftawayscore
-				,@Sporttype			= @Sporttype
-				,@betstatus 		= @betstatus
-				,@GoalSequence 		= @GoalRecord
-				,@resultDetail_cb	= @resultDetail_cb
-				,@resultDetail_ss	= @resultDetail_ss
-				,@resultDetail_bb	= @resultDetail_bb
-				,@resultDetail		= @resultDetail
-				,@IsRefundHT		= @IsRefundHT
-				,@ticketCount		= @ticketCountCAL OUTPUT
+				--DO calculation
+				EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate
+					@MatchId			= @MatchId
+					,@matchdate			= @matchdate
+					,@mode				= @Action
+					,@hth		 		= @hthomescore
+					,@hta		 		= @htawayscore
+					,@fth				= @fthomescore
+					,@fta				= @ftawayscore
+					,@Sporttype			= @Sporttype
+					,@betstatus 		= @betstatus
+					,@GoalSequence 		= @GoalRecord
+					,@resultDetail_ss	= @resultDetail_ss
+					,@resultDetail_bb	= @resultDetail_bb
+					,@resultDetail		= @resultDetail
+					,@IsRefundHT		= @IsRefundHT
+					,@ticketCount		= @ticketCountCAL OUTPUT
 				
+			END
 		END
 		
 		--CALL settle determinable first
@@ -258,7 +238,7 @@ BEGIN
 		END
 
 		--REFUND the REST
-		IF @IsSettleBySetting = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid
@@ -267,7 +247,8 @@ BEGIN
                 ,@SportType 		= @SportType
                 ,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
-		ELSE
+		
+		IF @IsSettleBySetting = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Refund
 				@MatchId			= @MatchId
@@ -279,14 +260,7 @@ BEGIN
 				,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
 		
-		/*
-		SELECT @ticketCountBetRadar	AS TC_BetRadar
-			, @ticketCountCAL		AS TC_CAL
-			, @ticketCountSDT		AS TC_SDT
-			, @ticketCountREFUND	AS TC_REFUND
-		*/
-		
-		SET @ticketCountTotal		= ISNULL(@ticketCountBetRadar, 0) + ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
+		SET @ticketCountTotal		= ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
 	
 	END TRY
 	BEGIN CATCH

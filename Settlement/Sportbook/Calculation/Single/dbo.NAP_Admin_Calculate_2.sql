@@ -15,7 +15,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_2] @matchid INT
 	,@IsSettleAbandonedMatchIBC		BIT = 0
 	,@IsSettleAbandonedMatch		BIT = 0
 	,@IsSettleAbandonedMatchBetFair BIT = 0
-	,@isExcludeCorner				BIT = 0 
 	,@IsReSettledTickets			BIT	= 1
 	-- add any params, please modify script in 'special section'
 AS
@@ -42,6 +41,7 @@ AS
 		- 20190227@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -194,8 +194,8 @@ BEGIN
 															 
 								WHEN betteam = 'h' AND @oddeven = 1 THEN 1
 								WHEN betteam = 'a' AND @oddeven = 0 THEN 1
-								WHEN betteam = 'o' AND @oddeven = 1 AND @oddevenht IS NULL THEN 1 --184, 194, 203, 1318, 428
-								WHEN betteam = 'e' AND @oddeven = 0 AND @oddevenht IS NULL THEN 1 --184, 194, 203, 1318, 428 
+								WHEN betteam = 'o' AND @oddeven = 1 AND @oddevenht IS NULL THEN 1 --184, 1318, 428
+								WHEN betteam = 'e' AND @oddeven = 0 AND @oddevenht IS NULL THEN 1 --184, 1318, 428 
 								WHEN betteam = 'oo' AND @oddevenht = 1 AND @oddeven = 1 THEN 1 -- 128
 								WHEN betteam = 'oe' AND @oddevenht = 1 AND @oddeven = 0 THEN 1 -- 128
 								WHEN betteam = 'eo' AND @oddevenht = 0 AND @oddeven = 1 THEN 1 -- 128
@@ -384,7 +384,6 @@ BEGIN
 									WHEN @bettype = 1318 AND @SelectedSet LIKE '%4%' AND BetID = 804 THEN 1 
 									WHEN @bettype = 1318 AND @SelectedSet LIKE '%5%' AND BetID = 805 THEN 1 
 									ELSE 0 END
-				AND 1 = CASE WHEN @isExcludeCorner = 1 AND  @bettype IN (194,203) THEN 0 ELSE 1 END 
 				AND i.IsCalculated = 1
 				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
 				AND mt.TransId IS NULL

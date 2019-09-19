@@ -1,11 +1,6 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_901]
 	@matchid INT,	
-	@ResourceIDs VARCHAR(MAX)=NULL,
 	@IsSettleAbandonedMatchIBC BIT = 0,
 	@action	VARCHAR(30)= 'REFUND',
 	@mode	VARCHAR(30)= 'REFUND',
@@ -26,6 +21,7 @@ AS
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
 			- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+			- 20190715@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 			
 		Parameter's Explanation:
 	*/
@@ -34,10 +30,6 @@ BEGIN
 	
 	DECLARE @tmpBettype TABLE(bettype INT)
  
-	DECLARE @bettype_22 VARCHAR(20), @bettype_160 VARCHAR(20)
-    SET @bettype_22 = '22'
-    SET @bettype_160 = '160'
-    
 	IF OBJECT_ID('tempdb..#tmp') IS NOT NULL
 	begin
 			drop table #tmp
@@ -50,31 +42,25 @@ BEGIN
 	IF @action = 'REFUND'
 	BEGIN
 		--Refund from manual settlement
-		IF @mode IN ('REFUND-FT','REFUND') AND @ResourceIDs IS NULL
+		IF @mode IN ('REFUND-FT','REFUND') 
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 					SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
 				UNION SELECT 5 UNION SELECT 6 UNION SELECT 16 UNION SELECT 17
 				UNION SELECT 18 UNION SELECT 157 UNION SELECT 177 
 				UNION SELECT 178 UNION SELECT 183 UNION SELECT 184 
+				UNION SELECT 22
 		END
-		IF @mode IN ('REFUND-HT','REFUND') AND @ResourceIDs IS NULL
+		IF @mode IN ('REFUND-HT','REFUND')
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 					SELECT 7 UNION SELECT 8 UNION SELECT 12 UNION SELECT 15
 				UNION SELECT 30 UNION SELECT 126
 				UNION SELECT 16 UNION SELECT 177 UNION SELECT 178 UNION SELECT 183 UNION SELECT 184 --refund for match 3x30 
-		END
-		--Refund from auto settlement
-		IF @mode = 'REFUND' AND @ResourceIDs IS NOT NULL
-		BEGIN
-			INSERT INTO @tmpBettype(bettype)
-				SELECT 160 UNION SELECT 180
-				UNION ALL SELECT 22
-				
-				
+				UNION SELECT 22
 		END
 	END
+
 	--Refund FGLG
 	IF @action = 'REFUND-FGLG'
 	BEGIN
@@ -100,12 +86,6 @@ BEGIN
 		AND statusid NOT IN (101,102)
 		AND betdaqid = 0--indicate tickets belong to bettrade
 		AND ExtraInfo IS NULL
-		AND 1 = CASE 
-					WHEN @ResourceIDs IS NOT NULL AND Bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
-					WHEN @ResourceIDs IS NOT NULL AND Bettype IN (160,180) AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-					WHEN @ResourceIDs IS NULL AND bettype NOT IN (160,180,22) THEN 1
-					ELSE 0 
-				END
 		AND 1 = CASE WHEN @IsSettleAbandonedMatchIBC = 1 
 						AND statusID IN (112, 113) THEN 0
 				ELSE 1 END

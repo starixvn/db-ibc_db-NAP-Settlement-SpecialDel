@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]  
 	@creator 			INT
 	, @matchid			INT
 	, @fth				SMALLINT		= NULL
@@ -29,6 +29,7 @@ AS
 		- 20170424@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
 		
 	Param's Explanation:
 		 
@@ -38,11 +39,8 @@ BEGIN
 	
 	DECLARE @start						DATETIME
 		, @stop							DATETIME
-		--, @goalrecord					VARCHAR(50)
-		--, @betstatus					NVARCHAR(50)
 		, @LogData						NVARCHAR(300)
 		, @eventstatus					NVARCHAR(50)
-		, @sporttype					SMALLINT
 		, @TicketCount					INT	
 		, @Remark						VARCHAR(500)
 		, @ActionID						INT
@@ -50,8 +48,6 @@ BEGIN
 		, @TotalAccount_BalanceUpdate	INT
 		, @HTDone						BIT
 		, @FTDone						BIT
-		, @isExistRunningCornerBet		BIT = 0
-		, @isExcludeCorner				BIT = 1
 		, @strHTBettypes				VARCHAR(MAX)
 		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
@@ -69,13 +65,7 @@ BEGIN
 										WHEN 'CAL-FT'	THEN 158
 										WHEN 'CAL-HT'	THEN 157
 										END
-
-	SELECT	@sporttype = m.sporttype
-			--,@goalrecord = ISNULL(m.goalrecord, '')
-			--,@betstatus = ISNULL(m.betstatus,'')
-	FROM	DBPRO.BODB02.dbo.match m WITH(NOLOCK)
-	WHERE	m.matchid = @matchid
-
+ 
 	IF @@ROWCOUNT = 0
 	BEGIN
 		SELECT @ErrCode = 1001001, @ErrMsg = 'Match does not exist!'
@@ -96,15 +86,15 @@ BEGIN
 	--CHECK avaiable process
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
-
+ 
 	SELECT @strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (1, 3) -- inclued FGLG bettype -- #106901
-
+ 
 	SELECT @strFTBettypes = COALESCE(@strFTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (2, 4) -- inclued FGLG bettype -- #106901
-
+ 
 	IF @Action = 'CAL-HT'
 	BEGIN
 		SELECT @TicketCount = COUNT(1)
@@ -121,7 +111,7 @@ BEGIN
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strFTBettypes + ',') > 0 THEN 1
 					 ELSE 0	END
 	END
-
+ 
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
@@ -135,15 +125,15 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
+		, @sportType 	= 1
 		, @Action		= @Action
-		, @Mode 		= 1 --@Mode auto payout
+		, @Mode 		= 2
 		
-
+ 
 	--SET total affected accounts
 	SELECT @TotalAccount = COUNT(DISTINCT custid)
 	FROM @BalanceWalletBefore
-
+ 
 	BEGIN TRY
 		/* 06 OCT 2008 : Joe
 		As of Today.  Match Remark can't tell game just settled for HT yet
@@ -152,29 +142,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_Settlement_1_CheckBetStatus @MatchId = @matchid
 			, @HTDone = @HTDone OUTPUT
 			, @FTDone = @FTDone OUTPUT
-
-		IF EXISTS(SELECT TOP 1 1 
-						FROM Bettrans WITH (NOLOCK) 
-						WHERE bettype IN (SELECT BetType FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId IN (5,6))
-										--(194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209)
-								AND matchID = @MatchID
-								AND statusID = 0)
-		BEGIN
-			SELECT @isExistRunningCornerBet = 1
-		END
-
-		----check exists running FGLG bet
-		--DECLARE @IsExistsRunningFGLGBet BIT
-		--SET @IsExistsRunningFGLGBet = 0
-		--IF EXISTS (SELECT TOP 1 1 
-		--			FROM dbo.bettrans WITH(NOLOCK) 
-		--			WHERE matchid = @matchid 
-		--				AND bettype IN (SELECT BetType FROM dbo.f_Set_GetGroupBettypes() f WHERE f.IsUsedGoalRecordValue = 1)
-		--				AND statusID = 0)
-		--BEGIN
-		--	SET @IsExistsRunningFGLGBet = 1
-		--END
-
+ 
 		/* Mode
 		CAL : (default) Settle ALL BetTypes
 		CAL-FT : Full Time Only
@@ -182,18 +150,18 @@ BEGIN
 		SCORE : Only Save Score -- not use
 		UNDO : Unsettle the match  -- not use
 		*/
-
+ 
 		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								   WHEN @action = 'CAL-HT' AND @FTDone = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
-								   WHEN @action = 'CAL-FT' AND @HTDone = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
+								   WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
+								   WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 								ELSE m.eventstatus END
 			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
 						ELSE @FTDone END
-			, @HTDone = CASE WHEN @action = 'CAL-FT' AND @HTDone = 1 AND (@isExistRunningCornerBet = 1) THEN 0
+			, @HTDone = CASE WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN 0
 						ELSE @HTDone END
 		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
 		WHERE m.matchid = @matchid
-
+ 
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
 			, @MatchID					= @matchid
 			, @FTHome					= @fth
@@ -202,50 +170,25 @@ BEGIN
 			, @HTAway					= @hta
 			, @BetStatus 				= @betstatus
 			, @GoalRecord				= @goalrecord
-			, @SelectedSet				= NULL-- Tennis selected 
 			, @Action					= @action
 			, @FTDone					= @FTDone
 			, @HTDone					= @HTDone
-			, @isExcludeCorner			= @isExcludeCorner
-			, @isExistRunningCornerBet	= @isExistRunningCornerBet
 			, @creator					= @creator
-
-		IF @Sporttype = 1 AND LEFT(@Action, 3) = 'CAL'
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
-				, @MatchID			= @MatchID
-				, @ResourceIDs		= NULL
-				, @Results			= NULL
-				, @fth 				= @fth
-				, @fta 				= @fta
-				, @hth 				= @hth
-				, @hta 				= @hta
-				, @fthCorners 		= NULL--@fthCorners
-				, @ftaCorners 		= NULL--@ftaCorners
-				, @hthCorners 		= NULL--@hthCorners
-				, @htaCorners 		= NULL--@htaCorners
-				, @ftFCorner 		= NULL--@ftFCorner
-				, @ftLCorner 		= NULL--@ftLCorner
-				, @htFCorner 		= NULL--@htFCorner
-				, @htLCorner 		= NULL--@htLCorner
-				, @isExcludeCorner	= @isExcludeCorner
-				, @Action			= @Action
-				, @IsAuto			= 0 --bet-radar only
-				, @creator			= @creator
-				, @ResourceResult	= @ResourceResult
-		END
-
-		IF LEFT(@action, 3) = 'CAL'
-		BEGIN
-			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
-					, @mode				= @action
-					, @isExcludeCorner	= @isExcludeCorner
-					--, @IsAutoCalculatePage		= 0
-					, @IsReSettledTickets		= @IsReSettledTickets
-			END
-		END
-
+ 
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
+			, @MatchID			= @MatchID
+			, @fth 				= @fth
+			, @fta 				= @fta
+			, @hth 				= @hth
+			, @hta 				= @hta
+			, @Action			= @Action
+			, @creator			= @creator
+			, @ResourceResult	= @ResourceResult
+ 
+		EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
+			, @mode				= @action
+			, @IsReSettledTickets		= @IsReSettledTickets
+ 
 		IF @eventstatus = 'completed'
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
@@ -256,14 +199,14 @@ BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
 				, @command = 'H'
 		END
-
+ 
 		DECLARE @TypeId TINYINT
 		SET @TypeId = CASE @Action WHEN 'CAL-HT' THEN 1
 									WHEN 'CAL-FT' THEN 2
 						ELSE -1	END --not supported
 		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
-
+ 
 	END TRY
 	BEGIN CATCH
 		-- Capture Balance incase of failure
@@ -277,16 +220,16 @@ BEGIN
 		)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 		= @matchId
-			, @sportType 	= @sporttype
+			, @sportType 	= 1
 			, @Action		= @Action
-			, @Mode 		= 1 --@Mode auto payout
+			, @Mode 		= 2
 		
 		-- Compare Balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @BalanceWalletBefore
 			, @BalanceWalletAfter	= @BalanceWalletAfter
 			, @ActionId				= @ActionID
-
+ 
 		--SET total affected accounts
 		SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT b.custid)
 		FROM @BalanceWalletBefore b
@@ -303,7 +246,7 @@ BEGIN
 	-------------------------------------------------------------
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
-
+ 
 	INSERT INTO @BalanceWalletAfter (
 		matchid
 		, custid
@@ -314,14 +257,14 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
+		, @sportType 	= 1
 		, @Action		= @Action
-		, @Mode 		= 1 --@Mode auto payout
-
+		, @Mode 		= 2
+ 
 	-------------------------------------------------------------
 	---                   compare BALANCE                     ---
 	---------------------------VVVV------------------------------
-
+ 
 	---INSERT data into pending balance table   
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		@BalanceWalletBefore	= @BalanceWalletBefore
@@ -339,20 +282,17 @@ BEGIN
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
-
+ 
 	SELECT @LogData = 'NAP: Auto Payout Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
 		+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
 		+ ' HT:' + CAST(@hth AS NVARCHAR(10)) + '-' + CAST(@hta AS NVARCHAR(10)) 
 		+ ' GoalRecord:' + ISNULL(@goalrecord, '')
-		+ ' Remark(' + @betstatus + ')' + CASE WHEN @isExcludeCorner IS NULL THEN ''
-											ELSE '(isExcludeCorner:' + CAST(@isExcludeCorner AS VARCHAR(50)) + ') ' END
+		+ ' Remark(' + @betstatus + ')' 
 		+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
+ 
 	EXEC dbo.WriteLog_UserLog @UserID = @creator, @Doing = @LogData
 		
 	SELECT @Remark ='NAP: ' + 'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> '
-							+ CASE WHEN @isExcludeCorner IS NULL THEN '' 
-								ELSE 'isExcludeCorner:' + CAST(@isExcludeCorner AS VARCHAR(50)) + '<br/> ' END 
 							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
@@ -371,10 +311,10 @@ BEGIN
 			, @Remark			= @Remark
 			, @IP				= @IP
 	END TRY
-
+ 
 	BEGIN CATCH
 		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-
+ 
 		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 			, @Matchid			= @matchid
 			, @ActionID			= @ActionID

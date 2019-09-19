@@ -40,6 +40,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 
 */
 BEGIN
@@ -80,6 +81,7 @@ BEGIN
 		,@winlost MONEY
 		,@totalHTScore	TINYINT
 		,@totalFTScore	TINYINT
+		,@ResultPlus NVARCHAR(10)
     
     SELECT @fth2H = @fth - @hth
         ,@fta2H	= @fta - @hta
@@ -149,7 +151,7 @@ BEGIN
 	
 	DECLARE @settlementTime DATETIME
 
-	IF @bettype NOT IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152, 189, 190, 416, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 467)
+	IF @bettype NOT IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152, 189, 190, 416, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 467, 493, 494, 495, 496, 497)
 	BEGIN
 		IF @IsSettleAbandonedMatchIBC = 0 AND @IsSettleAbandonedMatchBetFair = 0 AND @IsSettleAbandonedMatch = 0
 		BEGIN
@@ -785,6 +787,29 @@ BEGIN
 								ELSE CAST(@fth AS nvarchar(10)) + ':' + CAST(@fta AS nvarchar(10))
 						END
 			
+		SELECT @result = CASE WHEN @bettype = 493 
+								THEN CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+											WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+											WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+											WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+											WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+											WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+											WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+											WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+											ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+										END
+						END, 
+				@ResultPlus = CASE WHEN @bettype = 493 
+								THEN CASE WHEN (@hth + @hta) = 0 THEN '0/8+'
+											WHEN (@hth + @hta) = 1 THEN '1/9+'  
+											WHEN (@hth + @hta) = 2 THEN '2/10+'
+											WHEN (@hth + @hta) = 3 THEN '3/11+'
+											WHEN (@hth + @hta) = 4 THEN '4/12+'
+											WHEN (@hth + @hta) = 5 THEN '5/13+'
+											WHEN (@hth + @hta) = 6 THEN '6/14+'
+											WHEN (@hth + @hta) IN (7,8,9) THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+										END
+						END
 			-- process batch by batch
         WHILE @BatchNo > 0
 		BEGIN
@@ -1003,7 +1028,56 @@ BEGIN
 																		ELSE 'G' + CAST(@totalHTScore AS VARCHAR(5)) + '/G' + CAST(@totalFTScore AS VARCHAR(5))
 																	END) = betteam THEN 1 
 																ELSE -1
-															END                                                                                          	END                                            
+															END                                                                                          	
+												-- #115232
+												-- HT/FT Total Corners
+												WHEN 493 THEN CASE WHEN 
+																	(
+																		CASE WHEN betteam = 'AOS' THEN
+																									CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 'AOS' ELSE '' END
+																			ELSE @result
+																		END
+																	) = betteam THEN 1 
+																	ELSE -1
+																END
+												-- 1H Correct Corners
+												WHEN 494 THEN CASE WHEN 
+																	(
+																	CASE 
+																		WHEN betteam = 'AOS' THEN 
+																								CASE WHEN CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 'AOS' ELSE '' END
+																		ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
+																	END) = betteam THEN 1 
+																	ELSE -1
+																END
+												-- 2H Correct Corners
+												WHEN 495 THEN CASE WHEN 
+																	(
+																	CASE 
+																		WHEN betteam = 'AOS' THEN 
+																								CASE WHEN CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 'AOS' ELSE '' END
+																		ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
+																	END) = betteam THEN 1 
+																	ELSE -1
+																END
+												-- Corner Highest Scoring Half
+												WHEN 496 THEN 
+																CASE 
+																WHEN betteam = '1h' AND (@hth + @hta) > (@fth - @hth + @fta - @hta) THEN 1
+																WHEN betteam = 'tie' AND (@hth + @hta) = (@fth - @hth + @fta - @hta) THEN 1
+																WHEN betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
+																ELSE -1
+																END
+												-- Corner Highest Scoring Half (2-Way)
+												WHEN 497 THEN 
+																CASE 
+																WHEN betteam = '1h' AND (@hth + @hta) > (@fth - @hth + @fta - @hta) THEN 1
+																WHEN betteam IN ('1h','2h') AND (@hth + @hta) = (@fth - @hth + @fta - @hta) THEN 0
+																WHEN betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
+																ELSE -1
+																END     
+												-- End #115232   
+											END                                                                                                                                                                               
 									WHEN @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1 
 										THEN CASE bettype
 												WHEN 133 THEN
@@ -1311,7 +1385,103 @@ BEGIN
 														WHEN betteam = 'n' AND @hta + @hth < 1.5 AND (@fth2H + @fta2H > 1.5) THEN 1
 													END
 												--#67462
-
+												-- #115232
+												-- HT/FT Total Corners
+												WHEN 493 THEN 
+													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
+															CASE 
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 ELSE NULL END
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) < (@hth + @hta) THEN -1
+																ELSE NULL
+															END
+														WHEN @IsHTCal = 1 THEN -- suspended in FT
+															CASE 
+																WHEN betteam = 'AOS' THEN 
+																						CASE 
+																							WHEN CHARINDEX(@result, transdesc) = 0 THEN 1 
+																							WHEN CHARINDEX(@result, transdesc) > 0 AND CHARINDEX(@ResultPlus, transdesc) > 0 THEN -1 
+																							ELSE NULL 
+																						END
+																ELSE 
+																	CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 AND betteam = '0/8+' THEN 1
+																		WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 AND betteam = '1/9+' THEN 1
+																		WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 AND betteam = '2/10+' THEN 1
+																		WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 AND betteam = '3/11+' THEN 1
+																		WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 AND betteam = '4/12+' THEN 1
+																		WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 AND betteam = '5/13+' THEN 1
+																		WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 AND betteam = '6/14+' THEN 1
+																		WHEN (@hth + @hta) = 7 AND (@fth + @fta) >= 15 AND betteam = '7/15+' THEN 1
+																		WHEN (@hth + @hta) = 8 AND (@fth + @fta) >= 15 AND betteam = '8/15+' THEN 1
+																		WHEN (@hth + @hta) = 9 AND (@fth + @fta) >= 15 AND betteam = '9/15+' THEN 1
+																		WHEN LEFT(betteam, 1) <> (@hth + @hta) THEN -1
+																		WHEN LEFT(betteam, 1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') < (@fth + @fta) THEN -1
+																		WHEN LEFT(betteam, 1) = (@hth + @hta) AND REPLACE(SUBSTRING(betteam, CHARINDEX('/',betteam) + 1, LEN(betteam)),'+','') >= (@fth + @fta) THEN NULL
+																		ELSE NULL
+																	END
+															END
+														END
+												-- 1H Correct Corners
+												WHEN 494 THEN 
+													CASE WHEN @IsHTCal = 0 THEN
+															CASE 
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), transdesc) = 0 THEN 1 ELSE NULL END
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= @hth AND RIGHT(betteam, 1) >= @hta THEN NULL
+																ELSE -1
+															END
+													END
+												-- 2H Correct Corners
+												WHEN 495 THEN 
+													CASE WHEN @IsHTCal = 1 THEN
+															CASE 
+																WHEN betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), transdesc) = 0 THEN 1 ELSE NULL END
+																WHEN betteam <> 'AOS' AND LEFT(betteam, 1) >= (@fth - @hth) AND RIGHT(betteam, 1) >= (@fta - @hta) THEN NULL
+																ELSE -1
+															END
+													END
+												-- Corner Highest Scoring Half
+												WHEN 496 THEN 
+													CASE @IsHTCal
+														WHEN 0 THEN NULL --abandoned 1H
+														WHEN 1 THEN --abandoned 2H
+														CASE betteam
+															WHEN '1h' THEN
+																CASE 
+																	WHEN @hth + @hta <= @fth2H + @fta2H THEN -1
+																	ELSE NULL
+																END
+															WHEN '2h' THEN
+																CASE 
+																	WHEN @hth + @hta < @fth2H + @fta2H THEN 1
+																	ELSE NULL
+																END
+															WHEN 'tie' THEN
+																CASE 
+																	WHEN @hth + @hta < @fth2H + @fta2H THEN -1
+																	ELSE NULL
+																END
+															ELSE NULL
+														END
+													END
+												-- Corner Highest Scoring Half (2-Way)
+												WHEN 497 THEN 
+													CASE @IsHTCal
+														WHEN 0 THEN NULL --abandoned 1H
+														WHEN 1 THEN --abandoned 2H
+														CASE betteam
+															WHEN '1h' THEN
+																CASE 
+																	WHEN @hth + @hta < @fth2H + @fta2H THEN -1
+																	ELSE NULL
+																END
+															WHEN '2h' THEN
+																CASE 
+																	WHEN @hth + @hta < @fth2H + @fta2H THEN 1
+																	ELSE NULL
+																END
+															ELSE NULL
+														END
+													END
+												-- End #115232
 												-- #112885 - PH4
 												WHEN 467 THEN -- HT/FT Exact Total Goal
 													CASE WHEN @IsHTCal = 0 THEN -- suspended in HT 
@@ -1352,6 +1522,7 @@ BEGIN
 				-- check winlost or status change to update SettlementTime
 				,@statusId = CASE 
 								WHEN @modds > 0 THEN 112 --WON
+								WHEN @modds = 0 THEN 111 --DRAW
 								WHEN @modds < 0 THEN 113 --LOSE
 								ELSE statusID
 							END
@@ -1359,11 +1530,12 @@ BEGIN
 								WHEN @modds > 0 THEN actual_stake + stake * (CASE 
 										WHEN odds < 0 THEN 1
 										ELSE CASE 
-												WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
+												WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467,493,494,495,496,497) THEN odds - 1
 												ELSE odds 
 												END
 										END
 									)
+								WHEN @modds = 0 THEN actual_stake
 								WHEN @modds < 0 THEN 0
 								ELSE winlost
 							END
@@ -1373,11 +1545,12 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467,493,494,495,496,497) THEN odds - 1
 									ELSE odds
 									END
 							END
 							) * - apositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * apositiontaking
 					ELSE awinlost
 					END
@@ -1385,11 +1558,12 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467,493,494,495,496,497) THEN odds - 1
 									ELSE odds 
 									END
 							END
 							) * - mpositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * mpositiontaking
 					ELSE mwinlost
 					END
@@ -1397,36 +1571,42 @@ BEGIN
 					WHEN @modds > 0 THEN stake * (CASE 
 							WHEN odds < 0 THEN 1
 							ELSE CASE 
-									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467) THEN odds - 1
+									WHEN bettype IN (133, 134, 140, 141, 142, 145, 146, 147, 148, 149, 150, 152,189,190,416,433,434,435,436,437,438,439,440,441,442,443,444, 467,493,494,495,496,497) THEN odds - 1
 									ELSE odds 
 									END
 							END
 							) * - spositiontaking
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN actual_stake * spositiontaking
 					ELSE swinlost
 					END
 				,PlayerComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * playerdiscount * stake
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * playerdiscount * stake
 					ELSE playercomm
 					END
 				,Comm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * discount * stake * (1 - apositiontaking)
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * discount * stake * (1 - apositiontaking)
 					ELSE comm
 					END
 				,aComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * adiscount * stake * (1 - (mpositiontaking + apositiontaking))
 					ELSE acomm
 					END
 				,sComm = CASE 
 					WHEN @modds > 0 THEN @commWinRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
+					WHEN @modds = 0 THEN 0
 					WHEN @modds < 0 THEN @commLostRate * sdiscount * stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 					ELSE scomm
 					END
 				,STATUS = CASE 
 					WHEN @modds > 0 THEN 'WON'
+					WHEN @modds = 0 THEN 'DRAW'
 					WHEN @modds < 0 THEN 'LOSE'
 					ELSE status
 					END

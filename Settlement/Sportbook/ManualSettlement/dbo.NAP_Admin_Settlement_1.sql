@@ -20,21 +20,12 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
     ,@SelectedSet3Game	VARCHAR(MAX)    = NULL 
     ,@SelectedSet4Game	VARCHAR(MAX)    = NULL 
     ,@SelectedSet5Game	VARCHAR(MAX)    = NULL 
-    ,@fthCorners        SMALLINT        = NULL
-    ,@ftaCorners        SMALLINT        = NULL
-    ,@hthCorners        SMALLINT        = NULL
-    ,@htaCorners        SMALLINT        = NULL  
-    ,@ftFCorner        	VARCHAR(1)      = NULL
-    ,@ftLCorner        	VARCHAR(1)      = NULL
-    ,@htFCorner        	VARCHAR(1)      = NULL
-    ,@htLCorner        	VARCHAR(1)      = NULL     
     
     ,@SelectedQuarter	VARCHAR(50)		= NULL
     ,@QuarterResult		VARCHAR(MAX)	= NULL
     
     ,@ResourceResult	VARCHAR(MAX)	= NULL
-    
-    ,@isExcludeCorner	BIT            	= 0 
+   
     ,@action            VARCHAR(10)    	= 'CAL'
     ,@IP                VARCHAR(50)    	= ''
 	,@IsReSettledTickets BIT			= 1
@@ -88,6 +79,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -136,7 +128,6 @@ BEGIN
         ,@TotalAccount_BalanceUpdate    INT
         ,@HTDone                        BIT
         ,@FTDone                        BIT
-        ,@isExistRunningCornerBet       BIT = 0
         ,@strAutoBettypes				VARCHAR(MAX)
         ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)	
@@ -222,7 +213,7 @@ BEGIN
 
     SELECT	@strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
     FROM    dbo.f_Set_GetGroupBettypes() f 
-	WHERE  	f.GroupId IN (1,3,5) -- include HT-FGLG groupId = 3
+	WHERE  	f.GroupId IN (1,3) -- include HT-FGLG groupId = 3
 			AND f.IsAuto = 0
 	
 	SET @strBettypes = CAST((SELECT  BetType '@t'
@@ -494,17 +485,6 @@ BEGIN
             FROM    @status
             WHERE    FTBet = 1
 
-            IF @Sporttype = 1 
-            BEGIN
-                IF EXISTS(    SELECT TOP 1 1 FROM Bettrans WITH (NOLOCK) 
-                            WHERE    bettype IN (194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209)
-                                    AND matchID = @MatchID 
-                                    AND statusID = 0     
-                                    AND @isExcludeCorner = 1 
-                )
-                SELECT    @isExistRunningCornerBet = 1 
-            END
-
             /* Mode
             CAL : (default) Settle ALL BetTypes
             CAL-FT : Full Time Only
@@ -513,17 +493,13 @@ BEGIN
             UNDO : Unsettle the match  -- not use
             */
             SELECT    @eventstatus = CASE 
-                                        WHEN @action = 'CAL' AND @Sporttype NOT IN (1,2,5)        THEN N'completed'
-                                        WHEN @action = 'CAL' AND @Sporttype = 1 AND @isExcludeCorner = 0 THEN N'completed'
-                                        WHEN @action = 'CAL' AND @Sporttype = 1 AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
+                                        WHEN @action = 'CAL' AND @Sporttype NOT IN (2,5)        THEN N'completed'
                                         WHEN @action = 'CAL' 
 												AND ((@Sporttype = 5 AND @SelectedSet LIKE '%6%')
 													OR (@sporttype = 2 AND @SelectedQuarter LIKE '%FT%')) THEN N'completed'    -- Match Option checked 
                                         WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-                                        WHEN @action = 'CAL-HT' AND @FTDone = 1    AND @isExcludeCorner = 0 THEN N'completed'
-                                        WHEN @action = 'CAL-HT' AND @FTDone = 1    AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
-                                        WHEN @action = 'CAL-FT' AND @HTDone = 1 AND @isExcludeCorner = 0 THEN N'completed'
-                                        WHEN @action = 'CAL-FT' AND @HTDone = 1 AND @isExcludeCorner = 1 AND @isExistRunningCornerBet = 0 THEN N'completed'
+                                        WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
+                                        WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
                                         ELSE m.eventstatus
                                         END
                     ,@FTDone        = CASE 
@@ -547,8 +523,6 @@ BEGIN
                 ,@Action            = @action
                 ,@FTDone            = @FTDone
                 ,@HTDone            = @HTDone
-                ,@isExcludeCorner    = @isExcludeCorner
-                ,@isExistRunningCornerBet = @isExistRunningCornerBet
                 ,@creator            = @creator
 
             IF @Sporttype = 5 AND @Action='CAL'
@@ -593,22 +567,11 @@ BEGIN
                 EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
                     @Command        = 'NAP_Admin_Settlement_1-CAL',
                     @MatchID        = @MatchID,
-                    @ResourceIDs    = NULL,
-                    @Results        = NULL,
                     @fth             = @fth,
                     @fta             = @fta,
                     @hth             = @hth,
                     @hta             = @hta,
-                    @fthCorners     = @fthCorners,
-                    @ftaCorners     = @ftaCorners,
-                    @hthCorners     = @hthCorners,
-                    @htaCorners     = @htaCorners,
-                    @ftFCorner         = @ftFCorner,
-                    @ftLCorner         = @ftLCorner,
-                    @htFCorner         = @htFCorner,
-                    @htLCorner         = @htLCorner,
-                    @isExcludeCorner = @isExcludeCorner,
-                    @ResourceResult	= @ResourceResult,
+                    @ResourceResult	 = @ResourceResult,
                     @Action            = @Action,
                     @IsAuto            = 0,
                     @creator        = @creator
@@ -636,7 +599,6 @@ BEGIN
                     EXEC dbo.NAP_Admin_Settlement_3 
                         @matchid            = @matchid
                         ,@mode                = @action    
-                        ,@isExcludeCorner    = @isExcludeCorner  
 						,@IsReSettledTickets = @IsReSettledTickets
                 END
             END
@@ -800,15 +762,6 @@ BEGIN
                                                         + CASE    WHEN @GameResult5 IS NULL THEN ''
                                                                 ELSE '(S5GR:' + @GameResult5 + ') ' 
                                                                 END
-                                                        + CASE WHEN @fthCorners IS NULL THEN '' ELSE '(fthCorners:' + CAST(@fthCorners AS VARCHAR(50))  + ') ' END 
-                                                        + CASE WHEN @ftaCorners IS NULL THEN '' ELSE '(ftaCorners:' + CAST(@ftaCorners AS VARCHAR(50))  + ') ' END
-                                                        + CASE WHEN @hthCorners IS NULL THEN '' ELSE '(hthCorners:' + CAST(@hthCorners AS VARCHAR(50))  + ') ' END
-                                                        + CASE WHEN @htaCorners IS NULL THEN '' ELSE '(htaCorners:' + CAST(@htaCorners AS VARCHAR(50))  + ') ' END
-                                                        + CASE WHEN @ftFCorner IS NULL THEN '' ELSE '(ftFCorner:' + @ftFCorner + ') ' END
-                                                        + CASE WHEN @ftLCorner IS NULL THEN '' ELSE '(ftLCorner:' + @ftLCorner + ') ' END
-                                                        + CASE WHEN @htFCorner IS NULL THEN '' ELSE '(htFCorner:' + @htFCorner + ') ' END
-                                                        + CASE WHEN @htLCorner IS NULL THEN '' ELSE '(htLCorner:' + @htLCorner + ') ' END
-                                                        + CASE WHEN @isExcludeCorner IS NULL THEN '' ELSE '(isExcludeCorner:' + CAST(@isExcludeCorner AS VARCHAR(50)) + ') ' END
 														+ CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
 														+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                                                         +' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
@@ -857,16 +810,6 @@ BEGIN
                             + CASE    WHEN @GameResult5 IS NULL THEN ''
                                     ELSE 'S5GR:' + @GameResult5 + '<br/> ' 
                                     END  
-
-                            + CASE WHEN @fthCorners IS NULL THEN '' ELSE 'fthCorners:' + CAST(@fthCorners AS VARCHAR(50))  + ' ' END 
-                            + CASE WHEN @ftaCorners IS NULL THEN '' ELSE 'ftaCorners:' + CAST(@ftaCorners AS VARCHAR(50))  + '<br/> ' END
-                            + CASE WHEN @hthCorners IS NULL THEN '' ELSE 'hthCorners:' + CAST(@hthCorners AS VARCHAR(50))  + ' ' END
-                            + CASE WHEN @htaCorners IS NULL THEN '' ELSE 'htaCorners:' + CAST(@htaCorners AS VARCHAR(50))  + '<br/> ' END
-                            + CASE WHEN @ftFCorner IS NULL THEN '' ELSE 'ftFCorner:' + @ftFCorner + '<br/> ' END
-                            + CASE WHEN @ftLCorner IS NULL THEN '' ELSE 'ftLCorner:' + @ftLCorner + '<br/> ' END
-                            + CASE WHEN @htFCorner IS NULL THEN '' ELSE 'htFCorner:' + @htFCorner + '<br/> ' END
-                            + CASE WHEN @htLCorner IS NULL THEN '' ELSE 'htLCorner:' + @htLCorner + '<br/> ' END
-                            + CASE WHEN @isExcludeCorner IS NULL THEN '' ELSE 'isExcludeCorner:' + CAST( @isExcludeCorner AS VARCHAR(50)) + '<br/> ' END 
 							+ CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
 							+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                             + 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 

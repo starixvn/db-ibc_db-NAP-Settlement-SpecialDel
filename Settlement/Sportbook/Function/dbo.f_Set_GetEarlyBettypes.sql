@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types
 	
     Parameters Explanation:    
    
@@ -110,5 +111,12 @@ RETURN (
    UNION ALL SELECT 9084
    UNION ALL SELECT 9085
    UNION ALL SELECT 9086
+
+   -- Start #115232
+   UNION ALL SELECT 424
+   UNION ALL SELECT 455
+   UNION ALL SELECT 479
+   UNION ALL SELECT 481
+   -- End 
 )
 GO

@@ -1,13 +1,7 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
-    , @isExcludeCorner BIT = 0 
-	--, @IsAutoCalculatePage BIT = 0
 	, @IsReSettledTickets BIT = 1
 AS
 /*
@@ -39,6 +33,7 @@ AS
 	   - 20180510@Benjamin: Incorporate new Sports: Sepak Takraw(48)[Redmine:#94608]
 	   - 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	   - 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+	   - 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
     Param's Explanation:
     • @Mode:
@@ -58,7 +53,7 @@ BEGIN
             ,@away_2nd            	INT 
             ,@sporttype				SMALLINT
             ,@betstatus				NVARCHAR(50)
-            ,@GoalRecord			VARCHAR(50)
+            ,@GoalRecord			VARCHAR(50) 
             ,@matchCode				NVARCHAR(50)
             ,@oddeven				SMALLMONEY
             ,@oddevenht				SMALLMONEY
@@ -81,25 +76,14 @@ BEGIN
             ,@HTFT					NVARCHAR(10)
             ,@isRefundHT			BIT
             ,@WinFromBehind			NVARCHAR(1)
+			,@goalsequenceHT		VARCHAR(50)
+			,@goalsequenceFT		VARCHAR(50)
                         
             -- for tennis
             ,@TennisTotal			SMALLINT
             ,@T_Home				SMALLINT
             ,@T_Away				SMALLINT
 
-            --corners bets
-            ,@fthCorners        	INT = 0
-            ,@ftaCorners        	INT = 0
-            ,@hthCorners        	INT = 0
-            ,@htaCorners        	INT = 0     
-            ,@oddevenCorners    	SMALLMONEY    
-            ,@oddevenCorners_ht		SMALLMONEY
-            ,@totalCorners			SMALLMONEY
-            ,@totalCorners_ht		SMALLMONEY
-            ,@FTFCorner            	VARCHAR(10) =''
-            ,@FTLCorner            	VARCHAR(10) =''
-            ,@HTFCorner            	VARCHAR(10) =''
-            ,@HTLCorner            	VARCHAR(10) =''     
             ,@strBettypes 			VARCHAR(MAX)
             
             ,@betcount_501			INT = 0
@@ -126,7 +110,6 @@ BEGIN
     
 	IF @Sporttype = 1 
     BEGIN
-		
 		EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
 			,@matchid = @MatchId
 			,@str_resultDetail = @strResultDetail OUTPUT
@@ -166,22 +149,10 @@ BEGIN
 				-- for bettype 14,448
 				,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
-											
-				,@fthCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN HomeValue ELSE 0 END),0)
-				,@ftaCorners = ISNULL(MAX(CASE WHEN ResourceID ='04' THEN AwayValue ELSE 0 END),0)
-                ,@hthCorners = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN HomeValue ELSE 0 END),0)
-                ,@htaCorners = ISNULL(MAX(CASE WHEN ResourceID ='05' THEN AwayValue ELSE 0 END),0)
-                ,@FTFCorner = ISNULL(MAX(CASE WHEN ResourceID ='206' THEN HomeValue ELSE '' END),'')
-                ,@HTFCorner = ISNULL(MAX(CASE WHEN ResourceID ='207' THEN HomeValue ELSE '' END),'')
-                ,@FTLCorner = ISNULL(MAX(CASE WHEN ResourceID ='208' THEN HomeValue ELSE '' END),'')
-                ,@HTLCorner = ISNULL(MAX(CASE WHEN ResourceID ='209' THEN HomeValue ELSE '' END),'')
+				,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+				,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 		FROM	cteResult r
-		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
-		
-        SELECT  @oddevenCorners		= ((@fthCorners + @ftaCorners)%2)
-                ,@oddevenCorners_ht = ((@hthCorners + @htaCorners)%2)
-                ,@totalCorners      = (@fthCorners + @ftaCorners)
-                ,@totalCorners_ht   = (@hthCorners + @htaCorners)
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )		
     END 
 
     IF @SportType IN (6, 9, 30, 48) -- Tennis/VolleyBall/Badminton/Squash/Sepak Takraw : get TotalGamesPlayed
@@ -281,22 +252,17 @@ BEGIN
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-HT', 'CAL') 
 				AND 1 = CASE 
-							WHEN GroupId IN (1,3,5) THEN 1 
-							ELSE 0 END -- HT + HT Corner + HT FGLG
-				AND 1 = CASE
-							WHEN @isExcludeCorner = 1 AND GroupId = 5 THEN 0 -- exclude HT corner
-							ELSE 1
-						END
+							WHEN GroupId IN (1,3) THEN 1 
+							ELSE 0 END -- HT + HT Corner + HT FGLG	
 		UNION ALL
 		SELECT Bettype
 		FROM	dbo.f_Set_GetGroupBettypes()
 		WHERE	@mode IN ('CAL-FT', 'CAL') 
 				AND 1 = CASE 
-							WHEN GroupId IN (2,4,6) THEN 1 
+							WHEN GroupId IN (2,4) THEN 1 
 							ELSE 0 END -- FT, FT Corner + FT FGLG
 				AND 1 = CASE
 							WHEN @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 -- If this match has been refund HT --> refund all bettypes related to 2nd result 
-							WHEN @isExcludeCorner = 1 AND GroupId = 6 THEN 0 -- exclude FT corner
 							ELSE 1
 						END
 				
@@ -325,6 +291,8 @@ BEGIN
         ,@sporttype = @sporttype
         ,@betstatus = @betstatus
         ,@GoalRecord = @GoalRecord
+		,@goalsequenceFT = @goalsequenceFT
+		,@goalsequenceHT = @goalsequenceHT
         ,@matchCode = @matchCode
         ,@oddeven = @oddeven
         ,@oddevenht = @oddevenht
@@ -349,20 +317,7 @@ BEGIN
         ,@TennisTotal = @TennisTotal
         ,@T_Home = @T_Home
         ,@T_Away = @T_Away
-        ,@fthCorners = @fthCorners
-        ,@ftaCorners = @ftaCorners
-        ,@hthCorners = @hthCorners
-        ,@htaCorners = @htaCorners
-        ,@oddevenCorners = @oddevenCorners
-        ,@oddevenCorners_ht    = @oddevenCorners_ht
-        ,@totalCorners = @totalCorners
-        ,@totalCorners_ht = @totalCorners_ht
-        ,@ftFCorner = @ftFCorner
-        ,@ftLCorner = @ftLCorner
-        ,@htFCorner = @htFCorner
-        ,@htLCorner = @htLCorner
         ,@isRefundHT = @isRefundHT      
-        ,@isExcludeCorner = @isExcludeCorner  
 		,@strBettypes	   = @strBettypes		
 		-- including FGLG
 		,@ht_fg = @ht_fg

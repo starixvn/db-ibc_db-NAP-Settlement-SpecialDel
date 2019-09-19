@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker] 
     @matchid INT = NULL
     ,@mode VARCHAR(30) = NULL
@@ -24,10 +20,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@TotalGameHomeMatch    INT = NULL
     ,@TotalGameAwayMatch    INT = NULL
     ,@GoalSequence          VARCHAR(50) = NULL
-    ,@ResourceIDs           VARCHAR(MAX) = NULL
-    ,@resultDetail_cb VARCHAR(MAX) = NULL -- for corners bets
     ,@resultDetail_ss VARCHAR(MAX) = NULL -- sportting solution
-    ,@resultDetail_br VARCHAR(MAX) = NULL -- for betradar
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
     ,@SelectedQuarter VARCHAR(MAX) = NULL
@@ -58,6 +51,7 @@ AS
         - 20180622@Kathy: Do not settle on server DB042, correct server name DBLicAPI2 to DBLicAPI02 [Redmine#97076]
         - 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
     Param's Explanation:
         @action         @mode
@@ -100,10 +94,7 @@ BEGIN
                 + CASE WHEN @TotalGameHomeMatch IS NULL THEN '' ELSE ',@TotalGameHomeMatch = ' + CONVERT(NVARCHAR(50), @TotalGameHomeMatch) END
                 + CASE WHEN @TotalGameAwayMatch IS NULL THEN '' ELSE ',@TotalGameAwayMatch = ' + CONVERT(NVARCHAR(50), @TotalGameAwayMatch) END
                 + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
-                + CASE WHEN @ResourceIDs IS NULL THEN '' ELSE ',@ResourceIDs = ''' + @ResourceIDs + '''' END
-                + CASE WHEN @resultDetail_cb IS NULL THEN '' ELSE ',@resultDetail_cb = ''' + @resultDetail_cb + '''' END
                 + CASE WHEN @resultDetail_ss IS NULL THEN '' ELSE ',@resultDetail_ss = ''' + @resultDetail_ss + '''' END
-                + CASE WHEN @resultDetail_br IS NULL THEN '' ELSE ',@resultDetail_br = ''' + @resultDetail_br + '''' END
                 + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
                 + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END
                 + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ''' + @SelectedQuarter + '''' END
@@ -139,17 +130,6 @@ BEGIN
             , @strBettypes = @strBettypes
     END
 
-    IF @mode = 'autobetradar_m'
-    BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @matchid
-            , @matchdate = @matchdate
-            , @action = 'CAL'
-            , @priorAction = 'REFUND'
-            , @IsRefundHT = @IsRefundHT
-            , @resultDetail_br = @resultDetail_br
-            , @strBettypes = @strBettypes
-    END
-
     IF @mode = 'basketball_m'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m
@@ -180,8 +160,6 @@ BEGIN
             , @SelectedSet = @SelectedSet
             , @TennisTotal = @TennisTotal
             , @GoalSequence = @GoalSequence
-            , @ResourceIDs = @ResourceIDs
-            , @resultDetail_cb = @resultDetail_cb
             , @resultDetail = @resultDetail
             , @strBettypes = @strBettypes
             , @betstatus = @betstatus

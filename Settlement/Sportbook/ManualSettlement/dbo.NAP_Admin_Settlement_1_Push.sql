@@ -19,16 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@SelectedSet2Game      VARCHAR(MAX)    = NULL 
     ,@SelectedSet3Game      VARCHAR(MAX)    = NULL 
     ,@SelectedSet4Game      VARCHAR(MAX)    = NULL 
-    ,@SelectedSet5Game      VARCHAR(MAX)    = NULL 
-    ,@fthCorners            SMALLINT        = NULL
-    ,@ftaCorners            SMALLINT        = NULL
-    ,@hthCorners            SMALLINT        = NULL
-    ,@htaCorners            SMALLINT        = NULL 
-    ,@FTFCorner             VARCHAR(1)      = NULL
-    ,@FTLCorner             VARCHAR(1)      = NULL
-    ,@HTFCorner             VARCHAR(1)      = NULL
-    ,@HTLCorner             VARCHAR(1)      = NULL     
-    ,@isExcludeCorner       BIT             = 0 
+    ,@SelectedSet5Game      VARCHAR(MAX)    = NULL    
     ,@SelectedQuarter		VARCHAR(50)		= NULL
     ,@QuarterResult			VARCHAR(MAX)	= NULL
     ,@ResourceResult		VARCHAR(MAX)	= NULL
@@ -64,6 +55,7 @@ AS
 		- 20170421@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -138,7 +130,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId	= @MatchId
     , @Action = @Action
     , @Mode = 'CAL'
-	, @IsExcludeCorner = @isExcludeCorner
 	, @SelectedQuarter = @SelectedQuarter
 	, @SelectedSet = @SelectedSet
     , @ErrCode = @ErrCode OUTPUT
@@ -189,20 +180,6 @@ BEGIN
                                                                                        ELSE '''' + @SelectedSet4Game+ '''' END 
                                                           + ', @SelectedSet5Game = ' + CASE WHEN @SelectedSet5Game IS NULL THEN 'NULL'    
                                                                                        ELSE '''' + @SelectedSet5Game+ '''' END  
-
-                                                          + ', @fthCorners = ' + ISNULL(CONVERT(NVARCHAR(50), @fthCorners), 'NULL') 
-                                                          + ', @ftaCorners = ' + ISNULL(CONVERT(NVARCHAR(50), @ftaCorners), 'NULL') 
-                                                          + ', @hthCorners = ' + ISNULL(CONVERT(NVARCHAR(50), @hthCorners), 'NULL') 
-                                                          + ', @htaCorners = ' + ISNULL(CONVERT(NVARCHAR(50), @htaCorners), 'NULL') 
-                                                          + ', @FTFCorner = ' + CASE WHEN @FTFCorner IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @FTFCorner + '''' END 
-                                                          + ', @FTLCorner = ' + CASE WHEN @FTLCorner IS NULL THEN 'NULL'    
-                                                                                           ELSE '''' + @FTLCorner + '''' END 
-                                                          + ', @HTFCorner = ' + CASE WHEN @HTFCorner IS NULL THEN 'NULL'    
-                                                                                           ELSE '''' + @HTFCorner + '''' END 
-                                                          + ', @HTLCorner = ' + CASE WHEN @HTLCorner IS NULL THEN 'NULL'    
-                                                                                           ELSE '''' + @HTLCorner+ '''' END 
-                                                          + ', @isExcludeCorner = ' + ISNULL(CONVERT(NVARCHAR(50), @isExcludeCorner), '0') 
                                                           + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                                                           + ', @SelectedQuarter = ' + CASE WHEN @SelectedQuarter IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @SelectedQuarter + '''' END 

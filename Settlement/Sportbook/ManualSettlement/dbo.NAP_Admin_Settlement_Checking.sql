@@ -1,17 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
 	@MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
 	, @Action 				VARCHAR(10) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
-	, @ResourceIDs 			VARCHAR(MAX)	= '' 
-	, @IsExcludeCorner 		BIT = 0
-	--, @IsExcludeFGLG 		BIT = 0
-	--, @IsAutoCalculatePage 	BIT = 0
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @SelectedQuarter 		VARCHAR(50) = NULL
 	, @SelectedSet			VARCHAR(50)     = NULL 
@@ -43,6 +35,7 @@ AS
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -53,88 +46,40 @@ AS
 		REFUND			REFUND, REFUND-HT, REFUND-FT, BetDaq, BetFair		
 		REFUND-FGLG		REFUND, REFUND-HT, REFUND-FT
 		CAL-AUTO		CAL, REFUND
-		CAL-CORNER		CAL 
+		
 		
 */
 
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @isExistWaitingTicket BIT = 0	
-	DECLARE @xml XML
-	DECLARE @bettype_22 VARCHAR(20), @bettype_160 VARCHAR(20)
-    DECLARE @currentdate DATETIME
+	DECLARE @isExistWaitingTicket	BIT
+		,@xml						XML
+		,@currentdate				DATETIME
+		,@Sporttype					SMALLINT
+		,@isSettingByProfile		BIT
+		,@handle					INT
     
-	DECLARE @Sporttype SMALLINT, @isSettingByProfile BIT = 0
-	DECLARE @handle INT
-    SET @currentdate = CURRENT_TIMESTAMP
-    
+	
 	DECLARE	@tmpResourceIDs TABLE(
 		ResourceID	VARCHAR(20)
 		,Bettype	INT
 		,BetID		BIGINT
 	)
 
-	SET @bettype_22 = '22'
-    SET @bettype_160 = '160'
+	SELECT @currentdate = CURRENT_TIMESTAMP
+			,@isExistWaitingTicket = 0
+			,@isSettingByProfile = 0
     
-    SELECT @Sporttype = sporttype
-    FROM dbo.[match] WITH (NOLOCK)
-    WHERE matchid = @matchid
+    SELECT	@Sporttype = sporttype
+    FROM	dbo.[match] WITH (NOLOCK)
+    WHERE	matchid = @matchid
     
     IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
     BEGIN
 	    SET @isSettingByProfile = 1
 	END
 	
-	
-	
-	IF @Mode = 'CAL-AUTO'
-	BEGIN
-		INSERT INTO @tmpResourceIDs(ResourceID,Bettype)
-		SELECT val, CAST(LEFT(val,3) AS INT) FROM strSplit(@ResourceIDs,',')
-		
-		-- Bettype 22 use the same resource to bettype 160
-		IF EXISTS (SELECT 1 FROM @tmpResourceIDs WHERE bettype = 160)
-		BEGIN
-			INSERT INTO @tmpResourceIDs(ResourceID,Bettype) 
-			SELECT  ResourceID,22
-			FROM @tmpResourceIDs
-			WHERE Bettype = 160
-		END
-		-- Bettypes: 135,160,22,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217
-		IF EXISTS (SELECT TOP 1 1 
-					FROM dbo.bettrans b WITH(NOLOCK)
-					WHERE b.matchid = @matchid
-					AND (b.statusID = 1 -- waiting status
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime, @currentdate) > @currentdate))
-					
-					AND b.bettype IN (SELECT bettype FROM @tmpResourceIDs) 
-					AND 1 = CASE 
-								WHEN b.bettype = 22 AND CHARINDEX(REPLACE(SUBSTRING(CAST(betID AS VARCHAR(20)),2,5),@bettype_22,@bettype_160),@ResourceIDs)>0 THEN 1 
-								WHEN b.bettype IN (160,164,169,180) AND CHARINDEX(SUBSTRING(CAST(betID AS VARCHAR(20)),2,5),@ResourceIDs)>0 THEN 1 
-								WHEN b.bettype NOT IN (160,164,169,180,22) THEN 1
-								ELSE 0
-							END
-					AND @Action IN ('CAL', 'REFUND')
-				)
-			SELECT @isExistWaitingTicket = 1
-	END
-	IF @Mode ='CAL-CORNER'
-	BEGIN
-		IF EXISTS (	SELECT TOP 1 1 
-					FROM	dbo.bettrans b WITH(NOLOCK)
-					WHERE	b.matchid = @matchid
-							AND (b.statusID = 1 -- waiting status
-								OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate ))
-								
-							AND ((@Action IN ('CAL') AND b.bettype IN (194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209))
-									OR (@Action IN ('CAL-HT') AND b.bettype IN (200,201,202,203,204,205,207,209))
-									OR (@Action IN ('CAL-FT') AND b.bettype IN (194,195,196,197,198,199,206,208))
-								)
-		)
-		SELECT @isExistWaitingTicket = 1
-	END
 	IF @Mode IN ('CAL', 'REFUND')
 	BEGIN	
 		IF @isSettingByProfile = 1
@@ -174,15 +119,10 @@ BEGIN
 				AND f.IsAuto = 0
 				AND ((@Action IN ('CAL', 'REFUND'))
 					OR (@Action IN ('CAL-HT', 'REFUND-HT')
-							AND f.GroupId IN (1,3,5) -- HT, HT FGLG, HT Corner 						
-							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 5 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 3 THEN 0 ELSE 1 END
+							AND f.GroupId IN (1,3) -- HT, HT FGLG						
 						)
 					OR (@Action IN ('CAL-FT', 'REFUND-FT') 
-							AND f.GroupId NOT IN (1,3,5)
-							AND 1 = CASE WHEN @IsExcludeCorner = 1 AND f.GroupId = 6 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsExcludeFGLG = 1 AND f.GroupId = 4 THEN 0 ELSE 1 END
-							--AND 1 = CASE WHEN @IsAutoCalculatePage = 1 AND f.IsUsedGoalRecordValue = 1 THEN 0 ELSE 1 END
+							AND f.GroupId NOT IN (1,3)
 						) --exclude bettype [172] in case auto-payout
 					)
 				AND 1 = CASE
@@ -211,35 +151,7 @@ BEGIN
 		END
 		
 	END
-	--IF @Mode IN ('CAL-FGLG') AND @IsAutoCalculatePage = 1
-	--BEGIN
-	--	IF EXISTS (SELECT TOP 1 1 
-	--			FROM dbo.bettrans b WITH(NOLOCK)
-	--				INNER JOIN dbo.f_Set_GetGroupBettypes () f
-	--					ON b.bettype = f.BetType
-	--			WHERE b.matchid = @matchid
-	--			AND (b.statusID = 1 -- waiting status
-	--					 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-	--			AND f.IsUsedGoalRecordValue = 1
-	--			AND 1 = CASE WHEN @Action = 'CAL-HT' AND f.GroupId = 3 THEN 1
-	--							WHEN @Action = 'CAL-FT' AND f.GroupId IN (2,4) THEN 1
-	--					ELSE 0 END
-	--		)
-	--		SELECT @isExistWaitingTicket = 1
-	--END
 	
-	IF @Mode = 'CAL-PS'
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 
-				FROM dbo.bettrans b WITH(NOLOCK)
-				WHERE b.matchid = @matchid
-				AND (b.statusID = 1 -- waiting status
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-				AND b.bettype = 135
-						
-			)
-			SELECT @isExistWaitingTicket = 1
-	END
 	IF @Mode = 'REFUND'
 	BEGIN
 		IF @Action = 'BetDaq'
@@ -334,11 +246,11 @@ BEGIN
 	
 	IF @Mode = 'CAL-EARLY'
 	BEGIN
-		IF @isSettingByProfile = 1
+		IF @isSettingByProfile = 1 OR @Sporttype = 1
 		BEGIN
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT Id, sp.BetType, sp.BetID
+		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
 		    FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id    VARCHAR(20)
 					                                           ,Home VARCHAR(50)
 					                                           ,Away VARCHAR(50)

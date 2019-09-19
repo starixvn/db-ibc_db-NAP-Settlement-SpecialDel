@@ -23,6 +23,7 @@ AS
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		
     Parameters Explanation:    
 		- @hScore1H: Home score in 1H
@@ -64,10 +65,10 @@ RETURN (
 					WHEN @bettype IN(3) THEN (@hScore1H + @aScore1H) + (@hScore2H + @aScore2H)
 					WHEN @bettype IN(8) THEN (@hScore1H + @aScore1H)
 					WHEN @bettype IN (18, 178) THEN  (@hScore2H + @aScore2H)
-					WHEN @bettype IN (401, 461) THEN (@hScore1H + @hScore2H)
-					WHEN @bettype IN (402, 462) THEN (@aScore1H + @aScore2H)
-					WHEN @bettype IN (403, 463) THEN @hScore1H
-					WHEN @bettype IN (404, 464) THEN @aScore1H
+					WHEN @bettype IN (401, 461, 482) THEN (@hScore1H + @hScore2H)
+					WHEN @bettype IN (402, 462, 483) THEN (@aScore1H + @aScore2H)
+					WHEN @bettype IN (403, 463, 484) THEN @hScore1H
+					WHEN @bettype IN (404, 464, 485) THEN @aScore1H
 					ELSE 0
 				END AS TotalGoalOU
 				,CASE WHEN @bettype = 416 THEN SUBSTRING(@betteam,0,CHARINDEX('/',@betteam)) ELSE NULL END AS betteam1H
@@ -80,7 +81,7 @@ RETURN (
 			SELECT 
 				CASE
 				--#3-8-18-178-401-402-403-404
-				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464) THEN -- apply half WON|LOSE
+				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464,482,483,484,485) THEN -- apply half WON|LOSE
 					CASE 
 						WHEN @betteam IN ('h', 'o') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN ip.TotalGoalOU - @hdp1 
 						WHEN @betteam IN ('a', 'u') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN @hdp1 - ip.TotalGoalOU
@@ -840,6 +841,168 @@ RETURN (
 								ELSE NULL
 							END
 					END               			  							 					
+				-- Total Corners
+				WHEN @bettype IN (473) THEN--Total Goal
+											CASE 
+												 WHEN @betteam = '0-5' and IP.TotalGoal > 5 THEN -1
+												WHEN @betteam = '6-8' and IP.TotalGoal > 8 THEN -1
+												WHEN @betteam = '9-11' and IP.TotalGoal > 11 THEN -1
+												WHEN @betteam = '12-14' and IP.TotalGoal > 14 THEN -1
+												WHEN @betteam = '15+' and IP.TotalGoal >= 15 THEN 1
+												ELSE NULL
+											END		  		
+						
+				-- 1H Total Corners			
+				WHEN @bettype IN (474) THEN--Total Goal
+											CASE WHEN @betteam = '0-2' and IP.TotalGoal1H > 2 THEN -1
+												WHEN @betteam = '3-4' and IP.TotalGoal1H > 4 THEN -1
+												WHEN @betteam = '5-6' and IP.TotalGoal1H > 6 THEN -1
+												WHEN @betteam = '7+' and IP.TotalGoal1H >= 7 THEN 1
+												ELSE NULL 
+											END		 			
+					
+				-- Alternative Corners
+				WHEN @bettype IN (475) THEN 
+											CASE WHEN @betteam = 'o' AND IP.TotalGoal > @hdp1 THEN 1
+												WHEN @betteam = 'u' AND IP.TotalGoal >= @hdp1 THEN -1
+												WHEN @betteam = 'e' AND IP.TotalGoal > @hdp1 THEN -1
+												ELSE NULL
+											END		
+				-- 1H Alternative Corners
+				WHEN @bettype IN (476) THEN CASE WHEN @betteam = 'o' AND IP.TotalGoal1H > @hdp1 THEN 1
+														WHEN @betteam = 'u' AND IP.TotalGoal1H >= @hdp1 THEN -1
+														WHEN @betteam = 'e' AND IP.TotalGoal1H > @hdp1 THEN -1
+														ELSE NULL
+													END
+				-- HT/FT Total Corners
+				WHEN @bettype IN (493) THEN 
+					CASE WHEN @IsHT = 1 THEN -- suspended in HT 
+							CASE 
+								WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) AND IP.TotalGoal >= 15 THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				ELSE CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5))
+																				END, @transdesc
+																			) = 0 THEN 1
+																ELSE NULL END
+								WHEN @betteam <> 'AOS' AND LEFT(@betteam, 1) < IP.TotalGoal1H THEN -1
+								ELSE NULL
+							END
+						WHEN @IsHT = 0 THEN -- suspended in FT
+							CASE 
+								WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) AND IP.TotalGoal >= 15 THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				ELSE CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5))
+																				END, @transdesc
+																			) = 0 THEN 1
+																WHEN CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) AND IP.TotalGoal >= 15 THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				ELSE CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/' + CAST(IP.TotalGoal AS VARCHAR(5))
+																				END, @transdesc
+																			) > 0
+																			AND 
+																			CHARINDEX(
+																				CASE WHEN IP.TotalGoal1H = 0 THEN '0/8+'
+																					WHEN IP.TotalGoal1H = 1 THEN '1/9+'  
+																					WHEN IP.TotalGoal1H = 2 THEN '2/10+'
+																					WHEN IP.TotalGoal1H = 3 THEN '3/11+'
+																					WHEN IP.TotalGoal1H = 4 THEN '4/12+'
+																					WHEN IP.TotalGoal1H = 5 THEN '5/13+'
+																					WHEN IP.TotalGoal1H = 6 THEN '6/14+'
+																					WHEN IP.TotalGoal1H IN (7,8,9) THEN CAST(IP.TotalGoal1H AS VARCHAR(5)) + '/15+'
+																				END, @transdesc
+																			) > 0 THEN -1
+																ELSE NULL END
+								ELSE CASE WHEN IP.TotalGoal1H = 0 AND IP.TotalGoal >= 8 AND @betteam = '0/8+' THEN 1
+											WHEN IP.TotalGoal1H = 1 AND IP.TotalGoal >= 9 AND @betteam = '1/9+' THEN 1
+											WHEN IP.TotalGoal1H = 2 AND IP.TotalGoal >= 10 AND @betteam = '2/10+' THEN 1
+											WHEN IP.TotalGoal1H = 3 AND IP.TotalGoal >= 11 AND @betteam = '3/11+' THEN 1
+											WHEN IP.TotalGoal1H = 4 AND IP.TotalGoal >= 12 AND @betteam = '4/12+' THEN 1
+											WHEN IP.TotalGoal1H = 5 AND IP.TotalGoal >= 13 AND @betteam = '5/13+' THEN 1
+											WHEN IP.TotalGoal1H = 6 AND IP.TotalGoal >= 14 AND @betteam = '6/14+' THEN 1
+											WHEN IP.TotalGoal1H = 7 AND IP.TotalGoal >= 15 AND @betteam = '7/15+' THEN 1
+											WHEN IP.TotalGoal1H = 8 AND IP.TotalGoal >= 15 AND @betteam = '8/15+' THEN 1
+											WHEN IP.TotalGoal1H = 9 AND IP.TotalGoal >= 15 AND @betteam = '9/15+' THEN 1
+											WHEN LEFT(@betteam, 1) <> IP.TotalGoal1H THEN -1
+											WHEN LEFT(@betteam, 1) = IP.TotalGoal1H AND REPLACE(SUBSTRING(@betteam, CHARINDEX('/',@betteam) + 1, LEN(@betteam)),'+','') < IP.TotalGoal THEN -1
+											WHEN LEFT(@betteam, 1) = IP.TotalGoal1H AND REPLACE(SUBSTRING(@betteam, CHARINDEX('/',@betteam) + 1, LEN(@betteam)),'+','') >= IP.TotalGoal THEN NULL
+											ELSE NULL
+										END
+							END
+						END
+				-- 1H Correct Corners
+				WHEN @bettype IN (494) THEN 
+					CASE WHEN @IsHT = 1 THEN
+							CASE 
+								WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(IP.HomeScore1H AS VARCHAR(5)) + '-' + CAST(IP.AwayScore1H AS VARCHAR(5)), @transdesc) = 0 THEN 1 ELSE NULL END
+								WHEN @betteam <> 'AOS' AND LEFT(@betteam, 1) >= IP.HomeScore1H AND RIGHT(@betteam, 1) >= IP.AwayScore1H THEN NULL
+								ELSE -1
+							END
+					END
+				-- 2H Correct Corners
+				WHEN @bettype IN (495) THEN 
+					CASE WHEN @IsHT = 0 THEN
+							CASE 
+								WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(IP.HomeScore2H AS VARCHAR(5)) + '-' + CAST(IP.AwayScore2H AS VARCHAR(5)), @transdesc) = 0 THEN 1 ELSE NULL END
+								WHEN @betteam <> 'AOS' AND LEFT(@betteam, 1) >= IP.HomeScore2H AND RIGHT(@betteam, 1) >= IP.AwayScore2H THEN NULL
+								ELSE -1
+							END
+					END
+				-- Corner Highest Scoring Half
+				WHEN @bettype IN (496) AND @IsHT = 0 THEN 
+						CASE @betteam
+							WHEN '1h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H <= ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							WHEN '2h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN 1
+									ELSE NULL
+								END
+							WHEN 'tie' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							ELSE NULL
+						END
+				-- Corner Highest Scoring Half (2-Way)
+				WHEN @bettype IN (497) AND @IsHT = 0 THEN 
+						CASE @betteam
+							WHEN '1h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN -1
+									ELSE NULL
+								END
+							WHEN '2h' THEN
+								CASE 
+									WHEN ip.TotalGoal1H < ip.TotalGoal2H THEN 1
+									ELSE NULL
+								END
+							ELSE NULL
+						END
 				---------------------------------------
 				ELSE NULL -- else non-supported bettype
 			END AS modds

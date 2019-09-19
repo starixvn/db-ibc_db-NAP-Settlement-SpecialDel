@@ -8,12 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT]
     ,@IsSettleAbandonedMatchBetFair BIT = 0
     ,@hth INT = NULL
     ,@hta INT = NULL
-    ,@isExistTotalCorner            BIT    = 0 
-    ,@isExistHTFCorner                BIT    = 0 
-    ,@isExistHTLCorner                BIT    = 0 
-    ,@isExistFTFCorner                BIT    = 0 
-    ,@isExistFTLCorner                BIT    = 0  
-     ,@ResourceResult				VARCHAR(MAX)	= NULL
+    ,@ResourceResult VARCHAR(MAX)	= NULL
     ,@IP VARCHAR(15) = ''
     ,@ErrCode INT = 0 OUTPUT
     ,@ErrMsg NVARCHAR(200) = '' OUTPUT
@@ -46,6 +41,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
         - 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -170,14 +166,6 @@ BEGIN
             ,@fth = NULL
             ,@fta = NULL
             ,@betstatus = NULL
-            ,@hthCorners = NULL
-            ,@htaCorners = NULL
-            ,@HTFCorner     = NULL
-            ,@isExistTotalCorner= @isExistTotalCorner
-            ,@isExistHTFCorner    = @isExistHTFCorner
-            ,@isExistHTLCorner    = @isExistHTLCorner
-            ,@isExistFTFCorner    = @isExistFTFCorner
-            ,@isExistFTLCorner    = @isExistFTLCorner
             ,@Action = 'CAL-HT'
             ,@IP = @IP
             ,@ErrCode = @ErrCode OUTPUT
@@ -229,9 +217,6 @@ BEGIN
 		EXEC DBPRO.BODB02.dbo.[NAP_Admin_Result_Update_1s] 
 			@Command            = 'NAP_Admin_Settlement_Refund-HT'
 			,@MatchID            = @matchid
-			,@isExistTotalCorner= @isExistTotalCorner
-			,@isExistHTFCorner    = @isExistHTFCorner
-			,@isExistHTLCorner    = @isExistHTLCorner
 			,@creator            = @adminid
 			,@ResourceResult = @ResourceResult
 

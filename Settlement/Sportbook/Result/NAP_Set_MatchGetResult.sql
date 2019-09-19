@@ -24,6 +24,7 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
+		- 20190801@Sol: Added resourceId 09 [Redmine:#115232]
 		
 	Param explanation:  
 		@sporttype: show info of particular sport
@@ -444,7 +445,7 @@ BEGIN
 				WHERE	MatchID IN (SELECT MatchID FROM #matchList WHERE isMove = 1)
 			) r
 		WHERE	(@Sporttype IN (2, 5)
-					OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08')
+					OR( @Sporttype = 1 AND ResourceID NOT IN ('00','01','08','09')
 				))
 				AND 1 = CASE
 							WHEN @Sporttype = 2 THEN CASE

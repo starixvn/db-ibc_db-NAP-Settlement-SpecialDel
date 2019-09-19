@@ -32,6 +32,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 	
 	Param's explanation:  
 		
@@ -55,16 +56,6 @@ BEGIN
 		,IsMixParlay 					BIT
 		,IsExistFGLG 					BIT
 		,IsExistHTFGLG 					BIT
-		,SettlementStatusID 			TINYINT
-		,IsExistAutoBettypes 			BIT
-		,IsExistAutoBettypesParlay 		BIT
-		,IsRunningAutoBettypes			BIT
-		,IsRunningAutoBettypesParlay	BIT
-		
-		,IsWaitingAutoBettypes			BIT
-		,IsWaitingAutoBettypesParlay	BIT
-		
-		,IsMissingAutoResult			BIT
 		,IsExistFastMarket				BIT
 		,IsRunningFastMarket			BIT
 		,IsExistFastMarketResult		BIT
@@ -72,17 +63,19 @@ BEGIN
 		,IsExistEarlyBettypesParlay 	BIT
 		,IsRunningEarlyBettypes			BIT
 		,IsRunningEarlyBettypesParlay	BIT
+		,IsWaitingEarlyBettypes			BIT
+		,IsWaitingEarlyBettypesParlay	BIT
 		,IsExistMarkedTicket			BIT
 		,IsExistRunningTicket			BIT
 	)
 	
-	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsFGLG BIT)
+	CREATE TABLE #tblBettype (bettype SMALLINT, GroupId SMALLINT, IsFGLG BIT, IsEarly BIT)
 	
 	CREATE TABLE #tblResultDetail (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusID TINYINT, SettlementStatusID TINYINT)
 	
 	CREATE INDEX IX_ResultDetail ON #tblResultDetail (matchid, ResourceId)
 	
-	CREATE TABLE #tblBetStatus (matchid INT, bettype SMALLINT, isRunning INT, IsWaiting INT, groupId TINYINT ,IsParlay	 BIT, IsFGLG BIT)
+	CREATE TABLE #tblBetStatus (matchid INT, bettype SMALLINT, isRunning INT, IsWaiting INT, groupId TINYINT ,IsParlay BIT, IsFGLG BIT, IsEarly BIT)
 	
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
 	BEGIN
@@ -108,9 +101,8 @@ BEGIN
 	)
 	
 	INSERT INTO @TempMatch(MatchId, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
-		, IsExistAutoBettypes, IsExistAutoBettypesParlay, IsRunningAutoBettypes, IsRunningAutoBettypesParlay
-		, IsWaitingAutoBettypes ,IsWaitingAutoBettypesParlay
-		, IsMissingAutoResult , IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay
+		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult
+		, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
 		, IsExistMarkedTicket, IsExistRunningTicket
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
@@ -120,15 +112,6 @@ BEGIN
 		, CAST(ISNULL(pl.IsCalculating, 0) AS BIT) AS IsMixParlay
 		, CONVERT(BIT, 0) AS IsExistFGLG
 		, CONVERT(BIT, 0) AS IsExistHTFGLG
-		, 0 AS IsExistAutoBettypes
-		, 0 AS IsExistAutoBettypesParlay
-		, 0 AS IsRunningAutoBettypes
-		, 0 AS IsRunningAutoBettypesParlay
-		
-		, 0 AS IsWaitingAutoBettypes 
-		, 0 AS IsWaitingAutoBettypesParlay 
-		
-		, 0 AS IsMissingAutoResult
 		, 0 AS IsExistFastMarket
 		, 0 AS IsRunningFastMarket
 		, 0 AS IsExistFastMarketResult
@@ -136,6 +119,8 @@ BEGIN
 		, 0 AS IsExistEarlyBettypesParlay
 		, 0 AS IsRunningEarlyBettypes
 		, 0 AS IsRunningEarlyBettypesParlay
+		, 0 AS IsWaitingEarlyBettypes
+		, 0 AS IsWaitingEarlyBettypesParlay
 		, 0 AS IsExistMarkedTicket
 		, 0 AS IsExistRunningTicket
 	FROM SingleTicket sg
@@ -143,24 +128,18 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tblBettype (bettype, ResourceId, GroupId,IsFGLG)
-		SELECT	BetType
-				,CASE 
-					WHEN BetType = 22 THEN '160__'
-					WHEN BetType IN (160,164,169,180,216) OR GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
-					ELSE CAST(BetType AS VARCHAR(20))
-				END AS ResourceId
-				,GroupId
-				,IsFGLG
-		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	GroupId IN (3,4,8,9) OR IsUsedGoalRecordValue = 1
-		UNION ALL
-		SELECT	bettype
-				,'' AS ResourceId -- not used for BAIO
-				,10 AS GroupId
-				, 0 AS IsFGLG
-		FROM	dbo.f_Set_GetEarlyBettypes()
-		
+		INSERT INTO #tblBettype (bettype, GroupId, IsFGLG, IsEarly)
+		SELECT	BetType, f.GroupId, f.IsFGLG, ISNULL(e.IsEarly, 0)
+		FROM	dbo.f_Set_GetGroupBettypes() f
+			OUTER APPLY (
+				SELECT 1 AS IsEarly
+				FROM dbo.f_Set_GetEarlyBettypes() e
+				WHERE f.BetType = e.bettype
+			) e
+		WHERE	f.IsUsedGoalRecordValue = 1 
+				OR f.GroupId = 9 
+				OR e.IsEarly = 1
+
 		SELECT @MinBettype = MIN(bettype)
 			,@MaxBettype = MAX(bettype)
 		FROM #tblBettype
@@ -175,24 +154,21 @@ BEGIN
 			
 			IF @Sporttype IN (0,1)	
 				UPDATE	m
-					SET SettlementStatusID = rs.SettlementStatusID
-						,IsExistFastMarketResult = rs.IsExistFastMarketResult
+					SET IsExistFastMarketResult = 1
 				FROM	@TempMatch m
 					INNER JOIN (
 						SELECT	r.matchid
-							,MIN(CASE WHEN bt.groupId = 8 THEN ISNULL(r.SettlementStatusID,0) ELSE NULL END) AS SettlementStatusID
-							,MAX(CASE WHEN bt.groupId = 9 THEN 1 ELSE 0 END) AS IsExistFastMarketResult
 						FROM #tblResultDetail r
 							INNER JOIN #tblBettype bt
-								ON r.ResourceId LIKE bt.ResourceId
-						WHERE bt.GroupId IN (8,9)
+								ON r.ResourceId LIKE CAST(BetType AS VARCHAR(20)) + '__'
+						WHERE bt.GroupId = 9
 						GROUP BY r.matchid
 					) rs
 						ON m.MatchId = rs.matchId
 		END
 		
-		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG)
-		SELECT  b.matchid, b.bettype, MAX(isRunning),MAX(isWaiting), bt.GroupId, 0,bt.IsFGLG
+		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay, IsFGLG, IsEarly)
+		SELECT  b.matchid, b.bettype, MAX(isRunning),MAX(isWaiting), bt.GroupId, 0, bt.IsFGLG, bt.IsEarly
 		FROM	#tblBettype bt
 			INNER JOIN
 			(
@@ -207,10 +183,10 @@ BEGIN
 				GROUP BY b.matchid, b.bettype
 			)b
 				ON b.bettype = bt.bettype
-		GROUP BY b.matchid, b.bettype, bt.GroupId,bt.IsFGLG
+		GROUP BY b.matchid, b.bettype, bt.GroupId,bt.IsFGLG, bt.IsEarly
 		
-		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG)
-		SELECT  bm.matchid, bm.bettype, MAX(bm.isRunning),MAX(bm.IsWaiting), bt.GroupId, 1,bt.IsFGLG
+		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay,IsFGLG, IsEarly)
+		SELECT  bm.matchid, bm.bettype, MAX(bm.isRunning),MAX(bm.IsWaiting), bt.GroupId, 1,bt.IsFGLG, bt.IsEarly
 		FROM	#tblBettype bt
 			INNER JOIN
 				(
@@ -224,66 +200,37 @@ BEGIN
 					GROUP BY bm.matchid, bm.bettype
 				)bm
 				ON bm.bettype = bt.bettype
-		GROUP BY bm.matchid, bm.bettype, bt.GroupId,bt.IsFGLG
+		GROUP BY bm.matchid, bm.bettype, bt.GroupId,bt.IsFGLG, bt.IsEarly
 
 		;WITH cteBetStatus
 		AS(
 			SELECT matchid
 				,MAX(CASE WHEN groupId IN (1,3) AND IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistHTFGLG
 				,MAX(CASE WHEN groupId IN (2,4) AND IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistFGLG
-				
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistAutoBettypes
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 THEN 1 ELSE 0 END) AS IsExistAutoBettypesParlay
-				
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningAutoBettypes
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningAutoBettypesParlay
-				
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 0 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingAutoBettypes
-				,MAX(CASE WHEN groupId = 8 AND IsParlay = 1 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingAutoBettypesParlay
-				
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistFastMarket
 				,MAX(CASE WHEN groupId = 9 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningFastMarket
-				,MAX(CASE WHEN groupId = 10 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistEarlyBettypes
-				,MAX(CASE WHEN groupId = 10 AND IsParlay = 1 THEN 1 ELSE 0 END) AS IsExistEarlyBettypesParlay
-				,MAX(CASE WHEN groupId = 10 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypes
-				,MAX(CASE WHEN groupId = 10 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypesParlay
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistEarlyBettypes
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 1 THEN 1 ELSE 0 END) AS IsExistEarlyBettypesParlay
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 0 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypes
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypesParlay
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 0 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingEarlyBettypes
+				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 1 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingEarlyBettypesParlay
 			FROM #tblBetStatus
 			GROUP BY matchid
 		)
 		UPDATE t
 		SET IsExistFGLG = CASE WHEN tt.IsExistFGLG > 0 THEN 1 ELSE 0 END
 			,IsExistHTFGLG = CASE WHEN tt.IsExistHTFGLG > 0 THEN 1 ELSE 0 END
-			,IsExistAutoBettypes = CASE WHEN tt.IsExistAutoBettypes > 0 THEN 1 ELSE 0 END
-			,IsExistAutoBettypesParlay = CASE WHEN tt.IsExistAutoBettypesParlay > 0 THEN 1 ELSE 0 END
-			,IsRunningAutoBettypes = CASE WHEN tt.IsRunningAutoBettypes > 0 THEN 1 ELSE 0 END
-			,IsRunningAutoBettypesParlay = CASE WHEN tt.IsRunningAutoBettypesParlay > 0 THEN 1 ELSE 0 END
-			
-			,IsWaitingAutoBettypes = CASE WHEN tt.IsWaitingAutoBettypes > 0 THEN 1 ELSE 0 END
-			,IsWaitingAutoBettypesParlay = CASE WHEN tt.IsWaitingAutoBettypesParlay >  0 THEN 1 ELSE 0 END
-			
 			,IsExistFastMarket = CASE WHEN tt.IsExistFastMarket > 0 THEN 1 ELSE 0 END
 			,IsRunningFastMarket = CASE WHEN tt.IsRunningFastMarket > 0 THEN 1 ELSE 0 END
 			,IsExistEarlyBettypes = CASE WHEN tt.IsExistEarlyBettypes > 0 THEN 1 ELSE 0 END
 			,IsExistEarlyBettypesParlay = CASE WHEN tt.IsExistEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
 			,IsRunningEarlyBettypes = CASE WHEN tt.IsRunningEarlyBettypes > 0 THEN 1 ELSE 0 END
 			,IsRunningEarlyBettypesParlay = CASE WHEN tt.IsRunningEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
+			,IsWaitingEarlyBettypes = CASE WHEN tt.IsWaitingEarlyBettypes > 0 THEN 1 ELSE 0 END
+			,IsWaitingEarlyBettypesParlay = CASE WHEN tt.IsWaitingEarlyBettypesParlay >  0 THEN 1 ELSE 0 END
 		FROM @TempMatch t
 		INNER JOIN cteBetStatus tt ON t.MatchId = tt.MatchId	
-		
-		UPDATE m
-			SET IsMissingAutoResult = CASE WHEN t.MissingAutoResult > 0 THEN 1 ELSE 0 END
-		FROM @TempMatch m
-			INNER JOIN (
-				SELECT  b.matchid, COUNT(1) MissingAutoResult
-				FROM	#tblBetStatus b
-					INNER JOIN #tblBettype c
-						ON b.bettype = c.bettype
-				WHERE	b.IsParLay = 1		
-						AND NOT EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE b.matchid = MatchId AND ResourceId LIKE c.ResourceId)
-						AND c.GroupId = 8
-				GROUP BY b.matchid
-		) t
-			ON m.matchid = t.matchid
 	END
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
@@ -382,14 +329,6 @@ BEGIN
 		, IsExistHTFGLG
 		, tm.SingleStatus AS IsCalculatingSingle
 		, tm.ParlayStatus AS IsCalculatingMP
-		, CASE WHEN  tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay = 0 THEN 'N/A'
-				WHEN tm.IsRunningAutoBettypes = 1 THEN 'Running'
-				WHEN tm.IsWaitingAutoBettypes = 1 THEN 'Waiting'
-				WHEN IsExistAutoBettypes = 0  AND tm.IsRunningAutoBettypesParlay = 1 THEN 'Parlay Running'
-				WHEN IsExistAutoBettypes = 0  AND tm.IsWaitingAutoBettypesParlay = 1 THEN 'Parlay Waiting'
-				WHEN (tm.IsExistAutoBettypes > 0 AND tm.IsRunningAutoBettypes = 0)
-					OR (tm.IsExistAutoBettypes = 0 AND tm.IsExistAutoBettypesParlay > 0 AND tm.IsRunningAutoBettypesParlay = 0) THEN 'Completed'				
-				ELSE '' END AS AutoSettleResultStatus
 		, CASE
 			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 0 THEN 'N/A'
 			WHEN tm.IsExistFastMarket = 0 AND tm.IsExistFastMarketResult = 1 THEN 'No Ticket'
@@ -399,7 +338,9 @@ BEGIN
 		, CASE
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
 			WHEN tm.IsRunningEarlyBettypes > 0 THEN 'Running'
+			WHEN tm.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsRunningEarlyBettypesParlay > 0 THEN 'Parlay Running'
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsWaitingEarlyBettypesParlay > 0 THEN 'Parlay Waiting'
 			ELSE 'Completed'
 		END AS EarlySettleStatus
 		,tm.IsExistMarkedTicket

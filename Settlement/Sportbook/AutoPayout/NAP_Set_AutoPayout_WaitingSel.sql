@@ -27,6 +27,8 @@ AS
 		- 20181218@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+		- 20190620@Kathy: Remove corner betradar, auto betradar bettypes [Redmine:#109584]
+		- 20190801@Sol: Removed unused code IsNeedToCalculateFGLG [Redmine:#115232]
 		
 	Param's explanation: 
 		
@@ -54,8 +56,6 @@ BEGIN
 		,IsExistHTFGLG					BIT
 		,IsExistFGLG					BIT
 		,IsExistGoalRecordBettypeFT		BIT
-		,IsExistRunningHTCorner			BIT
-		,IsExistRunningCorner			BIT
 		,IsEnabledGoalRecordHT			BIT
 		,IsEnabledGoalRecordFT			BIT
 		,IsExistRunningUseGoalRecordHT	BIT
@@ -79,7 +79,7 @@ BEGIN
 		, IsExistFTLG		  BIT
 	)
 	
-	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), GroupId SMALLINT, IsAuto BIT, IsUsedGoalRecordValue BIT, IsFGLG BIT)
+	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY, GroupId SMALLINT, IsUsedGoalRecordValue BIT, IsFGLG BIT)
 	
 	DECLARE @tblMatchInfo TABLE (matchid INT, leagueId INT, HalfTimeHomeScore INT, HalfTimeAwayScore INT, IsCalculated BIT, IsFTCalculated BIT, IsMultiCaled BIT
 		, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode NVARCHAR(50), finalhomescore INT, finalawayscore INT
@@ -96,7 +96,6 @@ BEGIN
 		, InstantCalculationType		    TINYINT DEFAULT(0)
 		, InstantKey				    INT
 		, InstantScoreDiff			    TINYINT DEFAULT(0)
-		
 		, GoalRecordFTResultStatusId	    TINYINT
 		, FTFGNGResultStatusId		    TINYINT
 		, FTLGResultStatusId		    TINYINT
@@ -155,19 +154,13 @@ BEGIN
 	GROUP BY MatchId
 	
 	BEGIN
-		INSERT INTO #tblBettype (bettype, ResourceId, GroupId, IsAuto,IsUsedGoalRecordValue, IsFGLG)
+		INSERT INTO #tblBettype (bettype, GroupId,IsUsedGoalRecordValue, IsFGLG)
 		SELECT	BetType
-				,CASE 
-					WHEN Bettype = 22 THEN '160__'
-					WHEN BetType IN (160,164,169,180,216) OR GroupId = 9 THEN CAST(BetType AS VARCHAR(20)) + '__'
-					ELSE CAST(BetType AS VARCHAR(20))
-				END AS ResourceId
 				,GroupId
-				,IsAuto
 				,IsUsedGoalRecordValue
 				,IsFGLG
 		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	GroupId IN (3,4,5,6) OR IsAuto = 1 OR IsUsedGoalRecordValue = 1
+		WHERE	IsUsedGoalRecordValue = 1
 		
 		SELECT @MinBettype = MIN(bettype)
 			,@MaxBettype = MAX(bettype)
@@ -234,8 +227,6 @@ BEGIN
 					,MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistHTFGLG
 					,MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsFGLG = 1 THEN 1 ELSE 0 END) AS IsExistFGLG
 					,MAX(CASE WHEN f.GroupId = 2 AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) AS IsExistGoalRecordBettypeFT	
-					,MAX(CASE WHEN f.GroupId = 5 AND IsRunning = 1 THEN 1 ELSE 0 END) AS IsExistRunningHTCorner
-					,MAX(CASE WHEN f.GroupId = 6 AND IsRunning = 1 THEN 1 ELSE 0 END) AS IsExistRunningCorner		
 					,MAX(CASE WHEN f.GroupId = 3 AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) AS IsEnabledGoalRecordHT
 					,MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) AS IsEnabledGoalRecordFT
 					,MAX(CASE WHEN f.GroupId = 3 AND f.IsUsedGoalRecordValue = 1 AND IsRunning = 1 AND b.IsParlay = 0 THEN 1 ELSE 0 END) AS IsExistRunningUseGoalRecordHT
@@ -253,8 +244,6 @@ BEGIN
 			SET IsExistHTFGLG = b.IsExistHTFGLG
 				,IsExistFGLG = b.IsExistFGLG
 				,IsExistGoalRecordBettypeFT = b.IsExistGoalRecordBettypeFT
-				,IsExistRunningHTCorner = b.IsExistRunningHTCorner
-				,IsExistRunningCorner = b.IsExistRunningCorner			
 				,IsEnabledGoalRecordHT = b.IsEnabledGoalRecordHT
 				,IsEnabledGoalRecordFT = b.IsEnabledGoalRecordFT
 				,IsExistRunningUseGoalRecordHT = b.IsExistRunningUseGoalRecordHT
@@ -371,47 +360,8 @@ BEGIN
 			,i.SettlementStatus
 			,ISNULL(m.IsExistFGLG,0) AS IsExistFGLG
 			,ISNULL(m.IsExistHTFGLG,0) AS IsExistHTFGLG
-			,ISNULL(m.IsExistRunningCorner,0) AS IsExistCorner
-			,ISNULL(m.IsExistRunningHTCorner,0) AS IsExistHTCorner
 			,ISNULL(m.SingleStatus, i.IsCalculatingSingle) AS IsCalculatingSingle
 			,m.ParlayStatus AS IsCalculatingMP
-			,CASE 
-				WHEN i.HTStatus IS NOT NULL AND i.HTStatus = 1 
-					AND i.FTStatus IS NOT NULL AND i.FTStatus IN (0, 1)
-					AND i.IsHTCal = 1 
-					AND (ISNULL(m.IsExistRunningUseGoalRecordHT, 0) = 1
-						OR( m.IsExistHTFGNG = 1
-							AND ISNULL(i.HTFGNGResultStatusId,0) = 0
-						)
-						OR (m.IsExistHTLG = 1
-							AND ISNULL(i.HTLGResultStatusId,0) = 0
-						)
-					) THEN 1 --can calc HT FGLG
-				WHEN i.FTStatus IS NOT NULL AND i.FTStatus = 1
-					AND i.IsHTCal = 1
-					AND (ISNULL(m.IsExistRunningUseGoalRecordFT, 0) = 1
-						OR ( m.IsExistGoalRecordBettypeFT = 1
-							AND ISNULL(i.GoalRecordFTResultStatusId,0) <> 5
-						)
-						OR(m.IsExistFTFGNG = 1
-							AND ISNULL(i.FTFGNGResultStatusId,0) = 0
-						)
-						OR(m.IsExistFTLG = 1
-							AND ISNULL(i.FTLGResultStatusId,0) = 0
-						)
-					) THEN 1 --can calc FT FGLG
-				ELSE 0 
-			END AS IsNeedToCalculateFGLG
-			,CASE
-				WHEN i.HTStatus IS NOT NULL AND i.HTStatus = 1
-					AND i.FTStatus IS NOT NULL AND i.FTStatus IN (0, 1)
-					AND i.IsHTCal = 1
-					AND ISNULL(m.IsExistRunningHTCorner, 0) = 1 THEN 1 --can calc HT Corner
-				WHEN i.FTStatus IS NOT NULL AND i.FTStatus = 1
-					AND i.IsHTCal = 1
-					AND ISNULL(m.IsExistRunningCorner, 0) > 0 THEN 1 --can calc FT Corner
-				ELSE 0 
-			END AS IsNeedToCalculateCorner
 			,i.suspenderHalfTime
 			,i.suspenderFullTime
 			,i.AutoSetting

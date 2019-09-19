@@ -1,10 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
      @AdminID                       INT             = 148        -- calculated by system (default)
     ,@MatchID                       INT
-    ,@ResourceIDs                   VARCHAR(MAX)	= '' 
-    ,@Results                       VARCHAR(MAX)    = ''
-    ,@IsSettleAbandonedMatchIBC     BIT             = 0 
+	,@SelectedResources				VARCHAR(MAX)	= ''
     ,@Action                    	VARCHAR(10)     = 'CAL'
     ,@IsAuto                        BIT             = 1
     ,@IP                            VARCHAR(15)     = ''
@@ -12,7 +10,7 @@ CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
     ,@ErrCode            			INT             = 0		OUTPUT
     ,@ErrMsg            			NVARCHAR(200)   = ''    OUTPUT
 AS
-/*    Creator: Jamie
+/*  Creator: Jamie
     Date: 20150120
     Task: BetRadar Auto/Manual Settlement
     DB: DBTXN/BODB02
@@ -28,49 +26,89 @@ AS
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
+		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 
     Param's Explanation:
+		 @SelectedResources: <Resources>
+						    	<Resource Id="" Home="" Away="" />
+						    	<Resource Id="" Home="" Away="" />
+						      </Resources>
 */    
 BEGIN
     SET NOCOUNT ON 
-    DECLARE @start                  	DATETIME
-            ,@stop                      DATETIME
-            ,@fth                       INT
-            ,@fta                       INT
-            ,@hth                       INT
-            ,@hta                       INT
-            ,@goalrecord                VARCHAR(50)
-            ,@betstatus                 VARCHAR(50) 
-            ,@ActionID                  INT
-            ,@Remark					VARCHAR(500)
-            ,@LogData                   NVARCHAR(300)
-            ,@strAutoBetRadarBettypes   VARCHAR(MAX)
-            ,@strBettypes               VARCHAR(MAX)   
-            ,@strXML					VARCHAR(MAX)                             
-			, @avaiableProcess			BIT
-            , @sportType                INT
-			,@bettype_22				VARCHAR(20)
-			,@bettype_160				VARCHAR(20)
-    
-    SET @bettype_22 = '22'
-    SET @bettype_160 = '160'
-		
-	--START Balance tables	
-	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
-		, @BalanceWalletAfter			TVP_BalanceWalletChange
-	--END Balance tables
-	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
-    SELECT    @start = CURRENT_TIMESTAMP
-    SELECT    @ActionID = CASE WHEN @Action = 'CAL'    THEN 148 
-                             WHEN @Action = 'UNDO'    THEN 149 
-                             WHEN @Action = 'REFUND'THEN 150
-                             ELSE 0 END  
-        
-                             
+    DECLARE @start              DATETIME
+            ,@stop              DATETIME
+            ,@fth               INT
+            ,@fta               INT
+            ,@hth               INT
+            ,@hta               INT
+            ,@goalrecord        VARCHAR(50)
+            ,@betstatus         VARCHAR(50) 
+            ,@ActionID          INT
+            ,@Remark			VARCHAR(500)
+            ,@LogData           NVARCHAR(300)
+			,@handle			INT
+			,@Command			VARCHAR(100)
+                                
+			,@avaiableProcess	BIT
+            ,@sportType			INT
+			,@SelectedRID		VARCHAR(MAX)	
+			,@batchNo			INT 			
+			,@batchCount		INT		
+			,@strTransIds		VARCHAR(MAX)	
+	
+	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
+			,@BalanceWalletAfter			TVP_BalanceWalletChange
+
+	DECLARE @tmpSelectedRID TABLE(
+		ResourceID	VARCHAR(20)
+		,HomeValue	VARCHAR(50)
+		,AwayValue	VARCHAR(50)
+		,BetType	SMALLINT
+		,BetID		BIGINT
+		,pfID		SMALLINT
+		,oddstype	SMALLINT
+		,PRIMARY KEY (BetType,BetID)
+	)    
+		
+	DECLARE @tmpTransIDBatch TABLE (
+		TransID		BIGINT
+		,modds		SMALLMONEY
+		,oddstype	SMALLINT
+	)
+	
+	CREATE TABLE #tblMatchProcess (
+		matchid INT
+		,KeyID TINYINT
+	)
+
+	CREATE TABLE #tmpTransID (
+		TransID		BIGINT
+		,modds		SMALLMONEY
+		,isFinish	BIT
+		,oddstype	SMALLINT
+	)
+
+    SELECT   @start = CURRENT_TIMESTAMP
+			,@ActionID = CASE 
+							WHEN @Action = 'CAL'    THEN 148 
+                            WHEN @Action = 'UNDO'    THEN 149 
+                            WHEN @Action = 'REFUND'THEN 150
+                            ELSE 0 
+						END 
+			,@SelectedRID = ''
+			,@batchNo = 2000
+			,@strTransIds = ''
+			,@Command = CASE 
+							WHEN @Action = 'CAL' THEN 'NAP_Admin_Settlement_Auto_1s-CAL'
+							WHEN @Action = 'REFUND' THEN 'NAP_Admin_Settlement_Auto_1s-REFUND'
+							WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_Auto_1s-UNDO'
+							ELSE ''
+						END
+
     --Write Log Settle
-    SELECT     @fth            = finalhomescore
+    SELECT   @fth            = finalhomescore
             ,@fta            = finalawayscore
             ,@hth            = hthomescore
             ,@hta            = htawayscore
@@ -93,11 +131,79 @@ BEGIN
 	
 	--CHECK avaiable process
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
+
+	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype)
+	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType
+	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+														,Home VARCHAR(50)
+														,Away VARCHAR(50)
+										) AS tbl
+		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+			ON	sp.ResourceID = tbl.Id
+	WHERE sp.SportType = @SportType 
 	
-	SELECT     @strAutoBetRadarBettypes = COALESCE(@strAutoBetRadarBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-    FROM    dbo.f_Set_GetGroupBettypes() f 
-    WHERE      f.GroupId = 8 -- auto betradar
+	EXEC sp_xml_removedocument @handle
+
+	SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
+									 ,BetID	AS '@b'
+							  FROM	@tmpSelectedRID
+							  FOR XML PATH('r'), ROOT( 'root' )) 
+
+	--get transid
+  	IF @Action = 'CAL'
+  	BEGIN
+		INSERT INTO #tmpTransID(TransID, modds, oddstype)
+	  	SELECT	b.transid, m.modds, sr.oddstype
+	  	FROM	dbo.bettrans b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transId
+			)mt
+	  		CROSS APPLY(
+	  			SELECT TOP 1 pfID, HomeValue, AwayValue, t.oddstype
+	  			FROM	@tmpSelectedRID t
+	  			WHERE	b.BetType = t.BetType 
+						AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  		) sr
+	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL) m
+	  	WHERE	b.matchid = @MatchId
+	  			AND b.statusID NOT IN (101,102)
+				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND mt.transId IS NULL
+	END
+	ELSE IF @action = 'UNDO'
+	BEGIN
+		--get transid
+		INSERT INTO #tmpTransID(TransID)
+	  	SELECT	transid
+	  	FROM	dbo.bettrans b WITH (NOLOCK)
+	  		INNER JOIN @tmpSelectedRID t 
+				ON	b.BetType = t.BetType 
+					AND (t.BetID = 0 OR b.BetID = t.BetID)
+	  	WHERE	b.matchid = @MatchId
+	  			AND	b.statusID NOT IN (0, 1, 102, 101)
+	END 
+	ELSE IF @action = 'REFUND'
+	BEGIN
+		--get transid
+		INSERT INTO #tmpTransID(TransID)
+	  	SELECT	transid
+	  	FROM	dbo.bettrans b WITH (NOLOCK)
+	  		INNER JOIN @tmpSelectedRID t 
+				ON	b.BetType = t.BetType 
+					AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  	WHERE	b.matchid = @MatchId
+	  			AND	b.statusID NOT IN (103, 101, 102)
+	END 
 	
+    EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+        @Command            = @Command,
+        @MatchID            = @MatchID,
+		@SelectedResources	= @SelectedResources,
+        @IsAuto             = @IsAuto,
+        @creator            = @AdminID             
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------    
@@ -113,151 +219,67 @@ BEGIN
         @MatchId 			= @matchId
         , @sportType        = @sportType
         , @Action 			= @Action
-        , @Mode 			= 6 --@Mode auto settlement
-        , @ResourceIDs      = @ResourceIDs
-		
-
-    SET @strXML = CAST((SELECT  BetType '@t'
-								,GroupId '@g'
-								,GroupName '@n'
-						FROM	dbo.f_Set_GetGroupBettypes()			
-						WHERE	GroupId = 8
-						FOR XML PATH ('r'), ROOT('root'), TYPE
-							) AS VARCHAR(MAX))
+        , @Mode 			= 2
+        , @SelectedRID      = @SelectedRID
 							
-		
-    --^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    IF @Action='CAL'
-    BEGIN
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-CAL',
-            @MatchID            = @MatchID,
-            @ResourceIDs        = @ResourceIDs, 
-            @Results            = @Results,
-            @IsAuto             = @IsAuto,
-            @creator            = @AdminID             
+	------START UPDATE BETTRANS---------------------------------------------------------------------------
+	BEGIN TRY
+		WHILE 1=1
+		BEGIN
+			DELETE @tmpTransIDBatch
+			
+			UPDATE	TOP(@batchNo) t
+				SET	isFinish = 1
+			OUTPUT	deleted.transid, deleted.modds, deleted.oddstype
+			INTO	@tmpTransIDBatch(transid, modds, oddstype)
+			FROM	#tmpTransID t 
+			WHERE	isFinish IS NULL
 
-        EXEC dbo.NAP_Admin_Settlement_3_Auto_1s 
-             @matchid        	= @matchid
-            ,@ResourceIDs    	= @ResourceIDs
-            ,@mode            	= @action         
-			,@IsReSettledTickets = @IsReSettledTickets               
+			SELECT @batchCount 	= @@ROWCOUNT
+			
+			IF @batchCount = 0 BREAK
 
-    END
-    ELSE IF @action = 'UNDO'
-    BEGIN						
-        EXEC dbo.NAP_Admin_Calculate_Main 
-             @matchid        	= @matchid
-            ,@ResourceIDs    	= @ResourceIDs
-            ,@action        	= 'CAL'        -- Default Action for UNDO Settlement 
-            ,@mode            	= 'UNDO' 
-            ,@strBettypes    = @strXML
+			--filter selectedRID by current Profile and BetType
+			SET @strTransIds = (SELECT transid	AS '@t'
+										,modds	AS '@m'
+										,oddstype AS '@ot'
+								FROM	@tmpTransIDBatch
+								FOR XML PATH('r'), ROOT( 'root' )
+							)
 
-        EXEC dbo.NAP_Admin_Settlement_MP
-                @matchid        = @matchid
-                ,@creator       = @AdminID
-                ,@action        = 'UNDO'
-                ,@ResourceIDs   = @ResourceIDs
-                ,@IP            = @IP
-                
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-UNDO',
-            @MatchID            = @MatchID,
-            @ResourceIDs        = @ResourceIDs, 
-            @Results            = @Results,
-            @IsAuto                = @IsAuto,
-            @creator            = @AdminID 
-
-    END
-    ELSE IF @Action = 'REFUND'
-    BEGIN
-        
-        IF @IsSettleAbandonedMatchIBC = 1 
-        BEGIN
-            DECLARE     @GoalScorerAnytime        VARCHAR(MAX)=''
-            
-            DECLARE    @tmpResourceIDs    TABLE(
-                 ID            INT IDENTITY(1,1)
-                ,ResourceID    VARCHAR(20)
-                ,Bettype    INT
-            )
-            INSERT INTO @tmpResourceIDs(ResourceID, Bettype)
-            SELECT    Val, CAST(LEFT(val,3) AS INT) FROM dbo.StrSplit(@ResourceIDs,',')
-
-            DECLARE    @tmpResults TABLE(
-                 ID            INT IDENTITY(1,1)
-                ,HomeValue    VARCHAR(50)
-            )
-            INSERT INTO @tmpResults(HomeValue)
-            SELECT    Val FROM dbo.StrSplit(@Results,',') WHERE @Results IS NOT NULL 
-
-            UPDATE @tmpResults
-            SET        HomeValue = NULL
-            WHERE    HomeValue ='NL'
-
-            ;WITH cteBettypes
-            AS
-            (
-                SELECT    BetType
-                FROM    dbo.f_Set_GetGroupBettypes()
-                WHERE    GroupId = 8
-                        AND IsDetermined = 1
-            )
-            SELECT    @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-            FROM    dbo.bettrans WITH(NOLOCK)
-            WHERE    matchid = @MatchId
-                    AND statusID NOT BETWEEN 101 AND 102
-                    AND bettype IN (SELECT Bettype FROM @tmpResourceIDs)
-                    AND bettype IN (SELECT Bettype FROM cteBettypes)
-            GROUP BY bettype
-            
-            SELECT    @GoalScorerAnytime        = @GoalScorerAnytime + CASE WHEN t.ResourceID LIKE '216__' THEN ISNULL(r.HomeValue,'') +',' ELSE '' END             
-            FROM    @tmpResourceIDs t
-                    INNER JOIN @tmpResults r ON t.ID = r.ID 
-            WHERE    t.ResourceID LIKE '216__'
-
-            IF ISNULL(@GoalScorerAnytime,'') =''
-            BEGIN
-                SELECT     @ErrCode    = 1001014
-                        ,@ErrMsg    = 'Cannot settle determined ticket(s) without suspended result!'    
-                        
-                ------ releasing Settlement process
-				EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistMatch		= 1
-				, @IsReleased		= 1 
-                        
-                RETURN     
-            END
-
-            EXEC dbo.NAP_Admin_Calculate_Main 
-                 @matchid                    	= @matchid
-                ,@ResourceIDs                	= @ResourceIDs
-                ,@action                    	= 'REFUND'    
-                ,@mode                        	= 'ABANDONED' 
-                ,@GoalScorerAnytime            	= @GoalScorerAnytime
-                ,@IsSettleAbandonedMatchIBC    	= @IsSettleAbandonedMatchIBC
-                ,@strBettypes                	= @strBettypes
-        END
-
-        EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-            @Command            = 'NAP_Admin_Settlement_Auto_1s-REFUND',
-            @MatchID            = @MatchID,
-            @ResourceIDs        = @ResourceIDs, 
-            @Results            = @Results,
-            @IsAuto            	= @IsAuto,
-            @creator            = @AdminID     
-        
-        EXEC dbo.NAP_Admin_Calculate_Main 
-             @matchid                    	= @matchid
-            ,@ResourceIDs                	= @ResourceIDs
-            ,@IsSettleAbandonedMatchIBC 	= @IsSettleAbandonedMatchIBC
-            ,@action                    	= 'REFUND'    
-            ,@mode                        	= 'REFUND' 
-            ,@strBettypes                = @strXML
-    END
-
-
-    -------------------------------------------------------------
+			EXEC dbo.NAP_Admin_Calculate_Main
+				@matchid	  		= @matchid
+				,@action			= @action
+				,@IsSettingByProfile = 1
+				,@strTransIds		 = @strTransIds
+		END
+	END TRY
+	BEGIN CATCH
+		INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
+		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+				@MatchId 		= @matchId
+				, @sportType	= @sportType
+				, @Action 		= @Action
+				, @Mode 		= 2 
+				, @SelectedRID	= @SelectedRID
+	
+		-- Compare and update pending balance with error case
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				@BalanceWalletBefore	= @BalanceWalletBefore
+				, @BalanceWalletAfter	= @BalanceWalletAfter
+				, @ActionId			= @ActionID		  
+		  
+		SELECT	@ErrCode = 1001017
+				,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
+	
+		------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMatch		= 1
+					, @IsReleased		= 1
+	
+		RETURN
+	END CATCH
+	-------------------------------------------------------------
     ---         CAPTURE value BALANCE after settlement        ---
     ---------------------------VVVV------------------------------
 	INSERT INTO @BalanceWalletAfter (
@@ -272,8 +294,8 @@ BEGIN
         @MatchId 			= @matchId
         , @sportType        = @sportType
         , @Action 			= @Action
-        , @Mode 			= 6 --@Mode auto settlement
-		, @ResourceIDs      = @ResourceIDs
+        , @Mode 			= 2
+		, @SelectedRID      = @SelectedRID
         
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
@@ -284,23 +306,49 @@ BEGIN
 		, @BalanceWalletAfter	= @BalanceWalletAfter
 		, @ActionId				= @ActionID
 	
+
+	IF @action = 'UNDO'
+    BEGIN						
+        EXEC dbo.NAP_Admin_Settlement_MP
+            @matchid			= @matchid
+            ,@creator			= @AdminID
+            ,@action			= 'UNDO'
+            ,@SelectedResources = @SelectedResources
+            ,@IP				= @IP
+    END
+    
+	 ------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		, @IsReleased		= 1
+
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
     ---------------------------VVVV------------------------------
 
     SELECT @stop = CURRENT_TIMESTAMP
 
+	DECLARE @xmlResults XML
+	SET @xmlResults = CAST(@SelectedResources AS XML)
+	SET @SelectedResources = ''
+
+	SELECT @SelectedResources = @SelectedResources
+			+ T.c.value('@Id', 'VARCHAR(20)')
+			+ '(' + T.c.value('@Home', 'VARCHAR(50)')
+			+ CASE WHEN T.c.value('@Away', 'VARCHAR(50)') IS NOT NULL THEN '-' + T.c.value('@Away', 'VARCHAR(50)') ELSE '' END
+			+ '),'
+	FROM	@xmlResults.nodes('Resources/Resource') T(c)
+
+	IF RIGHT(@SelectedResources,1) = ','
+		SET @SelectedResources = LEFT(@SelectedResources, LEN(@SelectedResources) - 1)
+
     SELECT @logdata = 'NAP: Auto-Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                           + ' ResourceID:' + CAST(@ResourceIDs AS VARCHAR(MAX))
-                                                           + ' SettleDeterminedTickets:' + CAST(@IsSettleAbandonedMatchIBC AS VARCHAR(1))
-                                                           + ' Result:' + @Results + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+                                                           + ' Result:' + @SelectedResources + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
     EXEC dbo.WriteLog_UserLog 
         @UserID = @AdminId
         ,@Doing = @logdata
 
-    SELECT @Remark = 'NAP: ResourceID:' + @ResourceIDs +  ' <br/> ' 
-                        + CASE WHEN ISNULL(@Results,'') ='' THEN '' ELSE ' Result:'+ ISNULL(@Results,'') + ' <br/> ' END
-                        + ' SettleDeterminedTickets:' + CAST(@IsSettleAbandonedMatchIBC AS VARCHAR(1)) + '<br/>'
+    SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
 						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
                         + ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
                         + ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
@@ -334,12 +382,6 @@ BEGIN
             ,@betstatus            = @betstatus
             ,@Remark            = @Remark
             ,@IP                = @ip
-    END CATCH
-
-   ------ releasing Settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-	@isExistMatch		= 1
-	, @IsReleased		= 1
-	
+    END CATCH	
 END
 GO

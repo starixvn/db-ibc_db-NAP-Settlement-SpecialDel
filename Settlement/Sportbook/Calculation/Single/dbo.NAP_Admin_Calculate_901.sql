@@ -3,7 +3,6 @@
 	@matchid INT,	
 	@action	VARCHAR(30)= '',
 	@mode	VARCHAR(30)= '',
-	@ResourceIDs VARCHAR(MAX)=NULL,
 	@isRefundHT			BIT = 0
  AS
 	/*
@@ -21,6 +20,7 @@
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
 			- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+			- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 			
 		Parameter's Explantion:
 	*/
@@ -43,7 +43,7 @@ BEGIN
 						SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
 				UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 16 UNION ALL SELECT 17
 				UNION ALL SELECT 18 UNION ALL SELECT 157 UNION ALL SELECT 177 
-				UNION ALL SELECT 178 UNION ALL SELECT 183 UNION ALL SELECT 184
+				UNION ALL SELECT 178 UNION ALL SELECT 183 UNION ALL SELECT 184 UNION ALL SELECT 22
 			
 			--for match 3x30 dont touch 2H bettypes refunded				
 			DELETE @tmpBettype
@@ -54,7 +54,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpBettype(bettype)
 			SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 12 UNION ALL SELECT 15
-			UNION ALL SELECT 30 UNION ALL SELECT 126
+			UNION ALL SELECT 30 UNION ALL SELECT 126 UNION ALL SELECT 22
 		END
 	END
 	IF @action = 'CAL-FGLG'
@@ -70,14 +70,6 @@ BEGIN
 					SELECT 14
 			END
 	END	
-	IF @action = 'CAL-AUTO'
-	BEGIN
-		INSERT INTO @tmpBettype(bettype)
-				SELECT 160 UNION ALL SELECT 180
-				-- BETTRADE
-				UNION ALL SELECT 22
-			
-	END
 	
 	--this case for un-calculating refund tickets to previous status
 	IF @mode = 'UNDO'
@@ -89,8 +81,8 @@ BEGIN
 			UNION SELECT 12 UNION SELECT 14 UNION SELECT 15 UNION SELECT 16 
 			UNION SELECT 17 UNION SELECT 18	UNION SELECT 22 
 			UNION SELECT 30 UNION SELECT 126 UNION SELECT 127
-			UNION SELECT 157 UNION SELECT 160 UNION SELECT 177 UNION SELECT 178 
-			UNION SELECT 180 UNION SELECT 183 UNION SELECT 184 
+			UNION SELECT 157 UNION SELECT 177 UNION SELECT 178 
+			UNION SELECT 183 UNION SELECT 184 
 			
 	END
 	
@@ -100,14 +92,6 @@ BEGIN
 	FROM dbo.bettrans b WITH(NOLOCK)
 	WHERE b.bettype IN (SELECT bettype FROM @tmpBettype)
 		AND b.matchid = @matchid
-		AND 1 = CASE 
-					WHEN @ResourceIDs IS NULL AND b.Bettype NOT IN (160,180,22)  THEN 1 --manual page
-					WHEN (@ResourceIDs IS NOT NULL 
-						AND b.Bettype IN (160,180,22) 
-						AND CHARINDEX(SUBSTRING(CAST(b.BetID AS VARCHAR(20)),2,5),@ResourceIDs) > 0) THEN 1 
-					WHEN (@ResourceIDs IS NOT NULL 
-						AND CHARINDEX(',' +CAST(b.bettype AS VARCHAR(10)) + ',', ',' + @ResourceIDs + ',') > 0) THEN 1
-				ELSE 0 END
 		AND b.statusid NOT IN (101,102)		
 		AND b.betdaqid = 0--indicate tickets belong to bettrade
 		AND b.ExtraInfo IS NULL

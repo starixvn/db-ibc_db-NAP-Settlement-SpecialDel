@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -17,7 +13,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	, @TennisTotal 		INT = NULL
 	, @TotalGameHomeMatch INT = NULL
 	, @TotalGameAwayMatch INT = NULL
-	, @resultDetail_cb 	VARCHAR(MAX) = NULL
 	, @resultDetail_ss 	VARCHAR(MAX) = NULL
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
 	, @resultDetail		VARCHAR(MAX) = NULL
@@ -37,6 +32,8 @@ AS
 			- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 			- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -50,16 +47,6 @@ BEGIN
 		, @ft_lg 			VARCHAR(10)
 		, @ht_fg 			VARCHAR(10)
 		, @ht_lg 			VARCHAR(10)
-		
-		-- coner bets
-		,@fthCorners        INT = NULL 
-		,@ftaCorners        INT = NULL 
-		,@hthCorners        INT = NULL 
-		,@htaCorners        INT = NULL     
-		,@FTFCorner         VARCHAR(10)    = NULL 
-		,@FTLCorner         VARCHAR(10)    = NULL 
-		,@HTFCorner         VARCHAR(10)    = NULL 
-		,@HTLCorner         VARCHAR(10)    = NULL
 		
 	DECLARE
 		@homeScoreSet1         tinyint
@@ -78,29 +65,6 @@ BEGIN
         ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
         ,@SelectedSetCAL        VARCHAR(50)  = NULL
         ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-            
-        ,@penaltyshootout        VARCHAR(10)    = NULL
-        ,@matchDecidedMethod    VARCHAR(10)    = NULL
-        ,@first10Min1x2            VARCHAR(10)    = NULL
-        ,@firstGoalTime10Min    VARCHAR(10)    = NULL
-        ,@firstGoalTime15Min    VARCHAR(10)    = NULL
-        ,@WhoAdvancesNextRound    VARCHAR(10) = NULL
-        ,@ExtraTimeandGoal        VARCHAR(10)    = NULL
-        ,@ExtraTimeYN            VARCHAR(10) = NULL
-        ,@PlayerSentOff            VARCHAR(10) = NULL
-        ,@HTPlayerSentOff        VARCHAR(10) = NULL
-        ,@PlayerSentOffHome        VARCHAR(10) = NULL
-        ,@HTPlayerSentOffHome    VARCHAR(10) = NULL
-        ,@PlayerSentOffAway        VARCHAR(10) = NULL
-        ,@HTPlayerSentOffAway    VARCHAR(10) = NULL
-        ,@GoalScorerFirst        VARCHAR(10) = NULL                
-        ,@firstHNextGoal        VARCHAR(MAX)= NULL
-        ,@NextGoal                VARCHAR(MAX)= NULL
-        ,@NextGoalTime15Min        VARCHAR(MAX)= NULL
-        ,@ExtraNextGoal            VARCHAR(MAX)= NULL
-        ,@GoalScorerAnytime        VARCHAR(MAX)= NULL
-        ,@FirstGoalMethod			VARCHAR(2) = NULL
-        
         ,@scorediff			SMALLINT = 0
 		,@totalgoal			SMALLINT = 0
 		,@oddeven			SMALLINT = 0
@@ -136,57 +100,37 @@ BEGIN
 						END
 
 	DECLARE @FirstGoal NVARCHAR(50) 
-	SELECT  @FirstGoal=''
-	SELECT  @FirstGoal = LEFT(REPLACE(ISNULL(@GoalSequence,''),';',''),1) --172  --@GoalSequence = GoalRecord 
-	
+			,@FirstGoal1H 	VARCHAR(1)
+			,@FirstGoal2H	VARCHAR(1)
+			,@LastGoal		VARCHAR(1)
+			,@LastGoal1H	VARCHAR(1)
+
+			,@Char			VARCHAR(1)
+			,@Position		TINYINT
+			,@HomeRaceTo	TINYINT
+			,@AwayRaceTo	TINYINT
+			,@NeitherRaceTo TINYINT
+			,@NeitherRaceTo1H TINYINT
+			,@LenGoalSequence TINYINT
+			,@ResultCornerRace VARCHAR(200)
+			,@ResultCornerRace1H VARCHAR(200)
+			,@RemovedSemicolonResultString NVARCHAR(50)
+			,@goalsequenceHT VARCHAR(50)
+			,@goalsequenceFT VARCHAR(50)
+
 	DECLARE    
 		@home_firstteam2goals    INT
 		,@away_firstteam2goals    INT
 		,@home_firstteam3goals    INT
 		,@away_firstteam3goals    INT
 	
-	SET @home_firstteam2goals = CHARINDEX('H',@GoalSequence,(CHARINDEX('H',@GoalSequence)+1))
-	SET @away_firstteam2goals = CHARINDEX('A',@GoalSequence,(CHARINDEX('A',@GoalSequence)+1))    
-	SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@GoalSequence, @home_firstteam2goals + 1) ELSE 0 END
-	SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@GoalSequence, @away_firstteam2goals + 1) ELSE 0 END    
-	
-	
+
 	DECLARE @WinFromBehind NVARCHAR(1)
 			,@curHome INT = 0
 			,@curAway INT = 0
 			,@index INT = 1
 			
-	SET @totalgoal = @fth + @fta
-    SET @scorediff = @fth - @fta
-    SET @oddeven = (@fth + @fta) % 2
-    SET @totalht = (@hth + @hta)
-    SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)
-            
-	IF (@fth <> @fta) AND (@fth + @fta) > 2
-	BEGIN
-		WHILE (@index <= LEN(REPLACE(@GoalSequence,';','')))
-		BEGIN
-			IF SUBSTRING(REPLACE(@GoalSequence,';',''),@index, 1) = 'H'
-				SET @curHome = @curHome + 1
-				
-			IF SUBSTRING(REPLACE(@GoalSequence,';',''),@index, 1) = 'A' 
-				SET @curAway = @curAway + 1                
-			
-			IF @fth > @fta AND @curHome < @curAway 
-			BEGIN
-				SET @WinFromBehind = 'H' 
-				BREAK
-			END
-			IF @fta > @fth AND @curAway < @curHome
-			BEGIN
-				SET @WinFromBehind = 'A'
-				BREAK
-			END
-			
-			SET @index = @index + 1
-		END
-	END
-
+	
 	INSERT INTO #bettypeCAL (bettype, groupId, groupName, isEarly)
 	SELECT f.bettype, f.GroupId, f.GroupName
 			,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
@@ -199,32 +143,13 @@ BEGIN
 						END
 					WHEN @Mode IN ('REFUND-FT', 'ABANDONED-2H') THEN 
 						CASE 
-							WHEN f.GroupId IN (1,3,5,7) AND @IsRefundHT = 0 THEN 1 
+							WHEN f.GroupId IN (1,3,7) AND @IsRefundHT = 0 THEN 1 
 							ELSE 0
 						END
 					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype IN (2,5)) THEN 1
 					ELSE 0
 				END
 			AND f.GroupId NOT IN (8,9) --Exclude BetRadar, FM
-	
-	IF @Sporttype = 1 AND @resultDetail_cb IS NOT NULL -- corners bets 
-	BEGIN
-		DECLARE @xmlCorner	XML
-		
-		SET @xmlCorner = CONVERT(XML, @resultDetail_cb)    
-		
-		SELECT @fthCorners = ISNULL(T.C.value('./@fthCorners[1]', 'int'), 0)
-			,@ftaCorners = ISNULL(T.C.value('./@ftaCorners[1]', 'int'), 0)
-			,@hthCorners = ISNULL(T.C.value('./@hthCorners[1]', 'int'), 0)
-			,@htaCorners = ISNULL(T.C.value('./@htaCorners[1]', 'int'), 0)
-			,@ftfCorner = ISNULL(T.C.value('./@ftfCorner[1]', 'varchar(10)'), '')
-			,@htfCorner = ISNULL(T.C.value('./@htfCorner[1]', 'varchar(10)'), '')
-			,@ftlCorner = ISNULL(T.C.value('./@ftlCorner[1]', 'varchar(10)'), '')
-			,@htlCorner = ISNULL(T.C.value('./@htlCorner[1]', 'varchar(10)'), '')
-		FROM @xmlCorner.nodes('/root/r') as [T](C) --T: table, C: column    
-		OPTION ( OPTIMIZE FOR ( @xmlCorner = NULL ) )    
-	
-	END
 	
 	IF @sportType = 1 AND @resultDetail IS NOT NULL
 	BEGIN
@@ -262,7 +187,8 @@ BEGIN
 				
 				,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
 				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')	
-							
+				,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
+				,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
 		FROM	cteResult r
 		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
 		
@@ -358,6 +284,129 @@ BEGIN
 									ELSE t.ResourceId
 								END AS ResourceId
 					) r
+	END
+	
+	SELECT  @FirstGoal=''
+			,@FirstGoal1H = ''
+			,@GoalSequence = ISNULL(@GoalSequence, '')
+			,@FirstGoal2H = ''
+			,@LastGoal = ''
+			,@LastGoal1H = ''
+			,@ResultCornerRace = ''
+			,@ResultCornerRace1H = ''
+
+			-- for bettype 486 Corner Race, 487 1H Corner Race
+			,@Position = 1
+			,@HomeRaceTo = 0
+			,@AwayRaceTo = 0
+			,@RemovedSemicolonResultString = REPLACE(ISNULL(@goalsequenceFT, ''),';','') 
+			
+	SET @home_firstteam2goals = CHARINDEX('H',@GoalSequence,(CHARINDEX('H',@GoalSequence)+1))
+	SET @away_firstteam2goals = CHARINDEX('A',@GoalSequence,(CHARINDEX('A',@GoalSequence)+1))    
+	SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@GoalSequence, @home_firstteam2goals + 1) ELSE 0 END
+	SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@GoalSequence, @away_firstteam2goals + 1) ELSE 0 END    
+	
+	SET @totalgoal = @fth + @fta
+    SET @scorediff = @fth - @fta
+    SET @oddeven = (@fth + @fta) % 2
+    SET @totalht = (@hth + @hta)
+    SET @totalgoal_2H = (@fth + @fta) - (@hth + @hta)
+            
+	IF (@fth <> @fta) AND (@fth + @fta) > 2
+	BEGIN
+		WHILE (@index <= LEN(REPLACE(@GoalSequence,';','')))
+		BEGIN
+			IF SUBSTRING(REPLACE(@GoalSequence,';',''),@index, 1) = 'H'
+				SET @curHome = @curHome + 1
+				
+			IF SUBSTRING(REPLACE(@GoalSequence,';',''),@index, 1) = 'A' 
+				SET @curAway = @curAway + 1                
+			
+			IF @fth > @fta AND @curHome < @curAway 
+			BEGIN
+				SET @WinFromBehind = 'H' 
+				BREAK
+			END
+			IF @fta > @fth AND @curAway < @curHome
+			BEGIN
+				SET @WinFromBehind = 'A'
+				BREAK
+			END
+			
+			SET @index = @index + 1
+		END
+	END
+
+	SELECT   @FirstGoal = LEFT(REPLACE(@GoalSequence,';',''),1) --172  --@GoalSequence = GoalRecord 
+			,@FirstGoal1H = LEFT(@goalsequenceHT,1)
+			,@FirstGoal2h = CASE 
+						WHEN CHARINDEX(';', @goalsequenceFT) > 0 THEN SUBSTRING(@goalsequenceFT, CHARINDEX(';', @goalsequenceFT)+1,1) 
+						ELSE LEFT(@goalsequenceFT,1) 
+					END
+			,@LastGoal = RIGHT(REPLACE(@goalsequenceFT,';',''),1)
+			,@LastGoal1H = RIGHT(@goalsequenceHT,1)
+
+	-- 486 Corner Race
+	BEGIN
+		SELECT @LenGoalSequence = LEN(@goalsequenceFT)
+			
+		WHILE (@Position <= @LenGoalSequence)
+		BEGIN
+			SET @Char = SUBSTRING(@goalsequenceFT, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace = @ResultCornerRace + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+	END
+
+	-- 487 1H Corner Race
+	BEGIN
+		SELECT	@LenGoalSequence = 0
+				,@HomeRaceTo = 0
+				,@AwayRaceTo = 0
+				,@Position = 1
+						
+		SELECT @LenGoalSequence = LEN(@goalsequenceHT)
+			
+		WHILE (@Position <= @LenGoalSequence)
+		BEGIN
+			SET @Char = SUBSTRING(@goalsequenceHT, @Position, 1)
+	
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+
+				IF @AwayRaceTo > @HomeRaceTo
+					SET  @ResultCornerRace1H = @ResultCornerRace1H + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+			END
+
+			SET @Position = @Position + 1	 	
+		END
+
+		SET @NeitherRaceTo1H = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
 	END
 	
 	--Start process
@@ -502,38 +551,13 @@ BEGIN
 						, @SetxGameyDRAW
 						, @SetxGameyREFUND
 						, @SelectedSetCAL
-						, @SelectedSetREFUND
-						, @fthCorners
-						, @ftaCorners
-						, @hthCorners
-						, @htaCorners
-						, @FTFCorner
-						, @FTLCorner
-						, @HTFCorner
-						, @HTLCorner
-						, @penaltyshootout
-						, @matchDecidedMethod
-						, @first10Min1x2
-						, @firstGoalTime10Min
-						, @firstGoalTime15Min
-						, @WhoAdvancesNextRound
-						, @ExtraTimeandGoal
-						, @ExtraTimeYN
-						, @PlayerSentOff
-						, @HTPlayerSentOff
-						, @PlayerSentOffHome
-						, @HTPlayerSentOffHome
-						, @PlayerSentOffAway
-						, @HTPlayerSentOffAway
-						, @GoalScorerFirst
-						, @firstHNextGoal
-						, @NextGoal
-						, @NextGoalTime15Min
-						, @ExtraNextGoal
-						, @GoalScorerAnytime
-						, @FirstGoalMethod
+						, @SelectedSetREFUND										
 						, @WinFromBehind
 						, @FirstGoal
+						, @FirstGoal1H
+						, @FirstGoal2H
+						, @LastGoal
+						, @LastGoal1H
 						, @csHTFT
 						, @home_firstteam2goals
 						, @away_firstteam2goals
@@ -548,18 +572,16 @@ BEGIN
 						, @oddeven
 						, @totalht
 						, @totalgoal_2H
-						
+						, @ResultCornerRace
+						, @NeitherRaceTo
+						, @ResultCornerRace1H
+						, @NeitherRaceTo1H
+						, @RemovedSemicolonResultString
 					) AS odds
 				WHERE b.matchId = @matchId
 			) AS b FOR XML AUTO
 		) AS VARCHAR(MAX))
 		
-		/*select @matchid
-			,@matchdate
-			,@mode AS mode
-			,'CAL' AS [action] 		
-			,@strTicket AS strTransIds*/
-			
 		IF(@strTicket IS NOT NULL)
 		BEGIN
 			EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
@@ -570,8 +592,6 @@ BEGIN
 				,@strTransIds	= @strTicket
 		END
 	
-		--BREAK;
-			
 		IF(@batchCount < @batchNo) BREAK
 	END
 	
@@ -580,6 +600,3 @@ BEGIN
 	RETURN
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_Calculate] TO [bodbAdminNet]
-GO
-

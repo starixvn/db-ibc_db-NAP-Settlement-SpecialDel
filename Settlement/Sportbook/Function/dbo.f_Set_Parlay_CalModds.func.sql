@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	@bettype SMALLINT
 	, @betteam VARCHAR(50)
@@ -39,37 +35,12 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @SetxGameyREFUND VARCHAR(MAX) = NULL
 	, @SelectedSetCAL VARCHAR(50) = NULL
 	, @SelectedSetREFUND VARCHAR(50) = NULL
-	, @fthCorners INT = NULL
-	, @ftaCorners INT = NULL
-	, @hthCorners INT = NULL
-	, @htaCorners INT = NULL
-	, @FTFCorner VARCHAR(10) = NULL
-	, @FTLCorner VARCHAR(10) = NULL
-	, @HTFCorner VARCHAR(10) = NULL
-	, @HTLCorner VARCHAR(10) = NULL
-	, @penaltyshootout VARCHAR(10) = NULL
-	, @matchDecidedMethod VARCHAR(10) = NULL
-	, @first10Min1x2 VARCHAR(10) = NULL
-	, @firstGoalTime10Min VARCHAR(10) = NULL
-	, @firstGoalTime15Min VARCHAR(10) = NULL
-	, @WhoAdvancesNextRound VARCHAR(10) = NULL
-	, @ExtraTimeandGoal VARCHAR(10) = NULL
-	, @ExtraTimeYN VARCHAR(10) = NULL
-	, @PlayerSentOff VARCHAR(10) = NULL
-	, @HTPlayerSentOff VARCHAR(10) = NULL
-	, @PlayerSentOffHome VARCHAR(10) = NULL
-	, @HTPlayerSentOffHome VARCHAR(10) = NULL
-	, @PlayerSentOffAway VARCHAR(10) = NULL
-	, @HTPlayerSentOffAway VARCHAR(10) = NULL
-	, @GoalScorerFirst VARCHAR(10) = NULL
-	, @firstHNextGoal VARCHAR(MAX) = NULL
-	, @NextGoal VARCHAR(MAX) = NULL
-	, @NextGoalTime15Min VARCHAR(MAX) = NULL
-	, @ExtraNextGoal VARCHAR(MAX) = NULL
-	, @GoalScorerAnytime VARCHAR(MAX) = NULL
-	, @FirstGoalMethod VARCHAR(2) = NULL
 	, @WinFromBehind NVARCHAR(1)
 	, @FirstGoal NVARCHAR(50)
+	, @FirstGoal1H VARCHAR(1)
+	, @FirstGoal2H VARCHAR(1)
+	, @LastGoal VARCHAR(1)
+	, @LastGoal1H VARCHAR(1)
 	, @csHTFT NVARCHAR(10)
 	, @home_firstteam2goals INT
 	, @away_firstteam2goals INT
@@ -84,6 +55,11 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @oddeven SMALLINT = 0
 	, @totalht SMALLINT = 0
     , @totalgoal_2H SMALLINT = 0
+	, @ResultCornerRace VARCHAR(200)
+	, @NeitherRaceTo TINYINT
+	, @ResultCornerRace1H VARCHAR(200)
+	, @NeitherRaceTo1H TINYINT
+	, @RemovedSemicolonResultString NVARCHAR(50)
 )
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -100,6 +76,9 @@ AS
 			- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 			- 20180123@Helen: Hotfix - match 3x30 - Just change position of input params totalgoal & scorediff of this function ONLY [Redmine:#89388]
 			- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+			- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 			
     Parameters Explanation:    
 	
@@ -430,12 +409,7 @@ RETURN (
 					CASE 
 						WHEN @betteam = @csHTFT THEN 1
 						ELSE -1
-						END 
-				WHEN 135 THEN -- Penalty Shootout
-					CASE 
-						WHEN @betteam = @penaltyshootout THEN 1
-						ELSE -1
-						END        
+						END     
 				WHEN 128 THEN -- HT/FT Odd/Even
 					CASE
 						WHEN @betteam = 'oo' AND (@hth + @hta) % 2 = 1 AND (@fth + @fta) % 2 = 1 THEN 1
@@ -518,93 +492,7 @@ RETURN (
 						WHEN @betteam = 'du' AND (@fth - @fta) = 0 THEN @hdp1 - (@fth+ @fta)
 						ELSE -1
 						END        
-				-- Betradar 2 
-				WHEN 160 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END 
-				WHEN 164 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@ExtraNextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END
-
-				WHEN 168 THEN 
-					CASE WHEN @betteam = @WhoAdvancesNextRound THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 169 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@NextGoalTime15Min)> 0 THEN 1 
-						 ELSE - 1 
-						 END
-				WHEN 173 THEN 
-					CASE WHEN @betteam = @ExtraTimeYN THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 174 THEN 
-					CASE WHEN @betteam = @ExtraTimeandGoal THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 175 THEN 
-					CASE WHEN @betteam = @matchDecidedMethod THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 176 THEN 
-					CASE WHEN @betteam = @first10Min1x2 THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 180 THEN 
-					CASE WHEN CHARINDEX((SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,5) + @betteam),@firstHNextGoal)> 0 THEN 1 
-						 ELSE - 1 
-						 END
-				WHEN 192 THEN 
-					CASE WHEN @betteam = @firstGoalTime10Min THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 193 THEN 
-					CASE WHEN @betteam = @firstGoalTime15Min THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 210 THEN 
-					CASE WHEN @betteam = @PlayerSentOff THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 211 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOff THEN 1 
-						 ELSE - 1
-						 END 
-				WHEN 212 THEN 
-					CASE WHEN @betteam = @PlayerSentOffHome THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 213 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOffHome THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 214 THEN 
-					CASE WHEN @betteam = @PlayerSentOffAway THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 215 THEN 
-					CASE WHEN @betteam = @HTPlayerSentOffAway THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 216 THEN 
-					CASE WHEN CHARINDEX(@betteam,@GoalScorerAnytime)>0 THEN 1 
-						 ELSE - 1
-						 END 
-
-				WHEN 217 THEN 
-					CASE WHEN @betteam = @GoalScorerFirst THEN 1 
-						 ELSE - 1
-						 END 
-
+				
 				-- Betradar 2 Manual @bettype 
 				WHEN 157 THEN 
 					CASE WHEN @betteam =N'h' AND ((@fth + @fta) &1) = 1 THEN 1 
@@ -766,109 +654,6 @@ RETURN (
 						WHEN @betteam = 'h' AND (@hth - @hta) > 0 THEN 1
 						WHEN @betteam = 'a' AND (@hth - @hta) < 0 THEN 1
 						ELSE -1
-						END
-				WHEN 194 THEN
-					CASE 
-						WHEN @betteam =N'o' AND ((@fthCorners + @ftaCorners) &1) = 1 THEN 1 
-						WHEN @betteam =N'e' AND ((@fthCorners + @ftaCorners) &1) = 0 THEN 1 
-						ELSE - 1 
-						END   
-				WHEN 195 THEN 
-					CASE 
-						WHEN @betteam = '0-2' AND @fthCorners <=2 THEN 1            
-						WHEN @betteam = '3-4' AND @fthCorners IN (3, 4) THEN 1    
-						WHEN @betteam = '5-6' AND @fthCorners IN(5, 6) THEN 1    
-						WHEN @betteam = '7-over' AND @fthCorners >= 7 THEN 1        
-						ELSE -1
-						END 
-				WHEN 196 THEN 
-					CASE 
-						WHEN @betteam = '0-2' AND @ftaCorners <=2 THEN 1            
-						WHEN @betteam = '3-4' AND @ftaCorners IN (3, 4) THEN 1    
-						WHEN @betteam = '5-6' AND @ftaCorners IN(5, 6) THEN 1    
-						WHEN @betteam = '7-over' AND @ftaCorners >= 7 THEN 1        
-						ELSE -1
-						END 
-				WHEN 197 THEN 
-					CASE    
-						WHEN @betteam = N'o' THEN @fthCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@fthCorners    
-						ELSE -1
-						END
-				WHEN 198 THEN
-					CASE    
-						WHEN @betteam = N'o' THEN @ftaCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@ftaCorners    
-						ELSE -1
-						END
-				WHEN 199 THEN 
-					CASE 
-						WHEN @betteam ='0-8' AND (@fthCorners + @ftaCorners) <=8 THEN 1
-						WHEN @betteam ='9-11' AND (@fthCorners + @ftaCorners) IN(9,10,11) THEN 1
-						WHEN @betteam ='12-over' AND (@fthCorners + @ftaCorners)>=12 THEN 1 
-					ELSE -1
-					END
-				WHEN 200 THEN
-					CASE 
-						WHEN @betteam = '0-1' AND @hthCorners <= 1 THEN 1    
-						WHEN @betteam ='2' AND @hthCorners = 2 THEN 1
-						WHEN @betteam ='3' AND @hthCorners = 3 THEN 1
-						WHEN @betteam ='4-over' AND @hthCorners >=4 THEN 1
-						ELSE -1
-						END
-				WHEN 201 THEN
-					CASE 
-						WHEN @betteam = '0-1' AND @htaCorners <= 1 THEN 1    
-						WHEN @betteam ='2' AND @htaCorners = 2 THEN 1
-						WHEN @betteam ='3' AND @htaCorners = 3 THEN 1
-						WHEN @betteam ='4-over' AND @htaCorners >=4 THEN 1
-						ELSE -1
-						END
-				WHEN 202 THEN
-					CASE 
-						WHEN @betteam ='0-4' AND  (@hthCorners+@htaCorners)<=4 THEN 1
-						WHEN @betteam = '5-6' AND (@hthCorners+@htaCorners) IN(5, 6) THEN 1
-						WHEN @betteam ='7-over' AND (@hthCorners+@htaCorners) >= 7 THEN 1    
-						ELSE -1
-						END
-				WHEN 203 THEN 
-					CASE 
-						WHEN @betteam =N'o' AND ((@hthCorners + @htaCorners) &1) = 1 THEN 1 
-						WHEN @betteam =N'e' AND ((@hthCorners + @htaCorners) &1) = 0 THEN 1 
-						ELSE - 1 
-						END  
-
-				WHEN 204 THEN 
-					CASE 
-						WHEN @betteam = N'o' THEN @hthCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@hthCorners    
-						ELSE -1
-						END
-				WHEN 205 THEN 
-					CASE 
-						WHEN @betteam = N'o' THEN @htaCorners-@hdp1    
-						WHEN @betteam = N'u' THEN @hdp1-@htaCorners    
-						ELSE -1
-						END    
-				WHEN 206 THEN
-					CASE 
-						WHEN @betteam = @FTFCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 207 THEN
-					CASE 
-						WHEN @betteam = @HTFCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 208 THEN
-					CASE 
-						WHEN @betteam = @FTLCorner THEN 1
-						ELSE -1 
-						END
-				WHEN 209 THEN
-					CASE 
-						WHEN @betteam = @HTLCorner THEN 1
-						ELSE -1 
 						END
 				WHEN 401 THEN --Home Team Over/Under
 					CASE
@@ -1087,11 +872,6 @@ RETURN (
 									   END THEN 1
 						ELSE -1
 					END
-				WHEN 424 THEN
-					CASE 
-						WHEN @betteam = @FirstGoalMethod THEN 1
-						ELSE -1
-					END	
 				WHEN 425 THEN
 					CASE
 						WHEN @betteam = @WinFromBehind THEN 1
@@ -1662,6 +1442,220 @@ RETURN (
 									END) = @betteam THEN 1 
 								ELSE -1
 							END 	
+				-- 470: Corners Odd/Even (own)
+				WHEN 470 THEN 
+                            CASE WHEN @betteam =N'o' AND ((@fth + @fta) % 2) = 1 THEN 1 
+                                    WHEN @betteam =N'e' AND ((@fth + @fta) % 2) = 0 THEN 1 
+                                    ELSE - 1 
+                             END
+
+				-- 471: 1H Corners Odd/Even (own)
+				WHEN 471 THEN 
+                            CASE WHEN @betteam =N'o' AND ((@hth + @hta) % 2) = 1 THEN 1 
+                                    WHEN @betteam =N'e' AND ((@hth + @hta) % 2) = 0 THEN 1 
+                                    ELSE - 1 
+                             END
+
+				-- 472: 2H Corners Odd/Even
+				WHEN 472 THEN 
+                            CASE WHEN @betteam =N'o' AND ((@fth + @fta - @hth - @hta) % 2) = 1 THEN 1 
+                                    WHEN @betteam =N'e' AND ((@fth + @fta - @hth - @hta) % 2) = 0 THEN 1 
+                                    ELSE - 1 
+                             END 
+				-- Total Corners
+				WHEN 473 THEN 
+							CASE WHEN @betteam = '0-5' and @totalgoal <= 5 THEN 1
+								WHEN @betteam = '6-8' and @totalgoal in (6,7,8) THEN 1
+								WHEN @betteam = '9-11' and @totalgoal in (9,10,11) THEN 1
+								WHEN @betteam = '12-14' and @totalgoal in (12,13,14) THEN 1
+								WHEN @betteam = '15+' and @totalgoal >= 15 THEN 1
+								ELSE -1 
+							END
+				-- 1H Total Corners
+				WHEN 474 THEN 
+							CASE WHEN @betteam = '0-2' and @totalht <= 2 THEN 1
+								WHEN @betteam = '3-4' and @totalht in (3,4) THEN 1
+								WHEN @betteam = '5-6' and @totalht in (5,6) THEN 1
+								WHEN @betteam = '7+' and @totalht >= 7 THEN 1
+								ELSE -1 
+							END
+				-- Alternative Corners
+				WHEN 475 THEN 
+							CASE WHEN @betteam = 'o' AND @totalgoal > @hdp1 THEN 1
+										WHEN @betteam = 'u' AND @totalgoal < @hdp1 THEN 1
+										WHEN @betteam = 'e' AND @totalgoal = @hdp1 THEN 1
+										ELSE -1
+									END
+				-- 1H Alternative Corners
+				WHEN 476 THEN 
+							CASE WHEN @betteam = 'o' AND @totalht > @hdp1 THEN 1
+								WHEN @betteam = 'u' AND @totalht < @hdp1 THEN 1
+								WHEN @betteam = 'e' AND @totalht = @hdp1 THEN 1
+								ELSE -1
+							END
+				-- Corner 3-way handicap
+				WHEN 477 THEN 
+					CASE 
+						WHEN @betteam = '1' AND (@hdp2 - @hdp1 + @fth - @fta) > 0 THEN 1
+						WHEN @betteam = '2' AND (@hdp1 - @hdp2 + @fta - @fth) > 0 THEN 1
+						WHEN @betteam = 'x' AND ((@hdp1 - @hdp2) - (@fth - @fta)) = 0 THEN 1
+						ELSE - 1
+						END
+				-- 478: 1H Corner 3-Way Handicap
+				WHEN 478 THEN 
+							CASE
+								WHEN @betteam = '1' AND ((@hth - @hdp1) - (@hta - @hdp2)) > 0  THEN 1
+								WHEN @betteam = '2' AND ((@hth - @hdp1) - (@hta - @hdp2)) < 0  THEN 1
+								WHEN @betteam = 'x' AND ((@hth - @hdp1) - (@hta - @hdp2)) = 0  THEN 1
+								ELSE - 1
+							END	
+				-- 482: Home Team Corners Over/Under
+				WHEN 482 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fth - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fth
+						ELSE -1 
+					END
+				-- 483: Away Team Corners Over/Under
+				WHEN 483 THEN 
+					CASE
+						WHEN @betteam = 'o' THEN @fta - @hdp1
+						WHEN @betteam = 'u' THEN @hdp1 - @fta
+						ELSE -1 
+					END
+				-- 484: 1H Home Team Corners Over/Under
+				WHEN 484 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hth - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hth
+                        ELSE -1 
+					END
+				-- 485: --1H Away Team Corners Over/Under
+				WHEN 485 THEN 
+                    CASE
+                        WHEN @betteam = 'o' THEN @hta - @hdp1
+                        WHEN @betteam = 'u' THEN @hdp1 - @hta
+                        ELSE -1 
+					END
+				-- Corners Race
+				WHEN 486 THEN CASE 
+								WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @ResultCornerRace) > 0 THEN 1
+								WHEN @betteam = 'N' AND @NeitherRaceTo <= @hdp1 THEN 1
+								ELSE -1
+							END
+				-- 1H Corners Race
+				WHEN 487 THEN CASE 
+								WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @ResultCornerRace1H) > 0 THEN 1
+								WHEN @betteam = 'N' AND @NeitherRaceTo1H <= @hdp1 THEN 1
+								ELSE -1
+							END
+				-- First Corner
+				WHEN 488 THEN CASE
+								WHEN @betteam = @FirstGoal THEN 1
+								WHEN @FirstGoal = '' THEN 0
+								ELSE -1
+							END
+				-- 1H First Corner
+				WHEN 489 THEN CASE
+								WHEN @betteam = @FirstGoal1H THEN 1
+								WHEN @FirstGoal1H = '' THEN 0
+								ELSE -1
+							END
+				-- 2H First Corner
+				WHEN 490 THEN CASE
+								WHEN @betteam = @FirstGoal2H  THEN 1
+								WHEN @FirstGoal2H = '' THEN 0
+								ELSE -1
+							END
+				-- Last Corner
+				WHEN 491 THEN CASE
+								WHEN @betteam = @LastGoal THEN 1
+								WHEN @LastGoal = '' THEN 0
+								ELSE -1
+							END
+				-- 1H Last Corner
+				WHEN 492 THEN CASE
+								WHEN @betteam = @LastGoal1H THEN 1
+								WHEN @LastGoal1H = '' THEN 0
+								ELSE -1
+							END
+				
+				-- HT/FT Total Corners
+				WHEN 493 THEN CASE WHEN 
+									(
+										CASE 
+											WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(
+																							CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+																								WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+																								WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+																								WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+																								WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+																								WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+																								WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+																								WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+																								ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+																							END , @transdesc
+																						) = 0 THEN 'AOS' 
+																		ELSE '' END
+											ELSE 
+												CASE WHEN (@hth + @hta) = 0 AND (@fth + @fta) >= 8 THEN '0/8+'
+													WHEN (@hth + @hta) = 1 AND (@fth + @fta) >= 9 THEN '1/9+'  
+													WHEN (@hth + @hta) = 2 AND (@fth + @fta) >= 10 THEN '2/10+'
+													WHEN (@hth + @hta) = 3 AND (@fth + @fta) >= 11 THEN '3/11+'
+													WHEN (@hth + @hta) = 4 AND (@fth + @fta) >= 12 THEN '4/12+'
+													WHEN (@hth + @hta) = 5 AND (@fth + @fta) >= 13 THEN '5/13+'
+													WHEN (@hth + @hta) = 6 AND (@fth + @fta) >= 14 THEN '6/14+'
+													WHEN (@hth + @hta) IN (7,8,9) AND (@fth + @fta) >= 15 THEN CAST((@hth + @hta) AS VARCHAR(5)) + '/15+'
+													ELSE CAST((@hth + @hta) AS VARCHAR(5)) + '/' + CAST((@fth + @fta) AS VARCHAR(5))
+												END
+										
+										END
+									) = @betteam THEN 1 
+								ELSE -1
+							END
+				-- 1H Correct Corners
+				WHEN 494 THEN CASE WHEN 
+									(
+										CASE 
+											WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS' ELSE '' END
+											ELSE CAST(@hth AS VARCHAR(5)) + '-' + CAST(@hta AS VARCHAR(5))
+										END
+									) = @betteam THEN 1 
+									ELSE -1
+								END
+				-- 2H Correct Corners
+				WHEN 495 THEN CASE WHEN 
+									(
+										CASE 
+											WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5)), @transdesc) = 0 THEN 'AOS' ELSE '' END
+											ELSE CAST((@fth - @hth) AS VARCHAR(5)) + '-' + CAST((@fta - @hta) AS VARCHAR(5))
+										END
+									) = @betteam THEN 1 
+									ELSE -1
+								END
+				-- 496: Corner Highest Scoring Half
+				WHEN 496 THEN 
+								CASE 
+								WHEN @betteam = '1h' AND (@hth + @hta) > (@fth - @hth + @fta - @hta) THEN 1
+								WHEN @betteam = 'tie' AND (@hth + @hta) = (@fth - @hth + @fta - @hta) THEN 1
+								WHEN @betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
+								ELSE -1
+								END
+				-- 497: Corner Highest Scoring Half (2-Way)
+				WHEN 497 THEN 
+								CASE 
+								WHEN @betteam = '1h' AND (@hth + @hta) > (@fth - @hth + @fta - @hta) THEN 1
+								WHEN @betteam IN ('1h','2h') AND (@hth + @hta) = (@fth - @hth + @fta - @hta) THEN 0
+								WHEN @betteam = '2h' AND (@hth + @hta) < (@fth - @hth + @fta - @hta) THEN 1
+								ELSE -1
+								END
+				WHEN 22 THEN 
+							CASE
+								WHEN @betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
+								WHEN @betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
+								WHEN @betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN 1
+								ELSE -1
+							END
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

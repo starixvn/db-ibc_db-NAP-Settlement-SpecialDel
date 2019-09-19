@@ -53,6 +53,8 @@ AS
 		- 20190509@Kathy: Add group 0 for default if match do not have any ticket [Redmine:#99638]
 		- 20190523@Sol: Auto Payout Phase 3 - Removed @IsAutoCalculatePage param [Redmine:#116073]
 
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		
 */
 BEGIN
     SET NOCOUNT ON
@@ -68,9 +70,6 @@ BEGIN
         ,@2HStatus					NVARCHAR(50)
         ,@FGLGStatus				NVARCHAR(50)
         ,@HTFGLGStatus				NVARCHAR(50)
-        ,@FTCornerStatus			NVARCHAR(50)
-        ,@HTCornerStatus			NVARCHAR(50)
-        
         ,@LeagueID					INT
         
         -- Tennis Settlement 
@@ -81,12 +80,6 @@ BEGIN
         ,@TennisStatusSet5			NVARCHAR(20)
         ,@TennisStatusMatch			NVARCHAR(20)    -- Match Scope 
 
-        -- Betradar Results
-        ,@isExistTotalCorner		BIT
-        ,@isExistHTFCorner			BIT
-        ,@isExistHTLCorner			BIT
-        ,@isExistFTFCorner			BIT    
-        ,@isExistFTLCorner			BIT
         ,@isExistResultandFirstTeamScore    BIT
 				
 		--Bettrade
@@ -116,11 +109,6 @@ BEGIN
         ,@IsLive = 0
 		,@SettleAbandonedMatchIBCParlay = 0
         ,@IsExistHTFGLG = 0
-        ,@isExistTotalCorner    = 0
-        ,@isExistHTFCorner        = 0
-        ,@isExistHTLCorner        = 0
-        ,@isExistFTFCorner        = 0    
-        ,@isExistFTLCorner        = 0
         ,@isExistResultandFirstTeamScore = 0 
 		,@isExistBettrade		= 0
 		,@IsEnabledGoalRecordHT = 0
@@ -234,7 +222,6 @@ BEGIN
 			,0 AS BetCountSet4
 			,0 AS BetCountSet5
 	FROM	dbo.bettransm bm WITH(NOLOCK)
-			--LEFT JOIN @tmpBettypes bt ON bm.bettype = bt.bettype
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
 			AND 1 = CASE 
@@ -249,12 +236,7 @@ BEGIN
 			,@IsExistHTFGLG = MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
 			
 			,@isExistResultandFirstTeamScore = MAX(CASE WHEN f.BetType = 172 THEN 1 ELSE 0 END)
-			,@isExistTotalCorner = MAX(CASE WHEN f.BetType BETWEEN 194 AND 205 THEN 1 ELSE 0 END)
-			,@isExistFTFCorner = MAX(CASE WHEN f.BetType = 206 THEN 1 ELSE 0 END)
-			,@isExistFTLCorner = MAX(CASE WHEN f.BetType = 208 THEN 1 ELSE 0 END)
-			,@isExistHTFCorner = MAX(CASE WHEN f.BetType = 207 THEN 1 ELSE 0 END)
-			,@isExistHTLCorner = MAX(CASE WHEN f.BetType = 209 THEN 1 ELSE 0 END)
-			
+		
 			,@IsEnabledGoalRecordHT = MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END)
 			,@IsEnabledGoalRecordFT = MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) 
 			
@@ -269,11 +251,6 @@ BEGIN
 	SELECT	@IsExistFGLG = CASE WHEN @IsExistFGLG > 0 THEN @IsExistFGLG ELSE MAX(CASE WHEN f.GroupId = 4 THEN 1 ELSE 0 END) END
 			,@IsExistHTFGLG = CASE WHEN @IsExistHTFGLG > 0 THEN @IsExistHTFGLG ELSE MAX(CASE WHEN f.GroupId = 3 THEN 1 ELSE 0 END) END
 			,@isExistResultandFirstTeamScore = CASE WHEN @isExistResultandFirstTeamScore > 0 THEN @isExistResultandFirstTeamScore ELSE MAX(CASE WHEN f.BetType = 172 THEN 1 ELSE 0 END) END
-			,@isExistTotalCorner = CASE WHEN @isExistTotalCorner > 0 THEN @isExistTotalCorner ELSE MAX(CASE WHEN f.BetType BETWEEN 194 AND 205 THEN 1 ELSE 0 END) END
-			,@isExistFTFCorner = CASE WHEN @isExistFTFCorner > 0 THEN @isExistFTFCorner ELSE MAX(CASE WHEN f.BetType = 206 THEN 1 ELSE 0 END) END
-			,@isExistFTLCorner = CASE WHEN @isExistFTLCorner > 0 THEN @isExistFTLCorner ELSE MAX(CASE WHEN f.BetType = 208 THEN 1 ELSE 0 END) END
-			,@isExistHTFCorner = CASE WHEN @isExistHTFCorner > 0 THEN @isExistHTFCorner ELSE MAX(CASE WHEN f.BetType = 207 THEN 1 ELSE 0 END) END
-			,@isExistHTLCorner = CASE WHEN @isExistHTLCorner > 0 THEN @isExistHTLCorner ELSE MAX(CASE WHEN f.BetType = 209 THEN 1 ELSE 0 END) END
 			
 			,@IsEnabledGoalRecordHT = CASE WHEN @IsEnabledGoalRecordHT > 0 THEN @IsEnabledGoalRecordHT ELSE MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END
 			,@IsEnabledGoalRecordFT = CASE WHEN @IsEnabledGoalRecordFT > 0 THEN @IsEnabledGoalRecordFT ELSE MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END		
@@ -307,8 +284,6 @@ BEGIN
 					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FGLG
 					WHEN g.groupId = 3 THEN 3 -- HT FGLG
 					
-					WHEN g.groupId = 5 THEN 4 -- HT Corner
-					WHEN g.groupId = 6 THEN 5 -- FT Corner
 					WHEN g.GroupId = 7 THEN 7 -- SS
 					WHEN g.GroupId = 10 THEN 9 -- All quaters of Basketball
 					ELSE 0
@@ -341,8 +316,6 @@ BEGIN
 					WHEN g.groupId = 1 THEN 1 -- HT
 					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FT FGLG
 					WHEN g.groupId = 3 THEN 3 -- HT FGLG
-					WHEN g.groupId = 5 THEN 4 -- HT Corner
-					WHEN g.groupId = 6 THEN 5 -- FT Corner
 					WHEN g.GroupId = 7 THEN 7 -- SS
 					WHEN g.GroupId = 10 THEN 9 -- All quaters of Basketball
 					ELSE 0
@@ -350,7 +323,7 @@ BEGIN
 
 		INSERT INTO @status (GroupId, BetCount, InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt)
 		SELECT t.GroupId, 0, 0, 0, 0, 0, 0
-		FROM (VALUES (0),(1),(2),(3),(4),(5),(7),(9)) AS t (GroupId)
+		FROM (VALUES (0),(1),(2),(3),(7),(9)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
         SELECT @FTStatus = CASE 
@@ -387,28 +360,6 @@ BEGIN
 			FROM @status
 			WHERE 1 = CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
 		) AS t
-
-        SELECT    @HTCornerStatus = CASE 
-										WHEN ISNULL(betcount,0) = 0 AND ISNULL(betcountParlay,0) = 0 THEN 'No Ticket'
-										WHEN InRunning > 0 THEN 'Running'
-										WHEN Waiting_cnt > 0 AND Waiting_cnt = BetCount THEN 'Waiting'
-										WHEN ISNULL(BetCount,0) = 0 AND InRunningParlay > 0 THEN 'Parlay Running'
-										WHEN ISNULL(BetCount,0) = 0 AND WaitingParlay_cnt > 0 AND betcountParlay = WaitingParlay_cnt THEN 'Parlay Waiting'
-										ELSE 'Calculated'
-									END
-        FROM    @Status 
-        WHERE    GroupId = 4 
-
-        SELECT    @FTCornerStatus = CASE 
-										WHEN ISNULL(betcount,0) = 0 AND ISNULL(betcountParlay,0) = 0 THEN 'No Ticket'
-										WHEN InRunning > 0 THEN 'Running'
-										WHEN Waiting_cnt > 0 AND Waiting_cnt = BetCount THEN 'Waiting'
-										WHEN ISNULL(BetCount,0) = 0 AND InRunningParlay > 0 THEN 'Parlay Running'
-										WHEN ISNULL(BetCount,0) = 0 AND WaitingParlay_cnt > 0 AND betcountParlay = WaitingParlay_cnt THEN 'Parlay Waiting'
-										ELSE 'Calculated'
-									END
-        FROM    @Status 
-        WHERE    GroupId = 5
 	
         --- Tennis Ticket Status 
         SELECT    @TennisStatusSet1 = CASE    
@@ -561,14 +512,7 @@ BEGIN
         ,@StatusQuarter2 AS StatusQuarter2
         ,@StatusQuarter3 AS StatusQuarter3
         ,@StatusQuarter4 AS StatusQuarter4
-        ,ISNULL(@isExistTotalCorner,0)    AS isExistTotalCorner
-        ,ISNULL(@isExistHTFCorner,0)        AS isExistHTFCorner
-        ,ISNULL(@isExistHTLCorner,0)        AS isExistHTLCorner
-        ,ISNULL(@isExistFTFCorner,0)        AS isExistFTFCorner    
-        ,ISNULL(@isExistFTLCorner,0)        AS isExistFTLCorner
         ,ISNULL(@isExistResultandFirstTeamScore,0) AS isExistResultandFirstTeamScore
-        ,@HTCornerStatus AS HTCornerStatus 
-        ,@FTCornerStatus AS FTCornerStatus 
 		,ISNULL(match.AutoSetting, ISNULL(l.AutoSetting,0)) AS AutoSetting
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
@@ -683,7 +627,7 @@ BEGIN
 		WHERE    MatchID = @MatchID 
 				AND (@Sporttype = 5 
 						OR(    @Sporttype = 1 
-							AND ResourceID IN ('00','01','04','05','206','207','208','209') -- Corners Bettype
+							AND ResourceID IN ('00','01')
 						)
 				)
 	END
