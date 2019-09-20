@@ -1,17 +1,12 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]    Script Date: 01/25/2016 10:22:54 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 	@Option			BIT				= 0
 	,@MatchId		INT
 	,@FromTransId	BIGINT			= 0
 	,@ToTransId		BIGINT			= 0
 	,@TransIds		VARCHAR(MAX)	= ''
-	
+	,@Duration      XML          	= NULL
 	,@InvalidTransIds VARCHAR(MAX)  = '' OUTPUT
 	,@MovedTransIds	  VARCHAR(MAX)  = '' OUTPUT
 AS
@@ -24,7 +19,8 @@ AS
 
 	Revisions:	
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
-		- 20170417@Kent: Tune performance [Redmine:#72059]	
+		- 20170417@Kent: Tune performance [Redmine:#72059]
+		- 20190920@Charles: Add filter transdate when search by MatchId [120586]	
 		
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -72,8 +68,24 @@ BEGIN
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
-	IF (@Option = 0)	
-		INSERT INTO #SpecialDeleteBets(
+	CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
+	
+    -- Only parse xml @Durations if @Duration is not null and is not empty
+    IF ISNULL(DATALENGTH(@Duration), 5) <> 5
+    BEGIN 
+        INSERT INTO #Durations
+               (FromTransDate,
+                ToTransDate
+               )
+               SELECT x.value('@From', 'DATETIME') AS FromTransDate,
+                      x.value('@To', 'DATETIME') AS ToTransDate
+               FROM @Duration.nodes('TransDates/TransDate') XmlData(x) OPTION(OPTIMIZE FOR(@Duration = NULL));
+    END;
+
+	IF (@Option = 0)
+		IF @FromTransId > 0
+		BEGIN
+			INSERT INTO #SpecialDeleteBets(
 						BetId,
 						TransId,
 						BetType,
@@ -106,52 +118,135 @@ BEGIN
 						SportTypeId,
 						IsNeutral,
 						MatchCode)
-		SELECT 
-				main.BetId,
-				sub.TransId,
-				sub.BetType,
-				main.BetTeam,
-				sub.Stake,
-				main.Odds,
-				main.OddsType,
-				sub.WinLost - sub.Actual_Stake AS WinLost,
-				main.Hdp1,
-				main.Hdp2,
-				sub.Status,
-				main.liveindicator AS IsLiveIndicator,
-				main.LiveHomeScore,
-				main.LiveAwayScore,				
-				sub.RefNo,				
-				main.BetCheck,
-                main.TransDesc,
-				main.statusID AS MainStatusId,
-				sub.UserName,				
-				sub.TransDate,				
-				main.bettype AS OriginalBetType,
-				sub.ExtraInfo,
-				sub.BetdaqId,
-				sub.custid,
-				main.recommend,
-				main.betfrom,				
-				m.HomeId,
-				m.AwayId,
-				m.LeagueId,
-				m.sporttype AS SportTypeId,
-				ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-				m.MatchCode
-		FROM	dbo.bettrans sub WITH(NOLOCK)
-			INNER JOIN dbo.bettrans main WITH(NOLOCK)
-				ON	main.transid = sub.refno
-					AND main.matchid = sub.matchid
-					AND main.custid = sub.custid		
-			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
-		WHERE	sub.matchid = @MatchId 
+			SELECT 
+					main.BetId,
+					sub.TransId,
+					sub.BetType,
+					main.BetTeam,
+					sub.Stake,
+					main.Odds,
+					main.OddsType,
+					sub.WinLost - sub.Actual_Stake AS WinLost,
+					main.Hdp1,
+					main.Hdp2,
+					sub.Status,
+					main.liveindicator AS IsLiveIndicator,
+					main.LiveHomeScore,
+					main.LiveAwayScore,				
+					sub.RefNo,				
+					main.BetCheck,
+					main.TransDesc,
+					main.statusID AS MainStatusId,
+					sub.UserName,				
+					sub.TransDate,				
+					main.bettype AS OriginalBetType,
+					sub.ExtraInfo,
+					sub.BetdaqId,
+					sub.custid,
+					main.recommend,
+					main.betfrom,				
+					m.HomeId,
+					m.AwayId,
+					m.LeagueId,
+					m.sporttype AS SportTypeId,
+					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+					m.MatchCode
+			FROM	dbo.bettrans sub WITH(NOLOCK)
+				INNER JOIN dbo.bettrans main WITH(NOLOCK)
+					ON	main.transid = sub.refno
+						AND main.matchid = sub.matchid
+						AND main.custid = sub.custid		
+				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
+			WHERE	sub.matchid = @MatchId 
 				AND sub.transid BETWEEN @FromTransId AND @ToTransId				
 				AND sub.bettype = 911 -- SOLD tickets
 				AND sub.statusID IN (103, 111, 112, 113)
 				AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
 				AND main.betdaqid = 0
 				AND charindex ('p25',main.extrainfo)> 0
+		END
+		ELSE
+		BEGIN
+			INSERT INTO #SpecialDeleteBets(
+							BetId,
+							TransId,
+							BetType,
+							BetTeam,
+							Stake,
+							Odds,
+							OddsType,
+							WinLost,
+							Hdp1,
+							Hdp2,
+							Status,
+							IsLiveIndicator,
+							LiveHomeScore,
+							LiveAwayScore,						
+							RefNo,						
+							BetCheck,
+							TransDesc,
+							MainStatusId,
+							UserName,						
+							TransDate,						
+							OriginalBetType,
+							ExtraInfo,
+							BetdaqId,
+							custid,
+							recommend,
+							betfrom,						
+							HomeId,
+							AwayId,
+							LeagueId,
+							SportTypeId,
+							IsNeutral,
+							MatchCode)
+			SELECT 
+					main.BetId,
+					sub.TransId,
+					sub.BetType,
+					main.BetTeam,
+					sub.Stake,
+					main.Odds,
+					main.OddsType,
+					sub.WinLost - sub.Actual_Stake AS WinLost,
+					main.Hdp1,
+					main.Hdp2,
+					sub.Status,
+					main.liveindicator AS IsLiveIndicator,
+					main.LiveHomeScore,
+					main.LiveAwayScore,				
+					sub.RefNo,				
+					main.BetCheck,
+					main.TransDesc,
+					main.statusID AS MainStatusId,
+					sub.UserName,				
+					sub.TransDate,				
+					main.bettype AS OriginalBetType,
+					sub.ExtraInfo,
+					sub.BetdaqId,
+					sub.custid,
+					main.recommend,
+					main.betfrom,				
+					m.HomeId,
+					m.AwayId,
+					m.LeagueId,
+					m.sporttype AS SportTypeId,
+					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+					m.MatchCode
+			FROM	dbo.bettrans sub WITH(NOLOCK)
+				INNER JOIN dbo.bettrans main WITH(NOLOCK)
+					ON	main.transid = sub.refno
+						AND main.matchid = sub.matchid
+						AND main.custid = sub.custid		
+				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
+			WHERE	sub.matchid = @MatchId 	
+					AND sub.bettype = 911 -- SOLD tickets
+					AND sub.statusID IN (103, 111, 112, 113)
+					AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
+					AND main.betdaqid = 0
+					AND charindex ('p25',main.extrainfo)> 0
+					AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
+		END
 	ELSE IF (@Option = 1)
 	BEGIN
 		INSERT INTO #tblTransIds (transid)
@@ -307,6 +402,10 @@ BEGIN
 								END
 		FROM t_invalid
 	
+	DROP TABLE #SpecialDeleteBets
+	DROP TABLE #tblTransIds
+	DROP TABLE #Durations
+
 	SET NOCOUNT OFF
 END
 
