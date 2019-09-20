@@ -94,7 +94,8 @@ AS
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 		- 20190812@Charles: Add new column IsMarked [118437]
-
+		- 20190920@Helen: SP Tunning [120058]
+		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
 		  + 0: All tickets
@@ -368,11 +369,11 @@ BEGIN
 		WHERE b.matchid = @matchid 
 	 
 		SELECT TOP 1 @isExistParlay = 1  
-		FROM dbo.bettransm bm WITH (NOLOCK)  
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-			INNER JOIN #tblTransIds t ON t.transid = bm.transid  
-		WHERE b.matchid  IN (9, 29)  
-			AND b.bettype IN (9, 29)  
+		FROM #tblTransIds t 
+			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
+			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+		WHERE b.matchid = 29  
+			AND b.bettype = 29   
 			AND bm.matchid  = @matchid  
 	END 
 
@@ -760,7 +761,7 @@ BEGIN
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
 			FROM #BetDeletem bm WITH (NOLOCK)
-				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
 	END
 	
@@ -1848,9 +1849,9 @@ BEGIN
 			END  
 
 			IF EXISTS ( SELECT TOP 1 1  
-						FROM dbo.bettrans b WITH(NOLOCK)   
-							INNER JOIN #BetDelete r ON	b.refno = r.refno  
-						WHERE	b.matchid = 29 AND b.bettype = 29  
+						FROM #BetDelete r
+							INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON	b.refno = r.refno  
+						WHERE b.matchid = 29 AND b.bettype = 29  
 			)   
 			BEGIN 
 				BEGIN TRY  
@@ -1878,8 +1879,8 @@ BEGIN
 				--Get data before update  
 				INSERT INTO @BeforeUpdSP (matchid, custid, balanceType, BonusID, WalletType, balance)  
 				SELECT @MatchId AS matchid, b.custid, 1 AS balanceType, 0 AS BonusID, 2 AS WalletType, SUM(b.winlost - b.actual_stake + b.playercomm) balance
-				FROM dbo.bettrans b WITH (NOLOCK)  
-				 INNER JOIN #BetDeletem r ON b.refno = r.refno  
+				FROM #BetDeletem r 
+				 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK)ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
 				GROUP BY b.CustID  
 
@@ -1909,8 +1910,8 @@ BEGIN
 					 , 0 AS BonusID
 					 , 2 AS WalletType
 					 , SUM(b.winlost - b.actual_stake + b.playercomm) balance
-				FROM dbo.bettrans b WITH (NOLOCK)  
-					INNER JOIN #BetDeletem r ON b.refno = r.refno  
+				FROM  #BetDeletem r 
+					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
 				GROUP BY b.CustID  
 
