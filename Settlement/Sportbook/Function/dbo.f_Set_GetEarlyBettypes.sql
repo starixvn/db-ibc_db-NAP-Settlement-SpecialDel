@@ -120,8 +120,8 @@ RETURN (
    UNION ALL SELECT 481
    -- End 
    
-    --Badminton AIO
-   UNION ALL SELECT 711
+   --Badminton AIO
    UNION ALL SELECT 712
+   UNION ALL SELECT 713
 )
 GO
