@@ -19,6 +19,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20190620@Kathy: PH AIO Phase4 [Redmine:#109584]
 		- 20190924@Sol: Incorporate BMAIO - New formular for 711, 712, 713, 714 [Redmine:#120324]
+		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 */
 RETURN
 (
@@ -155,6 +156,14 @@ RETURN
 					WHEN @betteam = 'N' AND (@HomeValue < 20 AND @AwayValue = 21) THEN 1
 					ELSE -1 
 				END
+				
+			----Badminton AIO - Match Correct Score 703
+			WHEN @pfID = 703 THEN --Match Correct Score 
+				CASE WHEN @betteam ='0-2' AND @HomeValue = 0 THEN 1
+					 WHEN @betteam ='1-2' AND @HomeValue = 1 THEN 1
+			   		 WHEN @betteam ='2-1' AND @AwayValue = 1 THEN 1
+			   		 WHEN @betteam ='2-0' AND @AwayValue = 0 THEN 1
+			   		 ELSE -1 END
 
 			ELSE -1 END AS modds
    FROM
@@ -180,4 +189,4 @@ RETURN
 			AS fm
 	) tbl
 )
-GO 
+GO
