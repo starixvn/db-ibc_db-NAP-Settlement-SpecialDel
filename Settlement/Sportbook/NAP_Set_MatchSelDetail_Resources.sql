@@ -13,6 +13,7 @@ AS
     
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190925@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		
 */
 BEGIN
@@ -120,6 +121,34 @@ BEGIN
 		  		) AS rs
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 	END
+	
+	---Badminton AIO - get data from dbo.ResultDetailOS
+	ELSE IF @SportType = 9
+	BEGIN
+		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
+	    		,rs.HomeValue
+				,rs.AwayValue
+				,rs.ResultStatusId
+				,SettlementStatusId
+	           ,CASE 
+					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
+					WHEN bt.InRunning > 0 THEN 'Running'
+					WHEN ISNULL(bt.BetCount, 0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
+	                ELSE 'Calculated' END AS TicketStatus 
+	  	FROM @tmpTicketStatus bt
+	  			FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
+		  		OUTER  APPLY(
+		  			SELECT HomeValue, 
+		    			AwayValue, 
+		    			ResultStatusID, 
+		    			SettlementStatusID
+		  			FROM DBPRO.bodb02.dbo.ResultDetailOS rd WITH (NOLOCK) 
+		  			WHERE COALESCE(bt.ResourceID,p.ResourceID) = rd.ResourceID
+		  				AND rd.matchid = @matchid
+		  		) AS rs
+	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
+	END
+	
 	ELSE
 	BEGIN
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID

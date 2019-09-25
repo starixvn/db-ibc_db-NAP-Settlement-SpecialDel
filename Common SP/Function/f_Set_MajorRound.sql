@@ -41,9 +41,11 @@ RETURN
 	    UNION ALL SELECT 43, '808', 'M8', 'M8', 'FT', 0, 8
 	    UNION ALL SELECT 43, '809', 'M9', 'M9', 'FT', 0, 9
 	    UNION ALL SELECT 43, '00' , 'FT', '00', 'FT', 1, 99
-	    UNION ALL SELECT 9, '801', '1G', '1G', 'HT', 0, 1
-	    UNION ALL SELECT 9, '802', '2G', '2G', 'HT', 0, 2
-	    UNION ALL SELECT 9, '803', '3G', '3G', 'HT', 0, 3
+	    UNION ALL SELECT 9, '801', '1G', '0101', 'HT', 0, 1
+	    UNION ALL SELECT 9, '802', '2G', '0102', 'HT', 0, 2
+	    UNION ALL SELECT 9, '803', '3G', '0103', 'HT', 0, 3
+	    UNION ALL SELECT 9, '804', '4G', '0104', 'HT', 0, 4
+	    UNION ALL SELECT 9, '805', '5G', '0105', 'HT', 0, 5
 	    UNION ALL SELECT 9, '00' , 'FT', '00', 'FT', 1, 99
     ) AS tbl
     WHERE Sporttype = @Sporttype 
