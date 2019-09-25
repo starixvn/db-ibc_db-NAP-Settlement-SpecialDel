@@ -31,11 +31,7 @@ BEGIN
     IF @SportType =0
         SELECT @SportType = SportType FROM Match WHERE matchID = @matchid
         
-	SELECT @BestOfMap = BestOfMap
-	FROM [dbo].[match_remark] WITH (NOLOCK) 
-	WHERE matchid = @matchid
     ---------------------------------------------------------------------------------------------
-
 
     --count ticket and group by Bettype and BetID
     INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
@@ -81,19 +77,23 @@ BEGIN
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
 	FROM dbo.f_Set_MajorRound (@Sporttype) mr
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
-	WHERE bt.ResourceID IS NULL 
-		
-		
+	WHERE bt.ResourceID IS NULL 	
 	
-	IF @BestOfMap IS NOT NULL
+	--Use @BestOfMap for E-sport only
+	IF @Sporttype = 43	
 	BEGIN
-		DELETE t
-		FROM @tmpTicketStatus t
-			INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
-		WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
-			
-	END
-		
+		SELECT @BestOfMap = BestOfMap
+		FROM [dbo].[match_remark] WITH (NOLOCK) 
+		WHERE matchid = @matchid
+	
+		IF @BestOfMap IS NOT NULL
+			BEGIN
+				DELETE t
+				FROM @tmpTicketStatus t
+				INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
+				WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+			END
+	END		
 	
     ---return
     IF @Sporttype = 43
