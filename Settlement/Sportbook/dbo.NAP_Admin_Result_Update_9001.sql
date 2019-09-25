@@ -19,6 +19,7 @@ AS
 
     Revision
         - 20180803@Vicky: E-Sports 2.0 [Redmine:#95874] 
+		- 20190924@Sol: Incorporate BMAIO - insert/update data to resultdetailOS [Redmine:#120324]
         
     Param's Explanation: 
     
@@ -94,6 +95,25 @@ BEGIN
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
+	    WHEN NOT MATCHED BY TARGET THEN
+	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
+	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+    END
+	--Insert and update ResultDetailOS - Badminton
+    ELSE IF @Sporttype = 9
+    BEGIN
+	    MERGE dbo.ResultDetailOS TARGET
+	    USING (
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        FROM    @tblSelectedRID sr
+	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
+	    WHEN MATCHED THEN
+	        UPDATE SET HomeValue     = SOURCE.HomeValue
+	            ,AwayValue           = SOURCE.AwayValue
+	            ,ResultStatusID      = @ResultStatusID
+	            ,SettlementStatusID  = @SettlementStatusID
+	            ,LastModifyDate      = GETDATE()
+	            ,LastModifyBy        = @creator
 	    WHEN NOT MATCHED BY TARGET THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);

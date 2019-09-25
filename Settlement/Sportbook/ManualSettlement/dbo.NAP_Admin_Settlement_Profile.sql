@@ -16,6 +16,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -58,11 +59,11 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT, srecommend INT, bettype SMALLINT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, srecommend INT, bettype SMALLINT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2)
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -113,8 +114,8 @@ BEGIN
   	
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType)
-	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType
+	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
+	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
@@ -136,11 +137,11 @@ BEGIN
   	--get transid
   	IF @Action LIKE 'CAL%'
   	BEGIN
-		INSERT INTO #tmpTransID(TransID, modds, srecommend, bettype)
-	  	SELECT transid, m.modds, b.srecommend, b.bettype
+		INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype)
+	  	SELECT transid, m.modds, sr.OddsType, b.srecommend, b.bettype
 	  	FROM bettrans b WITH (NOLOCK)
 	  		CROSS APPLY(
-	  						SELECT TOP 1 pfID, HomeValue, AwayValue
+	  						SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
 	  						FROM @tmpSelectedRID t
 	  						WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  					) sr
@@ -259,8 +260,8 @@ BEGIN
 			
 			UPDATE TOP(@batchNo) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.srecommend, deleted.bettype
-			INTO @tmpTransIDBatch(transid, modds, srecommend, bettype)
+			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype
+			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -272,6 +273,7 @@ BEGIN
 			--filter selectedRID by current Profile and BetType
 			SET @strTransIds 		= (SELECT transid	AS '@t'
 											   ,modds	AS '@m'
+											   ,OddsType	AS '@ot'
 											   ,srecommend AS '@sr'
 											   ,bettype AS '@bt'
 									   FROM @tmpTransIDBatch
