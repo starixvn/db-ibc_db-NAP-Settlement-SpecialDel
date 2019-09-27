@@ -35,19 +35,20 @@ BEGIN
 
     --count ticket and group by Bettype and BetID
     INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
-    SELECT  sp.ResourceID,
+	SELECT  R.RI,
             COUNT(1) AS BetCount,
             SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
             MAX(sp.OrdNo)
     FROM bettrans bt WITH (NOLOCK)
 		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
+		OUTER APPLY 
+			(SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS RI) R --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
     WHERE bt.matchid = @matchid
     	AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 		AND bt.statusID NOT IN (101, 102) --void/reject
-		AND sp.sporttype = @sporttype
-		AND (sp.Settletype = 'MNL' OR sp.Settletype = @Settletype)	
-    GROUP BY sp.ResourceID
-    
+		AND sp.sporttype = @SportType
+		AND (sp.Settletype = 'MNL' OR sp.Settletype = @SettleType)	
+    GROUP BY R.RI 
 	
 	IF @Settletype <> 'MNL'
 	BEGIN
@@ -93,8 +94,7 @@ BEGIN
 				INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
 				WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
 			END
-	END		
-	
+	END					
     ---return
     IF @Sporttype = 43
     BEGIN
