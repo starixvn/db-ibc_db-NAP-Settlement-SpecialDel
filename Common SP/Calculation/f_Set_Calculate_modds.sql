@@ -84,7 +84,7 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID = 424 THEN --betteam = homevalue 
+			WHEN @pfID = 424 THEN --betteam = homevalue --Reuse for bettype 712, 713 of Badminton AIO
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
@@ -140,16 +140,6 @@ RETURN
 					WHEN @betteam = 'A9+' AND (-9 >= fm) THEN 1
 				ELSE -1 END
 
-			WHEN @pfID = 712 THEN --Game X Race to Y Point
-				CASE WHEN @betteam = @HomeValue THEN 1
-					ELSE -1 
-				END
-
-			WHEN @pfID = 713 THEN --Game X Point Y Winner
-				CASE WHEN @betteam = @HomeValue THEN 1
-					ELSE -1 
-				END
-
 			WHEN @pfID = 714 THEN --Game X Extra Points
 				CASE WHEN @betteam = 'Y' AND (@HomeValue >= 20 AND @AwayValue >= 20) THEN 1
 					WHEN @betteam = 'N' AND (@HomeValue = 21 AND @AwayValue < 20) THEN 1
@@ -172,7 +162,7 @@ RETURN
 					WHEN @pfID = 1 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @LiveHomeScore) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 - @LiveAwayScore)
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
 					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
-					WHEN @pfID = 20 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (20,711) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
@@ -181,9 +171,6 @@ RETURN
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8104 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 8105 THEN CAST(@HomeValue AS SMALLMONEY)
-
-					--Incorporate BMAIO
-					WHEN @pfID = 711 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					
 					ELSE -1 END)
 			AS fm
