@@ -35,7 +35,7 @@ BEGIN
 
     --count ticket and group by Bettype and BetID
     INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
-	SELECT  R.RI,
+	SELECT  R.RI AS ResourceID,
             COUNT(1) AS BetCount,
             SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
             MAX(sp.OrdNo)
@@ -53,18 +53,20 @@ BEGIN
 	IF @Settletype <> 'MNL'
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, OrdNo)
-	    SELECT sp.ResourceID      
+	    SELECT R.RI AS ResourceID     
 	            ,COUNT(1) AS BetCount
 	            ,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END)     
 	            ,MAX(sp.OrdNo)
 	    FROM    dbo.Bettransm bm WITH (NOLOCK)
 	        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
+	        OUTER APPLY 
+			(SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS RI) R --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
 	    WHERE   matchID = @MatchID
 	    		AND bm.statusId NOT IN (101, 102)
 	    		AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
-	    GROUP BY sp.ResourceID
+	    GROUP BY R.RI
 	END
 	
     /*DELETE p
