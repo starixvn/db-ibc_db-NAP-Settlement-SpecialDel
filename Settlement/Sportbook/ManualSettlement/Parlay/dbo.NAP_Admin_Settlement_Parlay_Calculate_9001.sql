@@ -18,6 +18,8 @@ AS
 			- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 
+			- 20190924@Sol: Incorporate BMAIO - modified sp to support new bettype [Redmine:#120324]
+			
 	Param's Explanation:		
 		
 */
@@ -83,7 +85,7 @@ BEGIN
 		IF @Mode = 'CAL'
 		BEGIN
 			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
-			SELECT '70400' AS ResourceID, CAST(SUM(HomeValue) AS VARCHAR(50)) AS HomeValue, CAST(SUM(AwayValue) AS VARCHAR(50)) AS AwayValue, ssID
+			SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue, MAX(ssID) AS ssID
 			FROM @tempResource
 			WHERE ResourceID IN ('0101','0102','0103','0104','0105') 
 				AND ssID = 4

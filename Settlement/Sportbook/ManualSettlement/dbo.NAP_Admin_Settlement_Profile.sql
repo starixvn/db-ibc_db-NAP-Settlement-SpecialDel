@@ -157,7 +157,7 @@ BEGIN
 				IF Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 				BEGIN 
 					INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-					SELECT '70400' AS ResourceID, CAST(SUM(HomeValue) AS VARCHAR(50)) AS HomeValue, CAST(SUM(AwayValue) AS VARCHAR(50)) AS AwayValue
+					SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
 								FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
 								WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
 										AND SettlementStatusID = 4
