@@ -61,7 +61,7 @@ BEGIN
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
 	--END Balance tables
 
-	--CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT)
@@ -94,9 +94,10 @@ BEGIN
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
 
-  	---- check and not allow attempt to settlement same game while it's still not finish
-  	--INSERT INTO #tblMatchProcess(matchid, KeyID)
-  	--SELECT	@matchid AS matchid ,1 AS KeyId
+  	-- check and not allow attempt to settlement same game while it's still not finish
+	-- This is used in NAP_Admin_CheckingProcess sp
+  	INSERT INTO #tblMatchProcess(matchid, KeyID)
+  	SELECT	@matchid AS matchid ,1 AS KeyId
   	----------------------------------------------------------------------------------------------------------------------
 
 	--check settlement process
@@ -149,20 +150,8 @@ BEGIN
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 
-		IF (@sportType = 43) -- e-sport
+		IF (@sportType = 9) -- badminton
 		BEGIN
-	
-			INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-			SELECT DISTINCT tbl.ResourceID, HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
-			FROM @tmpResourcesWeb tbl
-				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
-				LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-			WHERE sp.SportType = @SportType 
-  			
-		END
-		ELSE IF (@sportType = 9) -- badminton
-		BEGIN
-
 			IF @Action LIKE 'CAL%'
 			BEGIN
 				IF Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
@@ -174,17 +163,6 @@ BEGIN
 										AND SettlementStatusID = 4
 										AND ResultStatusID = 5
 				END
-
-				INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-				SELECT DISTINCT tbl.ResourceID, tbl.HomeValue, tbl.AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
-				FROM @tmpResourcesWeb tbl
-					INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
-					INNER JOIN DBPRO.bodb02.dbo.ResultDetailOS r WITH(ROWLOCK) ON r.ResourceID = tbl.ResourceID
-					LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-				WHERE sp.SportType = @SportType 
-						AND r.SettlementStatusID = 4
-						AND r.ResultStatusID = 5
-
 			END
 			ELSE
 			BEGIN
@@ -193,16 +171,16 @@ BEGIN
 					INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 					SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
 				END
-
-				INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-				SELECT DISTINCT tbl.ResourceID, tbl.HomeValue, tbl.AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
-				FROM @tmpResourcesWeb tbl
-					INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
-					LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-				WHERE sp.SportType = @SportType 
 			END
   		
 		END
+
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
+		SELECT DISTINCT tbl.ResourceID, HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
+		FROM @tmpResourcesWeb tbl
+			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
+			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
+		WHERE sp.SportType = @SportType
 
 		-------------------------------------------------------END parse XML----------------------------------------------------------------------
 
@@ -500,7 +478,7 @@ BEGIN
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr
-			WHERE sr.ResourceID NOT IN (704,705,706) -- excluded bettypes which don't have official resourceId
+			WHERE sr.BetType NOT IN (704,705,706) -- excluded bettypes which don't have official resourceId
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	ORDER BY OrdNo
