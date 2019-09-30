@@ -130,6 +130,14 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailES  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
+		ELSE IF @Sporttype = 9
+			SELECT	ResourceId 
+					,HomeValue
+					,AwayValue
+					,SettlementStatusID AS ssId
+			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH(ROWLOCK)
+			WHERE	matchid = @matchid
+					AND SettlementStatusId > 0
 		ELSE
 			SELECT	ResourceId
 					,HomeValue

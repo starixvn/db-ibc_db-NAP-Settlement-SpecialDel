@@ -78,7 +78,27 @@ BEGIN
             ,@str_resultDetail = @resultDetail_All OUTPUT	
 	END 
 	
-	
+	IF @sportType = 9
+	BEGIN 
+		IF @Mode = 'CAL'
+		BEGIN
+			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
+			SELECT '70400' AS ResourceID, CAST(SUM(HomeValue) AS VARCHAR(50)) AS HomeValue, CAST(SUM(AwayValue) AS VARCHAR(50)) AS AwayValue, ssID
+			FROM @tempResource
+			WHERE ResourceID IN ('0101','0102','0103','0104','0105') 
+				AND ssID = 4
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
+			SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue, CASE WHEN @Mode = 'REFUND' THEN 1
+																				 WHEN @Mode = 'UNDO' THEN 0
+																				 ELSE 0 
+																			END ssId
+			
+		END
+	END
+
 	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID)
     SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID
     FROM @tempResource rs
