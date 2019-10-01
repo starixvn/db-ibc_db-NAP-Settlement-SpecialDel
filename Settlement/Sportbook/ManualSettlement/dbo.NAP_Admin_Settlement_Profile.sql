@@ -120,17 +120,6 @@ BEGIN
 
 		IF @Action LIKE 'CAL%'
 		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-						@Command				= 'profile'
-						,@Action				= 'CAL'
-						,@MatchID				= @matchid
-						,@FTHome				= @fth
-						,@FTAway				= @fta
-						,@HTHome				= @hth
-						,@HTAway				= @hta
-						,@creator				= @creator
-						,@IsFinalRound			= @existsFinalRound
-						
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
 						@action					= 'CAL'
 						,@MatchID				= @MatchID
@@ -150,29 +139,23 @@ BEGIN
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 
-		IF (@sportType = 9) -- badminton
+		-- badminton
+		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
 			IF @Action LIKE 'CAL%'
 			BEGIN
-				IF Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
-				BEGIN 
-					INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-					SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
-								FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
-								WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
-										AND SettlementStatusID = 4
-										AND ResultStatusID = 5
-				END
+				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+				SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
+							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
+							WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
+									AND SettlementStatusID = 4
+									AND ResultStatusID = 5
 			END
 			ELSE
 			BEGIN
-				IF Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
-				BEGIN 
-					INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-					SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
-				END
+				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+				SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
 			END
-  		
 		END
 
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
@@ -225,7 +208,6 @@ BEGIN
 	  			AND	b.statusID NOT IN (103, 101, 102)
 		END 
 	
-		
 		---check FT round
 		SET @existsFinalRound = 0
   		SELECT TOP 1 @existsFinalRound = 1
@@ -268,6 +250,20 @@ BEGIN
 						,@fth	= NULL
 						,@fta	= NULL
 			END
+		END
+
+		IF @Action LIKE 'CAL%'
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
+						@Command				= 'profile'
+						,@Action				= 'CAL'
+						,@MatchID				= @matchid
+						,@FTHome				= @fth
+						,@FTAway				= @fta
+						,@HTHome				= @hth
+						,@HTAway				= @hta
+						,@creator				= @creator
+						,@IsFinalRound			= @existsFinalRound
 		END
 		
 		-------------------------------------------------------------

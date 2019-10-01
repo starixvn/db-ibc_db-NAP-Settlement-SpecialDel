@@ -80,9 +80,9 @@ BEGIN
             ,@str_resultDetail = @resultDetail_All OUTPUT	
 	END 
 	
-	IF @sportType = 9
+	IF (@sportType = 9) AND Exists (SELECT 1 FROM @tempResource WHERE ResourceID = '00')
 	BEGIN 
-		IF @Mode = 'CAL'
+		IF @Mode = 'CAL' 
 		BEGIN
 			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
 			SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue, MAX(ssID) AS ssID
