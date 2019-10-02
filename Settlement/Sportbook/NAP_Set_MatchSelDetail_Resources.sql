@@ -22,7 +22,7 @@ BEGIN
 	DECLARE @BetTypeList VARCHAR(MAX) = ''
         	,@isShowAll BIT = 0
         	,@BestOfMap TINYINT = NULL
-    DECLARE @tmpTicketStatus TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT,  OrdNo INT)
+    DECLARE @tmpTicketStatus TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT,  OrdNo INT, IsSpecialBettype TINYINT) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT,  OrdNo INT)
     DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
     DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
@@ -34,11 +34,12 @@ BEGIN
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID
-    INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
+	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
 	SELECT  R.RI AS ResourceID,
             COUNT(1) AS BetCount,
             SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
-            MAX(sp.OrdNo)
+            MAX(sp.OrdNo),
+            MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
     FROM bettrans bt WITH (NOLOCK)
 		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 		OUTER APPLY 
@@ -53,20 +54,18 @@ BEGIN
 	IF @Settletype <> 'MNL'
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, OrdNo)
-	    SELECT R.RI AS ResourceID     
+	    SELECT sp.ResourceID      
 	            ,COUNT(1) AS BetCount
 	            ,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END)     
 	            ,MAX(sp.OrdNo)
 	    FROM    dbo.Bettransm bm WITH (NOLOCK)
 	        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
-	        OUTER APPLY 
-			(SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS RI) R --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
 	    WHERE   matchID = @MatchID
 	    		AND bm.statusId NOT IN (101, 102)
 	    		AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
-	    GROUP BY R.RI
+	    GROUP BY sp.ResourceID
 	END
 	
     /*DELETE p
@@ -136,7 +135,8 @@ BEGIN
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 					WHEN bt.InRunning > 0 THEN 'Running'
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
-	                ELSE 'Calculated' END AS TicketStatus 
+	                ELSE 'Calculated' END AS TicketStatus
+	           ,bt.IsSpecialBettype --flag column for Badminton AIO only
 	  	FROM @tmpTicketStatus bt
 	  			FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
 		  		OUTER  APPLY(
