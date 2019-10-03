@@ -307,7 +307,7 @@ BEGIN
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.sporttype, c.matchid, f.ResourceID,f.SettleType
+			GROUP BY c.sporttype, c.matchid, CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END,f.SettleType
 		)
 			
 		INSERT INTO @tblRunningBAIO (matchid, QuarterX, OrdNo)
