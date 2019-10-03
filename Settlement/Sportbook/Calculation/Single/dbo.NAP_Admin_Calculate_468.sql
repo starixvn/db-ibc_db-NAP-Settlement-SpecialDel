@@ -265,7 +265,7 @@ BEGIN
 
 			UPDATE  b
 				SET 
-					@totalLiveWinScore = CASE WHEN b.bettype = 468 THEN CAST(@totalWinScore AS SMALLINT) - b.livehomescore - b.liveawayscore ELSE CAST(@totalWinScore AS SMALLINT) END
+					@totalLiveWinScore = CASE WHEN b.bettype = 468 THEN CAST(@totalWinScore AS SMALLINT) - (b.livehomescore - b.liveawayscore) ELSE CAST(@totalWinScore AS SMALLINT) END
 					,@tmpTotalWinScore = CAST(CAST(CASE WHEN @totalLiveWinScore  > b.hdp1 THEN b.hdp1
 														WHEN @totalLiveWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
 														ELSE @totalLiveWinScore
