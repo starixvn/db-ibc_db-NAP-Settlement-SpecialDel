@@ -16,6 +16,7 @@ AS
 	
 	Revisions:
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
+		- 20191003@Sol: Support live score with bettype 468 [Redmine:#121337]
 		
 	Param's Explanation:
 */
@@ -53,6 +54,7 @@ BEGIN
 		,@winlost				MONEY
 		,@totalWinScore			VARCHAR(10)
 		,@tmpTotalWinScore		VARCHAR(10)
+		,@totalLiveWinScore		SMALLINT
 		,@odds					MONEY
 		,@posOdds				INT
 		,@posComma				INT
@@ -263,9 +265,10 @@ BEGIN
 
 			UPDATE  b
 				SET 
-					@tmpTotalWinScore = CAST(CAST(CASE WHEN @totalWinScore > b.hdp1 THEN b.hdp1
-												WHEN @totalWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
-												ELSE @totalWinScore
+					@totalLiveWinScore = CASE WHEN b.bettype = 468 THEN CAST(@totalWinScore AS SMALLINT) - b.livehomescore - b.liveawayscore ELSE CAST(@totalWinScore AS SMALLINT) END
+					,@tmpTotalWinScore = CAST(CAST(CASE WHEN @totalLiveWinScore  > b.hdp1 THEN b.hdp1
+														WHEN @totalLiveWinScore < b.hdp1 - b.hdp2 + 1 THEN b.hdp1 - b.hdp2 + 1
+														ELSE @totalLiveWinScore
 											END AS INT)
 										AS VARCHAR(10))
 					,@posOdds = CHARINDEX(@tmpTotalWinScore + ':', b.betcheck) + LEN(@tmpTotalWinScore) + 1
