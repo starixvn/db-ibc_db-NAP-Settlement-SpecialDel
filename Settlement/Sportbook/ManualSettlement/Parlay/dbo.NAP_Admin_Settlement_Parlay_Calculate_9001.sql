@@ -93,10 +93,9 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
-			SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue, CASE WHEN @Mode = 'REFUND' THEN 1
-																				 WHEN @Mode = 'UNDO' THEN 0
-																				 ELSE 0 
-																			END ssId
+			SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue, ssId
+			FROM @tempResource
+			WHERE ResourceID = '00'
 			
 		END
 	END
