@@ -13,14 +13,13 @@ AS
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
+		- 20191004@Tiara: BMAIO- Remove unused parameters @tblResource and @ResourceList [Redmine: #120324]
 		
 */
 BEGIN
 	SET NOCOUNT ON
     
-	DECLARE @tblResource TABLE(ResourceID VARCHAR(20))
 	DECLARE @tblMatchID TABLE(matchid VARCHAR(20))
-	DECLARE @ResourceList VARCHAR(MAX) = ''
     ---------------------------------------------------------------------------------------------
     
 	INSERT INTO @tblMatchID(matchid)

@@ -35,21 +35,19 @@ BEGIN
 
     --count ticket and group by Bettype and BetID
 	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
-	SELECT  R.RI AS ResourceID,
+	SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
             COUNT(1) AS BetCount,
             SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
             MAX(sp.OrdNo),
             MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
     FROM bettrans bt WITH (NOLOCK)
 		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
-		OUTER APPLY 
-			(SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS RI) R --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
     WHERE bt.matchid = @matchid
     	AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 		AND bt.statusID NOT IN (101, 102) --void/reject
 		AND sp.sporttype = @SportType
 		AND (sp.Settletype = 'MNL' OR sp.Settletype = @SettleType)	
-    GROUP BY R.RI 
+    GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END 
 	
 	IF @Settletype <> 'MNL'
 	BEGIN
