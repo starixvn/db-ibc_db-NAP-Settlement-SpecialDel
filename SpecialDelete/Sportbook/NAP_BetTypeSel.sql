@@ -34,6 +34,7 @@ AS
 		- 20180816@Alan: Incorporate ESports 2.0 [99448]
 		- 20181119@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20190228@Alan: Implement Bet Builder, remove Live Casino - [106898]
+        - 20191004@Charles: Badminton AIO - [120325]
 		
     Param's Explanation:  
     @Mode:   
@@ -46,11 +47,12 @@ AS
 		 6: Lucky 3
 		 7: Bull fighting
 		 8: Bet Builder
+         9: Mark Ticket
 */
 BEGIN
     SET NOCOUNT ON
     
-    IF @mode in (0, 2, 4) OR (@matchid <> 0 AND @mode = 3) 
+    IF @mode in (0, 2, 4, 9) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
         DECLARE @Sporttype INT    
         
@@ -86,11 +88,12 @@ BEGIN
     FROM [dbo].[f_GroupBettype] () f 
     WHERE f.Bettype NOT IN (187, 179)  
 		
-    -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing, 4: Mix Parlay   
+    -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , 9: Mark Ticket  
     -- type = 0: Sport Book
-    IF @Mode IN (0, 2, 3, 4)
+    IF @Mode IN (0, 2, 3, 9)
     BEGIN
-        -- Normal Match
+        -- Scan bettrans and bettransm to get bettype list
+        -- bettrans
         INSERT INTO #TmpBettype (
             typeid
             ,type
@@ -101,32 +104,43 @@ BEGIN
             , 0                    
             , 0 
             , f.GroupName 
-        FROM dbo.bettype b WITH(NOLOCK) 
-        INNER JOIN dbo.odds o WITH(NOLOCK) ON b.typeid = o.bettype
-        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = o.matchid
-        INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.typeid
+        FROM dbo.bettype b WITH(NOLOCK)
+        INNER JOIN dbo.bettrans bt WITH(NOLOCK) ON b.typeid = bt.bettype
+        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
+        INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
         LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE m.matchid = @matchid
-        AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
+        WHERE m.matchid = @matchid AND bt.bettype NOT IN (10,29,38,500)
+            AND bt.bettype NOT BETWEEN 801 AND 806
+            AND bt.bettype < 19000
+            AND bt.bettype NOT BETWEEN 901 AND 904
+        GROUP BY tb.parentid, b.typeid, f.GroupName
 
-		-- E-Sports 2.0 
-		INSERT INTO #TmpBettype (
+        -- bettransm
+        IF @Mode IN (0, 2, 3)
+        BEGIN
+            INSERT INTO #TmpBettype (
             typeid
             ,type
             ,liveindicator
             ,GroupName
             )
-        SELECT ISNULL( tb.parentid, b.typeid)
-            , 0                    
-            , 0 
-            , f.GroupName 
-        FROM dbo.bettype b WITH(NOLOCK) 
-        INNER JOIN dbo.oddsES o WITH(NOLOCK) ON b.typeid = o.bettype
-        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = o.matchid
-        INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.typeid
-        LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE m.matchid = @matchid AND m.sporttype = 43
-        
+            SELECT ISNULL( tb.parentid, b.typeid)
+                , 0                    
+                , 0 
+                , f.GroupName 
+            FROM dbo.bettype b WITH(NOLOCK)
+            INNER JOIN dbo.bettransm bt WITH(NOLOCK) ON b.typeid = bt.bettype
+            INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
+            INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
+            LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
+            WHERE m.matchid = @matchid AND NOT EXISTS (SELECT TOP 1 1 FROM #TmpBettype tbt
+                WHERE tbt.typeid = b.typeid) AND bt.bettype NOT IN (10,29,38,500)
+                AND bt.bettype NOT BETWEEN 801 AND 806
+                AND bt.bettype < 19000
+                AND bt.bettype NOT BETWEEN 901 AND 904
+            GROUP BY tb.parentid, b.typeid, f.GroupName
+        END
+
         IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) AND (@mode IN (2,3))
         BEGIN
             INSERT INTO #TmpBettype (
@@ -142,15 +156,36 @@ BEGIN
             FROM dbo.bettype b WITH(NOLOCK)
             WHERE b.typeid IN (9, 29)
         END
-				
-		-- exclude FM bettypes
-		IF(@mode = 4)
-		BEGIN
-			DELETE #TmpBettype
-			WHERE typeid BETWEEN 221 AND 227
-		END
+
     END
     
+    --4: Mix Parlay
+	IF @Mode = 4
+	BEGIN
+        INSERT INTO #TmpBettype (
+            typeid
+            ,type
+            ,liveindicator
+            ,GroupName
+            )
+        SELECT ISNULL( tb.parentid, b.typeid)
+            , 0                    
+            , 0 
+            , f.GroupName 
+        FROM dbo.bettype b WITH(NOLOCK)
+        INNER JOIN dbo.bettransm bt WITH(NOLOCK) ON b.typeid = bt.bettype
+        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
+        INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
+        LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
+        WHERE m.matchid = @matchid AND NOT EXISTS (SELECT TOP 1 1 FROM #TmpBettype tbt
+			WHERE tbt.typeid = b.typeid) AND bt.bettype NOT IN (10,29,38,500)
+            AND bt.bettype NOT BETWEEN 801 AND 806
+			AND bt.bettype NOT BETWEEN 221 AND 227
+            AND bt.bettype < 19000
+            AND bt.bettype NOT BETWEEN 901 AND 904
+        GROUP BY tb.parentid, b.typeid, f.GroupName
+	END
+
      -- 3: TicketListing  
     IF @Mode = 3
     BEGIN
