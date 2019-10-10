@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate_9001] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -20,7 +16,8 @@ AS
 
 	Revisions:		
 			- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-			
+			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+
 	Param's Explanation:		
 		
 */
@@ -32,9 +29,7 @@ BEGIN
 	CREATE TABLE #bettypeCAL (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, groupName NVARCHAR(50), isEarly BIT)
 	
 	SELECT @ticketCount		= 0
-	
-
-	
+		
 	--Start process
 	DECLARE 
 		@fromTransId		INT
@@ -104,7 +99,7 @@ BEGIN
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 			CROSS APPLY dbo.f_Set_Calculate_modds(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore) m
 		WHERE bm.matchid = @matchid
-			AND bm.statusID NOT IN (101, 102)
+			AND bm.statusID NOT IN (101)
 	END
 	ELSE IF @Mode = 'REFUND'
 	BEGIN
@@ -114,7 +109,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
-			AND statusID NOT IN (103, 101, 102)
+			AND statusID NOT IN (103, 101)
 	END
 	ELSE IF @Mode = 'UNDO'
 	BEGIN
@@ -124,11 +119,9 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
-			AND statusID NOT IN (101, 102, 1, 0)
+			AND statusID NOT IN (101, 1, 0)
 	END
 	
-	
-
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0
 		, @fromTransId		= 0

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m] 
 	@matchid INT
     ,@fth INT = NULL
@@ -48,6 +48,7 @@ AS
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		
     Param's Explanation:
        
@@ -120,6 +121,7 @@ BEGIN
 			,@Q2Away			INT
 			,@Q3Away			INT
 			,@Q4Away			INT    
+			,@IsUpd_Void BIT = 0
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
         
@@ -143,7 +145,7 @@ BEGIN
     END --END: params for corner bets, sportting solution and betradar ----------------------------------
 		
     DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
-
+    
     WHILE (@doing <> @action)
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
@@ -199,11 +201,24 @@ BEGIN
             CREATE TABLE #RefundResult (transid BIGINT, refno BIGINT)
         
             UPDATE bm
-            SET winlostdate = @matchdate
-                ,[status] = 'Refund'
-                ,statuswinlost = 0
+            SET 
+				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+				,winlostdate = CASE 
+									WHEN @IsUpd_Void = 0 THEN bm.winlostdate 
+									ELSE @matchdate
+								END
+								
+                ,[status] = CASE 
+								WHEN @IsUpd_Void = 0 THEN bm.[status] 
+								ELSE 'Refund'
+							END
+                ,statuswinlost = 6
                 ,ruben = 1
-                ,statusID = 103
+                ,statusID = CASE 
+								WHEN @IsUpd_Void = 0 THEN bm.statusID 
+								ELSE 103
+							END
+								
             OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundResult(transid, refno)
             FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK) 
 				INNER JOIN @tblBettypes t
@@ -225,8 +240,9 @@ BEGIN
 							END AS QuarterX
 				)q
             WHERE matchid = @matchid                 
-                AND statusID NOT IN (101, 102)
+                AND statusID NOT IN (101)
 				AND t.groupId <> 8 -- Early Soccer
+			
                 AND 1 = CASE WHEN @SelectedSetREFUND IS NULL AND @SelectedSetCAL IS NULL THEN 1 
                              WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '801%' THEN 1  --Exclude 1324
                              WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '802%' THEN 1
@@ -257,7 +273,8 @@ BEGIN
                 INNER JOIN #RefundResult r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-                
+             WHERE pd.statusid NOT IN (102)
+             
         END --@doing = 'REFUND'
     
         -- ===================================================
@@ -266,18 +283,31 @@ BEGIN
             CREATE TABLE #RefundFTResult (transid BIGINT, refno BIGINT)
             
             UPDATE	bm
-				SET winlostdate = @matchdate
-					,[status] = 'Refund'
-					,statuswinlost = 0
+				SET 
+					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+					,winlostdate = CASE 
+									WHEN @IsUpd_Void = 0 THEN winlostdate 
+									ELSE @matchdate
+								END
+								
+					,[status] = CASE 
+									WHEN @IsUpd_Void = 0 THEN [status] 
+									ELSE 'Refund'
+								END
+					,statuswinlost =  6
 					,ruben = 1
-					,statusID = 103
+					,statusID = CASE 
+									WHEN @IsUpd_Void = 0 THEN statusID 
+									ELSE 103
+								END
+								
             OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundFTResult(transid, refno)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
             WHERE	matchid = @matchid 
 					AND t.groupId NOT IN (1,3,5,8)
-					AND statusID NOT IN (101, 102)
+					AND statusID NOT IN (101)
 				
             UPDATE pd
             SET winlostdate = @matchdate
@@ -287,7 +317,7 @@ BEGIN
                 INNER JOIN #RefundFTResult r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-                        
+            WHERE pd.statusid NOT IN (102)            
         END --@doing = 'REFUND-FT'
 
 
@@ -297,18 +327,31 @@ BEGIN
             
             -- Refund sub tickets of 11 bet types (FT) from BetRadar in case '30x3' match has been suspended
             UPDATE	bm
-				SET winlostdate = @matchdate
-					,[status] = 'Refund'
-					,statuswinlost = 0
+				SET 
+					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+					,winlostdate = CASE 
+									WHEN @IsUpd_Void = 0 THEN winlostdate 
+									ELSE @matchdate
+								END
+								
+					,[status] = CASE 
+									WHEN @IsUpd_Void = 0 THEN [status] 
+									ELSE 'Refund'
+								END
+					,statuswinlost =  6
 					,ruben = 1
-					,statusID = 103
+					,statusID = CASE 
+									WHEN @IsUpd_Void = 0 THEN statusID 
+									ELSE 103
+								END
+								
             OUTPUT	INSERTED.transid, INSERTED.refno INTO #RefundHTResult(transid, refno)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON	bm.bettype = t.bettype
             WHERE	matchid = @matchid 
 					AND t.is3x30 = 1
-					AND statusID NOT IN (101, 102)
+					AND statusID NOT IN (101)
 			OPTION (FORCE ORDER)
 			
             UPDATE pd
@@ -319,7 +362,7 @@ BEGIN
                 INNER JOIN #RefundHTResult r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-                        
+            WHERE pd.statusid NOT IN (102)            
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
@@ -364,7 +407,8 @@ BEGIN
             FROM dbo.strSplit(@VoidTransId, ',')
         
             UPDATE dbo.bettransm WITH (ROWLOCK, UPDLOCK)
-                SET    winlost = 0
+                SET    
+					winlost = 0
                     ,ruben = 0
                     ,statuswinlost = NULL
                     ,status = 'running'
@@ -391,10 +435,12 @@ BEGIN
             CREATE TABLE #UndoResult (transid BIGINT, refno BIGINT)
          
             UPDATE bm WITH(ROWLOCK, UPDLOCK)
-            SET [status] = 'running'
-                ,statuswinlost = 0
-                ,ruben = 0
-                ,statusID = 0
+            SET 
+				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+				,[status] = CASE WHEN @IsUpd_Void = 0 THEN [status] ELSE 'running' END
+                ,statuswinlost = NULL
+                ,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben ELSE 0 END
+                ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
             OUTPUT INSERTED.transid, INSERTED.refno INTO #UndoResult(transid, refno)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
@@ -403,7 +449,7 @@ BEGIN
 					SELECT CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId
 				)r
             WHERE matchid = @matchid  
-                AND statusID NOT IN (101, 102, 1)
+                AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
                 AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
                              WHEN @SelectedSet LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
@@ -429,13 +475,13 @@ BEGIN
 			OPTION (FORCE ORDER)			
 					
             UPDATE pd
-            SET statuswinlost = 0
+            SET statuswinlost = NULL 
                 ,statusID = 0
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
                 INNER JOIN #UndoResult r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 
-                        
+            WHERE pd.statusid NOT IN (102)            
         END --@doing = 'UNDO'
         -- ===================================================
         
@@ -758,7 +804,7 @@ BEGIN
 				,modds			MONEY
 				,isrefundgame	BIT
 			)
-        
+						
 			INSERT INTO #Result(
 				transid
 				,refno
@@ -2353,7 +2399,7 @@ BEGIN
 				LEFT JOIN @tmpResultDetail rd
 					ON r.ResourceId = rd.ResourceId
             WHERE   bm.matchid = @matchid
-					AND bm.statusID NOT IN (101, 102)  
+					AND bm.statusID NOT IN (101)  
 					AND 1 = CASE 
 							WHEN @SelectedSetCAL IS NULL AND @SelectedSetREFUND IS NULL THEN 1 
                             WHEN @SelectedSetCAL LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
@@ -2382,7 +2428,7 @@ BEGIN
 								WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
 								ELSE 0
 								END		
-	
+					
 			WHILE (1 = 1)
 			BEGIN
 				
@@ -2398,30 +2444,49 @@ BEGIN
 					BREAK									
 			
 				UPDATE	bm WITH (ROWLOCK, UPDLOCK)
-					SET ruben = CASE 
-									WHEN t.modds IS NOT NULL THEN 0 
-									ELSE 1 
+					SET 
+						@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+						,ruben = CASE 
+									WHEN @IsUpd_Void = 0 THEN bm.ruben 
+									ELSE CASE 
+											WHEN t.modds IS NOT NULL THEN 0 
+											ELSE 1 
+										END
 								END
-						,winlostdate = @matchdate
+								
+						,winlostdate = CASE 
+											WHEN bm.statusID = 102 THEN bm.winlostdate 
+											ELSE @matchdate
+										END
+								
 						,[status] = CASE 
-										WHEN t.modds IS NULL THEN N'running'
-										WHEN t.modds = 0 AND t.isRefundGame = 0 THEN N'DRAW'
-										WHEN t.modds = 0 AND t.isRefundGame = 1 THEN N'Refund'
-										WHEN t.modds < 0 THEN N'LOSE'
-										WHEN t.modds > 0 THEN N'WON'
-									END
+									WHEN @IsUpd_Void = 0 THEN bm.[status] 
+									ELSE CASE 
+											WHEN t.modds IS NULL THEN N'running'
+											WHEN t.modds = 0 AND t.isRefundGame = 0 THEN N'DRAW'
+											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN N'Refund'
+											WHEN t.modds < 0 THEN N'LOSE'
+											WHEN t.modds > 0 THEN N'WON'
+										END
+								END
+								
 						,statusID = CASE 
-										WHEN t.modds IS NULL THEN 0
-										WHEN t.modds = 0 AND t.isRefundGame = 0 THEN 111
-										WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 103 
-										WHEN t.modds < 0 THEN 113
-										WHEN t.modds > 0 THEN 112
-									END
+									WHEN @IsUpd_Void = 0 THEN bm.statusID 
+									ELSE CASE 
+											WHEN t.modds IS NULL THEN 0
+											WHEN t.modds = 0 AND t.isRefundGame = 0 THEN 111
+											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 103 
+											WHEN t.modds < 0 THEN 113
+											WHEN t.modds > 0 THEN 112
+										END
+								END
+								
 						,statuswinlost = CASE 
 											WHEN t.modds <= - 0.5 THEN 4 -- LOSE
 											WHEN t.modds >= 0.5 THEN 2 -- WIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
+											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 6 -- REFUND
 											ELSE 0 -- DRAW
 										END										
 				FROM	dbo.bettransm bm 
@@ -2443,11 +2508,12 @@ BEGIN
 											WHEN t.modds >= 0.5 THEN 2 -- WIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
+											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 6 -- REFUND
 											ELSE 0 -- DRAW
 										END
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-					INNER JOIN @tmptransid t
-						ON  pd.transid = t.transid						
+					INNER JOIN @tmptransid t ON  pd.transid = t.transid
+				WHERE pd.statusid NOT IN (102)						
 			END                
         END --@doing = 'CAL'
     END -- while

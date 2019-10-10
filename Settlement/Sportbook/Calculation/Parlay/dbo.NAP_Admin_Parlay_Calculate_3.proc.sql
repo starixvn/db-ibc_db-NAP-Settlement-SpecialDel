@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
@@ -15,7 +15,8 @@ AS
 		- 20170609@Kathy: Early Settlement - BAIO [Redmine:#77835]
 		- 20170719@Kathy: Correct statuswinlost of refund [Redmine:#77835]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+
     Param's Explanation:
         
 */
@@ -23,6 +24,7 @@ BEGIN
 	SET NOCOUNT ON;
 	
 	DECLARE @xmlParlayTicket 	XML
+			,@IsUpd_Void BIT = 0
 		
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT)		
@@ -45,41 +47,39 @@ BEGIN
 	BEGIN
 		--UPDATE bettransm
 		UPDATE bm
-		SET winlostdate 	= @matchdate
-			/*,[status] 		= CASE 
-				WHEN t.statusID = 113 THEN N'LOSE'
-				WHEN t.statusID = 112 THEN N'WON'
-				WHEN t.statusID = 103 THEN N'Refund'
-				ELSE bm.[status]
-			END*/
+		SET 
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 THEN 0 ELSE 1 END
+			,winlostdate = CASE 
+								WHEN @IsUpd_Void = 0 THEN winlostdate 
+								ELSE @matchdate
+							END 
 			,[status] 	= CASE 
-				WHEN t.modds = 0 THEN 'Refund'
-				WHEN t.modds < 0 THEN 'LOSE'
-				WHEN t.modds > 0 THEN 'WON'
-				ELSE bm.[status]
-			END
-			--,statusID 	= t.statusID
+								WHEN @IsUpd_Void = 0 THEN bm.[status] 
+								ELSE CASE 
+											WHEN t.modds = 0 THEN 'Refund'
+											WHEN t.modds < 0 THEN 'LOSE'
+											WHEN t.modds > 0 THEN 'WON'
+											ELSE bm.[status]
+									END
+							END
 			,statusID = CASE 
-				WHEN t.modds = 0 THEN 103 
-				WHEN t.modds < 0 THEN 113
-				WHEN t.modds > 0 THEN 112
-				ELSE bm.statusID
-			END
-			/*,statuswinlost = CASE 
-				WHEN t.statusID = 113 THEN 4 -- LOSE
-				WHEN t.statusID = 112 THEN 2 -- WON
-				WHEN t.statusID = 103 THEN 0 -- REFUND
-				ELSE bm.statuswinlost
-			END*/
-			,statuswinlost = CASE 
-				WHEN t.modds > 0.25 THEN 2 -- WON
-				WHEN t.modds = 0.25 THEN 1 -- Half WON
-				WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-				WHEN t.modds < - 0.25 THEN 4 -- LOSE
-				ELSE 0
-			END
-			,ruben 		= 1
+							WHEN @IsUpd_Void = 0 THEN bm.statusID 
+							ELSE CASE 
+									WHEN t.modds = 0 THEN 103 
+									WHEN t.modds < 0 THEN 113
+									WHEN t.modds > 0 THEN 112
+									ELSE bm.statusID
+								END
+							END
 			
+			,statuswinlost = CASE 
+								WHEN t.modds > 0.25 THEN 2 -- WON
+								WHEN t.modds = 0.25 THEN 1 -- Half WON
+								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
+								WHEN t.modds < - 0.25 THEN 4 -- LOSE
+								ELSE 6 -- REFUND
+							END
+			,ruben = 1
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -98,38 +98,58 @@ BEGIN
 			INNER JOIN #parlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
+		WHERE r.statusid NOT IN (102)
+			
 	END
 	
 	IF (@action IN ('CAL'))
 	BEGIN
 		--UPDATE bettransm
 		UPDATE bm
-		SET ruben = CASE 
-				WHEN t.modds IS NULL THEN 0
-				ELSE 1
-            END
-			,winlostdate 	= @matchdate
-			,[status] = CASE 
-					WHEN t.modds IS NULL THEN N'running'
-					WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN N'DRAW'
-					WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN N'Refund'
-					WHEN t.modds < 0 THEN N'LOSE'
-					WHEN t.modds > 0 THEN N'WON'
+		SET 
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 THEN 0 ELSE 1 END
+			,ruben = CASE 
+						WHEN @IsUpd_Void = 0 THEN ruben 
+						ELSE CASE 
+								WHEN t.modds IS NULL THEN 0
+								ELSE 1
+							END
 					END
+
+			,winlostdate = CASE 
+								WHEN @IsUpd_Void = 0 THEN bm.winlostdate 
+								ELSE @matchdate
+							END
+
+			,[status] = CASE 
+							WHEN @IsUpd_Void = 0 THEN [status] 
+							ELSE CASE 
+									WHEN t.modds IS NULL THEN N'running'
+									WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN N'DRAW'
+									WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN N'Refund'
+									WHEN t.modds < 0 THEN N'LOSE'
+									WHEN t.modds > 0 THEN N'WON'
+								END
+							END
+							
 			,statusID = CASE 
-				WHEN t.modds IS NULL THEN 0
-				WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN 111
-				WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN 103 
-				WHEN t.modds < 0 THEN 113
-				WHEN t.modds > 0 THEN 112
-			END
+								WHEN @IsUpd_Void = 0 THEN bm.statusID 
+								ELSE CASE 
+										WHEN t.modds IS NULL THEN 0
+										WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN 111
+										WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN 103 
+										WHEN t.modds < 0 THEN 113
+										WHEN t.modds > 0 THEN 112
+									END
+							END
 			,statuswinlost = CASE 
-				WHEN t.modds > 0.25 THEN 2 -- WON
-				WHEN t.modds = 0.25 THEN 1 -- Half WON
-				WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
-				WHEN t.modds < - 0.25 THEN 4 -- LOSE
-				ELSE 0 -- DRAW
-			END
+								WHEN t.modds > 0.25 THEN 2 -- WON
+								WHEN t.modds = 0.25 THEN 1 -- Half WON
+								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
+								WHEN t.modds < - 0.25 THEN 4 -- LOSE
+								WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN 6 -- REFUND
+								ELSE 0 -- DRAW
+							END
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -148,16 +168,25 @@ BEGIN
 			INNER JOIN #parlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
+		WHERE r.statusId NOT IN (102)	
 	END
 	
 	IF (@action IN ('UNDO'))
 	BEGIN
 		 --update bettransm
 	    UPDATE bm
-	    SET [status]        = 'running'
-	        ,statuswinlost  = 0
-	        ,ruben          = 0
-	        ,statusID       = 0
+	    SET 
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 THEN 0 ELSE 1 END
+			,[status]   = CASE WHEN @IsUpd_Void = 0 THEN [status]
+								ELSE 'running'
+							END
+	        ,statuswinlost  = NULL
+	        ,ruben          = CASE WHEN @IsUpd_Void = 0 THEN ruben
+								ELSE 0
+							END
+	        ,statusID       = CASE WHEN @IsUpd_Void = 0 THEN bm.statusID
+								ELSE 0
+							END
 	    OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
@@ -173,7 +202,8 @@ BEGIN
 	    SET statuswinlost   = 0
 	        ,statusID       = 0
 	    FROM dbo.BetParlayDetail pd WITH (ROWLOCK, UPDLOCK)
-	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno 
+	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
+	    WHERE r.statusid NOT IN (102) 
 	END
 	
 	DROP TABLE #parlayTicket;

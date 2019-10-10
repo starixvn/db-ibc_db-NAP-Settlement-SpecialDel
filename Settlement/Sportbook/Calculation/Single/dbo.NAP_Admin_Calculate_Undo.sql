@@ -35,6 +35,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		
 	Param's Explanation:
 			• @matchid: matchid of match to be unsettled 
@@ -73,7 +74,8 @@ BEGIN
 			,@odds					MONEY
 			,@posOdds				INT
 			,@posComma				INT
-    
+			,@IsUpd_Void BIT = 0
+			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT,GroupName VARCHAR(50), GroupId SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (
@@ -123,7 +125,7 @@ BEGIN
 				INNER JOIN @tblBettypes t
 					ON	b.bettype = t.bettype
 			WHERE	matchid = @matchid
-					AND	b.statusID NOT IN (0, 1, 102, 101)  ---('running','waiting','void','reject')
+					AND	b.statusID NOT IN (101)  ---('reject')
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -158,12 +160,30 @@ BEGIN
 				,@posOdds = CASE WHEN b.bettype IN (468,469) THEN CHARINDEX(@totalWinScore + ':', b.betcheck) + LEN(@totalWinScore) + 1 ELSE @posOdds END
 				,@posComma = CASE WHEN b.bettype IN (468,469) THEN CHARINDEX(',', b.betcheck + ',', @posOdds) ELSE @posComma END
 				,@odds = CASE WHEN b.bettype IN (468,469) THEN SUBSTRING(b.betcheck, @posOdds, @posComma - @posOdds) ELSE @odds END
+				
+				,@IsUpd_Void = CASE WHEN statusID = 102 OR mt.TransId IS NOT NULL THEN 0 ELSE 1 END
+				
 				,odds = CASE WHEN b.bettype IN (468,469) THEN @odds ELSE odds END
 				,oddsspread = CASE WHEN b.bettype IN (468,469) THEN @totalWinScore ELSE oddsspread END
-				,ruben = 0
-				,STATUS = 'running'
-				,statusID = 0
-				,winlost = 0
+				
+				,ruben = CASE 
+							WHEN @IsUpd_Void = 0 THEN ruben 
+							ELSE 0
+						END
+								
+				,STATUS = CASE 
+							WHEN @IsUpd_Void = 0 THEN b.[status] 
+							ELSE 'running'
+						END
+						
+				,statusID = CASE 
+							WHEN @IsUpd_Void = 0 THEN statusID 
+							ELSE 0
+						END
+				,winlost = CASE 
+							WHEN @IsUpd_Void = 0 THEN winlost 
+							ELSE 0
+						END
 				,awinlost = 0
 				,mwinlost = 0
 				,swinlost = 0
@@ -171,7 +191,8 @@ BEGIN
 				,comm = 0
 				,acomm = 0
 				,scomm = 0
-		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
+				,statuswinlost = NULL
+		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
 					AND c.CustId = b.custid
@@ -188,8 +209,19 @@ BEGIN
 							ELSE 0
 						END AS IsCalculated
 			)i
+			OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+							AND mt.CustId = c.custId
+				) mt
+				
 		WHERE	b.matchid = @matchid 
-				AND	b.statusID NOT IN (0, 1, 102, 101)  ---('running','waiting','void','reject')
+				AND	b.statusID NOT IN (101)  ---('reject')
+				AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+							 WHEN b.statusID NOT IN (0, 1) THEN 1
+							ELSE 0 END
+							
 				AND i.IsCalculated = 1
 				AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
 								WHEN @SelectedSet LIKE '%1%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 801 OR b.BetID BETWEEN 80101 AND 80199) THEN 1 

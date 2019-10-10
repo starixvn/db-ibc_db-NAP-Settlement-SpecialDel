@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] @matchid INT
 	,@matchdate SMALLDATETIME
 	,@strXML VARCHAR(MAX) = NULL
@@ -18,7 +18,8 @@ AS
 		- 20180629@Kathy: Wrong winlostdate of main ticket [Redmine:#97384]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 [Redmine:115377]
+		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
 		+ @matchdate eventdate of the match
@@ -160,7 +161,7 @@ BEGIN
 							WHERE	bm14.refno = b.refno
 									AND m14.sporttype BETWEEN 1 AND 99
 						) bm
-				WHERE	b.inserted = 0
+				WHERE	b.inserted = 0 
 			),
 			ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
 		--	
@@ -215,23 +216,26 @@ BEGIN
 			,pd.serial
 			,b.eventdate
 			,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
-			,SUM(CASE WHEN pd.statuswinlost = 4      THEN 1 ELSE 0 END) as loseCnt
-			,SUM(CASE WHEN pd.statusID IN (0, 1)     THEN 1 ELSE 0 END) as runningCnt
+			,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID <> 102 THEN 1 ELSE 0 END) as loseCnt
+			,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
 			,MAX(pd.winlostdate) as matchdate_max
 			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
 			,CAST(dbo.PRODUCT(
-				CASE pd.statuswinlost
-					WHEN 0 THEN 1 -- draw
-					WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
-					WHEN 2 THEN pd.odds -- won
-					WHEN 3 THEN 0.5 -- half lose
-					WHEN 4 THEN 0.000000000001 -- lose
-					ELSE 1 -- VOID/REJECT
+				CASE WHEN pd.statusid = 102 THEN 1
+					ELSE
+						CASE pd.statuswinlost
+							WHEN 0 THEN 1 -- draw
+							WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
+							WHEN 2 THEN pd.odds -- won
+							WHEN 3 THEN 0.5 -- half lose
+							WHEN 4 THEN 0.000000000001 -- lose
+							ELSE 1 -- VOID/REJECT
+						END
 				END
 				) AS MONEY) AS modds
 			
 		FROM dbo.BetParlayDetail pd 
-			INNER JOIN #temp_bettrans b ON pd.refno = b.refno	
+			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
 		GROUP BY pd.refno, pd.serial, b.eventdate
 	)
 	UPDATE pr			

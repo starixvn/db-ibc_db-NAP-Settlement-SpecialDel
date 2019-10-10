@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	@transIds			VARCHAR(MAX)
 
@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		
 	Param's Explanation:
 			@transIds = '<root>
@@ -24,7 +25,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
-
+		
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -40,7 +41,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
-	DECLARE @handle INT
+	DECLARE @handle INT,@IsUpd_Void BIT = 0
 	
 
 	---parse XML
@@ -51,10 +52,26 @@ BEGIN
 	EXEC sp_xml_removedocument @handle
 	
 	UPDATE	b
-	SET ruben = 0 
-		,STATUS = 'running'
-		,statusID = 0
-		,winlost = 0
+	SET 
+		@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+		,ruben = CASE 
+					WHEN @IsUpd_Void = 0 THEN ruben 
+					ELSE 0
+				END
+						 
+		,STATUS = CASE 
+					WHEN @IsUpd_Void = 0 THEN b.[status] 
+					ELSE 'running'
+				END
+						
+		,statusID = CASE 
+						WHEN @IsUpd_Void = 0 THEN statusID 
+						ELSE 0
+					END
+		,winlost = CASE 
+						WHEN @IsUpd_Void = 0 THEN winlost 
+						ELSE 0
+					END
 		,awinlost = 0
 		,mwinlost = 0
 		,swinlost = 0
@@ -62,7 +79,9 @@ BEGIN
 		,comm = 0
 		,acomm = 0
 		,scomm = 0
+		,statuswinlost = NULL
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
+		
 END
 GO

@@ -34,7 +34,8 @@ AS
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
 		- 20190611@Sol: Incorporate PHAIO 4 - Remove bettype 9 [Redmine:#112885]
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
 	Param's Explanation:
 */
 BEGIN
@@ -46,6 +47,9 @@ BEGIN
 			,@strBettypes	VARCHAR(MAX)
       		,@IsSettleBySetting BIT
       		,@ticketCountTotal INT
+	
+	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
+	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
 
 	SET @ActionID = CASE @action
 						WHEN 'CAL'	THEN 104
@@ -146,7 +150,7 @@ BEGIN
 
 		DECLARE @SelectedSetCAL VARCHAR(50)
 		DECLARE @SelectedSetREFUND VARCHAR(50)
-
+		
 		SET @strBettypes = CAST((SELECT  BetType '@t'
 										,GroupId '@g'
 										,GroupName '@n'
@@ -264,11 +268,53 @@ BEGIN
 					EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
 						,@matchid = @matchID
 						,@str_resultDetail = @resultDetail OUTPUT
+					
+					DECLARE @xmlResultDetail XML
+					-- check GoalBettype if all tickets have been voided
+					SET @xmlResultDetail = CAST(@resultDetail AS XML)
+			
+					INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue)
+					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+							,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+					FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+					OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )	
+					
+					INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+					SELECT b.bettype
+						, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+						, COUNT(1) AS ticket_cnt
+					FROM bettransm b WITH (NOLOCK)
+						INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
+					WHERE b.matchid = @matchid 
+					GROUP BY b.bettype
+					
+					DELETE g 
+					FROM @GoalBettype_tmp g
+						INNER JOIN dbo.SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
+					WHERE g.Voided_cnt = g.ticket_cnt
+						AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)	
+					
+					-- Do NOT touch on goal bettype having all tickets voided AND no results
+					SET @strBettypes = CAST((SELECT  f.BetType '@t'
+												,GroupId '@g'
+												,GroupName '@n'
+												,Is3x30 '@is3x'
+												,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
+										FROM	dbo.f_Set_GetGroupBettypes() f
+											LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
+										WHERE	f.GroupId <> 8 -- Early Soccer
+											AND 1= CASE 
+														WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+														WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+													ELSE 1
+												END
+										FOR XML PATH ('r'), ROOT('root'), TYPE
+									) AS VARCHAR(MAX))
 				END
 
 				-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
 				IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
-			
+				
 				EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@matchid = @matchid,
 					@mode = 'm',
@@ -287,8 +333,6 @@ BEGIN
 					@strBettypes = @strBettypes,
 					@betstatus	= @betstatus,
 					@SelectedQuarter = @SelectedQuarter
-
-
 			END --@Sporttype = 1
 		END
 	END --END: handle bettransM ------------------------------------------

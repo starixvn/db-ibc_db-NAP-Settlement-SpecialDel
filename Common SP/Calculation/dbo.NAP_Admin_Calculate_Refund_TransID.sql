@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
 	@transIds					VARCHAR(MAX)
 
@@ -11,6 +11,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -24,7 +25,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowRefund		BIT
-
+			,@IsUpd_Void BIT = 0
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -52,19 +53,31 @@ BEGIN
 	SET @settlementTime = GETDATE();
 
 	UPDATE	b
-	SET [status] = N'Refund'
-					,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
-					,statusID = 103
-					,winlost = actual_stake
-					,awinlost = 0
-					,mwinlost = 0
-					,swinlost = 0
-					,playercomm = 0
-					,comm = 0
-					,acomm = 0
-					,scomm = 0
-					,ruben = 1
-					,statuswinlost = 0
+	SET				
+		@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+		,[status] = CASE 
+						WHEN @IsUpd_Void = 0 THEN [status] 
+						ELSE N'Refund'
+					END
+					
+		,SettlementTime = CASE WHEN @IsUpd_Void = 0 THEN SettlementTime
+								ELSE CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
+						 END
+		,statusID = CASE 
+						WHEN @IsUpd_Void = 0 THEN statusID 
+						ELSE 103
+					END
+		,winlost = actual_stake
+		,awinlost = 0
+		,mwinlost = 0
+		,swinlost = 0
+		,playercomm = 0
+		,comm = 0
+		,acomm = 0
+		,scomm = 0
+		,ruben = 1
+		,statuswinlost = 6
+					
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 END

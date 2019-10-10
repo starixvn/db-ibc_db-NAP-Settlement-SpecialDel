@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Refund] (
 	@MatchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -10,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Refund] (
 	, @IsRefundHT		BIT
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
 	, @resultDetail_ss	VARCHAR(MAX) = NULL
+	, @resultDetail		VARCHAR(MAX) = NULL
 	, @TicketCount		INT = 0 OUTPUT
 	, @ErrCode 			INT = 0 OUTPUT
 	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
@@ -24,7 +21,9 @@ AS
 		- 20170215@Kathy: Basketball All-in-One [Redmine:#71372]
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20190813@Helen: Remove vnteam in metadata
+		
 	Param's Explanation:		
 		- @Mode: ['REFUND', 'REFUND-HT','REFUND-FT']
 */
@@ -33,6 +32,10 @@ BEGIN
 
 	DECLARE @tempRefundBatch TABLE (refno BIGINT, betcount INT)
 	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20))
+	
+	DECLARE @ResourceResult_1_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
+	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	
 	CREATE TABLE #refundBettypes (bettype SMALLINT PRIMARY KEY, groupId SMALLINT, GroupName NVARCHAR(50), isEarly BIT)
 	
 	DECLARE @basketball_ResourceIdsREFUND VARCHAR(MAX) = NULL
@@ -78,11 +81,42 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlss = NULL ) )    
 	END
 	
+	IF @resultDetail IS NOT NULL
+	BEGIN
+		DECLARE @xmlResultDetail XML
+		
+		SET @xmlResultDetail = CONVERT(XML,@resultDetail)
+		
+		INSERT INTO @ResourceResult_1_tmp (ResourceId,HomeValue)
+		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+		FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+		
+		-- check GoalBettype if all tickets have been voided
+		INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+		SELECT b.bettype
+			, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+			, COUNT(1) AS ticket_cnt
+		FROM bettransm b WITH (NOLOCK)
+			INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
+		WHERE b.matchid = @matchid 
+		GROUP BY b.bettype
+	
+		DELETE g 
+		FROM @GoalBettype_tmp g
+			INNER JOIN SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
+		WHERE g.Voided_cnt = g.ticket_cnt
+			AND NOT EXISTS (SELECT 1 FROM @ResourceResult_1_tmp rs WHERE p.ResourceID = rs.ResourceId)
+			
+	END
+	
 	INSERT INTO #refundBettypes (bettype, groupId, GroupName, isEarly)
 	SELECT f.BetType, f.GroupId, f.GroupName, CASE WHEN e.bettype IS NOT NULL THEN 1 ELSE 0 END AS isEarly
 	FROM dbo.f_Set_GetGroupBettypes() f
 		LEFT JOIN dbo.f_Set_GetEarlyBettypes() e
 			ON f.BetType = e.bettype
+		LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype	
 	WHERE 1 = CASE 
 				WHEN @Mode = 'REFUND' THEN 1
 				WHEN @Mode = 'REFUND-HT' THEN
@@ -104,7 +138,12 @@ BEGIN
 				ELSE 0 
 			END
 		AND f.GroupId NOT IN (8,9) -- Exclude BetRadar, FM
-	
+		AND 1= CASE 
+					WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+					WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+					ELSE 1
+				END	
+					
 	DECLARE @fromTransId	INT
 		,@batchNo			INT
 		,@batchCount		INT
@@ -138,7 +177,7 @@ BEGIN
 					END AS QuarterX
 		) res
 	WHERE bm.matchid 	= @matchid
-		AND bm.statusID NOT IN (101,102)
+		AND bm.statusID NOT IN (101)
 		AND 1 = CASE
 					WHEN @resultDetail_bb IS NULL THEN 1
 					WHEN t.isEarly = 1 THEN CASE

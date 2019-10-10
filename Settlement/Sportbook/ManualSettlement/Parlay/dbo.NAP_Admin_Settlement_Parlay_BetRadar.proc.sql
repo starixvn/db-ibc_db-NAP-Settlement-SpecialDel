@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_BetRadar] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -20,7 +16,8 @@ AS
 	Revisions:		
 		- 20170328@Bobby: #74203 - Update modds alias column
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
 */
@@ -139,7 +136,7 @@ BEGIN
 		INNER JOIN #autoBettypes t ON bm.bettype = t.bettype
 
 	WHERE bm.matchid 	= @matchid
-		AND bm.statusID NOT IN (101,102)
+		AND bm.statusID NOT IN (101)
 
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0

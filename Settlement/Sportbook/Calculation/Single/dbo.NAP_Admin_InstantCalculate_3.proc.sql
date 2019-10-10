@@ -18,9 +18,9 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
-		
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost - [Redmine:115377]
+		
     Param's Explanation:
         
 */
@@ -96,6 +96,13 @@ BEGIN
 
 			UPDATE b
 				SET modds = t.modds 
+					 ,statuswinlost = CASE WHEN t.modds > 0.25 THEN 2
+											WHEN t.modds = 0.25 THEN 1 
+											WHEN t.modds = 0  THEN 0 
+											WHEN t.modds = - 0.25 THEN 3
+											WHEN t.modds < - 0.25 THEN 4
+											WHEN t.modds IS NULL THEN 6
+										END 
 					 ,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 						 WHEN '0' THEN 1
 						 WHEN '1' THEN 0
@@ -215,6 +222,13 @@ BEGIN
 
 			UPDATE b
 				SET modds = t.modds 
+					 ,statuswinlost = CASE WHEN t.modds > 0.25 THEN 2
+											WHEN t.modds = 0.25 THEN 1 
+											WHEN t.modds = 0  THEN 0 
+											WHEN t.modds = - 0.25 THEN 3
+											WHEN t.modds < - 0.25 THEN 4
+											WHEN t.modds IS NULL THEN 6
+										END 
 					 ,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 						 WHEN '0' THEN 1
 						 WHEN '1' THEN 0
@@ -328,6 +342,7 @@ BEGIN
 			,comm 		= 0
 			,acomm 		= 0
 			,scomm 		= 0
+			,statuswinlost = NULL
 		FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #InstantTicket_Input t
 			ON b.transid = t.transid

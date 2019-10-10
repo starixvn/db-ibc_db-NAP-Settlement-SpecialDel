@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ï»¿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundHT_Push] 
     @MatchId                        INT
     ,@AdminId                       INT
@@ -29,14 +29,15 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190813@Helen: Remove vnteam in metadata
 
     Param's Explanation:
-    • @matchid: matchid of match to Refund HT
-    • @IsExcludeBetdaq: Is Exclude betdaq tickets or not
-    • @IsSettleAbandonedMatch: Is Settlement for Betdaq ticket of Abandoned/postponed match or not
-    • @IsExcludeBetfair: Is Exclude betfair tickets or not
-    • @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
-	• @ResourceResult
+    â€¢ @matchid: matchid of match to Refund HT
+    â€¢ @IsExcludeBetdaq: Is Exclude betdaq tickets or not
+    â€¢ @IsSettleAbandonedMatch: Is Settlement for Betdaq ticket of Abandoned/postponed match or not
+    â€¢ @IsExcludeBetfair: Is Exclude betfair tickets or not
+    â€¢ @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
+	â€¢ @ResourceResult
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>

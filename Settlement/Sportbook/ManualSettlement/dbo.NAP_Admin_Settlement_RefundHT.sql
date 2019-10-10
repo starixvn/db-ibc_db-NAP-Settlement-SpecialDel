@@ -42,6 +42,7 @@ AS
         - 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -65,19 +66,30 @@ BEGIN
         ,@ActionID INT
         ,@start DATETIME
         ,@stop DATETIME
-        ,@strBettypes VARCHAR(MAX) 
 		,@strRefundBettypes VARCHAR(MAX) 
 		,@matchdate DATETIME
 		,@avaiableProcess	BIT
         ,@sportType INT
 		,@Action VARCHAR(20)
-
+		,@xmlResultDetail		XML
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
 	--END Balance tables      
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+    
+	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))
+	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	
+	SELECT @matchdate = eventdate
+        , @sporttype    = sporttype
+    FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
+    WHERE	matchid = @matchid
+	
+    SELECT @start = CURRENT_TIMESTAMP
+        , @ActionID = 110
+        , @Action = 'CAL-HT'
 
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -98,28 +110,46 @@ BEGIN
 
         RETURN
 	END
-
-	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
-	FROM	dbo.f_Set_GetGroupBettypes ()
-	WHERE	Is3x30 = 1
+	IF @sportType = 1
+	BEGIN
+		
+		SET @xmlResultDetail = CAST(@ResourceResult AS XML)
+		
+		INSERT INTO @ResourceResult_tmp (ResourceId, HomeValue)
+		SELECT	T.c.value('./@Id','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@HomeValue','VARCHAR(50)') AS HomeValue
+		FROM	@xmlResultDetail.nodes('/Results/Resource') AS T(c)
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )		
 	
+		-- check GoalBettype if all tickets have been voided
+		INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+		SELECT b.bettype
+			, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+			, COUNT(1) AS ticket_cnt
+		FROM bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
+		WHERE b.matchid = @matchid 
+		GROUP BY b.bettype
+		
+		DELETE g 
+		FROM @GoalBettype_tmp g
+			INNER JOIN SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
+		WHERE g.Voided_cnt = g.ticket_cnt
+			AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)
+		
+	END
 	-- SELECT for new formation
 	SET @strRefundBettypes = (SELECT  f.BetType 'r/@t'
-						FROM	dbo.f_Set_GetGroupBettypes() AS f			
-						WHERE	f.Is3x30 = 1
-						FOR XML PATH ('root')
+							FROM dbo.f_Set_GetGroupBettypes() AS f
+								LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype 			
+							WHERE f.Is3x30 = 1
+								AND 1= CASE 
+											WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+											WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+											ELSE 1
+										END
+							FOR XML PATH ('root')
 							)	
-							
-	
-	SELECT @matchdate = eventdate
-        , @sporttype    = sporttype
-    FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-    WHERE	matchid = @matchid
-	
-    SELECT @start = CURRENT_TIMESTAMP
-        , @ActionID = 110
-        , @Action = 'CAL-HT'
-
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------

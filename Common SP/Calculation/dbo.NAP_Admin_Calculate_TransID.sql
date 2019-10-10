@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	@transIds		   VARCHAR(MAX)
 	
@@ -13,6 +13,7 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		
 	Param's Explanation:  
 		   
@@ -46,7 +47,7 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT)
+	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT)
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -56,18 +57,20 @@ BEGIN
 			,@winlost			MONEY
 			,@stake				MONEY
 			,@statusId			TINYINT
-
+			,@IsUpd_Void BIT = 0
+			
 	DECLARE @settlementTime DATETIME
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype)
-	SELECT t, m, ot, sr, bt
+	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype, IsMarked)
+	SELECT t, m, ot, sr, bt,im
 	FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
 										 ,m   SMALLMONEY
 										 ,ot  TINYINT
 										 ,sr  INT
 										 ,bt  SMALLINT
+										 ,im  BIT	
 									) tbl
 	EXEC sp_xml_removedocument @handle
 
@@ -85,102 +88,154 @@ BEGIN
 	SET @settlementTime = GETDATE();
 
 	UPDATE  b
-	SET @modds = sr.modds,
-	   @commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+	SET @modds = sr.modds
+	   ,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 							WHEN '0' THEN 1
 							WHEN '1' THEN 0
-							ELSE 1 END,
-	   @commLostRate = CASE comstatus
+							ELSE 1 END
+	   ,@commLostRate = CASE comstatus
 							WHEN '0' THEN 1
 							WHEN '1' THEN 2
-							ELSE 1 END,
-	   @commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
+							ELSE 1 END
+	   ,@commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
 							ELSE 0.5
-						END,
-	   @odds = (CASE WHEN b.odds < 0 THEN 1 
+						END
+	   ,@odds = (CASE WHEN b.odds < 0 THEN 1 
 	   				 WHEN sr.oddstype = 1 THEN b.odds - 1 ----/*DECIMAL ONLY*/
-					 ELSE b.odds END),
+					 ELSE b.odds END)
 		----------------------------------------------------------------------------------------------------------------
-		modds = @modds,			   	
-		@winlost = CASE
+		,@IsUpd_Void = CASE WHEN statusID = 102 OR sr.IsMarked = 1 THEN 0 ELSE 1 END
+		,modds = @modds
+		,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
+								WHEN @modds = 0.25 THEN 1 
+								WHEN @modds = 0 THEN 0 
+								WHEN @modds = - 0.25 THEN 3
+								WHEN @modds < - 0.25 THEN 4
+								WHEN @modds IS NULL THEN 6
+							END 			   	
+		,@winlost = CASE
 				WHEN @modds >  0.25 THEN actual_stake + stake * @odds
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
 				WHEN @modds < -0.25 THEN 0
-				END, 	
+				END 	
 		-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
-		@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
+		,@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
 						ELSE stake 
-					END,
+					END
 		-- check winlost or status change to update SettlementTime
-		@statusId = CASE
+		,@statusId = CASE
 						WHEN @modds > 0 THEN 112 --WON
 						WHEN @modds = 0 THEN 111 --DRAW
 						WHEN @modds < 0 THEN 113 --LOSE
-					END,
-		SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END,
-		WinLost = @winlost,
-		aWinLost = CASE
-				WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
-				WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
-				WHEN @modds < -0.25 THEN actual_stake * apositiontaking
-				END,
-		mWinLost = CASE
-				WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking
-				WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
-				WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
-				END,
-		sWinLost = CASE
-				WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking
-				WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
-				WHEN @modds < -0.25 THEN actual_stake * spositiontaking
-				END,
+					END
+		,SettlementTime = CASE 
+								WHEN @IsUpd_Void = 0 THEN SettlementTime 
+								ELSE CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+							END
+						
+		,WinLost = CASE 
+						WHEN @IsUpd_Void = 0 THEN WinLost 
+						ELSE @winlost
+					END
+		,aWinLost = CASE 
+						WHEN @IsUpd_Void = 0 THEN aWinLost 
+						ELSE CASE
+								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
+								WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
+								WHEN @modds =  0	THEN 0
+								WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
+								WHEN @modds < -0.25 THEN actual_stake * apositiontaking
+							END
+					END
+							
+		,mWinLost = CASE 
+						WHEN @IsUpd_Void = 0 THEN mWinLost 
+						ELSE CASE
+								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking
+								WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
+								WHEN @modds =  0	THEN 0
+								WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
+								WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
+							END
+					END
+					
+		,sWinLost = CASE 
+						WHEN @IsUpd_Void = 0 THEN sWinLost 
+						ELSE CASE
+								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking
+								WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
+								WHEN @modds =  0	THEN 0
+								WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
+								WHEN @modds < -0.25 THEN actual_stake * spositiontaking
+							END
+					END
 
-		PlayerComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * playerdiscount * @stake
-				WHEN @modds =  0.25 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
-				WHEN @modds < -0.25 THEN @commLostRate * playerdiscount * @stake
-				END,
-		Comm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking)
-				WHEN @modds =  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
-				WHEN @modds < -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking)
-				END,
-		aComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
-				WHEN @modds =  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
-				WHEN @modds < -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
-				END,
-		sComm = CASE
-				WHEN @modds >  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
-				WHEN @modds =  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
-				WHEN @modds =  0	THEN 0
-				WHEN @modds = -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
-				WHEN @modds < -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
-				END,
-		Status = CASE
-				WHEN @modds > 0 THEN 'WON'
-				WHEN @modds = 0 THEN 'DRAW'
-				WHEN @modds < 0 THEN 'LOSE'
-				END,
-		StatusID = @statusId,
-		ruben=1
+		,PlayerComm = CASE 
+						WHEN @IsUpd_Void = 0 THEN PlayerComm 
+						ELSE CASE
+								WHEN @modds >  0.25 THEN @commWinRate * playerdiscount * @stake
+								WHEN @modds =  0.25 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
+								WHEN @modds =  0	THEN 0
+								WHEN @modds = -0.25 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
+								WHEN @modds < -0.25 THEN @commLostRate * playerdiscount * @stake
+							END
+					END
+					
+		,Comm = CASE 
+					WHEN @IsUpd_Void = 0 THEN Comm 
+					ELSE CASE
+							WHEN @modds >  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking)
+							WHEN @modds =  0.25 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
+							WHEN @modds =  0	THEN 0
+							WHEN @modds = -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
+							WHEN @modds < -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking)
+						END
+				END
+					
+		,aComm = CASE 
+					WHEN @IsUpd_Void = 0 THEN aComm 
+					ELSE CASE
+							WHEN @modds >  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+							WHEN @modds =  0.25 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
+							WHEN @modds =  0	THEN 0
+							WHEN @modds = -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
+							WHEN @modds < -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+						END
+				END
+					
+		,sComm = CASE 
+					WHEN @IsUpd_Void = 0 THEN sComm 
+					ELSE CASE
+							WHEN @modds >  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+							WHEN @modds =  0.25 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
+							WHEN @modds =  0	THEN 0
+							WHEN @modds = -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
+							WHEN @modds < -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+						END
+				END
+					
+		,Status = CASE 
+					WHEN @IsUpd_Void = 0 THEN Status 
+					ELSE CASE
+							WHEN @modds > 0 THEN 'WON'
+							WHEN @modds = 0 THEN 'DRAW'
+							WHEN @modds < 0 THEN 'LOSE'
+						END
+				END
+		,StatusID = CASE 
+						WHEN @IsUpd_Void = 0 THEN StatusID 
+						ELSE @statusId
+					END
+		,ruben=CASE 
+					WHEN @IsUpd_Void = 0 THEN ruben 
+					ELSE 1
+				END
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 
 	RETURN
+	
 END
 GO

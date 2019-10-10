@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_2b]
      @AdminID	INT                
     ,@MatchID	INT
@@ -16,6 +16,7 @@ AS
     Revisions:
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
+		- 20190813@Helen: Remove vnteam in metadata
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball

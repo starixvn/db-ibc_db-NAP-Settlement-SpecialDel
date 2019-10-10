@@ -869,7 +869,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -1083,7 +1083,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -2297,7 +2297,7 @@ BEGIN
                         , @bettype = 172
                         , @fth = @fth
                         , @fta = @fta
-                        , @ResultString = @GoalRecord
+                        , @ResultString = @ft_fg
                         , @betcount = 1
 
                  -- bettype 415: Result and First Team To Score (own)
@@ -2307,7 +2307,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 
                 -- bettype 422 : First Team 2 Goals
@@ -2947,7 +2947,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3095,7 +3095,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3992,7 +3992,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4240,7 +4240,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair

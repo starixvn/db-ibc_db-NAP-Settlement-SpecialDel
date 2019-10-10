@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_1_InstantCalculation
 	@Creator 			INT
 	, @MatchId		INT
@@ -31,7 +31,8 @@ AS
 		- 20190107@Kathy: set ticket running if it is accepted by both auto accept & second accept [Redmine:#107452]
 		- 20190305@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
-
+		- 20190813@Helen: Remove vnteam in metadata
+		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
         - @ResourceResult
