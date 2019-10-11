@@ -12,8 +12,7 @@ AS
     
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
-		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
-		- 20191004@Tiara: BMAIO- Remove unused parameters @tblResource and @ResourceList [Redmine: #120324]
+		- 20190924@Tiara: BMAIO - Badminton All In One - Removed unused parameters @tblResource and @ResourceList [Redmine: #120324]
 		
 */
 BEGIN

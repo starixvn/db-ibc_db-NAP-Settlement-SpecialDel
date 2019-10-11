@@ -79,24 +79,23 @@ BEGIN
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL 	
 	
-	--Use @BestOfMap for E-sport only
-	IF @Sporttype = 43	
-	BEGIN
+    ---return
+    IF @Sporttype = 43
+    BEGIN
+
+		--Use @BestOfMap for E-sport only
 		SELECT @BestOfMap = BestOfMap
 		FROM [dbo].[match_remark] WITH (NOLOCK) 
 		WHERE matchid = @matchid
 	
 		IF @BestOfMap IS NOT NULL
-			BEGIN
-				DELETE t
-				FROM @tmpTicketStatus t
-				INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
-				WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
-			END
-	END					
-    ---return
-    IF @Sporttype = 43
-    BEGIN
+		BEGIN
+			DELETE t
+			FROM @tmpTicketStatus t
+			INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
+			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+		END
+
 	    SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue
 				,rs.AwayValue
