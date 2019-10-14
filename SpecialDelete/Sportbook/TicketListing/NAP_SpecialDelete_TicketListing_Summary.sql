@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET QUOTED_IDENTIFIER ON
 GO
 SET ANSI_NULLS ON
@@ -54,6 +54,7 @@ AS
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190601@Jacob: Ticket listing cannot show detail Parlay for CN88 [114437]
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
+		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -635,7 +636,7 @@ BEGIN
 		  END
 	END
 
-	----## MBC Group
+	----## Credit Group
 	IF @LicenseeID = - 1
 	BEGIN
 		  IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single' 
@@ -654,7 +655,7 @@ BEGIN
 					   WHEN @type = 1 THEN b.liveindicator
 					   ELSE 0
 					   END
-				,'MBC' AS LicenseeName
+				,'Credit' AS LicenseeName
 			FROM #TmpBettrans b 
 			WHERE b.srecommend NOT IN( SELECT custid
 					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
@@ -730,7 +731,7 @@ BEGIN
 				,Count(DISTINCT t.ParentTransId) AS TotalTrans
 				,t.ParentBettype
 				,0
-				,'MBC' AS LicenseeName
+				,'Credit' AS LicenseeName
 			FROM CTE_ParlayTickets AS t
 			WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
@@ -763,7 +764,7 @@ BEGIN
 				,Count(DISTINCT b.transid) AS TotalTrans
 				,b.bettype
 				,0
-				,'MBC' AS LicenseeName
+				,'Credit' AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
 				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				WHERE b.srecommend NOT IN( SELECT custid
@@ -962,7 +963,7 @@ BEGIN
 				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
 			 ,CASE 
 			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 'CN88'
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'MBC'
+			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit'
 			 ELSE s.site END AS LicenseeName
 		  FROM #TmpBettrans b WITH (NOLOCK)
 				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
@@ -1044,7 +1045,7 @@ BEGIN
 		  ,0
 		  ,CASE 
 			 WHEN t.site IS NULL AND t.CustId IS NOT NULL THEN 'CN88'
-			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 'MBC'
+			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit'
 			 ELSE t.site END AS LicenseeName
 		  FROM CTE_ParlayTickets AS t
 		  WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
@@ -1084,7 +1085,7 @@ BEGIN
 			 ,0
 			 ,CASE 
 			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 'CN88'
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'MBC'
+			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit'
 			 ELSE s.site END AS LicenseeName
 		  FROM bettransm bm WITH (NOLOCK)
 			 INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno

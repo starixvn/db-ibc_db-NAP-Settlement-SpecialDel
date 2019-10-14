@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] @MatchId          INT,
                                                                @LicenseeName     VARCHAR(1000) = 'ALL',
                                                                @BetTypes         VARCHAR(1000) = '',
@@ -54,6 +54,7 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190601@Jacob: Ticket listing cannot show detail Parlay for CN88 [114437]
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
+		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -292,7 +293,7 @@ BEGIN
 	IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 	BEGIN	
 		----Direct Licensee
-		IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
+		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
 		BEGIN
 			IF @Type = 1 -- Number Game
 			BEGIN
@@ -537,7 +538,7 @@ BEGIN
 		END
 
 		---IBC 
-		IF @LicenseeName = 'MBC'  
+		IF @LicenseeName = 'Credit'  
 		BEGIN
 			IF @Type = 1 -- Number Game
 			BEGIN
@@ -1411,7 +1412,7 @@ BEGIN
      IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN 
 		---Licensee
-		IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
+		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
 		BEGIN
 			INSERT INTO #SpecialDeleteBets (username, bettype, OriginalBetType, ExtraInfo, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
@@ -1504,7 +1505,7 @@ BEGIN
 		END
 		
 		---IBC
-		IF @LicenseeName= 'MBC'  
+		IF @LicenseeName= 'Credit'  
 		BEGIN	
 			INSERT INTO #SpecialDeleteBets (username, bettype, OriginalBetType, ExtraInfo, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
@@ -1825,7 +1826,7 @@ BEGIN
      IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
 	BEGIN 
 		---Licensee
-		IF @LicenseeName <> 'MBC' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
+		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
 		BEGIN
 			INSERT INTO #SpecialDeleteBets (username, bettype, OriginalBetType, ExtraInfo, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
@@ -1910,7 +1911,7 @@ BEGIN
 		ELSE 
 		
 		---IBC
-		IF @LicenseeName= 'MBC'  
+		IF @LicenseeName= 'Credit'  
 		BEGIN	
 			INSERT INTO #SpecialDeleteBets (username, bettype, OriginalBetType, ExtraInfo, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
