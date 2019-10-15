@@ -57,7 +57,7 @@ AS
 		- 20190305@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
-		
+		- 20191015@Raymond.Le: Remove <ab="1"> in ExtraInfo when recover AbnormalBet 468, 469 [#122065]
 	Param's Explanation:
 */
 BEGIN
@@ -1234,6 +1234,7 @@ BEGIN
 	    ,creator = t.creator
 		,odds = bc.odds
 		,oddsspread = bc.score
+		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 	FROM bettrans main 
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
