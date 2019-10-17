@@ -75,6 +75,7 @@ AS
 	  - 20190718@Charles: Drop table #CTE_CustInfo [115870]
 	  - 20190228@Alan: Implement Bet Builder - [106898]
 	  - 20190812@Charles: Add new column IsMarked [118437]
+	  - 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 
 	 Param's Explanation:   
 	*/
@@ -1919,7 +1920,7 @@ BEGIN
 	SET 
 		winlost = main.actual_stake
 		,ruben = 1
-		,statuswinlost = 6
+		--,statuswinlost = 6
 		,creator = @UserID
 		,mwinlost = 0
 		,swinlost = 0
@@ -2006,7 +2007,7 @@ BEGIN
 			UPDATE sub
 			SET winlost = sub.actual_stake
 				,ruben = 1
-				,statuswinlost = 6
+				--,statuswinlost = 6
 				,creator = @UserID
 				,mwinlost = 0
 				,swinlost = 0
@@ -2029,7 +2030,7 @@ BEGIN
 			UPDATE sub
 			SET winlost = sub.actual_stake
 				,ruben = 1
-				,statuswinlost = 6
+				--,statuswinlost = 6
 				,creator = @UserID
 				,mwinlost = 0
 				,swinlost = 0

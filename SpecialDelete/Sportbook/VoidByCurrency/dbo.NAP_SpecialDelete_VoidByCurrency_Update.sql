@@ -42,6 +42,7 @@ AS
 		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
 		- 20190228@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 		
 	Param's Explanation:
 */
@@ -1631,7 +1632,7 @@ BEGIN
 			UPDATE	main
 				SET winlost		= main.actual_stake
 					,ruben			= 1
-					,statuswinlost	= 6
+					--,statuswinlost	= 6
 					,creator		= @UserID
 					,awinlost		= 0
 					,mwinlost		= 0
@@ -1656,7 +1657,7 @@ BEGIN
 					UPDATE sub
 					SET winlost = sub.actual_stake
 						,ruben = 1
-						,statuswinlost = 6
+						--,statuswinlost = 6
 						,creator = @UserID
 						,mwinlost = 0
 						,swinlost = 0
@@ -1676,7 +1677,7 @@ BEGIN
 					UPDATE sub
 					SET winlost = sub.actual_stake
 						,ruben = 1
-						,statuswinlost = 6
+						--,statuswinlost = 6
 						,creator = @UserID
 						,mwinlost = 0
 						,swinlost = 0

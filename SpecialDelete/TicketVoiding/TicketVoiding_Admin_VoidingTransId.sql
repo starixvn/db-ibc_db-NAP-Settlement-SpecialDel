@@ -10,6 +10,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 	
 	Param's explanation:	
 		@transIds = '<root>
@@ -42,7 +43,7 @@ BEGIN
 			,winlost = @actual_stake
 			,actual_stake = @actual_stake
 			,ruben = 1
-			,statuswinlost = 6
+			--,statuswinlost = 6
 			,creator = @UserId
 			,awinlost = 0
 			,mwinlost = 0
