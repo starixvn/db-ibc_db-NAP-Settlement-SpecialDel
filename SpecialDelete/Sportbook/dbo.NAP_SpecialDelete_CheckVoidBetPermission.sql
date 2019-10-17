@@ -131,6 +131,12 @@ BEGIN
 				INNER JOIN dbo.bettransm AS m WITH (NOLOCK) ON t.transid = m.transid
 				WHERE m.statusID IN (111, 112, 113)
 			) THEN 1
+			WHEN EXISTS (
+				SELECT TOP 1 1
+				FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans AS m WITH (NOLOCK) ON t.transid = m.transid
+				WHERE m.statusID IN (111, 112, 113) AND m.matchid IN (9, 29, 2799)
+			) THEN 1
 			ELSE 0
 			END
 
