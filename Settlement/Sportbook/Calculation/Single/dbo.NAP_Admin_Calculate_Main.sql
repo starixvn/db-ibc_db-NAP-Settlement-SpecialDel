@@ -184,7 +184,8 @@ AS
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
     Param's Explanation:
         @action             @mode
         + CAL               CAL, CAL-HT, CAL-FT, UNDO,
