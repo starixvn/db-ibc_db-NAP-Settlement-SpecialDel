@@ -1,8 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -19,6 +15,7 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -149,7 +146,7 @@ BEGIN
 	  					) sr
 	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
 	  	WHERE b.matchid = @MatchId
-	  		AND b.statusID NOT IN (101,102)
+	  		AND b.statusID NOT IN (101)
 	END
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
@@ -159,7 +156,7 @@ BEGIN
 	  	FROM bettrans b WITH (NOLOCK)
 	  		INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
 	  	WHERE b.matchid = @MatchId
-	  		AND	b.statusID NOT IN (0, 1, 102, 101)
+	  		AND	b.statusID NOT IN (0, 1, 101)
 	END 
 	ELSE IF @action LIKE 'REFUND%'
 	BEGIN
@@ -169,7 +166,7 @@ BEGIN
 	  	FROM bettrans b WITH (NOLOCK)
 	  		INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE b.matchid = @MatchId
-	  		AND	b.statusID NOT IN (103, 101, 102)
+	  		AND	b.statusID NOT IN (103, 101)
 	END 
 	
 		

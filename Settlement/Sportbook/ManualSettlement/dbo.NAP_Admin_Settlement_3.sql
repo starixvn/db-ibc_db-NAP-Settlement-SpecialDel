@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
+ï»¿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
 	, @IsReSettledTickets BIT = 1
@@ -34,9 +34,11 @@ AS
 	   - 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 	   - 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 	   - 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+       - 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+
 
     Param's Explanation:
-    • @Mode:
+    @Mode:
         CAL : All BetTypes
         CAL-HT : HT Only
         CAL-FT : FT Only (All Except HT)
@@ -95,7 +97,10 @@ BEGIN
 			,@ht_lg 				VARCHAR(10)
 			,@ft_fg 				VARCHAR(10)
 			,@ft_lg 				VARCHAR(10)
-			
+	
+	DECLARE @ResourceResult AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
+	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	
     SELECT	@fth = FinalHomeScore
 			,@fta = FinalAwayScore
 			,@hth = HTHomeScore
@@ -115,14 +120,14 @@ BEGIN
 			,@str_resultDetail = @strResultDetail OUTPUT
 			
 		SET @xmlResultDetail = CAST(@strResultDetail AS XML)
+				
+		INSERT INTO @ResourceResult (ResourceId,HomeValue,AwayValue)
+		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+		FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )		
 		
-		;WITH cteResult
-		AS(
-			SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-					,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-					,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-			FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
-		)
 		SELECT	
 				-- for bettype 127 only
 				@ht_fg = ISNULL(MAX(CASE 
@@ -151,8 +156,8 @@ BEGIN
 				,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
 				,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
 				,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
-		FROM	cteResult r
-		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )		
+		FROM	@ResourceResult r
+		
     END 
 
     IF @SportType IN (6, 9, 30, 48) -- Tennis/VolleyBall/Badminton/Squash/Sepak Takraw : get TotalGamesPlayed
@@ -244,40 +249,74 @@ BEGIN
 			SET @index = @index + 1
 		END
 	END			
-	
+	IF @sporttype = 1
+	BEGIN
+		-- check GoalBettype if all tickets have been voided
+		INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+		SELECT b.bettype
+			, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+			, COUNT(1) AS ticket_cnt
+		FROM bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND IsUsedGoalRecordValue = 1
+		WHERE b.matchid = @matchid 
+		GROUP BY b.bettype
+		
+		DELETE g 
+		FROM @GoalBettype_tmp g
+			INNER JOIN SettlementSpecialBettypeProfile p WITH (NOLOCK) ON g.bettype = p.bettype
+		WHERE g.Voided_cnt = g.ticket_cnt
+			AND NOT EXISTS (SELECT 1 FROM @ResourceResult rs WHERE p.ResourceID = rs.ResourceId)
+	END	
 	--using this way to avoid more param @betcount
 	;WITH cteBettypes
 	AS(
-		SELECT Bettype
-		FROM	dbo.f_Set_GetGroupBettypes()
+		SELECT f.Bettype
+		FROM	dbo.f_Set_GetGroupBettypes() f
+			LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
 		WHERE	@mode IN ('CAL-HT', 'CAL') 
 				AND 1 = CASE 
-							WHEN GroupId IN (1,3) THEN 1 
-							ELSE 0 END -- HT + HT Corner + HT FGLG	
-		UNION ALL
-		SELECT Bettype
-		FROM	dbo.f_Set_GetGroupBettypes()
-		WHERE	@mode IN ('CAL-FT', 'CAL') 
+							WHEN f.GroupId IN (1,3) THEN 1 
+							ELSE 0 END -- HT + HT Corner + HT FGLG
 				AND 1 = CASE 
-							WHEN GroupId IN (2,4) THEN 1 
-							ELSE 0 END -- FT, FT Corner + FT FGLG
-				AND 1 = CASE
-							WHEN @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 -- If this match has been refund HT --> refund all bettypes related to 2nd result 
+							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
 							ELSE 1
 						END
+										
+		UNION ALL
+		SELECT f.Bettype
+		FROM	dbo.f_Set_GetGroupBettypes() f
+			LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
+		WHERE	@mode IN ('CAL-FT', 'CAL') 
+				AND 1 = CASE 
+							WHEN f.GroupId IN (2,4) THEN 1 
+							ELSE 0 END -- FT, FT Corner + FT FGLG
+				AND 1 = CASE
+							WHEN @isRefundHT = 1 AND Is3x30 = 1 AND f.GroupId = 2 THEN 0 -- If this match has been refund HT --> refund all bettypes related to 2nd result 
+							ELSE 1
+						END
+				AND 1 = CASE 
+							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+							ELSE 1
+						END	 		
 				
 	)
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM (
-		SELECT	bettype
-		FROM	dbo.bettrans WITH(NOLOCK)
+		SELECT	b.bettype
+		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE 	matchid = @matchid
-				AND statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE statusID END
-		GROUP BY bettype
+				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+						 WHEN @IsReSettledTickets = 1 THEN 1
+						 ELSE 0
+					END
+		GROUP BY b.bettype
 	
 	) AS b 
-	WHERE b.bettype IN (SELECT bettype FROM cteBettypes)
-	GROUP BY bettype
+	WHERE b.bettype IN (SELECT bettype	FROM cteBettypes )
+	GROUP BY b.bettype
+	
 	
     -- call execrep SP
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid

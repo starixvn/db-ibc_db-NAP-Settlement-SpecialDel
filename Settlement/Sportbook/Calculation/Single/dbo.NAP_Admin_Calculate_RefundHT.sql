@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_RefundHT] @matchid INT
     ,@IsExcludeBetdaq BIT = 0
     ,@IsExcludeBetfair BIT = 0
@@ -29,7 +29,8 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
     Param's Explanation:
         + @IsExcludeBetdaq: 
             = 1 : Refund Excluding BetDaq
@@ -69,7 +70,8 @@ BEGIN
 			,@MaxTransId			BIGINT
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT			
-
+			,@IsUpd_Void BIT = 0
+			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (
@@ -117,7 +119,7 @@ BEGIN
 				INNER JOIN @tblBettypes t
 					ON b.bettype = t.bettype
 			WHERE	b.matchid = @matchid
-					AND b.statusID NOT IN (103, 101, 102) 
+					AND b.statusID NOT IN (103, 101) 
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -144,9 +146,20 @@ BEGIN
 		SET @settlementTime = GETDATE();
 
 		UPDATE b
-			SET [status] = N'Refund'
-				,SettlementTime = CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
-				,statusID = 103
+			SET 
+				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+				,[status] = CASE 
+								WHEN @IsUpd_Void = 0 THEN [status]
+								ELSE N'Refund'
+							END
+				,SettlementTime = CASE 
+								WHEN @IsUpd_Void = 0 THEN SettlementTime
+								ELSE CASE WHEN winlost <> actual_stake OR statusID <> 103 THEN @settlementTime ELSE SettlementTime END
+							END
+				,statusID =  CASE 
+								WHEN @IsUpd_Void = 0 THEN statusID
+								ELSE 103
+							END
 				,ruben = 1
 				,winlost = actual_stake
 				,awinlost = 0
@@ -156,6 +169,8 @@ BEGIN
 				,comm = 0
 				,acomm = 0
 				,scomm = 0
+				,statuswinlost = 6
+								
 		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
@@ -174,7 +189,7 @@ BEGIN
 							END AS IsCalculated
 				)i
 		WHERE	b.matchid = @matchid
-				AND b.statusID NOT IN (103, 101, 102)          
+				AND b.statusID NOT IN (103, 101)          
 				AND i.IsCalculated = 1
 				AND 1 = CASE 
 							WHEN @IsExcludeBetdaq = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR b.recommend = 1688156) THEN 0

@@ -184,7 +184,8 @@ AS
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
     Param's Explanation:
         @action             @mode
         + CAL               CAL, CAL-HT, CAL-FT, UNDO,
@@ -869,7 +870,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -1083,7 +1084,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
 
@@ -2297,7 +2298,7 @@ BEGIN
                         , @bettype = 172
                         , @fth = @fth
                         , @fta = @fta
-                        , @ResultString = @GoalRecord
+                        , @ResultString = @ft_fg
                         , @betcount = 1
 
                  -- bettype 415: Result and First Team To Score (own)
@@ -2307,7 +2308,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = @fth
                         ,@fta = @fta
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
 
                 -- bettype 422 : First Team 2 Goals
@@ -2947,7 +2948,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3095,7 +3096,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3992,7 +3993,7 @@ BEGIN
                         ,@bettype = 172
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -4240,7 +4241,7 @@ BEGIN
                         ,@bettype = 415
                         ,@fth = NULL
                         ,@fta = NULL
-                        ,@ResultString = @GoalRecord
+                        ,@ResultString = @ft_fg
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair

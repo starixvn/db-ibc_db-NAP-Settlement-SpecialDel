@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
 	,@Action				VARCHAR(20)
 	,@Results				VARCHAR(MAX)
@@ -24,6 +24,7 @@ AS
 			- 20170427@Bobby: 72789 - Implement bonus system into NAP Settlement
 			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+			- 20190813@Helen: Remove vnteam in metadata
 			
 	Param's Explanation:
 		- @Result: 

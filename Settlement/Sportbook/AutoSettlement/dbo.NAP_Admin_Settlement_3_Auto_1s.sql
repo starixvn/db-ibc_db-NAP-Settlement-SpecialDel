@@ -15,7 +15,8 @@ AS
 		- 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
 	Param's Explanation:
 */	
 BEGIN
@@ -98,8 +99,11 @@ BEGIN
 		SELECT	b.bettype
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchId
-				AND b.statusID NOT BETWEEN 101 AND 102
-				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
+				AND b.statusID NOT IN (101)
+				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+						 WHEN @IsReSettledTickets = 1 THEN 1
+						 ELSE 0
+					END
 		GROUP BY b.bettype
 	)b
 	WHERE	b.bettype IN (SELECT bettype FROM cteBettypes)

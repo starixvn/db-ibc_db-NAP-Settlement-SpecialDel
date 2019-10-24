@@ -20,7 +20,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 
 	Param's Explanation:		
 		
@@ -257,6 +257,7 @@ BEGIN
 				,@IsRefundHT		= @IsRefundHT
 				,@resultDetail_bb	= @resultDetail_bb
 				,@resultDetail_ss	= @resultDetail_ss
+				,@resultDetail		= @resultDetail
 				,@ticketCount		= @ticketCountREFUND OUTPUT
 		END
 		

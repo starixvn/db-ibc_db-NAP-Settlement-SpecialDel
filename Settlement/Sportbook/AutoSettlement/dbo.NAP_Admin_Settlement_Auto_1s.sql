@@ -27,6 +27,8 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -76,6 +78,7 @@ BEGIN
 		TransID		BIGINT
 		,modds		SMALLMONEY
 		,oddstype	SMALLINT
+		,IsMarked	BIT
 	)
 	
 	CREATE TABLE #tblMatchProcess (
@@ -88,8 +91,9 @@ BEGIN
 		,modds		SMALLMONEY
 		,isFinish	BIT
 		,oddstype	SMALLINT
+		,IsMarked	BIT
 	)
-
+	
     SELECT   @start = CURRENT_TIMESTAMP
 			,@ActionID = CASE 
 							WHEN @Action = 'CAL'    THEN 148 
@@ -153,8 +157,8 @@ BEGIN
 	--get transid
   	IF @Action = 'CAL'
   	BEGIN
-		INSERT INTO #tmpTransID(TransID, modds, oddstype)
-	  	SELECT	b.transid, m.modds, sr.oddstype
+		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked)
+	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP (1) mt.TransId
@@ -169,22 +173,32 @@ BEGIN
 	  		) sr
 	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL) m
 	  	WHERE	b.matchid = @MatchId
-	  			AND b.statusID NOT IN (101,102)
-				AND b.statusID = CASE WHEN @IsReSettledTickets = 0 THEN 0 ELSE b.statusID END
-				AND mt.transId IS NULL
+	  			AND b.statusID NOT IN (101)
+	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								 WHEN @IsReSettledTickets = 1 THEN 1
+								 ELSE 0
+							END 
 	END
 	ELSE IF @action = 'UNDO'
 	BEGIN
 		--get transid
 		INSERT INTO #tmpTransID(TransID)
-	  	SELECT	transid
+	  	SELECT	b.transid
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
 	  		INNER JOIN @tmpSelectedRID t 
 				ON	b.BetType = t.BetType 
 					AND (t.BetID = 0 OR b.BetID = t.BetID)
+			OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+				) mt		
 	  	WHERE	b.matchid = @MatchId
-	  			AND	b.statusID NOT IN (0, 1, 102, 101)
-	END 
+	  			AND	b.statusID NOT IN (101)
+	  			AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+							 WHEN b.statusID NOT IN (0, 1) THEN 1
+							ELSE 0 END
+	END
 	ELSE IF @action = 'REFUND'
 	BEGIN
 		--get transid
@@ -195,7 +209,7 @@ BEGIN
 				ON	b.BetType = t.BetType 
 					AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE	b.matchid = @MatchId
-	  			AND	b.statusID NOT IN (103, 101, 102)
+	  			AND	b.statusID NOT IN (103, 101)
 	END 
 	
     EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
@@ -230,8 +244,8 @@ BEGIN
 			
 			UPDATE	TOP(@batchNo) t
 				SET	isFinish = 1
-			OUTPUT	deleted.transid, deleted.modds, deleted.oddstype
-			INTO	@tmpTransIDBatch(transid, modds, oddstype)
+			OUTPUT	deleted.transid, deleted.modds, deleted.oddstype, deleted.IsMarked
+			INTO	@tmpTransIDBatch(transid, modds, oddstype,IsMarked)
 			FROM	#tmpTransID t 
 			WHERE	isFinish IS NULL
 
@@ -243,6 +257,7 @@ BEGIN
 			SET @strTransIds = (SELECT transid	AS '@t'
 										,modds	AS '@m'
 										,oddstype AS '@ot'
+										,IsMarked AS '@im'
 								FROM	@tmpTransIDBatch
 								FOR XML PATH('r'), ROOT( 'root' )
 							)

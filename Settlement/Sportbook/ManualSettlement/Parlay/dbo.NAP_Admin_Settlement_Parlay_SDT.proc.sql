@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_SDT] (
 	@matchId 			INT
 	, @matchdate		SMALLDATETIME
@@ -28,7 +28,8 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 						  Incorporate PHAIO 4b - 27 Corners Bet Types 
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
-
+		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		
 	Param's Explanation:		
 		- @Mode: ['ABANDONED-1H', 'ABANDONED-2H']
 */
@@ -58,7 +59,10 @@ BEGIN
 		,@xmlResultDetail		XML
 		,@goalsequenceHT	VARCHAR(50)
 		,@goalsequenceFT	VARCHAR(50)
-
+	
+	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50),SettlementStatusID TINYINT)		
+	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	
 	CREATE TABLE #SDTBettypes (bettype SMALLINT PRIMARY KEY)
 	
 	SELECT @IsHT			= CASE WHEN @Mode IN ('ABANDONED-1H') THEN 1 ELSE 0 END 
@@ -78,14 +82,14 @@ BEGIN
 
 	SET @xmlResultDetail = CONVERT(XML,@resultDetail)
 	
-	;WITH cteResult
-	AS(
-		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-				,T.c.value('./@ssId','TINYINT') AS SettlementStatusID
-		FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
-	)
+	INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue,AwayValue,SettlementStatusID)
+	SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+			,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+			,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+			,T.c.value('./@ssId','TINYINT') AS SettlementStatusID
+	FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+	
 	SELECT	
 			-- for bettype 127 only: 1H
 			@ht_fg = ISNULL(MAX(CASE 
@@ -113,9 +117,9 @@ BEGIN
 			,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')	
 			,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
 			,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')
-	FROM	cteResult r
+	FROM	@ResourceResult_tmp r
 	WHERE r.SettlementStatusID > 0
-	OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
+	
 	
 	-- 486 Corner Race
 	BEGIN
@@ -179,10 +183,28 @@ BEGIN
 
 		SET @NeitherRaceTo1H = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
 	END
-				
+	
+	
+	-- check GoalBettype if all tickets have been voided
+	INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+	SELECT b.bettype
+		, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+		, COUNT(1) AS ticket_cnt
+	FROM bettransm b WITH (NOLOCK)
+		INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND IsUsedGoalRecordValue = 1
+	WHERE b.matchid = @matchid 
+	GROUP BY b.bettype
+	
+	DELETE g 
+	FROM @GoalBettype_tmp g
+		INNER JOIN dbo.SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
+	WHERE g.Voided_cnt = g.ticket_cnt
+		AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)
+		
 	INSERT INTO #SDTBettypes (bettype)
 	SELECT f.BetType
 	FROM dbo.f_Set_GetGroupBettypes() f
+		LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
 	WHERE 1 = CASE 
 				WHEN @IsHT = 1 THEN 1
 				WHEN @IsHT = 0 THEN  -- FT, HTFT-FGLG
@@ -194,7 +216,11 @@ BEGIN
 				ELSE 0
 			END
 		AND f.IsAuto = 0 --Exclude BetRadar, FM
-		
+		AND 1= CASE 
+					WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+					WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+					ELSE 1
+				END
 		
 	BEGIN --SDT Process
 		DECLARE @tempBatch TABLE (refno BIGINT)
@@ -211,7 +237,7 @@ BEGIN
 			INNER JOIN #SDTBettypes t ON bm.bettype = t.bettype
 
 		WHERE bm.matchid 	= @matchid
-			AND bm.statusID NOT IN (101,102)
+			AND bm.statusID NOT IN (101)
 		
 		SELECT @batchNo			= 2000
 			, @batchCount		= 0

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@Action				VARCHAR(20)
 	,@Results				VARCHAR(MAX)
@@ -25,6 +25,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
+		- 20190813@Helen: Remove vnteam in metadata
 		
 	Param's Explanation:
 		If @IsAuto = 0:
