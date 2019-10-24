@@ -36,9 +36,6 @@ BEGIN
 			,@FromDate			DATETIME    
 			,@ToDate			DATETIME   
 			
-			,@InputTransid_cnt	INT = 0
-			,@ValidTransid_cnt	INT = 0
-			
 	SELECT @moveBetDay = MAX(eventdate) 
 	FROM dbo.match14 WITH(NOLOCK)
 	
