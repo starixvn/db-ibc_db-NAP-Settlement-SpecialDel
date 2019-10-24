@@ -55,6 +55,8 @@ BEGIN
 			,@strTransIds		VARCHAR(MAX)	= ''
 			,@ResultRemarkLog	VARCHAR(MAX)	= ''
 			,@SelectedRID		VARCHAR(MAX)	= ''
+			,@TotalPointHomeValue VARCHAR(50)		= NULL
+			,@TotalPointAwayValue VARCHAR(50)		= NULL
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -144,17 +146,27 @@ BEGIN
 		BEGIN
 			IF @Action LIKE 'CAL%'
 			BEGIN
+
+				--Insert data for internal ResourceId 70400
 				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 				SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
 							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
 							WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
 									AND SettlementStatusID = 4
 									AND ResultStatusID = 5
+
+				--Get total home value/total away value of ResourceId = '70400' 
+				SELECT TOP 1 @TotalPointHomeValue = HomeValue, @TotalPointAwayValue = AwayValue
+				FROM @tmpResourcesWeb
+				WHERE ResourceID = '70400'
+
 			END
 			ELSE
 			BEGIN
+
 				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 				SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
+
 			END
 		END
 
@@ -175,6 +187,14 @@ BEGIN
   		--get transid
   		IF @Action LIKE 'CAL%'
   		BEGIN
+
+			--Bettype 2,3: using match score or total point, badminton only
+			UPDATE t
+				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
+					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
+			FROM @tmpSelectedRID t
+			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9 
+
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype)
 	  		SELECT transid, m.modds, sr.OddsType, b.srecommend, b.bettype
 	  		FROM bettrans b WITH (NOLOCK)

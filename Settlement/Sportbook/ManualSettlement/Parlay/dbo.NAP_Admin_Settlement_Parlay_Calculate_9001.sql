@@ -39,6 +39,8 @@ BEGIN
 		,@batchCount		INT
 		,@strTicket			VARCHAR(MAX)
 		,@ResourcesStr		VARCHAR(MAX) = ''
+		,@TotalPointHomeValue VARCHAR(50) = NULL
+		,@TotalPointAwayValue VARCHAR(50) = NULL
 	
 	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
 	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
@@ -84,11 +86,18 @@ BEGIN
 	BEGIN 
 		IF @Mode = 'CAL' 
 		BEGIN
+			
 			INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssId)
 			SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue, MAX(ssID) AS ssID
 			FROM @tempResource
 			WHERE ResourceID IN ('0101','0102','0103','0104','0105') 
 				AND ssID = 4
+
+			--Get total home value/total away value of ResourceId = '70400' 
+			SELECT TOP 1 @TotalPointHomeValue = HomeValue, @TotalPointAwayValue = AwayValue
+			FROM @tempResource
+			WHERE ResourceID = '70400'
+
 		END
 		ELSE
 		BEGIN
@@ -114,6 +123,13 @@ BEGIN
 	IF @Mode = 'CAL'
 	BEGIN
 	
+		--Bettype 2,3: using match score or total point, badminton only
+		UPDATE t
+			SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
+				AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
+		FROM @tempResultDetail t
+		WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9
+
 		INSERT INTO @tempRefno (refno, transid, modds)
 		SELECT bm.refno, bm.transid, m.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
