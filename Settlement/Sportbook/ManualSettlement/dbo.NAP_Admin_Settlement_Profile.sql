@@ -205,7 +205,7 @@ BEGIN
 	  						) sr
 	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
 	  		WHERE b.matchid = @MatchId
-	  			AND b.statusID NOT IN (101,102)
+	  			AND b.statusID NOT IN (101)
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
@@ -215,7 +215,7 @@ BEGIN
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
 	  		WHERE b.matchid = @MatchId
-	  			AND	b.statusID NOT IN (0, 1, 102, 101)
+	  			AND	b.statusID NOT IN (0, 1, 101)
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
@@ -225,7 +225,7 @@ BEGIN
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		WHERE b.matchid = @MatchId
-	  			AND	b.statusID NOT IN (103, 101, 102)
+	  			AND	b.statusID NOT IN (103, 101)
 		END 
 	
 		---check FT round
