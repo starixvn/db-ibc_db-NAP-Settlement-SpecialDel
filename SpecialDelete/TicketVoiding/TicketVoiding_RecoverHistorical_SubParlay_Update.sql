@@ -35,7 +35,10 @@ BEGIN
 			,@moveBetDay		SMALLDATETIME
 			,@FromDate			DATETIME    
 			,@ToDate			DATETIME   
-
+			
+			,@InputTransid_cnt	INT = 0
+			,@ValidTransid_cnt	INT = 0
+			
 	SELECT @moveBetDay = MAX(eventdate) 
 	FROM dbo.match14 WITH(NOLOCK)
 	
@@ -94,6 +97,14 @@ BEGIN
 
 		RETURN
 	END
+	
+	IF NOT EXISTS (SELECT 1 FROM dbo.match14 WITH (NOLOCK) WHERE matchid = @MatchId)
+	BEGIN
+		SELECT	@ErrCode = 100
+				,@ErrMsg = 'Invalid match'
+
+		RETURN
+	END
 
 	INSERT INTO #tmpTransId (mainTransId, subTransId, matchid, custid, bettype, invalid)
 	SELECT	b14.transid
@@ -134,19 +145,11 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)
 	BEGIN
 		SELECT	@ErrCode = 100
-				,@ErrMsg = 'No ticket found.'
+				,@ErrMsg = 'No ticket found'
 
 		RETURN
 	END
 	
-	IF EXISTS (SELECT COUNT(1) FROM #tmpTransId GROUP BY matchid HAVING COUNT(1) > 1)
-	BEGIN
-		SELECT	@ErrCode = 100
-				,@ErrMsg = 'List inputted transid belong to more than 1 match'
-
-		RETURN
-	END
-
 	UPDATE t
 		SET invalid = i.invalid
 	FROM	@tmpInputTransId t
