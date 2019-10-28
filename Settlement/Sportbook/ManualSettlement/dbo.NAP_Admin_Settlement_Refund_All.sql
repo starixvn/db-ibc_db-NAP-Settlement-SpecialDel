@@ -83,6 +83,7 @@ AS
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191028@Sol: Prevent Direct Actions for Soccer Matches - Fixed wrong settlement when Refund All button is clicked second times [Redmine:#122176]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -167,6 +168,7 @@ BEGIN
 			,@matchdate 						DATETIME
 			,@goalsequenceHT					VARCHAR(50)
 			,@goalsequenceFT					VARCHAR(50)
+			,@IsAlreadyRefundAll				BIT
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -210,6 +212,7 @@ BEGIN
 
 	SELECT	@IsRefundHT = CASE WHEN SettlementStatusID = 2 THEN 1 ELSE 0 END
 			,@IsHTCal = CASE WHEN ResultStatusID = 5 THEN 1 ELSE 0 END
+			,@IsAlreadyRefundAll = CASE WHEN ResultStatusID = 5 AND SettlementStatusID = 5 THEN 1 ELSE 0 END
     FROM	DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK)
     WHERE	matchid = @matchid
 			AND ResourceId = '01'
@@ -579,6 +582,8 @@ BEGIN
 				--just for IBC case
 				SELECT @refundCommand_1s 			= @refundCommand
 				WHERE @IsSettleAbandonedMatchIBC 	= 1
+
+				SELECT @IsHTCal = CASE WHEN @IsAlreadyRefundAll = 1 THEN 0 ELSE @IsHTCal END
 			
 				EXEC dbo.NAP_Admin_Calculate_Main 
                     @matchid                        = @matchid
@@ -599,7 +604,7 @@ BEGIN
                     ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                     ,@IsSettleAbandonedMatchIBC     = @IsSettleAbandonedMatchIBC                    
                     ,@IsHTCal                       = @IsHTCal
-                    ,@strBettypes                    = @strSettledBettypes
+                    ,@strBettypes                   = @strSettledBettypes
 					
 					-- including FGLG
 					,@ht_fg 						= @ht_fg
