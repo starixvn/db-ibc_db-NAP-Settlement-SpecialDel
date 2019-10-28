@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BetTypeSel] 
     @Mode        SMALLINT = 0
     ,@MatchId    INT = 0 -- defaul value for NG, VS, LC, VS Betradar
