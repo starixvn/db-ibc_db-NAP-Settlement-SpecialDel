@@ -36,6 +36,7 @@ AS
 		- 20181218@Alan: Filter Esports Tickets [106455]
 		- 20190408@Jacob: Separate Filter Parlay Ticket by 1H & 2H [107682]
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
+		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -252,7 +253,7 @@ BEGIN
 				AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 							AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 				AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-				AND (@Quarter = 'All' OR b.betid IS NULL OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+				AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE b.betid LIKE q.Id + '%'))) 
 
 			UNION ALL
@@ -340,7 +341,7 @@ BEGIN
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
-			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+			AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))
 																									
 		IF @SportType = 43 -- E-Sports
@@ -398,7 +399,7 @@ BEGIN
 								AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL)
-			AND (@Quarter = 'All' OR bm.betcheck IS NULL OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+			AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))  
 	END
 
