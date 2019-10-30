@@ -49,14 +49,15 @@ BEGIN
         IF @Mode IN (0, 2, 3)
         BEGIN
             INSERT INTO #TmpBettype(bettype)
-            SELECT bettype
-            FROM dbo.bettransm WITH(NOLOCK)
-            WHERE matchid = @MatchId
-                AND bettype NOT IN (10,29,38,500)
-                AND bettype NOT BETWEEN 801 AND 806
-                AND bettype < 19000
-                AND bettype NOT BETWEEN 901 AND 904
-            GROUP BY bettype
+            SELECT bt.bettype
+            FROM dbo.bettransm bt WITH(NOLOCK)
+            WHERE bt.matchid = @MatchId AND NOT EXISTS(SELECT TOP 1 1
+                FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
+                AND bt.bettype NOT IN (10,29,38,500)
+                AND bt.bettype NOT BETWEEN 801 AND 806
+                AND bt.bettype < 19000
+                AND bt.bettype NOT BETWEEN 901 AND 904
+            GROUP BY bt.bettype
         END
 
     END
