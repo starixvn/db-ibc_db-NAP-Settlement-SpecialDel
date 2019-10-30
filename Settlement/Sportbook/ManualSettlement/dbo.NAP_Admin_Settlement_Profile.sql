@@ -171,7 +171,11 @@ BEGIN
 		END
 
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-		SELECT DISTINCT tbl.ResourceID, HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType, sp.OddsType
+		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
+				HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
+				sp.GroupType, sp.OddsType
 		FROM @tmpResourcesWeb tbl
 			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
 			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
@@ -494,7 +498,6 @@ BEGIN
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr
-			WHERE sr.BetType NOT IN (704,705,706) -- excluded bettypes which don't have official resourceId
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	ORDER BY OrdNo
