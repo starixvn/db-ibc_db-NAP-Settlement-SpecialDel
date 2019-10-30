@@ -1,7 +1,8 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BetTypeSel] 
     @Mode        SMALLINT = 0
     ,@MatchId    INT = 0 -- defaul value for NG, VS, LC, VS Betradar
+    ,@BetTypes   VARCHAR(MAX) = NULL
     ,@ErrMsg NVARCHAR(200) = '' OUTPUT
     ,@ErrCode INT = 0 OUTPUT
 AS
@@ -51,7 +52,7 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
-    
+
     IF @mode in (0, 2, 4, 9) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
         DECLARE @Sporttype INT    
@@ -86,14 +87,21 @@ BEGIN
     SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
     FROM [dbo].[f_GroupBettype] () f 
-    WHERE f.Bettype NOT IN (187, 179)  
+    WHERE f.Bettype NOT IN (187, 179)
+
+    CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY)
+
+    INSERT INTO #betTypesTemp (bettype)
+	SELECT DISTINCT val 
+	FROM dbo.f_SplitString(@BetTypes, ',')
+	WHERE val <> ''
+	OPTION (maxrecursion 0)
 		
-    -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , 9: Mark Ticket  
+    -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , --4: Mix Parlay, 9: Mark Ticket  
     -- type = 0: Sport Book
-    IF @Mode IN (0, 2, 3, 9)
+    IF @Mode IN (0, 2, 3, 4, 9)
     BEGIN
-        -- Scan bettrans and bettransm to get bettype list
-        -- bettrans
+        -- Get bettype list
         INSERT INTO #TmpBettype (
             typeid
             ,type
@@ -105,41 +113,12 @@ BEGIN
             , 0 
             , f.GroupName 
         FROM dbo.bettype b WITH(NOLOCK)
-        INNER JOIN dbo.bettrans bt WITH(NOLOCK) ON b.typeid = bt.bettype
-        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
+        INNER JOIN #betTypesTemp bt ON b.typeid = bt.bettype
         INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
         LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE m.matchid = @matchid AND bt.bettype NOT IN (10,29,38,500)
-            AND bt.bettype NOT BETWEEN 801 AND 806
-            AND bt.bettype < 19000
-            AND bt.bettype NOT BETWEEN 901 AND 904
+        WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m
+                WHERE m.matchid = @MatchId)
         GROUP BY tb.parentid, b.typeid, f.GroupName
-
-        -- bettransm
-        IF @Mode IN (0, 2, 3)
-        BEGIN
-            INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator
-            ,GroupName
-            )
-            SELECT ISNULL( tb.parentid, b.typeid)
-                , 0                    
-                , 0 
-                , f.GroupName 
-            FROM dbo.bettype b WITH(NOLOCK)
-            INNER JOIN dbo.bettransm bt WITH(NOLOCK) ON b.typeid = bt.bettype
-            INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
-            INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
-            LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-            WHERE m.matchid = @matchid AND NOT EXISTS (SELECT TOP 1 1 FROM #TmpBettype tbt
-                WHERE tbt.typeid = b.typeid) AND bt.bettype NOT IN (10,29,38,500)
-                AND bt.bettype NOT BETWEEN 801 AND 806
-                AND bt.bettype < 19000
-                AND bt.bettype NOT BETWEEN 901 AND 904
-            GROUP BY tb.parentid, b.typeid, f.GroupName
-        END
 
         IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) AND (@mode IN (2,3))
         BEGIN
@@ -158,33 +137,6 @@ BEGIN
         END
 
     END
-    
-    --4: Mix Parlay
-	IF @Mode = 4
-	BEGIN
-        INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator
-            ,GroupName
-            )
-        SELECT ISNULL( tb.parentid, b.typeid)
-            , 0                    
-            , 0 
-            , f.GroupName 
-        FROM dbo.bettype b WITH(NOLOCK)
-        INNER JOIN dbo.bettransm bt WITH(NOLOCK) ON b.typeid = bt.bettype
-        INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = bt.matchid
-        INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
-        LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE m.matchid = @matchid AND NOT EXISTS (SELECT TOP 1 1 FROM #TmpBettype tbt
-			WHERE tbt.typeid = b.typeid) AND bt.bettype NOT IN (10,29,38,500)
-            AND bt.bettype NOT BETWEEN 801 AND 806
-			AND bt.bettype NOT BETWEEN 221 AND 227
-            AND bt.bettype < 19000
-            AND bt.bettype NOT BETWEEN 901 AND 904
-        GROUP BY tb.parentid, b.typeid, f.GroupName
-	END
 
      -- 3: TicketListing  
     IF @Mode = 3
@@ -321,5 +273,8 @@ BEGIN
     INNER JOIN bettype b WITH(NOLOCK) ON tb.typeid = b.typeid    
     GROUP BY tb.typeid, b.typenamee, type, liveindicator, tb.GroupName
     ORDER BY tb.GroupName,b.typenamee
+
+    DROP TABLE #betTypesTemp
+    DROP TABLE #TmpBettype
 END
 GO
