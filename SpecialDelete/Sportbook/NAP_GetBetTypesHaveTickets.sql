@@ -79,5 +79,7 @@ BEGIN
 
     SELECT bettype
     FROM #TmpBettype
+
+    DROP TABLE #TmpBettype
 END
 GO
