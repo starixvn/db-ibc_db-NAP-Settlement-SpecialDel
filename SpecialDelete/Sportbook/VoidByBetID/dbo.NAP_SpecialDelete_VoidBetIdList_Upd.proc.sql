@@ -76,6 +76,7 @@ AS
 	  - 20190228@Alan: Implement Bet Builder - [106898]
 	  - 20190812@Charles: Add new column IsMarked [118437]
 	  - 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
+	  - 20191101@Charles: Remove column IsMarked [122187]
 
 	 Param's Explanation:   
 	*/
@@ -218,7 +219,6 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
-		,IsMarked		BIT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -227,7 +227,6 @@ BEGIN
 		,matchid	INT
 		,bettype	SMALLINT
 		,transid	BIGINT
-		,IsMarked	BIT
 	)
 
 	CREATE INDEX IX_BetDelete_RefCode ON #BetDelete(RefCode)		
@@ -312,7 +311,6 @@ BEGIN
 		,CurrencyName			
 		,IsMetricGaming
 		,modds
-		,IsMarked			
 	)
 	-- MG tickets (running) in translog
 	SELECT	tl.translogid AS groupTransId
@@ -352,11 +350,9 @@ BEGIN
 			,tl.CurrencyName		
 			,1 AS IsMetricGaming
 			,NULL AS modds
-			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked	
 	FROM	dbo.translog tl WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON	tl.translogid = t.transid
-		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON tl.translogid = m.TransId
 	WHERE tl.gameID BETWEEN 801 AND 806
 		AND tl.statusID = 0					
 	
@@ -413,7 +409,6 @@ BEGIN
 		,WalletType
 		,RefCode
 		,BonusID
-		,IsMarked
 	)
 	SELECT	
 		b.refno AS groupTransId
@@ -466,7 +461,6 @@ BEGIN
 		,b.WalletType
 		,b.RefCode
 		,b.BonusID
-		,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 	= tl.custid
@@ -474,7 +468,6 @@ BEGIN
 			AND b.matchid 	= tl.eventid
 		INNER JOIN #tblTransIds t
 			ON tl.translogid = t.transid
-		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 	WHERE tl.gameID BETWEEN 801 AND 806 
 		AND b.statusID NOT IN (0, 101, 102)
 		
@@ -533,11 +526,9 @@ BEGIN
 		,b.WalletType
 		,b.RefCode
 		,b.BonusID
-		,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON b.transid = t.transid
-		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 	WHERE b.bettype < 19001
 		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 801 AND 806-- MG
@@ -547,11 +538,11 @@ BEGIN
 		AND b.statusID NOT IN (101, 102)													
 	
 	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete	
-	INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, IsMarked, transid)
-	SELECT RefCode, custid, matchid, bettype, IsMarked, MAX(transid) as transid
+	INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
+	SELECT RefCode, custid, matchid, bettype, MAX(transid) as transid
 	FROM #BetDelete
 	WHERE RefCode IS NOT NULL	
-	GROUP BY RefCode, custid, matchid, bettype, IsMarked
+	GROUP BY RefCode, custid, matchid, bettype
 	HAVING COUNT(*) = 1	
 	
 	IF @@ROWCOUNT > 0
@@ -602,7 +593,6 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
-			,IsMarked
 		)
 		SELECT	
 			b.transid AS groupTransId
@@ -654,7 +644,6 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,r.transid AS MainTransId
-			,r.IsMarked
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -993,7 +982,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
-				,IsMarked
 		)
 		SELECT	tmpmain.transid
 				,sub.transid
@@ -1046,7 +1034,6 @@ BEGIN
 				,bt.RefCode
 				,bt.BonusID
 				,bt.MainTransId
-				,tmpmain.IsMarked
 		FROM dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN #BTTransActive bt
 				ON sub.matchid 	= bt.matchid
@@ -1129,8 +1116,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
-				,MainTransId
-				,IsMarked				
+				,MainTransId		
 		)
 		OUTPUT inserted.transid
 			 , inserted.bettype
@@ -1212,7 +1198,6 @@ BEGIN
 				,sub.RefCode
 				,sub.BonusID
 				,tmpmain.transid AS MainTransId
-				,tmpmain.IsMarked
 		FROM dbo.bettrans sub WITH(NOLOCK)
 			 INNER JOIN #BetDelete tmpmain
 					 ON	sub.refno = tmpmain.transid
@@ -1279,7 +1264,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
-				,IsMarked
 			)
 		SELECT	
 				b.transid AS groupTransId
@@ -1336,7 +1320,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
-				,sub911.IsMarked
 		FROM #BetDelete sub911
 			 CROSS APPLY (
 							  SELECT b.transid
@@ -2726,7 +2709,6 @@ BEGIN
 		,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 		,b.IsBetTrade
 		,CASE WHEN b.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut
-		,b.IsMarked
 	FROM	#BetDelete b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid

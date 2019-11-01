@@ -10,6 +10,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20191101@Charles: Remove column IsMarked [122187]
 	
 	Param's explanation:	
 		
@@ -73,7 +74,6 @@ BEGIN
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 		,MainTransId 	BIGINT
 		,IsCashOut		BIT
-		,IsMarked		BIT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -85,7 +85,7 @@ BEGIN
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) VALUES (@VoidingHistoryId)		
 			
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut, IsMarked)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -96,7 +96,6 @@ BEGIN
 			,z.refno
 			,z.odds
 			,z.IsCashOut
-			,z.IsMarked
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	z.transid
@@ -109,9 +108,7 @@ BEGIN
 					,z.refno
 					,z.odds
 					,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCashOut
-					,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
-					LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON z.transid = m.TransId
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND 1 = CASE
 								WHEN z.bettype = 911 THEN 1
@@ -122,14 +119,13 @@ BEGIN
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMarked)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
 			,zm.status
 			,zm.VoidedTime
 			,zm.custid
-			,zm.IsMarked
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	zm.transid
@@ -138,9 +134,7 @@ BEGIN
 					,zm.status
 					,zm.transdate AS VoidedTime
 					,zm.custid
-					,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-					LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON zm.transid = m.TransId
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
@@ -323,8 +317,7 @@ BEGIN
 			,su.site
 			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
 			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
-			,@isITAdmin AS IsITSupport 
-			,t.IsMarked
+			,@isITAdmin AS IsITSupport
 	FROM	#tmpTicket t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
