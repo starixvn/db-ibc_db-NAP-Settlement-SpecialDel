@@ -168,7 +168,6 @@ BEGIN
 			,@matchdate 						DATETIME
 			,@goalsequenceHT					VARCHAR(50)
 			,@goalsequenceFT					VARCHAR(50)
-			,@IsAlreadyRefundAll				BIT
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -212,7 +211,6 @@ BEGIN
 
 	SELECT	@IsRefundHT = CASE WHEN SettlementStatusID = 2 THEN 1 ELSE 0 END
 			,@IsHTCal = CASE WHEN ResultStatusID = 5 THEN 1 ELSE 0 END
-			,@IsAlreadyRefundAll = CASE WHEN ResultStatusID = 5 AND SettlementStatusID = 5 THEN 1 ELSE 0 END
     FROM	DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK)
     WHERE	matchid = @matchid
 			AND ResourceId = '01'
@@ -583,8 +581,6 @@ BEGIN
 				SELECT @refundCommand_1s 			= @refundCommand
 				WHERE @IsSettleAbandonedMatchIBC 	= 1
 
-				SELECT @IsHTCal = CASE WHEN @IsAlreadyRefundAll = 1 THEN 0 ELSE @IsHTCal END
-			
 				EXEC dbo.NAP_Admin_Calculate_Main 
                     @matchid                        = @matchid
                     ,@action                        = 'REFUND'
@@ -603,7 +599,7 @@ BEGIN
                     ,@IsSettleAbandonedMatch        = @IsSettleAbandonedMatch
                     ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                     ,@IsSettleAbandonedMatchIBC     = @IsSettleAbandonedMatchIBC                    
-                    ,@IsHTCal                       = @IsHTCal
+                    ,@IsHTCal                       = 0
                     ,@strBettypes                   = @strSettledBettypes
 					
 					-- including FGLG
