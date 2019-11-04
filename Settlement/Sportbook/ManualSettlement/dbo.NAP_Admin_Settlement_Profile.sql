@@ -491,8 +491,8 @@ BEGIN
 	SELECT @stop = CURRENT_TIMESTAMP
 	
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
-			CASE WHEN HomeValue IS NOT NULL AND AwayValue IS NOT NULL THEN '(' + HomeValue + '-' + AwayValue + ')'
-				 WHEN HomeValue IS NOT NULL AND AwayValue IS NULL THEN '(' + HomeValue + ')'
+			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
+				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 				 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
 				 ELSE '' END
 	FROM (
