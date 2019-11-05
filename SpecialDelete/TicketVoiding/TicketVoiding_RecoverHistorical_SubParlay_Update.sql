@@ -45,7 +45,7 @@ BEGIN
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
-	DECLARE @SummaryTickets_19999 TABLE (
+	DECLARE @BalanceInfoBeforeUpd TABLE (
 		CustId			INT
 		,MatchId		INT
 		,WinlostDate	DATETIME
@@ -59,7 +59,25 @@ BEGIN
 		,sComm			MONEY
 		,stake			MONEY
 		,actual_stake	MONEY
-		
+
+		,balance		MONEY
+	)
+	DECLARE @BalanceInfoAfterUpd TABLE (
+		CustId			INT
+		,MatchId		INT
+		,WinlostDate	DATETIME
+		,Winlost		MONEY
+		,aWinlost		MONEY
+		,mWinlost		MONEY
+		,sWinlost		MONEY
+		,playerComm		MONEY
+		,Comm			MONEY
+		,aComm			MONEY
+		,sComm			MONEY
+		,stake			MONEY
+		,actual_stake	MONEY
+
+		,balance		MONEY
 	)
 
 	DECLARE @tmpInputTransId TABLE(
@@ -73,7 +91,7 @@ BEGIN
 		,matchid	INT
 		,custid		INT
 		,bettype	SMALLINT
-
+		,winlost	MONEY
 		,invalid	TINYINT DEFAULT(0)
 	)
 
@@ -103,12 +121,13 @@ BEGIN
 		RETURN
 	END
 
-	INSERT INTO #tmpTransId (mainTransId, subTransId, matchid, custid, bettype, invalid)
+	INSERT INTO #tmpTransId (mainTransId, subTransId, matchid, custid, bettype,winlost, invalid)
 	SELECT	b14.transid
 			,bm14.transid
 			,bm14.matchid
 			,bm14.custid
 			,bm14.bettype
+			,b14.winlost
 			,CASE
 				WHEN cs.custid IS NOT NULL THEN 1 -- not pass validation rule
 				WHEN bm14.statuswinlost IS NULL OR bm14.statuswinlost NOT BETWEEN 0 AND 6 THEN 2 -- not have 'statuswinlost' value
@@ -117,11 +136,11 @@ BEGIN
 			END
 	FROM	@tmpInputTransId t
 		CROSS APPLY 
-			(SELECT TOP 1 b.transid, b.refno, b.srecommend, b.betfrom
+			(SELECT TOP 1 b.transid, b.refno, b.srecommend, b.betfrom, b.winlost
 			 FROM	dbo.bettrans b WITH(NOLOCK)
 			 WHERE	b.transid = t.TransId
 			 UNION ALL
-			 SELECT TOP 1 b14.transid, b14.refno, b14.srecommend, b14.betfrom
+			 SELECT TOP 1 b14.transid, b14.refno, b14.srecommend, b14.betfrom, b14.winlost
 			 FROM	dbo.bettrans14 b14 WITH(NOLOCK)
 			 WHERE	b14.transid = t.TransId
 			)	b14			
@@ -229,64 +248,7 @@ BEGIN
 
 	SET @subTransIds = STUFF(@subTransIds, 1, 1, '')
 
-	INSERT INTO @BeforeUpd (matchid, custid, balanceType, bonusId, walletType, balance)
-	SELECT	 b14.matchid
-			,b14.custid
-			,1 AS BalanceType
-			,0 AS BonusId
-			,2 AS WalletType
-			,SUM(b14.winlost - b14.actual_stake + b14.playercomm) 
-	FROM	#tmpTransId t
-		CROSS APPLY (
-			SELECT	b.custid, b.matchid, b.winlost,b.actual_stake, b.playercomm
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.transid = t.mainTransId
-			UNION ALL
-			SELECT	b14.custid, b14.matchid, b14.winlost,b14.actual_stake, b14.playercomm
-			FROM	dbo.bettrans14 b14 WITH(NOLOCK)
-			WHERE	b14.transid = t.mainTransId
-		) b14
-	GROUP BY b14.custid
-			,b14.matchid
-	
-	
-	BEGIN TRY
-		EXEC dbo.NAP_Admin_Calculate_SubParlay14 
-			@TransIds = @subTransIds
-	END TRY
-	BEGIN CATCH
-		SELECT @ErrCode = 100
-				,@ErrMsg = ERROR_MESSAGE()
-	END CATCH
-
-	INSERT INTO @AfterUpd (matchid, custid, balanceType, bonusId, walletType, balance)
-	SELECT	 b14.matchid
-			,b14.custid
-			,1 AS BalanceType
-			,0 AS BonusId
-			,2 AS WalletType
-			,SUM(b14.winlost - b14.actual_stake + b14.playercomm) 
-	FROM	#tmpTransId t
-		CROSS APPLY (
-			SELECT	b.custid, b.matchid, b.winlost,b.actual_stake, b.playercomm
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.transid = t.mainTransId
-			UNION ALL
-			SELECT	b14.custid, b14.matchid, b14.winlost,b14.actual_stake, b14.playercomm
-			FROM	dbo.bettrans14 b14 WITH(NOLOCK)
-			WHERE	b14.transid = t.mainTransId
-		) b14
-	GROUP BY b14.custid
-			,b14.matchid
-
-	---INSERT data into pending balance table   
-	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-			@BalanceWalletBefore	= @BeforeUpd
-		, @BalanceWalletAfter	= @AfterUpd
-		, @ActionId				= 0
-	-- Starting for summary tickets and routine tasks
-	-- Just insert/update for summary ticket if main tickets move to Bet14
-	INSERT INTO @SummaryTickets_19999(CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake)
+	INSERT INTO @BalanceInfoBeforeUpd(CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
 	SELECT	b14.custid
 			,b14.matchid
 			,b14.winlostdate
@@ -300,33 +262,113 @@ BEGIN
 			,SUM(b14.scomm)
 			,SUM(b14.stake)
 			,SUM(b14.actual_stake)
-			
+
+			,SUM(b14.winlost - b14.actual_stake + b14.playercomm) 
 	FROM	#tmpTransId t
 		CROSS APPLY (
-					SELECT	b14.custid, b14.matchid, b14.winlostdate, b14.winlost, b14.awinlost, b14.mwinlost, b14.swinlost, b14.playercomm, b14.comm, b14.acomm, b14.scomm, b14.stake, b14.actual_stake
-					FROM	dbo.bettrans14 b14 WITH(NOLOCK)
-					WHERE	b14.transid = t.mainTransId
-				) b14
+			SELECT	b.custid, b.matchid, b.winlostdate, b.winlost, b.awinlost, b.mwinlost, b.swinlost, b.playercomm, b.comm, b.acomm, b.scomm, b.stake, b.actual_stake
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.transid = t.mainTransId AND b.statusID NOT IN (101,102)
+			UNION ALL
+			SELECT	b14.custid, b14.matchid, b14.winlostdate, b14.winlost, b14.awinlost, b14.mwinlost, b14.swinlost, b14.playercomm, b14.comm, b14.acomm, b14.scomm, b14.stake, b14.actual_stake
+			FROM	dbo.bettrans14 b14 WITH(NOLOCK)
+			WHERE	b14.transid = t.mainTransId AND b14.statusID NOT IN (101,102)
+		) b14
 	GROUP BY b14.custid
 			,b14.matchid
 			,b14.winlostdate
+	
+	INSERT INTO @BeforeUpd (matchid, custid, balanceType, bonusId, walletType, balance)
+	SELECT	 b14.matchid
+			,b14.custid
+			,1 AS BalanceType
+			,0 AS BonusId
+			,2 AS WalletType
+			,SUM(b14.balance) AS balance
+	FROM	@BalanceInfoBeforeUpd b14
+	GROUP BY b14.custid
+			,b14.matchid
 			
+	BEGIN TRY
+		EXEC dbo.NAP_Admin_Calculate_SubParlay14 
+			@TransIds = @subTransIds
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = 100
+				,@ErrMsg = ERROR_MESSAGE()
+	END CATCH
+
+	INSERT INTO @BalanceInfoAfterUpd(CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
+	SELECT	b14.custid
+			,b14.matchid
+			,b14.winlostdate
+			,SUM(b14.winlost)
+			,SUM(b14.aWinlost)
+			,SUM(b14.mwinlost)
+			,SUM(b14.swinlost)
+			,SUM(b14.playercomm)
+			,SUM(b14.comm)
+			,SUM(b14.acomm)
+			,SUM(b14.scomm)
+			,SUM(b14.stake)
+			,SUM(b14.actual_stake)
+
+			,SUM(b14.winlost - b14.actual_stake + b14.playercomm) 
+	FROM	#tmpTransId t
+		CROSS APPLY (
+			SELECT	b.custid, b.matchid, b.winlostdate, b.winlost, b.awinlost, b.mwinlost, b.swinlost, b.playercomm, b.comm, b.acomm, b.scomm, b.stake, b.actual_stake
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.transid = t.mainTransId AND b.statusID NOT IN (101,102)
+			UNION ALL
+			SELECT	b14.custid, b14.matchid, b14.winlostdate, b14.winlost, b14.awinlost, b14.mwinlost, b14.swinlost, b14.playercomm, b14.comm, b14.acomm, b14.scomm, b14.stake, b14.actual_stake
+			FROM	dbo.bettrans14 b14 WITH(NOLOCK)
+			WHERE	b14.transid = t.mainTransId AND b14.statusID NOT IN (101,102)
+		) b14
+	GROUP BY b14.custid
+			,b14.matchid
+			,b14.winlostdate
+
+	INSERT INTO @AfterUpd (matchid, custid, balanceType, bonusId, walletType, balance)
+	SELECT	 b14.matchid
+			,b14.custid
+			,1 AS BalanceType
+			,0 AS BonusId
+			,2 AS WalletType
+			,SUM(b14.balance) AS balance
+	FROM	@BalanceInfoAfterUpd b14
+	GROUP BY b14.custid
+			,b14.matchid
+
+	---INSERT data into pending balance table   
+	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+			@BalanceWalletBefore	= @BeforeUpd
+		, @BalanceWalletAfter	= @AfterUpd
+		, @ActionId				= 0
+		
+	-- Starting for summary tickets and routine tasks
+	-- Just insert/update for summary ticket if main tickets move to Bet14
+	
 	SET @AffectedList = CAST((
-			SELECT	CustId AS '@c'
-					,WinlostDate AS '@w'
-					,SUM(stake) AS '@st'
-					,SUM(actual_stake) AS '@ast'
-					,SUM(Winlost ) AS '@w_dif'
-					,SUM(aWinlost) AS '@aw_dif'
-					,SUM(mWinlost) AS '@mw_dif'
-					,SUM(sWinlost ) AS '@sw_dif'
-					,SUM(playerComm) AS '@pc_dif'
-					,SUM(Comm) AS '@c_dif'
-					,SUM(aComm) AS '@ac_dif'
-					,SUM(sComm ) AS '@sc_dif'
-			FROM	@SummaryTickets_19999 
-			GROUP BY CustId
-					,WinlostDate
+			SELECT	a.CustId AS '@c'
+					,a.WinlostDate AS '@w'
+					,SUM(a.stake - b.stake) AS '@st'
+					,SUM(a.actual_stake - b.actual_stake) AS '@ast'
+					,SUM(a.Winlost - b.Winlost) AS '@w_dif'
+					,SUM(a.aWinlost - b.aWinlost) AS '@aw_dif'
+					,SUM(a.mWinlost - b.mWinlost) AS '@mw_dif'
+					,SUM(a.sWinlost - b.sWinlost) AS '@sw_dif'
+					,SUM(a.playerComm - b.playerComm) AS '@pc_dif'
+					,SUM(a.Comm - b.Comm) AS '@c_dif'
+					,SUM(a.aComm - b.aComm) AS '@ac_dif'
+					,SUM(a.sComm - b.sComm) AS '@sc_dif'
+			FROM	@BalanceInfoBeforeUpd b
+				INNER JOIN @BalanceInfoAfterUpd a
+					ON	a.custid = b.custid
+						AND a.WinlostDate = b.WinlostDate AND a.Winlost <> b.Winlost
+			WHERE EXISTS (SELECT TOP 1 1 FROM dbo.bettrans14 b14 WITH (NOLOCK) WHERE b14.custid = a.CustId AND a.WinlostDate = b14.winlostdate)
+			
+			GROUP BY a.CustId
+					,a.WinlostDate
 			FOR XML PATH('r'), ROOT('root'), TYPE
 		) AS VARCHAR(MAX))
 	
@@ -378,7 +420,7 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'TransId: ' + @TransIds 
-								+ ' AffectedList: ' + ISNULL(@AffectedList,'')
+								+ ' AffectedList: ' + ISNULL(@AffectedList,'N/A')
 								AS '@LogData'
 							,@MatchId AS '@MatchId'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
