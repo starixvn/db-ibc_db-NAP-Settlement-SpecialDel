@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@ToTransId				BIGINT = 0,			
 	
 	@Bet					VARCHAR(10)		= NULL,
+	@TimeType	 			SMALLINT 		= 0,
 	@FromTransdate			DATETIME 		= NULL,
 	@ToTransdate			DATETIME 		= NULL,
 
@@ -96,6 +97,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20190920@Helen: SP Tunning [120058]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
+		- 20191018@Charles: Support filter ticket by Checktime in Void Single Bet [121868]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -107,6 +109,10 @@ AS
 		 + 0: Dead
 		 + 1: Live
 		 + 2: All
+
+		 - @TimeType:
+		 + 0: TransTime.
+		 + 1: CheckTime.
 		
 		- @BetTypes : 
 		'<BetTypes>
@@ -178,6 +184,7 @@ BEGIN
 		oddsspread 			MONEY,
 		OddsType			INT,
 		transdate			DATETIME,
+		checktime	        DATETIME,
 		IsLiveIndicator		BIT,
 		livehomescore 		SMALLINT, 
 		liveawayscore 		SMALLINT,
@@ -222,6 +229,7 @@ BEGIN
 		CustId				INT,
 		OddsSpread 			MONEY,
 		TransDate			DATETIME,
+		checktime			DATETIME,
 		LiveIndicator		BIT,
 		LiveHomeScore 		SMALLINT, 
 		LiveAwayScore 		SMALLINT,
@@ -420,7 +428,8 @@ BEGIN
 			,odds	
 			,oddsspread
 			,OddsType		
-			,transdate		
+			,transdate
+			,checktime		
 			,IsLiveIndicator	
 			,livehomescore 	
 			,liveawayscore 	
@@ -468,6 +477,7 @@ BEGIN
 			,b.oddsspread
 			,b.oddstype
 			,b.transdate
+			,b.checktime
 			,b.liveindicator
 			,b.livehomescore
 			,b.liveawayscore
@@ -532,6 +542,7 @@ BEGIN
 			,oddsspread
 			,OddsType
 			,transdate
+			,checktime
 			,IsLiveIndicator
 			,livehomescore
 			,liveawayscore
@@ -579,6 +590,7 @@ BEGIN
 			,b.oddsspread
 			,b.oddstype
 			,b.transdate
+			,b.checktime
 			,b.liveindicator
 			,b.livehomescore
 			,b.liveawayscore
@@ -609,7 +621,7 @@ BEGIN
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 			 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE	b.matchid=@matchid 
-			AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
+			AND CASE @TimeType WHEN 0 THEN b.transdate WHEN 1 THEN b.checktime END BETWEEN @FromTransdate AND @ToTransdate
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveindicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END 
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END 			
@@ -628,6 +640,7 @@ BEGIN
 				CustId
 				,OddsSpread
 				,TransDate
+				,checktime
 				,LiveIndicator
 				,LiveHomeScore 
 				,LiveAwayScore 
@@ -647,6 +660,7 @@ BEGIN
 				bm.custid, 
 				bm.oddsspread,
 				bm.transdate,
+				bm.checktime,
 				bm.liveindicator,
 				bm.livehomescore,
 				bm.liveawayscore,
@@ -665,7 +679,7 @@ BEGIN
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE
 				bm.matchid=@MatchId 
-				AND bm.transdate BETWEEN @FromTransdate AND @ToTransdate
+				AND CASE @TimeType WHEN 0 THEN bm.transdate WHEN 1 THEN bm.checktime END BETWEEN @FromTransdate AND @ToTransdate
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -680,7 +694,8 @@ BEGIN
 				,odds
 				,oddsspread		
 				,OddsType		
-				,transdate		
+				,transdate
+				,checktime		
 				,bettype			
 				,betteam			
 				,betcheck		
@@ -725,6 +740,7 @@ BEGIN
 				bm.oddsspread,
 				b.OddsType,
 				bm.transdate,
+				bm.checktime,
 				b.bettype,
 				b.betteam,
 				b.betcheck,
@@ -844,7 +860,8 @@ BEGIN
 				,odds	
 				,oddsspread				
 				,OddsType		
-				,transdate		
+				,transdate
+				,checktime		
 				,IsLiveIndicator	
 				,livehomescore 	
 				,liveawayscore 	
@@ -883,6 +900,7 @@ BEGIN
 				,b.oddsspread
 				,b.oddstype
 				,b.transdate
+				,b.checktime
 				,b.liveindicator
 				,b.livehomescore
 				,b.liveawayscore
@@ -1015,7 +1033,8 @@ BEGIN
 				,odds
 				,oddsspread
 				,OddsType		
-				,transdate		
+				,transdate
+				,checktime		
 				,IsLiveIndicator	
 				,livehomescore 	
 				,liveawayscore 	
@@ -1055,6 +1074,7 @@ BEGIN
 				,tmpmain.oddsspread
 				,tmpmain.OddsType
 				,sub.transdate
+				,sub.checktime
 				,tmpmain.IsLiveIndicator
 				,tmpmain.livehomescore
 				,tmpmain.liveawayscore
@@ -1118,7 +1138,8 @@ BEGIN
 				,odds
 				,oddsspread
 				,OddsType		
-				,transdate		
+				,transdate
+				,checktime		
 				,IsLiveIndicator	
 				,livehomescore 	
 				,liveawayscore 	
@@ -1171,6 +1192,7 @@ BEGIN
 					,tmpmain.oddsspread
 					,tmpmain.OddsType
 					,sub.transdate
+					,sub.checktime
 					,tmpmain.IsLiveIndicator
 					,tmpmain.livehomescore
 					,tmpmain.liveawayscore
@@ -1221,7 +1243,8 @@ BEGIN
 					,odds	
 					,oddsspread				
 					,OddsType		
-					,transdate		
+					,transdate
+					,checktime		
 					,IsLiveIndicator	
 					,livehomescore 	
 					,liveawayscore 	
@@ -1262,6 +1285,7 @@ BEGIN
 					,b.oddsspread
 					,b.oddstype
 					,b.transdate
+					,b.checktime
 					,b.liveindicator
 					,b.livehomescore
 					,b.liveawayscore
@@ -1301,6 +1325,7 @@ BEGIN
 									,b.oddsspread
 									,b.oddstype
 									,b.transdate
+									,b.checktime
 									,b.liveindicator
 									,b.livehomescore
 									,b.liveawayscore
@@ -2009,7 +2034,8 @@ BEGIN
 		SELECT	al.odds
 			,al.oddsspread
 			,al.OddsType
-			,al.transdate			
+			,al.transdate
+			,al.checktime			
 			,al.OriginalBetType
 			,al.betfrom
 			,al.refno

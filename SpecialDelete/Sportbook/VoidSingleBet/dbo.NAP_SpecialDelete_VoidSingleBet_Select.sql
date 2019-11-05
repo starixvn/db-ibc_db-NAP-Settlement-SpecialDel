@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] @MatchId         
                                                                @FromTransId      BIGINT       = 0,
                                                                @ToTransId        BIGINT       = 0,
                                                                @Bet              VARCHAR(10)  = NULL,
+															   @TimeType		 SMALLINT	  = 0,	
                                                                @FromTransdate    DATETIME     = NULL,
                                                                @ToTransdate      DATETIME     = NULL,
                                                                @LiveIndicator    INT          = 0,
@@ -70,6 +71,7 @@ AS;
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+		- 20191011@Charles: Support filter ticket by Checktime in Void Single Bet [121868]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -104,6 +106,10 @@ AS;
 		 + 'All': Search both single and parlay tickets.
 		 + 'Single': Search only single tickets.
 		 + 'Sub Parlay': Search only parlay tickets.
+
+		 - @TimeType:
+		 + 0: TransTime.
+		 + 1: CheckTime.
 
 */
 BEGIN
@@ -225,6 +231,7 @@ BEGIN
               odds               MONEY,
               OddsType           INT,
               transdate          DATETIME,
+			  checktime          DATETIME,
               bettype            SMALLINT,
               OriginalBetType    SMALLINT,
               betteam            NVARCHAR(10),
@@ -283,6 +290,7 @@ BEGIN
              (CustId        INT,
               OddsSpread    MONEY,
               TransDate     DATETIME,
+			  checktime		DATETIME,
               LiveIndicator BIT,
               LiveHomeScore SMALLINT,
               LiveAwayScore SMALLINT,
@@ -333,6 +341,7 @@ BEGIN
 			,oddsspread	
 			,OddsType
 			,transdate
+			,checktime
 			,bettype
 			,betteam
 			,betcheck
@@ -378,6 +387,7 @@ BEGIN
 			b.oddsspread,
 			b.OddsType,  
 			b.transdate,
+			b.checktime,
 			b.bettype,
 			b.betteam,
 			b.betcheck,
@@ -423,7 +433,7 @@ BEGIN
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId		
 		WHERE
-			b.matchid = @MatchId 
+			b.matchid = @MatchId
 			AND b.transid BETWEEN @FromTransId AND @ToTransId
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
@@ -443,6 +453,7 @@ BEGIN
 			,oddsspread	
 			,OddsType
 			,transdate
+			,checktime
 			,bettype
 			,betteam
 			,betcheck
@@ -488,6 +499,7 @@ BEGIN
 			b.oddsspread,
 			b.OddsType,  
 			b.transdate,
+			b.checktime,
 			b.bettype,
 			b.betteam,
 			b.betcheck,
@@ -533,8 +545,8 @@ BEGIN
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 		WHERE
-			b.matchid = @MatchId 
-			AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
+			b.matchid = @MatchId
+			AND CASE @TimeType WHEN 0 THEN b.transdate WHEN 1 THEN b.checktime END BETWEEN @FromTransdate AND @ToTransdate
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
@@ -550,7 +562,8 @@ BEGIN
 			INSERT INTO #SpecialDeleteBetsm (
 				CustId
 				,OddsSpread			
-				,TransDate				
+				,TransDate
+				,checktime
 				,LiveIndicator	
 				,LiveHomeScore 	
 				,LiveAwayScore 	
@@ -570,6 +583,7 @@ BEGIN
 				bm.custid, 
 				bm.oddsspread,
 				bm.transdate,
+				bm.checktime,
 				bm.liveindicator,
 				bm.livehomescore,
 				bm.liveawayscore,
@@ -589,8 +603,8 @@ BEGIN
 				dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 			WHERE
-				bm.matchid=@MatchId 
-				AND bm.transdate BETWEEN @FromTransdate AND @ToTransdate
+				bm.matchid=@MatchId
+				AND CASE @TimeType WHEN 0 THEN bm.transdate WHEN 1 THEN bm.checktime END BETWEEN @FromTransdate AND @ToTransdate
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			
@@ -606,7 +620,8 @@ BEGIN
 				,odds
 				,oddsspread		
 				,OddsType		
-				,transdate		
+				,transdate
+				,checktime
 				,bettype			
 				,betteam			
 				,betcheck		
@@ -652,6 +667,7 @@ BEGIN
 				bm.oddsspread,
 				b.OddsType,  
 				bm.transdate,
+				bm.checktime,
 				b.bettype,
 				b.betteam,
 				b.betcheck,
@@ -780,7 +796,8 @@ BEGIN
 					,odds
 					,oddsspread					
 					,OddsType		
-					,transdate		
+					,transdate
+					,checktime		
 					,bettype			
 					,betteam			
 					,betcheck		
@@ -817,6 +834,7 @@ BEGIN
 					b.oddsspread,					
 					b.OddsType,  
 					b.transdate,
+					b.checktime,
 					b.bettype,
 					b.betteam,
 					betcheck,
@@ -882,7 +900,8 @@ BEGIN
 			,odds
 			,oddsspread			
 			,OddsType		
-			,transdate		
+			,transdate
+			,checktime
 			,bettype
 			,OriginalBetType			
 			,betteam			
@@ -919,6 +938,7 @@ BEGIN
 			,main.oddsspread
 			,main.OddsType
 			,sub.transdate
+			,sub.checktime
 			,sub.bettype
 			,main.bettype  AS OriginalBetType
 			,main.betteam
@@ -964,7 +984,8 @@ BEGIN
 			,odds	
 			,oddsspread			
 			,OddsType		
-			,transdate		
+			,transdate
+			,checktime
 			,bettype
 			,OriginalBetType			
 			,betteam			
@@ -1003,6 +1024,7 @@ BEGIN
 			,main.oddsspread
 			,main.OddsType
 			,sub911.transdate
+			,sub911.checktime
 			,sub911.bettype
 			,main.bettype  AS OriginalBetType
 			,main.betteam
@@ -1051,7 +1073,8 @@ BEGIN
 			,odds	
 			,oddsspread			
 			,OddsType		
-			,transdate		
+			,transdate
+			,checktime
 			,bettype
 			,OriginalBetType						
 			,betteam			
@@ -1089,6 +1112,7 @@ BEGIN
 			b.oddsspread,
 			b.OddsType,  
 			b.transdate,
+			b.checktime,
 			b.bettype,
 			sub911.OriginalBetType,			  
 			b.betteam,
@@ -1119,7 +1143,39 @@ BEGIN
 			b.WinLost - b.actual_stake AS WinLost,
 			sub911.IsMarked
 	FROM #SpecialDeleteBets sub911
-		 CROSS APPLY (	SELECT b.*
+		 CROSS APPLY (	SELECT 	b.transid,
+		 						b.custid,			
+								b.odds,  
+								b.oddsspread,
+								b.OddsType,  
+								b.transdate,
+								b.checktime,
+								b.bettype,
+								b.betteam,
+								b.betcheck,
+								b.hdp1,
+								b.hdp2,
+								b.liveindicator,
+								b.livehomescore,
+								b.liveawayscore,
+								b.creator,
+								b.stake,
+								b.CurrencyName, 			
+								b.status,
+								b.srecommend,
+								b.mrecommend,
+								b.recommend,
+								b.SecAcceptFlag,
+								b.betid,
+								b.betdaqid,
+								b.refno,			
+								b.statusID,
+								b.ExtraInfo,
+								b.WalletType,
+								b.RefCode,
+								b.BonusID,
+								b.WinLost,
+								b.actual_stake
 						FROM dbo.bettrans b WITH (NOLOCK)
 						WHERE b.refno = sub911.transid
 						AND b.matchid = sub911.matchid
@@ -1158,7 +1214,8 @@ BEGIN
 			   ,s.odds		
 			   ,s.oddsspread
 			   ,s.OddsType	
-			   ,s.transdate	
+			   ,s.transdate
+			   ,s.checktime
 			   ,s.bettype
 			   ,s.OriginalBetType		
 			   ,s.betteam		
@@ -1223,7 +1280,8 @@ BEGIN
 			   ,s.odds		
 			   ,s.oddsspread		
 			   ,s.OddsType	
-			   ,s.transdate	
+			   ,s.transdate
+			   ,s.checktime	
 			   ,s.bettype
 			   ,s.OriginalBetType		
 			   ,s.betteam		
@@ -1280,7 +1338,8 @@ BEGIN
 			   ,s.odds
 			   ,s.oddsspread			   
 			   ,s.OddsType	
-			   ,s.transdate	
+			   ,s.transdate
+			   ,s.checktime	
 			   ,s.bettype
 			   ,s.OriginalBetType		
 			   ,s.betteam		
@@ -1348,7 +1407,8 @@ BEGIN
 			   ,s.odds
 			   ,s.oddsspread			   
 			   ,s.OddsType	
-			   ,s.transdate	
+			   ,s.transdate
+			   ,s.checktime	
 			   ,s.bettype
 			   ,s.OriginalBetType		
 			   ,s.betteam		
@@ -1459,7 +1519,8 @@ BEGIN
 			,s.odds
 			,s.oddsspread		   
 			,s.OddsType	
-			,s.transdate	
+			,s.transdate
+			,s.checktime	
 			,s.bettype
 			,s.OriginalBetType		
 			,s.betteam		
