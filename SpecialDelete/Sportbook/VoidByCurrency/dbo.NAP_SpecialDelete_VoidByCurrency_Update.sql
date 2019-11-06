@@ -44,6 +44,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
 		
 	Param's Explanation:
 */
@@ -1270,19 +1271,18 @@ BEGIN
 					sub.hdp2 AS SubHdp2,
 					sub.odds AS SubOdds
 			FROM @tblTransIds t				 				 						 			 				 					 				 
-				 INNER JOIN dbo.bettransm sub WITH (NOLOCK)	
-						 ON t.transid = sub.transid
+				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
+				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
 				 INNER JOIN match m WITH (NOLOCK)
 						 ON sub.matchid = m.matchid
-				INNER JOIN bettrans main WITH (NOLOCK)
-						 ON sub.refno = main.refno
+				
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
 					     ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
 				INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 ON main.recommend = c.custid
 				INNER JOIN #t_LicenseeNames tl1 WITH (NOLOCK)
 						 ON c.site = tl1.LicenseeName -- filter for @LicenseeIDs						 
-			WHERE main.matchid IN (9, 29) AND main.bettype IN (9, 29) -- parlay
+			WHERE main.matchid =29 AND main.bettype = 29 -- parlay
 				AND main.statusID NOT IN (101, 102) -- reject, void				
 				AND main.betfrom <> 'P' -- exclude phone betting
 				

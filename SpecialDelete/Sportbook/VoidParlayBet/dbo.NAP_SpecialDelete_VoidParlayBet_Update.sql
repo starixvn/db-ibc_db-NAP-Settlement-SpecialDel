@@ -43,6 +43,7 @@ AS
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
+		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -347,10 +348,10 @@ BEGIN
 				,maintransid = b.transid
 				,mainstatusID = b.statusID  
 		FROM	#BetDelete r  
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)  
+			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)  
 				ON	r.refno = b.refno  
-					AND b.matchid IN (9,29)  
-					AND b.bettype IN (9,29)  
+					AND b.matchid = 29
+					AND b.bettype = 29
 					
 		------------------***** BegIN Special Delete *****------------------  
 
@@ -423,8 +424,8 @@ BEGIN
 		END  
 
 		IF EXISTS ( SELECT TOP 1 1  
-					FROM bettrans b WITH(NOLOCK)   
-						INNER JOIN #BetDelete r 
+					FROM #BetDelete r 
+						INNER HASH JOIN bettrans b WITH(NOLOCK)   
 							ON	b.refno = r.refno  
 					WHERE	b.matchid = 29 
 							AND b.bettype = 29  
@@ -466,8 +467,8 @@ BEGIN
 			--Get data before update  
 			INSERT INTO #BeforeUpd (custid, balance)  
 			SELECT	b.custid, SUM (b.wINlost - b.actual_stake + b.playercomm) balance  
-			FROM	bettrans b WITH (NOLOCK)  
-				INNER JOIN #BetDelete r 
+			FROM #BetDelete r 	  
+				INNER HASH JOIN bettrans b WITH (NOLOCK)
 					ON	b.refno = r.refno  
 			WHERE	b.matchid = 29 
 					AND b.bettype = 29  
@@ -496,8 +497,8 @@ BEGIN
 			--Get data after update  
 			INSERT INTO #AfterUpd (custid, balance)  
 			SELECT	b.custid, SUM (b.winlost - b.actual_stake + b.playercomm) balance  
-			FROM	bettrans b WITH (NOLOCK) 
-				INNER JOIN #BetDelete r 
+			FROM #BetDelete r 	 
+				INNER HASH JOIN bettrans b WITH (NOLOCK)
 					ON	b.refno = r.refno  
 			WHERE	b.matchid = 29 
 					AND b.bettype = 29  
@@ -648,8 +649,8 @@ BEGIN
 				,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit  
 				,@isITAdmin AS IsITSupport 
 				,CURRENT_TIMESTAMP AS [DateTime] 
-		FROM	dbo.bettrans AS b WITH (NOLOCK)  
-			INNER JOIN #BetDelete AS r WITH(NOLOCK)   
+		FROM #BetDelete AS r WITH(NOLOCK)   	 
+			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 				ON	b.custid = r.custid AND b.refno = r.refno  
 			INNER JOIN CTE_CustInfo ci WITH(NOLOCK)  
 				ON	b.custid = ci.custid   
@@ -661,8 +662,8 @@ BEGIN
 				ON	b.srecommend = su.custid  
 			LEFT JOIN custdb.dbo.Dep_CustSuper s with(nolock)
 				ON	b.srecommend = s.custid   
-		WHERE	b.matchid  IN (9,29)   
-				AND b.bettype  IN (9,29)  
+		WHERE	b.matchid = 29   
+				AND b.bettype = 29  
 		ORDER BY b.transid   
 	END   
 
