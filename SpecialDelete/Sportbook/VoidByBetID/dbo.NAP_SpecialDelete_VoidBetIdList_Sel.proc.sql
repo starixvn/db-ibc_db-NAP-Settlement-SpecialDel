@@ -49,6 +49,7 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190227@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20191106@Charles: Implement NPM Promotion [122187]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -631,7 +632,15 @@ BEGIN
 			
 		WHERE d.bettype IN (1231,1232,1233,1237,1238)
 	END
-	
+	-- UPDATE Sportype for NPH Promotion (bettype = 17000)
+	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype IN (17000)))
+	BEGIN
+		UPDATE d
+		SET sporttype 	= d.matchid
+		FROM #Data d
+		WHERE d.bettype IN (17000)
+	END
+
 	--- Remove invalid sporttype	
 	DELETE 
 	FROM #Data

@@ -77,6 +77,7 @@ AS
 	  - 20190812@Charles: Add new column IsMarked [118437]
 	  - 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 	  - 20191101@Charles: Remove column IsMarked [122187]
+	  - 20191106@Charles: Implement NPM Promotion [122187]
 
 	 Param's Explanation:   
 	*/
@@ -715,6 +716,14 @@ BEGIN
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+	END
+	-- UPDATE Sportype for NPH Promotion (bettype = 17000)
+	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype IN (17000)))
+	BEGIN
+		UPDATE b
+		SET sporttype 	= b.matchid
+		FROM #BetDelete b
+		WHERE b.bettype IN (17000)
 	END
 	
 	-- remove un-supported sports & bettype
