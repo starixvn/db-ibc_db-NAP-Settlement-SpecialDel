@@ -120,6 +120,22 @@ BEGIN
                 WHERE m.matchid = @MatchId)
         GROUP BY tb.parentid, b.typeid, f.GroupName
 
+        IF (EXISTS(SELECT TOP 1 1 FROM #betTypesTemp WHERE bettype = 38)) AND (@mode = 2)
+        BEGIN
+            INSERT INTO #TmpBettype (
+                typeid
+                ,type
+                ,liveindicator
+                ,GroupName
+                )
+            SELECT b.typeid        
+                , 0                
+                , 0                   
+                , 'Special' AS GroupName           
+            FROM dbo.bettype b WITH(NOLOCK)
+            WHERE b.typeid = 38
+        END
+
         IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) AND (@mode IN (2,3))
         BEGIN
             INSERT INTO #TmpBettype (
@@ -133,9 +149,9 @@ BEGIN
                 , 0                   
                 , 'Special' AS GroupName           
             FROM dbo.bettype b WITH(NOLOCK)
-            WHERE b.typeid IN (9, 29)
+            WHERE b.typeid = 29
         END
-
+        
     END
 
      -- 3: TicketListing  
@@ -216,22 +232,6 @@ BEGIN
         AND rd.vendorid = 5 
         AND rd.gameID IN (805,806)    
 		
-		--Bet Builder
-		IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype))
-        BEGIN
-            INSERT INTO #TmpBettype (
-                typeid
-                ,type
-                ,liveindicator
-                ,GroupName
-                )
-            SELECT b.typeid        
-                , 8
-                , 0                   
-                , 'Special' AS GroupName           
-            FROM dbo.bettype b WITH(NOLOCK)
-            WHERE b.typeid = 38
-        END
     END
         
     ----- number game  

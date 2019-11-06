@@ -36,7 +36,9 @@ BEGIN
     BEGIN
         -- Scan bettrans and bettransm to get bettype list
         -- bettrans
-        INSERT INTO #TmpBettype(bettype)
+        IF @Mode IN (0,3,9)
+        BEGIN
+            INSERT INTO #TmpBettype(bettype)
         SELECT bettype
         FROM dbo.bettrans WITH(NOLOCK)
         WHERE matchid = @MatchId
@@ -45,6 +47,21 @@ BEGIN
             AND bettype < 19000
             AND bettype NOT BETWEEN 901 AND 904
         GROUP BY bettype
+        END
+        
+        IF @Mode = 2
+        BEGIN
+            INSERT INTO #TmpBettype(bettype)
+        SELECT bettype
+        FROM dbo.bettrans WITH(NOLOCK)
+        WHERE matchid = @MatchId
+            AND bettype NOT IN (10,29,500)
+            AND bettype NOT BETWEEN 801 AND 806
+            AND bettype < 19000
+            AND bettype NOT BETWEEN 901 AND 904
+        GROUP BY bettype
+        END
+
         -- bettransm
         IF @Mode IN (0, 2, 3)
         BEGIN
@@ -59,7 +76,6 @@ BEGIN
                 AND bt.bettype NOT BETWEEN 901 AND 904
             GROUP BY bt.bettype
         END
-
     END
     
     --4: Mix Parlay
