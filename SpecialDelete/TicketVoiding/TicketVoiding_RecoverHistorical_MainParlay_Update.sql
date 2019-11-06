@@ -149,7 +149,7 @@ BEGIN
 								SELECT TOP 1 1
 								FROM	dbo.bettransm14 bm14 WITH(NOLOCK)
 								WHERE	bm14.refno = r.refno
-										AND bm14.statuswinlost IS NULL OR bm14.statuswinlost NOT BETWEEN 0 AND 6
+										AND (bm14.statuswinlost IS NULL OR bm14.statuswinlost NOT BETWEEN 0 AND 6)
 							) THEN 2 -- not have 'statuswinlost' value
 						WHEN r.invalid > 0 THEN r.invalid
 					END AS invalid
