@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= NULL
+	,@IsTest			BIT				= NULL
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -21,7 +22,8 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
@@ -58,6 +60,7 @@ BEGIN
 			-- @SubIssueTypeId IS NULL update @CheckBy
 			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 			,Remark = ISNULL(@Remark, Remark)
+			,IsTest = ISNULL(@IsTest, IsTest)
 	WHERE	RequestId = @RequestId
 
 	IF @Operators IS NOT NULL

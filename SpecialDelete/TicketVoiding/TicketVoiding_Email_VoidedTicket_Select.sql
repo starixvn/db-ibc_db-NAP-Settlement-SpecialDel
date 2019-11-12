@@ -11,6 +11,8 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+
 	
 	Param's explanation:	
 		
@@ -19,8 +21,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @isITAdmin BIT
-
-	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
 	CREATE TABLE #tmpTicket (
 		TransId			BIGINT
@@ -82,8 +82,6 @@ BEGIN
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
 
-	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) VALUES (@VoidingHistoryId)		
-			
 	-- single ticket
 	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut)
 	SELECT	z.transid			
@@ -96,6 +94,7 @@ BEGIN
 			,z.refno
 			,z.odds
 			,z.IsCashOut
+			
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	z.transid
@@ -215,8 +214,8 @@ BEGIN
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
+		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
 	BEGIN		
@@ -318,6 +317,7 @@ BEGIN
 			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
 			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
 			,@isITAdmin AS IsITSupport
+			,m.SettlementStatus
 	FROM	#tmpTicket t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

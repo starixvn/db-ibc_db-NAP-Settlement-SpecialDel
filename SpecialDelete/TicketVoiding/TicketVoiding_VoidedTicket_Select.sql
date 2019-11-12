@@ -1,6 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select] @RequestId INT,
-                                                          @MatchId   INT
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
+( 
+	@RequestId INT
+	,@MatchId   INT
+)
 AS;
 /*	Created by: Kathy
 	Date 20181212
@@ -10,6 +13,8 @@ AS;
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
+		- 20191118@Max: AdnormalBet TVS + Hotfix #124160 [Redmine:#123691]
+		
 	Param's explanation:	
 		
 */
@@ -67,7 +72,7 @@ BEGIN
               mrecommend      INT,
               recommend       INT,
               IsMixParlay     BIT DEFAULT(0),
-              subbetcheck     NVARCHAR(1),
+              subbetcheck     NVARCHAR(50),
               subOdds         SMALLMONEY,
               subbetteam      NVARCHAR(10),
               subbettype      SMALLINT,
@@ -81,7 +86,8 @@ BEGIN
               IsCashOut       BIT,
               MainTransId     BIGINT,
               BonusId         INT,
-              IsMarked        BIT
+              IsMarked        BIT,
+			  LiveIndicator   BIT
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -89,10 +95,10 @@ BEGIN
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) 
 	SELECT	vh.VoidingHistoryId
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-	WHERE	vh.RequestId = @RequestId
+	WHERE	vh.RequestId = @RequestId AND vh.StatusId = 2
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds, LiveIndicator)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -103,6 +109,7 @@ BEGIN
 			,z.refno
 			,z.bettype
 			,z.odds
+			,z.liveindicator
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -115,6 +122,7 @@ BEGIN
 					,z.refno
 					,z.bettype
 					,z.odds
+					,z.liveindicator
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND z.matchid = @MatchId
@@ -126,7 +134,7 @@ BEGIN
 		) z
 		
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay,LiveIndicator)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -134,6 +142,7 @@ BEGIN
 			,zm.VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
+			,zm.liveindicator
 	FROM	@tmpVoidingHistory vh
 		CROSS APPLY (
 			SELECT	zm.transid
@@ -142,6 +151,7 @@ BEGIN
 					,zm.status
 					,zm.transdate AS VoidedTime
 					,zm.custid
+					,zm.liveindicator
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 					AND zm.matchid = @MatchId
@@ -217,8 +227,8 @@ BEGIN
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
 		FROM	#tmpTicket t
-			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
+			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
+			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	END
 	ELSE
 	BEGIN
@@ -289,8 +299,8 @@ BEGIN
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
 		FROM	#tmpTicket t
-			INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE TransId IS NULL AND IsMixParlay = 1)
 		BEGIN
@@ -423,7 +433,7 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,'Credit' AS GroupName
+			   ,CASE WHEN c.site = 'CN88' THEN 'CN88' ELSE 'Credit' END AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
 			   ,s.IsCashOut
@@ -431,8 +441,13 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusId
 			   ,s.IsMarked
+			   ,s.recommend
+			   ,s.LiveIndicator
+
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
+			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
+			
 		WHERE	f.CustID IS NULL
 				AND (s.username <> '12EU')
 				AND s.IsDeposit = 0
@@ -485,6 +500,9 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusId
 			   ,s.IsMarked
+			   ,s.recommend
+			   ,s.LiveIndicator
+
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
 		WHERE	s.recommend IN (52466, 5707545)
@@ -534,6 +552,9 @@ BEGIN
 			   ,s.MainTransId
 			   ,s.BonusId
 			   ,s.IsMarked
+			   ,s.recommend
+			   ,s.LiveIndicator
+
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -588,6 +609,9 @@ BEGIN
 		   ,s.MainTransId
 		   ,s.BonusId
 		   ,s.IsMarked
+		   ,s.recommend
+		   ,s.LiveIndicator
+
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -637,14 +661,21 @@ BEGIN
 			,s.IsCashOut
 			,s.winlost
 			,s.IsMarked
+			,c.site as LicenseeName
+			,s.LiveIndicator
+
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
+		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+
 	ORDER BY CASE
-				WHEN s.GroupName = 'Credit' THEN 1
-				WHEN s.GroupName = '8RM/BARM' THEN 2
-				WHEN s.GroupName = 'Deposit' THEN 3
-				WHEN s.GroupName = 'Betfair' THEN 4
+				WHEN s.GroupName = 'CN88' THEN 1
+				WHEN s.GroupName = 'Credit' THEN 2
+				WHEN s.GroupName = '8RM/BARM' THEN 3
+				WHEN s.GroupName = 'Deposit' THEN 4
+				WHEN s.GroupName = 'Betfair' THEN 5
 			 END
+
 		   , ISNULL(s.MainTransId, s.transid)
 		   , CASE 
 				WHEN s.BonusID IS NOT NULL
@@ -653,6 +684,8 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE s.transid
-			 END		
+			 END
+	DROP TABLE #tmpTicket
+	
 END
 GO

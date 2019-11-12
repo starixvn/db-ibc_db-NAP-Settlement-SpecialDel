@@ -11,6 +11,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@Remark			NVARCHAR(MAX)	= NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= NULL
+	,@IsTest			BIT				= NULL
+	,@IssueTypeId		TINYINT			= NULL
 
 	,@RequestId			INT				= 0 OUTPUT
 AS
@@ -21,7 +23,8 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
+		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
@@ -40,8 +43,9 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy)
-	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId
+	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
+
 
 	SET @RequestId = SCOPE_IDENTITY()
 	

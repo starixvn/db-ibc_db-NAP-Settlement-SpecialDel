@@ -1,2 +1,0 @@
-Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
-SpecialDelete\Sportbook\VoidParlayBet\dbo.NAP_SpecialDelete_VoidParlayBet_Update.sql

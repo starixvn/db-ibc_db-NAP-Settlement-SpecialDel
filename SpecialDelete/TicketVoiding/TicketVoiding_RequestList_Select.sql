@@ -4,6 +4,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@MatchId		INT			= NULL
 	,@FromDate		DATETIME	= NULL
 	,@ToDate		DATETIME	= NULL
+	,@IsExcludeTest BIT			= 1
+	,@Status		INT			= 0
+
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -12,8 +15,13 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+
 	Param's explanation:	
+		@Status: 
+			- 0: All
+			- 1: New
+			- 2: Voided
 		
 */
 BEGIN
@@ -50,7 +58,8 @@ BEGIN
 		,AwayId			INT
 		,KickOffTime	DATETIME
 		,EventDate		DATETIME
-
+		,TransIds		VARCHAR(MAX)
+		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
 		,TotalSingle	INT
 		,TotalParlay	INT
@@ -70,7 +79,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -85,10 +94,14 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,rd.TransIds
+				,r.IssueTypeId
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-		WHERE	r.RequestId = @RequestId				
+		WHERE	r.RequestId = @RequestId
+				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)	
+					   		
 	END
 	ELSE IF @FilteredBy = 2
 	BEGIN
@@ -97,7 +110,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -112,16 +125,19 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,rd.TransIds
+				,r.IssueTypeId
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
+				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -136,10 +152,14 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,rd.TransIds
+				,r.IssueTypeId
+
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
+			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
@@ -148,7 +168,7 @@ BEGIN
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 			FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-			WHERE	vh.RequestId = t.requestId
+			WHERE	vh.RequestId = t.requestId AND vh.StatusId = 2
 		) vh
 		
 	UPDATE	t 
@@ -198,9 +218,9 @@ BEGIN
 			AND vh.MatchId = t.MatchId
 
 	UPDATE t 
-		SET TotalSingle = vh.TotalSingle
-			,TotalCashOut = vh.TotalCashOut
-			,TotalParlay = vh.TotalParlay
+		SET TotalSingle = ISNULL(vh.TotalSingle,0)
+			,TotalCashOut = ISNULL(vh.TotalCashOut,0)
+			,TotalParlay = ISNULL(vh.TotalParlay,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	SUM(vh.TotalSingle) AS TotalSingle
@@ -237,11 +257,13 @@ BEGIN
 			,c.Username AS CreatedBy
 			,t.MistakenBy
 			,t.DecidedBy
-			,v.Username AS LastVoidedBy
+			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,t.TotalSingle
-			,t.TotalCashOut
-			,t.TotalParlay			
+			,t.TotalSingle AS TotalVoidedSingle
+			,t.TotalParlay AS TotalVoidedParlay
+			,t.TransIds
+			,CASE WHEN t.IssueTypeId = 11 THEN (LEN(t.TransIds) - LEN(REPLACE(t.TransIds, ',', '')) +1) ELSE 0 END AS TotalSingle
+			,t.IssueTypeId
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -249,5 +271,14 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
+	WHERE 1 = CASE 
+				WHEN @Status = 0 THEN 1
+				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) THEN 1
+				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) THEN 1
+				ELSE 0
+			END	
 	ORDER BY t.RequestId DESC
+	
+	DROP TABLE #tmpResult
+	
 END

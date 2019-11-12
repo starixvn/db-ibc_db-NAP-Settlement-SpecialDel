@@ -22,6 +22,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket and send notification in case of void all marked ticket [Redmine:#108826]
 		- 20190605@Kathy: Add keyId = 5 for BetBuilder [Redmine:#106898]
+		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 	
 	Param's explanation:	
 		
@@ -44,7 +45,7 @@ BEGIN
 			,@session NVARCHAR(50)
 			,@CustIds VARCHAR(MAX)
 			,@CustBalance XML
-			
+			,@IssueTypeId	TINYINT
 			,@CustIdsCashOut VARCHAR(MAX)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
@@ -53,7 +54,7 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT)
-
+						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -509,10 +510,17 @@ BEGIN
 							FROM	#tmpTransId t
 							FOR XML PATH('r'), ROOT('root')
 						)
+	
+	SET @IssueTypeId = (
+							SELECT TOP 1 tr.IssueTypeId
+							FROM TicketVoiding_Request tr WITH (NOLOCK)
+							WHERE tr.RequestId = @RequestId
+						)
 						
 	EXEC dbo.TicketVoiding_Admin_VoidingTransId 
 		@TransIds = @xmlTransId
 		,@UserId = @UserId
+		,@IssueTypeId = @IssueTypeId
 
 	-- PRE CAL 914
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
@@ -786,6 +794,12 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+	
+	DROP TABLE #tblCashOutProcess
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #tmpTransId
+	
 END
 
 GO

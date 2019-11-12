@@ -2,10 +2,12 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	@RequestId		INT
 	,@MatchId		INT
-	,@KickOffTime	DATETIME		= NULL
+	,@KickOffTime	DATETIME	 = NULL
 
 	,@UserId		INT
-	,@IP			VARCHAR(50)		= NULL
+	,@IP			VARCHAR(50)	 = NULL
+	,@TransIds 		VARCHAR(MAX) = NULL
+
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -14,7 +16,8 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
+
 	Param's explanation:	
 	
 */
@@ -36,6 +39,8 @@ BEGIN
 	UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 		SET	@oldKickOffTime = KickOffTime
 			,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
+			,TransIds = ISNULL(@TransIds, TransIds)
+
 	WHERE	RequestId = @RequestId
 			AND MatchId = @MatchId
 

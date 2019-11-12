@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 	@TransIds	VARCHAR(MAX)
 	,@UserId	INT
+	,@IssueTypeId	INT = 0
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -11,6 +12,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
+		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 	
 	Param's explanation:	
 		@transIds = '<root>
@@ -43,7 +45,6 @@ BEGIN
 			,winlost = @actual_stake
 			,actual_stake = @actual_stake
 			,ruben = 1
-			--,statuswinlost = 6
 			,creator = @UserId
 			,awinlost = 0
 			,mwinlost = 0
@@ -55,10 +56,16 @@ BEGIN
 			,statusID = 102
 			,status = 'VOID'
 			,betid = t.BetId
+			,ExtraInfo = CASE WHEN @IssueTypeId = 11 --AbnormalBet
+							THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,m.sporttype,b.bettype)
+						ELSE b.ExtraInfo END
+						
 	FROM	@tmpTrans t
         INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 			ON  t.transid = b.transid
-
+		INNER JOIN dbo.match m WITH (NOLOCK)
+			ON b.matchid = m.matchid
+			
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMG = 1)
 	BEGIN
 		UPDATE	tl 
