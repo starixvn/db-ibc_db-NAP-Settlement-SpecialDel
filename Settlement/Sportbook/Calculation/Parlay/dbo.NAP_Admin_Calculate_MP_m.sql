@@ -49,6 +49,7 @@ AS
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191112@Helen: Basketball calculation - sub parlay ticket is refunded then calculated in a tick [Redmine:123511]
 		
     Param's Explanation:
        
@@ -124,6 +125,7 @@ BEGIN
 			,@IsUpd_Void BIT = 0
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+        DECLARE @InputResultDetail_bb TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusId TINYINT)
         
         DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT, groupname VARCHAR(50), is3x30 BIT, isEarly BIT)
             
@@ -144,13 +146,53 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlBettypes = NULL ) )
     END --END: params for corner bets, sportting solution and betradar ----------------------------------
 		
-    DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
-    
-    WHILE (@doing <> @action)
+	IF @resultDetail_bb IS NOT NULL -- for basketball
+    BEGIN
+							
+        SET @xml = CONVERT(XML, @resultDetail_bb)
+        
+        INSERT INTO @InputResultDetail_bb (ResourceId, HomeValue, AwayValue, SettlementStatusId)
+		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
+				,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
+		FROM	@xml.nodes('/root/r') AS T(c)
+		OPTION	( OPTIMIZE FOR ( @xml = NULL ) )  
+		
+		SELECT	@basketball_ResourceIdsREFUND = COALESCE(@basketball_ResourceIdsREFUND + ',' + r.ResourceId ,r.ResourceId)	
+		FROM	@InputResultDetail_bb
+			CROSS APPLY (
+				SELECT CASE
+							WHEN ResourceId = '00' THEN 'FT'
+							WHEN ResourceId = '01' THEN '1H'
+							WHEN ResourceId = '02' THEN '2H'
+							ELSE ResourceId
+						END AS ResourceId
+							
+			) r
+		WHERE	SettlementStatusId = 1		
+		
+		SELECT	@basketball_ResourceIdsCAL =  COALESCE(@basketball_ResourceIdsCAL + ',' + r.ResourceId ,r.ResourceId)
+		FROM	@InputResultDetail_bb
+			CROSS APPLY (
+				SELECT CASE
+							WHEN ResourceId = '00' THEN 'FT'
+							WHEN ResourceId = '01' THEN '1H'
+							WHEN ResourceId = '02' THEN '2H'
+							ELSE ResourceId
+						END AS ResourceId
+							
+			) r
+		WHERE	SettlementStatusId = 4	
+		
+	END	
+	
+	DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
+	
+	WHILE (@doing <> @action)
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
-    --    --------------------------------------
-    
+		
         IF @doing = 'correctBettype'
         BEGIN
             UPDATE BM
@@ -173,31 +215,6 @@ BEGIN
                 OPTION ( OPTIMIZE FOR ( @xml = NULL ) )    
             END
                 
-            IF @resultDetail_bb IS NOT NULL -- for basketball
-            BEGIN
-				SET @xml = CONVERT(XML, @resultDetail_bb)
-				
-				;WITH cteResourceIds
-				AS(
-					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-							,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
-					FROM	@xml.nodes('/root/r') AS T(c)
-				)
-				SELECT	@basketball_ResourceIdsREFUND = COALESCE(@basketball_ResourceIdsREFUND + ',' + r.ResourceId ,r.ResourceId)						
-				FROM	cteResourceIds
-					CROSS APPLY (
-						SELECT CASE
-									WHEN ResourceId = '00' THEN 'FT'
-									WHEN ResourceId = '01' THEN '1H'
-									WHEN ResourceId = '02' THEN '2H'
-									ELSE ResourceId
-								END AS ResourceId
-									
-					) r
-				WHERE	SettlementStatusId = 1					
-				OPTION	( OPTIMIZE FOR ( @xml = NULL ) )  
-            END
-           
             CREATE TABLE #RefundResult (transid BIGINT, refno BIGINT)
         
             UPDATE bm
@@ -252,7 +269,7 @@ BEGIN
                              WHEN @SelectedSetREFUND LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
                              ELSE 0 END
 				AND 1 = CASE
-							WHEN @basketball_ResourceIdsREFUND IS NULL THEN 1 --s basketball
+							WHEN @basketball_ResourceIdsREFUND IS NULL AND @basketball_ResourceIdsCAL IS NULL THEN 1 --s basketball
 							WHEN t.isEarly = 1 THEN CASE
 														WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
 														ELSE 0
@@ -515,22 +532,11 @@ BEGIN
 
             IF @resultDetail_bb IS NOT NULL -- for basketball
             BEGIN
-									
-                SET @xml = CONVERT(XML, @resultDetail_bb)
-                
-                ;WITH cteResultDetail
-				AS(
-					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-							,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-							,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-							,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
-					FROM	@xml.nodes('/root/r') AS T(c)
-				)
+				
 				INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue)
 				SELECT	ResourceId, HomeValue, AwayValue
-				FROM	cteResultDetail r
+				FROM	@InputResultDetail_bb r
 				WHERE	SettlementStatusId = 4
-				OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
 				
 				SELECT	@FTHighestQuarter = CASE
 											WHEN MAX(result.HomeValue) > MAX(result.AwayValue) THEN 'H'
@@ -563,17 +569,6 @@ BEGIN
 						,@Q4Away = AwayValue
 				FROM	@tmpResultDetail
 				WHERE	ResourceId = 'Q4'
-				
-				SELECT @basketball_ResourceIdsCAL = COALESCE(@basketball_ResourceIdsCAL + ',' + r.ResourceId , r.ResourceId)	 
-				FROM	@tmpResultDetail t
-					CROSS APPLY (
-						SELECT CASE
-									WHEN t.ResourceId = '00' THEN 'FT'
-									WHEN t.ResourceId = '01' THEN '1H'
-									WHEN t.ResourceId = '02' THEN '2H'
-									ELSE t.ResourceId
-								END AS ResourceId
-					) r
 				
             END  
    
@@ -891,32 +886,7 @@ BEGIN
                                         END THEN 1
                                 ELSE - 1
                                 END
-                        /*
-                        WHEN 16 THEN -- HT/FT
-                            CASE 
-                                WHEN betteam = CASE
-                                                    WHEN @hth > @hta THEN 'H' + CASE
-                                                                                    WHEN @fth > @fta THEN 'H'
-                                                                                    WHEN @fth = @fta THEN 'D'
-                                                                                    WHEN @fth < @fta THEN 'A'
-                                                                                    ELSE NULL
-                                                                                END
-                                                    WHEN @hth = @hta THEN 'D' + CASE
-                                                                                    WHEN @fth > @fta THEN 'H'
-                                                                                    WHEN @fth = @fta THEN 'D'
-                                                                                    WHEN @fth < @fta THEN 'A'
-                                                                                    ELSE NULL
-                                                                                END
-                                                    WHEN @hth < @hta THEN 'A' + CASE
-                                                                                    WHEN @fth > @fta THEN 'H'
-                                                                                    WHEN @fth = @fta THEN 'D'
-                                                                                    WHEN @fth < @fta THEN 'A'
-                                                                                    ELSE NULL
-                                                                                END
-                                            END THEN 1
-                                ELSE - 1
-                                END
-                        */
+      
                         WHEN 17 THEN  
                             CASE betteam
                                 WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @hth - livehomescore) - (@fta - @hta - liveawayscore)
