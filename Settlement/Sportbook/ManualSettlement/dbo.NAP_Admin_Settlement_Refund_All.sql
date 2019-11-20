@@ -83,6 +83,7 @@ AS
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191028@Sol: Prevent Direct Actions for Soccer Matches - Fixed wrong settlement when Refund All button is clicked second times [Redmine:#122176]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -579,7 +580,7 @@ BEGIN
 				--just for IBC case
 				SELECT @refundCommand_1s 			= @refundCommand
 				WHERE @IsSettleAbandonedMatchIBC 	= 1
-			
+
 				EXEC dbo.NAP_Admin_Calculate_Main 
                     @matchid                        = @matchid
                     ,@action                        = 'REFUND'
@@ -598,8 +599,8 @@ BEGIN
                     ,@IsSettleAbandonedMatch        = @IsSettleAbandonedMatch
                     ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                     ,@IsSettleAbandonedMatchIBC     = @IsSettleAbandonedMatchIBC                    
-                    ,@IsHTCal                       = @IsHTCal
-                    ,@strBettypes                    = @strSettledBettypes
+                    ,@IsHTCal                       = 0
+                    ,@strBettypes                   = @strSettledBettypes
 					
 					-- including FGLG
 					,@ht_fg 						= @ht_fg
