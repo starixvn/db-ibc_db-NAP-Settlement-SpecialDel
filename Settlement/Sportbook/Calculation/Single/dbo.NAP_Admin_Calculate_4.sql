@@ -55,6 +55,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 				
 	Param's Explanation:
 		
@@ -193,6 +194,12 @@ BEGIN
 
 			UPDATE 	b
 				SET @modds = CASE 
+						WHEN @bettype = 399 AND betteam = 'AOS' AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1 
+						WHEN @bettype = 399 AND betteam <> 'AOS' AND (@fth > LEFT(betteam,1) OR @fta > RIGHT(betteam,1)) THEN -1
+
+						WHEN @bettype = 392 AND betteam IN ('HAOS', 'AAOS') AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1 
+						WHEN @bettype = 392 AND betteam NOT IN ('HAOS', 'AAOS') AND (@fth > LEFT(betteam,1) OR @fta > RIGHT(betteam,1)) THEN -1
+								
 						WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' )  AND @correctscore <> '') THEN --just for betchoice FG and NG
 							CASE WHEN (betteam = @correctscore OR betteam = @FGLG2)	THEN 1 ELSE -1 END
 						WHEN betteam NOT IN ('0:4', '4:0') 
@@ -264,8 +271,8 @@ BEGIN
 									WHEN @modds IS NULL THEN statusID
 								END
 					,@winlost = CASE 
-						WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END	) END )
-						WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END	) END ) * 0.5
+						WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END	) END )
+						WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END	) END ) * 0.5
 						WHEN @modds = 0 THEN actual_stake WHEN @modds = - 0.25 THEN actual_stake * 0.5
 						WHEN @modds < - 0.25 THEN 0
 						WHEN @modds IS NULL THEN winlost
@@ -283,8 +290,8 @@ BEGIN
 					,aWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN aWinLost 
 									ELSE CASE 
-											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking
-											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking * 0.5
+											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking
+											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking * 0.5
 											WHEN @modds = 0 THEN 0
 											WHEN @modds = - 0.25 THEN actual_stake * apositiontaking * 0.5
 											WHEN @modds < - 0.25 THEN actual_stake * apositiontaking
@@ -295,8 +302,8 @@ BEGIN
 					,mWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN mWinLost 
 									ELSE CASE 
-											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30,127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking
-											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking * 0.5
+											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30,127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking
+											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking * 0.5
 											WHEN @modds = 0 THEN 0
 											WHEN @modds = - 0.25 THEN actual_stake * mpositiontaking * 0.5
 											WHEN @modds < - 0.25 THEN actual_stake * mpositiontaking
@@ -308,8 +315,8 @@ BEGIN
 					,sWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN sWinLost 
 									ELSE CASE 
-											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking
-											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking * 0.5
+											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking
+											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking * 0.5
 											WHEN @modds = 0 THEN 0
 											WHEN @modds = - 0.25 THEN actual_stake * spositiontaking * 0.5
 											WHEN @modds < - 0.25 THEN actual_stake * spositiontaking
@@ -463,6 +470,18 @@ BEGIN
 											WHEN bettype = 1317 AND @SelectedSet LIKE '%5%' AND BetID = 805 THEN @CorrectScoreSet5
 											ELSE @correctscore END
 					,@modds = CASE 
+						--399: Extra Time Correct Score
+						WHEN @bettype = 399 THEN
+							CASE WHEN betteam <> 'AOS' AND betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
+								WHEN betteam = 'AOS' AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1
+								ELSE -1
+							END
+						--392: Penalty Shootout Correct Score
+						WHEN @bettype = 392 THEN
+							CASE WHEN betteam NOT IN ('HAOS', 'AAOS') AND betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
+								WHEN betteam IN ('HAOS', 'AAOS') AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1
+								ELSE -1
+							END
 						--448:	Last Team To Score
 						WHEN @bettype = 448 THEN CASE WHEN betteam = @FGLG2 THEN 1 ELSE -1 END
 						WHEN (betteam = @correctscore OR betteam = @FGLG2 AND bettype <> 16) THEN 1
@@ -511,8 +530,8 @@ BEGIN
 									WHEN @modds < 0 THEN 113 --LOSE
 								END
 					,@winlost = CASE 
-									WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END	) END )
-									WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END	) END ) * 0.5
+									WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END	) END )
+									WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END	) END ) * 0.5
 									WHEN @modds = 0 THEN actual_stake WHEN @modds = - 0.25 THEN actual_stake * 0.5
 									WHEN @modds < - 0.25 THEN 0
 								END
@@ -529,8 +548,8 @@ BEGIN
 					,aWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN aWinLost 
 									ELSE CASE 
-										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127, 1204, 1235,165,166,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking
-										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127, 1204, 1235,165,166,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking * 0.5
+										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127, 1204, 1235,165,166,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking
+										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127, 1204, 1235,165,166,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - apositiontaking * 0.5
 										WHEN @modds = 0 THEN 0
 										WHEN @modds = - 0.25 THEN actual_stake * apositiontaking * 0.5
 										WHEN @modds < - 0.25 THEN actual_stake * apositiontaking
@@ -540,8 +559,8 @@ BEGIN
 					,mWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN mWinLost 
 									ELSE CASE 
-											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30,127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking
-											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking * 0.5
+											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30,127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking
+											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - mpositiontaking * 0.5
 											WHEN @modds = 0 THEN 0
 											WHEN @modds = - 0.25 THEN actual_stake * mpositiontaking * 0.5
 											WHEN @modds < - 0.25 THEN actual_stake * mpositiontaking
@@ -551,8 +570,8 @@ BEGIN
 					,sWinLost = CASE 
 									WHEN @IsUpd_Void = 0 THEN sWinLost 
 									ELSE CASE 
-											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking
-											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking * 0.5
+											WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking
+											WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (4, 5, 6, 14, 15, 16, 30, 127,165,166, 1204, 1235,1302,1317,405,413,414,448,399,392) THEN odds - 1 ELSE odds END ) END ) * - spositiontaking * 0.5
 											WHEN @modds = 0 THEN 0
 											WHEN @modds = - 0.25 THEN actual_stake * spositiontaking * 0.5
 											WHEN @modds < - 0.25 THEN actual_stake * spositiontaking

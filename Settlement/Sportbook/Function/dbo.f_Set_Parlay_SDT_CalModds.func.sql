@@ -24,6 +24,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		
     Parameters Explanation:    
 		- @hScore1H: Home score in 1H
@@ -65,8 +66,8 @@ RETURN (
 					WHEN @bettype IN(3) THEN (@hScore1H + @aScore1H) + (@hScore2H + @aScore2H)
 					WHEN @bettype IN(8) THEN (@hScore1H + @aScore1H)
 					WHEN @bettype IN (18, 178) THEN  (@hScore2H + @aScore2H)
-					WHEN @bettype IN (401, 461, 482) THEN (@hScore1H + @hScore2H)
-					WHEN @bettype IN (402, 462, 483) THEN (@aScore1H + @aScore2H)
+					WHEN @bettype IN (401, 461, 482, 389) THEN (@hScore1H + @hScore2H)
+					WHEN @bettype IN (402, 462, 483, 388) THEN (@aScore1H + @aScore2H)
 					WHEN @bettype IN (403, 463, 484) THEN @hScore1H
 					WHEN @bettype IN (404, 464, 485) THEN @aScore1H
 					ELSE 0
@@ -81,7 +82,7 @@ RETURN (
 			SELECT 
 				CASE
 				--#3-8-18-178-401-402-403-404
-				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464,482,483,484,485) THEN -- apply half WON|LOSE
+				WHEN @bettype IN (3,8,18,178,401,402,403,404,461,462,463,464,482,483,484,485,389,388) THEN -- apply half WON|LOSE
 					CASE 
 						WHEN @betteam IN ('h', 'o') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN ip.TotalGoalOU - @hdp1 
 						WHEN @betteam IN ('a', 'u') AND @hdp1 <= ip.TotalGoalOU - 0.25 THEN @hdp1 - ip.TotalGoalOU
@@ -1003,6 +1004,30 @@ RETURN (
 								END
 							ELSE NULL
 						END
+
+				-- ##Start - Incorporate PHAIO 5 [Redmine:#121681]
+
+				WHEN @bettype IN (399) THEN -- Extra Time Correct Score
+					CASE
+						WHEN @betteam = 'AOS' THEN CASE WHEN CHARINDEX(CAST(ip.HomeScoreFT AS VARCHAR(6)) + '-' + CAST(ip.AwayScoreFT AS VARCHAR(6)), @transdesc) = 0 THEN 1 ELSE NULL END
+						WHEN @betteam <> 'AOS' AND (ip.HomeScoreFT > LEFT(@betteam,1) OR ip.AwayScoreFT > RIGHT(@betteam,1)) THEN -1
+						ELSE NULL
+					END
+
+				WHEN @bettype IN ( 397 ) THEN
+					CASE 
+						WHEN @betteam = 'NG' AND ip.TotalGoal > 0 THEN -1
+						ELSE NULL
+					END
+
+				WHEN @bettype IN (392) THEN -- Penalty Shootout Correct Score
+					CASE
+						WHEN @betteam IN ('HAOS', 'AAOS') THEN CASE WHEN CHARINDEX(CAST(ip.HomeScoreFT AS VARCHAR(6)) + '-' + CAST(ip.AwayScoreFT AS VARCHAR(6)), @transdesc) = 0 THEN 1 ELSE NULL END
+						WHEN @betteam NOT IN ('HAOS', 'AAOS') AND (ip.HomeScoreFT > LEFT(@betteam,1) OR ip.AwayScoreFT > RIGHT(@betteam,1)) THEN -1
+						ELSE NULL
+					END
+
+				-- ##End - Incorporate PHAIO 5 [Redmine:#121681]
 				---------------------------------------
 				ELSE NULL -- else non-supported bettype
 			END AS modds
