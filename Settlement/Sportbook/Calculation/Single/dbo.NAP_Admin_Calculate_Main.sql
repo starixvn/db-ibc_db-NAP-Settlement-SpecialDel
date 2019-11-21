@@ -185,6 +185,7 @@ AS
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
 		
     Param's Explanation:
         @action             @mode
@@ -207,7 +208,7 @@ BEGIN
                     ELSE 0
                 END
 
-    IF @@SERVERNAME IN ('DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
+    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042','SITDB054', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
         RETURN
 
     IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
