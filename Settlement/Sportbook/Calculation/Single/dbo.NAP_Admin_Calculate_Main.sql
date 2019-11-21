@@ -4874,6 +4874,78 @@ BEGIN
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 
 				-- End - Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
+
+				-- ##Start - Incorporate PHAIO 5 [Redmine:#121681]
+
+				-- bettype 399: Extra time correct score
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 399)
+                         EXEC dbo.NAP_Admin_Calculate_4
+                         @matchid = @matchid
+                        ,@bettype = 399
+						,@fth = @fth
+						,@fta = @fta
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- bettype 397: Extra Time Winning Margin
+                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 397)
+                    EXEC dbo.NAP_Admin_Calculate_3
+                         @matchid = @matchid
+                        ,@bettype = 397
+                        ,@scorediff = @scorediff
+                        ,@totalgoal = @totalgoal
+                        ,@betcount = 1
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+
+				-- bettype 396: Extra Time Next Goal
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 396)
+					EXEC dbo.NAP_Admin_Calculate_13
+                         @matchid = @matchid
+                        ,@bettype = 396
+                        ,@ResultString = @goalsequenceFT
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- bettype 392: Penalty Shootout Correct Score
+                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 392)
+                         EXEC dbo.NAP_Admin_Calculate_4
+                         @matchid = @matchid
+                        ,@bettype = 392
+						,@fth = @fth
+						,@fta = @fta
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- bettype 389: Home Penalty Shootout Over/Under (Final Result)
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 389)
+                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+                        ,@bettype = 389
+                        ,@totalgoal = @fth
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- bettype 388: Away Penalty Shootout Over/Under (Final Result)
+				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 388)
+                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+                        ,@bettype = 388
+                        ,@totalgoal = @fta
+                        ,@betcount = 1
+						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
+                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
+                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+
+				-- ##End - Incorporate PHAIO 5 [Redmine:#121681]
+
             END
 
             IF @mode = 'REFUND'
