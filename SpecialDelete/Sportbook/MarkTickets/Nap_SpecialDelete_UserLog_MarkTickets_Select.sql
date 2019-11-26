@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20190606@Raymond.Le: Create new SP [Redmine: #114596]
 		- 20191101@Charles: Get score and ko time for userlogs [122187]
+		- 20191126@Charles: Show DoneBy column when return results [124451]
 
 	Param's explanation:
 */
@@ -60,7 +61,7 @@ BEGIN
 			,ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore'
 			,ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTSCore'
 			,l.LogData
-			,c.username AS 'DoneBy'
+			,c.username 
 		FROM dbo.TicketVoiding_Log AS l WITH (NOLOCK)
 			LEFT JOIN bodb02.dbo.match AS m WITH (NOLOCK) ON l.MatchId = m.matchid
 			LEFT JOIN bodb02.dbo.Customer AS c WITH (NOLOCK) ON l.UserId = c.custid
@@ -90,7 +91,7 @@ BEGIN
 	WHERE lr.homeid is NULL
 
 	-- Return log result
-	SELECT SessionId, CreatedDate, LogActionId, MatchId, homeid, awayid, kickofftime, HTScore, FTSCore, LogData, username
+	SELECT SessionId, CreatedDate, LogActionId, MatchId, homeid, awayid, kickofftime, HTScore, FTSCore, LogData, username AS 'DoneBy'
 	FROM #LogResult
 
 	DROP TABLE #LogActionId
