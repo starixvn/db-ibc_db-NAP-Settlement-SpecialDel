@@ -443,7 +443,8 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.recommend
 			   ,s.LiveIndicator
-
+			   ,s.subbettype
+			   
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -502,6 +503,7 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.recommend
 			   ,s.LiveIndicator
+			   ,s.subbettype
 
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
@@ -554,6 +556,7 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.recommend
 			   ,s.LiveIndicator
+			   ,s.subbettype
 
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
@@ -611,6 +614,7 @@ BEGIN
 		   ,s.IsMarked
 		   ,s.recommend
 		   ,s.LiveIndicator
+		   ,s.subbettype
 
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
@@ -663,6 +667,7 @@ BEGIN
 			,s.IsMarked
 			,c.site as LicenseeName
 			,s.LiveIndicator
+			,s.subbettype AS SubBettype
 
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
