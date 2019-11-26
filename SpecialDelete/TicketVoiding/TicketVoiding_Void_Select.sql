@@ -1214,7 +1214,7 @@ BEGIN
 		   ,s.betcheck
 		   ,s.SubBetcheck
 		   ,s.IsMixParlay
-		   ,s.ParlayType
+		   ,s.ParlayType AS SubBettype
 		   ,s.followedId
 		   ,s.followedUsername
 		   ,s.Transdesc
