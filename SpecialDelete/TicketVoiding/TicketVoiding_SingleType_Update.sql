@@ -104,7 +104,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -115,7 +115,7 @@ BEGIN
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
