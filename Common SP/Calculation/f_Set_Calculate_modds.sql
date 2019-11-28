@@ -8,6 +8,8 @@ ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		,@AwayValue 	VARCHAR(50)
 		,@LiveHomeScore SMALLINT
 		,@LiveAwayScore SMALLINT
+		--,@MaxTotalScoreAvai SMALLINT = 0
+		--,@IsDetemined BIT = 0
 		)
 RETURNS TABLE
 AS  
@@ -157,7 +159,34 @@ RETURN
 			   		 WHEN @betteam ='2-1' AND @AwayValue = 1 THEN 1
 			   		 WHEN @betteam ='2-0' AND @AwayValue = 0 THEN 1
 			   		 ELSE -1 END
+			WHEN @pfID = 391 THEN -- Penalty Shootout Exact Total Goals (First 10)
+				--CASE WHEN @IsDetemined = 1 THEN 
+				--		CASE 
+				--			WHEN @betteam = 'G4' AND (0 <= fm AND fm <= 4) AND (0 <= @MaxTotalScoreAvai AND @MaxTotalScoreAvai <= 4) THEN 1
+				--			WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+				--			WHEN RIGHT(REPLACE('+',@betteam,''),1) BETWEEN fm AND @MaxTotalScoreAvai THEN NULL
+				--			ELSE -1 
+				--		END
+				--	ELSE 
+						CASE WHEN @betteam = 'G4' AND (0 <= fm AND fm <= 4) THEN 1
+							WHEN @betteam = 'G5' AND (fm = 5) THEN 1
+							WHEN @betteam = 'G6' AND (fm = 6) THEN 1
+							WHEN @betteam = 'G7' AND (fm = 7) THEN 1
+							WHEN @betteam = 'G8' AND (fm = 8) THEN 1
+							WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+							ELSE -1 
+						END
+				--END
 
+			WHEN @pfID = 391 THEN --Penalty Shootout Exact Total Goals (First 10)
+				CASE WHEN @betteam = 'G4' AND (1 <= fm AND fm <= 4) THEN 1
+					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
+					WHEN @betteam = 'G6' AND (fm = 6) THEN 1
+					WHEN @betteam = 'G7' AND (fm = 7) THEN 1
+					WHEN @betteam = 'G8' AND (fm = 8) THEN 1
+					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+				ELSE -1 END
+			   		
 			WHEN @pfID = 391 THEN --Penalty Shootout Exact Total Goals (First 10)
 				CASE WHEN @betteam = 'G4' AND (1 <= fm AND fm <= 4) THEN 1
 					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
@@ -167,6 +196,18 @@ RETURN
 					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
 					ELSE -1 END
 
+			--WHEN @pfID = 383 THEN -- Penalty Shootout Woodwork - Round X
+			--	CASE WHEN @IsDetemined = 1 -- param detemined here
+			--		CASE WHEN 
+					
+			--	CASE WHEN @betteam = 'H' AND  THEN 1
+			--		WHEN @betteam = 'G5' AND (fm = 5) THEN 1
+			--		WHEN @betteam = 'G6' AND (fm = 6) THEN 1
+			--		WHEN @betteam = 'G7' AND (fm = 7) THEN 1
+			--		WHEN @betteam = 'G8' AND (fm = 8) THEN 1
+			--		WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+			--	ELSE -1 END
+			   		
 			ELSE -1 END AS modds
    FROM
 	(
