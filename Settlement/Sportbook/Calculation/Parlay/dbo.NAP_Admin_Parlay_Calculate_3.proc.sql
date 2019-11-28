@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
@@ -16,30 +16,12 @@ AS
 		- 20170719@Kathy: Correct statuswinlost of refund [Redmine:#77835]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
-		
+
     Param's Explanation:
         
 */
 BEGIN
 	SET NOCOUNT ON;
-	
-	-- CHECK SERVER BEFORE CALCULATING
-	DECLARE @ServerName	SYSNAME 
-			,@AllowExec	BIT
-
-	SET @ServerName = @@SERVERNAME
-
-	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
-	BEGIN
-		EXEC [dbo].[NAP_Set_ServerAction]
-			@ServerName	= @ServerName
-			,@AllowExec	= @AllowExec OUTPUT
-
-		IF @AllowExec = 0
-			RETURN
-	END
-	-- END CHECK
 	
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0

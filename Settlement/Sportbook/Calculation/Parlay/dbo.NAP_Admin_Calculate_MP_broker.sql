@@ -61,14 +61,14 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042','SITDB054')
+    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
 
     IF @@SERVERNAME IN ('DB052', 'DB053', 'DB06', 'DBTP', 'DB061', 'DB062'
 		, 'DB231', 'DB232','DB215','DB234'
-		,'SITDB052', 'SITDB053', 'SITDB054', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02' ) AND @CalledByBrokerService = 0
+		,'SITDB052', 'SITDB053', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02' ) AND @CalledByBrokerService = 0
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)
