@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20181128@Helen:  Apply Service broker for Number Game [Redmine: 101611]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+		- 20191128@Helen: Not settle on db054 [Redmine:#110276]
 
 	Param's Explanation:
 
@@ -27,7 +28,7 @@ BEGIN
 					ELSE 0
 				END
 
-	IF @@SERVERNAME IN ('DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
+	IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
 		RETURN
 		
     IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
