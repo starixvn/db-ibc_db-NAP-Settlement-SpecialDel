@@ -76,7 +76,8 @@ BEGIN
               BonusID               INT,
               MainTransId           BIGINT,
               WinLost               MONEY,
-              IsMarked              BIT
+              IsMarked              BIT,
+              LiveIndicator			BIT
              )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -161,6 +162,7 @@ BEGIN
 				,BonusID
 				,WinLost
 				,IsMarked
+				,LiveIndicator
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -208,6 +210,7 @@ BEGIN
 				,b.BonusID
 				,b.WinLost - b.actual_stake AS WinLost
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+				,b.liveindicator
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -256,6 +259,7 @@ BEGIN
 				,BonusID
 				,WinLost
 				,IsMarked
+				,LiveIndicator
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -303,6 +307,7 @@ BEGIN
 				,b.BonusID
 				,b.WinLost - b.actual_stake AS WinLost
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+				,b.liveindicator
 		FROM	bettrans b WITH (NOLOCK)	
 		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 		WHERE	b.matchid = @matchid
@@ -347,6 +352,7 @@ BEGIN
 					,betdaqid
 					,WinLost
 					,IsMarked
+					,LiveIndicator
 				)	
 			SELECT 
 					b.TranslogID AS GroupID
@@ -381,6 +387,7 @@ BEGIN
 					,-1 AS betdaqid -- normal ticket
 					,- b.actual_stake as winlost
 					,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+					,b.liveindicator
 			FROM	Translog b WITH (NOLOCK)
 				 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 			WHERE	b.EventID = @matchid
@@ -438,6 +445,7 @@ BEGIN
 					,modds
 					,WinLost
 					,IsMarked
+					,LiveIndicator
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -473,8 +481,9 @@ BEGIN
 					,sub.bettype AS parlaytype
 					,1 AS IsMixParlay
 					,main.modds
-					,main.winlost -main.actual_stake AS WinLost,
-					0
+					,main.winlost -main.actual_stake AS WinLost
+					,0
+					,sub.liveindicator
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -561,6 +570,7 @@ BEGIN
 							,MainTransId
 							,WinLost
 							,IsMarked
+							,LiveIndicator
 						)
 					SELECT 
 							b.transid AS GroupID
@@ -609,6 +619,7 @@ BEGIN
 							,t.transid AS MainTransId
 							,b.winlost - b.actual_stake AS WinLost
 							,t.IsMarked
+							,b.liveindicator
 				FROM #tmpRefCodeSummary t
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = t.RefCode
@@ -672,6 +683,7 @@ BEGIN
 				,MainTransId
 				,WinLost
 				,IsMarked
+				,LiveIndicator
 			)
 		SELECT  main.transid AS GroupTransId
 				,sub.transid AS transId
@@ -711,6 +723,7 @@ BEGIN
 				,main.transid AS MainTransId
 				,sub.winlost - sub.actual_stake AS WinLost
 				,main.IsMarked
+				,main.LiveIndicator
 		FROM	#SpecialDeleteBets main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	main.transid = sub.refno
@@ -761,6 +774,7 @@ BEGIN
 				,MainTransId
 				,WinLost
 				,IsMarked
+				,LiveIndicator
 			)
 		SELECT  sub911.transid AS GroupTransId
 				,sub911.transid AS transId
@@ -802,6 +816,7 @@ BEGIN
 				,main.transid AS MainTransId
 				,sub911.winlost - sub911.actual_stake AS WinLost
 				,main.IsMarked
+				,main.LiveIndicator
 		FROM dbo.bettrans sub911 WITH(NOLOCK)
 			 INNER JOIN #SpecialDeleteBets main 
 					ON	sub911.refno = main.transid	
@@ -854,6 +869,7 @@ BEGIN
 					,MainTransId
 					,WinLost
 					,IsMarked
+					,LiveIndicator
 				)
 			SELECT  sub911.transid AS GroupID
 					,b.transid
@@ -899,11 +915,12 @@ BEGIN
 					,sub911.MainTransId
 					,b.winlost - b.actual_stake AS WinLost
 					,sub911.IsMarked
+					,b.liveindicator
 		FROM #SpecialDeleteBets sub911
 			 CROSS APPLY (
 							  SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
 									,b.hdp1, b.hdp2, b.livehomescore, b.liveawayscore, b.creator, b.stake, b.CurrencyName, b.SecAcceptFlag, b.checktime, b.odds
-									,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake
+									,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator
 							  FROM dbo.bettrans b WITH (NOLOCK)
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid					
@@ -985,6 +1002,7 @@ BEGIN
 			   ,s.WinLost
 			   ,s.IsMarked
 			   ,s.recommend
+			   ,s.LiveIndicator
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1054,6 +1072,7 @@ BEGIN
 			   ,s.WinLost
 			   ,s.IsMarked
 			   ,s.recommend
+			   ,s.LiveIndicator
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -1112,6 +1131,7 @@ BEGIN
 			   ,s.WinLost
 			   ,s.IsMarked
 			   ,s.recommend
+			   ,s.LiveIndicator
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1178,6 +1198,7 @@ BEGIN
 		   ,s.WinLost
 		   ,s.IsMarked
 		   ,s.recommend
+		   ,s.LiveIndicator
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1233,6 +1254,7 @@ BEGIN
 		   ,s.WinLost
 		   ,s.IsMarked
 		   ,c.site as LicenseeName
+		   ,s.LiveIndicator
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

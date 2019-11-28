@@ -68,7 +68,7 @@ BEGIN
 		) m
 	WHERE	rd.RequestId = @RequestId
 	
-	SELECT DISTINCT	tv.MessageId
+	SELECT TOP 1 tv.MessageId
 			,msg.Content_en AS ContentEnglish
 			,msg.Content_ch AS ContentChineseTraditional
 	FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
@@ -78,5 +78,6 @@ BEGIN
 				WHERE m.MessageId = tv.MessageId
 			) msg
 	WHERE tv.RequestId = @RequestId AND tv.StatusId = 2
+	ORDER BY tv.CreatedDate DESC
 
 END
