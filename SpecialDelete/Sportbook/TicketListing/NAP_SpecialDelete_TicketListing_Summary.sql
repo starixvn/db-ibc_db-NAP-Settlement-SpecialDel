@@ -56,6 +56,7 @@ AS
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
 		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
+		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -550,6 +551,7 @@ BEGIN
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29
 				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -616,6 +618,7 @@ BEGIN
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -705,6 +708,7 @@ BEGIN
 							FROM dbo.CS_CustSuper WITH (NOLOCK))
 					AND bm.matchid = @MatchId
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 					AND b.bettype = 29
 					AND b.matchid = 29
 					AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -775,6 +779,7 @@ BEGIN
 					   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -856,6 +861,7 @@ BEGIN
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29
 				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -922,6 +928,7 @@ BEGIN
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1016,6 +1023,7 @@ BEGIN
 			 AND b.bettype = 29
 			 AND b.matchid = 29
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
+			 AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			 AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			 AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			 AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -1097,6 +1105,7 @@ BEGIN
 			 AND b.bettype = 2799
 			 AND b.matchid = 2799
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
+			 AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			 AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			 AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			 AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END

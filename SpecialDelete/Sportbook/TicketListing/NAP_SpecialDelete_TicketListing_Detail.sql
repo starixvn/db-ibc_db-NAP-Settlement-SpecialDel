@@ -56,6 +56,7 @@ AS;
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
 		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
+		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -1492,6 +1493,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
 			WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 				AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1589,6 +1591,7 @@ BEGIN
 							   SELECT custid
 							   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1683,6 +1686,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1776,6 +1780,7 @@ BEGIN
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchID = @MatchId
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1897,6 +1902,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
 			WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 				AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1986,6 +1992,7 @@ BEGIN
 							   SELECT custid
 							   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -2070,6 +2077,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -2153,6 +2161,7 @@ BEGIN
 			INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchID = @MatchId
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
