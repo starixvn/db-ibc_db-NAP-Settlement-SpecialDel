@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_10]
 	 @MatchID			INT
 	,@Status			NVARCHAR(10)
@@ -15,6 +15,7 @@ AS
 	Revisions:
 		- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
+		- 20191129@Helen: Not settle on db054 [Redmine:#123963]
 		
 	Param's Explanation:
 
@@ -30,7 +31,7 @@ BEGIN
 	IF @Action='UNDO'
 		SET @IgnoreList = 'DB04,DB043,DB044,SITDB04,SITDB043,SITDB044,DB04ADMIN1,DB04ADMIN2'
 	ELSE
-		SET @IgnoreList = 'DB04,DB042,DB043,DB044,DB04ADMIN1,DB04ADMIN2,DB233\SQLSERVER2008R2,DB232\SQLSERVER2008R2,SITDB04,SITDB042,SITDB043,SITDB044'
+		SET @IgnoreList = 'DB054,DB04,DB042,DB043,DB044,DB04ADMIN1,DB04ADMIN2,DB233\SQLSERVER2008R2,DB232\SQLSERVER2008R2,SITDB04,SITDB042,SITDB043,SITDB044'
 	
 	DECLARE @_xml XML, @_sXML VARCHAR(MAX)
 		,@createdDate DATETIME
