@@ -1254,7 +1254,7 @@ BEGIN
 		   ,s.WinLost
 		   ,s.IsMarked
 		   ,c.site as LicenseeName
-		   ,s.LiveIndicator
+		   ,s.LiveIndicator AS IsLiveIndicator
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

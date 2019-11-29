@@ -666,7 +666,7 @@ BEGIN
 			,s.winlost
 			,s.IsMarked
 			,c.site as LicenseeName
-			,s.LiveIndicator
+			,s.LiveIndicator AS IsLiveIndicator
 			,s.subbettype AS SubBettype
 
 	FROM CTE_OriginResult s
