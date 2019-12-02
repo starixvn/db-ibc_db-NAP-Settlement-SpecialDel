@@ -197,7 +197,6 @@ BEGIN
 						WHEN @bettype = 399 AND betteam = 'AOS' AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1 
 						WHEN @bettype = 399 AND betteam <> 'AOS' AND (@fth > LEFT(betteam,1) OR @fta > RIGHT(betteam,1)) THEN -1
 
-						WHEN @bettype = 392 AND betteam IN ('HAOS', 'AAOS') AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1 
 						WHEN @bettype = 392 AND betteam NOT IN ('HAOS', 'AAOS') AND (@fth > LEFT(betteam,1) OR @fta > RIGHT(betteam,1)) THEN -1
 								
 						WHEN (@bettype IN (14, 127) AND RIGHT(betteam, 1) IN ('0', '1' )  AND @correctscore <> '') THEN --just for betchoice FG and NG
@@ -479,7 +478,8 @@ BEGIN
 						--392: Penalty Shootout Correct Score
 						WHEN @bettype = 392 THEN
 							CASE WHEN betteam NOT IN ('HAOS', 'AAOS') AND betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
-								WHEN betteam IN ('HAOS', 'AAOS') AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1
+								WHEN betteam IN ('HAOS') AND @fth > @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1
+								WHEN betteam IN ('AAOS') AND @fth < @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), transdesc) = 0 THEN 1
 								ELSE -1
 							END
 						--448:	Last Team To Score

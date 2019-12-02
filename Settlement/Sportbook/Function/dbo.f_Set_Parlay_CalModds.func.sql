@@ -1690,7 +1690,8 @@ RETURN (
 				WHEN 392 THEN -- Penalty Shootout Correct Score
 							CASE 
 								WHEN @betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
-								WHEN @betteam IN ('HAOS', 'AAOS') AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
+								WHEN @betteam IN ('HAOS') AND @fth > @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
+								WHEN @betteam IN ('AAOS') AND @fth < @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
 								ELSE -1
 							END
 

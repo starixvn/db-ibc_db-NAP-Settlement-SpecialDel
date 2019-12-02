@@ -1022,7 +1022,6 @@ RETURN (
 
 				WHEN @bettype IN (392) THEN -- Penalty Shootout Correct Score
 					CASE
-						WHEN @betteam IN ('HAOS', 'AAOS') THEN CASE WHEN CHARINDEX(CAST(ip.HomeScoreFT AS VARCHAR(6)) + '-' + CAST(ip.AwayScoreFT AS VARCHAR(6)), @transdesc) = 0 THEN 1 ELSE NULL END
 						WHEN @betteam NOT IN ('HAOS', 'AAOS') AND (ip.HomeScoreFT > LEFT(@betteam,1) OR ip.AwayScoreFT > RIGHT(@betteam,1)) THEN -1
 						ELSE NULL
 					END

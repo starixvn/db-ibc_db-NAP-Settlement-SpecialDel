@@ -59,6 +59,9 @@ BEGIN
 			,@batchNo			INT 			
 			,@batchCount		INT		
 			,@strTransIds		VARCHAR(MAX)	
+			,@homeRound			TINYINT
+			,@awayRound			TINYINT
+			,@IsExistDetermined BIT
 	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 			,@BalanceWalletAfter			TVP_BalanceWalletChange
@@ -71,6 +74,7 @@ BEGIN
 		,BetID		BIGINT
 		,pfID		SMALLINT
 		,oddstype	SMALLINT
+		,IsDeterminded BIT
 		,PRIMARY KEY (BetType,BetID)
 	)    
 		
@@ -137,11 +141,12 @@ BEGIN
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype)
-	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType
+	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype, IsDeterminded)
+	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType, ISNULL(IsDeterminded, 0)
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
+														,IsDeterminded BIT
 										) AS tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.Id
@@ -153,6 +158,28 @@ BEGIN
 									 ,BetID	AS '@b'
 							  FROM	@tmpSelectedRID
 							  FOR XML PATH('r'), ROOT( 'root' )) 
+
+	-- update ResultDetail table
+	EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+        @Command            = @Command,
+        @MatchID            = @MatchID,
+		@SelectedResources	= @SelectedResources,
+        @IsAuto             = @IsAuto,
+        @creator            = @AdminID
+
+	SELECT 
+		@homeRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1), 
+		@awayRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1) 
+	FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
+	WHERE MatchID = @MatchID 
+			AND ResourceID LIKE '38[12]0[12345]'
+			AND SettlementStatusID = 4
+			AND ResultStatusID = 5
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminded = 1)
+	BEGIN
+		SET @IsExistDetermined = 1
+	END
 
 	--get transid
   	IF @Action = 'CAL'
@@ -199,7 +226,7 @@ BEGIN
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							ELSE 0 END
 	END
-	ELSE IF @action = 'REFUND'
+	ELSE IF @action = 'REFUND' AND @IsExistDetermined = 0
 	BEGIN
 		--get transid
 		INSERT INTO #tmpTransID(TransID)
@@ -211,13 +238,45 @@ BEGIN
 	  	WHERE	b.matchid = @MatchId
 	  			AND	b.statusID NOT IN (103, 101)
 	END 
+	ELSE IF @action = 'REFUND' AND @IsExistDetermined = 1
+	BEGIN
+		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked)
+	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	  	FROM	dbo.bettrans b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transId
+			)mt
+	  		CROSS APPLY(
+	  			SELECT TOP 1 pfID, HomeValue, AwayValue, t.oddstype
+	  			FROM	@tmpSelectedRID t
+	  			WHERE	b.BetType = t.BetType 
+						AND (t.BetID = 0 OR b.BetID = t.BetID) 
+						AND t.IsDeterminded = 1
+	  		) sr
+	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL,@homeRound + @awayRound) m
+	  	WHERE	b.matchid = @MatchId
+	  			AND b.statusID NOT IN (101)
+	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								 WHEN @IsReSettledTickets = 1 THEN 1
+								 ELSE 0
+							END
+
+		-- add tranid without determinded and refund
+		INSERT INTO #tmpTransID(TransID)
+	  	SELECT	transid
+	  	FROM	dbo.bettrans b WITH (NOLOCK)
+	  		INNER JOIN @tmpSelectedRID t 
+				ON	b.BetType = t.BetType 
+					AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  	WHERE	b.matchid = @MatchId
+	  			AND	b.statusID NOT IN (103, 101)
+				AND t.IsDeterminded = 0
+
+	END
 	
-    EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-        @Command            = @Command,
-        @MatchID            = @MatchID,
-		@SelectedResources	= @SelectedResources,
-        @IsAuto             = @IsAuto,
-        @creator            = @AdminID             
+                 
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------    
@@ -253,20 +312,65 @@ BEGIN
 			
 			IF @batchCount = 0 BREAK
 
-			--filter selectedRID by current Profile and BetType
-			SET @strTransIds = (SELECT transid	AS '@t'
-										,modds	AS '@m'
-										,oddstype AS '@ot'
-										,IsMarked AS '@im'
-								FROM	@tmpTransIDBatch
-								FOR XML PATH('r'), ROOT( 'root' )
-							)
+			IF (@IsExistDetermined = 1)
+			BEGIN
+				--Cal first
+				--filter selectedRID by current Profile and BetType
+				SET @strTransIds = (SELECT transid	AS '@t'
+											,modds	AS '@m'
+											,oddstype AS '@ot'
+											,IsMarked AS '@im'
+									FROM	@tmpTransIDBatch
+									WHERE modds IS NOT NULL
+									FOR XML PATH('r'), ROOT( 'root' )
+								)
 
-			EXEC dbo.NAP_Admin_Calculate_Main
-				@matchid	  		= @matchid
-				,@action			= @action
-				,@IsSettingByProfile = 1
-				,@strTransIds		 = @strTransIds
+				IF (@strTransIds IS NOT NULL OR @strTransIds <> '')
+				BEGIN
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  		= @matchid
+						,@action			= 'CAL'
+						,@IsSettingByProfile = 1
+						,@strTransIds		 = @strTransIds
+				END
+
+				--Refund after 
+				SET @strTransIds = (SELECT transid	AS '@t'
+											,modds	AS '@m'
+											,oddstype AS '@ot'
+											,IsMarked AS '@im'
+									FROM	@tmpTransIDBatch
+									WHERE modds IS NULL
+									FOR XML PATH('r'), ROOT( 'root' )
+								)
+				
+				IF (@strTransIds IS NOT NULL OR @strTransIds <> '')
+				BEGIN
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  		= @matchid
+						,@action			= 'REFUND'
+						,@IsSettingByProfile = 1
+						,@strTransIds		 = @strTransIds
+				END
+			END
+			ELSE 
+			BEGIN
+				--filter selectedRID by current Profile and BetType
+				SET @strTransIds = (SELECT transid	AS '@t'
+											,modds	AS '@m'
+											,oddstype AS '@ot'
+											,IsMarked AS '@im'
+									FROM	@tmpTransIDBatch
+									FOR XML PATH('r'), ROOT( 'root' )
+								)
+
+				EXEC dbo.NAP_Admin_Calculate_Main
+					@matchid	  		= @matchid
+					,@action			= @Action
+					,@IsSettingByProfile = 1
+					,@strTransIds		 = @strTransIds
+			END
+			
 		END
 	END TRY
 	BEGIN CATCH

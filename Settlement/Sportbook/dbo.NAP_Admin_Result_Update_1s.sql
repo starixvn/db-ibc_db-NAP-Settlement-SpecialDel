@@ -33,6 +33,7 @@ AS
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
         - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -65,6 +66,7 @@ BEGIN
             ,ResultStatusId         TINYINT
             ,SettlementStatusId     TINYINT
             ,SourceType             BIT DEFAULT(0) -- 0: DB, 1: Web
+			,IsDeterminded			BIT DEFAULT(0)
     )
     
     SELECT  @sporttype  = Sporttype 
@@ -107,10 +109,11 @@ BEGIN
             SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
                     ,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 					,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+					,T.C.value('@IsDeterminded', 'BIT') AS IsDeterminded
             FROM    @xmlSelectedResources.nodes('/Resources/Resource') AS T(C)
         )
-        INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue)
-        SELECT   ResourceId, HomeValue, AwayValue
+        INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue,IsDeterminded)
+        SELECT   ResourceId, HomeValue, AwayValue,IsDeterminded
         FROM    cteSelectedResources 
 	END
 
@@ -196,7 +199,9 @@ BEGIN
         WHEN MATCHED THEN 
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
-                    ,TARGET.SettlementStatusID  = 1
+                    ,TARGET.SettlementStatusID  = CASE WHEN IsDeterminded = 1 THEN 7 ELSE 1 END
+					,TARGET.HomeValue           = SOURCE.HomeValue
+                    ,TARGET.AwayValue           = SOURCE.AwayValue
                     ,TARGET.LastModifyBy        = @Creator
                     ,TARGET.LastModifyDate      = GETDATE()
         WHEN NOT MATCHED BY TARGET THEN 
@@ -216,8 +221,8 @@ BEGIN
                     VALUES(
                          @MatchID
                         ,SOURCE.ResourceID
-                        ,NULL
-                        ,NULL
+                        ,SOURCE.HomeValue
+                        ,SOURCE.AwayValue
                         ,NULL 
                         ,5 -- Manual Settlement 
                         ,1 -- Refund

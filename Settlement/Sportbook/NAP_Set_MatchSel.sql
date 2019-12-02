@@ -626,6 +626,7 @@ BEGIN
 			END AS AutoSettleFastMarket
 			
 			,CASE
+				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (201, 202, 203) THEN 'No Ticket' 
 				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 THEN 'N/A' 
 				WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
 				WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
@@ -636,7 +637,6 @@ BEGIN
 			
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
-			,CASE WHEN m.ChildMatchType IN (201, 202, 203) THEN 1 ELSE 0 END AS IsExtraTimePenaltyMatch
 	FROM	#matchList m
 		LEFT JOIN #tempmatch t 
 			ON	t.matchid = m.matchid
