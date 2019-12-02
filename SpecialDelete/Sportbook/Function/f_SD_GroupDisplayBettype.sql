@@ -1,20 +1,14 @@
 /*<info serverAlias="DBACC-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
-ALTER FUNCTION [dbo].[f_GroupBettype] ()
+CREATE FUNCTION [dbo].[f_SD_GroupDisplayBettype] ()
 RETURNS TABLE
 RETURN
 /*
-	Created: 20141016@Sophia
-	Task :	Get grouped bettype for Sporting Solution and BetRadar
-	DB:		DBAGE/bodb02, DBEXT/bodb02, DBACC/bodb02
+	Created: 20191202@Raymond.Le
+	Task :	Get grouped display bettype for Sporting Solution (only for Special Delete)
+	DB:		DBPRO/bodb02, DBACC/bodb02
  	Revisions: 
-		- 20150414@Sophia: Support BetRadar
-		- 20151204@Bobby: Grouped 6 bettypes for PH AIO
-		- 20160119@Sophia: PH AIO phase 1.2 [Redmine: #51029]
-		- 20160426@Sophia: Change to in line Func-High Availability Step 4 [Redmine: #55746]
-		- 20160712@Percy: PH AIO phase 2 [Redmine: #53152]
-		- 20161007@Sophia: PHAIO Phase 2 , add more couple of Parent - Child [Redmine: #65406]
-		- 20170919@Percy: PHAIO Phase 3, add 4 new bettypes 461 - 464 [RedmineID: #83356]
-		- 20190805@Sophia: PHAIO 4B, Bettype 470 -> 497, Change GroupTypeId of 11, 199 [RedmineID: #115231]
+		- 20191202@Raymond.Le: Create new function [124675]
+
 */
 	-------- Grouped bettype for Sporting Solution
 	SELECT 153 AS Bettype, 153 AS GroupTypeId
@@ -118,9 +112,6 @@ RETURN
 		,(141, 141), (443, 141) -- Highest Scoring Half Home Team
 		,(142, 142), (444, 142) -- Highest Scoring Half Away Team
 
-		,(429, 429), (187, 429) -- Exact 2H Goals
-		,(412, 412), (179, 412) -- Exact 1H Goals
-
 		,(401, 401), (461, 401) -- Home Team Over/Under
 		,(402, 402), (462, 402) -- Away Team Over/Under
 		,(403, 403), (463, 403) -- 1H Home Team Over/Under
@@ -133,7 +124,6 @@ RETURN
 		,(207, 207), (489, 207) -- 1H First Corner
 		,(208, 208), (491, 208) -- Last Corner
 		,(209, 209), (492, 209) -- 1H Last Corner
-		
 
 	) PH (Bettype, GroupTypeId)
 GO

@@ -36,6 +36,7 @@ AS
 		- 20181119@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20190228@Alan: Implement Bet Builder, remove Live Casino - [106898]
         - 20191004@Charles: Badminton AIO - [120325]
+        - 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
 		
     Param's Explanation:  
     @Mode:   
@@ -86,8 +87,7 @@ BEGIN
     INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
     SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
-    FROM [dbo].[f_GroupBettype] () f 
-    WHERE f.Bettype NOT IN (187, 179)
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
     CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY)
 
@@ -114,7 +114,7 @@ BEGIN
             , f.GroupName 
         FROM dbo.bettype b WITH(NOLOCK)
         INNER JOIN #betTypesTemp bt ON b.typeid = bt.bettype
-        INNER JOIN dbo.f_DEL_GetGroupBettypes() f ON f.BetType = b.typeid
+        INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = b.typeid
         LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
         WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m
                 WHERE m.matchid = @MatchId)
