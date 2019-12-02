@@ -31,18 +31,49 @@ BEGIN
 			,@SB_Error			BIT
 
 			,@oldKickOffTime	DATETIME
+			
+			,@IssueTypeId		INT
+			,@LeagueId			INT = NULL
+			,@HomeId			INT = NULL
+			,@AwayId			INT = NULL
+			,@Sporttype			SMALLINT = NULL
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
 	SET @SB_Error = 0
 
-	UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
-		SET	@oldKickOffTime = KickOffTime
-			,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
-			,TransIds = ISNULL(@TransIds, TransIds)
+	SELECT @IssueTypeId = tr.IssueTypeId
+	FROM TicketVoiding_Request tr WITH (NOLOCK)
+	WHERE tr.RequestId = @RequestId
+	
+	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL
+	BEGIN
+	
+		SELECT	@LeagueId = leagueid
+				,@HomeId = homeid
+				,@AwayId = awayid
+				,@Sporttype = sporttype
+		FROM	dbo.match WITH(NOLOCK)
+		WHERE	matchid = @MatchId
+		
+		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
+			SET	LeagueId = ISNULL(@LeagueId, LeagueId)
+				,MatchId = ISNULL(@MatchId, MatchId)
+				,HomeId = ISNULL(@HomeId, HomeId)
+				,AwayId = ISNULL(@AwayId, AwayId)
+				,TransIds = ISNULL(@TransIds, TransIds)
 
-	WHERE	RequestId = @RequestId
-			AND MatchId = @MatchId
+		WHERE	RequestId = @RequestId
+	END
+	ELSE
+	BEGIN
+		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
+			SET	@oldKickOffTime = KickOffTime
+				,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
+
+		WHERE	RequestId = @RequestId
+				AND MatchId = @MatchId
+	END
 
 	-- Write Log
 	SET @EndTime = GETDATE()
