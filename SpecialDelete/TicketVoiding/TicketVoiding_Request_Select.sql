@@ -65,6 +65,10 @@ BEGIN
 			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 			FROM	dbo.match m WITH(NOLOCK)
 			WHERE	m.matchid = rd.matchid
+			UNION
+			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
+			FROM	dbo.match14 m WITH(NOLOCK)
+			WHERE	m.matchid = rd.matchid
 		) m
 	WHERE	rd.RequestId = @RequestId
 	
