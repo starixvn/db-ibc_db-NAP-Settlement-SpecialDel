@@ -98,7 +98,7 @@ BEGIN
 	WHERE	vh.RequestId = @RequestId AND vh.StatusId = 2
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds, LiveIndicator)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -109,7 +109,6 @@ BEGIN
 			,z.refno
 			,z.bettype
 			,z.odds
-			,z.liveindicator
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -122,7 +121,6 @@ BEGIN
 					,z.refno
 					,z.bettype
 					,z.odds
-					,z.liveindicator
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND z.matchid = @MatchId
@@ -134,7 +132,7 @@ BEGIN
 		) z
 		
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay,LiveIndicator)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -142,7 +140,6 @@ BEGIN
 			,zm.VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
-			,zm.liveindicator
 	FROM	@tmpVoidingHistory vh
 		CROSS APPLY (
 			SELECT	zm.transid
@@ -151,7 +148,6 @@ BEGIN
 					,zm.status
 					,zm.transdate AS VoidedTime
 					,zm.custid
-					,zm.liveindicator
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 					AND zm.matchid = @MatchId
@@ -186,6 +182,7 @@ BEGIN
 				,recommend = b.recommend
 				,winlost = t.winlost - b.actual_stake
 				,BonusID = b.BonusId
+				,LiveIndicator = b.liveindicator
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 
@@ -200,8 +197,8 @@ BEGIN
 				,ExtraInfo = b.ExtraInfo
 				,hdp1 = b.hdp1
 				,hdp2 = b.hdp2
-				,liveawayscore = b.liveawayscore
-				,livehomescore = b.livehomescore
+				,liveawayscore = bm.liveawayscore
+				,livehomescore = bm.livehomescore
 				,odds = b.odds
 				,oddsspread = b.oddsspread
 				,oddstype = b.oddstype
@@ -226,6 +223,7 @@ BEGIN
 				,subhdp1 = bm.hdp1
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
+				,LiveIndicator = bm.liveindicator
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -259,6 +257,7 @@ BEGIN
 				,recommend = b.recommend
 				,winlost = t.winlost - b.actual_stake
 				,BonusID = b.BonusId
+				,LiveIndicator = b.liveindicator
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 		
@@ -272,8 +271,8 @@ BEGIN
 				,ExtraInfo = b.ExtraInfo
 				,hdp1 = b.hdp1
 				,hdp2 = b.hdp2
-				,liveawayscore = b.liveawayscore
-				,livehomescore = b.livehomescore
+				,liveawayscore = bm.liveawayscore
+				,livehomescore = bm.livehomescore
 				,odds = b.odds
 				,oddsspread = b.oddsspread
 				,oddstype = b.oddstype
@@ -298,6 +297,7 @@ BEGIN
 				,subhdp1 = bm.hdp1
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
+				,LiveIndicator = bm.liveindicator
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
@@ -314,8 +314,8 @@ BEGIN
 					,ExtraInfo = b.ExtraInfo
 					,hdp1 = b.hdp1
 					,hdp2 = b.hdp2
-					,liveawayscore = b.liveawayscore
-					,livehomescore = b.livehomescore
+					,liveawayscore = bm.liveawayscore
+					,livehomescore = bm.livehomescore
 					,odds = b.odds
 					,oddsspread = b.oddsspread
 					,oddstype = b.oddstype
@@ -340,6 +340,7 @@ BEGIN
 					,subhdp1 = bm.hdp1
 					,subhdp2 = bm.hdp2
 					,subtransdesc = bm.transdesc
+					,LiveIndicator = bm.liveindicator
 			FROM	#tmpTicket t
 				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29

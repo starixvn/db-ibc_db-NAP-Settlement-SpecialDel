@@ -186,8 +186,8 @@ BEGIN
 			,ExtraInfo = b.ExtraInfo
 			,hdp1 = b.hdp1
 			,hdp2 = b.hdp2
-			,liveawayscore = b.liveawayscore
-			,livehomescore = b.livehomescore
+			,liveawayscore = bm.liveawayscore
+			,livehomescore = bm.livehomescore
 			,odds = b.odds
 			,oddsspread = b.oddsspread
 			,oddstype = b.oddstype
@@ -215,7 +215,7 @@ BEGIN
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
-			,LiveIndicator = b.liveindicator
+			,LiveIndicator = bm.liveindicator
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
