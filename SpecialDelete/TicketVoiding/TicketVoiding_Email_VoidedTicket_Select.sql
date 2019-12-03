@@ -74,6 +74,7 @@ BEGIN
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 		,MainTransId 	BIGINT
 		,IsCashOut		BIT
+		,LiveIndicator   BIT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -168,6 +169,7 @@ BEGIN
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
+			,LiveIndicator = b.liveindicator
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -213,6 +215,7 @@ BEGIN
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
+			,LiveIndicator = b.liveindicator
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -318,6 +321,7 @@ BEGIN
 			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
 			,@isITAdmin AS IsITSupport
 			,m.SettlementStatus
+			,t.LiveIndicator AS IsLive
 	FROM	#tmpTicket t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
