@@ -185,6 +185,23 @@ RETURN
 					 WHEN @betteam = 'A' AND @AwayValue = 'H' THEN 1
 					 ELSE -1
 				END
+
+			WHEN @pfID IN (387, 386) THEN --Over/under
+			   CASE WHEN @betteam IN ('h', 'o') THEN
+			   				CASE WHEN fm > 0.25 THEN 1
+								 WHEN fm = 0.25 THEN 0.25
+								 WHEN fm = 0	THEN 0
+								 WHEN fm = -0.25 THEN -0.25
+								 ELSE -1
+								 END
+					WHEN @betteam IN ('a', 'u') THEN
+							CASE WHEN fm = 0.25 THEN -0.25
+								 WHEN fm = 0	THEN 0
+								 WHEN fm = -0.25 THEN 0.25
+								 WHEN fm < -0.25 THEN 1
+								 ELSE -1
+								 END
+					ELSE -1 END
 			   		
 			ELSE -1 END AS modds
    FROM
@@ -205,6 +222,7 @@ RETURN
 
 					--PHAIO 5
 					WHEN @pfID = 391 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					
 					ELSE -1 END)
 			AS fm

@@ -167,16 +167,7 @@ BEGIN
         @IsAuto             = @IsAuto,
         @creator            = @AdminID
 
-	SELECT 
-		@homeRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1), 
-		@awayRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1) 
-	FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
-	WHERE MatchID = @MatchID 
-			AND ResourceID LIKE '38[12]0[12345]'
-			AND SettlementStatusID = 4
-			AND ResultStatusID = 5
-
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminded = 1)
+	IF (@action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminded = 1))
 	BEGIN
 		SET @IsExistDetermined = 1
 	END
@@ -240,6 +231,16 @@ BEGIN
 	END 
 	ELSE IF @action = 'REFUND' AND @IsExistDetermined = 1
 	BEGIN
+
+		SELECT 
+			@homeRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1), 
+			@awayRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1) 
+		FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
+		WHERE MatchID = @MatchID 
+				AND ResourceID LIKE '38[12]0[12345]'
+				AND SettlementStatusID = 4
+				AND ResultStatusID = 5
+
 		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked)
 	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
