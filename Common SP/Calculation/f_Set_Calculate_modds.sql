@@ -202,6 +202,10 @@ RETURN
 								 ELSE -1
 								 END
 					ELSE -1 END
+
+			WHEN @pfID IN (385, 384) THEN --betteam = homevalue 
+			   CASE WHEN @betteam = @HomeValue THEN 1
+					ELSE -1 END
 			   		
 			ELSE -1 END AS modds
    FROM

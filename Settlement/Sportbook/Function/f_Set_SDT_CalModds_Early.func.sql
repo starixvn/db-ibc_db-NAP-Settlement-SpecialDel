@@ -34,7 +34,7 @@ RETURN
 					WHEN @betteam IN ('a', 'u') AND fm - 0.25 >= @hdp1 THEN @hdp1 - fm
 					ELSE NULL 
 				END
-			WHEN @pfID = 424 THEN --betteam = homevalue 
+			WHEN @pfID IN (385, 384) THEN --betteam = homevalue 
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					WHEN @betteam IN ('1','B') AND @HomeValue = '1MNT' THEN -1
 					WHEN @betteam IN ('1','N') AND @HomeValue = 'NT2S' THEN -1
