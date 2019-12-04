@@ -40,7 +40,7 @@ BEGIN
 										)bt
 						)
 			
-		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
+		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 		FROM	dbo.match m WITH(NOLOCK) 
 		WHERE	m.matchid = @matchID 
 	END
