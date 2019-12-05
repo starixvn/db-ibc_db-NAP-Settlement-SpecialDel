@@ -3852,7 +3852,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 389)
                     EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
                         ,@bettype = 389
-                        ,@totalgoal = @totalhome
+                        ,@totalgoal = @fth
                         ,@betcount = 1
 						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
@@ -3862,7 +3862,7 @@ BEGIN
 				IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 388)
                     EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
                         ,@bettype = 388
-                        ,@totalgoal = @totalaway
+                        ,@totalgoal = @fta
                         ,@betcount = 1
 						,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair

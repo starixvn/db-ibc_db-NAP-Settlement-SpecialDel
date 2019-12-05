@@ -66,7 +66,7 @@ BEGIN
             ,ResultStatusId         TINYINT
             ,SettlementStatusId     TINYINT
             ,SourceType             BIT DEFAULT(0) -- 0: DB, 1: Web
-			,IsDeterminded			BIT DEFAULT(0)
+			,IsDetermined			BIT DEFAULT(0)
     )
     
     SELECT  @sporttype  = Sporttype 
@@ -109,11 +109,11 @@ BEGIN
             SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
                     ,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 					,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
-					,T.C.value('@IsDeterminded', 'BIT') AS IsDeterminded
+					,T.C.value('@IsDetermined', 'BIT') AS IsDetermined
             FROM    @xmlSelectedResources.nodes('/Resources/Resource') AS T(C)
         )
-        INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue,IsDeterminded)
-        SELECT   ResourceId, HomeValue, AwayValue,IsDeterminded
+        INSERT INTO @tmpResultDetail(ResourceID, HomeValue, AwayValue,IsDetermined)
+        SELECT   ResourceId, HomeValue, AwayValue,IsDetermined
         FROM    cteSelectedResources 
 	END
 
@@ -199,7 +199,7 @@ BEGIN
         WHEN MATCHED THEN 
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
-                    ,TARGET.SettlementStatusID  = CASE WHEN IsDeterminded = 1 THEN 7 ELSE 1 END
+                    ,TARGET.SettlementStatusID  = CASE WHEN IsDetermined = 1 THEN 7 ELSE 1 END
 					,TARGET.HomeValue           = SOURCE.HomeValue
                     ,TARGET.AwayValue           = SOURCE.AwayValue
                     ,TARGET.LastModifyBy        = @Creator

@@ -40,3 +40,4 @@ Settlement\Sportbook\NAP_Set_BetDaq_Checking.sql
 Settlement\Sportbook\NAP_Set_BetDaq_MatchSel.sql
 Settlement\Sportbook\NAP_Set_BetFair_Checking.sql
 Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
+Settlement\Sportbook\dbo.NAP_Set_SpecificBettypes.sql

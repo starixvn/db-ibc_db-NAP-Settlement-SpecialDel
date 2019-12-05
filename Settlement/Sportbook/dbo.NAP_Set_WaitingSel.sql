@@ -337,7 +337,7 @@ BEGIN
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
 		, CASE
-			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (201, 202, 203) THEN 'No Ticket'
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (202) THEN 'No Ticket'
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
 			WHEN tm.IsRunningEarlyBettypes > 0 THEN 'Running'
 			WHEN tm.IsWaitingEarlyBettypes > 0 THEN 'Waiting'

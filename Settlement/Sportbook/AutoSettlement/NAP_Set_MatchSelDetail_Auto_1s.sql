@@ -74,10 +74,13 @@ BEGIN
     GROUP BY f.ResourceId
 
 	-- Insert ResourceId of bettype = 382, 381 in case of No Ticket
-	INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
-	SELECT t.ResourceId , NULL, NULL, NULL, NULL, NULL
-	FROM @tmpAutoBettypes t
-	WHERE t.bettype IN (381,382) AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) 
+	IF EXISTS (SELECT TOP 1 1 FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE matchid = @MatchID AND ChildMatchType = 202)
+	BEGIN
+		INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
+		SELECT t.ResourceId , NULL, NULL, NULL, NULL, NULL
+		FROM @tmpAutoBettypes t
+		WHERE t.bettype IN (381,382) AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) 
+	END
 
 	INSERT INTO @tmpTicketStatusParlay( ResourceID, BetCount, InRunning, InWaiting)
     SELECT  f.ResourceID

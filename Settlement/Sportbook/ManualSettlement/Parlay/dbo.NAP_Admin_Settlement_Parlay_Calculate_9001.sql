@@ -45,11 +45,11 @@ BEGIN
 		,@TotalPointAwayValue VARCHAR(50) = NULL
 		,@homeRound			TINYINT
 		,@awayRound			TINYINT
-		,@IsExistDetermined BIT
+		,@IsExistDetermined BIT = 0
 	
 	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
 	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
-	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT, IsDeterminded BIT)
+	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT, IsDetermined BIT)
 	DECLARE @tempSelectedResource TABLE (ResourceID VARCHAR(20))
 	DECLARE @tempResource TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssID TINYINT)
 	
@@ -114,18 +114,18 @@ BEGIN
 		END
 	END
 	
-	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID, IsDeterminded)
+	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID, IsDetermined)
     SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID, 
-			CASE WHEN @Mode = 'REFUND' AND ssID = 7 THEN 1 ELSE 0 END AS IsDeterminded
+			CASE WHEN @Mode = 'REFUND' AND ssID = 7 THEN 1 ELSE 0 END AS IsDetermined
     FROM @tempResource rs
 	    INNER JOIN SettlementSpecialBettypeProfile sf WITH (NOLOCK) ON sf.ResourceID = rs.ResourceID
 	WHERE sf.sporttype = @sporttype
 		AND 1 = CASE WHEN @Mode = 'CAL' 	AND ssID = 4 THEN 1
-					 WHEN @Mode = 'REFUND' 	AND ssID IN (1, 7) THEN 1 -- ssid = 7 -> early refund with determinded
+					 WHEN @Mode = 'REFUND' 	AND ssID IN (1, 7) THEN 1 -- ssid = 7 -> early refund with determined
 					 WHEN @Mode = 'UNDO' 	AND ssID = 0 THEN 1
 					 ELSE 0 END
 	
-	IF (@Mode = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tempResultDetail WHERE IsDeterminded = 1))
+	IF (@Mode = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tempResultDetail WHERE IsDetermined = 1))
 	BEGIN
 		SET @IsExistDetermined = 1
 	END
@@ -178,15 +178,15 @@ BEGIN
 			CROSS APPLY dbo.f_Set_SDT_CalModds_Early(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, @homeRound + @awayRound) m
 		WHERE bm.matchid = @matchid
 			AND bm.statusID NOT IN (101)
-			AND rs.IsDeterminded = 1
+			AND rs.IsDetermined = 1
 
 		INSERT INTO @tempRefno (refno, transid, modds)
-		SELECT bm.refno, bm.transid, 0
+		SELECT bm.refno, bm.transid, NULL
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
 			AND statusID NOT IN (103, 101)
-			AND rs.IsDeterminded = 0
+			AND rs.IsDetermined = 0
 
 	END
 	ELSE IF @Mode = 'UNDO'
@@ -250,7 +250,7 @@ BEGIN
         					FROM ( 
 								 SELECT transid  AS t
 									  ,refno	AS r
-	                                  ,modds    AS m
+	                                  ,'0'    AS m
 	                                  ,'0'      AS i
 	                             FROM @tempBatch
 								 WHERE modds IS NULL

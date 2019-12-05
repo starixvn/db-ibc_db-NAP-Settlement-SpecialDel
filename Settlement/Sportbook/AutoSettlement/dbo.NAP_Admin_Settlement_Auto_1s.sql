@@ -28,7 +28,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -74,7 +74,7 @@ BEGIN
 		,BetID		BIGINT
 		,pfID		SMALLINT
 		,oddstype	SMALLINT
-		,IsDeterminded BIT
+		,IsDetermined BIT
 		,PRIMARY KEY (BetType,BetID)
 	)    
 		
@@ -114,6 +114,7 @@ BEGIN
 							WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_Auto_1s-UNDO'
 							ELSE ''
 						END
+			,@IsExistDetermined = 0
 
     --Write Log Settle
     SELECT   @fth            = finalhomescore
@@ -141,12 +142,12 @@ BEGIN
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype, IsDeterminded)
-	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType, ISNULL(IsDeterminded, 0)
+	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype, IsDetermined)
+	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType, ISNULL(IsDetermined, 0)
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
-														,IsDeterminded BIT
+														,IsDetermined BIT
 										) AS tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.Id
@@ -167,7 +168,7 @@ BEGIN
         @IsAuto             = @IsAuto,
         @creator            = @AdminID
 
-	IF (@action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminded = 1))
+	IF (@action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDetermined = 1))
 	BEGIN
 		SET @IsExistDetermined = 1
 	END
@@ -254,7 +255,7 @@ BEGIN
 	  			FROM	@tmpSelectedRID t
 	  			WHERE	b.BetType = t.BetType 
 						AND (t.BetID = 0 OR b.BetID = t.BetID) 
-						AND t.IsDeterminded = 1
+						AND t.IsDetermined = 1
 	  		) sr
 	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL,@homeRound + @awayRound) m
 	  	WHERE	b.matchid = @MatchId
@@ -273,7 +274,7 @@ BEGIN
 					AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE	b.matchid = @MatchId
 	  			AND	b.statusID NOT IN (103, 101)
-				AND t.IsDeterminded = 0
+				AND t.IsDetermined = 0
 
 	END
 	
@@ -456,6 +457,7 @@ BEGIN
 			+ T.c.value('@Id', 'VARCHAR(20)')
 			+ '(' + T.c.value('@Home', 'VARCHAR(50)')
 			+ CASE WHEN T.c.value('@Away', 'VARCHAR(50)') IS NOT NULL THEN '-' + T.c.value('@Away', 'VARCHAR(50)') ELSE '' END
+			+ CASE WHEN T.c.value('@IsDetermined','VARCHAR(1)') IS NOT NULL THEN ') SDT(' + T.c.value('@IsDetermined','VARCHAR(1)') ELSE '' END
 			+ '),'
 	FROM	@xmlResults.nodes('Resources/Resource') T(c)
 

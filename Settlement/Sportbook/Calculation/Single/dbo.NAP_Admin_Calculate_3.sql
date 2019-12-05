@@ -162,11 +162,10 @@ BEGIN
 														WHEN betteam = 'e' AND @totalgoal > hdp1 THEN -1
 														ELSE NULL
 													END
-							WHEN bettype = 397 AND betteam = 'NG' AND @totalgoal > 0 THEN -1
 							WHEN betteam IN ('h', 'o') THEN @totalgoal - hdp1
 							WHEN betteam IN ('a', 'u') THEN hdp1 - @totalgoal
 							WHEN RIGHT(betteam,1) = 'u' THEN hdp1 - @totalgoal    -- 144 ,163
-							WHEN bettype = 408 AND betteam = 'NG' AND @totalgoal > 0 THEN -1 --408: No Goal
+							WHEN bettype IN (408, 397) AND betteam = 'NG' AND @totalgoal > 0 THEN -1 -- No Goal
 							ELSE NULL 
 						END
 				,@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
