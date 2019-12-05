@@ -27,16 +27,17 @@ BEGIN
 	DECLARE @xml XML
 			,@actual_stake MONEY
 
-	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY)    
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT)    
 
 	SET @xml = CONVERT(XML, @TransIds)
     
-	INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake)
+	INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake, IsCashOutMember)
     SELECT	T.C.value('./@transid', 'bigint')
 			,T.C.value('./@translogid', 'bigint')
 			,T.C.value('./@betid', 'bigint')
 			,T.C.value('./@isMG', 'bit')
 			,T.C.value('./@actual_stake', 'money')
+			,T.C.value('./@IsCashOutMember', 'bit')
 	FROM	@xml.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
@@ -56,7 +57,7 @@ BEGIN
 			,statusID = 102
 			,status = 'VOID'
 			,betid = t.BetId
-			,ExtraInfo = CASE WHEN @IssueTypeId = 11 --AbnormalBet
+			,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 AND @IssueTypeId = 11 --AbnormalBet
 							THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,m.sporttype,b.bettype)
 						ELSE b.ExtraInfo END
 						

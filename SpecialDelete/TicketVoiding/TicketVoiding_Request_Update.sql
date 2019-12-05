@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= NULL
 	,@IsTest			BIT				= NULL
+	,@SportType			INT				= NULL
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -61,6 +62,7 @@ BEGIN
 			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 			,Remark = ISNULL(@Remark, Remark)
 			,IsTest = ISNULL(@IsTest, IsTest)
+			,Sporttype =  ISNULL(@SportType, Sporttype)
 	WHERE	RequestId = @RequestId
 
 	IF @Operators IS NOT NULL

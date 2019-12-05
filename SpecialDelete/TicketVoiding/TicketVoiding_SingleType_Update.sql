@@ -507,6 +507,7 @@ BEGIN
 									,t.betid AS '@betid'
 									,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
 									,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
+									,t.isSubTransaction AS '@IsCashOutMember'
 							FROM	#tmpTransId t
 							FOR XML PATH('r'), ROOT('root')
 						)
