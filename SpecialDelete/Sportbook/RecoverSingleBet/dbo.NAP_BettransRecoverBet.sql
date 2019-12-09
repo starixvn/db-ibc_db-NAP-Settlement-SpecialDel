@@ -59,6 +59,7 @@ AS
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20191015@Raymond.Le: Remove <ab="1"> in ExtraInfo when recover AbnormalBet 468, 469 [#122065]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20191209@Charles: Add Column SportType to output tables [124675]
 	Param's Explanation:
 */
 BEGIN
@@ -1893,6 +1894,7 @@ BEGIN
 				,t.betfrom
 				,t.stake
 				,t.matchid
+				,t.SportType
 				,t.IsLiveIndicator
 				,t.livehomescore
 				,t.liveawayscore
@@ -1969,6 +1971,7 @@ BEGIN
 			,t.betfrom
 			,t.stake
 			,t.matchid
+			,t.SportType
 			,t.IsLiveIndicator
 			,t.livehomescore
 			,t.liveawayscore
