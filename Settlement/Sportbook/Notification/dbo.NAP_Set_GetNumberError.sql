@@ -14,6 +14,7 @@ AS
 		- 20170112@Kathy: Add AdminId 111 into Soccer Team [Redmine:#70302]		
 		- 20190418@Kathy: - Do not send email when mark/unmark ticket [Redmine:#106823]
 						  -	Add starix56 to view notification
+		- 20191210@Helen: Hotfix GetNumberOfNotifications failed when message length is over 300 characters - [Redmine:#125246]						  
 							
 	Param's Explanation:
 		
@@ -62,7 +63,7 @@ BEGIN
 		,IP VARCHAR(15)
 		,starttime DATETIME
 		,Action VARCHAR(10)
-		,Message VARCHAR(300)
+		,Message VARCHAR(MAX)
 		,IsSent BIT
 		)
 		
