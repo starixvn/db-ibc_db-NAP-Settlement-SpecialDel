@@ -200,8 +200,8 @@ BEGIN
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
                     ,TARGET.SettlementStatusID  = CASE WHEN IsDetermined = 1 THEN 7 ELSE 1 END
-					,TARGET.HomeValue           = SOURCE.HomeValue
-                    ,TARGET.AwayValue           = SOURCE.AwayValue
+					,TARGET.HomeValue           = CASE WHEN IsDetermined = 1 THEN SOURCE.HomeValue ELSE TARGET.HomeValue END
+                    ,TARGET.AwayValue           = CASE WHEN IsDetermined = 1 THEN SOURCE.AwayValue ELSE TARGET.AwayValue END
                     ,TARGET.LastModifyBy        = @Creator
                     ,TARGET.LastModifyDate      = GETDATE()
         WHEN NOT MATCHED BY TARGET THEN 
@@ -221,8 +221,8 @@ BEGIN
                     VALUES(
                          @MatchID
                         ,SOURCE.ResourceID
-                        ,SOURCE.HomeValue
-                        ,SOURCE.AwayValue
+                        ,CASE WHEN IsDetermined = 1 THEN SOURCE.HomeValue ELSE NULL END
+                        ,CASE WHEN IsDetermined = 1 THEN SOURCE.AwayValue ELSE NULL END
                         ,NULL 
                         ,5 -- Manual Settlement 
                         ,1 -- Refund
