@@ -86,8 +86,8 @@ BEGIN
 			ELSE 0
 			END
 	FROM dbo.bettrans AS b WITH (NOLOCK)
-		INNER JOIN #transIdTemp TEMP ON b.transid = TEMP.transid
-	WHERE EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
+	WHERE b.statusID NOT IN (101, 102) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 		
 	-- invalid transId
 	;WITH t_invalid

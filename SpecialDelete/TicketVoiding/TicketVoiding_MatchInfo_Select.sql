@@ -22,26 +22,32 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @matchID INT
-	DECLARE @transIdTemp TABLE (transid BIGINT NULL)
+	DECLARE @transIdTemp TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @query NVARCHAR(MAX) = ''
 	DECLARE @execSql NVARCHAR(MAX) = ''
-		
+	
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	
+	
 	IF @TransIds IS NOT NULL
 	BEGIN
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT bettype
+		FROM dbo.SportBettypeMatrix WITH (NOLOCK)
+		WHERE ProductID = 1 -- Sportsbook
+			AND bettype NOT IN (10, 9, 29) -- outright, parlay
+			AND SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+			
 		INSERT INTO @transIdTemp (transid)
 		SELECT DISTINCT val
 		FROM dbo.f_SplitString(@TransIds, ',')
 		OPTION (MAXRECURSION 0)
-	
-		SET @matchID = (SELECT TOP 1 bt.matchid
-						FROM @transIdTemp AS tmp
-							CROSS APPLY (
-										SELECT TOP 1 matchid
-										FROM dbo.bettrans WITH (NOLOCK)
-										WHERE transid = tmp.transid
-										)bt
-						)
-				
+		
+		SET @matchID = (SELECT TOP 1 b.matchid
+						FROM dbo.bettrans AS b WITH (NOLOCK)
+							INNER JOIN @transIdTemp tmp ON b.transid = tmp.transid
+						WHERE EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
+		
 		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 						FROM	dbo.match m WITH(NOLOCK) 
 						WHERE	m.matchid = @matchID
