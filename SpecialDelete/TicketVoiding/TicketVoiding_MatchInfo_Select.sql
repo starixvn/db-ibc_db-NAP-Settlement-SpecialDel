@@ -46,7 +46,7 @@ BEGIN
 		SET @matchID = (SELECT TOP 1 b.matchid
 						FROM dbo.bettrans AS b WITH (NOLOCK)
 							INNER JOIN @transIdTemp tmp ON b.transid = tmp.transid
-						WHERE EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
+						WHERE b.statusID NOT IN (101, 102) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
 		
 		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 						FROM	dbo.match m WITH(NOLOCK) 

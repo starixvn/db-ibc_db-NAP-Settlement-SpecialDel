@@ -12,6 +12,7 @@ AS
 	Revisions:  
 		- 20190625@Raymond.Le: Create new SP [Redmine: #115583]
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
+		- 20191212@Max: AbnormalBet TVS [Redmine:#123691]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
