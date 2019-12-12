@@ -25,6 +25,15 @@ BEGIN
 	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
 	,@InvalidMatchId VARCHAR(200) = '' 
 
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT bettype
+	FROM dbo.SportBettypeMatrix WITH (NOLOCK)
+	WHERE ProductID = 1 -- Sportsbook
+		AND bettype NOT IN (10, 9, 29) -- outright, parlay
+		AND SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+
 	-- check valid match id
 	IF NOT EXISTS (
 			SELECT TOP 1 1
@@ -78,17 +87,7 @@ BEGIN
 			END
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp TEMP ON b.transid = TEMP.transid
-	WHERE b.bettype < 19001
-		AND b.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
-		AND b.bettype NOT IN (10) -- outright tickets
-		AND b.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
-		AND b.bettype NOT IN (31, 32, 33, 71, 72, 73) -- NOT IN [Racing, Casino]
-		AND b.bettype NOT BETWEEN 801 AND 806 -- MG
-		AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-		AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
-		AND b.bettype NOT IN (38) -- Bet Builder
-		AND b.statusID NOT IN (101, 102)
+	WHERE EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 		
 	-- invalid transId
 	;WITH t_invalid
