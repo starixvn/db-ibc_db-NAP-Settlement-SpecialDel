@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 (
 	@EventDate		DATETIME		= NULL
@@ -10,7 +10,7 @@ AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: get match info [Redmine:#90155]
-	DB: DBPRO/bodb02
+	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -23,7 +23,9 @@ BEGIN
 	
 	DECLARE @matchID INT
 	DECLARE @transIdTemp TABLE (transid BIGINT NULL)
-	
+	DECLARE @query NVARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+		
 	IF @TransIds IS NOT NULL
 	BEGIN
 		INSERT INTO @transIdTemp (transid)
@@ -35,30 +37,41 @@ BEGIN
 						FROM @transIdTemp AS tmp
 							CROSS APPLY (
 										SELECT TOP 1 matchid
-										FROM bettrans WITH (NOLOCK)
+										FROM dbo.bettrans WITH (NOLOCK)
 										WHERE transid = tmp.transid
 										)bt
 						)
-			
-		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
-		FROM	dbo.match m WITH(NOLOCK) 
-		WHERE	m.matchid = @matchID 
+				
+		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
+						FROM	dbo.match m WITH(NOLOCK) 
+						WHERE	m.matchid = @matchID
+									'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@matchid INT'' , @matchid'
+
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @matchid INT', @query, @matchid
 	END
 	ELSE IF (@LeagueId = 0 AND @TransIds IS NULL)
 	BEGIN
-		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
-		FROM	dbo.match m WITH(NOLOCK)
-		WHERE	m.eventdate = @EventDate
-				AND m.sporttype = @Sporttype
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
+						FROM	dbo.match m WITH(NOLOCK)
+						WHERE	m.eventdate = @EventDate
+								AND m.sporttype = @Sporttype
+									'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME'' , @Sporttype, @EventDate '
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME ', @query, @Sporttype, @EventDate
+		
 	END
 	ELSE
 	BEGIN
-		SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
-		FROM	dbo.match m WITH(NOLOCK)
-		WHERE	m.eventdate = @EventDate
-				AND m.sporttype = @Sporttype
-				AND m.leagueid = @LeagueId
-	END
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
+					FROM	dbo.match m WITH(NOLOCK)
+					WHERE	m.eventdate = @EventDate
+							AND m.sporttype = @Sporttype
+							AND m.leagueid = @LeagueId
+									'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @LeagueId INT'' , @Sporttype, @EventDate, @LeagueId '
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @LeagueId INT ', @query, @Sporttype, @EventDate, @LeagueId
 	
+	END
 END
 GO
