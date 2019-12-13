@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20190903@Sol: Multi Sports on One Page - Changed column list return - [Redmind: #118379]
+		- 20191213@Sol: Hide inactive sport types in dropdown box "Sports" - [Redmind: #125412]
 
 	Param's Explanation:
 		@isGetAll: 1 - get all sports for view result, 0- get only sportbook
@@ -19,7 +20,7 @@ BEGIN
 
 	SELECT SportType, SportName
 	FROM Sports WITH (NOLOCK)
-	WHERE (SportType <= 99 OR SportType = 154) OR (@isGetAll = 1 AND SportType IN (151, 152, 153))
+	WHERE (SportType <= 99 AND SportType NOT IN (27, 46)) OR (@isGetAll = 1 AND SportType IN (151, 152, 153))
 END
 
 
