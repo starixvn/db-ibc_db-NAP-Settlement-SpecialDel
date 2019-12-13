@@ -17,9 +17,7 @@ AS
 	Revisions:		
 			- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-
 			- 20190924@Sol: Incorporate BMAIO - modified sp to support new bettype [Redmine:#120324]
-			
 			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 
 	Param's Explanation:		

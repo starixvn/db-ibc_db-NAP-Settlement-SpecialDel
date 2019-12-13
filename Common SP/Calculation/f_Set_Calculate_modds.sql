@@ -18,7 +18,6 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20190620@Kathy: PH AIO Phase4 [Redmine:#109584]
-		
 		- 20190924@Sol: Incorporate BMAIO - New formular for 711, 712, 713, 714 [Redmine:#120324]
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
@@ -87,7 +86,7 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue 
+			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
@@ -140,7 +139,7 @@ RETURN
 					WHEN @betteam = 'A1-2' AND (-2 <= fm AND fm <= -1) THEN 1
 					WHEN @betteam = 'A3-5' AND (-5 <= fm AND fm <= -3) THEN 1
 					WHEN @betteam = 'A6-8' AND (-8 <= fm AND fm <= -6) THEN 1
-					WHEN @betteam = 'A9+' AND (-9 >= fm) THEN 1			
+					WHEN @betteam = 'A9+' AND (-9 >= fm) THEN 1
 				ELSE -1 END
 
 			WHEN @pfID = 714 THEN --Game X Extra Points
@@ -157,6 +156,7 @@ RETURN
 			   		 WHEN @betteam ='2-1' AND @AwayValue = 1 THEN 1
 			   		 WHEN @betteam ='2-0' AND @AwayValue = 0 THEN 1
 			   		 ELSE -1 END
+
 			WHEN @pfID = 391 THEN -- Penalty Shootout Exact Total Goals (First 10)
 				CASE WHEN @betteam = 'G4' AND (0 <= fm AND fm <= 4) THEN 1
 					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
@@ -164,7 +164,8 @@ RETURN
 					WHEN @betteam = 'G7' AND (fm = 7) THEN 1
 					WHEN @betteam = 'G8' AND (fm = 8) THEN 1
 					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
-				ELSE -1 END
+					ELSE -1 
+				END
 			   		
 			WHEN @pfID = 391 THEN --Penalty Shootout Exact Total Goals (First 10)
 				CASE WHEN @betteam = 'G4' AND (1 <= fm AND fm <= 4) THEN 1
@@ -173,8 +174,7 @@ RETURN
 					WHEN @betteam = 'G7' AND (fm = 7) THEN 1
 					WHEN @betteam = 'G8' AND (fm = 8) THEN 1
 					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
-					ELSE -1 END
-
+					ELSE -1 
 				END
 
 			WHEN @pfID = 383 THEN -- Penalty Shootout Woodwork - Round X
@@ -183,7 +183,8 @@ RETURN
 					 ELSE -1
 				END
 
-			ELSE -1 END AS modds
+			ELSE -1 
+		END AS modds
    FROM
 	(
 		SELECT (CASE 

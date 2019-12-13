@@ -124,6 +124,7 @@ RETURN (
    --Badminton AIO
    UNION ALL SELECT 712
    UNION ALL SELECT 713
+   
 	-- Start - Redmine: #121681 - Incorporate PHAIO 5
 	UNION ALL SELECT 395
 	UNION ALL SELECT 393
