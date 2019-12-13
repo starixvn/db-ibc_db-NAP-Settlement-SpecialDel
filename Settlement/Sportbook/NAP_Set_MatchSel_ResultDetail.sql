@@ -12,14 +12,13 @@ AS
     
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20190924@Tiara: BMAIO - Badminton All In One - Removed unused parameters @tblResource and @ResourceList [Redmine: #120324]
 		
 */
 BEGIN
 	SET NOCOUNT ON
     
-	DECLARE @tblResource TABLE(ResourceID VARCHAR(20))
 	DECLARE @tblMatchID TABLE(matchid VARCHAR(20))
-	DECLARE @ResourceList VARCHAR(MAX) = ''
     ---------------------------------------------------------------------------------------------
     
 	INSERT INTO @tblMatchID(matchid)
@@ -45,6 +44,23 @@ BEGIN
     					FROM dbo.f_Set_MajorRound(@Sporttype) f 
     					WHERE rs.ResourceID = f.ResourceID)
 	END
+	
+	--Add logic for Badminton AIO
+	ELSE IF @Sporttype = 9
+    BEGIN
+        SELECT    rs.MatchId
+                , rs.ResourceId
+                , rs.HomeValue
+                , rs.AwayValue
+                , rs.ResultStatusID
+                , rs.SettlementStatusID
+        FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK) 
+    	WHERE MatchID IN (SELECT matchid FROM @tblMatchID)
+    		AND EXISTS (SELECT 1 
+    					FROM dbo.f_Set_MajorRound(@Sporttype) f 
+    					WHERE rs.ResourceID = f.ResourceID)
+	END
+	
 	ELSE
 	BEGIN
     	SELECT    rs.MatchId

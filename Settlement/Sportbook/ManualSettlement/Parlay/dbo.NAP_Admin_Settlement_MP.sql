@@ -35,7 +35,8 @@ AS
 		- 20190611@Sol: Incorporate PHAIO 4 - Remove bettype 9 [Redmine:#112885]
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-		
+		- 20190924@Sol: Incorporate BMAIO - refactor code - removed sporttype 9 [Redmine:#120324]
+
 	Param's Explanation:
 */
 BEGIN
@@ -174,7 +175,7 @@ BEGIN
 				,@action = 'correctBettype'
 		END
 
-		IF (@SportType IN (6, 9, 30, 48)) AND @action = 'CAL' AND @betstatus not like 'Refund%' -- Tennis/VolleyBall/Badminton/Squash/Sepak Takraw: get TotalGamesPlayed
+		IF (@SportType IN (6, 30, 48)) AND @action = 'CAL' AND @betstatus not like 'Refund%' -- Tennis/VolleyBall/Badminton/Squash/Sepak Takraw: get TotalGamesPlayed
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_2 @mode = 'tennis'
 				,@betstatus = @betstatus

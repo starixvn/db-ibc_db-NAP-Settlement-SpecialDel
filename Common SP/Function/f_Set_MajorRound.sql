@@ -10,12 +10,14 @@ AS
     DB: DBTXN/bodb02; DBPRO/bodb02
     Revisions:
         - 20180728@Vicky: ESPort [Redmine #95874]
+        - 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
         
    
     Parameters Explanation:        
     
     Example:
         SELECT * FROM dbo.[f_Set_MajorRound](43)
+        SELECT * FROM dbo.[f_Set_MajorRound](09)
     
 */
 RETURN
@@ -39,6 +41,12 @@ RETURN
 	    UNION ALL SELECT 43, '808', 'M8', 'M8', 'FT', 0, 8
 	    UNION ALL SELECT 43, '809', 'M9', 'M9', 'FT', 0, 9
 	    UNION ALL SELECT 43, '00' , 'FT', '00', 'FT', 1, 99
+	    UNION ALL SELECT 9, '801', '1G', '0101', 'SP', 0, 1 --Grouptype = Special
+	    UNION ALL SELECT 9, '802', '2G', '0102', 'SP', 0, 2
+	    UNION ALL SELECT 9, '803', '3G', '0103', 'SP', 0, 3
+	    UNION ALL SELECT 9, '804', '4G', '0104', 'SP', 0, 4
+	    UNION ALL SELECT 9, '805', '5G', '0105', 'SP', 0, 5
+	    UNION ALL SELECT 9, '00' , 'FT', '00', 'FT', 1, 99
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

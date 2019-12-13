@@ -35,6 +35,7 @@ AS
 		- 20190517@Sol: Tuning performance [Redmine:#112904]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
+		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
 
 	Param's Explanation:		
 		
@@ -73,6 +74,7 @@ BEGIN
 
 	CREATE TABLE #ResultDetail (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	CREATE TABLE #ResultDetailES (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
+	CREATE TABLE #ResultDetailOS (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	
 	SELECT	 @ErrCode = 0
 			,@ErrMsg = ''
@@ -81,7 +83,7 @@ BEGIN
 			,@subErrMsg = ''
     
 	-- get data from remote table match
-	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = ''
+	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = '', @queryResultDetailOS NVARCHAR(MAX) = ''
 	DECLARE @execSql NVARCHAR(MAX) = ''
 
 	SET @queryMatch = '	SELECT matchid
@@ -129,6 +131,20 @@ BEGIN
 
 	INSERT INTO #ResultDetailES (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
 	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailES NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailES, @matchids
+	-- end
+
+	-- get date from remote ResultDetailOS table 
+	SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+									FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
+											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+												ON r.matchid = tm.val
+									OPTION (MAXRECURSION 0)
+								'
+
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@MatchIds VARCHAR(4000)'' , @matchids'
+
+	INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS, @matchids
 	-- end
 	
 	DECLARE @tblFGLGMatch TABLE(matchid INT, matchcode NVARCHAR(50))
@@ -269,8 +285,6 @@ BEGIN
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #Match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
 	BEGIN
-		DECLARE @sporttype SMALLINT
-		SELECT TOP 1 @sporttype = Sporttype FROM #Match
 		
 		;WITH cteBetstatus
 		AS(
@@ -285,27 +299,37 @@ BEGIN
 		)
 		,cteResourceID
 		AS(
-			SELECT c.matchid
-					,f.ResourceID
+			SELECT c.sporttype
+					,c.matchid
+					,CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END AS ResourceID
 					,f.SettleType
 					,MAX(f.OrdNo) AS OrdNo
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.matchid, f.ResourceID,f.SettleType
+			GROUP BY c.sporttype, c.matchid, CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END,f.SettleType
 		)
 			
 		INSERT INTO @tblRunningBAIO (matchid, QuarterX, OrdNo)
 		SELECT	c.matchid, COALESCE(sd.RoundName, 'Early Settle'), MAX(c.OrdNo)
 		FROM	cteResourceID c
-			OUTER  APPLY(
+			OUTER APPLY(
 	  			SELECT ResultStatusID
 	  			FROM #ResultDetailES rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
 	  				AND rd.matchid = c.matchid
+				UNION ALL
+				SELECT ResultStatusID
+	  			FROM #ResultDetailOS rd WITH (NOLOCK) 
+	  			WHERE rd.ResourceID = c.ResourceID
+	  				AND rd.matchid = c.matchid
 	  		) AS rs
-			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON c.ResourceID = sd.ResourceID
-		WHERE	ISNULL(rs.ResultStatusId,0) <> 5
+			OUTER APPLY
+			(
+				SELECT RoundName FROM dbo.f_Set_MajorRound(c.sporttype)
+				WHERE c.ResourceID = ResourceID
+			) sd 
+		WHERE ISNULL(rs.ResultStatusId,0) <> 5
 		GROUP BY c.matchid, sd.RoundName--,c.OrdNo
 		--ORDER BY c.OrdNo
 

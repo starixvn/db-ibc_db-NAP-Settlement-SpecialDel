@@ -26,6 +26,7 @@ AS
 		- 20190527@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
+		- 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
 	
     Parameters Explanation:    
     
@@ -40,6 +41,7 @@ AS
                9 - FastMarket
 			   10 - new bettypes of Basketball
 			   11 - E-Sports 2.0
+			
 	- CommBettypeGroupId: 1 - Major group
 
 	- DeterminedType: (from right to left) value will be 1 or 2 or 3
@@ -419,5 +421,24 @@ RETURN (
 	UNION ALL SELECT 2,467,1,0,1,0,'FT',3,0,0
 	UNION ALL SELECT 2,468,0,0,0,0,'FT',0,0,0
 	UNION ALL SELECT 2,469,1,0,0,0,'FT',3,0,0
+	
+	-- Badminton All In One [Redmine #120324]
+	UNION ALL SELECT 2,701,0,0,0,0,'FT',0,0,1
+	UNION ALL SELECT 2,702,0,0,0,0,'FT',0,0,1
+	UNION ALL SELECT 2,703,0,0,0,0,'FT',0,0,0
+	UNION ALL SELECT 2,704,0,0,0,0,'FT',0,0,1
+	UNION ALL SELECT 2,705,0,0,0,0,'FT',0,0,1
+	UNION ALL SELECT 2,706,0,0,0,0,'FT',0,0,1
+	UNION ALL SELECT 1,707,0,0,0,0,'Special',0,0,0
+	UNION ALL SELECT 1,708,0,0,0,0,'Special',0,0,1
+	UNION ALL SELECT 1,709,0,0,0,0,'Special',0,0,1
+	UNION ALL SELECT 1,710,0,0,0,0,'Special',0,0,1
+	UNION ALL SELECT 1,711,0,0,0,0,'Special',0,0,0
+	UNION ALL SELECT 1,712,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 1,713,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 1,714,0,0,0,0,'Special',0,0,0
 	)
 GO
+
+
+

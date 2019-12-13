@@ -1,4 +1,8 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -16,6 +20,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -50,6 +55,8 @@ BEGIN
 			,@strTransIds		VARCHAR(MAX)	= ''
 			,@ResultRemarkLog	VARCHAR(MAX)	= ''
 			,@SelectedRID		VARCHAR(MAX)	= ''
+			,@TotalPointHomeValue VARCHAR(50)		= NULL
+			,@TotalPointAwayValue VARCHAR(50)		= NULL
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -57,13 +64,15 @@ BEGIN
 	--END Balance tables
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT, srecommend INT, bettype SMALLINT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, srecommend INT, bettype SMALLINT)
+	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2)
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -88,10 +97,10 @@ BEGIN
   	WHERE   matchid = @matchid
 
   	-- check and not allow attempt to settlement same game while it's still not finish
+	-- This is used in NAP_Admin_CheckingProcess sp
   	INSERT INTO #tblMatchProcess(matchid, KeyID)
   	SELECT	@matchid AS matchid ,1 AS KeyId
   	----------------------------------------------------------------------------------------------------------------------
-
 
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -107,115 +116,165 @@ BEGIN
 				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 		RETURN
 	END
-
-
-  	------------------------------------------parse XML and add more info-----------------------------------------
-  	
-
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType)
-	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, sd.isFinal, sd.RoundName, sp.GroupType
-	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
-														,Home VARCHAR(50)
-														,Away VARCHAR(50)
-										) AS tbl
-		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.Id
-		LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-	WHERE sp.SportType = @SportType 
-	
-	EXEC sp_xml_removedocument @handle
-  	
-
-  	SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
-									 ,BetID	AS '@b'
-							  FROM @tmpSelectedRID
-							  FOR XML PATH('r'), ROOT( 'root' ))  
-	-------------------------------------------------------END parse XML----------------------------------------------------------------------
-  	
-
-  	--get transid
-  	IF @Action LIKE 'CAL%'
-  	BEGIN
-		INSERT INTO #tmpTransID(TransID, modds, srecommend, bettype)
-	  	SELECT transid, m.modds, b.srecommend, b.bettype
-	  	FROM bettrans b WITH (NOLOCK)
-	  		CROSS APPLY(
-	  						SELECT TOP 1 pfID, HomeValue, AwayValue
-	  						FROM @tmpSelectedRID t
-	  						WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-	  					) sr
-	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
-	  	WHERE b.matchid = @MatchId
-	  		AND b.statusID NOT IN (101)
-	END
-	ELSE IF @action LIKE 'UNDO%'
-	BEGIN
-		--get transid
-		INSERT INTO #tmpTransID(TransID)
-	  	SELECT transid
-	  	FROM bettrans b WITH (NOLOCK)
-	  		INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
-	  	WHERE b.matchid = @MatchId
-	  		AND	b.statusID NOT IN (0, 1, 101)
-	END 
-	ELSE IF @action LIKE 'REFUND%'
-	BEGIN
-		--get transid
-		INSERT INTO #tmpTransID(TransID)
-	  	SELECT transid
-	  	FROM bettrans b WITH (NOLOCK)
-	  		INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-	  	WHERE b.matchid = @MatchId
-	  		AND	b.statusID NOT IN (103, 101)
-	END 
-	
-		
-	---check FT round
-	SET @existsFinalRound = 0
-  	SELECT TOP 1 @existsFinalRound = 1
-				,@fth = sr.HomeValue
-				,@fta = sr.AwayValue
-  	FROM @tmpSelectedRID sr
-  	WHERE GroupType = 'FT' AND isFinal = 1 
-  	
-  	
-  	---check HT round
-  	SET @existsHTRound = 0
-  	SELECT TOP 1 @existsHTRound = 1
-				,@hth = sr.HomeValue
-				,@hta = sr.AwayValue
-  	FROM @tmpSelectedRID sr
-  	WHERE GroupType = 'HT' AND isFinal = 1 
-
-  	IF @existsFinalRound = 1
-  	BEGIN
-	  	IF @Action LIKE 'CAL%'
-	  	BEGIN
-			SELECT  @hth	= COALESCE (@hth, 0)
-					,@hta   = COALESCE (@hta, 0)
-					,@fth   = COALESCE (@fth, 0)
-					,@fta   = COALESCE (@fta, 0)
-		END
-		
-		IF @Action LIKE 'REFUND%'
-	  	BEGIN
-			SELECT  @hth	= COALESCE (@hth, 0)
-					,@hta   = COALESCE (@hta, 0)
-					,@fth   = COALESCE (@fth, 0)
-					,@fta   = COALESCE (@fta, 0)
-		END
-		
-		IF @Action LIKE 'UNDO%'
-	  	BEGIN
-			SELECT  @hth	= NULL
-					,@hta   = NULL
-					,@fth	= NULL
-					,@fta	= NULL
-		END
-	END
   	
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
+
+		IF @Action LIKE 'CAL%'
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
+						@action					= 'CAL'
+						,@MatchID				= @MatchID
+						,@creator				= @creator
+						,@Sporttype				= @Sporttype
+						,@SelectedRID   		= @SelectedResources
+		END
+
+		------------------------------------------parse XML and add more info-----------------------------------------
+
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+		SELECT Id, Home, Away
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+															,Home VARCHAR(50)
+															,Away VARCHAR(50)
+											) AS tbl
+		EXEC sp_xml_removedocument @handle
+
+		-- badminton
+		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
+		BEGIN
+			IF @Action LIKE 'CAL%'
+			BEGIN
+
+				--Insert data for internal ResourceId 70400
+				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+				SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
+							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
+							WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
+									AND SettlementStatusID = 4
+									AND ResultStatusID = 5
+
+				--Get total home value/total away value of ResourceId = '70400' 
+				SELECT TOP 1 @TotalPointHomeValue = HomeValue, @TotalPointAwayValue = AwayValue
+				FROM @tmpResourcesWeb
+				WHERE ResourceID = '70400'
+
+			END
+			ELSE
+			BEGIN
+
+				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+				SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
+
+			END
+		END
+
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
+		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
+				HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
+				sp.GroupType, sp.OddsType
+		FROM @tmpResourcesWeb tbl
+			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
+			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
+		WHERE sp.SportType = @SportType
+
+		-------------------------------------------------------END parse XML----------------------------------------------------------------------
+
+		SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
+											 ,BetID	AS '@b'
+									  FROM @tmpSelectedRID
+									  FOR XML PATH('r'), ROOT( 'root' ))
+
+  		--get transid
+  		IF @Action LIKE 'CAL%'
+  		BEGIN
+
+			--Bettype 2,3: using match score or total point, badminton only
+			UPDATE t
+				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
+					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
+			FROM @tmpSelectedRID t
+			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9 
+
+			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype)
+	  		SELECT transid, m.modds, sr.OddsType, b.srecommend, b.bettype
+	  		FROM bettrans b WITH (NOLOCK)
+	  			CROSS APPLY(
+	  							SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
+	  							FROM @tmpSelectedRID t
+	  							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  						) sr
+	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
+	  		WHERE b.matchid = @MatchId
+	  			AND b.statusID NOT IN (101)
+		END
+		ELSE IF @action LIKE 'UNDO%'
+		BEGIN
+			--get transid
+			INSERT INTO #tmpTransID(TransID)
+	  		SELECT transid
+	  		FROM bettrans b WITH (NOLOCK)
+	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+	  		WHERE b.matchid = @MatchId
+	  			AND	b.statusID NOT IN (0, 1, 101)
+		END 
+		ELSE IF @action LIKE 'REFUND%'
+		BEGIN
+			--get transid
+			INSERT INTO #tmpTransID(TransID)
+	  		SELECT transid
+	  		FROM bettrans b WITH (NOLOCK)
+	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  		WHERE b.matchid = @MatchId
+	  			AND	b.statusID NOT IN (103, 101)
+		END 
+	
+		---check FT round
+		SET @existsFinalRound = 0
+  		SELECT TOP 1 @existsFinalRound = 1
+					,@fth = sr.HomeValue
+					,@fta = sr.AwayValue
+  		FROM @tmpSelectedRID sr
+  		WHERE GroupType = 'FT' AND isFinal = 1 
+  	
+  	
+  		---check HT round
+  		SET @existsHTRound = 0
+  		SELECT TOP 1 @existsHTRound = 1
+					,@hth = sr.HomeValue
+					,@hta = sr.AwayValue
+  		FROM @tmpSelectedRID sr
+  		WHERE GroupType = 'HT' AND isFinal = 1 
+
+  		IF @existsFinalRound = 1
+  		BEGIN
+	  		IF @Action LIKE 'CAL%'
+	  		BEGIN
+				SELECT  @hth	= COALESCE (@hth, 0)
+						,@hta   = COALESCE (@hta, 0)
+						,@fth   = COALESCE (@fth, 0)
+						,@fta   = COALESCE (@fta, 0)
+			END
+		
+			IF @Action LIKE 'REFUND%'
+	  		BEGIN
+				SELECT  @hth	= COALESCE (@hth, 0)
+						,@hta   = COALESCE (@hta, 0)
+						,@fth   = COALESCE (@fth, 0)
+						,@fta   = COALESCE (@fta, 0)
+			END
+		
+			IF @Action LIKE 'UNDO%'
+	  		BEGIN
+				SELECT  @hth	= NULL
+						,@hta   = NULL
+						,@fth	= NULL
+						,@fta	= NULL
+			END
+		END
 
 		IF @Action LIKE 'CAL%'
 		BEGIN
@@ -229,13 +288,6 @@ BEGIN
 						,@HTAway				= @hta
 						,@creator				= @creator
 						,@IsFinalRound			= @existsFinalRound
-						
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
-						@action					= 'CAL'
-						,@MatchID				= @MatchID
-						,@creator				= @creator
-						,@Sporttype				= @Sporttype
-						,@SelectedRID   		= @SelectedResources
 		END
 		
 		-------------------------------------------------------------
@@ -259,8 +311,8 @@ BEGIN
 			
 			UPDATE TOP(@batchNo) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.srecommend, deleted.bettype
-			INTO @tmpTransIDBatch(transid, modds, srecommend, bettype)
+			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype
+			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -272,6 +324,7 @@ BEGIN
 			--filter selectedRID by current Profile and BetType
 			SET @strTransIds 		= (SELECT transid	AS '@t'
 											   ,modds	AS '@m'
+											   ,OddsType	AS '@ot'
 											   ,srecommend AS '@sr'
 											   ,bettype AS '@bt'
 									   FROM @tmpTransIDBatch
@@ -438,8 +491,8 @@ BEGIN
 	SELECT @stop = CURRENT_TIMESTAMP
 	
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
-			CASE WHEN HomeValue IS NOT NULL AND AwayValue IS NOT NULL THEN '(' + HomeValue + '-' + AwayValue + ')'
-				 WHEN HomeValue IS NOT NULL AND AwayValue IS NULL THEN '(' + HomeValue + ')'
+			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
+				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 				 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
 				 ELSE '' END
 	FROM (

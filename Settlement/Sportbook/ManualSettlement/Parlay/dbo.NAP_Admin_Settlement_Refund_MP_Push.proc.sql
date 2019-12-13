@@ -25,6 +25,7 @@ AS
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
+		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -283,13 +284,13 @@ BEGIN
 		,cteResourceID
 		AS(
 			SELECT c.matchid
-					,f.ResourceID
+					,CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END AS ResourceID
 					,f.SettleType
 					,MAX(f.OrdNo) AS OrdNo
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.matchid, f.ResourceID,f.SettleType
+			GROUP BY c.matchid, CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END,f.SettleType
 		)
 			
 		INSERT INTO @tmpRunningBAIO (matchid, QuarterX, OrdNo)
@@ -298,6 +299,11 @@ BEGIN
 			OUTER  APPLY(
 	  			SELECT ResultStatusID
 	  			FROM DBPRO.bodb02.dbo.ResultDetailES rd WITH (NOLOCK) 
+	  			WHERE rd.ResourceID = c.ResourceID
+	  				AND rd.matchid = c.matchid
+				UNION ALL
+				SELECT ResultStatusID
+	  			FROM DBPRO.bodb02.dbo.ResultDetailOS rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
 	  				AND rd.matchid = c.matchid
 	  		) AS rs

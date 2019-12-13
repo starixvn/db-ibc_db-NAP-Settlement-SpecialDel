@@ -18,7 +18,8 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20190620@Kathy: PH AIO Phase4 [Redmine:#109584]
-		
+		- 20190924@Sol: Incorporate BMAIO - New formular for 711, 712, 713, 714 [Redmine:#120324]
+		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 */
 RETURN
 (
@@ -83,7 +84,7 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID = 424 THEN --betteam = homevalue 
+			WHEN @pfID = 424 THEN --betteam = homevalue --Reuse for bettype 712, 713 of Badminton AIO
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
@@ -126,7 +127,34 @@ RETURN
 				CASE WHEN @HomeValue = 'WON' THEN 1
 			   		 WHEN @HomeValue = 'LOSE' THEN -1
 			   		 ELSE -1 END
-			   		
+			
+			--Incorporate BMAIO
+			WHEN @pfID = 711 THEN --Game X Winning Margin
+				CASE WHEN @betteam = 'H1-2' AND ( 1 <= fm AND fm <= 2) THEN 1
+					WHEN @betteam = 'H3-5' AND ( 3 <= fm AND fm <=  5) THEN 1
+					WHEN @betteam = 'H6-8' AND ( 6 <= fm AND fm <=  8) THEN 1
+					WHEN @betteam = 'H9+' AND ( 9 <= fm ) THEN 1
+					WHEN @betteam = 'A1-2' AND (-2 <= fm AND fm <= -1) THEN 1
+					WHEN @betteam = 'A3-5' AND (-5 <= fm AND fm <= -3) THEN 1
+					WHEN @betteam = 'A6-8' AND (-8 <= fm AND fm <= -6) THEN 1
+					WHEN @betteam = 'A9+' AND (-9 >= fm) THEN 1
+				ELSE -1 END
+
+			WHEN @pfID = 714 THEN --Game X Extra Points
+				CASE WHEN @betteam = 'Y' AND (@HomeValue >= 20 AND @AwayValue >= 20) THEN 1
+					WHEN @betteam = 'N' AND (@HomeValue = 21 AND @AwayValue < 20) THEN 1
+					WHEN @betteam = 'N' AND (@HomeValue < 20 AND @AwayValue = 21) THEN 1
+					ELSE -1 
+				END
+				
+			----Badminton AIO - Match Correct Score 703
+			WHEN @pfID = 703 THEN --Match Correct Score 
+				CASE WHEN @betteam ='0-2' AND @HomeValue = 0 THEN 1
+					 WHEN @betteam ='1-2' AND @HomeValue = 1 THEN 1
+			   		 WHEN @betteam ='2-1' AND @AwayValue = 1 THEN 1
+			   		 WHEN @betteam ='2-0' AND @AwayValue = 0 THEN 1
+			   		 ELSE -1 END
+
 			ELSE -1 END AS modds
    FROM
 	(
@@ -134,7 +162,7 @@ RETURN
 					WHEN @pfID = 1 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @LiveHomeScore) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 - @LiveAwayScore)
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
 					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
-					WHEN @pfID = 20 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (20,711) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
@@ -148,4 +176,4 @@ RETURN
 			AS fm
 	) tbl
 )
-GO 
+GO

@@ -12,6 +12,7 @@ AS
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types
+		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 	
     Parameters Explanation:    
    
@@ -118,5 +119,9 @@ RETURN (
    UNION ALL SELECT 479
    UNION ALL SELECT 481
    -- End 
+   
+   --Badminton AIO
+   UNION ALL SELECT 712
+   UNION ALL SELECT 713
 )
 GO
