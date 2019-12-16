@@ -37,6 +37,7 @@ AS
 		- 20190408@Jacob: Separate Filter Parlay Ticket by 1H & 2H [107682]
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
+		- 20191216@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -333,6 +334,7 @@ BEGIN
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 			AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
 			AND bm.matchid = @MatchId 
@@ -392,6 +394,7 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
 		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 			AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 2799
 			AND b.matchid = 2799
 			AND bm.matchid = @MatchId 
