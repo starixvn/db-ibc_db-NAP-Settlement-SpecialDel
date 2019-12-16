@@ -47,8 +47,8 @@ BEGIN
 	IF @IssueTypeId = 11
 	BEGIN
 		SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
-		SET @matchid = (SELECT matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
-		SET @Sporttype = (SELECT sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
+		SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
+		SET @Sporttype = (SELECT TOP 1 sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
 		
 		UPDATE	b
 		SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
@@ -66,9 +66,9 @@ BEGIN
 			,statusID = 102
 			,status = 'VOID'
 			,betid = t.BetId
-			,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 AND @IssueTypeId = 11 --AbnormalBet
-							THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
-						ELSE b.ExtraInfo END
+			,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
+								ELSE b.ExtraInfo 
+						END
 						
 		FROM	@tmpTrans t
 			INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
@@ -98,8 +98,7 @@ BEGIN
 				ON  t.transid = b.transid
 			
 	END
-	
-			
+				
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMG = 1)
 	BEGIN
 		UPDATE	tl 
