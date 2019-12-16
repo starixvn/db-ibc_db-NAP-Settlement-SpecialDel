@@ -80,6 +80,7 @@ BEGIN
 			,Remark = ISNULL(@Remark, Remark)
 			,IsTest = ISNULL(@IsTest, IsTest)
 			,Sporttype =  ISNULL(@SportType, Sporttype)
+			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
 	WHERE	RequestId = @RequestId
 
 	IF @Operators IS NOT NULL
