@@ -26,6 +26,9 @@ BEGIN
 
 	DECLARE @xml XML
 			,@actual_stake MONEY
+			,@Sporttype SMALLINT = 1
+			,@transid BIGINT
+			,@matchid INT
 
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT)    
 
@@ -41,7 +44,13 @@ BEGIN
 	FROM	@xml.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
-	UPDATE	b
+	IF @IssueTypeId = 11
+	BEGIN
+		SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
+		SET @matchid = (SELECT matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
+		SET @Sporttype = (SELECT sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
+		
+		UPDATE	b
 		SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 			,winlost = @actual_stake
 			,actual_stake = @actual_stake
@@ -58,14 +67,38 @@ BEGIN
 			,status = 'VOID'
 			,betid = t.BetId
 			,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 AND @IssueTypeId = 11 --AbnormalBet
-							THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,m.sporttype,b.bettype)
+							THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
 						ELSE b.ExtraInfo END
 						
-	FROM	@tmpTrans t
-        INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
-			ON  t.transid = b.transid
-		INNER JOIN dbo.match m WITH (NOLOCK)
-			ON b.matchid = m.matchid
+		FROM	@tmpTrans t
+			INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
+				ON  t.transid = b.transid
+	END
+	ELSE
+	BEGIN
+		UPDATE	b
+		SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
+			,winlost = @actual_stake
+			,actual_stake = @actual_stake
+			,ruben = 1
+			,creator = @UserId
+			,awinlost = 0
+			,mwinlost = 0
+			,swinlost = 0
+			,playercomm = 0
+			,comm = 0 
+			,acomm = 0
+			,scomm = 0
+			,statusID = 102
+			,status = 'VOID'
+			,betid = t.BetId
+						
+		FROM	@tmpTrans t
+			INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
+				ON  t.transid = b.transid
+			
+	END
+	
 			
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMG = 1)
 	BEGIN
