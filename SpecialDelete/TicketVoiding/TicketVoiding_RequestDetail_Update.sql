@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
+		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 
 	Param's explanation:	
 	
@@ -28,15 +29,18 @@ BEGIN
 			,@EndTime			DATETIME
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
+			,@LogDataContent	VARCHAR(MAX)
 			,@SB_Error			BIT
 
-			,@oldKickOffTime	DATETIME
+			,@OldKickOffTime	DATETIME
 			
 			,@IssueTypeId		INT
 			,@LeagueId			INT = NULL
 			,@HomeId			INT = NULL
 			,@AwayId			INT = NULL
 			,@Sporttype			SMALLINT = NULL
+			,@OldMatchId			INT
+			,@OldTransIds 		VARCHAR(MAX) = NULL
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -58,9 +62,11 @@ BEGIN
 		
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET	LeagueId = ISNULL(@LeagueId, LeagueId)
+				,@OldMatchId = MatchId
 				,MatchId = ISNULL(@MatchId, MatchId)
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
+				,@OldTransIds = TransIds
 				,TransIds = ISNULL(@TransIds, TransIds)
 
 		WHERE	RequestId = @RequestId
@@ -68,11 +74,34 @@ BEGIN
 	ELSE
 	BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
-			SET	@oldKickOffTime = KickOffTime
+			SET	@OldKickOffTime = KickOffTime
 				,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
 
 		WHERE	RequestId = @RequestId
 				AND MatchId = @MatchId
+	END
+
+	-- Get content of log data
+	SET @LogDataContent = ''
+	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL
+	BEGIN
+		IF @MatchId <> @OldMatchId
+		BEGIN
+			SET @LogDataContent += ' Old MatchId: ' + CAST(@OldMatchId AS VARCHAR(20))
+									+ ' New MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', '
+		END
+		IF @TransIds <> @OldTransIds
+		BEGIN
+			SET @LogDataContent += ' Old TransIds: ' + @OldTransIds + ' New TransIds: ' + @TransIds
+		END
+	END
+	ELSE
+	BEGIN
+		IF @OldKickOffTime <> @KickOffTime
+		BEGIN
+			SET @LogDataContent += ' Old KickOffTime: ' + CONVERT(VARCHAR(30), @OldKickOffTime, 21)
+								+ ' New KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
+		END
 	END
 
 	-- Write Log
@@ -81,9 +110,7 @@ BEGIN
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'
-							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
-														+  ', Old KickOffTime: ' + CONVERT(VARCHAR(30), @oldKickOffTime, 21) + ' New KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21) ELSE '' END
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' + @LogDataContent
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))

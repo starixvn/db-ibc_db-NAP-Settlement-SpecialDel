@@ -24,6 +24,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -64,7 +65,19 @@ BEGIN
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'
-							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms' AS '@LogData'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ ' Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
+								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
+								+ ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
+								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
+								+ ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
+								+ ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
+								+ ', Provider: ' + CASE WHEN @Provider IS NOT NULL THEN @Provider ELSE 'NULL' END
+								+ ', Source: ' + CASE WHEN @Source IS NOT NULL THEN @Source ELSE 'NULL' END
+								+ ', Remark: ' + CASE WHEN @Remark IS NOT NULL THEN @Remark ELSE 'NULL' END
+								+ ', IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END
+							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 

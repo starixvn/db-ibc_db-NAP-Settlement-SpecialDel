@@ -16,6 +16,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine:#111541]
+		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 
 	Param's explanation:	
 	
@@ -55,7 +56,11 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21) ELSE '' END
+								+ (CASE
+									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
+									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
+									ELSE ''
+								END)
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
