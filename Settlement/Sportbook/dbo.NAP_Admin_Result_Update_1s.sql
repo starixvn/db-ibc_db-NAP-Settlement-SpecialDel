@@ -58,6 +58,7 @@ BEGIN
         ,@ResultStatusID        TINYINT
         ,@xmlResourceResult     XML
 		,@xmlSelectedResources  XML
+		,@IsMatchPenalty		BIT
         
     DECLARE @tmpResultDetail TABLE(
             ResourceID              VARCHAR(20)
@@ -72,6 +73,7 @@ BEGIN
     SELECT  @sporttype  = Sporttype 
             ,@GoalSequence  = GoalRecord
             ,@betstatus = betstatus
+			,@IsMatchPenalty = CASE WHEN ChildMatchType = 202 THEN 1 ELSE 0 END
     FROM    dbo.Match WITH (NOLOCK)
     WHERE   MatchID = @MatchID
     
@@ -200,8 +202,18 @@ BEGIN
                 UPDATE SET
                      TARGET.ResultStatusID      = 5
                     ,TARGET.SettlementStatusID  = CASE WHEN SOURCE.IsDetermined = 1 THEN 7 ELSE 1 END
-					,TARGET.HomeValue           = CASE WHEN (SOURCE.IsDetermined = 1 OR SOURCE.ResourceID LIKE '38[12]0[12345]') THEN SOURCE.HomeValue ELSE TARGET.HomeValue END
-                    ,TARGET.AwayValue           = CASE WHEN (SOURCE.IsDetermined = 1 OR SOURCE.ResourceID LIKE '38[12]0[12345]') THEN SOURCE.AwayValue ELSE TARGET.AwayValue END
+					,TARGET.HomeValue           = CASE WHEN @IsMatchPenalty = 0 THEN TARGET.HomeValue
+														ELSE 
+															CASE WHEN (SOURCE.IsDetermined = 1 OR SOURCE.ResourceID LIKE '38[12]0[12345]') THEN SOURCE.HomeValue 
+																ELSE NULL 
+															END
+													END
+                    ,TARGET.AwayValue           = CASE WHEN @IsMatchPenalty = 0 THEN TARGET.AwayValue
+														ELSE 
+															CASE WHEN (SOURCE.IsDetermined = 1 OR SOURCE.ResourceID LIKE '38[12]0[12345]') THEN SOURCE.AwayValue 
+																ELSE NULL 
+															END
+													END
                     ,TARGET.LastModifyBy        = @Creator
                     ,TARGET.LastModifyDate      = GETDATE()
         WHEN NOT MATCHED BY TARGET THEN 

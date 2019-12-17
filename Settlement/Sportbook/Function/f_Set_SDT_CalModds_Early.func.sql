@@ -8,7 +8,8 @@ ALTER FUNCTION [dbo].[f_Set_SDT_CalModds_Early] (
 		,@AwayValue 	VARCHAR(50)
 		,@LiveHomeScore SMALLINT
 		,@LiveAwayScore SMALLINT
-		,@TotalRound	TINYINT 
+		,@homeRound		TINYINT
+		,@awayRound		TINYINT
 		)
 RETURNS TABLE
 AS  
@@ -30,8 +31,10 @@ RETURN
 					ELSE -1 
 				END
 			WHEN @pfID IN (387, 386) THEN --Over/under
-			   CASE WHEN @betteam IN ('h', 'o') AND fm - 0.25 >= @hdp1 THEN fm - @hdp1
-					WHEN @betteam IN ('a', 'u') AND fm - 0.25 >= @hdp1 THEN @hdp1 - fm
+			   CASE WHEN @betteam = 'o' AND CurrScore - 0.25 >= @hdp1 THEN CurrScore - @hdp1
+					WHEN @betteam = 'u' AND CurrScore - 0.25 >= @hdp1 THEN @hdp1 - CurrScore
+					WHEN @betteam = 'o' AND fm <= @hdp1 - 0.25 THEN fm - @hdp1
+					WHEN @betteam = 'u' AND fm <= @hdp1 - 0.25 THEN @hdp1 - fm
 					ELSE NULL 
 				END
 			WHEN @pfID IN (385, 384) THEN --betteam = homevalue 
@@ -57,7 +60,8 @@ RETURN
 					CASE 
 						--PHAIO 5
 						WHEN @pfID = 391 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY))
-						WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY)
+						WHEN @pfID = 387 THEN 5 - @homeRound + CAST(@HomeValue AS SMALLMONEY)
+						WHEN @pfID = 386 THEN 5 - @awayRound + CAST(@HomeValue AS SMALLMONEY)
 
 						ELSE -1 
 					END
@@ -65,10 +69,17 @@ RETURN
 				, (
 					CASE 
 						--PHAIO 5
-						WHEN @pfID = 391 THEN (10 + CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @TotalRound)
+						WHEN @pfID = 391 THEN (10 + CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - (@homeRound + @awayRound))
 						ELSE -1 
 					END
 				) AS MaxTotalScoreAvai
+				, (
+					CASE 
+						--PHAIO 5
+						WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY)
+						ELSE -1 
+					END
+				) AS CurrScore
 	) tbl
 )
 GO 

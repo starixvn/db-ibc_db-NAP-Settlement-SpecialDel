@@ -83,6 +83,8 @@ BEGIN
 		,modds		SMALLMONEY
 		,oddstype	SMALLINT
 		,IsMarked	BIT
+		,srecommend INT
+		,bettype	SMALLINT
 	)
 	
 	CREATE TABLE #tblMatchProcess (
@@ -96,6 +98,8 @@ BEGIN
 		,isFinish	BIT
 		,oddstype	SMALLINT
 		,IsMarked	BIT
+		,srecommend INT
+		,bettype SMALLINT
 	)
 	
     SELECT   @start = CURRENT_TIMESTAMP
@@ -176,8 +180,8 @@ BEGIN
 	--get transid
   	IF @Action = 'CAL'
   	BEGIN
-		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked)
-	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked, srecommend, bettype)
+	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, b.srecommend, b.bettype
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP (1) mt.TransId
@@ -234,16 +238,16 @@ BEGIN
 	BEGIN
 
 		SELECT 
-			@homeRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1), 
-			@awayRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1) 
+			@homeRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1),0), 
+			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
 		FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
 		WHERE MatchID = @MatchID 
 				AND ResourceID LIKE '38[12]0[12345]'
 				AND SettlementStatusID = 4
 				AND ResultStatusID = 5
 
-		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked)
-	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked, srecommend, bettype)
+	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, b.srecommend, b.bettype
 	  	FROM	dbo.bettrans b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP (1) mt.TransId
@@ -257,7 +261,7 @@ BEGIN
 						AND (t.BetID = 0 OR b.BetID = t.BetID) 
 						AND t.IsDetermined = 1
 	  		) sr
-	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL,@homeRound + @awayRound) m
+	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL, @homeRound, @awayRound) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
 	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
@@ -305,8 +309,8 @@ BEGIN
 			
 			UPDATE	TOP(@batchNo) t
 				SET	isFinish = 1
-			OUTPUT	deleted.transid, deleted.modds, deleted.oddstype, deleted.IsMarked
-			INTO	@tmpTransIDBatch(transid, modds, oddstype,IsMarked)
+			OUTPUT	deleted.transid, deleted.modds, deleted.oddstype, deleted.IsMarked, deleted.srecommend, deleted.bettype
+			INTO	@tmpTransIDBatch(transid, modds, oddstype,IsMarked, srecommend, bettype)
 			FROM	#tmpTransID t 
 			WHERE	isFinish IS NULL
 
@@ -322,6 +326,8 @@ BEGIN
 											,modds	AS '@m'
 											,oddstype AS '@ot'
 											,IsMarked AS '@im'
+											,srecommend AS '@sr'
+											,bettype AS '@bt'
 									FROM	@tmpTransIDBatch
 									WHERE modds IS NOT NULL
 									FOR XML PATH('r'), ROOT( 'root' )
@@ -341,6 +347,8 @@ BEGIN
 											,modds	AS '@m'
 											,oddstype AS '@ot'
 											,IsMarked AS '@im'
+											,srecommend AS '@sr'
+											,bettype AS '@bt'
 									FROM	@tmpTransIDBatch
 									WHERE modds IS NULL
 									FOR XML PATH('r'), ROOT( 'root' )
@@ -362,6 +370,8 @@ BEGIN
 											,modds	AS '@m'
 											,oddstype AS '@ot'
 											,IsMarked AS '@im'
+											,srecommend AS '@sr'
+											,bettype AS '@bt'
 									FROM	@tmpTransIDBatch
 									FOR XML PATH('r'), ROOT( 'root' )
 								)
@@ -457,7 +467,7 @@ BEGIN
 			+ T.c.value('@Id', 'VARCHAR(20)')
 			+ '(' + T.c.value('@Home', 'VARCHAR(50)')
 			+ CASE WHEN T.c.value('@Away', 'VARCHAR(50)') IS NOT NULL THEN '-' + T.c.value('@Away', 'VARCHAR(50)') ELSE '' END
-			+ CASE WHEN T.c.value('@IsDetermined','VARCHAR(1)') IS NOT NULL THEN ') SDT(' + T.c.value('@IsDetermined','VARCHAR(1)') ELSE '' END
+			+ CASE WHEN T.c.value('@IsDetermined','VARCHAR(1)') IS NOT NULL AND @Action = 'REFUND' THEN ') SDT(' + T.c.value('@IsDetermined','VARCHAR(1)') ELSE '' END
 			+ '),'
 	FROM	@xmlResults.nodes('Resources/Resource') T(c)
 

@@ -161,8 +161,8 @@ BEGIN
 	BEGIN
 	
 		SELECT 
-			@homeRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1), 
-			@awayRound = RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1) 
+			@homeRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1),0), 
+			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
 		FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
 		WHERE MatchID = @MatchID 
 				AND ResourceID LIKE '38[12]0[12345]'
@@ -173,7 +173,7 @@ BEGIN
 		SELECT bm.refno, bm.transid, m.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
-			CROSS APPLY dbo.f_Set_SDT_CalModds_Early(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, @homeRound + @awayRound) m
+			CROSS APPLY dbo.f_Set_SDT_CalModds_Early(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, @homeRound, @awayRound) m
 		WHERE bm.matchid = @matchid
 			AND bm.statusID NOT IN (101)
 			AND rs.IsDetermined = 1
