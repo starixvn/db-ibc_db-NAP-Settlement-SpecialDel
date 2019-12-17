@@ -56,6 +56,7 @@ AS
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
 		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
+		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -361,8 +362,10 @@ BEGIN
 				WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
 				WHEN 1 THEN 0
 				WHEN 2 THEN 1 END
-			AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE b.betid LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE b.betid LIKE q.Id + '%')))
 		UNION ALL
 		SELECT bl.translogid transid 
 			,bl.srecommend
@@ -455,8 +458,10 @@ BEGIN
 							AND b.matchid = @MatchId
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype
-							AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																													WHERE b.betid LIKE q.Id + '%')))  
+							AND (@Quarter = 'All' 
+								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																													WHERE b.betid LIKE q.Id + '%')))
 			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
 		END
 
@@ -550,6 +555,7 @@ BEGIN
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29
 				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -563,8 +569,10 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE bm.betcheck LIKE q.Id + '%'))) -- filter Quarter			
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
 				OrderNo
@@ -616,6 +624,7 @@ BEGIN
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -629,8 +638,10 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE bm.betcheck LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
@@ -705,6 +716,7 @@ BEGIN
 							FROM dbo.CS_CustSuper WITH (NOLOCK))
 					AND bm.matchid = @MatchId
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 					AND b.bettype = 29
 					AND b.matchid = 29
 					AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -718,8 +730,10 @@ BEGIN
 						WHEN 2 THEN 1
 						END
 					AND ( b.betid = 0 OR b.betid IS NULL )
-					AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																												WHERE bm.betcheck LIKE q.Id + '%'))) -- filter Quarter					
+					AND (@Quarter = 'All' 
+						OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+						OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE bm.betcheck LIKE q.Id + '%')))				
 			)
 			INSERT INTO @TmpTotal (
 				OrderNo
@@ -775,6 +789,7 @@ BEGIN
 					   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -788,8 +803,10 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE bm.betcheck LIKE q.Id + '%'))) 
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(B.Refno) > 0
@@ -856,6 +873,7 @@ BEGIN
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29
 				AND b.matchid = 29
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -869,8 +887,10 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE bm.betcheck LIKE q.Id + '%')))  -- filter Quarter			
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
 				OrderNo
@@ -922,6 +942,7 @@ BEGIN
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
 				AND b.matchid = 2799
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -935,8 +956,10 @@ BEGIN
 					WHEN 2 THEN 1
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE bm.betcheck LIKE q.Id + '%')))   
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
 			HAVING Count(b.Refno) > 0
@@ -1016,6 +1039,7 @@ BEGIN
 			 AND b.bettype = 29
 			 AND b.matchid = 29
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
+			 AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			 AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			 AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			 AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -1027,8 +1051,10 @@ BEGIN
 				    WHEN 2 THEN 1
 				    END
 			 AND (b.betid = 0 OR b.betid IS NULL )
-			AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																										WHERE bm.betcheck LIKE q.Id + '%'))) -- filter Quarter
+			AND (@Quarter = 'All' 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%')))
 		)
 		INSERT INTO @TmpTotal (
 			 OrderNo
@@ -1097,6 +1123,7 @@ BEGIN
 			 AND b.bettype = 2799
 			 AND b.matchid = 2799
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
+			 AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			 AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			 AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			 AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -1108,8 +1135,10 @@ BEGIN
 				    WHEN 2 THEN 1
 				    END
 			 AND ( b.betid = 0 OR b.betid IS NULL )
-			AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																										WHERE bm.betcheck LIKE q.Id + '%')))  
+			AND (@Quarter = 'All' 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 		  GROUP BY s.site
 			 ,bm.liveindicator
 			 ,b.bettype

@@ -56,6 +56,7 @@ AS;
 		- 20190613@Raymond.Le: Allow User to Filter Ticket by Selecting Multiple Maps and Rounds [115074]
 		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
+		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -474,8 +475,11 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 								AND	   CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END  
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE b.betid LIKE q.Id + '%')))  
+					AND (@Quarter = 'All' 
+						OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))																						
+
 				UNION ALL
 				SELECT	b.username,
 						b.gameID AS bettype,				
@@ -732,8 +736,10 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE b.betid LIKE q.Id + '%')))  
+					AND (@Quarter = 'All' 
+						OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%')))
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
@@ -982,8 +988,10 @@ BEGIN
 					AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE b.betid LIKE q.Id + '%')))  
+					AND (@Quarter = 'All' 
+						OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																											WHERE b.betid LIKE q.Id + '%'))) 
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
@@ -1227,7 +1235,9 @@ BEGIN
 					AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					AND (@Quarter = 'All' 
+						OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																											WHERE b.betid LIKE q.Id + '%')))  
 				UNION ALL
 				SELECT	b.username,
@@ -1399,7 +1409,9 @@ BEGIN
 								AND b.matchid = @MatchId
 								AND b.custid = t.custid
 								AND b.bettype = t.bettype
-								AND (@Quarter = 'All' OR (b.bettype NOT BETWEEN 609 AND 617) OR (b.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+								AND (@Quarter = 'All' 
+									OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
+									OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																														WHERE b.betid LIKE q.Id + '%')))  
 					 INNER JOIN match m WITH (NOLOCK) 
 							 ON b.matchid = m.matchid 						
@@ -1492,6 +1504,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
 			WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 				AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1501,8 +1514,10 @@ BEGIN
 									AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 		END
 		
 		---IBC
@@ -1589,6 +1604,7 @@ BEGIN
 							   SELECT custid
 							   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1598,8 +1614,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))  
 			OPTION	(RECOMPILE)			
 		END 
 
@@ -1683,6 +1701,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1692,8 +1711,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%'))) 
 			OPTION	(RECOMPILE)			
 		END 
 
@@ -1776,6 +1797,7 @@ BEGIN
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
 				AND bm.matchID = @MatchId
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1785,8 +1807,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%'))) 
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%'))) 
 		END 	
 		
 		IF @SportType = 43 -- E-Sports
@@ -1897,6 +1921,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.MatchID	
 			WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 				AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1906,8 +1931,10 @@ BEGIN
 									AND	  CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))   
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%'))) 
 		END
 		ELSE 
 		
@@ -1986,6 +2013,7 @@ BEGIN
 							   SELECT custid
 							   FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1995,8 +2023,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%'))) 
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 			OPTION	(RECOMPILE)			
 		END 
 		---CN88
@@ -2070,6 +2100,7 @@ BEGIN
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchid = @MatchId 	 
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -2079,8 +2110,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%'))) 
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))
 			OPTION	(RECOMPILE)			
 		END 
 		---ALL
@@ -2153,6 +2186,7 @@ BEGIN
 			INNER JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno 
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
+				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
 				AND bm.matchID = @MatchId
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -2162,8 +2196,10 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' OR (bm.bettype NOT BETWEEN 609 AND 617) OR (bm.bettype BETWEEN 609 AND 617 AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))  
+				AND (@Quarter = 'All' 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+																										WHERE bm.betcheck LIKE q.Id + '%')))  
 		END 		
 	END 
 
