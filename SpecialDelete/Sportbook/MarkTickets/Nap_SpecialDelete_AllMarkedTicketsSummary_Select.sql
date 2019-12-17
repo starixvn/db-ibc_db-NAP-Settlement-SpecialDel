@@ -58,13 +58,13 @@ BEGIN
      FROM #Tickets t
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
 		  OUTER APPLY (
-						SELECT m.hthomescore, m.htawayscore
+						SELECT TOP 1 m.hthomescore, m.htawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE IsHTCal = 1 
 							AND mr.matchid = m.matchid			
 					)rdHT
 	      OUTER APPLY (
-						SELECT m.finalhomescore, m.finalawayscore
+						SELECT TOP 1 m.finalhomescore, m.finalawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE mr.calculate = 1 
 							AND mr.matchid = m.matchid			
