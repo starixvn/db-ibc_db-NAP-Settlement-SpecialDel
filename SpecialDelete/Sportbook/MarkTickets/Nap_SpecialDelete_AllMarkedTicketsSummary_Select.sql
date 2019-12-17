@@ -53,12 +53,22 @@ BEGIN
             m.IsNeutral,
             m.SportType,
             m.kickofftime,
-            ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore',
-            ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTScore'
+            ISNULL(CAST(rdHT.hthomescore AS CHAR(10)) + '-' + CAST(rdHT.htawayscore AS CHAR(10)), '-') AS 'HTScore',
+            ISNULL(CAST(rdFT.finalhomescore AS CHAR(10)) + '-' + CAST(rdFT.finalawayscore AS CHAR(10)), '-') AS 'FTScore'
      FROM #Tickets t
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
-		  LEFT JOIN ResultDetail rdHT WITH (NOLOCK) on m.matchid = rdHT.MatchId AND rdHT.ResourceId = '01'
-		  LEFT JOIN ResultDetail rdFT WITH (NOLOCK) on m.matchid = rdFT.MatchId AND rdFT.ResourceId = '00'
+		  OUTER APPLY (
+						SELECT m.hthomescore, m.htawayscore
+						FROM dbo.match_remark mr WITH (NOLOCK)
+						WHERE IsHTCal = 1 
+							AND mr.matchid = m.matchid			
+					)rdHT
+	      OUTER APPLY (
+						SELECT m.finalhomescore, m.finalawayscore
+						FROM dbo.match_remark mr WITH (NOLOCK)
+						WHERE mr.calculate = 1 
+							AND mr.matchid = m.matchid			
+					)rdFT
      ORDER BY t.MatchId,
               t.CreatedDate,
               t.Username;
