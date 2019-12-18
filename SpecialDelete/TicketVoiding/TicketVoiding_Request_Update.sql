@@ -96,7 +96,6 @@ BEGIN
 		SELECT	@RequestId AS RequestID
 				,T.C.value('@OperatorId', 'INT') AS OperatorId
 				,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
-						,@RequestId AS RequestId
 		FROM	@Operators.nodes('/r') AS T(C) 
 		
 		DELETE oi
