@@ -85,9 +85,6 @@ BEGIN
 
 	IF @Operators IS NOT NULL
 	BEGIN
-		WITH (
-			
-		)
 		MERGE dbo.TicketVoiding_OperatorInfo AS TARGET
 		USING (SELECT	T.C.value('@OperatorId', 'INT') AS OperatorId
 						,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
