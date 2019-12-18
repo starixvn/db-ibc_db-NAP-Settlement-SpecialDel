@@ -92,6 +92,7 @@ BEGIN
 		)AS SOURCE
 			ON	TARGET.OperatorId = SOURCE.OperatorId
 				AND TARGET.OperatorTypeId = SOURCE.OperatorTypeId
+				AND TARGET.RequestId = @RequestId
 		WHEN NOT MATCHED BY TARGET THEN INSERT (RequestId, OperatorId, OperatorTypeId) VALUES (@RequestId, SOURCE.OperatorId, SOURCE.OperatorTypeId)
 		WHEN NOT MATCHED BY SOURCE THEN DELETE;
 	END
