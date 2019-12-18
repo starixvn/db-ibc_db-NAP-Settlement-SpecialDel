@@ -85,14 +85,18 @@ BEGIN
 
 	IF @Operators IS NOT NULL
 	BEGIN
+		WITH (
+			
+		)
 		MERGE dbo.TicketVoiding_OperatorInfo AS TARGET
 		USING (SELECT	T.C.value('@OperatorId', 'INT') AS OperatorId
 						,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
+						,@RequestId AS RequestId
 				FROM	@Operators.nodes('/r') AS T(C) 
 		)AS SOURCE
 			ON	TARGET.OperatorId = SOURCE.OperatorId
 				AND TARGET.OperatorTypeId = SOURCE.OperatorTypeId
-				AND TARGET.RequestId = @RequestId
+				AND TARGET.RequestId = SOURCE.RequestId
 		WHEN NOT MATCHED BY TARGET THEN INSERT (RequestId, OperatorId, OperatorTypeId) VALUES (@RequestId, SOURCE.OperatorId, SOURCE.OperatorTypeId)
 		WHEN NOT MATCHED BY SOURCE THEN DELETE;
 	END
