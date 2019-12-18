@@ -25,6 +25,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
+		- 20191218@Helen:  fix bug for TVS - [Redmine: 111541]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -51,7 +52,12 @@ BEGIN
 			,@OldSource			NVARCHAR(200)
 			,@OldRemark			NVARCHAR(MAX)
 			,@OldIsTest			BIT
-
+	
+	CREATE TABLE #OperatorInfo(
+		[RequestId] [int] NOT NULL,
+		[OperatorId] [int] NOT NULL,
+		[OperatorTypeId] [tinyint] NOT NULL
+	)
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90002
 	SET @SB_Error = 0
@@ -83,19 +89,30 @@ BEGIN
 			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
 	WHERE	RequestId = @RequestId
 
+	
 	IF @Operators IS NOT NULL
 	BEGIN
-		MERGE dbo.TicketVoiding_OperatorInfo AS TARGET
-		USING (SELECT	T.C.value('@OperatorId', 'INT') AS OperatorId
-						,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
+		INSERT INTO #OperatorInfo (RequestId, OperatorId,OperatorTypeId)
+		SELECT	@RequestId AS RequestID
+				,T.C.value('@OperatorId', 'INT') AS OperatorId
+				,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
 						,@RequestId AS RequestId
-				FROM	@Operators.nodes('/r') AS T(C) 
-		)AS SOURCE
-			ON	TARGET.OperatorId = SOURCE.OperatorId
-				AND TARGET.OperatorTypeId = SOURCE.OperatorTypeId
-				AND TARGET.RequestId = SOURCE.RequestId
-		WHEN NOT MATCHED BY TARGET THEN INSERT (RequestId, OperatorId, OperatorTypeId) VALUES (@RequestId, SOURCE.OperatorId, SOURCE.OperatorTypeId)
-		WHEN NOT MATCHED BY SOURCE THEN DELETE;
+		FROM	@Operators.nodes('/r') AS T(C) 
+		
+		DELETE oi
+		FROM TicketVoiding_OperatorInfo oi WITH (ROWLOCK)
+		WHERE oi.RequestId = @RequestID 
+				AND NOT EXISTS (SELECT TOP (1) 1 FROM #OperatorInfo tv WITH (NOLOCK) 
+								WHERE tv.RequestId = oi.RequestId AND tv.OperatorId = oi.OperatorId
+									AND tv.OperatorTypeId = oi.OperatorTypeId)
+								
+		INSERT INTO TicketVoiding_OperatorInfo (RequestId, OperatorId,OperatorTypeId)
+		SELECT oi.RequestId, OperatorId, OperatorTypeId
+		FROM #OperatorInfo oi
+		WHERE NOT EXISTS (SELECT TOP (1)1 FROM TicketVoiding_OperatorInfo tv WITH (NOLOCK) 
+						  WHERE tv.RequestId = oi.RequestId AND tv.OperatorId = oi.OperatorId
+								AND tv.OperatorTypeId = oi.OperatorTypeId)
+				
 	END
 
 	-- Write Log
@@ -120,6 +137,8 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+	
+	DROP TABLE #OperatorInfo
 	
 END
 GO
