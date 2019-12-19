@@ -13,6 +13,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190815@Raymond.Le: Return column IssueTypeId [#116617]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
+		- 20191219@Helen: Ticket Voiding System - hotfix [Redmine: #111541]
 	
 	Param's explanation:	
 	
@@ -75,9 +76,10 @@ BEGIN
 	SELECT TOP 1 tv.MessageId
 			,msg.Content_en AS ContentEnglish
 			,msg.Content_ch AS ContentChineseTraditional
+			,msg.Content_cs AS ContentChineseSimplified
 	FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
 		CROSS APPLY (
-				SELECT m.Content_en, m.Content_ch
+				SELECT m.Content_en, m.Content_ch, m.Content_cs
 				FROM DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK)
 				WHERE m.MessageId = tv.MessageId
 			) msg
