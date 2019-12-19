@@ -19,7 +19,8 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+		
 	Param's explanation:	
 		
 */
@@ -75,9 +76,9 @@ BEGIN
 			,SubStatusId = bm.statusID
 			,refno = b.refno
 	FROM	@tmpInputTransId t 
-		INNER JOIN dbo.bettransm bm WITH(NOLOCK)
+		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK)
 			ON t.TransId = bm.transid
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)
+		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
 			ON	bm.refno = b.refno
 				AND b.matchid = 29
 				AND b.bettype = 29
@@ -168,7 +169,7 @@ BEGIN
 	INSERT INTO #tmpMainTransId(TransId, Refno)
 	SELECT	DISTINCT b.transid, b.refno
 	FROM	#tmpSubTransId t
-		INNER JOIN dbo.bettrans b WITH(NOLOCK)
+		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.Refno = b.refno
 	WHERE	b.matchid = 29
 			AND b.statusID NOT IN (101, 102)

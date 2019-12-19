@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 	@RequestId INT
 	,@UserId INT
-	
+	,@TransIds VARCHAR(MAX) = ''
 	,@VoidingHistoryId INT = 0 OUTPUT
 AS
 /*	Created by: Kathy
@@ -12,7 +12,8 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		
 	Param's explanation:	
 		
 */
@@ -23,11 +24,13 @@ BEGIN
 			RequestId
 			,UserId
 			,StatusId
+			,TransIds
+			
 		)
 	SELECT	@RequestId
 			,@UserId
 			,1 -- running
-
+			,@TransIds
 	SET @VoidingHistoryId = SCOPE_IDENTITY()
 
 END

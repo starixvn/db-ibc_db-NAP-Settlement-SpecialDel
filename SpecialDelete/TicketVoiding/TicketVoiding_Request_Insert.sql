@@ -11,6 +11,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@Remark			NVARCHAR(MAX)	= NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= NULL
+	,@IsTest			BIT				= NULL
+	,@IssueTypeId		TINYINT			= NULL
 
 	,@RequestId			INT				= 0 OUTPUT
 AS
@@ -21,7 +23,9 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
+		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
@@ -40,8 +44,9 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy)
-	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId
+	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
+
 
 	SET @RequestId = SCOPE_IDENTITY()
 	
@@ -60,7 +65,19 @@ BEGIN
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'
-							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms' AS '@LogData'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ ' Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
+								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
+								+ ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
+								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
+								+ ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
+								+ ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
+								+ ', Provider: ' + CASE WHEN @Provider IS NOT NULL THEN @Provider ELSE 'NULL' END
+								+ ', Source: ' + CASE WHEN @Source IS NOT NULL THEN @Source ELSE 'NULL' END
+								+ ', Remark: ' + CASE WHEN @Remark IS NOT NULL THEN @Remark ELSE 'NULL' END
+								+ ', IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END
+							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 

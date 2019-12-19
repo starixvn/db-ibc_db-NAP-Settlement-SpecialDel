@@ -9,7 +9,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-	
+		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 	Param's explanation:	
 */
 BEGIN
@@ -22,15 +22,18 @@ BEGIN
 	FROM	dbo.f_SplitString(@MatchIds, ',')
 	OPTION (maxrecursion 0)
 
-	SELECT	m.MatchId, o.OperatorID, ci.username, o.OperatorType
+	SELECT	m.MatchId, o.TraderID, o.TraderName, o.SuspenderID, o.SuspenderName
 	FROM	@tmpMatchId m
 		CROSS APPLY(
-			SELECT	DISTINCT o.OperatorID, o.OperatorType
-			FROM	dbo.Dot_admin_Assignment_Operator o WITH(NOLOCK)
-			WHERE	m.MatchId = o.matchid
+			SELECT DISTINCT dt.TraderID
+				, ct.username AS TraderName
+				, dt.SuspenderID
+				, cs.username AS SuspenderName
+			FROM Dot_Admin_Assignment_Trader dt WITH (NOLOCK)
+				LEFT JOIN dbo.CustInfo ct WITH (NOLOCK) ON ct.custid = dt.TraderID
+				LEFT JOIN dbo.CustInfo cs WITH (NOLOCK) ON cs.custid = dt.SuspenderID
+			WHERE dt.matchid = m.MatchId
 		) o		
-		INNER JOIN dbo.CustInfo ci WITH(NOLOCK)
-			ON o.OperatorID = ci.custid	
 END
 GO
 
