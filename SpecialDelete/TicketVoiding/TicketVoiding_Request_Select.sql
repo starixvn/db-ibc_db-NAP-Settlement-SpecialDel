@@ -76,7 +76,7 @@ BEGIN
 	SELECT TOP 1 tv.MessageId
 			,msg.Content_en AS ContentEnglish
 			,msg.Content_ch AS ContentChineseTraditional
-			,msg.Content_cs AS Contentsimplified
+			,msg.Content_cs AS ContentChineseSimplified
 	FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
 		CROSS APPLY (
 				SELECT m.Content_en, m.Content_ch, m.Content_cs
