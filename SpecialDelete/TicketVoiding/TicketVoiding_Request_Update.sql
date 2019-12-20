@@ -26,6 +26,7 @@ AS
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20191218@Helen:  fix bug for TVS - [Redmine: 111541]
+		- 20191220@Charles:  Fix write log when data is null [125828]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -121,16 +122,16 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN @SportType <> @OldSportType THEN ' Old SportType: ' + CAST(@OldSportType AS VARCHAR(20)) + ' New SportType: ' + CAST(@SportType AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN @SubIssueTypeId <> @OldSubIssueTypeId THEN ', Old SubIssueTypeId: ' + CAST(@OldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN @ActionId <> @OldActionId THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0) THEN ' Old SportType: ' + CAST(ISNULL(@OldSportType,0) AS VARCHAR(20)) + ' New SportType: ' + CAST(ISNULL(@SportType, 0) AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0) THEN ', Old SubIssueTypeId: ' + CAST(ISNULL(@OldSubIssueTypeId, 0) AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(ISNULL(@SubIssueTypeId, 0) AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0) THEN ', Old ActionId: ' + CAST(ISNULL(@OldActionId, 0) AS VARCHAR(20)) + ' New ActionId: ' + CAST(ISNULL(@ActionId, 0) AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '') THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
 								+ CASE WHEN ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
 								+ ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
 								+ CASE WHEN ISNULL(@Provider, '') <> ISNULL(@OldProvider, '') THEN ', Old Provider: ' + ISNULL(@OldProvider, 'NULL') + ' New Provider: ' + ISNULL(@Provider, 'NULL') ELSE '' END
 								+ CASE WHEN ISNULL(@Source, '') <> ISNULL(@OldSource, '') THEN ', Old Source: ' + ISNULL(@OldSource, 'NULL') + ' New Source: ' + ISNULL(@Source, 'NULL') ELSE '' END
 								+ CASE WHEN ISNULL(@Remark, '') <> ISNULL(@OldRemark, '') THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END
-								+ CASE WHEN @IsTest <> @OldIsTest THEN ', Old IsTest: ' + CASE WHEN @OldIsTest = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END ELSE '' END
+								+ CASE WHEN ISNULL(@IsTest, 0) <> ISNULL(@OldIsTest, 0) THEN ', Old IsTest: ' + CASE WHEN ISNULL(@OldIsTest, 0) = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN ISNULL(@IsTest, 0) = 1 THEN 'True' ELSE 'False' END ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
