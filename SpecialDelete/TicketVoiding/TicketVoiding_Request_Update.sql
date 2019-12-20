@@ -120,17 +120,18 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0) THEN ' Old SportType: ' + CAST(ISNULL(@OldSportType, 'NULL') AS VARCHAR(20)) + ' New SportType: ' + CAST(ISNULL(@SportType, 'NULL') AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0) THEN ', Old SubIssueTypeId: ' + CAST(ISNULL(@OldSubIssueTypeId, 'NULL') AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(ISNULL(@SubIssueTypeId, 'NULL') AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0) THEN ', Old ActionId: ' + CAST(ISNULL(@OldActionId, 'NULL') AS VARCHAR(20)) + ' New ActionId: ' + CAST(ISNULL(@ActionId, 'NULL') AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ' Old CheckedBy: ' + CAST(ISNULL(@OldCheckedBy, 'NULL') AS VARCHAR(20)) + ' New CheckedBy: ' + CAST(ISNULL(@CheckedBy, 'NULL') AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '') THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
-								+ CASE WHEN ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
-								+ ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
-								+ CASE WHEN ISNULL(@Provider, '') <> ISNULL(@OldProvider, '') THEN ', Old Provider: ' + ISNULL(@OldProvider, 'NULL') + ' New Provider: ' + ISNULL(@Provider, 'NULL') ELSE '' END
-								+ CASE WHEN ISNULL(@Source, '') <> ISNULL(@OldSource, '') THEN ', Old Source: ' + ISNULL(@OldSource, 'NULL') + ' New Source: ' + ISNULL(@Source, 'NULL') ELSE '' END
-								+ CASE WHEN ISNULL(@Remark, '') <> ISNULL(@OldRemark, '') THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END
-								+ CASE WHEN ISNULL(@IsTest, 0) <> ISNULL(@OldIsTest, 0) THEN ', Old IsTest: ' + CASE WHEN ISNULL(@OldIsTest, 0) = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN ISNULL(@IsTest, 0) = 1 THEN 'True' ELSE 'False' END ELSE '' END
+								+ CASE WHEN @SportType IS NOT NULL AND (ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0)) THEN ' Old SportType: ' + CAST(@OldSportType AS VARCHAR(20)) + ' New SportType: ' + CAST(@SportType AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN @SubIssueTypeId IS NOT NULL AND (ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0)) THEN ', Old SubIssueTypeId: ' + CAST(@OldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ' Old CheckedBy: ' + CASE WHEN @OldCheckedBy IS NULL THEN 'NULL' ELSE CAST(@OldCheckedBy AS VARCHAR(20)) END
+								+ ' New CheckedBy: ' + CASE WHEN @CheckedBy IS NULL THEN 'NULL' ELSE CAST(@CheckedBy AS VARCHAR(20)) END ELSE '' END
+								+ CASE WHEN @MistakenBy IS NOT NULL AND (ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '')) THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
+								+ CASE WHEN @DecidedBy IS NOT NULL AND ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
+								+ CASE WHEN @Operators IS NOT NULL THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX)) ELSE '' END
+								+ CASE WHEN @Provider IS NOT NULL AND (ISNULL(@Provider, '') <> ISNULL(@OldProvider, '')) THEN ', Old Provider: ' + ISNULL(@OldProvider, 'NULL') + ' New Provider: ' + ISNULL(@Provider, 'NULL') ELSE '' END
+								+ CASE WHEN @Source IS NOT NULL AND (ISNULL(@Source, '') <> ISNULL(@OldSource, '')) THEN ', Old Source: ' + ISNULL(@OldSource, 'NULL') + ' New Source: ' + ISNULL(@Source, 'NULL') ELSE '' END
+								+ CASE WHEN @Remark IS NOT NULL AND (ISNULL(@Remark, '') <> ISNULL(@OldRemark, '')) THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END
+								+ CASE WHEN @IsTest IS NOT NULL AND (ISNULL(@IsTest, 0) <> ISNULL(@OldIsTest, 0)) THEN ', Old IsTest: ' + CASE WHEN @OldIsTest = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
