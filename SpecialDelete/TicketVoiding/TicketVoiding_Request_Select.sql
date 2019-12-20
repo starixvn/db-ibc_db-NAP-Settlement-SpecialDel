@@ -14,6 +14,7 @@ AS
 		- 20190815@Raymond.Le: Return column IssueTypeId [#116617]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20191219@Helen: Ticket Voiding System - hotfix [Redmine: #111541]
+		- 20191220@Max: Some enhancement for TVS Abnormal Bets [Redmine: #125828]
 	
 	Param's explanation:	
 	
@@ -36,8 +37,8 @@ BEGIN
 			,r.Remark
 			,r.IsTest
 			,ISNULL(isVoided,0) AS isVoided
-			,cr.username AS RequestBy
-			,cv.username AS VoidBy
+			,cr.username AS RequestedBy
+			,cv.username AS VoidedBy
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
 		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy
