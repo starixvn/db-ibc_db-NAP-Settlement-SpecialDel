@@ -122,9 +122,9 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ CASE WHEN ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0) THEN ' Old SportType: ' + CAST(ISNULL(@OldSportType,0) AS VARCHAR(20)) + ' New SportType: ' + CAST(ISNULL(@SportType, 0) AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0) THEN ', Old SubIssueTypeId: ' + CAST(ISNULL(@OldSubIssueTypeId, 0) AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(ISNULL(@SubIssueTypeId, 0) AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0) THEN ', Old ActionId: ' + CAST(ISNULL(@OldActionId, 0) AS VARCHAR(20)) + ' New ActionId: ' + CAST(ISNULL(@ActionId, 0) AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0) THEN ' Old SportType: ' + CAST(ISNULL(@OldSportType, 'NULL') AS VARCHAR(20)) + ' New SportType: ' + CAST(ISNULL(@SportType, 'NULL') AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0) THEN ', Old SubIssueTypeId: ' + CAST(ISNULL(@OldSubIssueTypeId, 'NULL') AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(ISNULL(@SubIssueTypeId, 'NULL') AS VARCHAR(20)) ELSE '' END
+								+ CASE WHEN ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0) THEN ', Old ActionId: ' + CAST(ISNULL(@OldActionId, 'NULL') AS VARCHAR(20)) + ' New ActionId: ' + CAST(ISNULL(@ActionId, 'NULL') AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '') THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
 								+ CASE WHEN ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
 								+ ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
