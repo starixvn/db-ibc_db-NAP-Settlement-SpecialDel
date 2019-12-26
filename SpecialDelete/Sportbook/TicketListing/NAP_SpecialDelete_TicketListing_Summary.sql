@@ -57,6 +57,7 @@ AS
 		- 20191002@Charles: Replace 'MBC' Licensee by 'Credit' [120586]
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
+		- 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -252,9 +253,7 @@ BEGIN
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
 		 , f.Bettype AS typeid
-    FROM [dbo].[f_GroupBettype] () f
-    WHERE f.Bettype NOT IN (187, 179) 	
-
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	IF @Type = 1 -- FOR Number Game Only
 	BEGIN
