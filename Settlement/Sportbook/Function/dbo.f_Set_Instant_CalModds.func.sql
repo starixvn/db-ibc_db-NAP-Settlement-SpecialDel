@@ -93,16 +93,22 @@ RETURN (
 							END
 						ELSE NULL
 					END
-				-- Bettype corner: 488,489,490
-				WHEN @bettype IN (488,489,490) THEN
+				-- Bettype corner: 488,489
+				WHEN @bettype IN (488,489) THEN
+					CASE
+						WHEN @GoalRecord <> ''THEN
+							CASE
+								WHEN @betteam =  LEFT(@GoalRecord,1) THEN 1
+								ELSE -1
+							END
+						ELSE NULL
+					END
+				-- Bettype corner: 490
+				WHEN @bettype IN (490) THEN
 					CASE
 						WHEN @GoalRecord <> '' AND SUBSTRING(@GoalRecord, CHARINDEX(';',@GoalRecord) + 1, 1) <> '' THEN
 							CASE
-								WHEN @betteam =  CASE WHEN CHARINDEX(';',@GoalRecord) > 0 AND @bettype = 490
-													THEN SUBSTRING(@GoalRecord, CHARINDEX(';',@GoalRecord) + 1, 1) 
-													ELSE LEFT(@GoalRecord,1)
-												END 
-									THEN 1
+								WHEN @betteam = SUBSTRING(@GoalRecord, CHARINDEX(';',@GoalRecord) + 1, 1) THEN 1
 								ELSE -1
 							END
 						ELSE NULL
