@@ -12,6 +12,7 @@ AS
 		- 20180821@Kathy: Get LeagueID to detect test league [Redmine:#99465]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20190624@Helen: Unable to run Auto Instant HT if Auto Payout HT has already completed [Redmine:#116073]
+		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		
 */
 
@@ -19,7 +20,7 @@ BEGIN
 
     SET NOCOUNT ON
 
-    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId
+    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType
     
     FROM dbo.ProviderResultDetail d WITH (NOLOCK)
 	    INNER JOIN dbo.Match m WITH (NOLOCK)

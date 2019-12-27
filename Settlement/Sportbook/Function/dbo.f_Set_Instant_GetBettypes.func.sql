@@ -10,7 +10,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20170919@Kathy: Offer new 4 bettypes (461, 462, 463, 464) [Redmine:#83261]
-	
+		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
      Columns Explanation:    
 		- InstantType: bits[0|1:1H,0|2:2H]
     
@@ -39,6 +39,18 @@ RETURN (
 		UNION ALL SELECT 464 , 1
 		UNION ALL SELECT 434 , 2
 		UNION ALL SELECT 435 , 3
+		--Corner bettype
+		UNION ALL SELECT 475 , 3
+		UNION ALL SELECT 476 , 1
+		UNION ALL SELECT 482 , 3
+		UNION ALL SELECT 483 , 3
+		UNION ALL SELECT 484 , 1
+		UNION ALL SELECT 485 , 1
+		UNION ALL SELECT 486 , 3
+		UNION ALL SELECT 487 , 1
+		UNION ALL SELECT 488 , 3
+		UNION ALL SELECT 489 , 1
+		UNION ALL SELECT 490 , 2
 	) AS ib
 )
 GO

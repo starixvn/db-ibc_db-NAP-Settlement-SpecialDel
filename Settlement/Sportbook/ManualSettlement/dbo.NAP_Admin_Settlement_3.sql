@@ -1,8 +1,9 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3] 
 	@matchid INT
     , @mode VARCHAR(6) = 'CAL'
 	, @IsReSettledTickets BIT = 1
+	, @creator			INT = NULL
 AS
 /*
     Created: Viet
@@ -35,6 +36,8 @@ AS
 	   - 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 	   - 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
        - 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+       - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
+	   - 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Cal 0-0 [Redmine:#124951]
 
 
     Param's Explanation:
@@ -97,9 +100,27 @@ BEGIN
 			,@ht_lg 				VARCHAR(10)
 			,@ft_fg 				VARCHAR(10)
 			,@ft_lg 				VARCHAR(10)
+			-- for corner bettype 
+			,@ChildMatchType		TINYINT
+			,@CornerResultString	NVARCHAR(MAX)
+			,@Char					VARCHAR(1)
+			,@Position				TINYINT
+			,@HomeRaceTo			TINYINT
+			,@AwayRaceTo			TINYINT
+			,@LenResultString		TINYINT
+			,@hdp					VARCHAR(5) = ''
+			,@Index_Round_tmp		TINYINT = 0
+			,@Index_Round			TINYINT = 1
+			,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
 	
 	DECLARE @ResourceResult AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
-	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	DECLARE @GoalBettype_tmp AS TABLE (bettype SMALLINT, Voided_cnt INT, ticket_cnt INT)
+	
+	DECLARE @ListBettype_tmp AS TABLE (bettype SMALLINT, hdp1 SMALLMONEY)
+	
+	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
+	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
 	
     SELECT	@fth = FinalHomeScore
 			,@fta = FinalAwayScore
@@ -110,6 +131,7 @@ BEGIN
 			,@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
 			,@GoalRecord = ISNULL(GoalRecord, '')
 			,@matchCode = ISNULL(matchCode, '')
+			,@ChildMatchType = ChildMatchType
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
     
@@ -302,22 +324,173 @@ BEGIN
 						END	 		
 				
 	)
-	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
+	INSERT INTO @ListBettype_tmp (bettype,hdp1)
+	SELECT bettype,hdp1  
 	FROM (
-		SELECT	b.bettype
+		SELECT	b.bettype,hdp1
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE 	matchid = @matchid
 				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
-		GROUP BY b.bettype
+		GROUP BY b.bettype,hdp1
 	
 	) AS b 
 	WHERE b.bettype IN (SELECT bettype	FROM cteBettypes )
-	GROUP BY b.bettype
+	GROUP BY b.bettype,hdp1
 	
+	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
+	FROM (SELECT DISTINCT bettype FROM @ListBettype_tmp) AS tmp
 	
+	IF @Sporttype = 1 AND @ChildMatchType = 204
+	BEGIN
+		SELECT @CornerResultString = CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END
+
+		IF EXISTS (SELECT TOP (1) 1 FROM @ListBettype_tmp WHERE bettype IN (486,487))
+		BEGIN
+			SELECT @CornerResultString = ISNULL(@CornerResultString,'')
+				, @Position = 1
+				,@HomeRaceTo = 0
+				,@AwayRaceTo = 0
+				
+			SELECT @LenResultString = LEN(@CornerResultString)
+
+			SET @Index_Round_tmp =  CASE WHEN CHARINDEX(';',@GoalRecord) = 0 THEN LEN(@GoalRecord) + 1 ELSE CHARINDEX(';',@GoalRecord) END
+
+			WHILE (@Position <= @LenResultString)
+			BEGIN
+				SET @Char = SUBSTRING(@CornerResultString, @Position, 1)
+				
+				IF @Char = 'H'	
+				BEGIN
+					SET @HomeRaceTo = @HomeRaceTo + 1
+
+					IF @HomeRaceTo > @AwayRaceTo
+					BEGIN
+						IF @HomeRaceTo < 10  
+							SET @hdp = '0' + CAST(@HomeRaceTo AS VARCHAR(5))
+						ELSE 
+							SET @hdp = CAST(@HomeRaceTo AS VARCHAR(5))
+						
+						IF @Position <= @Index_Round_tmp
+							SET @Index_Round = 1
+						ELSE 
+							SET @Index_Round = 2
+								 
+						INSERT INTO @ResultDetail_Corner (HDP, ResourceID, HomeValue,Index_Round)
+						VALUES (@HomeRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round )
+						
+					END	
+				END
+				ELSE IF @Char = 'A' 
+				BEGIN
+					SET @AwayRaceTo = @AwayRaceTo + 1
+					IF @AwayRaceTo > @HomeRaceTo
+					BEGIN
+						IF @AwayRaceTo < 10  
+							SET @hdp = '0' + CAST(@AwayRaceTo AS VARCHAR(5))
+						ELSE 
+							SET @hdp = CAST(@AwayRaceTo AS VARCHAR(5))
+						
+						IF @Position <= @Index_Round_tmp
+							SET @Index_Round = 1
+						ELSE 
+							SET @Index_Round = 2
+								
+						INSERT INTO @ResultDetail_Corner (HDP,ResourceID, HomeValue, Index_Round)
+						VALUES (@AwayRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round)
+
+					END
+				END
+				
+				SET @Position = @Position + 1	 	
+			END
+
+			;WITH cteBettype
+			AS
+			(
+				SELECT DISTINCT bettype
+				FROM @ListBettype_tmp
+				WHERE bettype IN (486,487)
+			)
+			INSERT INTO @ResultDetail_Corner_tmp (ResourceID,HomeValue)
+			SELECT ResourceID 
+				,HomeValue
+			FROM cteBettype AS cte
+				CROSS APPLY (
+							SELECT (CAST(cte.bettype AS VARCHAR) + ResourceID) AS ResourceID
+								, HomeValue
+							FROM @ResultDetail_Corner
+							WHERE 1 = CASE 
+											WHEN cte.bettype = 487 AND Index_Round = 1 THEN 1
+											WHEN cte.bettype = 487 AND Index_Round = 2 THEN 0
+											ELSE 1
+										END	
+							
+							) AS Result
+									
+		END
+		
+		IF EXISTS (SELECT TOP (1) 1 FROM @ListBettype_tmp WHERE bettype IN (488,489,490))
+		BEGIN
+			;WITH cteBettype
+			AS
+			(
+				SELECT DISTINCT bettype
+				FROM @ListBettype_tmp
+				WHERE bettype IN (488,489,490)
+			)
+			INSERT INTO @ResultDetail_Corner_tmp (ResourceID,HomeValue)
+			SELECT cte.bettype AS ResourceID
+				, CASE 
+						WHEN bettype = 490 AND CHARINDEX(';', @CornerResultString) > 0 THEN SUBSTRING(@CornerResultString,CHARINDEX(';', @CornerResultString) + 1, 1)
+						ELSE LEFT (@CornerResultString, 1)
+					END	 AS HomeValue
+			FROM cteBettype cte		
+		END
+
+		INSERT INTO @ResultDetail_Corner_ticket (ResourceID)
+			SELECT DISTINCT 
+				CASE 
+					WHEN bettype IN (486,487) THEN CAST(bettype AS VARCHAR) 
+													+ CASE 
+														WHEN hdp1 < 10 THEN '0' + CAST(hdp1 AS VARCHAR) 
+														ELSE CAST(hdp1 AS VARCHAR) 
+													END 
+					ELSE CAST(bettype AS VARCHAR) 
+				END AS ResourceID
+			FROM (SELECT DISTINCT bettype, CASE WHEN bettype IN (486, 487) THEN CONVERT(INT, hdp1) 
+												ELSE 0 END AS hdp1
+					FROM @ListBettype_tmp 
+					WHERE bettype IN (486,487,488,489,490) 
+				)AS t
+			
+			SET @ResourceResult_Corner_Result = ''
+			SELECT @ResourceResult_Corner_Result = (
+													SELECT DISTINCT c1.ResourceID AS Id
+														, CASE 
+															WHEN c2.HomeValue IS NULL THEN 'N'
+															WHEN c2.HomeValue IN (';','') THEN 'N' 
+															ELSE c2.HomeValue
+															END AS HomeValue
+														, 4 AS SettlementStatusId
+														, 5 AS ResultStatusId
+													FROM @ResultDetail_Corner_ticket  c1
+														LEFT JOIN @ResultDetail_Corner_tmp c2 ON c1.ResourceID = c2.ResourceID
+													FOR XML RAW ('Resource'), ROOT ('Results')
+													)
+
+		IF @ResourceResult_Corner_Result IS NOT NULL
+		BEGIN	
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
+				@MatchID        = @MatchID,                  
+				@ResourceResult	= @ResourceResult_Corner_Result,                    
+				@creator        = @creator
+		END			
+			
+	END
     -- call execrep SP
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
         ,@mode = @mode

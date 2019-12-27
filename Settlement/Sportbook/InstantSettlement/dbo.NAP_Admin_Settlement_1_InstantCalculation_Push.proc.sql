@@ -23,6 +23,7 @@ AS
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter and @SourceINT variable for Determine Manual Instant/Auto Instant [Redmine:#86964]
+		- 20191213@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
@@ -44,6 +45,7 @@ BEGIN
 		, @CalculationType	TINYINT
 		, @InstantCompleted	BIT	
 		, @SourceINT 		INT  --5-Auto Instant 100-Manual Instant
+		,@ChildMatchType	TINYINT
 	
 	SELECT @CalculationType	= CASE 
 							 WHEN @Mode = 'INST-HT' THEN 101
@@ -53,6 +55,7 @@ BEGIN
 	SELECT @sporttype 	= m.sporttype
 		, @leagueid 	= m.leagueid
 		, @matchcode	= m.matchcode
+		, @ChildMatchType = m.ChildMatchType
 	FROM DBPRO.BODB02.dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
 	
@@ -98,7 +101,11 @@ BEGIN
     END
     
     SELECT @ErrCode = 0, @ErrMsg = '', @procName = OBJECT_NAME(@@PROCID)
-    SELECT @SourceINT = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END
+    SELECT @SourceINT = CASE 
+							WHEN @ChildMatchType = 204 THEN 100
+							WHEN @IsAutoInst = 0 THEN 100 
+							ELSE 5 
+						END
 
 	IF(@Action = 'CAL')
 	BEGIN
