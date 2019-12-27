@@ -58,6 +58,7 @@ AS
 		- 20191029@Raymond.Le: Fix Ticket listing search wrong quarter [122834]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
+		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -362,8 +363,8 @@ BEGIN
 				WHEN 1 THEN 0
 				WHEN 2 THEN 1 END
 				AND (@Quarter = 'All' 
-					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
-					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
+					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE b.betid LIKE q.Id + '%')))
 		UNION ALL
 		SELECT bl.translogid transid 
@@ -458,8 +459,8 @@ BEGIN
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype
 							AND (@Quarter = 'All' 
-								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714) 
-								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
+								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																													WHERE b.betid LIKE q.Id + '%')))
 			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
 		END
@@ -549,7 +550,7 @@ BEGIN
 				,ISNULL(bm.betcheck, 0) AS FilterGoal
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 			FROM bettransm bm WITH (NOLOCK)
-				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
@@ -569,8 +570,8 @@ BEGIN
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
@@ -619,7 +620,7 @@ BEGIN
 				,0
 				,@LicenseeName AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
-				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -638,8 +639,8 @@ BEGIN
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -706,7 +707,7 @@ BEGIN
 					,ISNULL(bm.betcheck, 0) AS FilterGoal
 					,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 				FROM bettransm bm WITH (NOLOCK)
-					INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+					INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 					INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 					WHERE b.srecommend NOT IN( SELECT custid
 							FROM dbo.Dep_CustSuper WITH (NOLOCK)
@@ -730,8 +731,8 @@ BEGIN
 						END
 					AND ( b.betid = 0 OR b.betid IS NULL )
 					AND (@Quarter = 'All' 
-						OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-						OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+						OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+						OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																											WHERE bm.betcheck LIKE q.Id + '%')))				
 			)
 			INSERT INTO @TmpTotal (
@@ -780,7 +781,7 @@ BEGIN
 				,0
 				,'Credit' AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
-				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				WHERE b.srecommend NOT IN( SELECT custid
 					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
 					   UNION
@@ -803,8 +804,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -867,7 +868,7 @@ BEGIN
 				,ISNULL(bm.betcheck, 0) AS FilterGoal
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 			FROM bettransm bm WITH (NOLOCK)
-				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN dbo.strSplit(@BetTypes, ',') t ON bm.bettype = t.val
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
@@ -887,8 +888,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
@@ -937,7 +938,7 @@ BEGIN
 				,0
 				,'CN88' AS LicenseeName
 			FROM bettransm bm WITH (NOLOCK)
-				INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
@@ -956,8 +957,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -1029,7 +1030,7 @@ BEGIN
 			,ISNULL(bm.betcheck, 0) AS FilterGoal
 			,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 		  FROM bettransm bm WITH (NOLOCK)
-			 INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			 INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
@@ -1051,8 +1052,8 @@ BEGIN
 				    END
 			 AND (b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))
 		)
 		INSERT INTO @TmpTotal (
@@ -1114,7 +1115,7 @@ BEGIN
 			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit'
 			 ELSE s.site END AS LicenseeName
 		  FROM bettransm bm WITH (NOLOCK)
-			 INNER JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
@@ -1135,8 +1136,8 @@ BEGIN
 				    END
 			 AND ( b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 		  GROUP BY s.site
 			 ,bm.liveindicator
