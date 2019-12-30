@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_Instant_CalModds] (
 	@bettype 			SMALLINT
 	, @betteam 			VARCHAR(50)
