@@ -21,6 +21,7 @@ AS
 		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
+		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 
 		
 	Param's Explanation:
