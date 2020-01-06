@@ -15,6 +15,7 @@ AS
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20191219@Helen: Ticket Voiding System - hotfix [Redmine: #111541]
 		- 20191220@Max: Some enhancement for TVS Abnormal Bets [Redmine: #125828]
+		- 20200106@Max: Update KO Time to GlobalShowTime on General Info of Abnormal Bet [Redmine: #126623]
 	
 	Param's explanation:	
 	
@@ -62,13 +63,14 @@ BEGIN
 			,m.htawayscore
 			,m.finalhomescore
 			,m.finalawayscore
+			,m.GlobalShowTime
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
-			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
+			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
 			FROM	dbo.match m WITH(NOLOCK)
 			WHERE	m.matchid = rd.matchid
 			UNION
-			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
+			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime
 			FROM	dbo.match14 m WITH(NOLOCK)
 			WHERE	m.matchid = rd.matchid
 		) m
