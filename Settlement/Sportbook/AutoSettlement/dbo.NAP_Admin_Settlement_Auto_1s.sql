@@ -264,10 +264,6 @@ BEGIN
 	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL, @homeRound, @awayRound) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
-	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-								 WHEN @IsReSettledTickets = 1 THEN 1
-								 ELSE 0
-							END
 
 		-- add tranid without determinded and refund
 		INSERT INTO #tmpTransID(TransID)
@@ -463,13 +459,23 @@ BEGIN
 	SET @xmlResults = CAST(@SelectedResources AS XML)
 	SET @SelectedResources = ''
 
-	SELECT @SelectedResources = @SelectedResources
-			+ T.c.value('@Id', 'VARCHAR(20)')
-			+ '(' + T.c.value('@Home', 'VARCHAR(50)')
-			+ CASE WHEN T.c.value('@Away', 'VARCHAR(50)') IS NOT NULL THEN '-' + T.c.value('@Away', 'VARCHAR(50)') ELSE '' END
-			+ CASE WHEN T.c.value('@IsDetermined','VARCHAR(1)') IS NOT NULL AND @Action = 'REFUND' THEN ') SDT(' + T.c.value('@IsDetermined','VARCHAR(1)') ELSE '' END
-			+ '),'
-	FROM	@xmlResults.nodes('Resources/Resource') T(c)
+	SELECT @SelectedResources = @SelectedResources + ISNULL(Id,'') +
+            CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
+				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
+				 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
+				 ELSE '' 
+              END
+              +
+              CASE WHEN IsDetermined IS NOT NULL AND 'REFUND' = 'REFUND' THEN ' SDT(' + IsDetermined + ')' ELSE '' END
+    FROM 
+        (
+            SELECT 
+			    T.c.value('@Id', 'VARCHAR(20)') as Id
+			    ,T.c.value('@Home', 'VARCHAR(50)') as HomeValue
+			    ,T.c.value('@Away', 'VARCHAR(50)') as AwayValue
+			    ,T.c.value('@IsDetermined','VARCHAR(1)') as IsDetermined
+	        FROM @xmlResults.nodes('Resources/Resource') T(c)
+        ) t
 
 	IF RIGHT(@SelectedResources,1) = ','
 		SET @SelectedResources = LEFT(@SelectedResources, LEN(@SelectedResources) - 1)

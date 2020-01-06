@@ -74,12 +74,18 @@ BEGIN
     GROUP BY f.ResourceId
 
 	-- Insert ResourceId of bettype = 382, 381 in case of No Ticket
-	IF EXISTS (SELECT TOP 1 1 FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE matchid = @MatchID AND ChildMatchType = 202)
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE matchid = @MatchID AND ChildMatchType = 202)
 	BEGIN
 		INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
 		SELECT t.ResourceId , NULL, NULL, NULL, NULL, NULL
 		FROM @tmpAutoBettypes t
-		WHERE t.bettype IN (381,382) AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) 
+			LEFT JOIN (SELECT r.ResourceId FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) WHERE matchid = @MatchID) r
+				on t.ResourceId = r.ResourceId
+		WHERE t.bettype IN (381,382) 
+			AND 1 = CASE WHEN t.ResourceId LIKE '38[12]0[12345]' AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) THEN 1 
+						WHEN t.ResourceId NOT LIKE '38[12]0[12345]' AND r.ResourceId IS NOT NULL THEN 1
+						ELSE 0 
+					END
 	END
 
 	INSERT INTO @tmpTicketStatusParlay( ResourceID, BetCount, InRunning, InWaiting)
@@ -110,7 +116,7 @@ BEGIN
 					WHEN t.betMarkedCount > 0 THEN 'Marked'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
-					WHEN t.BetCount IS NULL AND t.ResourceID LIKE '38[12]0[12345]' THEN 'No Ticket'
+					WHEN t.BetCount IS NULL AND t.ResourceID LIKE '38[12]%' THEN 'No Ticket'
 					ELSE 'Calculated'
 				END AS TicketStatus
 		FROM    @tmpTicketStatus t
