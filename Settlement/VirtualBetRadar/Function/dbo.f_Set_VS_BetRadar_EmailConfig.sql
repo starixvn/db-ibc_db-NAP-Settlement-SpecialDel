@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" selecters="vnteam" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" selecters="" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_VS_BetRadar_EmailConfig] ()
 RETURNS TABLE
 WITH SCHEMABINDING
