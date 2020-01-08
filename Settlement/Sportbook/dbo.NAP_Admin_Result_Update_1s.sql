@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_1s]
   @Command                      VARCHAR(100) 
  ,@MatchID                      INT
@@ -32,7 +32,8 @@ AS
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove corner, auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
-        
+        - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
+		
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
         + @ResourceResult
@@ -678,10 +679,10 @@ BEGIN
     ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO'
     BEGIN
         UPDATE  r  WITH (UPDLOCK,ROWLOCK)
-        SET     HomeValue           = t.HomeValue
-                ,AwayValue          = t.AwayValue
-                ,ResultStatusID     = t.ResultStatusID
-                ,SettlementStatusID = t.SettlementStatusID
+        SET     HomeValue           = NULL
+                ,AwayValue          = NULL
+                ,ResultStatusID     = 0
+                ,SettlementStatusID = 0
                 ,LastModifyBy       = @Creator 
                 ,LastModifyDate     = GETDATE() 
         FROM    dbo.ResultDetail r
@@ -689,6 +690,18 @@ BEGIN
                 ON  r.ResourceID = t.ResourceID
         WHERE   r.MatchID = @MatchID
     END
-    /* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
+	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
+	ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO'
+    BEGIN
+        UPDATE ResultDetail WITH (UPDLOCK,ROWLOCK)
+			SET     HomeValue           = CASE WHEN ResourceID IN ('08','09') THEN '' ELSE NULL END 
+					,AwayValue          = NULL
+					,ResultStatusID     = 0     -- Initial 
+					,SettlementStatusID = 0     -- Initial
+					,LastModifyBy       = @Creator 
+					,LastModifyDate     = GETDATE() 
+        FROM    dbo.ResultDetail r
+        WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','01','08','09','488','489','490') OR r.ResourceID LIKE '486%' OR r.ResourceID LIKE '487%')
+    END
 END
 GO

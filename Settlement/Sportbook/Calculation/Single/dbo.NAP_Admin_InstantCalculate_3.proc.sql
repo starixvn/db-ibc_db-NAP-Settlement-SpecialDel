@@ -20,6 +20,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost - [Redmine:115377]
+		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		
     Param's Explanation:
         
@@ -114,8 +115,8 @@ BEGIN
 						 ELSE 1
 						 END
 					 ,@winlost = CASE
-						WHEN t.modds >  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END)
-						WHEN t.modds =  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * 0.5
+						WHEN t.modds >  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END)
+						WHEN t.modds =  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * 0.5
 						WHEN t.modds =  0	THEN b.actual_stake
 						WHEN t.modds = -0.25	THEN b.actual_stake * 0.5
 						WHEN t.modds < -0.25	THEN 0
@@ -134,24 +135,24 @@ BEGIN
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE
-						WHEN t.modds >  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -apositiontaking
-						WHEN t.modds =  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
+						WHEN t.modds >  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -apositiontaking
+						WHEN t.modds =  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
 						WHEN t.modds =  0	THEN 0
 						WHEN t.modds = -0.25	THEN b.actual_stake * apositiontaking * 0.5
 						WHEN t.modds < -0.25	THEN b.actual_stake * apositiontaking
 						WHEN t.modds IS NULL then aWinLost
 					END
 					,mWinLost = CASE
-						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -mpositiontaking
-						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
+						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -mpositiontaking
+						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
 						WHEN t.modds =  0    	THEN 0
 						WHEN t.modds = -0.25 	THEN b.actual_stake * mpositiontaking * 0.5
 						WHEN t.modds < -0.25 	THEN b.actual_stake * mpositiontaking
 						WHEN t.modds IS NULL then mWinLost
 					END
 					,sWinLost = CASE
-						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -spositiontaking
-						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
+						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -spositiontaking
+						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
 						WHEN t.modds =  0    	THEN 0
 						WHEN t.modds = -0.25 	THEN b.actual_stake * spositiontaking * 0.5
 						WHEN t.modds < -0.25 	THEN b.actual_stake * spositiontaking
@@ -240,8 +241,8 @@ BEGIN
 						 ELSE 1
 						 END
 					 ,@winlost = CASE
-						WHEN t.modds >  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END)
-						WHEN t.modds =  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * 0.5
+						WHEN t.modds >  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END)
+						WHEN t.modds =  0.25	THEN b.actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * 0.5
 						WHEN t.modds =  0	THEN b.actual_stake
 						WHEN t.modds = -0.25	THEN b.actual_stake * 0.5
 						WHEN t.modds < -0.25	THEN 0
@@ -260,24 +261,24 @@ BEGIN
 					,SettlementTime = CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 					,WinLost = @winlost
 					,aWinLost = CASE
-						WHEN t.modds >  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -apositiontaking
-						WHEN t.modds =  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
+						WHEN t.modds >  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -apositiontaking
+						WHEN t.modds =  0.25	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -apositiontaking * 0.5
 						WHEN t.modds =  0	THEN 0
 						WHEN t.modds = -0.25	THEN b.actual_stake * apositiontaking * 0.5
 						WHEN t.modds < -0.25	THEN b.actual_stake * apositiontaking
 						WHEN t.modds IS NULL then aWinLost
 					END
 					,mWinLost = CASE
-						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -mpositiontaking
-						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
+						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -mpositiontaking
+						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -mpositiontaking * 0.5
 						WHEN t.modds =  0    	THEN 0
 						WHEN t.modds = -0.25 	THEN b.actual_stake * mpositiontaking * 0.5
 						WHEN t.modds < -0.25 	THEN b.actual_stake * mpositiontaking
 						WHEN t.modds IS NULL then mWinLost
 					END
 					,sWinLost = CASE
-						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -spositiontaking
-						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464) THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
+						WHEN t.modds >  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -spositiontaking
+						WHEN t.modds =  0.25 	THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN b.bettype IN (14, 127, 189, 190, 434, 435, 461, 462, 463, 464, 475, 476, 482, 483, 484, 485, 486, 487) THEN odds - 1 ELSE odds END) END) * -spositiontaking * 0.5
 						WHEN t.modds =  0    	THEN 0
 						WHEN t.modds = -0.25 	THEN b.actual_stake * spositiontaking * 0.5
 						WHEN t.modds < -0.25 	THEN b.actual_stake * spositiontaking

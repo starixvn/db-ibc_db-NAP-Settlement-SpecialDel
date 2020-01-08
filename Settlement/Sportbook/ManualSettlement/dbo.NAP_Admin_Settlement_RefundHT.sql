@@ -43,6 +43,7 @@ AS
 		- 20190313@Kathy: Change command for refund HT, FT, ALL to avoid wrong replacing SP deployment [Redmine:#109007]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -72,6 +73,12 @@ BEGIN
         ,@sportType INT
 		,@Action VARCHAR(20)
 		,@xmlResultDetail		XML
+
+		-- for corner bettype 
+		,@ChildMatchType		TINYINT
+		,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
+
+
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -82,8 +89,14 @@ BEGIN
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
 	
+	DECLARE @ListBettype_tmp AS TABLE (bettype SMALLINT, hdp1 SMALLMONEY)
+	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
+	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
+
 	SELECT @matchdate = eventdate
         , @sporttype    = sporttype
+		, @ChildMatchType = ChildMatchType
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
 	
@@ -149,7 +162,33 @@ BEGIN
 											ELSE 1
 										END
 							FOR XML PATH ('root')
-							)	
+							)
+							
+	IF @Sporttype = 1 AND @ChildMatchType = 204
+	BEGIN
+		SELECT @ResourceResult_Corner_Result = (
+												SELECT DISTINCT 
+													CASE 
+														WHEN b.bettype IN (487) THEN CAST(b.bettype AS VARCHAR) 
+																	+ CASE 
+																		WHEN b.hdp1 < 10 THEN '0' + CAST(CONVERT(INT, hdp1) AS VARCHAR) 
+																		ELSE CAST(CONVERT(INT,hdp1) AS VARCHAR) 
+																	END
+														ELSE CAST(b.bettype AS VARCHAR) 
+													END AS Id
+													, '' AS HomeValue
+													, 2 AS SettlementStatusId
+													, 5 AS ResultStatusId
+												FROM bettrans b WITH (NOLOCK)
+													INNER JOIN @GoalBettype_tmp gbt ON b.betType = gbt.bettype 
+												WHERE b.matchid= @matchid
+													and b.bettype IN(487,489,490)
+												FOR XML RAW ('Resource'), ROOT ('Results')
+												)
+
+		SELECT @ResourceResult = @ResourceResult + @ResourceResult_Corner_Result
+	END
+
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------

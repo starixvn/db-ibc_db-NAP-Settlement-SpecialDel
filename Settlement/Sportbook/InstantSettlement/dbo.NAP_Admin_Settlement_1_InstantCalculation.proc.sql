@@ -32,6 +32,7 @@ AS
 		- 20190305@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
 		- 20190813@Helen: Remove vnteam in metadata
+		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -83,15 +84,31 @@ BEGIN
 		, @betstatusOld					VARCHAR(50)
 		, @Source						VARCHAR(50) = 'Soccerway'
 		, @strTransCashout VARCHAR (MAX)
+		--CornerBettype
+		,@ChildMatchType		TINYINT
+		,@CornerResultString	NVARCHAR(MAX)
+		,@Char					VARCHAR(1)
+		,@Position				TINYINT
+		,@HomeRaceTo			TINYINT
+		,@AwayRaceTo			TINYINT
+		,@LenResultString		TINYINT
+		,@ResultCorner			NVARCHAR(MAX) = ''
+		,@hdp					VARCHAR(5) = ''
+		,@ResourceResult_Corner	NVARCHAR(MAX) = ''
+		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
+		,@NeitherRaceTo			TINYINT
 		
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY, srecommend INT)
+	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY, srecommend INT, hdp1 SMALLMONEY)
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY)
-			
+	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+	DECLARE @ResultDetail_Corner_tickets AS TABLE (ResourceID VARCHAR(20))
+	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+	
 	DECLARE @instantBettype TABLE (bettype SMALLINT)
 	DECLARE @xmlCashoutTicket XML
 	
@@ -147,6 +164,7 @@ BEGIN
 		, @htawayscore		= m.htawayscore
 		, @finalhomescore	= m.finalhomescore
 		, @finalawayscore	= m.finalawayscore
+		, @ChildMatchType	= m.ChildMatchType
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
 
@@ -209,7 +227,73 @@ BEGIN
 	SELECT @batchCount			= 1000 
 		,@startBatchNo			= 1
 
-	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType,actual_stake, srecommend)
+	--CornerRace
+	IF @ChildMatchType = 204
+	BEGIN
+		SELECT @CornerResultString = ISNULL(@GoalRecord, '')
+			,@ResultCorner = ''
+			,@Position = 1
+			,@HomeRaceTo = 0
+			,@AwayRaceTo = 0
+			,@NeitherRaceTo = 0
+		SELECT @LenResultString = LEN(@CornerResultString)
+
+		WHILE (@Position <= @LenResultString)
+		BEGIN
+			SET @Char = SUBSTRING(@CornerResultString, @Position, 1)
+			
+			IF @Char = 'H'	
+			BEGIN
+				SET @HomeRaceTo = @HomeRaceTo + 1
+
+				IF @HomeRaceTo > @AwayRaceTo
+				BEGIN
+					IF @HomeRaceTo < 10  
+						SET @hdp = '0' + CAST(@HomeRaceTo AS VARCHAR(5))
+					ELSE 
+						SET @hdp = CAST(@HomeRaceTo AS VARCHAR(5))
+
+					INSERT INTO @ResultDetail_Corner (HDP, ResourceID, HomeValue)
+					VALUES (@HomeRaceTo,CAST(@hdp AS VARCHAR), @Char)
+					
+				END	
+			END
+			ELSE IF @Char = 'A' 
+			BEGIN
+				SET @AwayRaceTo = @AwayRaceTo + 1
+				IF @AwayRaceTo > @HomeRaceTo
+				BEGIN
+					IF @AwayRaceTo < 10  
+						SET @hdp = '0' + CAST(@AwayRaceTo AS VARCHAR(5))
+					ELSE 
+						SET @hdp = CAST(@AwayRaceTo AS VARCHAR(5))
+						
+					INSERT INTO @ResultDetail_Corner (HDP,ResourceID, HomeValue)
+					VALUES (@AwayRaceTo,CAST(@hdp AS VARCHAR), @Char)
+
+				END
+			END
+			
+			SET @Position = @Position + 1	 	
+		END
+		
+		SELECT @ResultCorner = STUFF(
+								(
+									SELECT ';' + CAST(HDP AS VARCHAR) + HomeValue 
+									FROM @ResultDetail_Corner FOR XML PATH ('')
+								)
+								, 1, 1, ''
+							 ) + ';'
+		FROM @ResultDetail_Corner
+		
+		SELECT @NeitherRaceTo = (
+									SELECT COUNT(1) 
+									FROM @ResultDetail_Corner
+								)
+		--
+	END
+	
+	INSERT INTO #temp_bettrans (TransID, MOdds, CustID, Balance, BetType, BonusID, WalletType,actual_stake, srecommend,hdp1)
 	SELECT TransID = b.transid
 		,MOdds = ods.modds
 		,CustID = b.custid
@@ -219,6 +303,7 @@ BEGIN
 		,WalletType = ISNULL(b.WalletType, 2) -- Cash Wallet as default
 		,actual_stake = b.actual_stake -- used to determine cashout tickets that make changes Balance (Captured Before)
 		,srecommend = b.srecommend
+		,b.hdp1
 	FROM dbo.bettrans b WITH(NOLOCK)
 		OUTER APPLY [dbo].[f_Set_Instant_CalModds](
 												b.bettype
@@ -231,6 +316,9 @@ BEGIN
 												, @aScore2H
 												, @FGNG
 												, @CalculationType
+												, @ResultCorner
+												, @NeitherRaceTo
+												, @GoalRecord
 											) AS ods
 	WHERE matchid = @matchid
 		AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
@@ -240,6 +328,71 @@ BEGIN
 			 )	
 		AND ods.modds IS NOT NULL
 	
+	--ResouceResult for CornerRace
+	IF @ChildMatchType = 204
+	BEGIN
+		--prepare data
+		;WITH cteBettype
+			AS
+			(
+				SELECT DISTINCT bettype
+				FROM #temp_bettrans
+				WHERE bettype IN (486,487)
+			)
+			INSERT INTO @ResultDetail_Corner_tmp (ResourceID,HomeValue)
+			SELECT ResourceID 
+				,HomeValue
+			FROM cteBettype AS cte
+				CROSS APPLY (
+							SELECT (CAST(cte.bettype AS VARCHAR) + ResourceID) AS ResourceID
+								, HomeValue
+							FROM @ResultDetail_Corner
+							) AS Result
+	
+		;WITH cteBettype
+			AS
+			(
+				SELECT DISTINCT bettype
+				FROM #temp_bettrans
+				WHERE bettype IN (488,489,490)
+			)
+			INSERT INTO @ResultDetail_Corner_tmp (ResourceID,HomeValue)
+			SELECT cte.bettype AS ResourceID
+				, CASE 
+						WHEN bettype = 490 AND CHARINDEX(';', @GoalRecord) > 0 THEN SUBSTRING(@GoalRecord,CHARINDEX(';', @GoalRecord) + 1, 1)
+						ELSE LEFT (@GoalRecord, 1)
+					END	 AS HomeValue
+			FROM cteBettype cte
+			
+		--Generate ResouceResult
+		INSERT INTO @ResultDetail_Corner_tickets (ResourceID)
+		SELECT DISTINCT 
+			CASE 
+				WHEN bettype IN (486,487) THEN CAST(bettype AS VARCHAR) 
+												+ CASE 
+													WHEN hdp1 < 10 THEN '0' + CAST(hdp1 AS VARCHAR) 
+													ELSE CAST(hdp1 AS VARCHAR) 
+												END 
+				ELSE CAST(bettype AS VARCHAR) 
+			END AS ResourceID
+		FROM (
+				SELECT DISTINCT bettype
+							, CASE WHEN bettype IN (486, 487) THEN CONVERT(INT, hdp1) 
+								ELSE 0 END AS hdp1
+				FROM #temp_bettrans WITH (NOLOCK)
+				WHERE bettype IN (486,487,488,489,490) 
+			)AS t
+										
+		SET @ResourceResult = ''
+		SELECT @ResourceResult = (
+									SELECT DISTINCT c1.ResourceID AS Id
+										, c1.HomeValue
+									FROM @ResultDetail_Corner_tmp c1
+										INNER JOIN @ResultDetail_Corner_tickets c2 ON c1.ResourceID = c2.ResourceID
+									FOR XML RAW ('Resource'), ROOT ('Results')
+								)
+	END
+	----
 	--DO loop Inst.CAL
 	WHILE (1=1)
 	BEGIN 
@@ -419,62 +572,17 @@ BEGIN
 		RETURN
 	END
 		
-	SELECT @SourceID = CASE WHEN @IsAutoInst = 0 THEN 100 ELSE 5 END
+	SELECT @SourceID = CASE 
+							WHEN @ChildMatchType = 204 THEN 100
+							WHEN @IsAutoInst = 0 THEN 100 
+							ELSE 5 
+					   END
 	
 	--UPDATE back to AutoPayoutResult
 	EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @CalculationType, @StatusId = 2, @IsIncludedUpdateMatch = 1, @SourceID = @SourceID --Completed
 	
-	;WITH cteFGLGTicket
-	AS
-	(
-		SELECT	MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS HasSettledHTFGLGTicket
-				,MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) AS HasSettledFTFGLGTicket
-		FROM	dbo.bettrans WITH (NOLOCK)
-		WHERE	matchid = @MatchId
-				AND bettype IN (14, 127)
-				AND statusId BETWEEN 112 AND 113
-		GROUP BY matchid
-	)
-	SELECT @FGLGCheck = CASE
-							WHEN @Mode = 'INST-HT' 
-								THEN CASE 
-										WHEN HasSettledHTFGLGTicket = 1 AND HasSettledFTFGLGTicket = 1 THEN 3
-										WHEN HasSettledFTFGLGTicket = 1 THEN 2
-										WHEN HasSettledHTFGLGTicket = 1 THEN 1
-										ELSE 0
-									END
-							ELSE CASE	-- 'INST-FT'
-									WHEN HasSettledFTFGLGTicket = 1 THEN 2
-									ELSE 0
-								END
-						END
-	FROM	cteFGLGTicket
-	
-	--UPDATE back to match's betstatus
-	IF(@FGLGCheck > 0) -- The first time to do IS
+	IF @ChildMatchType = 204
 	BEGIN
-		--SET betstatus
-		SELECT @betstatus	= ISNULL(@betstatus,'')
-			,@FLValue		= CASE 
-								WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1-0;'  
-								WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2-0;'  
-							END
-		IF CHARINDEX ('1FL', @betstatus) = 0
-			SELECT @betstatus	= CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX('1FL', @betstatus), 8), '') ELSE @betstatus END
-				, @betstatus	+= '1FL:' + @FLValue 
-			WHERE @FGLGCheck & 1 = 1
-		
-		IF CHARINDEX ('FL', REPLACE(@betstatus, CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN SUBSTRING(@betstatus, CHARINDEX('1FL', @betstatus),8) ELSE '' END,'')) = 0			
-			SELECT @betstatus	= CASE WHEN CHARINDEX(';FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX(';FL', @betstatus), 8), '') ELSE @betstatus END
-				, @betstatus	+= 'FL:' + @FLValue 
-			WHERE @FGLGCheck & 2 = 2
-		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-            @Command         = 'NAP_Admin_Settlement_1-InstantCalculation'
-            ,@MatchID        = @matchid
-            ,@creator        = @creator
-			,@BetStatus 	 = @betstatus
-		
 		IF @ResourceResult IS NOT NULL	
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
 				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
@@ -482,7 +590,67 @@ BEGIN
 				@ResourceResult	= @ResourceResult,                    
 				@creator        = @creator
 	END
-	
+	ELSE
+	BEGIN
+		;WITH cteFGLGTicket
+		AS
+		(
+			SELECT	MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS HasSettledHTFGLGTicket
+					,MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) AS HasSettledFTFGLGTicket
+			FROM	dbo.bettrans WITH (NOLOCK)
+			WHERE	matchid = @MatchId
+					AND bettype IN (14, 127)
+					AND statusId BETWEEN 112 AND 113
+			GROUP BY matchid
+		)
+		SELECT @FGLGCheck = CASE
+								WHEN @Mode = 'INST-HT' 
+									THEN CASE 
+											WHEN HasSettledHTFGLGTicket = 1 AND HasSettledFTFGLGTicket = 1 THEN 3
+											WHEN HasSettledFTFGLGTicket = 1 THEN 2
+											WHEN HasSettledHTFGLGTicket = 1 THEN 1
+											ELSE 0
+										END
+								ELSE CASE	-- 'INST-FT'
+										WHEN HasSettledFTFGLGTicket = 1 THEN 2
+										ELSE 0
+									END
+							END
+		FROM	cteFGLGTicket
+		
+		--UPDATE back to match's betstatus
+		IF(@FGLGCheck > 0) -- The first time to do IS
+		BEGIN
+			--SET betstatus
+			SELECT @betstatus	= ISNULL(@betstatus,'')
+				,@FLValue		= CASE 
+									WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1-0;'  
+									WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2-0;'  
+								END
+			IF CHARINDEX ('1FL', @betstatus) = 0
+				SELECT @betstatus	= CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX('1FL', @betstatus), 8), '') ELSE @betstatus END
+					, @betstatus	+= '1FL:' + @FLValue 
+				WHERE @FGLGCheck & 1 = 1
+			
+			IF CHARINDEX ('FL', REPLACE(@betstatus, CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN SUBSTRING(@betstatus, CHARINDEX('1FL', @betstatus),8) ELSE '' END,'')) = 0			
+				SELECT @betstatus	= CASE WHEN CHARINDEX(';FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX(';FL', @betstatus), 8), '') ELSE @betstatus END
+					, @betstatus	+= 'FL:' + @FLValue 
+				WHERE @FGLGCheck & 2 = 2
+			
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+				@Command         = 'NAP_Admin_Settlement_1-InstantCalculation'
+				,@MatchID        = @matchid
+				,@creator        = @creator
+				,@BetStatus 	 = @betstatus
+			
+			IF @ResourceResult IS NOT NULL	
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
+					@MatchID        = @MatchID,                  
+					@ResourceResult	= @ResourceResult,                    
+					@creator        = @creator
+		END
+	END
 	--SET @TotalAccount_Updated
 	SELECT @TotalAccount 		= COUNT(1)
 		, @TotalAccount_Updated = SUM(CASE WHEN acc.IsUpdated = 1 THEN 1 ELSE 0 END)
@@ -520,7 +688,7 @@ BEGIN
 
 	IF @IsAutoInst = 1 
 	BEGIN
-	SELECT @Remark ='NAP: Source:' + @Source + (CASE WHEN @ErrCode > 0  THEN ' Failed: ' + @ErrMsg ELSE '' END)	
+	SELECT @Remark ='NAP: Source:' + CASE WHEN @ChildMatchType = 204 THEN 'None' ELSE + @Source END + (CASE WHEN @ErrCode > 0  THEN ' Failed: ' + @ErrMsg ELSE '' END)	
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_Updated, 0) AS VARCHAR(20)) + '/' +	CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))	

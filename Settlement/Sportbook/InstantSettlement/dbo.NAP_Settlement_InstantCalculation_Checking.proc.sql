@@ -21,6 +21,7 @@ AS
 		- 20171212@Kathy: Show error when change back score [Redmine:#84266]
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
+		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 
 		
 	Param's Explanation:
@@ -58,8 +59,24 @@ BEGIN
 		
 		, @IsExistFGNG		BIT
 		, @IsExistHTFGNG	BIT
+		--CornerBettype
+		,@ChildMatchType		TINYINT
+		,@CornerResultString	NVARCHAR(MAX)
+		,@Char					VARCHAR(1)
+		,@Position				TINYINT
+		,@HomeRaceTo			TINYINT
+		,@AwayRaceTo			TINYINT
+		,@LenResultString		TINYINT
+		,@ResultCorner			NVARCHAR(MAX) = ''
+		,@hdp					VARCHAR(5) = ''
+		,@ResourceResult_Corner	NVARCHAR(MAX) = ''
+		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
+		,@NeitherRaceTo			TINYINT
 
 	CREATE TABLE #instantBettype (bettype SMALLINT)
+	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+	DECLARE @ResultDetail_Corner_tickets AS TABLE (ResourceID VARCHAR(20))
+	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
 	
 	SET @InstantKeyValue		= CAST(@InstantKey AS VARCHAR(50))
 	
@@ -111,6 +128,7 @@ BEGIN
 		, @htawayscore		= ISNULL(htawayscore, 0)
 		, @livehomescore	= ISNULL(m.livehomescore,0)
 		, @liveawayscore	= ISNULL(m.liveawayscore,0)
+		, @ChildMatchType	= ISNULL(m.ChildMatchType,0)
     FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK)
 		ON m.leagueid		= l.leagueid
@@ -191,6 +209,74 @@ BEGIN
 			-- CHECK any instant scores has been completed
 			SELECT @goalRecordCheck = CASE WHEN LEFT(@goalRecordCheck, 1) = ';' THEN SUBSTRING(@goalRecordCheck,2,LEN(@goalRecordCheck) - 1) ELSE @goalRecordCheck END
 		
+			
+			
+			--CornerRace
+			IF @ChildMatchType = 204
+			BEGIN
+				SELECT @CornerResultString = ISNULL(@GoalRecord, '')
+					,@ResultCorner = ''
+					,@Position = 1
+					,@HomeRaceTo = 0
+					,@AwayRaceTo = 0
+					,@NeitherRaceTo = 0
+				SELECT @LenResultString = LEN(@CornerResultString)
+
+				WHILE (@Position <= @LenResultString)
+				BEGIN
+					SET @Char = SUBSTRING(@CornerResultString, @Position, 1)
+					
+					IF @Char = 'H'	
+					BEGIN
+						SET @HomeRaceTo = @HomeRaceTo + 1
+
+						IF @HomeRaceTo > @AwayRaceTo
+						BEGIN
+							IF @HomeRaceTo < 10  
+								SET @hdp = '0' + CAST(@HomeRaceTo AS VARCHAR(5))
+							ELSE 
+								SET @hdp = CAST(@HomeRaceTo AS VARCHAR(5))
+
+							INSERT INTO @ResultDetail_Corner (HDP, ResourceID, HomeValue)
+							VALUES (@HomeRaceTo,CAST(@hdp AS VARCHAR), @Char)
+							
+						END	
+					END
+					ELSE IF @Char = 'A' 
+					BEGIN
+						SET @AwayRaceTo = @AwayRaceTo + 1
+						IF @AwayRaceTo > @HomeRaceTo
+						BEGIN
+							IF @AwayRaceTo < 10  
+								SET @hdp = '0' + CAST(@AwayRaceTo AS VARCHAR(5))
+							ELSE 
+								SET @hdp = CAST(@AwayRaceTo AS VARCHAR(5))
+								
+							INSERT INTO @ResultDetail_Corner (HDP,ResourceID, HomeValue)
+							VALUES (@AwayRaceTo,CAST(@hdp AS VARCHAR), @Char)
+
+						END
+					END
+					
+					SET @Position = @Position + 1	 	
+				END
+				
+				SELECT @ResultCorner = STUFF(
+										(
+											SELECT ';' + CAST(HDP AS VARCHAR) + HomeValue 
+											FROM @ResultDetail_Corner FOR XML PATH ('')
+										)
+										, 1, 1, ''
+									 ) + ';'
+				FROM @ResultDetail_Corner
+				
+				SELECT @NeitherRaceTo = (
+											SELECT COUNT(1) 
+											FROM @ResultDetail_Corner
+										)
+				--
+			END
+			
 			-- CHECK for abandoned case
 			IF (
 				ISNULL(@totalGoalCheck, 0) > 0 -- check is first instant calculation or not
@@ -218,6 +304,9 @@ BEGIN
 																	, @aScore2H
 																	, @FGNG
 																	, @CalculationType
+																	, @ResultCorner
+																	, @NeitherRaceTo
+																	, @GoalRecord
 																) AS ods
 					WHERE b.matchid 	= @matchid 
 						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair

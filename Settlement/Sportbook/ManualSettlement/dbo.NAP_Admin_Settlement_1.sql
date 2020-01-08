@@ -80,6 +80,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -132,6 +133,8 @@ BEGIN
         ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)	
 		,@IsRefundHT					BIT	
+		-- Corner match
+		,@ChildMatchType		TINYINT
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -162,6 +165,7 @@ BEGIN
     SELECT  @sporttype        = m.sporttype
             ,@goalrecord_old    = ISNULL(m.goalrecord, '')
 			,@IsRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
+			,@ChildMatchType = ChildMatchType
     FROM    dbo.match m WITH(NOLOCK)
     WHERE    m.matchid = @matchid
 
@@ -402,11 +406,20 @@ BEGIN
             END
 			ELSE IF @Sporttype = 1 -- Soccer
             BEGIN
-                EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-                    @Command            = 'NAP_Admin_Settlement_1-UNDO',
-                    @MatchID            = @MatchID,
-                    @creator            = @creator 
-
+                IF @ChildMatchType = 204 -- Corner
+                BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+						@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
+						@MatchID            = @MatchID,
+						@creator            = @creator 
+                END
+                ELSE
+                BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+						@Command            = 'NAP_Admin_Settlement_1-UNDO',
+						@MatchID            = @MatchID,
+						@creator            = @creator 
+				END
 				EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
 					@MatchId = @matchid
 					,@TypeId = NULL
@@ -600,6 +613,7 @@ BEGIN
                         @matchid            = @matchid
                         ,@mode                = @action    
 						,@IsReSettledTickets = @IsReSettledTickets
+						,@creator = @creator
                 END
             END
 

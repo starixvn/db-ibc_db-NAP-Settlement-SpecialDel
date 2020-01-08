@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	@MatchId 		INT
 	, @SourceId 	TINYINT
@@ -8,6 +8,7 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultIns
 	, @StatusId 	TINYINT
 	, @InstantKey		INT = NULL
 	, @IsInstCalculated		BIT = 0
+	, @ChildMatchType	TINYINT = 0
 	, @ErrCode 		INT = 0 OUTPUT
 	, @ErrMsg NVARCHAR(200) = '' OUTPUT
 	
@@ -21,6 +22,8 @@ AS
 		- 20161128@Bobby: #67760 - Implement IS for FGLG bet types
 		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		- 20180515@Benjamin: Added @IsInstCalculated: Score has already Inst calc before [Redmine:#86964]
+		- 20191225@Max: Instant Settlement for Corner Bettype - Status Instant Calculation [Redmine:#124951]
+
 		
 	Param's Explanation:
 		@TypeId:
@@ -43,11 +46,15 @@ BEGIN
 	DECLARE @StatusIdCheck 		TINYINT
 		 , @AutoPayoutResultId 	INT
 		 , @InstKeyValue		VARCHAR(50)
+		 , @IsAuto BIT = 0
 	
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
+	
+	IF @SourceId = 5 OR @ChildMatchType = 204
+		SET @IsAuto = 1
 
 	--#86964
-	IF @IsInstCalculated = 1 AND @SourceId = 5 
+	IF @IsInstCalculated = 1 AND @IsAuto = 1 
 	   BEGIN
 	   	UPDATE rs
 		SET IsConfirmed = 1
