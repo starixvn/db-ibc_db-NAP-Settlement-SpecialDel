@@ -16,6 +16,7 @@ AS
 		-20161013@Bobby: #65178 - Implement Instant calculation process
 		-20180124@Benjamin: Add @IsAutoInst variable for Auto Instant [Redmine:#86964]
 		-20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -32,6 +33,7 @@ BEGIN
 		, @betstatus  NVARCHAR(50)
 		, @IsAutoInst INT
 		, @SourceId   TINYINT
+		, @ChildMatchType		TINYINT
 		 
 	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
 
@@ -75,6 +77,7 @@ BEGIN
 		, @hta = m.htawayscore
 		, @GoalRecord = m.GoalRecord
 		, @BetStatus = m.betstatus
+		, @ChildMatchType = m.ChildMatchType
 	FROM DBPRO.BODB02.dbo.match m WITH (NOLOCK)
 	WHERE m.matchid = @MatchId
 	
@@ -86,8 +89,10 @@ BEGIN
 							WHEN @Action = 'INST-HT' THEN 101
 							WHEN @Action = 'INST-FT' THEN 102
 							ELSE -1 
-					  END,
-			  @SourceId = CASE  WHEN @IsAutoInst = 1 THEN 5 ELSE 100 END
+					  END
+			, @SourceId = CASE WHEN @ChildMatchType = 204 THEN 100
+								WHEN @IsAutoInst = 1 THEN 5 
+								ELSE 100 END
 
 		--update status for autopayout result
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @MatchId
