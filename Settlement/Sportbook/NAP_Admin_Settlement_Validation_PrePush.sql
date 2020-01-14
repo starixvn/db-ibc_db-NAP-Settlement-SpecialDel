@@ -15,6 +15,7 @@ AS
 
     Revisions:        
         - 20191231@Helen: Basketball | Accidentally Settled Running Match caused by Keyscore - [Redmine:126287]
+		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
      
     Param's Explanation:
 		* sample @SelectedResource for manual:	'801,802,1H,803,804,FT'
@@ -45,7 +46,7 @@ BEGIN
 											WHEN CHARINDEX (CONVERT(VARCHAR(10), o.bettype) + ISNULL(o.Resourceid,''),@SelectedResource) > 0 THEN 1 -- Early bettype
 											ELSE 0
 										END	
-								AND o.oddsstatus = 'running'
+								AND o.oddsstatus <> 'closed'
 							)	
 		END
 		ELSE  
@@ -61,12 +62,12 @@ BEGIN
 											ELSE 0
 										END	
 								AND f.IsAuto = 0		
-								AND o.oddsstatus = 'running'
+								AND o.oddsstatus <> 'closed'
 							)	
 		END
 		IF @ErrCode > 0
 		BEGIN
-			SET @ErrMsg = N'ERROR! Cannot calculate due to running odds. Please make sure you select correct match/interval/result to calculate.'
+			SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 		END		
 	END
 END
