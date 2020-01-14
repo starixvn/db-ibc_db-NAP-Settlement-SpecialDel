@@ -188,6 +188,7 @@ AS
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
+        - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 
     Param's Explanation:
         @action             @mode
@@ -210,14 +211,14 @@ BEGIN
                     ELSE 0
                 END
 
-    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2' ) AND @isUndo = 0
+    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'DB055' ) AND @isUndo = 0
         RETURN
 
     IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
             , 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
             , 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
             , 'SITDB052', 'SITDB053','SITDB06'
-            , 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02')
+            , 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02', 'DB055')
         AND @CalledByBrokerService = 0
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
