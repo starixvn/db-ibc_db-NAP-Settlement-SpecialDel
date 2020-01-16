@@ -15,6 +15,7 @@ AS
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 	Explanation's Param:			    
 */
 BEGIN
@@ -280,7 +281,7 @@ SET NOCOUNT ON
 				  WHERE m.TransId = t.transid)
 
 	-- delete Tickets is not Soccer
-	DELETE t FROM #Tickets t WHERE t.SportType <> 1
+	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2)
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t

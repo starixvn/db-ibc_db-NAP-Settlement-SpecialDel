@@ -21,7 +21,7 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190520@Raymond.Le: Mark Tickets - Not allow to mark Waiting [113518]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]	
-
+		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 	Explanation's Param:
 		- @LiveIndicator:
 		 + 0: Dead
@@ -50,7 +50,7 @@ SET NOCOUNT ON
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
     WHERE MatchId = @MatchId;
-    IF @SportType <> 1
+    IF @SportType NOT IN (1, 2)
     RETURN;
 
     CREATE TABLE #tblBetType

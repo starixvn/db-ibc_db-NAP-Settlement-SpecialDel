@@ -23,7 +23,8 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20190812@Charles: Add new column IsMarked [118437]
-		- 20191101@Charles: Remove column IsMarked [122187]	
+		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -53,7 +54,7 @@ BEGIN
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
     WHERE MatchId = @MatchId;
-    IF @SportType <> 1
+    IF @SportType NOT IN (1, 2)
     RETURN;
 
 	CREATE TABLE #tblBetType

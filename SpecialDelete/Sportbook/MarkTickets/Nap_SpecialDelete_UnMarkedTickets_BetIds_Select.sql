@@ -15,6 +15,7 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190520@Raymond.Le: Mark Tickets - Not allow to mark Waiting [113518]
+		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 	Explanation's Param:
 */
 BEGIN
@@ -284,7 +285,7 @@ CREATE TABLE #tmpRefCodeSummary
 				  WHERE m.TransId = t.transid)
 
 	-- delete Tickets is not Soccer
-	DELETE t FROM #Tickets t WHERE t.SportType <> 1
+	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2)
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t
