@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Validation_PrePush] 
     @Matchid				INT
-    ,@SelectedResource		VARCHAR(50)		= NULL
+    ,@SelectedResource		VARCHAR(MAX)		= NULL
     ,@Action				VARCHAR(100)	= 'CAL-EARLY'
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
