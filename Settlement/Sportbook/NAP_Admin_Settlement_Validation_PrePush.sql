@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Validation_PrePush] 
     @Matchid				INT
     ,@SelectedResource		VARCHAR(MAX)		= NULL
-    ,@Action				VARCHAR(100)	= 'CAL-EARLY'
+    ,@Action				VARCHAR(100)	= 'CAL_EAR'
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
     
@@ -37,7 +37,7 @@ BEGIN
 		AND ISNULL(@SelectedResource,'') <> ''
 		) 
 	BEGIN
-		IF @Action = 'CAL-EARLY'
+		IF @Action = 'CAL_EAR'
 		BEGIN
 			SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.odds o WITH (NOLOCK)
