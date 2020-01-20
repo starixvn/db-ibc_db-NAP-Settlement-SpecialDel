@@ -43,7 +43,8 @@ BEGIN
 							FROM dbo.odds o WITH (NOLOCK)
 							WHERE o.matchid = @Matchid 
 								AND 1 = CASE 
-											WHEN CHARINDEX (CONVERT(VARCHAR(10), o.bettype) + ISNULL(o.Resourceid,''),@SelectedResource) > 0 THEN 1 -- Early bettype
+											WHEN CHARINDEX (CONVERT(VARCHAR(10), o.bettype) + ISNULL(o.Resourceid,''),@SelectedResource) > 0
+												AND o.bettype IN(604, 606, 607, 613) THEN 1 -- Early bettype
 											ELSE 0
 										END	
 								AND o.oddsstatus <> 'closed'
