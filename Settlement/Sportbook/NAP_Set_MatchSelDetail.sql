@@ -52,8 +52,8 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190509@Kathy: Add group 0 for default if match do not have any ticket [Redmine:#99638]
 		- 20190523@Sol: Auto Payout Phase 3 - Removed @IsAutoCalculatePage param [Redmine:#116073]
-
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		
 */
 BEGIN
@@ -650,6 +650,21 @@ BEGIN
 		) t
 		GROUP BY t.GroupId
 		ORDER BY t.GroupId
+	END
+	ELSE IF @sporttype = 2
+	BEGIN
+		SELECT 0 AS groupid
+				,SUM(t.betRunningCount) AS betRunningCount
+				,SUM(t.betSettledCount) AS betSettledCount
+				,SUM(t.betMarkedCount) AS betMarkedCount
+		FROM(
+			SELECT	
+					betRunningCount
+					,betSettledCount
+					,betMarkedCount
+			FROM	@status
+			WHERE GroupId IN (0,1,9)
+		) t
 	END
 	ELSE
 	BEGIN

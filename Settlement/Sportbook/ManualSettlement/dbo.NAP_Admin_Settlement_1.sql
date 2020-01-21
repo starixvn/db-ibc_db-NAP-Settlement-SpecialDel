@@ -81,6 +81,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -606,6 +607,7 @@ BEGIN
 						@matchId = @matchid
 						,@Mode	= @action
 						,@SelectedQuarter = @SelectedQuarter
+						,@IsReSettledTickets = @IsReSettledTickets
                 END
                 ELSE
                 BEGIN

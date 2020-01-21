@@ -187,7 +187,8 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
-		
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
+
     Param's Explanation:
         @action             @mode
         + CAL               CAL, CAL-HT, CAL-FT, UNDO,
@@ -2223,6 +2224,7 @@ BEGIN
                         ,@bettype           = 603
                         ,@result            = @xmlData
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 604)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2231,6 +2233,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 605)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2239,6 +2242,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 606)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2247,6 +2251,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 607)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2255,6 +2260,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- Settle selected quarter of Basketball
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 609)
@@ -2264,6 +2270,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 610)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2272,6 +2279,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 611)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2280,6 +2288,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Mode
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 612)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2288,6 +2297,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 613)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2296,6 +2306,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 614)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2304,6 +2315,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 615)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2312,6 +2324,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 616)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2320,6 +2333,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 617)
                     EXEC dbo.NAP_Admin_Calculate_603
@@ -2328,6 +2342,7 @@ BEGIN
                         ,@result            = @xmlData
                         ,@strResourceIds    = @ResourceIds
                         ,@Action            = @Action
+						,@IsReSettledTickets = @IsReSettledTickets
 
             END
 
