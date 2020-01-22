@@ -52,7 +52,9 @@ AS
 		- 20190528@Kathy: Do not update SettleTime when cal FGLG & cal corner [Redmine:#113460]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
-		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584
+		- 20200122@Helen: Keep FT Score when re-calculating HT Score [Redmine:#127594]
+		
     Parameters Explanation:
 
 
@@ -91,8 +93,9 @@ BEGIN
     BEGIN
         UPDATE dbo.match with (ROWLOCK,UPDLOCK)
         SET
-            finalhomescore = @FTHome, finalawayscore = @FTAway,
-            hthomescore = @HTHome, htawayscore = @HTAway,
+            finalhomescore =  CASE WHEN @action = 'CAL-HT' THEN finalhomescore ELSE @FTHome END
+            ,finalawayscore = CASE WHEN @action = 'CAL-HT' THEN finalawayscore ELSE @FTAway END
+            ,hthomescore = @HTHome, htawayscore = @HTAway,
         --  betstatus = CASE WHEN @action = 'CAL-FT' AND CHARINDEX('Refund HT;',betstatus)>0 THEN 'Refund HT;' + ISNULL(@betstatus,'') ELSE @betstatus END,
             betstatus = ISNULL(@betstatus,''),
             goalrecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
