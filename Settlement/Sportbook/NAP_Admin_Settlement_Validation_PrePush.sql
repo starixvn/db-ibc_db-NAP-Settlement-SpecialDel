@@ -47,6 +47,7 @@ BEGIN
 												AND o.bettype IN(604, 606, 607, 613) THEN 1 -- Early bettype
 											ELSE 0
 										END	
+								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 							)	
 		END
@@ -62,7 +63,8 @@ BEGIN
 											WHEN CHARINDEX ('FT',@SelectedResource) > 0 AND f.GroupName = 'FT' THEN 1 -- FT
 											ELSE 0
 										END	
-								AND f.IsAuto = 0		
+								AND f.IsAuto = 0
+								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 							)	
 		END
