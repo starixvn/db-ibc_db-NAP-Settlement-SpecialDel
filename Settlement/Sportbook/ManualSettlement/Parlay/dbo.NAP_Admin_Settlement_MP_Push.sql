@@ -54,9 +54,6 @@ BEGIN
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
 			,@IsExistsResourceEarlyRunning BIT = 0
-			,@strMatchIds VARCHAR(4000) = ''
-			,@strMatchIds09 VARCHAR(4000) = ''
-			,@strMatchIds43 VARCHAR(4000) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -111,9 +108,6 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43))
 	BEGIN
-		SET @strMatchIds = ISNULL((SELECT STUFF((SELECT ',' + CAST(m.matchid AS VARCHAR(20)) FROM #Match m WHERE m.sporttype NOT IN (9, 43) FOR XML PATH ('')), 1, 1, '')),'')
-		SET @MatchIds = @strMatchIds
-
 		-- get date from remote ResultDetail table 
 		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 									FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
@@ -131,9 +125,6 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (43))
 	BEGIN
-		SET @strMatchIds43 = ISNULL((SELECT STUFF((SELECT ',' + CAST(m.matchid AS VARCHAR(20)) FROM #Match m WHERE m.sporttype IN (43) FOR XML PATH ('')), 1, 1, '')),'')
-		SET @MatchIds = @strMatchIds43
-
 		-- get date from remote ResultDetailES table 
 		SET @queryResultDetailES = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailES r WITH (NOLOCK)
@@ -151,9 +142,6 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9))
 	BEGIN
-		SET @strMatchIds09 = ISNULL((SELECT STUFF((SELECT ',' + CAST(m.matchid AS VARCHAR(20)) FROM #Match m WHERE m.sporttype IN (9) FOR XML PATH ('')), 1, 1, '')),'')
-		SET @MatchIds = @strMatchIds09
-
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
