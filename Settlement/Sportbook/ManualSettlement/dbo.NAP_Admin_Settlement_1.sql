@@ -830,7 +830,7 @@ BEGIN
 							+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                             + 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
                             + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-							+ CASE WHEN @Sporttype = 1 THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
+							+ CASE WHEN @Sporttype IN (1, 2) THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
                             + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
     BEGIN TRY

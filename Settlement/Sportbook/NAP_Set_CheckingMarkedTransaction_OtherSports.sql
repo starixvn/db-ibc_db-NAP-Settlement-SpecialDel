@@ -19,7 +19,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @isExistMarkedTicket	BIT
+	DECLARE @isExistMarkedTicket	BIT = 0
 			,@SportType				SMALLINT
 
 	DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
