@@ -36,6 +36,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
+		- 20200115@Max: Enhance SPs [Redmine: #127031]
 
 	Param's Explanation:		
 		
@@ -105,47 +106,56 @@ BEGIN
 	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
 	-- end
 
-	-- get date from remote ResultDetail table 
-	SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
-								FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
-										INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-											ON r.matchid = tm.val
-								OPTION (MAXRECURSION 0)
-							'
-
-	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchIds VARCHAR(4000)'' , @matchids'
-
-	INSERT INTO #ResultDetail (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetail NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetail, @matchids
-	-- end
-
-	-- get date from remote ResultDetailES table 
-	SET @queryResultDetailES = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
-									FROM BODB02.dbo.ResultDetailES r WITH (NOLOCK)
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43))
+	BEGIN
+		-- get date from remote ResultDetail table 
+		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+									FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
 											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 												ON r.matchid = tm.val
 									OPTION (MAXRECURSION 0)
 								'
 
-	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailES, N''@MatchIds VARCHAR(4000)'' , @matchids'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchIds VARCHAR(4000)'' , @matchids'
+		
+		INSERT INTO #ResultDetail (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetail NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetail, @matchids
+		-- end
+	END
 
-	INSERT INTO #ResultDetailES (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailES NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailES, @matchids
-	-- end
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (43))
+	BEGIN
+		-- get date from remote ResultDetailES table 
+		SET @queryResultDetailES = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+										FROM BODB02.dbo.ResultDetailES r WITH (NOLOCK)
+												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+													ON r.matchid = tm.val
+										OPTION (MAXRECURSION 0)
+									'
 
-	-- get date from remote ResultDetailOS table 
-	SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
-									FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
-											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-												ON r.matchid = tm.val
-									OPTION (MAXRECURSION 0)
-								'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailES, N''@MatchIds VARCHAR(4000)'' , @matchids'
 
-	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@MatchIds VARCHAR(4000)'' , @matchids'
+		INSERT INTO #ResultDetailES (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailES NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailES, @matchids
+		-- end
+	END
 
-	INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-	EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS, @matchids
-	-- end
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9))
+	BEGIN
+		-- get date from remote ResultDetailOS table 
+		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
+										FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
+												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+													ON r.matchid = tm.val
+										OPTION (MAXRECURSION 0)
+									'
+
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@MatchIds VARCHAR(4000)'' , @matchids'
+
+		INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS, @matchids
+		-- end
+	END
 	
 	DECLARE @tblFGLGMatch TABLE(matchid INT, matchcode NVARCHAR(50))
 	DECLARE @tmpRunningEarlySettle TABLE (matchid INT)
