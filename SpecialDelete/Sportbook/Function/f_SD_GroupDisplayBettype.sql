@@ -8,6 +8,7 @@ RETURN
 	DB:		DBPRO/bodb02, DBACC/bodb02
  	Revisions: 
 		- 20191202@Raymond.Le: Create new function [124675]
+		- 20191226@Charles: Incorporate PHAIO 5 [123395]
 
 */
 	-------- Grouped bettype for Sporting Solution
@@ -124,6 +125,8 @@ RETURN
 		,(207, 207), (489, 207) -- 1H First Corner
 		,(208, 208), (491, 208) -- Last Corner
 		,(209, 209), (492, 209) -- 1H Last Corner
+		,(164, 164), (396, 164) -- Extra Time Next Goal
+		,(166, 166), (399, 166) -- Extra Time Correct Score
 
 	) PH (Bettype, GroupTypeId)
 GO
