@@ -16,6 +16,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200405@Max: Enhance EKO Issue Type - [Redmine: #126418]
 	      
 	Param's explanation:	
 		
@@ -214,7 +215,7 @@ BEGIN
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-		WHERE  b.statusID NOT IN (101, 102) -- reject, void
+		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			  	
 					
 	END
@@ -312,7 +313,7 @@ BEGIN
 		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 		WHERE	b.matchid = @matchid
 				AND b.transdate >= @KickOffDate
-				AND b.statusID NOT IN (101, 102) -- reject, void
+				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.liveindicator = 0
 				AND b.bettype NOT IN (805, 806, 9, 29)			
 				AND b.bettype NOT BETWEEN 901 AND 920
@@ -392,7 +393,7 @@ BEGIN
 				 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 			WHERE	b.EventID = @matchid
 					AND b.transdate >= @KickOffDate
-					AND b.statusID NOT IN (101, 102) -- REJECT, VOID
+					AND b.statusID NOT IN (101, 102, 103) -- REJECT, VOID, refund
 					AND b.liveindicator = 0
 					AND b.GameID IN (805, 806) 
 					AND b.betfrom <> 'P'
@@ -404,7 +405,7 @@ BEGIN
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
 					AND bm.transdate >= @KickOffDate
-					AND bm.statusID NOT IN (101, 102)
+					AND bm.statusID NOT IN (101, 102, 103)
 					AND bm.liveindicator = 0
 					AND bm.betfrom <> 'P'
 				)
@@ -489,14 +490,14 @@ BEGIN
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
 			WHERE	sub.transdate >= @KickOffDate
-					AND sub.statusID NOT IN (101, 102) -- reject, void
+					AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND sub.liveindicator = 0
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
 					AND main.liveindicator = 0
 					AND main.transdate >= @KickOffDate
-					AND main.statusID NOT IN (101, 102)
+					AND main.statusID NOT IN (101, 102, 103)
 		END 
 		
 		-- delete cash-out member bet tickets
@@ -627,7 +628,7 @@ BEGIN
 								AND b.matchid = @MatchId
 								AND b.custid = t.custid
 								AND b.bettype = t.bettype 
-				WHERE b.statusID NOT IN (101,102 ) -- reject, void	
+				WHERE b.statusID NOT IN (101,102, 103 ) -- reject, void, refund	
 			END  			    				    					    				    					    	
 		END
 
@@ -825,7 +826,7 @@ BEGIN
 						AND charindex ('p25',main.extrainfo)> 0			
 						AND sub911.bettype = 911
 						AND sub911.matchid = @matchid
-		WHERE sub911.statusID NOT IN (102, 101) -- VOID, REJECT					
+		WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund					
 		
 		-- get cash-out member bet tickets	
 		INSERT INTO #SpecialDeleteBets(
@@ -925,7 +926,7 @@ BEGIN
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid					
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
 						 ) AS b
 		WHERE sub911.bettype = 911
 			 	

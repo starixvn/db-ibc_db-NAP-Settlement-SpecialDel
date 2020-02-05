@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
 	@MatchId BIGINT
-	,@TransIds VARCHAR(MAX) = NULL
+	@TransIds VARCHAR(MAX) = NULL
 	,@RequestId INT = 0
 )
 AS
@@ -17,6 +17,7 @@ AS
 		- 20190625@Raymond.Le: Create new SP [Redmine: #115583]
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
 		- 20191212@Max: AbnormalBet TVS [Redmine:#123691]
+		- 20200405@Max: Enhance EKO Issue Type - [Redmine: #126418]
 		- 20200213@Charles: Exclude bettypes of early settlement and fast market [Redmine:#127398]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200222@Helen: Hotfix - check early bettype for soccer only [Redmine: #127398]
@@ -144,7 +145,7 @@ BEGIN
 			END
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
-	WHERE b.statusID NOT IN (101, 102) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+	WHERE b.statusID NOT IN (101, 102, 103) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 		
 	-- invalid transId
 	;WITH t_invalid
