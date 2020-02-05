@@ -33,6 +33,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 	
 	Param's explanation:  
 		
@@ -336,6 +337,7 @@ BEGIN
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
 		, CASE
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (202) THEN 'No Ticket'
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
 			WHEN tm.IsRunningEarlyBettypes > 0 THEN 'Running'
 			WHEN tm.IsWaitingEarlyBettypes > 0 THEN 'Waiting'

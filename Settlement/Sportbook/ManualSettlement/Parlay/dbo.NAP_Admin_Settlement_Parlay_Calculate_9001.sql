@@ -18,7 +18,8 @@ AS
 			- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 			- 20190924@Sol: Incorporate BMAIO - modified sp to support new bettype [Redmine:#120324]
-			
+			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+
 	Param's Explanation:		
 		
 */
@@ -40,10 +41,13 @@ BEGIN
 		,@ResourcesStr		VARCHAR(MAX) = ''
 		,@TotalPointHomeValue VARCHAR(50) = NULL
 		,@TotalPointAwayValue VARCHAR(50) = NULL
+		,@homeRound			TINYINT
+		,@awayRound			TINYINT
+		,@IsExistDetermined BIT = 0
 	
 	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
 	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
-	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT)
+	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT, IsDetermined BIT)
 	DECLARE @tempSelectedResource TABLE (ResourceID VARCHAR(20))
 	DECLARE @tempResource TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssID TINYINT)
 	
@@ -107,17 +111,23 @@ BEGIN
 			
 		END
 	END
-
-	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID)
-    SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID
+	
+	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID, IsDetermined)
+    SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID, 
+			CASE WHEN @Mode = 'REFUND' AND ssID = 7 THEN 1 ELSE 0 END AS IsDetermined
     FROM @tempResource rs
 	    INNER JOIN SettlementSpecialBettypeProfile sf WITH (NOLOCK) ON sf.ResourceID = rs.ResourceID
 	WHERE sf.sporttype = @sporttype
 		AND 1 = CASE WHEN @Mode = 'CAL' 	AND ssID = 4 THEN 1
-					 WHEN @Mode = 'REFUND' 	AND ssID = 1 THEN 1
+					 WHEN @Mode = 'REFUND' 	AND ssID IN (1, 7) THEN 1 -- ssid = 7 -> early refund with determined
 					 WHEN @Mode = 'UNDO' 	AND ssID = 0 THEN 1
 					 ELSE 0 END
-    
+	
+	IF (@Mode = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tempResultDetail WHERE IsDetermined = 1))
+	BEGIN
+		SET @IsExistDetermined = 1
+	END
+
 	--get transid
 	IF @Mode = 'CAL'
 	BEGIN
@@ -137,7 +147,7 @@ BEGIN
 		WHERE bm.matchid = @matchid
 			AND bm.statusID NOT IN (101)
 	END
-	ELSE IF @Mode = 'REFUND'
+	ELSE IF @Mode = 'REFUND' AND @IsExistDetermined = 0
 	BEGIN
 	
 		INSERT INTO @tempRefno (refno, transid, modds)
@@ -146,6 +156,36 @@ BEGIN
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
 			AND statusID NOT IN (103, 101)
+	END
+	ELSE IF @Mode = 'REFUND' AND @IsExistDetermined = 1
+	BEGIN
+	
+		SELECT 
+			@homeRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1),0), 
+			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
+		FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
+		WHERE MatchID = @MatchID 
+				AND ResourceID LIKE '38[12]0[12345]'
+				AND SettlementStatusID = 4
+				AND ResultStatusID = 5
+		
+		INSERT INTO @tempRefno (refno, transid, modds)
+		SELECT bm.refno, bm.transid, m.modds
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
+			CROSS APPLY dbo.f_Set_SDT_CalModds_Early(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, @homeRound, @awayRound) m
+		WHERE bm.matchid = @matchid
+			AND bm.statusID NOT IN (101)
+			AND rs.IsDetermined = 1
+
+		INSERT INTO @tempRefno (refno, transid, modds)
+		SELECT bm.refno, bm.transid, NULL
+		FROM dbo.bettransm bm WITH (NOLOCK)
+			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
+		WHERE bm.matchid = @matchid
+			AND statusID NOT IN (103, 101)
+			AND rs.IsDetermined = 0
+
 	END
 	ELSE IF @Mode = 'UNDO'
 	BEGIN
@@ -177,7 +217,9 @@ BEGIN
 
 		IF @batchCount = 0 BREAK
 		
-        SET @strTransIds = CAST(
+		IF (@IsExistDetermined = 1)
+		BEGIN
+			SET @strTransIds = CAST(
         				(
         					SELECT * 
         					FROM ( 
@@ -186,16 +228,64 @@ BEGIN
 	                                  ,modds    AS m
 	                                  ,'0'      AS i
 	                             FROM @tempBatch
+								 WHERE modds IS NOT NULL
 	                        )AS b FOR XML AUTO
 	                     ) AS VARCHAR(MAX))
                            			
-		IF(@strTransIds IS NOT NULL)
+			IF(@strTransIds IS NOT NULL)
+			BEGIN
+				EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
+					@matchid 		= @matchid
+					,@matchdate		= @matchdate
+					,@mode 			= 'CAL'
+					,@strTransIds	= @strTransIds
+			END
+
+			-- refund after cal
+			SET @strTransIds = CAST(
+        				(
+        					SELECT * 
+        					FROM ( 
+								 SELECT transid  AS t
+									  ,refno	AS r
+	                                  ,'0'    AS m
+	                                  ,'0'      AS i
+	                             FROM @tempBatch
+								 WHERE modds IS NULL
+	                        )AS b FOR XML AUTO
+	                     ) AS VARCHAR(MAX))
+                           			
+			IF(@strTransIds IS NOT NULL)
+			BEGIN
+				EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
+					@matchid 		= @matchid
+					,@matchdate		= @matchdate
+					,@mode 			= 'REFUND'
+					,@strTransIds	= @strTransIds
+			END
+		END
+		ELSE 
 		BEGIN
-			EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
-				@matchid 		= @matchid
-				,@matchdate		= @matchdate
-				,@mode 			= @Mode
-				,@strTransIds	= @strTransIds
+			SET @strTransIds = CAST(
+        					(
+        						SELECT * 
+        						FROM ( 
+									 SELECT transid  AS t
+										  ,refno	AS r
+										  ,modds    AS m
+										  ,'0'      AS i
+									 FROM @tempBatch
+								)AS b FOR XML AUTO
+							 ) AS VARCHAR(MAX))
+                           			
+			IF(@strTransIds IS NOT NULL)
+			BEGIN
+				EXEC dbo.[NAP_Admin_Calculate_MP_broker] 
+					@matchid 		= @matchid
+					,@matchdate		= @matchdate
+					,@mode 			= @Mode
+					,@strTransIds	= @strTransIds
+			END
 		END
 	END
 	

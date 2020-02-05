@@ -15,6 +15,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 
     Param's Explanation:
 */
@@ -72,6 +73,21 @@ BEGIN
 			AND b.statusID NOT IN (101, 102)
     GROUP BY f.ResourceId
 
+	-- Insert ResourceId of bettype = 382, 381 in case of No Ticket
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE matchid = @MatchID AND ChildMatchType = 202)
+	BEGIN
+		INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
+		SELECT t.ResourceId , NULL, NULL, NULL, NULL, NULL
+		FROM @tmpAutoBettypes t
+			LEFT JOIN (SELECT r.ResourceId FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) WHERE matchid = @MatchID) r
+				on t.ResourceId = r.ResourceId
+		WHERE t.bettype IN (381,382) 
+			AND 1 = CASE WHEN t.ResourceId LIKE '38[12]0[12345]' AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) THEN 1 
+						WHEN t.ResourceId NOT LIKE '38[12]0[12345]' AND r.ResourceId IS NOT NULL THEN 1
+						ELSE 0 
+					END
+	END
+
 	INSERT INTO @tmpTicketStatusParlay( ResourceID, BetCount, InRunning, InWaiting)
     SELECT  f.ResourceID
 			,SUM(CASE WHEN bm.StatusID BETWEEN 101 AND 102 THEN 0 ELSE 1 END)
@@ -100,6 +116,7 @@ BEGIN
 					WHEN t.betMarkedCount > 0 THEN 'Marked'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
+					WHEN t.BetCount IS NULL AND t.ResourceID LIKE '38[12]%' THEN 'No Ticket'
 					ELSE 'Calculated'
 				END AS TicketStatus
 		FROM    @tmpTicketStatus t

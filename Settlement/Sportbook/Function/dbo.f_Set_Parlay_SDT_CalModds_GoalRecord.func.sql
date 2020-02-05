@@ -28,6 +28,7 @@ AS
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
 		- 20190626@Kathy: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 	
     Parameters Explanation:  
     
@@ -199,6 +200,14 @@ RETURN (
 									ELSE NULL
 								END
 					WHEN @bettype = 22 
+							THEN CASE
+								WHEN @betteam = '1' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
+								WHEN @betteam = '2' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
+								WHEN SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN NULL
+								ELSE -1
+							END
+
+					WHEN @bettype = 396 
 							THEN CASE
 								WHEN @betteam = '1' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
 								WHEN @betteam = '2' AND SUBSTRING(REPLACE(ISNULL(@goalsequenceFT, ''),';',''), CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1

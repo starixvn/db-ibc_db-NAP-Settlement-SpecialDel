@@ -79,6 +79,7 @@ AS
 			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 			- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
+			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 			
     Parameters Explanation:    
 	
@@ -1656,6 +1657,59 @@ RETURN (
 								WHEN @betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN 1
 								ELSE -1
 							END
+				-- ##Start - Incorporate PHAIO 5 [Redmine:#121681]
+
+				WHEN 399 THEN -- Extra Time Correct Score
+							CASE 
+								WHEN @betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
+								WHEN @betteam = 'AOS' AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
+								ELSE -1
+							END
+
+				WHEN 397 THEN --Winning Margin    
+					CASE 
+						WHEN @betteam = 'H1' AND (@fth - @fta) = 1 THEN 1
+						WHEN @betteam = 'H2' AND (@fth - @fta) = 2 THEN 1 
+						WHEN @betteam = 'H3+' AND (@fth - @fta) >= 3 THEN 1
+						WHEN @betteam = 'D' AND (@fth - @fta) = 0 AND (@fth + @fta) <> 0 THEN 1
+						WHEN @betteam = 'A1' AND (@fth - @fta) = -1 THEN 1 
+						WHEN @betteam = 'A2' AND (@fth - @fta) = -2 THEN 1 
+						WHEN @betteam = 'A3+' AND (@fth - @fta) <= -3 THEN 1 
+						WHEN @betteam = 'NG' AND @fth = 0 AND @fta = 0 THEN 1
+						ELSE - 1
+						END
+
+				WHEN 396 THEN 
+							CASE
+								WHEN @betteam = '1' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'H' THEN 1
+								WHEN @betteam = '2' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = 'A' THEN 1
+								WHEN @betteam = 'X' AND SUBSTRING(@RemovedSemicolonResultString, CAST(RIGHT(@betcheck,2) AS INT),1) = '' THEN 1
+								ELSE -1
+							END
+
+				WHEN 392 THEN -- Penalty Shootout Correct Score
+							CASE 
+								WHEN @betteam = CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)) THEN 1
+								WHEN @betteam IN ('HAOS') AND @fth > @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
+								WHEN @betteam IN ('AAOS') AND @fth < @fta AND CHARINDEX(CAST(@fth AS VARCHAR(6)) + '-' + CAST(@fta AS VARCHAR(6)), @transdesc) = 0 THEN 1
+								ELSE -1
+							END
+
+				WHEN 389 THEN -- Home Penalty Shootout Over/Under (Final Result)
+							CASE
+								WHEN @betteam = 'o' THEN @fth - @hdp1
+								WHEN @betteam = 'u' THEN @hdp1 - @fth
+								ELSE -1 
+							END
+
+				WHEN 388 THEN -- Away Penalty Shootout Over/Under (Final Result)
+							CASE
+								WHEN @betteam = 'o' THEN @fta - @hdp1
+								WHEN @betteam = 'u' THEN @hdp1 - @fta
+								ELSE -1 
+							END
+
+				-- ##End - Incorporate PHAIO 5 [Redmine:#121681]
 				ELSE NULL -- Not support @bettype
 			END AS modds
 	) AS odds

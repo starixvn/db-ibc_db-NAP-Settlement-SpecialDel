@@ -27,6 +27,7 @@ AS
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 		- 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 	
     Parameters Explanation:    
     
@@ -437,6 +438,30 @@ RETURN (
 	UNION ALL SELECT 1,712,0,0,0,1,'Special',0,0,0
 	UNION ALL SELECT 1,713,0,0,0,1,'Special',0,0,0
 	UNION ALL SELECT 1,714,0,0,0,0,'Special',0,0,0
+
+	-- Start - Redmine: #121681 - Incorporate PHAIO 5
+	UNION ALL SELECT 8,395,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,393,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,391,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,390,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,387,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,386,0,0,0,1,'FT',0,0,0
+	UNION ALL SELECT 8,385,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 8,384,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 8,383,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 8,382,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 8,381,0,0,0,1,'Special',0,0,0
+
+	UNION ALL SELECT 2,400,0,0,0,0,'FT',0,0,0
+	UNION ALL SELECT 2,399,1,0,0,0,'FT',3,0,0
+	UNION ALL SELECT 2,398,0,0,0,0,'FT',0,0,0
+	UNION ALL SELECT 2,397,1,0,0,0,'FT',3,0,0
+	UNION ALL SELECT 2,396,1,1,0,0,'FT',3,0,0
+	UNION ALL SELECT 2,394,0,0,0,0,'FT',0,0,0
+	UNION ALL SELECT 2,392,1,0,0,0,'FT',3,0,0
+	UNION ALL SELECT 2,389,1,0,0,0,'FT',3,0,0
+	UNION ALL SELECT 2,388,1,0,0,0,'FT',3,0,0
+	-- End
 	)
 GO
 

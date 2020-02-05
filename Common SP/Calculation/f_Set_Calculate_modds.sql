@@ -20,6 +20,8 @@ AS
 		- 20190620@Kathy: PH AIO Phase4 [Redmine:#109584]
 		- 20190924@Sol: Incorporate BMAIO - New formular for 711, 712, 713, 714 [Redmine:#120324]
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		
 */
 RETURN
 (
@@ -46,7 +48,7 @@ RETURN
 					WHEN @betteam IN ('a', 'e') AND fm = 0 THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID = 3 THEN --Over/under
+			WHEN @pfID IN (3, 387, 386) THEN --Over/under
 			   CASE WHEN @betteam IN ('h', 'o') THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 								 WHEN fm = 0.25 THEN 0.25
@@ -84,7 +86,7 @@ RETURN
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID = 424 THEN --betteam = homevalue --Reuse for bettype 712, 713 of Badminton AIO
+			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
 			   CASE WHEN @betteam = @HomeValue THEN 1
 					ELSE -1 END
 			
@@ -155,7 +157,34 @@ RETURN
 			   		 WHEN @betteam ='2-0' AND @AwayValue = 0 THEN 1
 			   		 ELSE -1 END
 
-			ELSE -1 END AS modds
+			WHEN @pfID = 391 THEN -- Penalty Shootout Exact Total Goals (First 10)
+				CASE WHEN @betteam = 'G4' AND (0 <= fm AND fm <= 4) THEN 1
+					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
+					WHEN @betteam = 'G6' AND (fm = 6) THEN 1
+					WHEN @betteam = 'G7' AND (fm = 7) THEN 1
+					WHEN @betteam = 'G8' AND (fm = 8) THEN 1
+					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+					ELSE -1 
+				END
+			   		
+			WHEN @pfID = 391 THEN --Penalty Shootout Exact Total Goals (First 10)
+				CASE WHEN @betteam = 'G4' AND (1 <= fm AND fm <= 4) THEN 1
+					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
+					WHEN @betteam = 'G6' AND (fm = 6) THEN 1
+					WHEN @betteam = 'G7' AND (fm = 7) THEN 1
+					WHEN @betteam = 'G8' AND (fm = 8) THEN 1
+					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
+					ELSE -1 
+				END
+
+			WHEN @pfID = 383 THEN -- Penalty Shootout Woodwork - Round X
+				CASE WHEN @betteam = 'H' AND @HomeValue = 'H' THEN 1
+					 WHEN @betteam = 'A' AND @AwayValue = 'H' THEN 1
+					 ELSE -1
+				END
+
+			ELSE -1 
+		END AS modds
    FROM
 	(
 		SELECT (CASE 
@@ -171,6 +200,10 @@ RETURN
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8104 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 8105 THEN CAST(@HomeValue AS SMALLMONEY)
+
+					--PHAIO 5
+					WHEN @pfID = 391 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					
 					ELSE -1 END)
 			AS fm

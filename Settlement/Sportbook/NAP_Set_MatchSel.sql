@@ -43,6 +43,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
+		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
       
  Param explanation:  
 	@MatchCode: match code
@@ -187,6 +188,7 @@ BEGIN
 		,IsWaitingEarlyBettypesParlay BIT
 		,IsExistRunningTicket BIT
 		,IsExistMarkedTicket BIT
+		,ChildMatchType TINYINT
 		)
 
 	DECLARE @strmatchid VARCHAR(MAX)
@@ -204,6 +206,7 @@ BEGIN
 		,IsExistFastMarketResult
 		,IsExistEarlyBettypes,IsExistEarlyBettypesParlay,IsRunningEarlyBettypes,IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
 		,IsExistRunningTicket, IsExistMarkedTicket
+		,ChildMatchType
 	)
 	SELECT 
 		tmp.hthomescore
@@ -259,6 +262,7 @@ BEGIN
 		,0 AS IsWaitingEarlyBettypeParlay 
 		,0 AS IsExistRunningTicket
 		,0 AS IsExistMarkedTicket
+		,tmp.ChildMatchType
 	FROM (
 		SELECT hthomescore
 			,htawayscore			
@@ -280,6 +284,7 @@ BEGIN
 			,0 as IsExistHTFGLG
 			,ISNULL(m.AutoSetting, 0) AS AutoSetting
 			,ISNULL(m.SettlementStatus, 0) AS SettlementStatus
+			,m.ChildMatchType
 		FROM	dbo.match m WITH (NOLOCK)
 				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = r.MatchId AND r.ResourceId ='00'
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate 
@@ -621,6 +626,7 @@ BEGIN
 			END AS AutoSettleFastMarket
 			
 			,CASE
+				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (202) THEN 'No Ticket' 
 				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 THEN 'N/A' 
 				WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
 				WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
