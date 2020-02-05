@@ -154,6 +154,13 @@ BEGIN
 		,BetCountSet3 	INT
 		,BetCountSet4 	INT
 		,BetCountSet5 	INT
+
+		,BetMarkedCountSet1 INT
+		,BetMarkedCountSet2 INT
+		,BetMarkedCountSet3 INT
+		,BetMarkedCountSet4 INT
+		,BetMarkedCountSet5 INT
+
 		, PRIMARY KEY (bettype,isParlay)
 	)
 	
@@ -163,6 +170,7 @@ BEGIN
 		, IsLive		
 		, InRunningSet1, InRunningSet2, InRunningSet3, InRunningSet4, InRunningSet5
 		, BetCountSet1, BetCountSet2, BetCountSet3, BetCountSet4, BetCountSet5
+		, BetMarkedCountSet1 ,BetMarkedCountSet2 ,BetMarkedCountSet3 ,BetMarkedCountSet4 ,BetMarkedCountSet5
 		)
 	SELECT	b.bettype, 0 isParlay
 			,MAX(CASE WHEN b.statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS InRunning
@@ -174,16 +182,22 @@ BEGIN
 			,0 InRunningParlay,0 WaitingParlay_cnt, 0 betcountParlay
 			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
 			
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet1
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet2
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet3
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet4
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet1
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet2
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet3
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet4
 			,MAX(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet5		
 			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' THEN 1 ELSE 0 END) AS BetCountSet1
 			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' THEN 1 ELSE 0 END) AS BetCountSet2
 			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' THEN 1 ELSE 0 END) AS BetCountSet3
 			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' THEN 1 ELSE 0 END) AS BetCountSet4
 			,SUM(CASE WHEN CAST(betid AS VARCHAR(20)) LIKE '805%' THEN 1 ELSE 0 END) AS BetCountSet5
+
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet1
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet2
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet3
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet4
+			,SUM(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet5
 	FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (
 					SELECT TOP 1 mt.TransId
@@ -221,6 +235,12 @@ BEGIN
 			,0 AS BetCountSet3
 			,0 AS BetCountSet4
 			,0 AS BetCountSet5
+
+			,0 AS BetMarkedCountSet1
+			,0 AS BetMarkedCountSet2
+			,0 AS BetMarkedCountSet3
+			,0 AS BetMarkedCountSet4
+			,0 AS BetMarkedCountSet5
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
@@ -271,6 +291,7 @@ BEGIN
 			, InRunning INT, Waiting_cnt INT, BetCountParlay INT, InRunningParlay INT, WaitingParlay_cnt INT
 			, InRunningSet1 INT, InRunningSet2 	INT, InRunningSet3 	INT, InRunningSet4 	INT, InRunningSet5 	INT	
 			, BetCountSet1 	INT, BetCountSet2 	INT, BetCountSet3 	INT, BetCountSet4 	INT, BetCountSet5 	INT
+			, BetMarkedCountSet1 INT, BetMarkedCountSet2 INT, BetMarkedCountSet3 INT, BetMarkedCountSet4 INT, BetMarkedCountSet5 INT
 		)
 		
         -- check match status
@@ -278,6 +299,7 @@ BEGIN
 			,InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt
 			,InRunningSet1, InRunningSet2, InRunningSet3, InRunningSet4, InRunningSet5
 			,BetCountSet1, BetCountSet2, BetCountSet3, BetCountSet4, BetCountSet5
+			,BetMarkedCountSet1, BetMarkedCountSet2, BetMarkedCountSet3, BetMarkedCountSet4, BetMarkedCountSet5
 		)
 		SELECT	CASE 
 					WHEN g.groupId = 1 THEN 1 -- HT
@@ -309,6 +331,12 @@ BEGIN
 			,SUM(b.BetCountSet3)
 			,SUM(b.BetCountSet4)
 			,SUM(b.BetCountSet5)
+
+			,SUM(b.BetMarkedCountSet1)
+			,SUM(b.BetMarkedCountSet2)
+			,SUM(b.BetMarkedCountSet3)
+			,SUM(b.BetMarkedCountSet4)
+			,SUM(b.BetMarkedCountSet5)
 		FROM	#Data b
 			INNER JOIN @tmpBettypes g
 				ON	b.bettype = g.BetType
@@ -401,22 +429,26 @@ BEGIN
 		
 		SELECT	@StatusQuarter1 = CASE
 									WHEN ISNULL(BetCountSet1,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet1,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet1,0) = 0 AND ISNULL(BetMarkedCountSet1,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet1,0) = 0 AND ISNULL(BetMarkedCountSet1,0) > 0 THEN 'Marked'
 									ELSE N'Running'
 								END
 				,@StatusQuarter2 = CASE
 									WHEN ISNULL(BetCountSet2,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet2,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet2,0) = 0 AND ISNULL(BetMarkedCountSet2,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet2,0) = 0 AND ISNULL(BetMarkedCountSet2,0) > 0 THEN 'Marked'
 									ELSE N'Running'
 								END
 				,@StatusQuarter3 = CASE
 									WHEN ISNULL(BetCountSet3,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet3,0) = 0 THEN N'Calculated'								
+									WHEN ISNULL(InRunningSet3,0) = 0 AND ISNULL(BetMarkedCountSet3,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet3,0) = 0 AND ISNULL(BetMarkedCountSet3,0) > 0 THEN 'Marked'
 									ELSE N'Running'
 								END
 				,@StatusQuarter4 = CASE
 									WHEN ISNULL(BetCountSet4,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet4,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet4,0) = 0 AND ISNULL(BetMarkedCountSet4,0) = 0 THEN N'Calculated'
+									WHEN ISNULL(InRunningSet4,0) = 0 AND ISNULL(BetMarkedCountSet4,0) > 0 THEN 'Marked'
 									ELSE N'Running'
 								END
 		FROM	@status
