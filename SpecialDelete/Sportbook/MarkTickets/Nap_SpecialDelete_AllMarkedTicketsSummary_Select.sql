@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
+		- 20200207@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 	Explanation's Param:
 */
 BEGIN
@@ -69,9 +70,7 @@ BEGIN
 						WHERE mr.calculate = 1 
 							AND mr.matchid = m.matchid			
 					)rdFT
-     ORDER BY t.MatchId,
-              t.CreatedDate,
-              t.Username;
+     ORDER BY m.kickofftime
               
      DROP TABLE #Tickets;
      SET NOCOUNT OFF;
