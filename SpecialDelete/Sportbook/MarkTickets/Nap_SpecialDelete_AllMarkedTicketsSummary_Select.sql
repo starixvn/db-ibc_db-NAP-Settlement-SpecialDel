@@ -71,6 +71,7 @@ BEGIN
 							AND mr.matchid = m.matchid			
 					)rdFT
      ORDER BY m.kickofftime
+		, t.CreatedDate
               
      DROP TABLE #Tickets;
      SET NOCOUNT OFF;
