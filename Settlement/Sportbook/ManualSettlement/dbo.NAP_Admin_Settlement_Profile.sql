@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@ErrCode			INT				= 0	OUTPUT
 	,@ErrMsg 			NVARCHAR(200)	= '' OUTPUT
 	,@SelectedResources VARCHAR(MAX)
+	,@IsReSettledTickets BIT			= 1
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -21,6 +22,7 @@ AS
 		- 20190301@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
+		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -65,8 +67,8 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
@@ -199,9 +201,14 @@ BEGIN
 			FROM @tmpSelectedRID t
 			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9 
 
-			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype)
-	  		SELECT transid, m.modds, sr.OddsType, b.srecommend, b.bettype
+			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
+	  		SELECT b.transid, m.modds, sr.OddsType, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  		FROM bettrans b WITH (NOLOCK)
+				OUTER APPLY (
+								SELECT TOP (1) mt.TransId
+								FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+								WHERE	mt.TransId = b.transId
+				) mt
 	  			CROSS APPLY(
 	  							SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
 	  							FROM @tmpSelectedRID t
@@ -210,16 +217,30 @@ BEGIN
 	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
 	  		WHERE b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
+				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								 WHEN @IsReSettledTickets = 1 THEN 1
+								 ELSE 0
+							END
+
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
 			--get transid
 			INSERT INTO #tmpTransID(TransID)
-	  		SELECT transid
+	  		SELECT b.transid
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
+				OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+				) mt
 	  		WHERE b.matchid = @MatchId
-	  			AND	b.statusID NOT IN (0, 1, 101)
+	  			AND	b.statusID NOT IN (101)
+				AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+							 WHEN b.statusID NOT IN (0, 1) THEN 1
+							 ELSE 0 
+						END
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
@@ -311,8 +332,8 @@ BEGIN
 			
 			UPDATE TOP(@batchNo) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype
-			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype)
+			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype, deleted.IsMarked
+			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype, IsMarked)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -327,6 +348,7 @@ BEGIN
 											   ,OddsType	AS '@ot'
 											   ,srecommend AS '@sr'
 											   ,bettype AS '@bt'
+											   ,IsMarked AS '@im'
 									   FROM @tmpTransIDBatch
 									   FOR XML PATH('r'), ROOT( 'root' ))
 
@@ -335,6 +357,7 @@ BEGIN
 			   ,@action				 = @action
 			   ,@IsSettingByProfile  = 1
 			   ,@strTransIds		 = @strTransIds
+
 		END
 
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
@@ -512,6 +535,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
+						+ '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1))
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 				
