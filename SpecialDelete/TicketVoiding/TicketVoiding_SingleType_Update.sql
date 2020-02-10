@@ -23,6 +23,7 @@ AS
 		- 20190419@Kathy: Change KeyId = 6 for FastMarket and send notification in case of void all marked ticket [Redmine:#108826]
 		- 20190605@Kathy: Add keyId = 5 for BetBuilder [Redmine:#106898]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200210@Helen: Hotfix - cashout - not insert 914 [Redmine:#128190]
 	
 	Param's explanation:	
 		
@@ -210,8 +211,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId, Refno, bettype, TicketType, isSubTransaction, balanceType)
-		SELECT	sub.TransId, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
+		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType)
+		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
 		FROM	#tmpTransId sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
