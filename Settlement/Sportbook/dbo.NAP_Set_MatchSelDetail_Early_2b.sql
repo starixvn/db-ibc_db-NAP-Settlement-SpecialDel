@@ -27,7 +27,6 @@ BEGIN
          ResourceID			VARCHAR(20)
         ,BetCount			INT
         ,InRunning			INT
-		,InWaiting			INT
         ,GroupId			SMALLINT
 		,betSettledCount	INT
 		,betMarkedCount		INT
@@ -37,7 +36,6 @@ BEGIN
          ResourceID			VARCHAR(20)
         ,BetCount			INT
         ,InRunning			INT
-		,InWaiting			INT
         ,GroupId			SMALLINT
     )
 	
@@ -64,12 +62,11 @@ BEGIN
 					OR t.bettype IS NOT NULL
 				)			
 	
-    INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
+    INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning, betSettledCount, betMarkedCount)
     SELECT    
             CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId
             ,SUM(CASE WHEN StatusID BETWEEN 101 AND 102 THEN 0 ELSE 1 END) AS BetCount
             ,SUM(CASE WHEN StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS InRunning
-			,SUM(CASE WHEN StatusID = 1 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS InWaiting 
 			,SUM(CASE WHEN b.statusID BETWEEN 111 AND 113 OR b.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN b.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
     FROM    dbo.Bettrans b WITH (NOLOCK)
@@ -81,12 +78,11 @@ BEGIN
 			AND b.statusId NOT IN (101, 102)
     GROUP BY CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20))
 	
-	INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, InWaiting)
+	INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning)
     SELECT    
             CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId       
             ,SUM(CASE WHEN bm.StatusID BETWEEN 101 AND 102 THEN 0 ELSE 1 END) AS BetCount
             ,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END) AS InRunning
-			,SUM(CASE WHEN bm.StatusID = 1 THEN 1 ELSE 0 END) AS InWaiting
     FROM    dbo.Bettransm bm WITH (NOLOCK)
         INNER JOIN @tmpEarlyBettypes f
             ON bm.bettype = f.BetType
@@ -99,10 +95,8 @@ BEGIN
             ,CASE 
 				WHEN ISNULL(s.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 				WHEN s.InRunning > 0 THEN 'Running'
-				WHEN s.InWaiting > 0 AND s.InWaiting = s.BetCount THEN 'Waiting'
 				WHEN s.betMarkedCount > 0 THEN 'Marked'
 				WHEN ISNULL(s.BetCount, 0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
-				WHEN ISNULL(s.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
                 ELSE 'Calculated'
             END TicketStatus 
 			,ISNULL(r.HomeValue, t.HomeValue) AS HomeValue

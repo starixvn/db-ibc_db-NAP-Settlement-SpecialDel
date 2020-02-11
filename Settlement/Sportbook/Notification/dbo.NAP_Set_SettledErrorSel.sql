@@ -12,7 +12,7 @@ AS
 		- 20140404@Kathy: Get all notification messages for each group (Soccer, Other Sports)
 		- 20170112@Kathy: Add AdminId 111 into Soccer Team [Redmine:#70302]
 		- 20190418@Kathy: Add starix56 to view notification [Redmine:#106823]
-						  
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - Added AdminId = 111 to Other sport - [Redmine:#126963]  
 		
 	Param's Explanation:
 		@Top: 0 -- Get all
@@ -61,11 +61,12 @@ BEGIN
 	UNION ALL SELECT 12978541	-- pgmHarris 
 	UNION ALL SELECT 4338171	-- pgmKaka 
 	UNION ALL SELECT 20442488	-- starix56 
+	UNION ALL SELECT 111		-- Auto Settlement
 
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @tblSoccerTeam WHERE custid = @AdminId)
 		SET @IsSoccer = 1
-	ELSE IF EXISTS (SELECT TOP 1 1 FROM @tblOtherSportTeam WHERE custid = @AdminId)
+	IF EXISTS (SELECT TOP 1 1 FROM @tblOtherSportTeam WHERE custid = @AdminId)
 		SET @IsOtherSport = 1
 	
 	INSERT INTO @tblTemp(AdminId, matchcode, homeid, awayid, Action, Message, starttime, isRead)	
