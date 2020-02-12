@@ -21,6 +21,7 @@ AS
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
 			- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 			- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
+			- 20200211@Helen:  Apply Extra PT on Settlement Site for Super Live product [Redmine: #128324]
 			
 		Parameter's Explanation:
 		* @Result = <Result>
@@ -104,7 +105,8 @@ BEGIN
 					[liveindicator] [bit] ,
 					[custom2] [varchar](50) ,
 					[custom3] [varchar](50),
-					[SiteID]  [varchar](10)
+					[SiteID]  [varchar](10),
+					[epositiontaking] [smallmoney]
 			)
 
 		UPDATE translog WITH(UPDLOCK,ROWLOCK)
@@ -163,6 +165,7 @@ BEGIN
 			  ,INSERTED.[custom2]
 			  ,INSERTED.[custom3]
 			  ,INSERTED.[SiteID]
+			  ,INSERTED.[epositiontaking]
 		INTO #tmpTransCalc(
 			[translogid]
 		  ,[custid]
@@ -205,6 +208,7 @@ BEGIN
 		  ,[custom2]
 		  ,[custom3]
 		  ,[siteID]
+		  ,[epositiontaking]
 		)
 		WHERE GameID = @bettype
 			AND EventID = @matchid				
@@ -344,6 +348,7 @@ BEGIN
 			   ,[SecAcceptFlag]
 			   ,[transid2]
 			   ,[RecommDate]
+			   ,[epositiontaking]
 		)
 		VALUES(
 			t.custid
@@ -461,6 +466,7 @@ BEGIN
 		   ,0 -- [SecAcceptFlag]
 		   ,0 -- [transid2]
 		   ,NULL -- [RecommDate]
+		   ,t.[epositiontaking]
 		);
 		
 		--return result to send API
@@ -526,6 +532,7 @@ BEGIN
 			,custom1				VARCHAR(50)
 			,balance				MONEY
 			,[SiteID]				varchar(10)
+			,[epositiontaking]		SMALLMONEY
 		)
 		CREATE TABLE #tmpRefundedTicket (
 			translogid				BIGINT
@@ -565,6 +572,8 @@ BEGIN
 			,custom1				VARCHAR(50)
 			,balance				MONEY
 			,[SiteID]				varchar(10)
+			,[epositiontaking]		SMALLMONEY
+			
 		)
 		IF @isSettleDetermined = 1 AND @Bettype = 806
 		BEGIN
@@ -614,6 +623,7 @@ BEGIN
 					,INSERTED.custom1
 					,INSERTED.balance
 					,INSERTED.siteID
+					,INSERTED.epositiontaking
 			INTO 	#tmpSettledTicket								
 			WHERE	GameId 	= @Bettype
 					AND EventId = @MatchId
@@ -661,6 +671,7 @@ BEGIN
 							  ,virtualrate
 							  ,custom1	
 							  ,balance
+							  ,epositiontaking
 					FROM #tmpSettledTicket)	AS t
 			ON		b.matchid = t.eventID
 					AND b.bettype = t.gameID
@@ -770,7 +781,8 @@ BEGIN
 											,[balance]
 											,[SecAcceptFlag]
 											,[transid2]
-											,[RecommDate])
+											,[RecommDate]
+											,[epositiontaking])
 											VALUES (
 											t.custid 
 											,t.transdate
@@ -888,6 +900,7 @@ BEGIN
 											,0 -- secAcceptFlag
 											,0 -- transid2
 											,NULL -- RecommDate
+											,t.[epositiontaking]
 										)		;																					
 		END
 		
@@ -933,6 +946,7 @@ BEGIN
 				,INSERTED.custom1	
 				,INSERTED.balance
 				,INSERTED.siteID
+				,INSERTED.epositiontaking
 		INTO	#tmpRefundedTicket
 		WHERE	eventID = @MatchId
 				AND gameID = @Bettype
@@ -1024,6 +1038,7 @@ BEGIN
 										,[SecAcceptFlag]
 										,[transid2]
 										,[RecommDate]
+										,[epositiontaking]
 										)
 										VALUES (
 										t.[custid]
@@ -1086,6 +1101,7 @@ BEGIN
 										,0 -- [SecAcceptFlag]
 										,0 -- [transid2]
 										,NULL -- [RecommDate]
+										,t.[epositiontaking]
 										)
 		;
 		
