@@ -34,6 +34,7 @@ AS
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
 	
 	Param's explanation:  
 		
@@ -50,7 +51,9 @@ BEGIN
 	IF ISNUMERIC(@MatchCode) = 1
 		SET @matchid = CAST(@MatchCode AS INT)
 	
-	DECLARE @TempMatch TABLE (MatchId INT
+	DECLARE @TempMatch TABLE (
+		MatchId							INT
+		,SportType						SMALLINT
 		,SingleStatus 					INT
 		,ParlayStatus 					INT
 		,IsSingle 						BIT
@@ -69,7 +72,8 @@ BEGIN
 		,IsExistMarkedTicket			BIT
 		,IsExistRunningTicket			BIT
 	)
-	
+	DECLARE @tmp_ESportMatch TABLE (matchid INT)
+
 	CREATE TABLE #tblBettype (bettype SMALLINT, GroupId SMALLINT, IsFGLG BIT, IsEarly BIT)
 	
 	CREATE TABLE #tblResultDetail (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusID TINYINT, SettlementStatusID TINYINT)
@@ -84,29 +88,30 @@ BEGIN
 	END
 	
 	;WITH SingleTicket AS (
-		SELECT matchid, MIN(IsCalculating) AS IsCalculating
+		SELECT matchid, sporttype, MIN(IsCalculating) AS IsCalculating
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
 			AND (sporttype = @sporttype OR @sporttype = 0)
 			AND (leagueid = @leagueid OR @leagueId = 0)
-		GROUP BY matchid 
+		GROUP BY matchid, SportType
 	), ParlayTicket AS (
-		SELECT p.matchid, MIN(IsCalculating) AS IsCalculating
+		SELECT p.matchid, m.sporttype, MIN(IsCalculating) AS IsCalculating
 		FROM dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK)
 				ON p.matchid = m.matchid
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
 			AND (m.sporttype = @sporttype OR @sporttype = 0)
 			AND (m.leagueid = @leagueid OR @leagueId = 0)
-		GROUP BY p.matchid 
+		GROUP BY p.matchid, m.sporttype
 	)
 	
-	INSERT INTO @TempMatch(MatchId, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
+	INSERT INTO @TempMatch(MatchId, SportType, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
 		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult
 		, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
 		, IsExistMarkedTicket, IsExistRunningTicket
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
+		, ISNULL(sg.SportType, pl.sporttype) AS SportType
 		, sg.IsCalculating AS SingleStatus
 		, pl.IsCalculating AS ParlayStatus
 		, CAST(ISNULL(sg.IsCalculating, 0) AS BIT) AS IsSingle
@@ -313,6 +318,20 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 	
+	IF (@SportType = 43)
+	BEGIN
+
+		INSERT INTO @tmp_ESportMatch(MatchId)
+		SELECT DISTINCT m.MatchId
+		FROM DBPRO.BODB02.dbo.oddsES o WITH (NOLOCK)
+				INNER JOIN f_Set_GetEarlyBettypes() f
+					ON o.bettype = f.bettype
+				INNER JOIN @TempMatch m
+					ON m.matchid = o.matchid 
+		WHERE m.sporttype = 43
+
+	END
+
 	SELECT m.matchid, m.leagueid, m.homeid, m.awayid, m.matchcode, m.finalhomescore, m.finalawayscore
 		, m.betstatus, m.sporttype, m.goalrecord
 		, hthomescore AS HalfTimeHomeScore
@@ -337,7 +356,7 @@ BEGIN
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
 		, CASE
-			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (202) THEN 'No Ticket'
+			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL)THEN 'No Ticket'
 			WHEN tm.IsExistEarlyBettypes = 0 AND tm.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
 			WHEN tm.IsRunningEarlyBettypes > 0 THEN 'Running'
 			WHEN tm.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
@@ -350,11 +369,10 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN @TempMatch tm ON m.matchid = tm.matchid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
+		LEFT JOIN @tmp_ESportMatch te ON te.matchid = m.matchid
 	WHERE m.sporttype = @sporttype
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
-	
-		
 		
 	-- Get TENNIS, BASKETBALL RESULT  
 	IF @isSettingByProfile = 1
