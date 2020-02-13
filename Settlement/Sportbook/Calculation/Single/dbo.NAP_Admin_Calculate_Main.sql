@@ -1405,6 +1405,7 @@ BEGIN
                         ,@bettype = 601
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- FT Winning Margin 12 Way
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 602)
@@ -1412,6 +1413,8 @@ BEGIN
                         ,@bettype = 602
                         ,@scorediff = @scorediff
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
+
                 -- 458: FT  Asia 1X2
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 458)
                     EXEC dbo.NAP_Admin_Calculate_5 @matchid = @matchid
@@ -2079,6 +2082,7 @@ BEGIN
                         ,@bettype = 608
                         ,@scorediff_ht = @scorediff_ht
                         ,@betcount = 1
+						,@IsReSettledTickets = @IsReSettledTickets
 
                  -- bettype 453 : 1H 3-way handicap
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 453)

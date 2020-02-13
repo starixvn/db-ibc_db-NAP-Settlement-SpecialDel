@@ -257,7 +257,7 @@ BEGIN
     SELECT @logdata = 'NAP: Early Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
                                                            + ' Result: ' + @QuarterResult + '<br/> '
                                                            + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-														   + ' Recalc: ' + CAST(@IsReSettledTickets AS VARCHAR(1))
+														   + CASE WHEN @action = 'CAL' THEN '; Recalc: ' + CAST(@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
     EXEC dbo.WriteLog_UserLog 
         @UserID = @AdminId
         ,@Doing = @logdata
