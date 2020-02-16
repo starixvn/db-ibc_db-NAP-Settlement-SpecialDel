@@ -81,7 +81,7 @@ BEGIN
 		SET @Action = (SELECT TOP (1) Action 
 						FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 						WHERE matchid =@MatchId AND RequestId = 0 AND StatusId = 2
-						ORDER BY Exectime DESC
+						ORDER BY Starttime DESC
 						)
 	END
 	ELSE
