@@ -164,7 +164,7 @@ BEGIN
 	FROM t_invalid
 
 	SELECT @DifferentMatchTransIds = ISNULL(STUFF((
-				SELECT ',' + CAST(v.transid AS VARCHAR(100))
+				SELECT ',' + CAST(v.transid AS VARCHAR(50))
 				FROM #validTransId AS v
 				WHERE v.isInMatch = 0
 				FOR XML PATH('')

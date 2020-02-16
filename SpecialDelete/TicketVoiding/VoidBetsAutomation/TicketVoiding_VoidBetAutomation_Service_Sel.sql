@@ -17,7 +17,7 @@ BEGIN
 	DECLARE @Session INT = 0
 
 	SELECT @Session = (SELECT MIN(SessionID) 
-						FROM Ticketvoiding_VoidBetAutomation_Service  
+						FROM dbo.Ticketvoiding_VoidBetAutomation_Service  
 						WHERE statusID = 0)
 	
 	IF @Session IS NULL
@@ -29,7 +29,7 @@ BEGIN
 		, tvs.statusID
 		, tvs.NegativeBalanceUsers
 		, tvs.VoidingHistory
-	FROM Ticketvoiding_VoidBetAutomation_Service tvs WITH (NOLOCK)
+	FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH (NOLOCK)
 	WHERE tvs.SessionID = @Session 
 
 END

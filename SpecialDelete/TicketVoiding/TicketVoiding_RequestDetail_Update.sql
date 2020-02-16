@@ -105,7 +105,7 @@ BEGIN
 
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
-			(SELECT ',' + CONVERT(VARCHAR(15), tp.transid)
+			(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 			FROM #transid_tmp tp
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
 			GROUP BY TransId for XML PATH('')), 1, 1, ''

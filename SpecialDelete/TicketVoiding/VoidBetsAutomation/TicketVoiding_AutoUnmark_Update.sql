@@ -117,7 +117,7 @@ BEGIN
 		
 			IF @@ROWCOUNT = 0 BREAK
 			SET @UnmarkTransids = ''
-			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(20)) 
+			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkedTransIDBatch
 											FOR XML PATH('')
 								), 1,1,'')
