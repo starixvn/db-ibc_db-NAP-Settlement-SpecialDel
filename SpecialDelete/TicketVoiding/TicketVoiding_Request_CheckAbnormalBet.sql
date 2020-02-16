@@ -14,6 +14,7 @@ AS
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
 		- 20191212@Max: AbnormalBet TVS [Redmine:#123691]
 		- 20200213@Charles: Exclude bettypes of early settlement and fast market [Redmine:#127398]
+		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -38,7 +39,7 @@ BEGIN
 	FROM	dbo.f_Set_GetEarlyBettypes()
 	
 	INSERT INTO @bettype_tmp (bettype)
-	SELECT DISTINCT pt.bettype
+	SELECT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay

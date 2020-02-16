@@ -12,6 +12,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 
 	
 	Param's explanation:	
