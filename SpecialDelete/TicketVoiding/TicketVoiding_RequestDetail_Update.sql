@@ -1,5 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
+(
 	@RequestId		INT
 	,@MatchId		INT
 	,@KickOffTime	DATETIME	 = NULL
@@ -7,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@UserId		INT
 	,@IP			VARCHAR(50)	 = NULL
 	,@TransIds 		VARCHAR(MAX) = NULL
-
+)
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -44,8 +45,8 @@ BEGIN
 			,@OldTransIds 		VARCHAR(MAX) = NULL
 			,@MarkedTransIds	VARCHAR(MAX)
 
-	CREATE TABLE #transIdTemp (transid BIGINT, StatusId INT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT)
+	CREATE TABLE #inputTransid (transid BIGINT)
+	CREATE TABLE #transid_tmp (transid BIGINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -90,23 +91,23 @@ BEGIN
 	IF @IssueTypeId = 11 AND @Sporttype = 1
 	BEGIN
 		
-		INSERT INTO #transIdTemp (transid)
+		INSERT INTO #inputTransid (transid)
 		SELECT DISTINCT val 
 		FROM dbo.f_SplitString(@TransIds, ',')
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		INSERT INTO #transid_tmp (transid, bettype,StatusId)
-		SELECT t.transid, b.bettype, b.statusID
-		FROM #transIdTemp t
+		INSERT INTO #transid_tmp (transid)
+		SELECT t.transid
+		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+		WHERE b.statusID IN (0, 1)
 
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
 			(SELECT ',' + CONVERT(VARCHAR(15), tp.transid)
 			FROM #transid_tmp tp
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
-				AND  tp.StatusId IN (0, 1) 
 			GROUP BY TransId for XML PATH('')), 1, 1, ''
 			)
 		IF @MarkedTransIds IS NOT NULL
@@ -152,6 +153,7 @@ BEGIN
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
-	DROP TABLE #transIdTemp
+	DROP TABLE #inputTransid
+	DROP TABLE #transid_tmp
 END
 GO

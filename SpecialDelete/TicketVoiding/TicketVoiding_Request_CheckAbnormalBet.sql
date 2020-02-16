@@ -100,13 +100,13 @@ BEGIN
 	OPTION (maxrecursion 0)
 
 	
-	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t 
 										INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
 									FOR XML PATH('')
-							), 1, 1, '')
+							), 1, 1, ''), '')
 
-	IF @InvalidTransIds IS NOT NULL
+	IF @InvalidTransIds <> ''
 	BEGIN
 		SELECT @InvalidMatchId AS InvalidMatchId
 			,@InvalidTransIds AS InvalidTransIds
