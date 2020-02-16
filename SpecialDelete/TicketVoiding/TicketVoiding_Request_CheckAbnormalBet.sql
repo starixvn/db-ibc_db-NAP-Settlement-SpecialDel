@@ -90,7 +90,7 @@ BEGIN
 	OPTION (MAXRECURSION 0)
 
 	INSERT INTO #TransidInRequest (TransId)
-	SELECT DISTINCT tmp.transid
+	SELECT tmp.transid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 		CROSS APPLY (SELECT val AS transid

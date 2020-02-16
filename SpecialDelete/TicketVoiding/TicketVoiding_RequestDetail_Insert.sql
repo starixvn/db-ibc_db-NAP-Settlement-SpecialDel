@@ -46,6 +46,7 @@ BEGIN
 			,@IsCalHTQueue	BIT = 0
 			,@IsCalFTQueue	BIT = 0
 			,@IsCalAllQueue	BIT = 0
+			,@ActionID		INT = 0
 			
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -104,7 +105,8 @@ BEGIN
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
 		END
 	
-		IF (
+		SELECT @ActionID = ( SELECT R.ActionId FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId)
+		IF @ActionID = 1 AND (
 				(@IsCalHTQueue = 1 AND  @IsTransidHT = 1)
 			OR  (@IsCalFTQueue = 1 AND  (@IsTransidFT = 1 OR @IsTransidHT = 1))
 			OR	(@IsCalAllQueue = 1 AND (@IsTransidFT = 1 OR @IsTransidHT = 1))

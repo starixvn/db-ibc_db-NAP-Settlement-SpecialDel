@@ -187,7 +187,7 @@ BEGIN
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType 
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (1,2) AND b.statusID NOT IN (101,102)
 		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT') AND f.GroupId IN (1,3) THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT') AND f.GroupId IN (2,4) THEN 1
+					 WHEN @Action IN ('CAL', 'CAL-FT') AND f.GroupId IN (2,4,1,3) THEN 1
 					 ELSE 0
 				END
 	SET @Void_cnt = @@ROWCOUNT
@@ -200,7 +200,7 @@ BEGIN
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
 		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT') AND f.GroupId IN (1,3) THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT') AND f.GroupId IN (2,4) THEN 1
+					 WHEN @Action IN ('CAL', 'CAL-FT') AND f.GroupId IN (2,4,1,3) THEN 1
 					 ELSE 0
 				END
 	SET @Recalculate_cnt = @@ROWCOUNT

@@ -25,11 +25,11 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @Matchid BIGINT = 0
-		,@IsAutoVoid BIT = 0
+		--,@IsAutoVoid BIT = 0
 
-	SELECT @Matchid = (SELECT TOP 1 MatchId FROM TicketVoiding_RequestDetail WITH (NOLOCK) WHERE RequestId = @RequestId)
+	--SELECT @Matchid = (SELECT TOP 1 MatchId FROM TicketVoiding_RequestDetail WITH (NOLOCK) WHERE RequestId = @RequestId)
 	
-	SELECT @IsAutoVoid = (SELECT TOP 1 1 FROM TicketVoiding_AutoVoidRequest_Queue tq WITH (NOLOCK) WHERE MatchId = @Matchid AND StatusId = 1)
+	--SELECT @IsAutoVoid = (SELECT TOP 1 1 FROM TicketVoiding_AutoVoidRequest_Queue tq WITH (NOLOCK) WHERE MatchId = @Matchid AND StatusId = 1)
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -45,7 +45,8 @@ BEGIN
 			,r.Source
 			,r.Remark
 			,r.IsTest
-			,CASE WHEN r.IssueTypeId = 11 AND @IsAutoVoid = 1 THEN 1 ELSE ISNULL(isVoided,0) END AS isVoided
+			--,CASE WHEN r.IssueTypeId = 11 AND @IsAutoVoid = 1 THEN 1 ELSE ISNULL(isVoided,0) END AS isVoided
+			,ISNULL(isVoided,0) AS isVoided
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
