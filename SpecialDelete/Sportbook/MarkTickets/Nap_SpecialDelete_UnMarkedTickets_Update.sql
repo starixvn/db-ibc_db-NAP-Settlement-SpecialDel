@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VA
                                                              @UserId          INT           = 0,
                                                              @Username        NVARCHAR(100) = '',
                                                              @IP              VARCHAR(15)   = NULL,
+															 @RequestId		  INT			= NULL,
                                                              @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
@@ -20,6 +21,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
+		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -375,13 +377,14 @@ BEGIN
 				SELECT 90500 AS '@LogActionId' -- 90500: Action Mark
 					,@UserId AS '@UserId'
 					,@IP AS '@IP'
+					,@RequestId AS '@RequestId'
 					,m.matchid AS '@MatchId'
 					,STUFF((
 							SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
 							FROM #Tickets AS t
 							WHERE t.MatchId = m.MatchId
 							FOR XML PATH('')
-							), 1, 1, '') AS '@LogData'
+							), 1, 1, '')  AS '@LogData'
 				FROM #Match AS m
 				FOR XML PATH('r')
 					,ROOT('root')

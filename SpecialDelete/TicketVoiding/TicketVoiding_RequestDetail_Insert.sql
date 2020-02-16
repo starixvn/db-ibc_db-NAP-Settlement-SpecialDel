@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	@RequestId		INT
 	,@MatchId		INT
+	,@IssueTypeId	TINYINT		= NULL
 	,@KickOffTime	DATETIME	= NULL
 	,@TransIds VARCHAR(MAX) = NULL
 	,@UserId		INT
@@ -17,23 +18,62 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine:#111541]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
+		- 20200213@Charles: Insert queue for auto void [127398]
+		- 20200213@Helen: Refactor code [Redmine: #127398]
 
 	Param's explanation:	
 	
 */
 BEGIN
 	SET NOCOUNT ON
+	
 	DECLARE @StartTime			DATETIME
 			,@EndTime			DATETIME
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 
-			,@LeagueId	INT
-			,@HomeId	INT
-			,@AwayId	INT
-			,@Sporttype SMALLINT
+			,@LeagueId			INT
+			,@HomeId			INT
+			,@AwayId			INT
+			,@Sporttype 		SMALLINT
+
+			,@MarkedTransIds	VARCHAR(MAX)
+			--- param for autovoid queue
+			,@IsTransidHT	BIT = 0
+			,@IsTransidFT	BIT = 0
+			
+			,@IsCalHTQueue	BIT = 0
+			,@IsCalFTQueue	BIT = 0
+			,@IsCalAllQueue	BIT = 0
+			
+
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+	INSERT INTO #transIdTemp (transid)
+	SELECT DISTINCT val 
+	FROM dbo.f_SplitString(@TransIds, ',')
+	WHERE val <> ''
+	OPTION (maxrecursion 0)
+
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT)
+	INSERT INTO #transid_tmp (transid, bettype,groupid,StatusId)
+	SELECT t.transid, b.bettype, f.GroupId, b.statusID
+	FROM #transIdTemp t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.bettype
 	
+	IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE groupid IN (1,3))
+		SET @IsTransidHT = 1
+	
+	IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE groupid IN (2,4))
+		SET @IsTransidFT = 1
+	
+	SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
+			, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
+			, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
+	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+	WHERE StatusId IN (1,2) AND matchid = @MatchId
+			
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90001
 	SET @SB_Error = 0
@@ -48,7 +88,32 @@ BEGIN
 	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds)
 	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds
 
-
+	-- Insert queue for auto void
+	IF @IssueTypeId = 11 AND @Sporttype = 1
+	BEGIN
+		-- mark ticket
+		SELECT @MarkedTransIds = STUFF(
+			(SELECT ',' + CONVERT(VARCHAR(15), tp.transid)
+			FROM #transid_tmp tp
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				AND  tp.StatusId IN (0, 1) 
+			GROUP BY TransId for XML PATH('')), 1, 1, ''
+			)
+		IF @MarkedTransIds IS NOT NULL
+		BEGIN
+			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
+		END
+	
+		IF (
+				(@IsCalHTQueue = 1 AND  @IsTransidHT = 1)
+			OR  (@IsCalFTQueue = 1 AND  (@IsTransidFT = 1 OR @IsTransidHT = 1))
+			OR	(@IsCalAllQueue = 1 AND (@IsTransidFT = 1 OR @IsTransidHT = 1))
+			)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
+			VALUES(@RequestId, @MatchId, 'AddRequest', 0, 10278938, GETDATE(), '125.227.140.97')
+		END
+	END
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
@@ -66,5 +131,9 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+	
+	DROP TABLE #transIdTemp
+	DROP TABLE #transid_tmp
+	
 END
 GO

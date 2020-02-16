@@ -16,13 +16,21 @@ AS
 		- 20191219@Helen: Ticket Voiding System - hotfix [Redmine: #111541]
 		- 20191220@Max: Some enhancement for TVS Abnormal Bets [Redmine: #125828]
 		- 20200106@Max: Update KO Time to GlobalShowTime on General Info of Abnormal Bet [Redmine: #126623]
+		- 20200215@Max: Abnormal Void Bets Automation [Redmine: #128359]
 	
 	Param's explanation:	
 	
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @Matchid BIGINT = 0
+		,@IsAutoVoid BIT = 0
+
+	SELECT @Matchid = (SELECT TOP 1 MatchId FROM TicketVoiding_RequestDetail WITH (NOLOCK) WHERE RequestId = @RequestId)
 	
+	SELECT @IsAutoVoid = (SELECT TOP 1 1 FROM TicketVoiding_AutoVoidRequest_Queue tq WITH (NOLOCK) WHERE MatchId = @Matchid AND StatusId = 1)
+
 	SELECT	r.Sporttype
 			,r.IssueTypeId
 			,r.SubIssueTypeId
@@ -37,7 +45,7 @@ BEGIN
 			,r.Source
 			,r.Remark
 			,r.IsTest
-			,ISNULL(isVoided,0) AS isVoided
+			,CASE WHEN r.IssueTypeId = 11 AND @IsAutoVoid = 1 THEN 1 ELSE ISNULL(isVoided,0) END AS isVoided
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)

@@ -13,6 +13,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200212@Helen: update if <> void status [Redmine:#127398]
 	
 	Param's explanation:	
 		@transIds = '<root>
@@ -73,6 +74,8 @@ BEGIN
 		FROM	@tmpTrans t
 			INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 				ON  t.transid = b.transid
+		WHERE b.statusID NOT IN (102)	
+			
 	END
 	ELSE
 	BEGIN
@@ -96,6 +99,7 @@ BEGIN
 		FROM	@tmpTrans t
 			INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 				ON  t.transid = b.transid
+		WHERE b.statusID NOT IN (102)		
 			
 	END
 				
@@ -109,6 +113,8 @@ BEGIN
 		FROM	@tmpTrans t	
 			INNER JOIN dbo.translog tl WITH(ROWLOCK, UPDLOCK)
 				ON	t.TranslogId = tl.translogid
+		WHERE tl.statusID NOT IN (102)	
+			
 	END
 END
 GO

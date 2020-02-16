@@ -18,6 +18,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
+		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 
 	Param's explanation:	
 	
@@ -41,6 +42,10 @@ BEGIN
 			,@Sporttype			SMALLINT = NULL
 			,@OldMatchId			INT
 			,@OldTransIds 		VARCHAR(MAX) = NULL
+			,@MarkedTransIds	VARCHAR(MAX)
+
+	CREATE TABLE #transIdTemp (transid BIGINT, StatusId INT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -81,6 +86,36 @@ BEGIN
 				AND MatchId = @MatchId
 	END
 
+	-- Auto mark ticket running for auto void
+	IF @IssueTypeId = 11 AND @Sporttype = 1
+	BEGIN
+		
+		INSERT INTO #transIdTemp (transid)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@TransIds, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		INSERT INTO #transid_tmp (transid, bettype,StatusId)
+		SELECT t.transid, b.bettype, b.statusID
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+
+		-- mark ticket
+		SELECT @MarkedTransIds = STUFF(
+			(SELECT ',' + CONVERT(VARCHAR(15), tp.transid)
+			FROM #transid_tmp tp
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				AND  tp.StatusId IN (0, 1) 
+			GROUP BY TransId for XML PATH('')), 1, 1, ''
+			)
+		IF @MarkedTransIds IS NOT NULL
+		BEGIN
+			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
+		END
+	
+	END
+
 	-- Get content of log data
 	SET @LogDataContent = ''
 	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL
@@ -116,5 +151,7 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
+	DROP TABLE #transIdTemp
 END
 GO
