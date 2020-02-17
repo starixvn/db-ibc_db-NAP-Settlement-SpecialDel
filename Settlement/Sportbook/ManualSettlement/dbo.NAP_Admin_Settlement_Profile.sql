@@ -535,7 +535,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-						+ '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1))
+						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 				
