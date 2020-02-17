@@ -48,7 +48,7 @@ BEGIN
 	SET @MatchId = (SELECT TOP (1) matchid
 					FROM TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
 					WHERE StatusId = 0 -- waiting
-					ORDER BY Starttime DESC)
+					ORDER BY Starttime)
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)

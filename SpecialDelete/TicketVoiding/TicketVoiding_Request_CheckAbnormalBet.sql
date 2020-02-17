@@ -90,7 +90,7 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	IF @IsEdit = 1
+	IF @IsEdit = 0
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId)
 		SELECT tmp.transid
