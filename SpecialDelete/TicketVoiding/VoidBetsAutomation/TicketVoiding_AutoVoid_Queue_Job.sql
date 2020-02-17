@@ -45,10 +45,12 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
-	SET @MatchId = (SELECT TOP (1) matchid
-					FROM TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
-					WHERE StatusId = 0 -- waiting
-					ORDER BY Starttime)
+	SET @MatchId = (SELECT TOP (1) q.matchid
+					FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
+						LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
+					WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
+					ORDER BY Starttime
+				)
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
