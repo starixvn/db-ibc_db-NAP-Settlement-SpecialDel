@@ -149,9 +149,9 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT @IsMatchCalHT = MAX(CASE WHEN IsHTCal = 1 THEN 1 ELSE 0 END)
-			, @IsMatchCalFT_All =MAX( CASE WHEN calculate = 1 THEN 1 ELSE 0 END)
-	FROM dbo.match_remark WITH (NOLOCK)
+	SELECT @IsMatchCalHT = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
+			, @IsMatchCalFT_All =MAX( CASE WHEN Action IN ('CAL-FT','CAL') THEN 1 ELSE 0 END)
+	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE matchid = @MatchId
 	
 	IF @RequestIdList IS NOT NULL
