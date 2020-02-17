@@ -1,7 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet] @MatchId BIGINT
+ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
+(
+	@MatchId BIGINT
 	,@TransIds VARCHAR(MAX) = NULL
-	,@IsEdit BIT = 0
+	,@RequestId INT = 0
+)
 AS
 /*  
 	Created by: Raymond.Le  
@@ -90,34 +93,32 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	IF @IsEdit = 0
-	BEGIN
-		INSERT INTO #TransidInRequest (TransId)
-		SELECT tmp.transid
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			CROSS APPLY (SELECT val AS transid
-						 FROM dbo.f_SplitString(rd.TransIds, ',')
-						) AS tmp
-		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId
-		OPTION (maxrecursion 0)
+
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT tmp.transid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		CROSS APPLY (SELECT val AS transid
+						FROM dbo.f_SplitString(rd.TransIds, ',')
+					) AS tmp
+	WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.RequestId <> @RequestId
+	OPTION (maxrecursion 0)
 
 	
-		SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #transIdTemp t 
-											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')
-								), 1, 1, ''), '')
+	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #transIdTemp t 
+										INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
+									FOR XML PATH('')
+							), 1, 1, ''), '')
 
-		IF @InvalidTransIds <> ''
-		BEGIN
-			SELECT @InvalidMatchId AS InvalidMatchId
-				,@InvalidTransIds AS InvalidTransIds
-				,@MovedTransIds AS MovedTransIds
-				,@DifferentMatchTransIds AS DifferentMatchTransIds
+	IF @InvalidTransIds <> ''
+	BEGIN
+		SELECT @InvalidMatchId AS InvalidMatchId
+			,@InvalidTransIds AS InvalidTransIds
+			,@MovedTransIds AS MovedTransIds
+			,@DifferentMatchTransIds AS DifferentMatchTransIds
 
-			RETURN;
-		END
+		RETURN;
 	END
 
 	-- select valid TransId of Abnormal bet
