@@ -45,10 +45,15 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
+	SET @MatchId = (SELECT TOP (1) matchid
+					FROM TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
+					WHERE StatusId = 0 -- waiting
+					ORDER BY Starttime DESC)
+	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
-	WHERE	StatusId = 0 -- waiting
-	ORDER BY matchid,RequestId, Action, Starttime DESC
+	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
+	ORDER BY RequestId, Action, Starttime DESC
 	
 	IF @@ROWCOUNT = 0
 		RETURN
@@ -78,11 +83,6 @@ BEGIN
 			INNER JOIN @tblRequestList ql ON q.QueueId = ql.QueueId AND q.RequestID = ql.RequestID AND q.MatchId = ql.Matchid
 		WHERE q.MatchId = @MatchId
 		
-		SET @Action = (SELECT TOP (1) Action 
-						FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-						WHERE matchid =@MatchId AND RequestId = 0 AND StatusId = 2
-						ORDER BY Starttime DESC
-						)
 	END
 	ELSE
 	BEGIN
