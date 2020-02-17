@@ -535,9 +535,9 @@ BEGIN
 		
 		UPDATE TOP(3000) t
 			SET isFinish = 1
-		OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction, DELETED.balanceType,DELETED.RequestID
+		OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction, DELETED.balanceType,DELETED.RequestID, DELETED.betid
 				
-		INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID)
+		INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID,betid)
 		FROM #tmpTransId_VOID_RequestID t 
 		WHERE isFinish IS NULL
 		
