@@ -34,8 +34,8 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			
-			,@IsCalHTQueue	BIT = 0
-			,@IsCalFTQueue	BIT = 0
+			,@IsMatchCalHT	BIT = 0
+			,@IsMatchCalFT_All	BIT = 0
 			
 			
 	DECLARE @avaiableProcess BIT
@@ -149,8 +149,8 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT @IsCalHTQueue = MAX(CASE WHEN IsHTCal = 1 THEN 1 ELSE 0 END)
-			, @IsCalFTQueue =MAX( CASE WHEN calculate = 1 THEN 1 ELSE 0 END)
+	SELECT @IsMatchCalHT = MAX(CASE WHEN IsHTCal = 1 THEN 1 ELSE 0 END)
+			, @IsMatchCalFT_All =MAX( CASE WHEN calculate = 1 THEN 1 ELSE 0 END)
 	FROM dbo.match_remark WITH (NOLOCK)
 	WHERE matchid = @MatchId
 	
@@ -197,8 +197,8 @@ BEGIN
 	WHERE b.matchid = @MatchId 
 		AND b.statuswinlost IN (1,2) 
 		AND b.statusID NOT IN (101,102)
-		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsCalHTQueue = 1 THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsCalFTQueue = 1 THEN 1
+		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
 					 ELSE 0
 				END
 	SET @Void_cnt = @@ROWCOUNT
@@ -210,8 +210,8 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid 
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
-		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsCalHTQueue = 1 THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsCalFTQueue = 1 THEN 1
+		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
 					 ELSE 0
 				END
 	SET @Recalculate_cnt = @@ROWCOUNT
