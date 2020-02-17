@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 (
-	@MatchId		 BIGINT,	
+	@MatchId		 INT,	
 	@TransIds		 VARCHAR(MAX),
 	@UserId          INT           = 0,
     @IP              VARCHAR(15)   = NULL,
@@ -83,11 +83,7 @@ BEGIN
 
 	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
 	SELECT	b.transid, b.custid, b.bettype
-			,CASE 
-				WHEN b.bettype = 38 THEN 5
-				WHEN b.bettype BETWEEN 221 AND 227 THEN 6 
-				ELSE 1 				
-			END AS KeyId
+			,1 AS KeyId
 			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
@@ -366,6 +362,7 @@ BEGIN
 	SET @LogData = CAST((SELECT	0 AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
+							,@MatchId AS '@MatchId'
 							,@IP AS '@IP'
 							,'TransId: ' + @TransIds 
 								AS '@LogData'
