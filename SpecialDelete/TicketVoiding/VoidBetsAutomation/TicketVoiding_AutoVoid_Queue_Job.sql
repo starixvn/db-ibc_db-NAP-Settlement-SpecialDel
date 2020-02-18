@@ -61,7 +61,7 @@ BEGIN
 	UPDATE q
 		SET StatusId = 4
 			,ErrMsg = 'No AbnormalBet Request.'
-	FROM TicketVoiding_AutoVoidRequest_Queue q
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0
 		
