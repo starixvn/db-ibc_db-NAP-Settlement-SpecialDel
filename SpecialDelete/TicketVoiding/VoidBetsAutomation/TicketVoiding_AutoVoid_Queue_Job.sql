@@ -218,9 +218,9 @@ BEGIN
 	ELSE
 	BEGIN
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
+			SET	Duration = CASE WHEN QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE Duration END 				
 				,StatusId = CASE WHEN QueueId = @QueueId THEN 2 ELSE 4 END -- StatusID = 4: Cancelled
-				,ErrMsg = @ErrMsg
+				,ErrMsg = CASE WHEN QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END 
 		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 		WHERE	QueueId <= @QueueId 
 				AND q.MatchId = @MatchId 
