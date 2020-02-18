@@ -528,112 +528,196 @@ BEGIN
 	INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
 	SELECT RequestID,@UserId, 1, TransIds
 	FROM @AutoVoid_ValidRequest v  
-			  
-	WHILE (1=1)
-	BEGIN
-		DELETE @tmpTransIDBatch
-		
-		UPDATE TOP(3000) t
-			SET isFinish = 1
-		OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction, DELETED.balanceType,DELETED.RequestID, DELETED.betid
-				
-		INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID,betid)
-		FROM #tmpTransId_VOID_RequestID t 
-		WHERE isFinish IS NULL
-		
-		IF @@ROWCOUNT = 0 BREAK
-		-- backup into zzzbettrans for void transid
-		INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
-				,odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator  
-				,betteam, creator, refno, winlostdate, betfrom
-				,betcheck
-				,comstatus
-				,checktime, matchid, bettype  
-				,VoidingHistoryId
-			)  
-		SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
-			,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
-			,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
-			,CASE 
-				WHEN t.TicketType = 3 THEN @session -- original ticket & cashout bet ticket
-				ELSE b.betcheck END AS betcheck 
-			,CASE WHEN t.TicketType = 3 AND t.isSubTransaction = 1 THEN 'CO' ELSE b.comstatus END
-			,b.checktime, b.matchid, b.bettype  
-			,vd.VoidingHistoryId
-		FROM @tmpTransIDBatch AS t 
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.TransId
-			INNER JOIN @VoidingHistory_tmp vd ON t.RequestID = vd.RequestID
-		
-		-- Auto Void
-		SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
-								,CASE WHEN t.TicketType = 5 THEN t.Refno ELSE NULL END AS '@translogid'
-								,t.betid AS '@betid'
-								,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
-								,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
-								,t.isSubTransaction AS '@IsCashOutMember'
-								FROM	@tmpTransIDBatch t
-								FOR XML PATH('r'), ROOT('root')
-							)
-
-		EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-			@TransIds = @xmlTransId
-			,@UserId = @UserId
-			,@IssueTypeId = 11  
-			
-		SET @xmlTransId = ''	 
-		
-	END
-		
-	-- Recal for ticket Lose by statuswinlost
-	WHILE (1=1)
-	BEGIN
-		DELETE @tmpTransIDBatch
-		
-		UPDATE TOP(3000) t
-			SET isFinish = 1
-		OUTPUT deleted.transid
-		INTO @tmpTransIDBatch(TransId)
-		FROM #tmpTransId_Recalculate t 
-		WHERE isFinish IS NULL
-		
-		IF @@ROWCOUNT = 0 BREAK
-		
-		SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
-		
-		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIDList_tmp
-			,@UserId = @UserId
-			,@Username = @Username
-			,@IP = @IP
-			,@ErrMsg = @ErrMsg OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-		
-		IF @ErrCode = 0
-		BEGIN
-			EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
-				@TransIds = @TransIDList_tmp
-		END	
-		
-		SET @TransIDList_tmp = ''	 
-	END
-	-- Pre cal 914
-	IF EXISTS (SELECT TOP (1) 1 FROM @tmpCustCashOut)
-	BEGIN
-		BEGIN TRY				
-			SET @CustIdsCashOut = STUFF((SELECT ',' + CAST(c.CustId AS VARCHAR(50))
-											FROM (SELECT DISTINCT CustId FROM @tmpCustCashOut) c						    
-											FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')	
-																					    
-			EXEC dbo.NAP_Admin_Calculate_914 
-					@MatchId 	= @MatchID
-					,@Action 	= 'VOID' -- use this option to limit cust need to update 914 only
-					,@CustIds 	= @CustIdsCashOut				
-		END TRY 
-		BEGIN CATCH
-			SELECT @ErrCode = 914
-					, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
-		END CATCH
-	END
 	
+	BEGIN TRY
+			  
+		WHILE (1=1)
+		BEGIN
+			DELETE @tmpTransIDBatch
+			
+			UPDATE TOP(3000) t
+				SET isFinish = 1
+			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction, DELETED.balanceType,DELETED.RequestID, DELETED.betid
+					
+			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID,betid)
+			FROM #tmpTransId_VOID_RequestID t 
+			WHERE isFinish IS NULL
+			
+			IF @@ROWCOUNT = 0 BREAK
+			-- backup into zzzbettrans for void transid
+			INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
+					,odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator  
+					,betteam, creator, refno, winlostdate, betfrom
+					,betcheck
+					,comstatus
+					,checktime, matchid, bettype  
+					,VoidingHistoryId
+				)  
+			SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
+				,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
+				,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
+				,CASE 
+					WHEN t.TicketType = 3 THEN @session -- original ticket & cashout bet ticket
+					ELSE b.betcheck END AS betcheck 
+				,CASE WHEN t.TicketType = 3 AND t.isSubTransaction = 1 THEN 'CO' ELSE b.comstatus END
+				,b.checktime, b.matchid, b.bettype  
+				,vd.VoidingHistoryId
+			FROM @tmpTransIDBatch AS t 
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.TransId
+				INNER JOIN @VoidingHistory_tmp vd ON t.RequestID = vd.RequestID
+			
+			-- Auto Void
+			SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+									,CASE WHEN t.TicketType = 5 THEN t.Refno ELSE NULL END AS '@translogid'
+									,t.betid AS '@betid'
+									,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
+									,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
+									,t.isSubTransaction AS '@IsCashOutMember'
+									FROM	@tmpTransIDBatch t
+									FOR XML PATH('r'), ROOT('root')
+								)
+
+			EXEC dbo.TicketVoiding_Admin_VoidingTransId 
+				@TransIds = @xmlTransId
+				,@UserId = @UserId
+				,@IssueTypeId = 11  
+				
+			SET @xmlTransId = ''	 
+			
+		END
+			
+		-- Recal for ticket Lose by statuswinlost
+		WHILE (1=1)
+		BEGIN
+			DELETE @tmpTransIDBatch
+			
+			UPDATE TOP(3000) t
+				SET isFinish = 1
+			OUTPUT deleted.transid
+			INTO @tmpTransIDBatch(TransId)
+			FROM #tmpTransId_Recalculate t 
+			WHERE isFinish IS NULL
+			
+			IF @@ROWCOUNT = 0 BREAK
+			
+			SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
+			
+			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIDList_tmp
+				,@UserId = @UserId
+				,@Username = @Username
+				,@IP = @IP
+				,@ErrMsg = @ErrMsg OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+			
+			IF @ErrCode = 0
+			BEGIN
+				EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
+					@TransIds = @TransIDList_tmp
+			END	
+			
+			SET @TransIDList_tmp = ''	 
+		END
+		-- Pre cal 914
+		IF EXISTS (SELECT TOP (1) 1 FROM @tmpCustCashOut)
+		BEGIN
+			BEGIN TRY				
+				SET @CustIdsCashOut = STUFF((SELECT ',' + CAST(c.CustId AS VARCHAR(50))
+												FROM (SELECT DISTINCT CustId FROM @tmpCustCashOut) c						    
+												FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')	
+																						    
+				EXEC dbo.NAP_Admin_Calculate_914 
+						@MatchId 	= @MatchID
+						,@Action 	= 'VOID' -- use this option to limit cust need to update 914 only
+						,@CustIds 	= @CustIdsCashOut				
+			END TRY 
+			BEGIN CATCH
+				SELECT @ErrCode = 914
+						, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
+			END CATCH
+		END
+	END TRY
+	BEGIN CATCH
+		-- Capture Balance incase of failure
+		INSERT INTO @AfterUpd(
+			matchid
+			,custid
+			,balanceType		
+			,walletType
+			,bonusId
+			,balance
+		)
+		SELECT	@matchid
+				,b.custid
+				,b.balanceType
+				,b.WalletType
+				,b.BonusID			
+				,SUM(b.balance) AS balance
+		FROM (	
+			SELECT	b.custid
+					,t.balanceType
+					,CASE 
+						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
+						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+						ELSE 0 END AS BonusID
+					,CASE
+						WHEN t.isSubTransaction = 1 THEN 2
+						ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+					,b.winlost - b.actual_stake + b.playercomm AS balance
+					
+			FROM #tmpTransId_VOID_RequestID t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.TransId = b.transid
+			UNION ALL
+			SELECT	b.custid
+					,t.balanceType
+					,CASE 
+						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
+						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+						ELSE 0 END AS BonusID
+					,CASE
+						WHEN t.isSubTransaction = 1 THEN 2
+						ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+					,b.winlost - b.actual_stake + b.playercomm AS balance
+			FROM	#tmpTransId_Recalculate t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.TransId = b.transid
+					
+			UNION ALL
+			
+			SELECT b914.custid
+					,1 AS balanceType
+					,0 AS BonusId
+					,2 AS WalletType
+					,b914.winlost - b914.actual_stake + b914.playercomm AS balance
+			FROM	@tmpCustCashOut c
+				INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
+					ON	b914.matchid = @MatchId
+						AND b914.custid = c.CustId
+						AND b914.bettype = 914
+		)b
+		GROUP BY b.custid
+				,b.balanceType
+				,b.BonusID
+				,b.WalletType
+
+		--UPDATE balance
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				@BalanceWalletBefore	= @beforeUpd
+				, @BalanceWalletAfter	= @afterUpd
+				, @ActionId				= 0	
+		
+		SELECT    @ErrCode = 1001017 
+					,@ErrMsg = ERROR_MESSAGE()
+	        
+		DELETE tv
+		FROM TicketVoiding_VoidingHistory tv WITH (ROWLOCK)
+			INNER JOIN @VoidingHistory_tmp  t ON tv.VoidingHistoryId = t.VoidingHistoryId
+			
+		RETURN 
+		 
+	END CATCH
+	
+	--- Capture balance after
 	INSERT INTO @AfterUpd(
 		matchid
 		,custid
