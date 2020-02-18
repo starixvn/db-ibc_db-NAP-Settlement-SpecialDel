@@ -193,7 +193,13 @@ BEGIN
 			,b.WalletType
 
 	--ReCalculate
+	BEGIN TRY
 		EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @TransIds
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = 100
+			, @ErrMsg = 'Called TicketVoiding_ReCalculate_Single_Update with error.'
+	END CATCH
 	---
 
 	-- PRE CAL 914

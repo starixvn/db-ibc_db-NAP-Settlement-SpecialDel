@@ -215,10 +215,10 @@ BEGIN
 	END
 	
 	----- checking if matchid in queue not running after 10 minutes
-	SET @MatchidList_Waiting_10minutes = ISNULL(STUFF((SELECT TOP 10 ',' + matchid 
+	SET @MatchidList_Waiting_10minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
 												FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-												WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10
-												)
+												WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10												
+												FOR XML PATH(''))
 												,1,1,''),'')
 	
 	IF @MatchidList_Waiting_10minutes <> ''
