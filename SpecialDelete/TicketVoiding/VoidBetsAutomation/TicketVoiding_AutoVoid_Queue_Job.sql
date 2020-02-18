@@ -49,6 +49,22 @@ BEGIN
 	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
 	
+	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
+	-- update cancel for matchid not having any request abnormal
+	INSERT INTO @tblMatchid_abnormal (matchid)
+	SELECT DISTINCT rd.matchid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
+	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0
+	 
+	UPDATE q
+		SET StatusId = 4
+			,ErrMsg = 'No AbnormalBet Request.'
+	FROM TicketVoiding_AutoVoidRequest_Queue q
+		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
+	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0
+		
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
