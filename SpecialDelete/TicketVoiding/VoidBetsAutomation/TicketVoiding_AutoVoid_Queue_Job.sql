@@ -50,6 +50,8 @@ BEGIN
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
 	
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
+	
+	-------------------STARTING OF Process invalid request, Sending notification if stay in queue too long -----------
 	-- update cancel for matchid not having any request abnormal
 	INSERT INTO @tblMatchid_abnormal (matchid)
 	SELECT DISTINCT rd.matchid
@@ -64,7 +66,54 @@ BEGIN
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0
+	
+	----- checking if matchid in queue not running after 10 minutes
+	SET @MatchidList_Waiting_10minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
+												FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+												WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10												
+												FOR XML PATH(''))
+												,1,1,''),'')
+	
+	IF @MatchidList_Waiting_10minutes <> ''
+	BEGIN
+		-- Send via letstalk for production											
+		IF @@SERVERNAME IN ('DBTRANS')
+		BEGIN
+			SET @msg = 'TVS: Auto Void Notification 
+			--
+			Matchid still waiting in queue too long: 
+			' 
+			+ @MatchidList_Waiting_10minutes
+			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
+			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg;
+
+		END
+		ELSE
+		BEGIN
+		-- Send via email (local environment)
 		
+			SET @Subject = 'TVS: Auto Void Notification!'	
+			-- For testing------------
+			SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
+			-- For Production -----------
+			/*
+			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
+			*/
+			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_10minutes
+						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10 )'
+				
+			EXEC msdb.dbo.sp_send_dbmail
+					@recipients= @Recipients
+					,@body=@Body
+					,@sensitivity ='Personal'
+					,@importance ='High'
+					,@subject =@Subject
+					,@body_format = 'HTML'
+					,@profile_name =DEFAULT;
+		END			
+	END	
+	
+	-------------------END OF Process invalid request, Sending notification if stay in queue too long -----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
@@ -84,26 +133,6 @@ BEGIN
 	IF @@ROWCOUNT = 0
 		RETURN
 	
-	IF @RequestId = 0 
-			AND EXISTS (SELECT TOP (1) 1 FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) 
-				WHERE Action = @Action AND matchid = @MatchId AND StatusId = 2 AND RequestId = 0)
-	BEGIN
-		UPDATE q
-			SET StatusId = 4
-				,ErrMsg = 'No touch after recal HT, recal FT, recal ALl'
-		FROM TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK)
-		WHERE @QueueId = @QueueId
-		
-		SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
-		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
-		WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
-		ORDER BY RequestId, Action, Starttime DESC
-		
-		IF @@ROWCOUNT = 0
-		RETURN
-	
-	END	
-			
 	IF @RequestId = 0 AND @Checktime > GETDATE()
 		RETURN
 	
@@ -185,8 +214,9 @@ BEGIN
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 					INNER JOIN @tblRequestList r ON q.RequestId = r.RequestID AND r.QueueID = q.QueueId
 			END		
-		
-			BEGIN TRY
+			
+			IF @@SERVERNAME IN ('DBTRANS')
+			BEGIN
 				
 				SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !
 				--
@@ -196,9 +226,10 @@ BEGIN
 				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
 				EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg;
 
-			END TRY
+			END
+			ELSE
+			BEGIN
 			
-			BEGIN CATCH
 				SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
 				-- For testing------------
 				SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
@@ -217,7 +248,7 @@ BEGIN
 						,@subject =@Subject
 						,@body_format = 'HTML'
 						,@profile_name =DEFAULT;
-			END CATCH			
+			END		
 					
 		END
 		
@@ -251,48 +282,7 @@ BEGIN
 						END	  
 	END
 	
-	----- checking if matchid in queue not running after 10 minutes
-	SET @MatchidList_Waiting_10minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
-												FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-												WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10												
-												FOR XML PATH(''))
-												,1,1,''),'')
-	
-	IF @MatchidList_Waiting_10minutes <> ''
-	BEGIN
-		-- Send via letstalk for production											
-		BEGIN TRY
-			SET @msg = 'TVS: Auto Void Notification 
-			--
-			Matchid still waiting in queue too long: 
-			' 
-			+ @MatchidList_Waiting_10minutes
-			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg;
-
-		END TRY
-		-- Send via email (local environment)
-		BEGIN CATCH
-			SET @Subject = 'TVS: Auto Void Notification!'	
-			-- For testing------------
-			SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
-			-- For Production -----------
-			/*
-			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
-			*/
-			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_10minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10 )'
-				
-			EXEC msdb.dbo.sp_send_dbmail
-					@recipients= @Recipients
-					,@body=@Body
-					,@sensitivity ='Personal'
-					,@importance ='High'
-					,@subject =@Subject
-					,@body_format = 'HTML'
-					,@profile_name =DEFAULT;
-		END CATCH
-	END			
+			
 END		
 GO
 
