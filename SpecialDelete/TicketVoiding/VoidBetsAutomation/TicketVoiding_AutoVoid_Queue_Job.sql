@@ -68,6 +68,7 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
+	----- Starting auto voiding process: FIFO --------
 	SET @MatchId = (SELECT TOP (1) q.matchid
 					FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 						LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
