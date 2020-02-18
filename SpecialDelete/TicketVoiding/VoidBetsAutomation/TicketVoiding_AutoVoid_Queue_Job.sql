@@ -84,6 +84,26 @@ BEGIN
 	IF @@ROWCOUNT = 0
 		RETURN
 	
+	IF @RequestId = 0 
+			AND EXISTS (SELECT TOP (1) 1 FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) 
+				WHERE Action = @Action AND matchid = @MatchId AND StatusId = 2 AND RequestId = 0)
+	BEGIN
+		UPDATE q
+			SET StatusId = 4
+				,ErrMsg = 'No touch after recal HT, recal FT, recal ALl'
+		FROM TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK)
+		WHERE @QueueId = @QueueId
+		
+		SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
+		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
+		WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
+		ORDER BY RequestId, Action, Starttime DESC
+		
+		IF @@ROWCOUNT = 0
+		RETURN
+	
+	END	
+			
 	IF @RequestId = 0 AND @Checktime > GETDATE()
 		RETURN
 	
