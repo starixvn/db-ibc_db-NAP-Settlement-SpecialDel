@@ -408,8 +408,8 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode,RequestID)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode,r.RequestID
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode,RequestID,betid)
+		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode,r.RequestID,b.betid
 		FROM #tmpRefCodeSummary_VOID r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
