@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_2b]
     ,@MatchID	INT
     ,@QuarterResult	VARCHAR(MAX)
     ,@Action    VARCHAR(10)	= 'CAL'
-    
+    ,@IsReSettledTickets BIT = 1
     ,@IP     	VARCHAR(15)    = ''
     ,@ErrCode	INT            = 0	OUTPUT
     ,@ErrMsg 	NVARCHAR(200)  = '' OUTPUT
@@ -17,6 +17,7 @@ AS
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20190813@Helen: Remove vnteam in metadata
+		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -147,7 +148,8 @@ BEGIN
 				,@xmlData = @xmlResultDetail
 				,@sporttype = 2
 				,@strBettypes = @strEarlyBettypes    
-				,@ResourceIDs = @strResourceIds             
+				,@ResourceIDs = @strResourceIds        
+				,@IsReSettledTickets = @IsReSettledTickets
 
 		END
 		ELSE IF @action = 'UNDO'
@@ -255,6 +257,7 @@ BEGIN
     SELECT @logdata = 'NAP: Early Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
                                                            + ' Result: ' + @QuarterResult + '<br/> '
                                                            + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+														   + CASE WHEN @action = 'CAL' THEN '; Recalc: ' + CAST(@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
     EXEC dbo.WriteLog_UserLog 
         @UserID = @AdminId
         ,@Doing = @logdata

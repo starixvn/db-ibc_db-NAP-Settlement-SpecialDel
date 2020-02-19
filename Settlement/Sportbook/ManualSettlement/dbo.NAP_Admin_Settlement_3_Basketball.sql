@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Basketball]
 	@matchId			INT
 	,@Mode				VARCHAR(10) = 'CAL'
 	,@SelectedQuarter	VARCHAR(50)
+	,@IsReSettledTickets BIT = 1
 AS
 /*
     Created: 20170220@Kathy
@@ -11,6 +12,7 @@ AS
 
     Revisions:
 		- 20170609@Kathy: Remove some "early settlement" bettypes [Redmine:#77835]
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
        
     Param's Explanation:
     @Mode: CAL
@@ -78,6 +80,10 @@ BEGIN
 		SELECT	b.bettype, b.betid
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+							 WHEN @IsReSettledTickets = 1 THEN 1
+							 ELSE 0
+						END
 		GROUP BY b.bettype, b.betid
 	)
 	INSERT INTO @tmpBettypeResourceId(bettype, ResourceId)
@@ -108,7 +114,7 @@ BEGIN
 						WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1 -- 1H, FT	
 						WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%80[1-4]%' THEN 1
 						ELSE 0
-						END
+					END
 						
 	SELECT @strBettypes = COALESCE(@strBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 	FROM	@tmpBettypeResourceId
@@ -138,6 +144,7 @@ BEGIN
 		,@sporttype = 2
 		,@CalledByBrokerService = 0 
 		,@strBettypes = @strBettypes
+		,@IsReSettledTickets = @IsReSettledTickets
 END
 
 GO

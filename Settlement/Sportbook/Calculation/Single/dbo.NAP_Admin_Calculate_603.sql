@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_603]
 	,@strResourceIds	VARCHAR(MAX)	= NULL
 	,@result			VARCHAR(MAX)	= NULL	
 	,@Action			VARCHAR(20)		= 'CAL'
+	,@IsReSettledTickets BIT = 1
 AS
 /*
     Created: 20170220@Kathy
@@ -21,6 +22,7 @@ AS
 		 - 20190227@Sol:  New Formula for Comm [Redmine:#109007]
 		 - 20190409@Sol: Settlement Time [Redmine:#99638]
 		 - 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		 - 20200120@Sol: Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		 
     Param's Explanation:
 
@@ -87,7 +89,7 @@ BEGIN
 		BEGIN
 			UPDATE	TOP (@top) b
 				SET 
-					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+					@IsUpd_Void = CASE WHEN statusID = 102 OR mt.TransId IS NOT NULL THEN 0 ELSE 1 END
 					,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben 
 								ELSE 0 
 							END
@@ -109,13 +111,22 @@ BEGIN
 					,scomm = 0
 					,statuswinlost = NULL
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
-				CROSS APPLY (
-					SELECT CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)), '') AS ResourceId
-				) r
+						CROSS APPLY (
+										SELECT CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)), '') AS ResourceId
+									) r
+						OUTER APPLY (
+										SELECT	TOP (1) mt.TransId
+										FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+										WHERE	mt.TransId = b.transid
+												AND mt.CustId = b.custId
+									) mt
 			WHERE	b.matchid = @matchid 
-					AND	b.statusID NOT IN (0, 1, 101)  ---('running','waiting','reject')
+					AND	b.statusID NOT IN (101)  ---('reject')
 					AND CHARINDEX(',' + r.ResourceId + ',', ',' + @strResourceIds + ',') > 0
-					
+					AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+							 WHEN b.statusID NOT IN (0, 1) THEN 1
+							ELSE 0 END
+
 			IF @@ROWCOUNT < @top
 				BREAK
 		END
@@ -347,7 +358,7 @@ BEGIN
 
 			UPDATE	b 
 				SET @modds = t.modds
-					,@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+					,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END
 					,modds = @modds
 					,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
 								WHEN @modds = 0.25 THEN 1 
@@ -497,10 +508,20 @@ BEGIN
 					ON c.custid = b.custid
 				INNER JOIN #tmpTransIds t
 					ON b.transid = t.TransId
+				OUTER APPLY (
+								SELECT TOP (1) mt.TransId
+								FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+								WHERE	mt.TransId = b.transId
+										AND mt.CustId = t.custid
+							) mt
 			WHERE	b.matchid = @matchid
 					AND b.custid >= @MinCustId
 					AND b.bettype = @bettype
 					AND b.statusID NOT IN (101)
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+						 WHEN @IsReSettledTickets = 1 THEN 1
+						 ELSE 0
+					END
 			OPTION (FORCE ORDER)
 		END
 	END

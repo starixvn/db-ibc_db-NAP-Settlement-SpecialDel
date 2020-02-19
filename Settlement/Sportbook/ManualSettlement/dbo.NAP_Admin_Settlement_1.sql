@@ -81,6 +81,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -606,6 +607,7 @@ BEGIN
 						@matchId = @matchid
 						,@Mode	= @action
 						,@SelectedQuarter = @SelectedQuarter
+						,@IsReSettledTickets = @IsReSettledTickets
                 END
                 ELSE
                 BEGIN
@@ -827,8 +829,8 @@ BEGIN
 							+ CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
 							+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                             + 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-                            + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-							+ CASE WHEN @Sporttype = 1 THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) ELSE '' END
+                            + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
+							+ CASE WHEN @Sporttype IN (1, 2) AND @action LIKE 'CAL%' THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';' ELSE '' END
                             + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
     BEGIN TRY

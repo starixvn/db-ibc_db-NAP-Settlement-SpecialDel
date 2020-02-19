@@ -15,6 +15,7 @@ AS
 		- 20190418@Kathy: - Do not send email when mark/unmark ticket [Redmine:#106823]
 						  -	Add starix56 to view notification
 		- 20191210@Helen: Hotfix GetNumberOfNotifications failed when message length is over 300 characters - [Redmine:#125246]						  
+		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - Added AdminId = 111 to Other sport - [Redmine:#126963]
 							
 	Param's Explanation:
 		
@@ -48,10 +49,11 @@ BEGIN
 	UNION ALL SELECT 12978541	-- pgmHarris 
 	UNION ALL SELECT 4338171	-- pgmKaka 
 	UNION ALL SELECT 20442488	-- starix56  
+	UNION ALL SELECT 111		-- Auto Settlement
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tblSoccerTeam WHERE custid = @AdminId)
 			SET @IsSoccer = 1
-	ELSE IF EXISTS (SELECT TOP 1 1 FROM @tblOtherSportTeam WHERE custid = @AdminId)
+	IF EXISTS (SELECT TOP 1 1 FROM @tblOtherSportTeam WHERE custid = @AdminId)
 		SET @IsOtherSport = 1
 			
 	DECLARE @tblTemp TABLE (

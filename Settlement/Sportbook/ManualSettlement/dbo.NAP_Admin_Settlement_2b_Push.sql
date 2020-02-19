@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_2b_Push]
 	,@MatchId			INT
 	,@QuarterResult		VARCHAR(MAX)	 
 	,@Action			VARCHAR(10)		= 'CAL'
-	
+	,@IsReSettledTickets BIT			= 1
 	,@IP				VARCHAR(15)		= ''
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20170613@Kathy: Early Settlement [Redmine:#77835] 
 		- 20190813@Helen: Remove vnteam in metadata
+		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
 		
 	Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -87,7 +88,8 @@ BEGIN
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_2b] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 														
 															+ ', @QuarterResult = ''' + CONVERT(VARCHAR(MAX), @QuarterResult) + ''''
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 								
+															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 		
+															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
