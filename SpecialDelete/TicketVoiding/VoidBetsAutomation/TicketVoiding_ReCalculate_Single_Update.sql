@@ -21,7 +21,8 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-
+			,@xml XML
+			
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -35,13 +36,13 @@ BEGIN
 
 	END
 	-----------------------CHECK SERVER-----------------------------------------
+	SET @xml = CONVERT(XML, @TransIds)
 	DECLARE @tbl_transIDs AS TABLE(transid BIGINT)
 	
 	INSERT INTO @tbl_transIDs (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT	T.C.value('./@transid', 'bigint')
+	FROM	@xml.nodes('/root/r') AS T(C)
+	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT, isDecimalOdd BIT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT)
 	DECLARE  @commWinRate		SMALLMONEY

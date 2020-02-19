@@ -600,6 +600,13 @@ BEGIN
 			
 			IF @@ROWCOUNT = 0 BREAK
 			
+			SET @xmlTransId = ''
+			
+			SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+									FROM	@tmpTransIDBatch t
+									FOR XML PATH('r'), ROOT('root')
+								)
+								
 			SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
 			
 			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIDList_tmp
@@ -612,10 +619,12 @@ BEGIN
 			IF @ErrCode = 0
 			BEGIN
 				EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
-					@TransIds = @TransIDList_tmp
+					@TransIds = @xmlTransId
 			END	
 			
-			SET @TransIDList_tmp = ''	 
+			SET @TransIDList_tmp = ''
+			SET @xmlTransId = ''
+				 
 		END
 		-- Pre cal 914
 		IF EXISTS (SELECT TOP (1) 1 FROM @tmpCustCashOut)

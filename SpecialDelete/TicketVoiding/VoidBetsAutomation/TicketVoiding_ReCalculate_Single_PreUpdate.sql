@@ -30,6 +30,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
+			,@xmlTransId VARCHAR(MAX)
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
@@ -40,7 +41,6 @@ BEGIN
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
-			,@xmlTransId VARCHAR(MAX)
 			,@session NVARCHAR(50)
 			,@CustIds VARCHAR(MAX)
 			,@CustBalance XML
@@ -194,7 +194,13 @@ BEGIN
 
 	--ReCalculate
 	BEGIN TRY
-		EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @TransIds
+		SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+									FROM	@tmpInputTransId t
+									FOR XML PATH('r'), ROOT('root')
+								)
+								
+		EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @xmlTransId
+		
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = 100
