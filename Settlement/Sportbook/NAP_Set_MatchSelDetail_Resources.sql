@@ -38,11 +38,11 @@ BEGIN
 	IF (@SportType = 43 AND @SettleType = 'EAR')
 	BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
-		SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
+		SELECT  sp.ResourceID AS ResourceID,
 				SUM(CASE WHEN bt.transid IS NOT NULL THEN 1 ELSE 0 END) AS BetCount,
 				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
 				MAX(sp.OrdNo),
-				MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+				0 AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
 		FROM DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = o.Bettype and sp.BetID = '8' + o.Resourceid 
 			OUTER APPLY 
@@ -58,7 +58,7 @@ BEGIN
 			AND sp.sporttype = @SportType
 			AND sp.Settletype = @SettleType
 			AND SUBSTRING(sp.ResourceID, 5, 2) <= @BestOfMap
-		GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END
+		GROUP BY sp.ResourceID
 	END
 	ELSE 
 	BEGIN
