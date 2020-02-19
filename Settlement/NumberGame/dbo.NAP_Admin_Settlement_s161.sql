@@ -23,6 +23,7 @@ AS
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20171031@Patrick: Reduce balance correction [Redmine: #85841]
+		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 						   
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -143,13 +144,14 @@ BEGIN
 
 	IF @IsLive = 1
 	BEGIN
-		DECLARE @Number TINYINT
+		DECLARE @Number TINYINT,
+				@Color VARCHAR(1)
 
-		SELECT @Number = Number
+		SELECT @Number = Number, @Color = Color
 		FROM DBPRO.BODB02.dbo.BingoBall WITH(NOLOCK)
 		WHERE matchid = @MatchId AND seq = @DrawSeq
 
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number, @Color = @Color
 
 		SET @LogData = 'Calculate Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10)) + '- [LIVE] - Sequence number: (' + CAST(@DrawSeq AS NVARCHAR(2)) + ') '
 		SET @ActionID = 116

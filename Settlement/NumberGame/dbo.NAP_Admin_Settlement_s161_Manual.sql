@@ -1,9 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Admin_Settlement_s161_Manual]
 	@MatchId int,
-	@FirstBall tinyint = NULL, --  means N/A
-	@SecondBall tinyint = NULL, --  means N/A
-	@ThirdBall tinyint = NULL, --  means N/A
+	@BallResults VARCHAR(MAX) = '<Balls></Balls>',
 	@IP varchar(50),
 	@AdminID int, -- Admin user
 	@ErrCode int = 0 OUTPUT,
@@ -17,6 +15,7 @@ AS
 	Orignal: Admin_Settlement_s161_Manual
 	
 	Revisions: 
+		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 	
 	Param's Explanation:
 		
@@ -36,6 +35,27 @@ BEGIN
 		WHERE	VName = 'isCalculatingNGManual'
 	END
 
+	-- get data from xml
+	DECLARE @tblResult TABLE(Seq TINYINT, Number TINYINT, Color VARCHAR(1))
+	DECLARE @handle INT,
+			@FirstBall TINYINT = NULL, -- 0 means N/A	
+			@SecondBall TINYINT = NULL, -- 0 means N/A
+			@ThirdBall TINYINT = NULL -- 0 means N/A
+
+	EXEC sp_xml_preparedocument @handle OUTPUT, @BallResults
+	INSERT INTO @tblResult(Seq, Number, Color)
+	SELECT Seq, Number, Color
+	FROM OPENXML(@handle,'Balls/Ball',1) WITH( Seq	TINYINT
+												,Number TINYINT
+												,Color VARCHAR(1)
+										) AS tbl
+	EXEC sp_xml_removedocument @handle
+
+	SELECT 
+		@FirstBall = CASE WHEN Seq = 1 THEN Number ELSE @FirstBall END,
+		@SecondBall = CASE WHEN Seq = 2 THEN Number ELSE @SecondBall END,
+		@ThirdBall = CASE WHEN Seq = 3 THEN Number ELSE @ThirdBall END
+	FROM @tblResult
 
 	-- step 1: refund all
 	EXEC dbo.NAP_Admin_settlement_s161
@@ -59,9 +79,7 @@ BEGIN
 	-- step 2: update ball result
 	EXEC DBPRO.BODB02.dbo.NAP_UpdateNumberGameBalls 
 		@MatchId = @MatchId,
-		@FirstBall = @FirstBall,
-		@SecondBall = @SecondBall,
-		@ThirdBall = @ThirdBall,
+		@BallResults = @BallResults,
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
 	
@@ -197,6 +215,4 @@ BEGIN
 	SET		VValue = '0'
 	WHERE	VName = 'isCalculatingNGManual'
 END
-
-
 GO

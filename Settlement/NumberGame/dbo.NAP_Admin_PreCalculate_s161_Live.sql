@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Admin_PreCalculate_s161_Live @matchid INT
 	,@DrawSeq TINYINT
 	,@Number TINYINT
+	,@Color VARCHAR(1)
 AS
 /*
 	Created by: Kathy
@@ -14,6 +15,7 @@ AS
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
+		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -27,7 +29,7 @@ BEGIN
 	INTO #TempData_CAL_Live				
 	FROM dbo.bettrans WITH(ROWLOCK)	
 	WHERE matchid = @matchid 
-		AND bettype IN (85, 86, 87, 89, 90) 
+		AND bettype IN (85, 86, 87, 89, 90, 91) 
 		AND liveindicator = 1 
 		AND statusID NOT IN (101, 102) -- VOID, REJECT
 		AND livehomescore + liveawayscore + CASE WHEN bettype = 87 THEN 2 ELSE 1 END = @DrawSeq
@@ -51,6 +53,7 @@ BEGIN
 			WHEN bettype = 90 AND HDP1 = 3 AND CEILING(@Number/25.0) = betteam THEN 1 
 			WHEN bettype = 90 AND HDP1 = 4 AND @Number % 5 = CASE betteam WHEN 5 THEN 0 ELSE betteam END THEN 1 
 			WHEN bettype = 90 AND HDP1 = 5 AND @Number = betteam	 THEN 1 
+			WHEN bettype = 91 AND betteam = @Color THEN 1 
 			ELSE -1 -- lose
 			END,
 		modds = @modds	
