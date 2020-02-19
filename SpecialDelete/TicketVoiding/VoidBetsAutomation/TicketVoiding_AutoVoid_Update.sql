@@ -960,7 +960,7 @@ BEGIN
 							,@MatchId AS '@MatchId'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
-								+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryIdList AS VARCHAR(20))
+								+ ' VoidingHistoryId: ' + @VoidingHistoryIdList
 								+ ' Auto Void TransId: ' + @allTransId_Void
 								+ ' Auto Recalculate TransId: ' + @allTransId_Recal
 								AS '@LogData'
