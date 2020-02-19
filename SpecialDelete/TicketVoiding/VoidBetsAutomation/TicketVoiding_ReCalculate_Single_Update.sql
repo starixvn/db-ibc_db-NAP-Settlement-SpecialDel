@@ -61,6 +61,7 @@ BEGIN
 	FROM @tbl_transIDs t
 		INNER LOOP JOIN dbo.bettrans b	WITH (NOLOCK) ON b.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
+	WHERE b.statuswinlost IS NOT NULL
 		 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
