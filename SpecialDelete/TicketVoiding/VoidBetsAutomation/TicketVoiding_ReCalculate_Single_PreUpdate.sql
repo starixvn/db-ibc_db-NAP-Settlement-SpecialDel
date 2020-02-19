@@ -201,33 +201,90 @@ BEGIN
 								
 		EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @xmlTransId
 		
+		-- PRE CAL 914
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
+		BEGIN
+			BEGIN TRY				
+				SET @CustIdsCashOut = STUFF((SELECT ',' + CAST(c.CustId AS VARCHAR(50))
+												FROM	@tmpCustCashOut c						    
+												FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')	
+																						    
+				EXEC dbo.NAP_Admin_Calculate_914 
+						@MatchId 	= @MatchID
+						,@Action 	= 'CAL'
+						,@CustIds 	= @CustIdsCashOut				
+			END TRY 
+			BEGIN CATCH
+				
+				SELECT @ErrCode = 914
+						, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
+			END CATCH
+		END
+	
 	END TRY
+	
 	BEGIN CATCH
+		
+		INSERT INTO @AfterUpd(
+			matchid
+			,custid
+			,balanceType		
+			,walletType
+			,bonusId
+			,balance
+		)
+		SELECT	@matchid
+				,b.custid
+				,b.balanceType
+				,b.WalletType
+				,b.BonusID			
+				,SUM(b.balance) AS balance
+		FROM (	
+			SELECT	b.custid
+					,t.balanceType
+					,CASE 
+						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
+						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+						ELSE 0 END AS BonusID
+					,CASE
+						WHEN t.isSubTransaction = 1 THEN 2
+						ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+					,b.winlost - b.actual_stake + b.playercomm AS balance
+			FROM	#tmpTransId t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.TransId = b.transid
+			
+			UNION ALL
+			SELECT b914.custid
+					,1 AS balanceType
+					,0 AS BonusId
+					,2 AS WalletType
+					,b914.winlost - b914.actual_stake + b914.playercomm AS balance
+			FROM	@tmpCustCashOut c
+				INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
+					ON	b914.matchid = @MatchId
+						AND b914.custid = c.CustId
+						AND b914.bettype = 914
+		)b
+		GROUP BY b.custid
+				,b.balanceType
+				,b.BonusID
+				,b.WalletType
+
+		--UPDATE balance
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				@BalanceWalletBefore	= @beforeUpd
+				, @BalanceWalletAfter	= @afterUpd
+				, @ActionId				= 0
+			
 		SELECT @ErrCode = 100
 			, @ErrMsg = 'Called TicketVoiding_ReCalculate_Single_Update with error.'
+		
+		RETURN	
+			
 	END CATCH
-	---
-
-	-- PRE CAL 914
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
-	BEGIN
-		BEGIN TRY				
-			SET @CustIdsCashOut = STUFF((SELECT ',' + CAST(c.CustId AS VARCHAR(50))
-											FROM	@tmpCustCashOut c						    
-											FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')	
-																					    
-			EXEC dbo.NAP_Admin_Calculate_914 
-					@MatchId 	= @MatchID
-					,@Action 	= 'CAL'
-					,@CustIds 	= @CustIdsCashOut				
-		END TRY 
-		BEGIN CATCH
-			SELECT @ErrCode = 914
-					, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
-		END CATCH
-	END
-
-
+	
+	-- Capture balance before
 	INSERT INTO @AfterUpd(
 		matchid
 		,custid
@@ -367,8 +424,6 @@ BEGIN
 									,[Source].[ChangeDate]
 									,[Source].[CreateDate]); 
 
-
-	
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	0 AS '@RequestId'
