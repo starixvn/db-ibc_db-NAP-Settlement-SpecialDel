@@ -20,8 +20,10 @@ BEGIN
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
+		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
+		 ,@title NVARCHAR(200)	= 'AutoVoid: Notification'
 	
 	------Sending notification if stay in queue too long, over 10 minutes -----------
 	SET @MatchidList_Waiting_10minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
@@ -42,7 +44,7 @@ BEGIN
 			' 
 			+ @MatchidList_Waiting_10minutes
 			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg;
+			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
 			
 			-- Send email
 			SET @Subject = 'TVS: Auto Void Notification!'	

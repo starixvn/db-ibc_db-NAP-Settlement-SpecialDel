@@ -35,6 +35,7 @@ BEGIN
 		,@Recipients	VARCHAR(MAX) = ''	
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
+		,@title NVARCHAR(200)	= 'AutoVoid: Notification'
 	
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -171,15 +172,6 @@ BEGIN
 			
 			IF @@SERVERNAME IN ('DBTRANS')
 			BEGIN
-				-- Send letstalk 
-				SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !
-				--
-				' 
-				+'Matchid: ' + CONVERT(VARCHAR(20),@MatchId) + ', Queueid(s): ' + CONVERT(VARCHAR(MAX),@QueueIDList) +
-							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
-				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-				EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg;
-				
 				-- Send Email
 				SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
 				
@@ -196,6 +188,17 @@ BEGIN
 						,@subject =@Subject
 						,@body_format = 'HTML'
 						,@profile_name =DEFAULT;
+						
+				-- Send letstalk 
+				SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !
+				-----
+				' 
+				+'Matchid: ' + CONVERT(VARCHAR(20),@MatchId) + ', Queueid(s): ' + CONVERT(VARCHAR(MAX),@QueueIDList) +
+							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
+				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
+				EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
+				
+				
 				
 			END
 			ELSE
