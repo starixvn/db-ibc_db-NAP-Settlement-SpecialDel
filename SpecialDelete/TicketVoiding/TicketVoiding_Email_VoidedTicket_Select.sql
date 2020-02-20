@@ -12,6 +12,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 
 	
 	Param's explanation:	
@@ -21,6 +22,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @isITAdmin BIT
+		, @IsITSupportCreatedRequest BIT
 
 	CREATE TABLE #tmpTicket (
 		TransId			BIGINT
@@ -79,9 +81,13 @@ BEGIN
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
-	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (UserId,2)),0)
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0)
+		, @IsITSupportCreatedRequest = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (r.UserId,2)),0) 
+	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK)
+			ON r.RequestId =  vh.RequestId
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+
 
 	-- single ticket
 	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut)
@@ -320,6 +326,7 @@ BEGIN
 			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
 			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
 			,@isITAdmin AS IsITSupport
+			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
 			,m.SettlementStatus
 			,t.LiveIndicator AS IsLive
 	FROM	#tmpTicket t
