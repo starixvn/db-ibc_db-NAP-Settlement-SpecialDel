@@ -37,7 +37,7 @@ BEGIN
 	
 	IF @updatetype <> 7
 	BEGIN
-		SET @IgnoreList = 'DB054,DB04,DB042,DB043,DB044,DB055'
+		SET @IgnoreList = 'DB054,DB04,DB042,DB043,DB044,DB055,SITDB055'
 	END
 	
 	IF EXISTS (SELECT TOP 1 1 from dbo.strSplit(ISNULL(@IgnoreList,''), ',') WHERE val = @@SERVERNAME) RETURN

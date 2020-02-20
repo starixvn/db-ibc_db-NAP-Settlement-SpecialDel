@@ -62,7 +62,7 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB055')
+    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P

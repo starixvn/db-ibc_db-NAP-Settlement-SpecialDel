@@ -55,6 +55,8 @@ BEGIN
 	SELECT 'SITDB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
 	UNION ALL
 	SELECT 'SITDB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	UNION ALL
+	SELECT 'SITDB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
 		
 	SELECT	@AllowCalculation = AllowCalculation
 			,@AllowUndo = AllowUndo

@@ -15,7 +15,7 @@ AS
 */
 SET NOCOUNT ON
 BEGIN
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
 	BEGIN
 		--Refund for bettransm
 		UPDATE dbo.bettransm with (ROWLOCK, UPDLOCK)
@@ -34,7 +34,7 @@ BEGIN
 	END
 
 
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
 	BEGIN
 		-- Refund ticket
 		UPDATE dbo.bettrans with (ROWLOCK, UPDLOCK)
@@ -53,7 +53,7 @@ BEGIN
 	END
 
 
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
 	BEGIN
 		Declare @LASCommand NVARCHAR(max),@createdDate DATETIME
 
