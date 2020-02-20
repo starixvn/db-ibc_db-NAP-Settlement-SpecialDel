@@ -20,6 +20,7 @@ AS
 		- 20180702@Helen:	Using Bet Publication for outright settlement [Redmine:#97670]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20191129@Helen: Not settle on db054 [Redmine:#123963]
+        - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		
 	Param: 
 		+ @updatetype: 
@@ -36,7 +37,7 @@ BEGIN
 	
 	IF @updatetype <> 7
 	BEGIN
-		SET @IgnoreList = 'DB054,DB04,DB042,DB043,DB044'
+		SET @IgnoreList = 'DB054,DB04,DB042,DB043,DB044,DB055,SITDB055'
 	END
 	
 	IF EXISTS (SELECT TOP 1 1 from dbo.strSplit(ISNULL(@IgnoreList,''), ',') WHERE val = @@SERVERNAME) RETURN

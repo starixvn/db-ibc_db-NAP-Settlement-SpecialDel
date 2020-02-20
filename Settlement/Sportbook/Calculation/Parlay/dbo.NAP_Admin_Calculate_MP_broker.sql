@@ -53,6 +53,7 @@ AS
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
+        - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 
     Param's Explanation:
         @action         @mode
@@ -61,7 +62,7 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042')
+    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
