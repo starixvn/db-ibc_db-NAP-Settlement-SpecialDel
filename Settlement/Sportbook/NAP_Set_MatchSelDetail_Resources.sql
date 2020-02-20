@@ -97,7 +97,7 @@ BEGIN
     	AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 		AND bt.statusID NOT IN (101, 102) --void/reject
 		AND sp.sporttype = @SportType
-		AND (sp.Settletype = 'MNL' OR sp.Settletype = @SettleType)	
+		AND (sp.Settletype = @SettleType)	
     GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END 
 	
 	IF @Settletype <> 'MNL'
