@@ -18,7 +18,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20200212@Max: Create new SP [Redmine: #128359]	
+		- 20200212@Max: Create new SP [Redmine: #128359]
+		- 20200221@Max: HotFix [Redmine: #128924]
 		
 	Param's explanation:	
 		
@@ -143,7 +144,7 @@ BEGIN
 						, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 						, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
 				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-				WHERE StatusId IN (1,2) AND matchid = @MatchId
+				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 
 				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetGroupBettypes() WHERE groupid IN (1,3) AND bettype = @Bettype)
 					SET @IsBettypeHT = 1

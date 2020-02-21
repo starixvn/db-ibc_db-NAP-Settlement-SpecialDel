@@ -20,6 +20,7 @@ AS
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20200213@Charles: Insert queue for auto void [127398]
 		- 20200213@Helen: Refactor code [Redmine: #127398]
+		- 20200221@Max: HotFix [Redmine: #128924]
 
 	Param's explanation:	
 	
@@ -73,7 +74,7 @@ BEGIN
 			, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 			, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-	WHERE StatusId IN (1,2) AND matchid = @MatchId
+	WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 			
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90001
