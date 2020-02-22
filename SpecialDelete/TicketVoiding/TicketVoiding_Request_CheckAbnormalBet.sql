@@ -19,6 +19,7 @@ AS
 		- 20191212@Max: AbnormalBet TVS [Redmine:#123691]
 		- 20200213@Charles: Exclude bettypes of early settlement and fast market [Redmine:#127398]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
+		- 20200222@Helen: Hotfix - check early bettype for soccer only [Redmine: #127398]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -32,15 +33,25 @@ BEGIN
 	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
 	,@InvalidMatchId VARCHAR(200) = '' 
 
+	DECLARE @sporttype TINYINT = 1
+	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	DECLARE @tmpEarlyBettypes TABLE(
 		bettype SMALLINT PRIMARY KEY
 	)
 	
-	INSERT INTO @tmpEarlyBettypes(bettype)
-	SELECT	bettype
-	FROM	dbo.f_Set_GetEarlyBettypes()
+	SET @sporttype = (SELECT TOP (1) sporttype 
+					FROM dbo.match WITH (NOLOCK) 
+					WHERE matchid  = @MatchId)
+	
+	-- Check early bettype for soccer only
+	IF @sporttype = 1
+	BEGIN
+		INSERT INTO @tmpEarlyBettypes(bettype)
+		SELECT	bettype
+		FROM	dbo.f_Set_GetEarlyBettypes()
+	END
 	
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
