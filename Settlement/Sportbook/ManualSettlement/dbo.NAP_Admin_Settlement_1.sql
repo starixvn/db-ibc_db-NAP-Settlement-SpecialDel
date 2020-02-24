@@ -82,6 +82,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
+		- 20200221@Sol:	HotFix - Event status of match still Running although there are no tickets running - [Redmine:#128657]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -461,15 +462,14 @@ BEGIN
             */
 			INSERT INTO @status(FTBet, BetCount, InRunning)		
             SELECT    CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 0 ELSE 1 END AS FTBet
-                    ,SUM(CASE 
-                        WHEN statusID IN (101, 102) THEN 0
-                        ELSE 1
-                        END)
-                    ,SUM(CASE 
-                            WHEN statusID = 0 THEN 1
-                            ELSE 0
-                            END)
+                    ,SUM(CASE WHEN statusID IN (101, 102) THEN 0 ELSE 1 END)
+                    ,SUM(CASE WHEN statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END)
             FROM    dbo.bettrans b with (NOLOCK)
+						OUTER APPLY (
+										SELECT TOP 1 mt.transId
+										FROM MarkedTransaction mt WITH(NOLOCK)
+										WHERE b.transid = mt.TransId
+									) mt
             WHERE    b.matchid = @matchid
                     AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
                     AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
