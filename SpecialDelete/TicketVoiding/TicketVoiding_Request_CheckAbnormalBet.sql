@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
 	@MatchId BIGINT
-	@TransIds VARCHAR(MAX) = NULL
+	,@TransIds VARCHAR(MAX) = NULL
 	,@RequestId INT = 0
 )
 AS
