@@ -3,8 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources]
 	@matchid 			   INT
 	,@SportType            INT = 0
 	,@SettleType		   VARCHAR(10) = 'MNL'
-	
-
 AS
 /*
     Created by: 20180802@Vicky
@@ -14,6 +12,7 @@ AS
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190925@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
+		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
 		
 */
 BEGIN
@@ -24,31 +23,61 @@ BEGIN
         	,@BestOfMap TINYINT = NULL
     DECLARE @tmpTicketStatus TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT,  OrdNo INT, IsSpecialBettype TINYINT) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT,  OrdNo INT)
-    DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
-    DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
 
     ---------------------------------------------------------------------------------------------
     IF @SportType =0
         SELECT @SportType = SportType FROM Match WHERE matchID = @matchid
-        
+
+    --Use @BestOfMap for E-sport only
+	SELECT @BestOfMap = BestOfMap
+	FROM [dbo].[match_remark] WITH (NOLOCK) 
+	WHERE matchid = @matchid    
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID
-	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
-	SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
-            COUNT(1) AS BetCount,
-            SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
-            MAX(sp.OrdNo),
-            MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
-    FROM bettrans bt WITH (NOLOCK)
-		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
-    WHERE bt.matchid = @matchid
-    	AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
-		AND bt.statusID NOT IN (101, 102) --void/reject
-		AND sp.sporttype = @SportType
-		AND (sp.Settletype = 'MNL' OR sp.Settletype = @SettleType)	
-    GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END 
-	
+	IF (@SportType = 43 AND @SettleType = 'EAR')
+	BEGIN
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
+		SELECT  sp.ResourceID AS ResourceID,
+				SUM(CASE WHEN bt.transid IS NOT NULL THEN 1 ELSE 0 END) AS BetCount,
+				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
+				MAX(sp.OrdNo),
+				0 AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+		FROM DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
+			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = o.Bettype and sp.BetID = '8' + o.Resourceid 
+			OUTER APPLY 
+			(
+				SELECT bt.transid, bt.statusID
+				FROM bettrans bt WITH (NOLOCK) 
+				WHERE bt.matchid = o.matchid
+					AND bt.bettype = o.bettype
+					AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
+					AND bt.statusID NOT IN (101, 102) --void/reject
+			) bt
+		WHERE o.matchid = @matchid
+			AND sp.sporttype = @SportType
+			AND sp.Settletype = @SettleType
+			AND SUBSTRING(sp.ResourceID, 5, 2) <= @BestOfMap
+		GROUP BY sp.ResourceID
+	END
+	ELSE 
+	BEGIN
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
+		SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
+				COUNT(1) AS BetCount,
+				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
+				MAX(sp.OrdNo),
+				MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+		FROM bettrans bt WITH (NOLOCK)
+			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
+		WHERE bt.matchid = @matchid
+    		AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
+			AND bt.statusID NOT IN (101, 102) --void/reject
+			AND sp.sporttype = @SportType
+			AND sp.Settletype = @SettleType	
+		GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END
+	END
+
 	IF @Settletype <> 'MNL'
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, OrdNo)
@@ -66,12 +95,6 @@ BEGIN
 	    GROUP BY sp.ResourceID
 	END
 	
-    /*DELETE p
-    FROM @tmpTicketStatusParlay p
-    	INNER JOIN dbo.f_Set_MajorRound(@sporttype) mr ON mr.ResourceID = p.ResourceID
-    WHERE mr.isFinal <> 1
-    */
-	
 	---INSERT for Major score
 	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
@@ -82,11 +105,6 @@ BEGIN
     ---return
     IF @Sporttype = 43
     BEGIN
-
-		--Use @BestOfMap for E-sport only
-		SELECT @BestOfMap = BestOfMap
-		FROM [dbo].[match_remark] WITH (NOLOCK) 
-		WHERE matchid = @matchid
 	
 		IF @BestOfMap IS NOT NULL
 		BEGIN
@@ -107,16 +125,10 @@ BEGIN
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
 	                ELSE 'Calculated' END AS TicketStatus 
 	  	FROM @tmpTicketStatus bt
-	  			FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
-		  		OUTER  APPLY(
-		  			SELECT HomeValue, 
-		    			AwayValue, 
-		    			ResultStatusID, 
-		    			SettlementStatusID
-		  			FROM DBPRO.bodb02.dbo.ResultDetailES rd WITH (NOLOCK) 
-		  			WHERE COALESCE(bt.ResourceID,p.ResourceID) = rd.ResourceID
-		  				AND rd.matchid = @matchid
-		  		) AS rs
+	  			FULL JOIN @tmpTicketStatusParlay p ON bt.resourceId = p.ResourceID
+		  		LEFT JOIN DBPRO.bodb02.dbo.ResultDetailES rs WITH (NOLOCK)  
+					ON COALESCE(bt.ResourceID,p.ResourceID) = rs.ResourceID
+		  				AND rs.matchid = @matchid
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 	END
 	

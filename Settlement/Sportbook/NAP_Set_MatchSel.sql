@@ -44,6 +44,7 @@ AS
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
       
  Param explanation:  
 	@MatchCode: match code
@@ -82,7 +83,6 @@ BEGIN
 			SET @existSettingEarly = 1
 		END
 	END
-	
 	
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF (@matchcode <> '')
@@ -196,7 +196,7 @@ BEGIN
 		,@intDocHandle INT
 		,@rowcount INT
 		,@max_matchid INT
-	DECLARE @tmp_match TABLE (matchid INT)
+	DECLARE @tmp_ESportMatch TABLE (matchid INT)
 
 	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore ,IsCalculated ,IsMultiCaled ,IsRefund ,IsCalRefund ,matchid ,leagueid ,homeid ,awayid ,matchcode ,kickofftime ,finalhomescore ,finalawayscore 
 		,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
@@ -588,6 +588,20 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 
+	IF (@SportType = 43)
+	BEGIN
+
+		INSERT INTO @tmp_ESportMatch(MatchId)
+		SELECT DISTINCT m.MatchId
+		FROM DBPRO.BODB02.dbo.oddsES o WITH (NOLOCK)
+				INNER JOIN f_Set_GetEarlyBettypes() f
+					ON o.bettype = f.bettype
+				INNER JOIN #matchList m 
+					ON m.matchid = o.matchid 
+		WHERE m.sporttype = 43
+
+	END
+
 	SELECT	m.HalfTimeHomeScore
 			,m.HalfTimeAwayScore
 			,m.IsCalculated
@@ -626,7 +640,7 @@ BEGIN
 			END AS AutoSettleFastMarket
 			
 			,CASE
-				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 AND m.ChildMatchType IN (202) THEN 'No Ticket' 
+				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL) THEN 'No Ticket' 
 				WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 THEN 'N/A' 
 				WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
 				WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
@@ -638,8 +652,11 @@ BEGIN
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
 	FROM	#matchList m
-		LEFT JOIN #tempmatch t 
-			ON	t.matchid = m.matchid
+			LEFT JOIN #tempmatch t 
+				ON	t.matchid = m.matchid
+			LEFT JOIN @tmp_ESportMatch te
+				ON te.matchid = m.matchid
+				
 	ORDER BY case m.eventstatus when 'completed' then 1 when 'refund' then 1 else 0 END
 		, m.eventdate
 		, m.kickofftime
