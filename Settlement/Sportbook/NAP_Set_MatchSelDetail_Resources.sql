@@ -40,10 +40,12 @@ BEGIN
     --count ticket and group by Bettype and BetID
 	IF (@SportType = 43 AND @SettleType = 'EAR')
 	BEGIN
-		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT  sp.ResourceID AS ResourceID,
 				SUM(CASE WHEN bt.transid IS NOT NULL THEN 1 ELSE 0 END) AS BetCount,
-				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 OR bt.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount,
+				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
 				0 AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
 		FROM DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
@@ -57,6 +59,8 @@ BEGIN
 					AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 					AND bt.statusID NOT IN (101, 102) --void/reject
 			) bt
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+				ON	bt.transid = mt.TransId
 		WHERE o.matchid = @matchid
 			AND sp.sporttype = @SportType
 			AND sp.Settletype = @SettleType
@@ -65,40 +69,25 @@ BEGIN
 	END
 	ELSE 
 	BEGIN
-		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo, IsSpecialBettype)
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
 				COUNT(1) AS BetCount,
-				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 OR bt.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount,
+				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
 				MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
 		FROM bettrans bt WITH (NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+				ON	bt.transid = mt.TransId
 		WHERE bt.matchid = @matchid
     		AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 			AND bt.statusID NOT IN (101, 102) --void/reject
 			AND sp.sporttype = @SportType
-			AND sp.Settletype = @SettleType	
+			AND (sp.Settletype = @SettleType)	
 		GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END
 	END
-
-	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo, IsSpecialBettype)
-	SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
-            COUNT(1) AS BetCount,
-            SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
-			SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 OR bt.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount,
-			SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
-            MAX(sp.OrdNo),
-            MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
-    FROM bettrans bt WITH (NOLOCK)
-		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
-		LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-			ON	bt.transid = mt.TransId
-    WHERE bt.matchid = @matchid
-    	AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
-		AND bt.statusID NOT IN (101, 102) --void/reject
-		AND sp.sporttype = @SportType
-		AND (sp.Settletype = @SettleType)	
-    GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END 
 	
 	IF @Settletype <> 'MNL'
 	BEGIN
