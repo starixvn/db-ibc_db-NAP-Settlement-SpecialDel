@@ -16,6 +16,7 @@ AS
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190520@Raymond.Le: Mark Tickets - Not allow to mark Waiting [113518]
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
+		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 	Explanation's Param:
 */
 BEGIN
@@ -284,8 +285,8 @@ CREATE TABLE #tmpRefCodeSummary
 				  FROM dbo.MarkedTransaction m WITH(NOLOCK) 
 				  WHERE m.TransId = t.transid)
 
-	-- delete Tickets is not Soccer
-	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2)
+	-- delete Tickets is not Soccer, Basketball, Esport, Badminton and Tennis
+	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2, 5, 9, 43)
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t
