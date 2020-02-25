@@ -18,6 +18,7 @@ AS
 		- 20170123@Kathy: Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -25,6 +26,7 @@ AS
 			+ 2: Inst Calculation
 			+ 3: Fast Market
 			+ 4: BetBuilder
+			+ 5: Auto Payout - Direct
 */
 BEGIN
 	SET NOCOUNT ON
@@ -41,6 +43,7 @@ BEGIN
 									WHEN @AutoType = 2 THEN 181
 									WHEN @AutoType = 3 THEN 184
 									WHEN @AutoType = 4 THEN 81007
+									WHEN @AutoType = 5 THEN 160
 									ELSE -1 
 								END
 	
@@ -61,6 +64,15 @@ BEGIN
 								ELSE CASE WHEN @AutoSetting >= (POWER(2,@AutoType - 1)) THEN @AutoSetting ^ (POWER(2,@AutoType - 1))  ELSE @AutoSetting END
 							END
 
+	-- turn off bit 1 or 5
+	SELECT @AutoSetting =
+							CASE WHEN @AutoType IN (1, 5) THEN 
+																CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
+																	ELSE @AutoSetting & 238
+																END
+								ELSE @AutoSetting 
+							END
+
 	--check match <> running
 	IF EXISTS (
 		SELECT TOP 1 1 
@@ -68,7 +80,7 @@ BEGIN
 		WHERE matchid = @MatchId 
 			AND sporttype = 1 
 			AND 1 = CASE 
-					WHEN @AutoType = 1 AND eventstatus = 'completed' THEN 1
+					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
 					WHEN @AutoType = 2 AND eventstatus NOT IN ('running', 'closed', 'Refund HT') THEN 1
 					ELSE 0 
 				END

@@ -32,6 +32,7 @@ AS
 		- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Corect @HTDone value [Redmine:#115232]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
+		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		
 	Param's Explanation:
 		 
@@ -291,7 +292,13 @@ BEGIN
  
 	EXEC dbo.WriteLog_UserLog @UserID = @creator, @Doing = @LogData
 		
-	SELECT @Remark ='NAP: ' + 'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> '
+	SELECT @Remark ='NAP: ' 
+							+ CASE 
+									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
+									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+									ELSE ''
+								END
+							+ 'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> '
 							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 

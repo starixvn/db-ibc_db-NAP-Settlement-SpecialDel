@@ -20,6 +20,7 @@ AS
 		- 20170123@Kathy: Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -30,6 +31,7 @@ AS
 			+ 2: Inst Calculation
 			+ 3: Fast Market
 			+ 4: BetBuilder
+			+ 5: Auto Payout - Direct
  
 */
 BEGIN
@@ -50,6 +52,7 @@ BEGIN
 									WHEN @AutoType = 2 THEN 180
 									WHEN @AutoType = 3 THEN 183
 									WHEN @AutoType = 4 THEN 81006
+									WHEN @AutoType = 5 THEN 159
 									ELSE -1 
 								END
 
@@ -70,6 +73,15 @@ BEGIN
 										ELSE CASE WHEN @AutoSettingForLeague >= (POWER(2,@AutoType - 1)) THEN @AutoSettingForLeague ^ (POWER(2,@AutoType - 1))  ELSE @AutoSettingForLeague END
 									END
 	
+	-- turn off bit 1 or 5
+	SELECT @AutoSettingForLeague =
+							CASE WHEN @AutoType IN (1, 5) THEN 
+																CASE WHEN @IsEnabled = 1 THEN @AutoSettingForLeague & (238 + POWER(2,@AutoType - 1)) 
+																	ELSE @AutoSettingForLeague & 238
+																END
+								ELSE @AutoSettingForLeague 
+							END
+
 	--update setting on league
 	UPDATE	dbo.League WITH(ROWLOCK, UPDLOCK)
 		SET AutoSetting = @AutoSettingForLeague
@@ -85,19 +97,26 @@ BEGIN
 								
 	IF @IsApplyAll = 1
 	BEGIN
-		--update running match
+		--update running match and turn off bit 1 or 5
 		UPDATE m
 			SET @AutoSetting = ISNULL(m.AutoSetting,0)
-				,AutoSetting = CASE 
+				,@AutoSetting = CASE 
 									WHEN @IsEnabled = 1 THEN @AutoSetting | POWER(2,@AutoType - 1) 
-									ELSE CASE WHEN @AutoSetting  >= (POWER(2,@AutoType - 1)) THEN @AutoSetting ^ (POWER(2,@AutoType - 1))  ELSE @AutoSetting END
+									ELSE CASE WHEN @AutoSetting & (POWER(2,@AutoType - 1)) = 0 THEN @AutoSetting ELSE @AutoSetting ^ (POWER(2,@AutoType - 1)) END
 								END
+				,@AutoSetting = CASE WHEN @AutoType IN (1, 5) THEN 
+																CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
+																	ELSE @AutoSetting & 238
+																END
+								ELSE @AutoSetting 
+							END
+				,AutoSetting = @AutoSetting
 		OUTPUT  deleted.matchid INTO @tmpUpdatedMatches (matchid)
 		FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
 		WHERE	m.leagueid 	= @LeagueId 
 				AND sporttype 	= 1 
 				AND 1 = CASE 
-							WHEN @AutoType IN (1,3) AND eventstatus <> 'completed' THEN 1
+							WHEN @AutoType IN (1,3,5) AND eventstatus <> 'completed' THEN 1
 							WHEN @AutoType = 2 AND eventstatus IN ('running', 'closed') THEN 1
 							WHEN @AutoType = 4 THEN 1
 							ELSE 0 
