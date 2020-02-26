@@ -64,6 +64,7 @@ BEGIN
 		, ta.IsConfirm
 		, f.GroupName
 		, mt.UserId
+		, c.username
 	ORDER BY m.kickofftime
 		, mt.MatchId
 		, mt.bettype
