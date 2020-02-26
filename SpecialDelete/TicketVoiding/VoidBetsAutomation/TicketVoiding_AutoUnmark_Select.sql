@@ -25,7 +25,8 @@ BEGIN
 		, mt.bettype
 		, COUNT(mt.TransId) AS MarkedTrans
 		, ISNULL(ta.IsConfirm, 0) AS IsConfirm
-		, mt.UserId AS MarkedBy
+		, mt.UserId
+		, c.username AS MarkedBy
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mt.TransId = b.transid
@@ -48,6 +49,7 @@ BEGIN
 						AND t.Bettype = mt.bettype
 				)ta
 		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId
 	WHERE m.sporttype IN (1)
 		AND b.statusID NOT IN (101, 102)
 	GROUP BY mt.MatchId
