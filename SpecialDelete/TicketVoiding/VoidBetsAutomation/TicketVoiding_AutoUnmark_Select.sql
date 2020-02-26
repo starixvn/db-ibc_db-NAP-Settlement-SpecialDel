@@ -7,7 +7,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20200212@Max: Create new SP [Redmine: #128359]	
+		- 20200212@Max: Create new SP [Redmine: #128359]
+		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 	
 	Param's explanation:	
 	
@@ -24,6 +25,7 @@ BEGIN
 		, mt.bettype
 		, COUNT(mt.TransId) AS MarkedTrans
 		, ISNULL(ta.IsConfirm, 0) AS IsConfirm
+		, mt.UserId AS MarkedBy
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mt.TransId = b.transid
@@ -59,9 +61,11 @@ BEGIN
 		, mt.bettype
 		, ta.IsConfirm
 		, f.GroupName
+		, mt.UserId
 	ORDER BY m.kickofftime
 		, mt.MatchId
 		, mt.bettype
 		, f.GroupName
+		, ta.IsConfirm
 
 END

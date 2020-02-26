@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 (
 	@Matchid		 INT,
 	@Bettype		 SMALLINT,
+	@MarkedBy		 INT,
 	@UserId          INT           = 0,
     @Username        NVARCHAR(100) = '',
     @IP              VARCHAR(15)   = NULL,
@@ -20,6 +21,7 @@ AS
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200221@Max: HotFix [Redmine: #128924]
+		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 		
 	Param's explanation:	
 		
@@ -78,6 +80,7 @@ BEGIN
 		AND mt.bettype = @Bettype
 		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
 		AND b.statusID IN (0, 1)
+		AND mt.UserId = @MarkedBy
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
