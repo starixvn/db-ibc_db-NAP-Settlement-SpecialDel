@@ -1,5 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
+(
+	@MatchId		INT				= NULL
+	,@Sporttype		VARCHAR(100)	= ''
+	,@IsExcludeTest BIT				= 1
+)
 AS
 /*	Created by: Max
 	Date 20200212
@@ -10,6 +15,8 @@ AS
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 		- 20200302@Max: Hot fix - Order By IsConfirm [Redmine : #129214]
+		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
+
 	
 	Param's explanation:	
 	
@@ -44,10 +51,12 @@ BEGIN
 		, mt.MarkedTrans
 		, mt.UserId
 		, c.username AS MarkedBy
+		, m.sporttype
 		, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
 			   ELSE 1 END AS IsConfirm
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 		OUTER APPLY (
 							SELECT TOP 1 m.hthomescore, m.htawayscore
 							FROM dbo.match_remark mr WITH (NOLOCK)
@@ -72,6 +81,14 @@ BEGIN
 			)ta_tmp		
 		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId
+		CROSS APPLY (SELECT val AS sporttype
+						FROM dbo.f_SplitString(@Sporttype, ',')
+						WHERE val = m.sporttype
+					) AS tmp
+	WHERE tmp.sporttype IN (1, 2, 9 ,43)
+		AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+		AND ((@MatchId IS NOT NULL AND m.matchid = @MatchId) OR @MatchId IS NULL)
+		, m.sporttype
 	ORDER BY m.kickofftime
 		, mt.MatchId
 		, mt.bettype

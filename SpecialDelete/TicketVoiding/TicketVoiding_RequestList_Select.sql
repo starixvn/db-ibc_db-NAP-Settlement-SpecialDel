@@ -1,5 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
+(
 	@RequestId		INT			= NULL
 	,@MatchId		INT			= NULL
 	,@FromDate		DATETIME	= NULL
@@ -7,7 +8,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
 	,@IssueTypeId	TINYINT			= 0
-
+	,@SubIssueType  VARCHAR(100) = ''
+)
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -18,6 +20,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200103@Max: Enhance EKO Issue Type - [Redmine: #126418]
+		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 
 	Param's explanation:	
 		@Status: 
@@ -133,6 +136,10 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			CROSS APPLY (SELECT val AS SubIssueTypeId
+						FROM dbo.f_SplitString(@SubIssueType, ',')
+						WHERE val = r.SubIssueTypeId
+					) AS tmp
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
@@ -160,6 +167,10 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			CROSS APPLY (SELECT val AS SubIssueTypeId
+						FROM dbo.f_SplitString(@SubIssueType, ',')
+						WHERE val = r.SubIssueTypeId
+					) AS tmp
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
