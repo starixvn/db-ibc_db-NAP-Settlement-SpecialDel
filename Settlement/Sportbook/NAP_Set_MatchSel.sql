@@ -44,7 +44,8 @@ AS
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
-		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
+		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [Redmine:#128069]
+		- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
       
  Param explanation:  
 	@MatchCode: match code
@@ -657,7 +658,11 @@ BEGIN
 			LEFT JOIN @tmp_ESportMatch te
 				ON te.matchid = m.matchid
 				
-	ORDER BY case m.eventstatus when 'completed' then 1 when 'refund' then 1 else 0 END
+	ORDER BY CASE 
+				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
+				WHEN m.eventstatus = 'refund' THEN 1 
+				ELSE 0 
+			END
 		, m.eventdate
 		, m.kickofftime
 		, m.sporttype

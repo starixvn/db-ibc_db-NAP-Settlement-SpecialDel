@@ -45,6 +45,7 @@ AS
 	- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 	- 20190528@Sol: Auto payout phase 3 - Removed unused field IsNeedToCalculateFGLG [Redmine:#116073]
 	- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
+	- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -746,7 +747,11 @@ BEGIN
 		)ss
 	WHERE 1 = CASE WHEN @IsHTOverOnly = 1 OR @IsOverOnly = 1 THEN CASE WHEN m.BetCount > 0 THEN 1 ELSE 0 END
 				ELSE 1 END
-	ORDER BY CASE m.eventstatus WHEN 'Completed' THEN 1 WHEN 'Refund' THEN 1 ELSE 0 END
+	ORDER BY CASE 
+				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
+				WHEN m.eventstatus = 'refund' THEN 1 
+				ELSE 0 
+			END
 		, m.eventdate
 		, m.kickofftime
 		, m.sporttype
