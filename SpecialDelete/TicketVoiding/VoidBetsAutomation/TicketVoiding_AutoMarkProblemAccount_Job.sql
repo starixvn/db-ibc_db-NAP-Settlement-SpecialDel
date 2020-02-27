@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_AutoMarkProblemAccount_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoMarkProblemAccount_Job]
 (
 	@UserId		INT = 10278938
 	,@UserName		VARCHAR(100) = 'starixIT'
@@ -18,6 +18,12 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 	
 	Param's explanation:	
+	
+	Sample execution:
+		DECLARE @ErrCode			INT				= 0		
+				,@ErrMsg			VARCHAR(300)	= ''	
+		EXEC TicketVoiding_AutoMarkProblemAccount_Job @ErrCode = @ErrCode OUT,@ErrMsg = @ErrMsg 
+
 */
 BEGIN
 	DECLARE @query NVARCHAR(MAX) = ''
@@ -41,10 +47,11 @@ BEGIN
 	DECLARE @Matchid_Final AS TABLE (Matchid INT, ID INT IDENTITY(1,1))
 	
 	DECLARE @tmpAutoTransIDBatch TABLE (TransId	BIGINT)
-	CREATE TABLE #Transid_Mark (Matchid INT, Transid BIGINT,custID INT, IsFinish BIT)
-	CREATE TABLE #Transid_UnMark (Matchid INT, Transid BIGINT,custID INT, IsFinish BIT)
-	CREATE TABLE #ProblemAccount_tmp (CustID INT)
-	CREATE TABLE #MatchRunning_tmp (Matchid INT)
+	DECLARE @transid_Mark AS TABLE (Matchid INT, Transid BIGINT,custID INT, IsFinish BIT)
+	DECLARE @Transid_UnMark AS TABLE (Transid BIGINT, IsFinish BIT)
+	CREATE TABLE #Transid_UnMark_tmp (Transid BIGINT)
+	
+	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
 		
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
@@ -58,47 +65,42 @@ BEGIN
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
 								FROM dbo.ProblemAccount WITH (NOLOCK)	
-								WHERE Reasonid = 109 AND Actionid = 2 '
+								WHERE Actionid = 2 and SubIssueTypeId = 38'
 	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
 
-	INSERT INTO #ProblemAccount_tmp (CustID)
+	INSERT INTO @ProblemAccount_tmp (CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-
-	IF EXISTS (SELECT TOP (1) 1 FROM #ProblemAccount_tmp)
+	
+	IF @@ROWCOUNT > 0
 	BEGIN
-		-- get running match
-		INSERT INTO #MatchRunning_tmp (Matchid)
-		SELECT matchid
-		FROM match m WITH (NOLOCK)
-		WHERE eventstatus <> 'complete'
-			AND m.sporttype IN (1, 2, 9, 43)
+		INSERT INTO @Transid_Mark (transid, Matchid)
+		SELECT b.transid, b.matchid
+		FROM @ProblemAccount_tmp t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
+			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'complete'
+			OUTER APPLY (SELECT TOP 1 transid
+						FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+						WHERE  mt.transid = b.transid
+						) AS mt_tmp
+		WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
+			AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+			
+		OPTION (MAXDOP 1)
+	
+		SET @Mark_cnt = @@ROWCOUNT
 		
+		IF @Mark_cnt > 0
+		BEGIN
+			INSERT INTO @Matchid_Final (Matchid)
+			SELECT DISTINCT matchid
+			FROM @Transid_Mark
+			
+			SET @end = (SELECT MAX(ID) FROM @Matchid_Final )
+			
+		END
 	END
 	
-	INSERT INTO #Transid_Mark (transid, Matchid,custID)
-	SELECT b.transid, b.matchid,b.custid
-	FROM #MatchRunning_tmp m
-		INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON m.Matchid = b.matchid 
-		CROSS APPLY (SELECT TOP 1 custid
-					 FROM #ProblemAccount_tmp t
-					 WHERE t.custid IN (b.custid, b.srecommend, b.mrecommend, b.recommend)
-					 ) AS tmp
-		OUTER APPLY (SELECT TOP 1 transid
-					 FROM  dbo.MarkedTransaction mt WITH (NOLOCK)
-					 WHERE mt.transid = b.transid
-					 ) AS mt_tmp
-	WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
-		AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
-	
-	SET @Mark_cnt = @@ROWCOUNT
-	
-	INSERT INTO @Matchid_Final (Matchid)
-	SELECT DISTINCT matchid
-	FROM #Transid_Mark
-	
 	--Step 1: Mark Ticket Problem Account
-	SET @end = (SELECT MAX(ID) FROM @Matchid_Final )
-	
 	IF @Mark_cnt > 0
 	BEGIN
 		WHILE @start <= @end
@@ -114,7 +116,7 @@ BEGIN
 				OUTPUT DELETED.TransId
 						
 				INTO @tmpAutoTransIDBatch(TransId)
-				FROM #Transid_Mark t 
+				FROM @Transid_Mark t 
 				WHERE isFinish IS NULL
 					AND t.Matchid = @matchid
 				
@@ -140,19 +142,23 @@ BEGIN
 		END	
 	END
 	--Step 2: Unmark ticket not belong problem account, status running only, mark by auto system
-	INSERT INTO #Transid_UnMark (transid, Matchid,custID)
-	SELECT b.transid, b.matchid,b.custid
-	FROM #MatchRunning_tmp m
-		INNER JOIN dbo.MarkedTransaction mt WITH (NOLOCK) ON m.Matchid = mt.MatchId
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mt.TransId = b.transid
-		OUTER APPLY (SELECT TOP 1 custid
-					 FROM #ProblemAccount_tmp t
-					 WHERE t.custid IN (b.custid, b.srecommend, b.mrecommend, b.recommend)
-					 ) AS tmp
-	WHERE b.statusID = 0 AND tmp.CustID IS NULL
+	INSERT INTO #Transid_UnMark_tmp (transid)
+	SELECT mt.transid
+	FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+		LEFT JOIN @ProblemAccount_tmp t ON t.custid = mt.custid
+	WHERE t.CustID IS NULL 
 		AND mt.MarkType = 2
 	
-	SET @Unmark_cnt = @@ROWCOUNT	
+	IF @@ROWCOUNT > 0
+	BEGIN
+		INSERT INTO @Transid_UnMark (Transid)
+		SELECT b.transid
+		FROM #Transid_UnMark_tmp  um
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON um.Transid = b.transid
+		WHERE b.statusID = 0
+		
+		SET @Unmark_cnt = @@ROWCOUNT	
+	END
 	
 	IF @Unmark_cnt > 0
 	BEGIN	
@@ -166,7 +172,7 @@ BEGIN
 			OUTPUT DELETED.TransId
 					
 			INTO @tmpAutoTransIDBatch(TransId)
-			FROM #Transid_UnMark t 
+			FROM @Transid_UnMark t 
 			WHERE isFinish IS NULL
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -174,7 +180,7 @@ BEGIN
 			SELECT @TransIds_tmp = STUFF((SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 											FROM @tmpAutoTransIDBatch tp
 											GROUP BY TransId for XML PATH('')), 1, 1, '')
-				
+			
 			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds_tmp
 				,@UserId = @UserId
 				,@Username = @UserName
@@ -187,10 +193,8 @@ BEGIN
 		END
 	END
 	
-	DROP TABLE #MatchRunning_tmp
-	DROP TABLE #ProblemAccount_tmp
-	DROP TABLE #Transid_Mark
-	DROP TABLE #Transid_UnMark
+	DROP TABLE #Transid_UnMark_tmp
+	
 END		
 GO		
 					
