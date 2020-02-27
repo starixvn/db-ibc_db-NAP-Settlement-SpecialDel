@@ -78,7 +78,7 @@ BEGIN
 	INSERT INTO #Transid_Mark (transid, Matchid,custID)
 	SELECT b.transid, b.matchid,b.custid
 	FROM #MatchRunning_tmp m
-		INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON m.Matchid = b.matchid AND m.custid = b.custid
+		INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON m.Matchid = b.matchid 
 		CROSS APPLY (SELECT TOP 1 custid
 					 FROM #ProblemAccount_tmp t
 					 WHERE t.custid IN (b.custid, b.srecommend, b.mrecommend, b.recommend)
@@ -126,7 +126,7 @@ BEGIN
 					
 				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @TransIds_tmp, @UserId = @UserId
 																, @Username = @UserName, @IP = @IP
-																, @RequestId = @RequestId, @MarkType = 2
+																, @MarkType = 2
 																,@ErrMsg = @ErrMsg OUTPUT
 																,@ErrCode = @ErrCode OUTPUT;
 																
