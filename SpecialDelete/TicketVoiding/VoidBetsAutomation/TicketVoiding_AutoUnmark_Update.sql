@@ -47,8 +47,8 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
 	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
-	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId)
-	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId)
+	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId, MarkedBy)
+	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId, @MarkedBy)
 
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)

@@ -47,6 +47,7 @@ BEGIN
 					FROM TicketVoiding_AutoUnmarkSetting t WITH (NOLOCK)
 					WHERE t.Matchid = mt.MatchId
 						AND t.Bettype = mt.bettype
+						AND t.MarkedBy = mt.UserId
 				)ta
 		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId
