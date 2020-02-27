@@ -1,10 +1,9 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VARCHAR(MAX)  = NULL,
                                                              @UserId          INT           = 0,
                                                              @Username        NVARCHAR(100) = '',
                                                              @IP              VARCHAR(15)   = NULL,
+                                                             @MarkType		  TINYINT		= 0,
 															 @RequestId		  INT			= NULL,
                                                              @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
@@ -22,6 +21,8 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
+		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		
 */
 BEGIN
      SET NOCOUNT ON;
@@ -333,16 +334,17 @@ BEGIN
              BetType,
              CustId,
              UserId,
-             CreatedDate
+             CreatedDate,
+             MarkType 
             )
     SELECT t.TransId,
             t.MatchId,
             t.BetType,
             t.CustId,
             @UserId,
-            CURRENT_TIMESTAMP
+            CURRENT_TIMESTAMP,
+            @MarkType
     FROM #Tickets t; 
-
 	-- Release Match
      EXEC dbo.NAP_Admin_CheckingProcess
           @isExistMatch = @isExistMatch,

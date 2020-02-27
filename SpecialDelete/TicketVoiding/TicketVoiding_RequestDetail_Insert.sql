@@ -7,7 +7,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@TransIds VARCHAR(MAX) = NULL
 	,@UserId		INT
 	,@IP			VARCHAR(50)	= NULL
-	
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -21,6 +20,7 @@ AS
 		- 20200213@Charles: Insert queue for auto void [127398]
 		- 20200213@Helen: Refactor code [Redmine: #127398]
 		- 20200221@Max: HotFix [Redmine: #128924]
+		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 
 	Param's explanation:	
 	
@@ -101,9 +101,11 @@ BEGIN
 				AND  tp.StatusId IN (0, 1) 
 			GROUP BY TransId for XML PATH('')), 1, 1, ''
 			)
+		
 		IF @MarkedTransIds IS NOT NULL
 		BEGIN
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
+															, @MarkType = 1
 		END
 	
 		SELECT @ActionID = ( SELECT R.ActionId FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId)

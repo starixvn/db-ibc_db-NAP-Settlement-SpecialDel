@@ -8,8 +8,17 @@ AS
 	
 	Revisions: 
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
+		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 	
 	Param's explanation:	
+	
+	--[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY')
+	select * from (
+	select 'CAL-HT' as action
+	union all select 'CAL-FT'
+	union all select 'CAL'
+	union all select 'CAL-EARLY') AS t
+	order by action 
 		
 */
 BEGIN
@@ -28,6 +37,8 @@ BEGIN
 			,@NegativeBalanceUsers VARCHAR(MAX)
 			,@QueueIDList		VARCHAR(MAX) = ''
 			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
+			,@TransIDList_tmp	VARCHAR(MAX)= ''
+			,@Sporttype			SMALLINT 
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
 	DECLARE @Subject	NVARCHAR(500) = ''
@@ -36,17 +47,6 @@ BEGIN
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
 		,@title NVARCHAR(200)	= 'AutoVoid: Notification'
-	
-	DECLARE @tmpQueue TABLE (
-		RequestId		INT
-		,QueueId		INT
-		,MatchId		INT
-		,VoidingTypeId	TINYINT
-		,TransIds		VARCHAR(MAX)
-		,UserId			INT
-		,IP				VARCHAR(50)
-		,IsFinished		BIT DEFAULT(0)
-	)
 	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
 	
@@ -66,7 +66,11 @@ BEGIN
 			,ErrMsg = 'No AbnormalBet Request.'
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
-	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0
+		OUTER APPLY (SELECT TOP 1 transid
+					FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+					WHERE mt.MatchId = m.matchid AND mt.MarkType = 2
+					) AS mt_tmp 
+	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0 AND mt_tmp.TransId IS NULL
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
@@ -81,6 +85,7 @@ BEGIN
 				)
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
+					,@Sporttype = sporttype
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
 	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
 	ORDER BY RequestId, Action, Starttime DESC
@@ -90,7 +95,7 @@ BEGIN
 	
 	IF @RequestId = 0 AND @Checktime > GETDATE()
 		RETURN
-	
+		
 	IF @RequestId > 0
 	BEGIN
 		INSERT INTO @tblRequestList (RequestID,Matchid,QueueID)
@@ -126,6 +131,7 @@ BEGIN
 	BEGIN TRY
 		EXEC dbo.TicketVoiding_AutoVoid_Update 
 			@MatchId = @MatchId
+			,@Sporttype = @Sporttype
 			,@UserId = @UserId
 			,@Action = @Action
 			,@RequestIdList = @RequestIdList
@@ -197,8 +203,6 @@ BEGIN
 							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
 				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
 				EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
-				
-				
 				
 			END
 			ELSE
