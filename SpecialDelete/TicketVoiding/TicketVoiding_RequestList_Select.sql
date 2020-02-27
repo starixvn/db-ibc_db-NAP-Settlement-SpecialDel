@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@ToDate		DATETIME	= NULL
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
+	,@IssueTypeId	TINYINT			= 0
 
 AS
 /*	Created by: Kathy
@@ -16,6 +17,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200103@Max: Enhance EKO Issue Type - [Redmine: #126418]
 
 	Param's explanation:	
 		@Status: 
@@ -133,6 +135,7 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
+				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -159,6 +162,7 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
+			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
