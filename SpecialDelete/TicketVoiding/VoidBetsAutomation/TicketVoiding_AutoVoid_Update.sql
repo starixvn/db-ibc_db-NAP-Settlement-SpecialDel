@@ -195,7 +195,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		-- check and create request first for auto mark ticket
+		-- check and create request first for auto mark ticket or marked manually
 		INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
 		SELECT b.transid, b.statuswinlost
 		FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
@@ -204,12 +204,12 @@ BEGIN
 						FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 							INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 						WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-							AND r.ActionId = 1 AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
+							--AND r.ActionId = 1 
+							AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
 						) AS tmp
 			LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype			
 		WHERE mt.MatchId = @MatchId 
-			AND mt.MarkType = 2 
-			AND tmp.RequestId IS NULL
+			AND (tmp.RequestId IS NULL AND MarkType IN (0,2))
 			AND b.statuswinlost IN (0,1,2,3,4)
 			AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
 			
