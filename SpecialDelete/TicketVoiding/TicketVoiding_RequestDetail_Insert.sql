@@ -40,6 +40,7 @@ BEGIN
 			,@Sporttype 		SMALLINT
 
 			,@MarkedTransIds	VARCHAR(MAX)
+			,@Username			NVARCHAR(200)
 			--- param for autovoid queue
 			,@IsTransidHT	BIT = 0
 			,@IsTransidFT	BIT = 0
@@ -91,7 +92,7 @@ BEGIN
 	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds
 
 	-- Insert queue for auto void
-	IF @IssueTypeId = 11 AND @Sporttype = 1
+	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43)
 	BEGIN
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
@@ -104,7 +105,8 @@ BEGIN
 		
 		IF @MarkedTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
+			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = '125.227.140.97', @RequestId = @RequestId
 															, @MarkType = 1
 		END
 	
