@@ -30,8 +30,6 @@ BEGIN
 	WHERE m.sporttype IN (1)
 		AND b.statusID NOT IN (101, 102)
 	GROUP BY mt.MatchId
-		, m.homeid
-		, m.awayid
 		, mt.bettype
 		, mt.UserId
 	
