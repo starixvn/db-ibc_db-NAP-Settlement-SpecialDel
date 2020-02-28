@@ -78,7 +78,7 @@ BEGIN
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 		OUTER APPLY (SELECT TOP 1 transid
 					FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-					WHERE mt.MatchId = m.matchid AND mt.MarkType = 2
+					WHERE mt.MatchId = q.matchid AND mt.MarkType = 2
 					) AS mt_tmp 
 	WHERE q.StatusId = 0 
 		AND q.RequestId = 0 
@@ -98,7 +98,7 @@ BEGIN
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId
 					, @Action = Action 
-					, @MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
+					, @MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
 					,@Sporttype = sporttype
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
 	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
