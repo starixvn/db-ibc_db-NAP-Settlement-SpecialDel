@@ -4,8 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoMarkProblemAccount_Job]
 	@UserId		INT = 10278938
 	,@UserName		VARCHAR(100) = 'starixIT'
 	,@IP			VARCHAR(50)		= '125.227.140.97'
-	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	
 )
 AS
 /*
@@ -35,7 +34,18 @@ BEGIN
 		, @matchid INT
 		, @Mark_cnt INT
 		, @Unmark_cnt INT
-		
+		------------ FOR Error LOG ----------
+		, @ErrMsg_tmp VARCHAR(200) = ''
+		, @ErrMsg_Mark			VARCHAR(300)	= ''	
+		, @ErrMsg_UMark			VARCHAR(300)	= ''	
+		, @ErrCode	INT
+		, @StartTime		DATETIME
+		, @EndTime			DATETIME
+		, @LogActionId		INT = 90505
+		, @LogData			VARCHAR(MAX)
+		, @SB_Error			BIT
+			
+	SET @StartTime = GETDATE()
 	SET @IsActiveVoidWinning = (SELECT TOP (1) IsActive 
 								FROM DBCUST.CUSTDB.dbo.ProblemAccountAction WITH (NOLOCK) 
 								WHERE ActionID = 2)
@@ -82,9 +92,13 @@ BEGIN
 						FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 						WHERE  mt.transid = b.transid
 						) AS mt_tmp
+			OUTER APPLY (SELECT TOP 1 au.[Enabled]
+						 FROM dbo.TicketVoiding_AutoMarkService_AutoSetting au WITH (NOLOCK)
+						 WHERE m.matchid = au.MatchID 
+						 ) AS m_auto			
 		WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
-			AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
-			
+				AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+				AND ISNULL(m_auto.[Enabled],1) = 1
 		OPTION (MAXDOP 1)
 	
 		SET @Mark_cnt = @@ROWCOUNT
@@ -92,19 +106,21 @@ BEGIN
 		IF @Mark_cnt > 0
 		BEGIN
 			INSERT INTO @Matchid_Final (Matchid)
-			SELECT DISTINCT matchid
-			FROM @Transid_Mark
-			
+			SELECT DISTINCT m.Matchid
+			FROM @Transid_Mark m
+				LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue
+			WHERE tv.KeyValue IS NULL
+				
 			SET @end = (SELECT MAX(ID) FROM @Matchid_Final )
 			
 		END
 	END
-	
 	--Step 1: Mark Ticket Problem Account
 	IF @Mark_cnt > 0
 	BEGIN
 		WHILE @start <= @end
 		BEGIN
+		
 			SET @matchid = (SELECT matchid FROM @Matchid_Final WHERE ID = @start)
 			
 			WHILE (1=1)
@@ -126,14 +142,21 @@ BEGIN
 												FROM @tmpAutoTransIDBatch tp
 												GROUP BY TransId for XML PATH('')), 1, 1, '')
 					
-				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @TransIds_tmp, @UserId = @UserId
-																, @Username = @UserName, @IP = @IP
-																, @MarkType = 2
-																,@ErrMsg = @ErrMsg OUTPUT
-																,@ErrCode = @ErrCode OUTPUT;
-																
+				BEGIN TRY
 				
+					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @TransIds_tmp, @UserId = @UserId
+																	, @Username = @UserName, @IP = @IP
+																	, @MarkType = 2
+																	, @ErrMsg = @ErrMsg_tmp OUTPUT
+																	, @ErrCode = @ErrCode OUTPUT;
+																	
+				END TRY
+				BEGIN CATCH
+					SET @ErrMsg_Mark= @ErrMsg_Mark + @ErrMsg_tmp + ' Matchid:' + CAST(@matchid AS VARCHAR(50))
+				END CATCH
+					
 				SET @TransIds_tmp = ''	 
+				SET @ErrMsg_tmp = ''
 				
 			END
 			
@@ -146,8 +169,13 @@ BEGIN
 	SELECT mt.transid
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
 		LEFT JOIN @ProblemAccount_tmp t ON t.custid = mt.custid
+		OUTER APPLY (SELECT TOP 1 au.[Enabled]
+					 FROM dbo.TicketVoiding_AutoMarkService_AutoSetting au WITH (NOLOCK)
+					 WHERE mt.matchid = au.MatchID 
+					 ) AS m_auto
 	WHERE t.CustID IS NULL 
 		AND mt.MarkType = 2
+		AND ISNULL(m_auto.[Enabled],1) = 1
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -181,16 +209,41 @@ BEGIN
 											FROM @tmpAutoTransIDBatch tp
 											GROUP BY TransId for XML PATH('')), 1, 1, '')
 			
-			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds_tmp
-				,@UserId = @UserId
-				,@Username = @UserName
-				,@IP = @IP
-				,@ErrMsg = @ErrMsg OUTPUT
-				,@ErrCode = @ErrCode OUTPUT;
-				
-			SET @TransIds_tmp = ''	 
+			BEGIN TRY
+				EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds_tmp
+					,@UserId = @UserId
+					,@Username = @UserName
+					,@IP = @IP
+					,@ErrMsg = @ErrMsg_tmp OUTPUT
+					,@ErrCode = @ErrCode OUTPUT
+			END TRY
+			BEGIN CATCH
+				SET @ErrMsg_UMark = @ErrMsg_UMark + @ErrMsg_tmp + ' Matchid:'  + CAST(@matchid AS VARCHAR(50)) 
+			END CATCH	
 			
+			SET @TransIds_tmp = ''	 
+			SET @ErrMsg_tmp = ''
 		END
+	END
+	
+	IF @ErrMsg_UMark <> '' OR @ErrMsg_Mark <> ''
+	BEGIN
+		-- Write Erro Log for trace issue later
+		SET @EndTime = GETDATE()
+		
+		SET @LogData = CAST((SELECT	
+								 @LogActionId AS '@LogActionId'
+								,@UserId AS '@UserId'
+								,@IP AS '@IP'
+								,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
+									+ CASE WHEN @ErrMsg_Mark <> '' THEN + ' Mark:' + @ErrMsg_Mark ELSE '' END
+									+ CASE WHEN @ErrMsg_UMark <> '' THEN +' UnMark:' + @ErrMsg_UMark ELSE '' END
+									AS  '@LogData'
+						FOR XML PATH ('r'), ROOT ('root'), TYPE
+		) AS VARCHAR(MAX))
+		
+		EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+		
 	END
 	
 	DROP TABLE #Transid_UnMark_tmp

@@ -19,7 +19,17 @@ AS
 	union all select 'CAL'
 	union all select 'CAL-EARLY') AS t
 	order by action 
-		
+	
+	Notes for early:
+	+ Soccer: 
+		@Action: CAL, UNDO, REFUND,@Action + '-' + 'EARLY'
+		-> queue: ,@Action + '-' + 'EARLY'
+	+ Badminton and Esport:
+		@Action:CAL_EAR, UNDO_EAR, REFUND_EAR
+		-> queue: 'CAL'	
+	+ Basketball:
+		@Action: CAL, UNDO, REFUND
+		-> queue: 'CAL-EARLY'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -53,24 +63,26 @@ BEGIN
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
-	-- update cancel for matchid not having any request abnormal
+	-- update cancel: check abnormalbet and any mark ticket by auto			
 	INSERT INTO @tblMatchid_abnormal (matchid)
 	SELECT DISTINCT rd.matchid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
 	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0
-	 
+					 
 	UPDATE q
 		SET StatusId = 4
-			,ErrMsg = 'No AbnormalBet Request.'
+			,ErrMsg = 'None of AbnormalBet Request AND None of mark ticket by Auto Service.'
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 		OUTER APPLY (SELECT TOP 1 transid
 					FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
 					WHERE mt.MatchId = m.matchid AND mt.MarkType = 2
 					) AS mt_tmp 
-	WHERE m.matchid IS NULL	AND q.StatusId = 0 AND q.RequestId = 0 AND mt_tmp.TransId IS NULL
+	WHERE q.StatusId = 0 
+		AND q.RequestId = 0 
+		AND mt_tmp.TransId IS NULL AND m.matchid IS NULL	
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
@@ -84,7 +96,9 @@ BEGIN
 					ORDER BY Starttime
 				)
 	
-	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId, @Action = Action,@MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
+	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId
+					, @Action = Action 
+					, @MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
 					,@Sporttype = sporttype
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
 	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
@@ -226,7 +240,6 @@ BEGIN
 			END		
 					
 		END
-		
 		RETURN
 	END
 	
@@ -251,9 +264,11 @@ BEGIN
 		WHERE	QueueId <= @QueueId 
 				AND q.MatchId = @MatchId 
 				AND q.StatusId IN (0,1)
-				AND 1 = CASE WHEN @Action = 'CAL' THEN 1
-							 WHEN q.Action = @Action THEN 1
-							 ELSE 0
+				AND 1 = CASE 
+							WHEN QueueId = @QueueId THEN 1	
+							-- Soccer & basketball : Cal manually
+							WHEN @Sporttype IN (1,2) AND @Action = 'CAL' AND q.Action IN ('CAL-HT','CAL-FT') THEN 1
+							ELSE 0
 						END	  
 	END
 END		
