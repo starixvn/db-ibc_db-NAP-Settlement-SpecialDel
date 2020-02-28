@@ -20,6 +20,7 @@ AS
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
+		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
 
 	Param's explanation:	
 	

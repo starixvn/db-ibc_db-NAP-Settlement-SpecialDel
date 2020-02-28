@@ -21,6 +21,7 @@ AS
 		- 20200213@Helen: Refactor code [Redmine: #127398]
 		- 20200221@Max: HotFix [Redmine: #128924]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
 
 	Param's explanation:	
 	
