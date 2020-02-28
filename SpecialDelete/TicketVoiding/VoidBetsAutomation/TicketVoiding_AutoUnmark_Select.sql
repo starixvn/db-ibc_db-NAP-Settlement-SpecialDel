@@ -44,7 +44,7 @@ BEGIN
 		, mt.MarkedTrans
 		, mt.UserId
 		, c.username AS MarkedBy
-		, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0
+		, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
 			   ELSE 1 END AS IsConfirm
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
@@ -76,7 +76,7 @@ BEGIN
 		, mt.MatchId
 		, mt.bettype
 		, f.GroupName
-		, ta_tmp.IsCheck
+		, ta_tmp.IsCheck DESC
 
 	DROP TABLE #MarkedTransaction_tmp
 
