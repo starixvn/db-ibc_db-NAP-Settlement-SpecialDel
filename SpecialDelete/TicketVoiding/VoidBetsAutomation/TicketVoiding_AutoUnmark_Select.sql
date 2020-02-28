@@ -49,6 +49,7 @@ BEGIN
 						AND t.Bettype = mt.bettype
 						AND t.MarkedBy = mt.UserId
 						AND mt.CreatedDate <= t.CreatedDate
+					ORDER BY t.CreatedDate DESC
 				)ta
 		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId
