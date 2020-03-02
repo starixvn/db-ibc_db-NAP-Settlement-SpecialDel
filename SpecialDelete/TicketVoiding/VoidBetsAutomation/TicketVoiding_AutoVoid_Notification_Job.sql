@@ -8,6 +8,7 @@ AS
 	
 	Revisions: 
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
+		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 	
 	Param's explanation:	
 		
@@ -38,9 +39,8 @@ BEGIN
 		IF @@SERVERNAME IN ('DBTRANS')
 		BEGIN
 			-- send letstalk
-			SET @msg = 'TVS: Auto Void Notification 
-			--
-			Matchid still waiting in queue too long: 
+			SET @msg = 'Matchid waiting in queue over 10 minutes: 
+			-------------
 			' 
 			+ @MatchidList_Waiting_10minutes
 			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
