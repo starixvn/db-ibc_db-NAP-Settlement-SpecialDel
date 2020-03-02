@@ -9,7 +9,7 @@ AS
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
-		- 20200302@Max: Hot fix [Redmine : #129214]
+		- 20200302@Max: Hot fix - Order By IsConfirm [Redmine : #129214]
 	
 	Param's explanation:	
 	
@@ -76,8 +76,7 @@ BEGIN
 		, mt.MatchId
 		, mt.bettype
 		, f.GroupName
-		, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
-			ELSE 1 END
+		, ISNULL(ta_tmp.IsCheck, 1) DESC
 
 	DROP TABLE #MarkedTransaction_tmp
 
