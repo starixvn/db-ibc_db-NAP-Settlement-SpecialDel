@@ -9,6 +9,7 @@ AS
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
+		- 20200302@Max: Hot fix - Order By IsConfirm [Redmine : #129214]
 	
 	Param's explanation:	
 	
@@ -16,7 +17,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET NOCOUNT ON
 	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME)
 	INSERT INTO #MarkedTransaction_tmp(MatchId, bettype, UserId, MarkedTrans, CreateDate)
 	SELECT mt.MatchId
@@ -76,7 +76,7 @@ BEGIN
 		, mt.MatchId
 		, mt.bettype
 		, f.GroupName
-		, ta_tmp.IsCheck DESC
+		, ISNULL(ta_tmp.IsCheck, 1) DESC
 
 	DROP TABLE #MarkedTransaction_tmp
 
