@@ -80,7 +80,7 @@ BEGIN
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
 								FROM dbo.ProblemAccount WITH (NOLOCK)	
-								WHERE Reasonid = 109 AND Actionid = 2 '
+								WHERE Actionid = 2 and SubIssueTypeId = 38'
 	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
 
 	INSERT INTO #ProblemAccount_tmp (CustID)
