@@ -46,6 +46,9 @@ BEGIN
 			,@KickOffTime	DATETIME	
 			,@IsCalEarly	BIT = 0
 			
+			, @query NVARCHAR(MAX) = ''
+			, @ExecuteSQL NVARCHAR(MAX) = ''
+			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
@@ -135,8 +138,9 @@ BEGIN
 	)
 	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
-	
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
+	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
+	
 	CREATE TABLE #Transid_mark_void (transid BIGINT,isFinish BIT )
 	CREATE TABLE #Transid_mark_tmp (transid BIGINT, statuswinlost TINYINT)
 	
@@ -195,21 +199,34 @@ BEGIN
 	END
 	ELSE
 	BEGIN
+		
+		SELECT  @query = N''		
+		SELECT	@query = @query + N'SELECT Custid 
+									FROM dbo.ProblemAccount WITH (NOLOCK)	
+									WHERE Actionid = 2 and SubIssueTypeId = 38'
+		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+
+		INSERT INTO @ProblemAccount_tmp (CustID)
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+	
 		-- check and create request first for auto mark ticket or marked manually
 		INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
 		SELECT b.transid, b.statuswinlost
 		FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
 			INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.statusID = 0 
+			CROSS APPLY (SELECT TOP (1) custid
+						FROM @ProblemAccount_tmp pa
+						WHERE pa.CustID = b.CustId ) pa_tmp
 			OUTER APPLY (SELECT TOP 1 rd.RequestId
 						FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 							INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 						WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-							--AND r.ActionId = 1 
+							AND r.ActionId = 1 
 							AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
 						) AS tmp
-			LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype			
+			LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
 		WHERE mt.MatchId = @MatchId 
-			AND (tmp.RequestId IS NULL AND MarkType IN (0,2))
+			AND tmp.RequestId IS NULL
 			AND b.statuswinlost IN (0,1,2,3,4)
 			AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
 			
