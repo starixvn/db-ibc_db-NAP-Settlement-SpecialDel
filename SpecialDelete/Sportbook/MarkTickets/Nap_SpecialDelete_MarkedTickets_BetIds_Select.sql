@@ -16,6 +16,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
+		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 	Explanation's Param:			    
 */
 BEGIN
@@ -280,8 +281,8 @@ SET NOCOUNT ON
 				  FROM dbo.MarkedTransaction m WITH(NOLOCK) 
 				  WHERE m.TransId = t.transid)
 
-	-- delete Tickets is not Soccer
-	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2)
+	-- delete Tickets is not Soccer, Basketball, Esport, Badminton and Tennis
+	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2, 5, 9, 43)
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t
