@@ -78,6 +78,7 @@ AS
 	  - 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 	  - 20191101@Charles: Remove column IsMarked [122187]
 	  - 20191106@Charles: Implement NPM Promotion [122187]
+	  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 
 	 Param's Explanation:   
 	*/
@@ -1467,6 +1468,7 @@ BEGIN
 			,[SecAcceptFlag]  
 			,[transid2]  
 			,[RecommDate]
+			,[epositiontaking]
 	)  
 	SELECT	b.[custid]  
 			,b.[transdate]  
@@ -1530,7 +1532,8 @@ BEGIN
 			,b.[balance]  
 			,0 [SecAcceptFlag]  
 			,0 [transid2]  
-			,NULL [RecommDate]  
+			,NULL [RecommDate]
+			,b.[epositiontaking]
 				
 		FROM dbo.translog b WITH(NOLOCK)  
 			INNER JOIN #BetDelete tmp

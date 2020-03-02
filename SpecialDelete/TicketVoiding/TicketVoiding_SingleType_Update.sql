@@ -24,6 +24,7 @@ AS
 		- 20190605@Kathy: Add keyId = 5 for BetBuilder [Redmine:#106898]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200210@Helen: Hotfix - cashout - not insert 914 [Redmine:#128190]
+		- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 	
 	Param's explanation:	
 		
@@ -292,6 +293,7 @@ BEGIN
 				,[SecAcceptFlag]  
 				,[transid2]  
 				,[RecommDate]
+				,[epositiontaking]
 		)  
 		SELECT	tl.[custid]  
 				,tl.[transdate]  
@@ -355,7 +357,8 @@ BEGIN
 				,tl.[balance]  
 				,0 [SecAcceptFlag]  
 				,0 [transid2]  
-				,NULL [RecommDate] 				
+				,NULL [RecommDate]
+				,tl.[epositiontaking] 				
 			FROM #tmpTransId t
 				INNER JOIN dbo.translog tl WITH(NOLOCK)  
 					ON tl.translogid = t.Refno
