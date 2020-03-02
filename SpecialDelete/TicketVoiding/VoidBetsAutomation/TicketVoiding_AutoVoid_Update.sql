@@ -48,6 +48,7 @@ BEGIN
 			
 			, @query NVARCHAR(MAX) = ''
 			, @ExecuteSQL NVARCHAR(MAX) = ''
+			, @IsActiveVoidWinning BIT = 0
 			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -199,43 +200,52 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		
-		SELECT  @query = N''		
-		SELECT	@query = @query + N'SELECT Custid 
-									FROM dbo.ProblemAccount WITH (NOLOCK)	
-									WHERE Actionid = 2 and SubIssueTypeId = 38'
-		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+		SET @IsActiveVoidWinning = (SELECT TOP (1) IsActive 
+								FROM DBCUST.CUSTDB.dbo.ProblemAccountAction WITH (NOLOCK) 
+								WHERE ActionID = 2)
+								
+		IF @IsActiveVoidWinning = 1
+		BEGIN
+			SELECT  @query = N''		
+			SELECT	@query = @query + N'SELECT Custid 
+										FROM dbo.ProblemAccount WITH (NOLOCK)	
+										WHERE Actionid = 2 and SubIssueTypeId = 38'
+			SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
 
-		INSERT INTO @ProblemAccount_tmp (CustID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-	
-		-- check and create request first for auto mark ticket or marked manually
-		INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
-		SELECT b.transid, b.statuswinlost
-		FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-			INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.statusID = 0 
-			CROSS APPLY (SELECT TOP (1) custid
-						FROM @ProblemAccount_tmp pa
-						WHERE pa.CustID = b.CustId ) pa_tmp
-			OUTER APPLY (SELECT TOP 1 rd.RequestId
-						FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-							INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
-						WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-							AND r.ActionId = 1 
-							AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
-						) AS tmp
-			LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
-		WHERE mt.MatchId = @MatchId 
-			AND tmp.RequestId IS NULL
-			AND b.statuswinlost IN (0,1,2,3,4)
-			AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
-			
-		INSERT INTO #Transid_mark_void (transid)
-		SELECT transid
-		FROM #Transid_mark_tmp
-		WHERE statuswinlost IN (1,2)
+			INSERT INTO @ProblemAccount_tmp (CustID)
+			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 		
-		IF @@ROWCOUNT > 0
+			-- check and create request first for auto mark ticket or marked manually
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
+				SELECT b.transid, b.statuswinlost
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+					INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.statusID = 0 
+					CROSS APPLY (SELECT TOP (1) custid
+								FROM @ProblemAccount_tmp pa
+								WHERE pa.CustID = b.CustId ) pa_tmp
+					OUTER APPLY (SELECT TOP 1 rd.RequestId
+								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
+								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
+									AND r.ActionId = 1 
+									AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
+								) AS tmp
+					LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
+				WHERE mt.MatchId = @MatchId 
+					AND tmp.RequestId IS NULL
+					AND b.statuswinlost IN (0,1,2,3,4)
+					AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
+					
+				INSERT INTO #Transid_mark_void (transid)
+				SELECT transid
+				FROM #Transid_mark_tmp
+				WHERE statuswinlost IN (1,2)
+			END
+		END
+		
+		IF EXISTS (SELECT TOP (1) 1 FROM #Transid_mark_void)
 		BEGIN
 			WHILE (1=1)
 			BEGIN
