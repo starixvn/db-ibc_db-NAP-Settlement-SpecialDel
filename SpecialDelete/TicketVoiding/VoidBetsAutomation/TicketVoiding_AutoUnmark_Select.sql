@@ -33,9 +33,16 @@ BEGIN
 		, MAX(mt.CreatedDate) AS CreatedDate
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mt.TransId = b.transid
-	WHERE m.sporttype IN (1)
+		CROSS APPLY (SELECT val AS sporttype
+						FROM dbo.f_SplitString(@Sporttype, ',')
+						WHERE val = m.sporttype
+					) AS tmp
+	WHERE m.sporttype IN (1, 2 ,9, 43)
 		AND b.statusID NOT IN (101, 102)
+		AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+		AND ((@MatchId IS NOT NULL AND m.matchid = @MatchId) OR @MatchId IS NULL)
 	GROUP BY mt.MatchId
 		, mt.bettype
 		, mt.UserId
@@ -56,7 +63,6 @@ BEGIN
 			   ELSE 1 END AS IsConfirm
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 		OUTER APPLY (
 							SELECT TOP 1 m.hthomescore, m.htawayscore
 							FROM dbo.match_remark mr WITH (NOLOCK)
@@ -80,15 +86,7 @@ BEGIN
 				ORDER BY t.CreatedDate DESC
 			)ta_tmp		
 		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
-		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId
-		CROSS APPLY (SELECT val AS sporttype
-						FROM dbo.f_SplitString(@Sporttype, ',')
-						WHERE val = m.sporttype
-					) AS tmp
-	WHERE tmp.sporttype IN (1, 2, 9 ,43)
-		AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-		AND ((@MatchId IS NOT NULL AND m.matchid = @MatchId) OR @MatchId IS NULL)
-		, m.sporttype
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId	
 	ORDER BY m.kickofftime
 		, mt.MatchId
 		, mt.bettype

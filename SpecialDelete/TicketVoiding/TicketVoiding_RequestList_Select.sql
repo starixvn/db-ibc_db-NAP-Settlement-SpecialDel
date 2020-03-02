@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
 	,@IssueTypeId	TINYINT			= 0
-	,@SubIssueType  VARCHAR(100) = ''
+	,@SubIssueType  VARCHAR(100) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -73,6 +73,16 @@ BEGIN
 
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
+	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
+
+	IF @SubIssueType IS NOT NULL
+	BEGIN
+		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
+		SELECT	val AS TransId
+		FROM	dbo.f_SplitString(@SubIssueType, ',')
+		OPTION (maxrecursion 0) 
+	END
+
 	SELECT	@FilteredBy = CASE
 								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
 								ELSE
@@ -136,13 +146,10 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			CROSS APPLY (SELECT val AS SubIssueTypeId
-						FROM dbo.f_SplitString(@SubIssueType, ',')
-						WHERE val = r.SubIssueTypeId
-					) AS tmp
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
+				AND ((@SubIssueType IS NOT NULL AND r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp)) OR @SubIssueType IS NULL)
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -167,13 +174,10 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			CROSS APPLY (SELECT val AS SubIssueTypeId
-						FROM dbo.f_SplitString(@SubIssueType, ',')
-						WHERE val = r.SubIssueTypeId
-					) AS tmp
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
+			AND ((@SubIssueType IS NOT NULL AND r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp)) OR @SubIssueType IS NULL)
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
