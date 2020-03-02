@@ -4,6 +4,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_AutoMarkService_AutoSetting_Upd]
 	@MatchId		INT
 	,@Enable		BIT = 0			
 	,@UserID		INT
+	,@ErrMsg        NVARCHAR(200) = '' OUTPUT
+    ,@ErrCode       INT           = 0 OUTPUT
 )
 AS
 /*	Created by: Max
@@ -20,16 +22,21 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	UPDATE dbo.TicketVoiding_AutoMarkService_AutoSetting WITH (ROWLOCK)
-	SET Enabled = @Enable
-		,UserID = @UserID
-		,ModifiedDate = GETDATE()
-	WHERE MatchID = @MatchId
+	BEGIN TRY
+		UPDATE dbo.TicketVoiding_AutoMarkService_AutoSetting WITH (ROWLOCK)
+		SET Enabled = @Enable
+			,UserID = @UserID
+			,ModifiedDate = GETDATE()
+		WHERE MatchID = @MatchId
 
-	IF @@ROWCOUNT = 0
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_AutoMarkService_AutoSetting (MatchID, Enabled, UserID)
-		SELECT @MatchId, @Enable, @UserID
-	END
-
+		IF @@ROWCOUNT = 0
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoMarkService_AutoSetting (MatchID, Enabled, UserID)
+			SELECT @MatchId, @Enable, @UserID
+		END
+	END TRY
+	BEGIN CATCH
+		SELECT @ErrCode = ERROR_NUMBER()
+			, @ErrMsg = ERROR_MESSAGE()
+	END CATCH
 END
