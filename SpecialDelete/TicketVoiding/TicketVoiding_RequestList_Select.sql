@@ -149,7 +149,9 @@ BEGIN
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
-				AND ((@SubIssueType IS NOT NULL AND r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp)) OR @SubIssueType IS NULL)
+				AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
+						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
+					ELSE 0 END
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -177,7 +179,9 @@ BEGIN
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
-			AND ((@SubIssueType IS NOT NULL AND r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp)) OR @SubIssueType IS NULL)
+			AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
+						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
+					ELSE 0 END
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
