@@ -21,6 +21,7 @@ AS
 		- 20200213@Charles: Exclude bettypes of early settlement and fast market [Redmine:#127398]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200222@Helen: Hotfix - check early bettype for soccer only [Redmine: #127398]
+		- 20200303@Max: Auto Void Winning Bets - Allow bettype of early settlement -  [Redmine: #129184]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -37,22 +38,11 @@ BEGIN
 	DECLARE @sporttype TINYINT = 1
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-
-	DECLARE @tmpEarlyBettypes TABLE(
-		bettype SMALLINT PRIMARY KEY
-	)
 	
 	SET @sporttype = (SELECT TOP (1) sporttype 
 					FROM dbo.match WITH (NOLOCK) 
 					WHERE matchid  = @MatchId)
 	
-	-- Check early bettype for soccer only
-	IF @sporttype = 1
-	BEGIN
-		INSERT INTO @tmpEarlyBettypes(bettype)
-		SELECT	bettype
-		FROM	dbo.f_Set_GetEarlyBettypes()
-	END
 	
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
@@ -60,7 +50,6 @@ BEGIN
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-		AND NOT EXISTS (SELECT TOP (1) 1 FROM @tmpEarlyBettypes t WHERE pt.bettype = t.bettype) -- Early settlement
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 	-- check valid match id
