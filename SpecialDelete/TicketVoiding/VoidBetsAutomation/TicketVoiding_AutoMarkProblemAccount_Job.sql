@@ -87,7 +87,7 @@ BEGIN
 		SELECT b.transid, b.matchid
 		FROM @ProblemAccount_tmp t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'complete'
+			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'completed'
 			OUTER APPLY (SELECT TOP 1 transid
 						FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 						WHERE  mt.transid = b.transid
