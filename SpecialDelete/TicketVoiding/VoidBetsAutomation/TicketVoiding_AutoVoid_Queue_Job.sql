@@ -49,6 +49,7 @@ BEGIN
 			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
+			,@queue_cnt			TINYINT = 0
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
 	DECLARE @Subject	NVARCHAR(500) = ''
@@ -89,6 +90,7 @@ BEGIN
 		RETURN
 
 	----- Starting auto voiding process: FIFO --------
+	LoopMatch:
 	SET @MatchId = (SELECT TOP (1) q.matchid
 					FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 						LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
@@ -271,6 +273,16 @@ BEGIN
 							ELSE 0
 						END	  
 	END
+	
+	SET @queue_cnt = @queue_cnt + 1
+	
+	IF @queue_cnt <= 10
+	BEGIN
+		WAITFOR DELAY '00:00:00.100'
+		GOTO LoopMatch
+	END	
+	ELSE
+		RETURN
 END		
 GO
 

@@ -35,7 +35,7 @@ BEGIN
 			,@Recalculate_cnt	INT
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
-			
+			,@IsTest			BIT = 0
 			,@IsMatchCalHT	BIT = 0
 			,@IsMatchCalFT_All	BIT = 0
 			
@@ -172,8 +172,9 @@ BEGIN
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE matchid = @MatchId
 	
-	SELECT  @LeagueId = leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime
-	FROM dbo.match WITH (NOLOCK)
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
+	FROM dbo.match m WITH (NOLOCK)
+		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId
 			
 	IF @Action IN ('CAL-EARLY','CAL_EAR')	
@@ -264,7 +265,7 @@ BEGIN
 				
 				-- Create new request here
 				INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
-				SELECT @Sporttype, 38, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, 0, 11
+				SELECT @Sporttype, 38, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
 
 				SET @RequestId = SCOPE_IDENTITY()
 			
