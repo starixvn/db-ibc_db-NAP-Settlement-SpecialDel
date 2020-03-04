@@ -468,6 +468,7 @@ BEGIN
 					AND sub.matchid = @MatchId
 		WHERE	sub.statusID NOT IN (101, 102)
 				AND sub911.bettype = 911
+				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID r WHERE r.TransId = sub.transid)	
 
 		INSERT INTO @tmpCustCashOut_VOID(CustId)
 		SELECT	t.custid
