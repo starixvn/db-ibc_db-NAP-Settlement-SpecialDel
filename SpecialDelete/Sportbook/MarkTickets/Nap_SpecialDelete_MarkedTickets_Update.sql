@@ -21,6 +21,7 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
+		- 20200304@Max: Auto Void Winning Bets - [Redmine: #129184]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -209,6 +210,7 @@ BEGIN
 				    WHERE b.refno = sub911.transid
 						AND b.matchid = sub911.MatchId
 						AND b.bettype NOT IN(911, 912, 913)
+						AND NOT EXISTS (SELECT TOP 1 1 FROM #TransIds r WHERE r.TransId = b.transid)
 				    ) AS b
     END;
 

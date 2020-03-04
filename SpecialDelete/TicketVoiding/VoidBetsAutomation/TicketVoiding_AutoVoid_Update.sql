@@ -358,7 +358,9 @@ BEGIN
 	SELECT	b.transid, b.custid, b.bettype
 			,1 KeyId
 			,1 AS balanceType
-			,1 AS TicketType
+			,CASE 
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
+				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
