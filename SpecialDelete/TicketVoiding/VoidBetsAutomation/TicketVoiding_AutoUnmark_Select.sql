@@ -26,7 +26,7 @@ BEGIN
 	
 	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT)
 
-	IF LEN(@MatchId) <= 10
+	IF LEN(@MatchId) < 10
 	BEGIN
 		INSERT INTO #MarkedTransaction_tmp(MatchId, bettype, UserId, MarkedTrans, CreateDate, MarkType)
 		SELECT mt.MatchId
