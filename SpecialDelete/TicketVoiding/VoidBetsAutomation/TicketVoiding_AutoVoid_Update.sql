@@ -231,7 +231,7 @@ BEGIN
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
 									AND r.ActionId = 1 
-									AND CHARINDEX(CAST(mt.TransId AS VARCHAR(50)), rd.TransIds) > 0
+									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 					LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
 				WHERE mt.MatchId = @MatchId 

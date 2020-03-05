@@ -93,7 +93,7 @@ BEGIN
 			ON b.transid = mt.TransId
 		OUTER APPLY (SELECT TOP 1 custid
 					 FROM #ProblemAccount_tmp t
-					 WHERE t.custid IN (b.custid, b.srecommend, b.mrecommend, b.recommend)
+					 WHERE t.custid = b.custid
 					 ) AS tmp
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype

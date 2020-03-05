@@ -183,7 +183,9 @@ BEGIN
 		SELECT b.transid
 		FROM #Transid_UnMark_tmp  um
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON um.Transid = b.transid
+			LEFT JOIN TicketVoiding_RequestDetail td WITH (NOLOCK) ON CHARINDEX(',' + CAST(b.transid AS VARCHAR(50)) + ',', ','+ td.TransIds + ',') > 0
 		WHERE b.statusID = 0
+			AND td.RequestId IS NULL
 		
 		SET @Unmark_cnt = @@ROWCOUNT	
 	END
