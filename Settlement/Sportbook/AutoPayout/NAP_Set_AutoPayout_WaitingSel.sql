@@ -29,6 +29,7 @@ AS
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20190620@Kathy: Remove corner betradar, auto betradar bettypes [Redmine:#109584]
 		- 20190801@Sol: Removed unused code IsNeedToCalculateFGLG [Redmine:#115232]
+		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		
 	Param's explanation: 
 		
@@ -336,6 +337,37 @@ BEGIN
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
 	END
+
+	-- get score from external source and return to web for result comparing
+	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
+	DECLARE @queryMatch NVARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+
+	SET @queryMatch = '	
+						SELECT 
+							matchid, SourceId 
+							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
+							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
+							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
+							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
+						FROM 
+						(
+							SELECT 
+								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
+								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
+							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
+								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+														ON rd.matchid = tm.val
+							WHERE TypeId IN (1,2) AND SourceId = 1
+						) t
+						WHERE maxDate = 1
+						GROUP BY t.MatchId, SourceId
+						OPTION (MAXRECURSION 0)
+					'
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
+
+	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(MAX)', @queryMatch, @matchids
 			
 	SELECT	i.MatchId
 			,i.leagueId
@@ -381,9 +413,15 @@ BEGIN
 
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
+			,exSource.SourceId
+			,exSource.ExHTHomeScore
+			,exSource.ExHTAwayScore
+			,exSource.ExFTHomeScore
+			,exSource.ExFTAwayScore
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
+		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 	
 	DROP TABLE #tblMatchInQueue
 	DROP TABLE #tblBetStatus

@@ -35,6 +35,7 @@ AS
 		- 20190620@Kathy: PH AIO Phase 4 [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
+		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 	
 	Param's explanation:  
 		
@@ -73,6 +74,7 @@ BEGIN
 		,IsExistRunningTicket			BIT
 	)
 	DECLARE @tmp_ESportMatch TABLE (matchid INT)
+	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
 
 	CREATE TABLE #tblBettype (bettype SMALLINT, GroupId SMALLINT, IsFGLG BIT, IsEarly BIT)
 	
@@ -332,6 +334,39 @@ BEGIN
 
 	END
 
+	-- get score from external source and return to web for result comparing
+	DECLARE @queryMatch NVARCHAR(MAX) = '', @MatchIds VARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+
+	SELECT @MatchIds = COALESCE(@MatchIds + ',' + CAST(MatchId AS VARCHAR(20)),CAST(MatchId AS VARCHAR(20)))
+	FROM @TempMatch
+
+	SET @queryMatch = '	
+						SELECT 
+							matchid, SourceId 
+							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
+							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
+							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
+							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
+						FROM 
+						(
+							SELECT 
+								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
+								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
+							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
+								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+														ON rd.matchid = tm.val
+							WHERE TypeId IN (1,2) AND SourceId = 1
+						) t
+						WHERE maxDate = 1
+						GROUP BY t.MatchId, SourceId
+						OPTION (MAXRECURSION 0)
+					'
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
+
+	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(MAX)', @queryMatch, @matchids
+
 	SELECT m.matchid, m.leagueid, m.homeid, m.awayid, m.matchcode, m.finalhomescore, m.finalawayscore
 		, m.betstatus, m.sporttype, m.goalrecord
 		, hthomescore AS HalfTimeHomeScore
@@ -366,10 +401,20 @@ BEGIN
 		END AS EarlySettleStatus
 		,tm.IsExistMarkedTicket
 		,tm.IsExistRunningTicket
+		,exSource.SourceId
+		,exSource.ExHTHomeScore
+		,exSource.ExHTAwayScore
+		,exSource.ExFTHomeScore
+		,exSource.ExFTAwayScore
+		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
+		,ISNULL(ciFT.username,'') AS suspenderFullTime
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN @TempMatch tm ON m.matchid = tm.matchid
+		LEFT JOIN @tmp_ExternalSourceResult exSource ON tm.matchid = exSource.Matchid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		LEFT JOIN @tmp_ESportMatch te ON te.matchid = m.matchid
+		LEFT JOIN CustDB.dbo.custInfo ciHT WITH(NOLOCK) ON ciHT.custid = mr.ConfirmHT
+		LEFT JOIN CustDB.dbo.custInfo ciFT WITH(NOLOCK) ON ciFT.custid = mr.ConfirmFT
 	WHERE m.sporttype = @sporttype
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))

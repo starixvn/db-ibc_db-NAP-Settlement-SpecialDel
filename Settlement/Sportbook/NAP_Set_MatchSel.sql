@@ -46,6 +46,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [Redmine:#128069]
 		- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
+		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
       
  Param explanation:  
 	@MatchCode: match code
@@ -198,6 +199,7 @@ BEGIN
 		,@rowcount INT
 		,@max_matchid INT
 	DECLARE @tmp_ESportMatch TABLE (matchid INT)
+	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
 
 	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore ,IsCalculated ,IsMultiCaled ,IsRefund ,IsCalRefund ,matchid ,leagueid ,homeid ,awayid ,matchcode ,kickofftime ,finalhomescore ,finalawayscore 
 		,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
@@ -603,6 +605,39 @@ BEGIN
 
 	END
 
+	-- get score from external source and return to web for result comparing
+	DECLARE @queryMatch NVARCHAR(MAX) = '', @MatchIds VARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+
+	SELECT @MatchIds = COALESCE(@MatchIds + ',' + CAST(MatchId AS VARCHAR(20)),CAST(MatchId AS VARCHAR(20)))
+	FROM #matchList
+
+	SET @queryMatch = '	
+						SELECT 
+							matchid, SourceId 
+							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
+							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
+							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
+							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
+						FROM 
+						(
+							SELECT 
+								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
+								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
+							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
+								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+														ON rd.matchid = tm.val
+							WHERE TypeId IN (1,2) AND SourceId = 1
+						) t
+						WHERE maxDate = 1
+						GROUP BY t.MatchId, SourceId
+						OPTION (MAXRECURSION 0)
+					'
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
+
+	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(MAX)', @queryMatch, @matchids
+
 	SELECT	m.HalfTimeHomeScore
 			,m.HalfTimeAwayScore
 			,m.IsCalculated
@@ -652,7 +687,14 @@ BEGIN
 			
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
+			,exSource.SourceId
+			,exSource.ExHTHomeScore
+			,exSource.ExHTAwayScore
+			,exSource.ExFTHomeScore
+			,exSource.ExFTAwayScore
 	FROM	#matchList m
+			LEFT JOIN @tmp_ExternalSourceResult exSource
+				ON m.matchid = exSource.Matchid
 			LEFT JOIN #tempmatch t 
 				ON	t.matchid = m.matchid
 			LEFT JOIN @tmp_ESportMatch te

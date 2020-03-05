@@ -38,6 +38,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
+		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		
 */
 BEGIN
@@ -184,7 +185,41 @@ BEGIN
 				ON m.matchid = t.MatchId
 
 	END
-			
+	
+	-- get score from external source and return to web for result comparing
+	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
+	DECLARE @queryMatch NVARCHAR(MAX) = '', @MatchIds VARCHAR(MAX) = ''
+	DECLARE @execSql NVARCHAR(MAX) = ''
+
+	SELECT @MatchIds = COALESCE(@MatchIds + ',' + CAST(MatchId AS VARCHAR(20)),CAST(MatchId AS VARCHAR(20)))
+	FROM @DataTmp
+
+	SET @queryMatch = '	
+						SELECT 
+							matchid, SourceId 
+							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
+							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
+							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
+							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
+						FROM 
+						(
+							SELECT 
+								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
+								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
+							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
+								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+														ON rd.matchid = tm.val
+							WHERE TypeId IN (1,2) AND SourceId = 1
+						) t
+						WHERE maxDate = 1
+						GROUP BY t.MatchId, SourceId
+						OPTION (MAXRECURSION 0)
+					'
+	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
+
+	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
+	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(MAX)', @queryMatch, @matchids
+
 	SELECT m.matchid
 		, m.leagueid
 		, hthomescore AS HalfTimeHomeScore
@@ -220,9 +255,15 @@ BEGIN
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
+		, exSource.SourceId
+		, exSource.ExHTHomeScore
+		, exSource.ExHTAwayScore
+		, exSource.ExFTHomeScore
+		, exSource.ExFTAwayScore
 	FROM @DataTmp m
 		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN @tblSingle t ON m.matchid = t.matchid
+		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 	ORDER BY eventstatus, matchcode
 	
 	-- Get BASKETBALL RESULT 
