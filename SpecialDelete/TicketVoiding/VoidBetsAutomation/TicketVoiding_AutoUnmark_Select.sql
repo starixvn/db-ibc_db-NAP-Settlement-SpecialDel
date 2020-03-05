@@ -46,7 +46,7 @@ BEGIN
 		WHERE m.sporttype IN (1, 2 ,9, 43)
 			AND b.statusID NOT IN (101, 102)
 			AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-			AND ((@MatchId IS NOT NULL AND m.matchid = @MatchId) OR @MatchId IS NULL)
+			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
 		GROUP BY mt.MatchId
 			, mt.bettype
 			, mt.UserId

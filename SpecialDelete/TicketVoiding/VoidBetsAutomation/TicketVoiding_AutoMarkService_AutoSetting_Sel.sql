@@ -29,7 +29,7 @@ BEGIN
 		FROM dbo.match m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 		WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-			AND ((@MatchId IS NOT NULL AND m.matchid = @MatchId) OR @MatchId IS NULL)
+			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
 			AND m.sporttype = @Sporttype
 			AND m.eventstatus <> 'completed'
 
