@@ -181,11 +181,14 @@ BEGIN
 	BEGIN
 		INSERT INTO @Transid_UnMark (Transid)
 		SELECT b.transid
-		FROM #Transid_UnMark_tmp  um
+		FROM #Transid_UnMark_tmp um
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON um.Transid = b.transid
-			LEFT JOIN TicketVoiding_RequestDetail td WITH (NOLOCK) ON CHARINDEX(',' + CAST(b.transid AS VARCHAR(50)) + ',', ','+ td.TransIds + ',') > 0
+			OUTER APPLY (SELECT TOP (1) RequestId 
+						 FROM TicketVoiding_RequestDetail td WITH (NOLOCK)
+						 WHERE td.matchid = b.matchid AND CHARINDEX(',' + CAST(b.transid AS VARCHAR(50)) + ',', ','+ td.TransIds + ',') > 0
+						) AS tmp		 
 		WHERE b.statusID = 0
-			AND td.RequestId IS NULL
+			AND tmp.RequestId IS NULL
 		
 		SET @Unmark_cnt = @@ROWCOUNT	
 	END
