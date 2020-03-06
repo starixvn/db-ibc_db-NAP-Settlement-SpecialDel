@@ -38,8 +38,6 @@ BEGIN
 			, m.sporttype
 			, m.homeid
 			, m.awayid
-			, ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
-			, ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
 			, mt.MarkedTrans
 			, ISNULL(ta.Enabled, 1) AS IsAutoMark
 		FROM #match_tmp m
@@ -51,18 +49,6 @@ BEGIN
 							AND b.statusID NOT IN (101, 102)
 							AND m1.MarkType = 2
 					)mt	
-			OUTER APPLY (
-								SELECT TOP 1 m.hthomescore, m.htawayscore
-								FROM dbo.match_remark mr WITH (NOLOCK)
-								WHERE IsHTCal = 1 
-									AND mr.matchid = m.matchid			
-							)rdHT
-			OUTER APPLY (
-						SELECT TOP 1 m.finalhomescore, m.finalawayscore
-						FROM dbo.match_remark mr WITH (NOLOCK)
-						WHERE mr.calculate = 1 
-							AND mr.matchid = m.matchid			
-					)rdFT
 			OUTER APPLY (
 						SELECT t.Enabled
 						FROM dbo.TicketVoiding_AutoMarkService_AutoSetting t WITH (NOLOCK)
