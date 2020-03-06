@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
+		- 20200304@Helen: Mix Parlay Boost Odds for Licensee [Redmine:127730]
 			
 				
 */
@@ -120,13 +121,15 @@ BEGIN
 					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
 					,b.inserted_Detail, b.inserted_Result
-					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.matchid) --RN			
+					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.matchid) --RN
+					,bm.PriceMultiplier			
 				FROM #temp_bettrans b
 					CROSS APPLY
 						(
 							SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
 								,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 								,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
+								,bm.PriceMultiplier
 							FROM	dbo.bettransm bm WITH(rowlock)	
 								INNER JOIN dbo.match m WITH (NOLOCK)
 									ON	bm.matchid = m.matchid
@@ -136,6 +139,7 @@ BEGIN
 							SELECT	bm14.refno, bm14.transid, bm14.winlostdate, bm14.statuswinlost, bm14.statusID, bm14.matchid
 								,bm14.bettype, bm14.odds, bm14.betteam, bm14.hdp1, bm14.hdp2, bm14.livehomescore
 								,bm14.liveawayscore, bm14.liveindicator, bm14.betcheck, bm14.stake, bm14.transdesc
+								,bm14.PriceMultiplier
 							FROM	dbo.bettransm14 bm14 WITH(rowlock)			
 								INNER JOIN dbo.match14 m14 WITH(NOLOCK)
 									ON bm14.matchid = m14.matchid
@@ -147,6 +151,7 @@ BEGIN
 							SELECT	bmbk.refno, bmbk.transid, bmbk.winlostdate, bmbk.statuswinlost, bmbk.statusID, bmbk.matchid
 								,bmbk.bettype, bmbk.odds, bmbk.betteam, bmbk.hdp1, bmbk.hdp2, bmbk.livehomescore
 								,bmbk.liveawayscore, bmbk.liveindicator, bmbk.betcheck, bmbk.stake, bmbk.transdesc
+								,bmbk.PriceMultiplier
 							FROM	dbarc.bodb_archive.dbo.bettransm bmbk WITH(rowlock)			
 								INNER JOIN dbarc.bodb_archive.dbo.match_bk mbk WITH(NOLOCK)
 									ON bmbk.matchid = mbk.matchid
@@ -156,16 +161,18 @@ BEGIN
 						) bm
 				WHERE	b.inserted_Detail = 0 OR b.inserted_Result = 0
 			),
-			ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
+			ParlayStake AS (SELECT refno, RN, SetStake, PriceMultiplier FROM _source)
 		--	
 		INSERT INTO dbo.BetParlayDetail (
 			RefNo, Serial, transid, winlostdate, statuswinlost, statusid
 			,matchid, bettype, stake, odds, betteam, hdp1
 			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+			,PriceMultiplier
 		)
 		SELECT p.RefNo, rc.Serial, transid, winlostdate, statuswinlost, statusid
 			,matchid, bettype, ps.SetStake, odds, betteam, hdp1
 			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+			,ps.PriceMultiplier
 		FROM _source p
 			INNER JOIN dbo.RefCombinationSet rcs ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
 			INNER JOIN dbo.RefCombination rc ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
@@ -176,10 +183,12 @@ BEGIN
 			RefNo, Serial, transid, winlostdate, statusid, Stake
 			,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
 			,playercomm, comm, acomm, scomm
+			,PriceMultiplier
 		)
 		SELECT DISTINCT b.RefNo, r.Serial, 0, b.winlostdate, 0, r.stake
 			,0, 0, 0, 0, 0, 0
 			,0, 0, 0, 0
+			,r.PriceMultiplier
 		FROM #temp_bettrans b
 			INNER JOIN dbo.BetParlayDetail r ON b.refno = r.refno
 		WHERE b.inserted_Result = 0 -- only insert the row not yet insert to that table
@@ -205,7 +214,7 @@ BEGIN
 	DECLARE @statusID TINYINT, @modds MONEY
 	DECLARE @commWinRate MONEY, @commLostRate MONEY
 	
-	;WITH p AS (
+	;WITH preResult AS (
 		SELECT pd.refno as refno
 			,pd.serial
 			,b.eventdate
@@ -232,8 +241,10 @@ BEGIN
 			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
 		GROUP BY pd.refno, pd.serial, b.eventdate
 	)
+	
 	UPDATE pr			
-	SET @statusID = statusID = CASE
+	SET 
+		@statusID = statusID = CASE
 					WHEN p.loseCnt > 0    THEN 113 -- Lose
 					WHEN p.runningCnt > 0 THEN 0   -- running
 					WHEN p.NoRefund = 0   THEN 103 -- Refund
@@ -305,7 +316,12 @@ BEGIN
 			END
 	FROM dbo.BetParlayResult pr
 		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
-		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
+		CROSS APPLY (SELECT loseCnt, runningCnt, NoRefund, odds, eventdate, matchdate_max
+							,p_tmp.modds * pr.PriceMultiplier AS modds
+					 FROM preResult AS p_tmp
+					 WHERE  p_tmp.refno = pr.refno
+							AND p_tmp.serial = pr.serial
+					) AS p
 	WHERE
 		pr.statusID <>
 		CASE
@@ -313,7 +329,7 @@ BEGIN
 			WHEN p.runningCnt > 0 THEN 0   -- running
 			WHEN p.NoRefund = 0   THEN 103 -- Refund
 			WHEN p.modds < 1      THEN 113 -- Lose
-			WHEN p.modds = 1      THEN 111 -- Draw
+			WHEN p.modds = 1      THEN 111 -- Draws
 			ELSE 112 -- Won
 		END
 		OR pr.winlost <>
