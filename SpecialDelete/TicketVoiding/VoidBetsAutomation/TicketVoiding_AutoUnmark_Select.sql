@@ -34,7 +34,7 @@ BEGIN
 			, mt.UserId
 			, COUNT(mt.TransId) AS MarkedTrans
 			, MAX(mt.CreatedDate) AS CreatedDate
-			, mt.MarkType
+			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
 		FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
@@ -50,7 +50,7 @@ BEGIN
 		GROUP BY mt.MatchId
 			, mt.bettype
 			, mt.UserId
-			, mt.MarkType
+			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END
 
 		SELECT mt.MatchId
 			, m.kickofftime
