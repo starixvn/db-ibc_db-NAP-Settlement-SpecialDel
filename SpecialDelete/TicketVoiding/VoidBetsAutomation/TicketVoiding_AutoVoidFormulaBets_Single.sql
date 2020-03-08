@@ -34,10 +34,6 @@ BEGIN
 		
 	END
 	
-	-- Lock auto void process
-	UPDATE SystemSettings SET VValue = 1
-	WHERE VName = 'AutoVoidFormula'
-	
 	DECLARE @InputUsernameList AS TABLE (username NVARCHAR(50))
 	DECLARE @tmpAutoTransIDBatch TABLE (TransId	BIGINT)
 	CREATE TABLE #tblTransIds_autovoidformula_pre (matchid INT, transid BIGINT)
@@ -62,21 +58,23 @@ BEGIN
 	INSERT INTO @InputUsernameList (username)
 	SELECT DISTINCT f.val
 	FROM dbo.f_SplitString (@SMAList, ',') AS f
+	OPTION (maxrecursion 0)	
 	
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
 					FROM @InputUsernameList l
 						LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
 					WHERE ci.custid IS NULL	
+					FOR XML PATH ('')
 					),1,1,'')
 	
 	IF @invalidUserName <> '' 
 	BEGIN
 		SET @ErrMsg = 'Invalid UserName: ' + @invalidUserName
 		SET @ErrCode = 100
+	
 		RETURN
 		
 	END			
-		
 	INSERT INTO #InputValidCustid (custid)		
 	SELECT ci.custid
 	FROM @InputUsernameList l
@@ -126,6 +124,9 @@ BEGIN
 						  FOR XML PATH ('')
 						  ),1,1,'')					   
 	
+	-- Lock auto void process
+	UPDATE SystemSettings SET VValue = 1
+	WHERE VName = 'AutoVoidFormula'
 		
 	WHILE (1=1)
 	BEGIN
@@ -151,7 +152,7 @@ BEGIN
 			SET @StartTime_tmp = GETDATE()
 			
 			EXEC dbo.TicketVoiding_AutoVoidFormulaBets_Single_Update @TransIds = @TransIds, @UserId = @UserId
-															, @Username = @UserName, @IP = @IP
+															, @IP = @IP
 															, @IsAbnormalBet = 1
 															, @InvalidTransIds = @InvalidTransIds OUTPUT
 															, @ErrMsg = @ErrMsg_tmp OUTPUT
@@ -160,6 +161,7 @@ BEGIN
 			-- Write Log for trace issue later
 			SET @EndTime = GETDATE()
 			
+			SET @LogData = ''
 			SET @LogData = CAST((SELECT	
 									 90506 AS '@LogActionId'
 									,@UserId AS '@UserId'
@@ -192,14 +194,14 @@ BEGIN
 	WHERE VName = 'AutoVoidFormula'
 	
 	SET @EndTime = GETDATE()
-			
+	SET @LogData = ''		
 	SET @LogData = CAST((SELECT	
 							 90507 AS '@LogActionId'
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ 'Auto matchid: ' + @autoMatchList
-								+ 'suspended matchid: ' + @suspendMatchList
+								+ 'Auto matchid: ' + ISNULL(@autoMatchList,' N/A')
+								+ 'suspended matchid: ' + ISNULL(@suspendMatchList,' N/A')
 								+ 'Session:' + @session
 								AS  '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
