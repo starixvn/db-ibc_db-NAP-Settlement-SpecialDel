@@ -36,16 +36,9 @@ BEGIN
 	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
 	,@InvalidMatchId VARCHAR(200) = ''
 	,@SettledTransIds VARCHAR(MAX) = ''
-
-	DECLARE @sporttype TINYINT = 1
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	
-	SET @sporttype = (SELECT TOP (1) sporttype 
-					FROM dbo.match WITH (NOLOCK) 
-					WHERE matchid  = @MatchId)
-	
-	
+		
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
