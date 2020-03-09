@@ -78,7 +78,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp t
 					INNER JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = t.bettype)
-		SET @IsCalEarlyQueue = 1
+		SET @IsTransidEAR = 1
 	
 	SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 			, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
