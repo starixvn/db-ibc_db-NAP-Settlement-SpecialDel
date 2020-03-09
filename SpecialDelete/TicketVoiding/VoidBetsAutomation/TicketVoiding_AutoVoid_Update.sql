@@ -169,16 +169,14 @@ BEGIN
 	
 	SELECT @IsMatchCalHT = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 			, @IsMatchCalFT_All =MAX( CASE WHEN Action IN ('CAL-FT','CAL') THEN 1 ELSE 0 END)
+			, @IsCalEarly = MAX(CASE WHEN Action IN ('CAL-EARLY','CAL_EAR') THEN 1 ELSE 0 END)
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE matchid = @MatchId
 	
 	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
-	WHERE matchid = @MatchId
-			
-	IF @Action IN ('CAL-EARLY','CAL_EAR')	
-		SET @IsCalEarly = 1
+	WHERE matchid = @MatchId		
 			
 	IF @RequestIdList IS NOT NULL
 	BEGIN
