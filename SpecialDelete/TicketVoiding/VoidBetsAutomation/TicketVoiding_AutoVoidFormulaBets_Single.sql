@@ -96,24 +96,21 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_tmp WHERE roleid = 3)
 	BEGIN
 		INSERT INTO #InputValidCustid_2_pre (custid)	
-		SELECT ci.recommend
+		SELECT ci.custid
 		FROM #InputValidCustid_tmp l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
-		WHERE l.roleid = 3	
-		GROUP BY ci.recommend
+		WHERE l.roleid = 3 AND ci.roleid = 2
+		
 	END
-	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_tmp WHERE roleid = 4)
 	BEGIN
 		INSERT INTO #InputValidCustid_2_pre (custid)
-		SELECT ci.recommend
+		SELECT ci.custid
 		FROM #InputValidCustid_tmp l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-		WHERE l.roleid = 4	
-		GROUP BY ci.recommend
+		WHERE l.roleid = 4 AND ci.roleid = 2	
 		
 	END
-	
 	--list of recommend to process
 	INSERT INTO #InputValidCustid_2
 	SELECT custid
