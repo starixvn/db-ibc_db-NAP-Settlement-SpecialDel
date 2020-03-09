@@ -61,6 +61,7 @@ BEGIN
 			, @autoMatchList	VARCHAR(MAX)  = ''
 			, @suspendMatchList VARCHAR(MAX)  = ''
 			, @recommend_cnt	INT = 0
+			, @custid_cnt		INT = 0
 			
 	INSERT INTO @InputUsernameList (username)
 	SELECT DISTINCT f.val
@@ -133,6 +134,16 @@ BEGIN
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.custid
 		LEFT JOIN #InputValidCustid_2 lt ON lt.custid = ci.recommend
 	WHERE l.roleid = 1 AND lt.custid IS NULL
+	
+	SET @custid_cnt = (SELECT COUNT(1) FROM #InputValidCustid_1)
+	
+	IF @custid_cnt > 5000
+	BEGIN
+		SET @ErrMsg = 'Sorry, Can not process this due to serveral customers. Please contact with IT administrator to be supported.'
+		SET @ErrCode = 100
+	
+		RETURN
+	END
 	
 	INSERT INTO #match_autovoidformula (matchid)
 	SELECT matchid
