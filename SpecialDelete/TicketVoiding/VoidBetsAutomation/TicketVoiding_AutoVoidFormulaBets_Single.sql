@@ -60,6 +60,7 @@ BEGIN
 			, @SB_Error			BIT
 			, @autoMatchList	VARCHAR(MAX)  = ''
 			, @suspendMatchList VARCHAR(MAX)  = ''
+			, @recommend_cnt	INT = 0
 			
 	INSERT INTO @InputUsernameList (username)
 	SELECT DISTINCT f.val
@@ -119,6 +120,15 @@ BEGIN
 	FROM #InputValidCustid_2_pre
 	GROUP BY custid
 	
+	SET @recommend_cnt = (SELECT COUNT(1) FROM #InputValidCustid_2)
+	
+	IF @recommend_cnt > 100
+	BEGIN
+		SET @ErrMsg = 'Sorry, Can not process this due to serveral customers. Please contact with administrator to be supported.'
+		SET @ErrCode = 100
+	
+		RETURN
+	END
 	-- list of member to process
 	INSERT INTO #InputValidCustid_1 (custid)		
 	SELECT l.custid
@@ -140,20 +150,20 @@ BEGIN
 		FROM #InputValidCustid_2  rt 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.recommend = rt.custid
 			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
-		WHERE winlostdate = @eventdate	 
+		WHERE b.winlostdate = @eventdate	 
 			AND b.bettype NOT IN (29,9,2799)
 			AND b.bettype NOT IN (911, 912, 913, 914)
 			AND b.statusid = 112
+			
 	END
-	IF EXISTS (SELECT TOP (1) 1 
-				FROM #InputValidCustid_1)
+	IF EXISTS (SELECT TOP (1) 1 FROM #InputValidCustid_1)
 	BEGIN
 		INSERT INTO #tblTransIds_autovoidformula_pre (matchid, transid)
 		SELECT b.matchid, CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END AS transid
 		FROM #InputValidCustid_1  rt 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.custid = rt.custid
 			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
-		WHERE winlostdate = @eventdate	 
+		WHERE b.winlostdate = @eventdate	 
 			AND b.bettype NOT IN (29,9,2799)
 			AND b.bettype NOT IN (911, 912, 913, 914)
 			AND b.statusid = 112
