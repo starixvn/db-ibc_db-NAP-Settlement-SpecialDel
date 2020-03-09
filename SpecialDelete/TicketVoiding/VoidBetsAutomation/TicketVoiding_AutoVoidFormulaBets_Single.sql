@@ -122,9 +122,9 @@ BEGIN
 	
 	SET @recommend_cnt = (SELECT COUNT(1) FROM #InputValidCustid_2)
 	
-	IF @recommend_cnt > 100
+	IF @recommend_cnt > 5000
 	BEGIN
-		SET @ErrMsg = 'Sorry, Can not process this due to serveral customers. Please contact with administrator to be supported.'
+		SET @ErrMsg = 'Sorry, Can not process this due to serveral customers. Please contact with IT administrator to be supported.'
 		SET @ErrCode = 100
 	
 		RETURN
