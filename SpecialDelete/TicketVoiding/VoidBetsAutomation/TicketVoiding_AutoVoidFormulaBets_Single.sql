@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidFormulaBets_Single]
 (	
 	@SMAList			VARCHAR(MAX) = ''
-	,@fromDate			DATETIME
-	,@todate			DATETIME
+	,@eventdate			DATETIME
+	--,@todate			DATETIME
 	,@UserId			INT = NULL
 	,@UserName			VARCHAR(50) = NULL
 	,@IP				VARCHAR(50)		= ''
@@ -18,6 +18,7 @@ AS
 	
 	Revisions: 
 		- 20200308@Helen: Create new SP [Redmine:#129971]
+		- 20200309@Helen: Tuning [Redmine:#129971]
 		
 	Param's explanation:	
 		
@@ -33,12 +34,16 @@ BEGIN
 		RETURN
 		
 	END
-	
 	DECLARE @InputUsernameList AS TABLE (username NVARCHAR(50))
 	DECLARE @tmpAutoTransIDBatch TABLE (TransId	BIGINT)
+	
 	CREATE TABLE #tblTransIds_autovoidformula_pre (matchid INT, transid BIGINT)
 	CREATE TABLE #tblTransIds_autovoidformula (matchid INT, transid BIGINT, Isfinish BIT )
-	CREATE TABLE #InputValidCustid  (custid INT)
+	CREATE TABLE #InputValidCustid_tmp  (custid INT, roleid TINYINT)
+	CREATE TABLE #InputValidCustid_1 (custid INT, recommend INT)
+	CREATE TABLE #InputValidCustid_2 (custid INT)
+	CREATE TABLE #match_autovoidformula (matchid INT)
+	CREATE TABLE #match_autotemp (matchid INT)
 	
 	DECLARE @invalidUserName VARCHAR(MAX) =''
 	DECLARE @TransIds VARCHAR(MAX) = ''
@@ -74,36 +79,85 @@ BEGIN
 	
 		RETURN
 		
-	END			
-	INSERT INTO #InputValidCustid (custid)		
-	SELECT ci.custid
+	END		
+		
+	INSERT INTO #InputValidCustid_tmp (custid, roleid)		
+	SELECT ci.custid, ci.roleid
 	FROM @InputUsernameList l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
 	
-	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
+	INSERT INTO #InputValidCustid_1 (custid,recommend)		
+	SELECT l.custid, ci.recommend
+	FROM #InputValidCustid_tmp l
+		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.custid
+	WHERE l.roleid = 1
 	
-	CREATE TABLE #match_autovoidformula (matchid INT)
+	INSERT INTO #InputValidCustid_2 (custid)		
+	SELECT l.custid
+	FROM #InputValidCustid_tmp l
+	WHERE l.roleid = 2	
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_tmp WHERE roleid = 3)
+	BEGIN
+		INSERT INTO #InputValidCustid_2 (custid)	
+		SELECT ci.recommend
+		FROM #InputValidCustid_tmp l
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+		WHERE l.roleid = 3	
+		GROUP BY ci.recommend
+	END
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_tmp WHERE roleid = 4)
+	BEGIN
+		INSERT INTO #InputValidCustid_2 (custid)
+		SELECT ci.recommend
+		FROM #InputValidCustid_tmp l
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
+		WHERE l.roleid = 4	
+		GROUP BY ci.recommend
+	END
+	
+	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 	
 	INSERT INTO #match_autovoidformula (matchid)
 	SELECT matchid
 	FROM dbo.match m WITH (NOLOCK)
-	WHERE eventdate BETWEEN @fromDate AND @todate
+	WHERE eventdate = @eventdate
 		AND sporttype < 99
 	
-	INSERT INTO #tblTransIds_autovoidformula_pre (matchid, transid)
-	SELECT m.matchid, t.transid
-	FROM #match_autovoidformula m
-		CROSS APPLY (SELECT CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END AS transid
-					 FROM dbo.bettrans b WITH (NOLOCK)
-					 WHERE b.matchid = m.matchid AND b.statusid = 112
-							AND b.bettype NOT IN (29,9,2799)
-							AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-							AND EXISTS ( SELECT TOP (1) 1 
-										 FROM #InputValidCustid c 
-										 WHERE c.custid IN (b.custid, b.srecommend, b.mrecommend, b.recommend)
-										)
-					) AS t
-	GROUP BY m.matchid, t.transid
+	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
+	BEGIN
+		INSERT INTO #tblTransIds_autovoidformula_pre (matchid, transid)
+		SELECT b.matchid, CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END AS transid
+		FROM #InputValidCustid_2  rt 
+			INNER JOIN dbo.bettrans b WITH (NOLOCK, INDEX = IX_recommend) ON b.recommend = rt.custid
+			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
+		WHERE winlostdate = @eventdate	 
+			AND b.bettype NOT IN (29,9,2799)
+			AND b.bettype NOT IN (911, 912, 913, 914)
+			AND b.betdaqid <> 1
+			AND b.statusid = 112
+		GROUP BY b.matchid, CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END
+	END
+	IF EXISTS (SELECT TOP (1) 1 
+				FROM #InputValidCustid_1 c1
+					LEFT JOIN #InputValidCustid_2 c2 ON c1.recommend = c2.custid
+				WHERE c2.custid IS NULL	
+					)
+	BEGIN
+		INSERT INTO #tblTransIds_autovoidformula_pre (matchid, transid)
+		SELECT b.matchid, CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END AS transid
+		FROM #InputValidCustid_1  rt 
+			INNER JOIN dbo.bettrans b WITH (NOLOCK, INDEX = IX_customerinfo) ON b.custid = rt.custid
+			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
+		WHERE winlostdate = @eventdate	 
+			AND b.bettype NOT IN (29,9,2799)
+			AND b.bettype NOT IN (911, 912, 913, 914)
+			AND b.betdaqid <> 1
+			AND b.statusid = 112
+		GROUP BY b.matchid, CASE WHEN b.bettype BETWEEN 801 AND 899 THEN b.refno ELSE b.transid END
+	
+	END
 	
 	INSERT INTO #tblTransIds_autovoidformula (matchid, transid)
 	SELECT p.matchid, p.transid
@@ -211,8 +265,11 @@ BEGIN
 	
 	DROP TABLE #match_autovoidformula
 	DROP TABLE #tblTransIds_autovoidformula
-	DROP TABLE #InputValidCustid
 	DROP TABLE #tblTransIds_autovoidformula_pre
+	DROP TABLE #InputValidCustid_1
+	DROP TABLE #InputValidCustid_2
+	DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #match_autotemp
 	
 END
 
