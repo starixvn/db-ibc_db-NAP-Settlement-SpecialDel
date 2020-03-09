@@ -31,6 +31,7 @@ AS
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Corect @HTDone value [Redmine:#115232]
+		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		
 	Param's Explanation:
 		 
@@ -153,7 +154,6 @@ BEGIN
 		*/
  
 		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								   WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
 								   WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 								ELSE m.eventstatus END
 			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
