@@ -46,6 +46,7 @@ AS
 	- 20190528@Sol: Auto payout phase 3 - Removed unused field IsNeedToCalculateFGLG [Redmine:#116073]
 	- 20190620@Kathy: Remove corner betradar bettypes [Redmine:#109584]
 	- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
+	- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -284,9 +285,21 @@ BEGIN
 	--check auto setting
 	IF (@AutoSetting > 0)
 	BEGIN
+		DECLARE @DirectAutoPayout TINYINT
+		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
+										WHEN @AutoSetting = 3 THEN 18 -- Auto payout and Instant Calc
+										ELSE 0
+									END
 		DELETE m
 		FROM #matchList m
-		WHERE @AutoSetting & m.AutoSetting <> @AutoSetting
+		--WHERE @AutoSetting & m.AutoSetting <> @AutoSetting
+		WHERE 1 = 
+				CASE 
+					WHEN 16 & m.AutoSetting = 16 AND @AutoSetting IN (1,3) THEN 
+						CASE WHEN @DirectAutoPayout & m.AutoSetting <> @DirectAutoPayout THEN 1 ELSE 0 END 
+					ELSE 
+						CASE WHEN @AutoSetting & m.AutoSetting <> @AutoSetting THEN 1 ELSE 0 END
+				END
 	END
 	
 	BEGIN --update status

@@ -41,6 +41,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
+		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -87,8 +88,8 @@ BEGIN
 		AND m.eventstatus <> ''''Completed''''
 		AND (m.kickofftime < DATEADD(s, - 6000, GETDATE()) OR mr.ConfirmFT > 0)
 		AND 1 = CASE WHEN ''''' + CONVERT(VARCHAR(10), @IsManualSettlementOnly) + ''''' = 0 THEN 1
-				ELSE CASE WHEN m.AutoSetting IS NULL AND (1 & ISNULL(l.AutoSetting, 0) = 1) THEN 0
-							WHEN (1 & ISNULL(m.AutoSetting, 0) = 1) THEN 0
+				ELSE CASE WHEN m.AutoSetting IS NULL AND (17 & ISNULL(l.AutoSetting, 0) IN (1,16)) THEN 0
+							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
 						ELSE 1 END
 				END'')'
 

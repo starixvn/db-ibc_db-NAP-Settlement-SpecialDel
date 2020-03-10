@@ -12,6 +12,8 @@ AS
 		- 20181002@Kathy: get SettlementStatus [Redmine:#102028]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20190704@Sol: Auto payout phase 3 - Modify returned fields [Redmine:#116073]
+		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
+
 	Param's Explanation:
  
 */
@@ -26,6 +28,7 @@ BEGIN
 
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+		, AutoSetting
 	FROM (
 		SELECT m.matchid AS MatchId
 			, m.hthomescore
@@ -44,13 +47,14 @@ BEGIN
 			, m.kickofftime
 			, l.leagueid
 			, m.SettlementStatus
+			, m.AutoSetting
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			CROSS APPLY @typeIds f
 		WHERE m.eventstatus = 'running' and m.sporttype = 1
 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
-			AND 1 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) = 1
+			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 			AND NOT EXISTS (SELECT TOP 1 1 
 								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
 								WHERE rs.MatchId = m.matchid 
