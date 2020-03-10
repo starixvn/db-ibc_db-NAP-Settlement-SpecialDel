@@ -61,7 +61,8 @@ BEGIN
 	DECLARE @Transid_UnMark AS TABLE (Transid BIGINT, IsFinish BIT)
 	CREATE TABLE #Transid_UnMark_tmp (Transid BIGINT)
 	
-	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
+	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT, isFinish BIT)
+	DECLARE @ProblemAccountByBatch_tmp AS TABLE (CustID INT)
 		
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
@@ -83,41 +84,55 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO @Transid_Mark (transid, Matchid)
-		SELECT b.transid, b.matchid
-		FROM @ProblemAccount_tmp t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'completed'
-			OUTER APPLY (SELECT TOP 1 transid
-						FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-						WHERE  mt.transid = b.transid
-						) AS mt_tmp
-			OUTER APPLY (SELECT TOP 1 au.[Enabled]
-						 FROM dbo.TicketVoiding_AutoMarkService_AutoSetting au WITH (NOLOCK)
-						 WHERE m.matchid = au.MatchID 
-						 ) AS m_auto			
-		WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
-				AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
-				AND ISNULL(m_auto.[Enabled],1) = 1
-		OPTION (MAXDOP 1)
-	
-		SET @Mark_cnt = @@ROWCOUNT
-		
-		IF @Mark_cnt > 0
+		WHILE (1=1)
 		BEGIN
-			INSERT INTO @Matchid_Final (Matchid)
-			SELECT DISTINCT m.Matchid
-			FROM @Transid_Mark m
-				LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue
-			WHERE tv.KeyValue IS NULL
-				
-			SET @end = (SELECT MAX(ID) FROM @Matchid_Final )
+			DELETE @ProblemAccountByBatch_tmp
+					
+			UPDATE TOP(2000) t
+				SET isFinish = 1
+			OUTPUT DELETED.CustID
+					
+			INTO @ProblemAccountByBatch_tmp(CustID)
+			FROM @ProblemAccount_tmp t 
+			WHERE isFinish IS NULL
 			
-		END
+			IF @@ROWCOUNT = 0 BREAK
+					
+			INSERT INTO @Transid_Mark (transid, Matchid)
+			SELECT b.transid, b.matchid
+			FROM @ProblemAccountByBatch_tmp t
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
+				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'completed'
+				OUTER APPLY (SELECT TOP 1 transid
+							FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+							WHERE  mt.transid = b.transid
+							) AS mt_tmp
+				OUTER APPLY (SELECT TOP 1 au.[Enabled]
+							 FROM dbo.TicketVoiding_AutoMarkService_AutoSetting au WITH (NOLOCK)
+							 WHERE m.matchid = au.MatchID 
+							 ) AS m_auto			
+			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
+					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+					AND ISNULL(m_auto.[Enabled],1) = 1
+			OPTION (MAXDOP 1)
+			
+		END	
+			
 	END
+	
+	SET @Mark_cnt = (SELECT COUNT(1) FROM @Transid_Mark)
+				
 	--Step 1: Mark Ticket Problem Account
 	IF @Mark_cnt > 0
 	BEGIN
+		INSERT INTO @Matchid_Final(Matchid)
+		SELECT DISTINCT m.Matchid
+		FROM @Transid_Mark m
+			LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue
+		WHERE tv.KeyValue IS NULL
+		
+		SET @end = (SELECT MAX(ID) FROM @Matchid_Final )
+		-- LOOP BY matchid
 		WHILE @start <= @end
 		BEGIN
 		
