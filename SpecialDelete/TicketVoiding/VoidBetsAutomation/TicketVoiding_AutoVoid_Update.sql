@@ -349,7 +349,8 @@ BEGIN
 			,1 KeyId
 			,1 AS balanceType
 			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
+				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
@@ -362,7 +363,8 @@ BEGIN
 			,1 KeyId
 			,1 AS balanceType
 			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
+				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 	FROM @tmpInputTransId_ReCalculate AS t
@@ -518,7 +520,7 @@ BEGIN
 		SELECT	DISTINCT cob.transid, cob.custid, cob.bettype
 			,1 KeyId
 			,1 AS balanceType
-			,1 AS TicketType
+			,3 AS TicketType
 			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid
 		FROM @tmpCustCashOut_Recalculate_tmp b
 			INNER JOIN dbo.bettrans cob WITH(NOLOCK) 
