@@ -83,6 +83,7 @@ AS
 		- 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		- 20200221@Sol:	HotFix - Event status of match still Running although there are no tickets running - [Redmine:#128657]
+		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -512,7 +513,6 @@ BEGIN
 												AND ((@Sporttype = 5 AND @SelectedSet LIKE '%6%')
 													OR (@sporttype = 2 AND @SelectedQuarter LIKE '%FT%')) THEN N'completed'    -- Match Option checked 
                                         WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-                                        WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
                                         WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
                                         ELSE m.eventstatus
                                         END

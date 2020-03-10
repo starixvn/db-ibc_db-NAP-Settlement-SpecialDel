@@ -54,6 +54,7 @@ AS
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584
 		- 20200122@Helen: Keep FT Score when re-calculating HT Score [Redmine:#127594]
+		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		
     Parameters Explanation:
 
@@ -103,7 +104,6 @@ BEGIN
                               ELSE @goalrecord END,
             eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (2,5)		THEN N'completed'
 								WHEN @action = 'CAL' AND ((Sporttype = 5 AND @SelectedSet LIKE '%6%') OR (sporttype = 2 AND @SelectedQuarter LIKE '%FT%')) THEN N'completed'
-								WHEN @action = 'CAL-HT' AND @FTDone = 1 THEN N'completed'
 								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 							ELSE eventstatus END,
             changetime = GETDATE(),
