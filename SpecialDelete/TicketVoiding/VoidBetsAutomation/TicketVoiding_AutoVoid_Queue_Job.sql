@@ -100,7 +100,7 @@ BEGIN
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId
 					, @Action = Action 
-					, @MatchId = matchID, @Checktime = DATEADD(SECOND,30,Starttime)
+					, @MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
 					,@Sporttype = sporttype
 	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
 	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
