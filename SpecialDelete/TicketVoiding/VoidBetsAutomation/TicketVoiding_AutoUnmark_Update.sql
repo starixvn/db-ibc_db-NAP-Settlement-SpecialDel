@@ -22,6 +22,7 @@ AS
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200221@Max: HotFix [Redmine: #128924]
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
+		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		
 	Param's explanation:	
 		
@@ -30,6 +31,10 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @UnmarkTransids VARCHAR(MAX)  = ''
+
+	DECLARE @query NVARCHAR(MAX) = ''
+	, @ExecuteSQL NVARCHAR(MAX) = ''
+	, @IsActiveVoidWinning BIT = 0
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -53,6 +58,7 @@ BEGIN
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
 	CREATE TABLE #ValidRequestTransId (TransId BIGINT)
+	CREATE TABLE #ProblemAccount_tmp (CustID INT)
 	
 	INSERT INTO #inputRequestTransId (TransId)
 	SELECT  tmp.transid
@@ -71,16 +77,31 @@ BEGIN
 	WHERE b.bettype = @Bettype
 
 	-- get all transid that not belong to any abnormal request
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+								FROM dbo.ProblemAccount WITH (NOLOCK)	
+								WHERE Actionid = 2 and SubIssueTypeId = 38'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+
+	INSERT INTO #ProblemAccount_tmp (CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 	INSERT INTO #tmpTransid_unmark (transid)
 	SELECT mt.TransId
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) 
 			ON b.transid = mt.TransId
+		OUTER APPLY (SELECT TOP 1 custid
+					 FROM #ProblemAccount_tmp t
+					 WHERE t.custid = b.custid
+					 ) AS tmp
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
 		AND b.statusID IN (0, 1)
 		AND mt.UserId = @MarkedBy
+		AND mt.MarkType <> 2
+		AND tmp.CustID IS NULL
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN

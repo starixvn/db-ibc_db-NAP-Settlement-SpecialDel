@@ -20,6 +20,7 @@ AS
 		- 20191111@Max: Ticket Voiding System - Abnormal Bet Issue Type [Redmine: #111541]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
+		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
 
 	Param's explanation:	
 	
@@ -44,15 +45,27 @@ BEGIN
 			,@OldMatchId			INT
 			,@OldTransIds 		VARCHAR(MAX) = NULL
 			,@MarkedTransIds	VARCHAR(MAX)
+			,@Username			NVARCHAR(200)
+			--- param for autovoid queue
+			,@IsTransidHT	BIT = 0
+			,@IsTransidFT	BIT = 0
+			,@IsTransidEAR	BIT = 0
+			
+			,@IsCalHTQueue	BIT = 0
+			,@IsCalFTQueue	BIT = 0
+			,@IsCalAllQueue	BIT = 0
+			,@IsCalEarlyQueue	BIT = 0
+			,@ActionID		INT = 0
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
 	SET @SB_Error = 0
 
 	SELECT @IssueTypeId = tr.IssueTypeId
+		,@ActionID = tr.ActionId
 	FROM TicketVoiding_Request tr WITH (NOLOCK)
 	WHERE tr.RequestId = @RequestId
 	
@@ -88,7 +101,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND @Sporttype = 1
+	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43)
 	BEGIN
 		
 		INSERT INTO #inputTransid (transid)
@@ -97,11 +110,29 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		INSERT INTO #transid_tmp (transid)
-		SELECT t.transid
+		INSERT INTO #transid_tmp (transid, bettype, groupid, StatusId)
+		SELECT t.transid, b.bettype, f.GroupId, b.statusID
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+			INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.bettype
 		WHERE b.statusID IN (0, 1)
+
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE groupid IN (1,3))
+			SET @IsTransidHT = 1
+	
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE groupid IN (2,4))
+			SET @IsTransidFT = 1
+
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp t
+					INNER JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = t.bettype)
+			SET @IsTransidEAR = 1
+	
+		SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
+				, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
+				, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
+				, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL-EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+		WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
@@ -112,7 +143,19 @@ BEGIN
 			)
 		IF @MarkedTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = 10278938, @Username = 'starixIT', @IP = '125.227.140.97', @RequestId = @RequestId
+			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @MarkType = 1
+		END
+
+		IF @ActionID = 1 AND (
+				(@IsCalHTQueue = 1 AND  @IsTransidHT = 1)
+			OR  (@IsCalFTQueue = 1 AND  (@IsTransidFT = 1 OR @IsTransidHT = 1))
+			OR	(@IsCalAllQueue = 1 AND (@IsTransidFT = 1 OR @IsTransidHT = 1))
+			OR	(@IsCalEarlyQueue = 1 AND (@IsTransidEAR = 1))
+			)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
+			VALUES(@RequestId, @MatchId, 'AddRequest', 0, 10278938, GETDATE(), '125.227.140.97')
 		END
 	
 	END

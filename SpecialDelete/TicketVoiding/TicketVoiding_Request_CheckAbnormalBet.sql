@@ -21,6 +21,8 @@ AS
 		- 20200213@Charles: Exclude bettypes of early settlement and fast market [Redmine:#127398]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200222@Helen: Hotfix - check early bettype for soccer only [Redmine: #127398]
+		- 20200303@Max: Auto Void Winning Bets - Allow bettype of early settlement -  [Redmine: #129184]
+		- 20200306@Max: Permission on add/void settled tickets [Redmine: #129902]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -32,35 +34,17 @@ BEGIN
 	DECLARE @InvalidTransIds VARCHAR(MAX) = ''
 	,@MovedTransIds VARCHAR(MAX) = ''
 	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
-	,@InvalidMatchId VARCHAR(200) = '' 
-
-	DECLARE @sporttype TINYINT = 1
+	,@InvalidMatchId VARCHAR(200) = ''
+	,@SettledTransIds VARCHAR(MAX) = ''
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-
-	DECLARE @tmpEarlyBettypes TABLE(
-		bettype SMALLINT PRIMARY KEY
-	)
-	
-	SET @sporttype = (SELECT TOP (1) sporttype 
-					FROM dbo.match WITH (NOLOCK) 
-					WHERE matchid  = @MatchId)
-	
-	-- Check early bettype for soccer only
-	IF @sporttype = 1
-	BEGIN
-		INSERT INTO @tmpEarlyBettypes(bettype)
-		SELECT	bettype
-		FROM	dbo.f_Set_GetEarlyBettypes()
-	END
-	
+		
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-		AND NOT EXISTS (SELECT TOP (1) 1 FROM @tmpEarlyBettypes t WHERE pt.bettype = t.bettype) -- Early settlement
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 	-- check valid match id
@@ -83,6 +67,7 @@ BEGIN
 			,@InvalidTransIds AS InvalidTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
+			,@SettledTransIds AS SettledTransIds
 
 		RETURN;
 	END
@@ -93,6 +78,7 @@ BEGIN
 	CREATE TABLE #validTransId (
 		transid BIGINT
 		,isInMatch BIT
+		,StatusId INT
 		)
 
 	IF (@TransIds IS NULL
@@ -129,6 +115,7 @@ BEGIN
 			,@InvalidTransIds AS InvalidTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
+			,@SettledTransIds AS SettledTransIds
 
 		RETURN;
 	END
@@ -137,12 +124,14 @@ BEGIN
 	INSERT INTO #validTransId (
 		transid
 		,isInMatch
+		,StatusId
 		)
 	SELECT b.transid
 		,CASE 
 			WHEN b.matchid = @MatchId THEN 1
 			ELSE 0
 			END
+		,b.statusID
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 	WHERE b.statusID NOT IN (101, 102, 103) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
@@ -187,11 +176,19 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
+	SELECT @SettledTransIds = ISNULL(STUFF((
+				SELECT ',' + CAST(v.transid AS VARCHAR(50))
+				FROM #validTransId AS v
+				WHERE v.StatusId NOT IN (0,1)
+				FOR XML PATH('')
+				), 1, 1, ''), '')
+
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
 			,@InvalidTransIds AS InvalidTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
+			,@SettledTransIds AS SettledTransIds
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

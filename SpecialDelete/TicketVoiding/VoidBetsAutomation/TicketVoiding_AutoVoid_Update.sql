@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	@MatchId		INT
+	,@sporttype		SMALLINT = 1
 	,@UserId		INT = 10278938
 	,@UserName		VARCHAR(100) = 'starixIT'
 	,@Action		VARCHAR(100) = NULL
@@ -16,6 +17,7 @@ AS
 	
 	Revisions: 
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
+		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 	
 	Param's explanation:	
 		
@@ -33,10 +35,21 @@ BEGIN
 			,@Recalculate_cnt	INT
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
-			
+			,@IsTest			BIT = 0
 			,@IsMatchCalHT	BIT = 0
 			,@IsMatchCalFT_All	BIT = 0
 			
+			,@RequestId INT
+			,@LeagueId			INT
+			,@HomeId			INT
+			,@AwayId			INT
+			,@KickOffTime	DATETIME	
+			,@IsCalEarly	BIT = 0
+			,@IsCalEarlyQueue BIT = 0
+			
+			, @query NVARCHAR(MAX) = ''
+			, @ExecuteSQL NVARCHAR(MAX) = ''
+			, @IsActiveVoidWinning BIT = 0
 			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -54,7 +67,7 @@ BEGIN
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
-	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT)
+	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, RequestType TINYINT)
 	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
@@ -126,6 +139,12 @@ BEGIN
 		,isFinish			BIT 
 	)
 	
+	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
+	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
+	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
+	
+	CREATE TABLE #Transid_mark_void (transid BIGINT,isFinish BIT )
+	CREATE TABLE #Transid_mark_tmp (transid BIGINT, statuswinlost TINYINT)
 	
 	CREATE TABLE #tmpRefCodeSummary_VOID (
 		 RefCode	BIGINT
@@ -151,9 +170,18 @@ BEGIN
 	
 	SELECT @IsMatchCalHT = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 			, @IsMatchCalFT_All =MAX( CASE WHEN Action IN ('CAL-FT','CAL') THEN 1 ELSE 0 END)
+			, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL-EARLY','CAL_EAR') THEN 1 ELSE 0 END)
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE matchid = @MatchId
 	
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
+	FROM dbo.match m WITH (NOLOCK)
+		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
+	WHERE matchid = @MatchId		
+	
+	IF @Action IN ('CAL-EARLY','CAL_EAR')	
+		SET @IsCalEarly = 1
+			
 	IF @RequestIdList IS NOT NULL
 	BEGIN
 		INSERT INTO @AutoVoid_InputRequest_tmp (RequestID)
@@ -161,8 +189,8 @@ BEGIN
 		FROM	dbo.f_SplitString(@RequestIdList, ',')
 		OPTION (maxrecursion 0)
 		
-		INSERT INTO #inputRequestTransId (TransId,RequestID)
-		SELECT  tmp.transid,r.RequestID
+		INSERT INTO #inputRequestTransId (TransId,RequestID,RequestType)
+		SELECT  tmp.transid,r.RequestID,rd.RequestType
 		FROM @AutoVoid_InputRequest_tmp r
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON r.RequestID = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
@@ -175,6 +203,82 @@ BEGIN
 	END
 	ELSE
 	BEGIN
+		SET @IsActiveVoidWinning = (SELECT TOP (1) IsActive 
+								FROM DBCUST.CUSTDB.dbo.ProblemAccountAction WITH (NOLOCK) 
+								WHERE ActionID = 2)
+								
+		IF @IsActiveVoidWinning = 1
+		BEGIN
+			SELECT  @query = N''		
+			SELECT	@query = @query + N'SELECT Custid 
+										FROM dbo.ProblemAccount WITH (NOLOCK)	
+										WHERE Actionid = 2 and SubIssueTypeId = 38'
+			SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+
+			INSERT INTO @ProblemAccount_tmp (CustID)
+			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+		
+			-- check and create request first for auto mark ticket or marked manually
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
+				SELECT b.transid, b.statuswinlost
+				FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
+					INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.statusID = 0 
+					CROSS APPLY (SELECT TOP (1) custid
+								FROM @ProblemAccount_tmp pa
+								WHERE pa.CustID = b.CustId ) pa_tmp
+					OUTER APPLY (SELECT TOP 1 rd.RequestId
+								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
+								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
+									AND r.ActionId = 1 
+									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
+								) AS tmp
+					LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
+				WHERE mt.MatchId = @MatchId 
+					AND tmp.RequestId IS NULL
+					AND b.statuswinlost IN (0,1,2,3,4)
+					AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
+					
+				INSERT INTO #Transid_mark_void (transid)
+				SELECT transid
+				FROM #Transid_mark_tmp
+				WHERE statuswinlost IN (1,2)
+			END
+		END
+		
+		IF EXISTS (SELECT TOP (1) 1 FROM #Transid_mark_void)
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				DELETE @tmpTransIDBatch
+				
+				UPDATE TOP(2000) t
+					SET isFinish = 1
+				OUTPUT DELETED.TransId
+				INTO @tmpTransIDBatch(TransId)
+				FROM #Transid_mark_void t 
+				WHERE isFinish IS NULL
+				
+				IF @@ROWCOUNT = 0 BREAK
+				
+				SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
+				
+				-- Create new request here
+				INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+				SELECT @Sporttype, 38, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
+
+				SET @RequestId = SCOPE_IDENTITY()
+			
+				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds,RequestType)
+				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIDList_tmp, 2
+					
+				SET @TransIDList_tmp = ''	 
+				
+			END
+		END	
+	
 		-- get all transid from all requests
 		INSERT INTO #inputRequestTransId (RequestID,TransId)
 		SELECT  req.RequestID, tmp.transid
@@ -194,26 +298,43 @@ BEGIN
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType 
+		LEFT JOIN  dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype
 	WHERE b.matchid = @MatchId 
 		AND b.statuswinlost IN (1,2) 
-		AND b.statusID NOT IN (101,102)
-		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+		AND b.statusID = 0
+		AND 1 = CASE 
+					 WHEN @sporttype IN (2,9,43) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11) THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
 					 ELSE 0
 				END
+				
 	SET @Void_cnt = @@ROWCOUNT
 	
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
 	SELECT DISTINCT t.TransId
-	FROM #inputRequestTransId t
+	FROM (SELECT transid 
+		FROM #inputRequestTransId 
+		UNION  
+		SELECT transid 
+		FROM #Transid_mark_tmp
+		WHERE statuswinlost IN (0,3,4)
+		
+		) AS t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid 
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType
+		LEFT  JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
-		AND 1 = CASE WHEN @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+		AND 1 = CASE 
+					 WHEN @sporttype IN (2,9,43) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11) THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
 					 ELSE 0
 				END
+				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
 	IF @Void_cnt = 0 AND @Recalculate_cnt = 0
@@ -228,7 +349,8 @@ BEGIN
 			,1 KeyId
 			,1 AS balanceType
 			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
+				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
@@ -240,7 +362,10 @@ BEGIN
 	SELECT	b.transid, b.custid, b.bettype
 			,1 KeyId
 			,1 AS balanceType
-			,1 AS TicketType
+			,CASE 
+				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
+				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
+				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
@@ -350,6 +475,7 @@ BEGIN
 					AND sub.matchid = @MatchId
 		WHERE	sub.statusID NOT IN (101, 102)
 				AND sub911.bettype = 911
+				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID r WHERE r.TransId = sub.transid)	
 
 		INSERT INTO @tmpCustCashOut_VOID(CustId)
 		SELECT	t.custid
@@ -389,6 +515,22 @@ BEGIN
 		FROM	@tmpCustCashOut_Recalculate_tmp t
 		WHERE	t.bettype = 912
 		GROUP BY t.custid
+		
+		INSERT INTO #tmpTransId_Recalculate (TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
+		SELECT	DISTINCT cob.transid, cob.custid, cob.bettype
+			,1 KeyId
+			,1 AS balanceType
+			,3 AS TicketType
+			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid
+		FROM @tmpCustCashOut_Recalculate_tmp b
+			INNER JOIN dbo.bettrans cob WITH(NOLOCK) 
+				ON cob.matchid = @MatchId
+				AND cob.custid = b.custid
+				AND cob.refno = b.refno 
+				AND cob.bettype NOT BETWEEN 912 AND 914 --normal bettype tickets
+		WHERE b.bettype = 912
+			AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate r WHERE r.TransId = cob.transid)	
+		
 	END
 	
 	-- Cashout for all void and resettle

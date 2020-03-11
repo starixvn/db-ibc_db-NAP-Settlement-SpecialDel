@@ -1,5 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
+(
 	@RequestId		INT			= NULL
 	,@MatchId		INT			= NULL
 	,@FromDate		DATETIME	= NULL
@@ -7,7 +8,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
 	,@IssueTypeId	TINYINT			= 0
-
+	,@SubIssueType  VARCHAR(100) = NULL
+)
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -18,6 +20,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200103@Max: Enhance EKO Issue Type - [Redmine: #126418]
+		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 
 	Param's explanation:	
 		@Status: 
@@ -69,6 +72,16 @@ BEGIN
 	)
 
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
+
+	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
+
+	IF @SubIssueType IS NOT NULL
+	BEGIN
+		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
+		SELECT	val AS TransId
+		FROM	dbo.f_SplitString(@SubIssueType, ',')
+		OPTION (maxrecursion 0) 
+	END
 
 	SELECT	@FilteredBy = CASE
 								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
@@ -136,6 +149,9 @@ BEGIN
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
+				AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
+						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
+					ELSE 0 END
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -163,6 +179,9 @@ BEGIN
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
+			AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
+						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
+					ELSE 0 END
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
