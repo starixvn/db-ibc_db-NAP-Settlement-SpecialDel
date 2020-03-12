@@ -23,6 +23,7 @@ AS
 		- 20200221@Max: HotFix [Redmine: #128924]
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
+		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
 		
 	Param's explanation:	
 		
@@ -41,10 +42,12 @@ BEGIN
 
 			,@IsBettypeHT	BIT = 0
 			,@IsBettypeFT	BIT = 0
+			,@IsBettypeEAR	BIT = 0
 			
-			,@IsCalHTQueue	BIT = 0
-			,@IsCalFTQueue	BIT = 0
-			,@IsCalAllQueue	BIT = 0
+			,@IsCalHTQueue		BIT = 0
+			,@IsCalFTQueue		BIT = 0
+			,@IsCalAllQueue		BIT = 0
+			,@IsCalEarlyQueue	BIT = 0
 			
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT)
 
@@ -167,6 +170,7 @@ BEGIN
 				SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 						, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 						, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
+						, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL_EAR', 'CAL_EARLY') THEN 1 ELSE 0 END)
 				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 
@@ -175,10 +179,15 @@ BEGIN
 
 				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetGroupBettypes() WHERE groupid IN (2,4) AND bettype = @Bettype)
 					SET @IsBettypeFT = 1
+				
+				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = @Bettype)
+					SET @IsBettypeEAR = 1
 
 				IF (
-						((@IsCalHTQueue = 1 OR @IsCalAllQueue = 1) AND  @IsBettypeHT = 1 )
-					OR	((@IsCalAllQueue = 1 OR @IsCalFTQueue = 1) AND @IsBettypeFT = 1)
+						(@IsCalHTQueue = 1 AND  @IsBettypeHT = 1)
+					OR  (@IsCalFTQueue = 1 AND  (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
+					OR	(@IsCalAllQueue = 1 AND (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
+					OR	(@IsCalEarlyQueue = 1 AND (@IsBettypeEAR = 1))
 					)
 				BEGIN
 			
