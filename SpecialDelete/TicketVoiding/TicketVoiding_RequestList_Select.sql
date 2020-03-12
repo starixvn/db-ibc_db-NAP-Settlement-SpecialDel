@@ -7,8 +7,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@ToDate		DATETIME	= NULL
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
-	,@IssueTypeId	VARCHAR(200)	= ''
-	,@SubIssueType  VARCHAR(100) = NULL
+	,@IssueTypeId	VARCHAR(100)	= NULL
+	,@SubIssueType  VARCHAR(100)	= NULL
 )
 AS
 /*	Created by: Kathy
@@ -77,8 +77,14 @@ BEGIN
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
 
-	IF @SubIssueType IS NOT NULL
+	IF @IssueTypeId IS NOT NULL AND @SubIssueType IS NOT NULL
 	BEGIN
+		INSERT INTO @tmpIssueType (IssueTypeId)
+		SELECT DISTINCT val
+		FROM dbo.f_SplitString(@IssueTypeId, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+
 		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@SubIssueType, ',')
@@ -156,11 +162,10 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
+			INNER JOIN @SubIssueType_tmp sub
+				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
-				AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
-						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
-					ELSE 0 END
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -187,11 +192,10 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
+			INNER JOIN @SubIssueType_tmp sub
+				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
-			AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
-						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
-					ELSE 0 END
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
