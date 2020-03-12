@@ -1,1 +1,14 @@
-Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql 
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP_Push.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP_Push.proc.sql
+Settlement\Sportbook\ManualSettlement\Parlaydbo.NAP_Admin_Settlement_Refund_MP.proc.sql
+SpecialDelete\Sportbook\RecoverParlayBet\dbo.NAP_BettransRecoverParlayBet_Main.sql
+SpecialDelete\Sportbook\RecoverParlayBet\dbo.NAP_BettransRecoverParlayBet_Sub.sql
+SpecialDelete\Sportbook\VoidByCurrency\dbo.NAP_SpecialDelete_VoidByCurrency_Update.sql
+SpecialDelete\Sportbook\VoidEarlyKickOff\dbo.NAP_BettransDelSpecialDel_EarlyKO.sql
+SpecialDelete\Sportbook\VoidParlayBet\dbo.NAP_SpecialDelete_VoidParlayBet_Update.sql
+SpecialDelete\Sportbook\VoidSingleBet\dbo.NAP_SpecialDelete_VoidSingleBet_Update.sql
+SpecialDelete\TicketVoiding\TicketVoiding_ParlayType_Update.sql
+
+
