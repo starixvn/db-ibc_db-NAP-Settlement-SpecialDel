@@ -170,7 +170,7 @@ BEGIN
 				SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 						, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 						, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
-						, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL_EAR', 'CAL_EARLY') THEN 1 ELSE 0 END)
+						, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL-EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
 				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 
@@ -219,5 +219,6 @@ BEGIN
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransid_unmark
+	DROP TABLE #ProblemAccount_tmp
 	
 END
