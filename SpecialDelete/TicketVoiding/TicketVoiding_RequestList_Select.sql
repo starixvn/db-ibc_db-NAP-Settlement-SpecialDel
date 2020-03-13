@@ -100,12 +100,6 @@ BEGIN
 									END
 							END
 
-	INSERT INTO @tmpIssueType (IssueTypeId)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@IssueTypeId, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
-
 	IF @FilteredBy = 1
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
