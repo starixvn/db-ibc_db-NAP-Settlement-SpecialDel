@@ -37,6 +37,7 @@ AS
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
 		- 20200115@Max: Enhance SPs [Redmine: #127031]
+		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 
 	Param's Explanation:		
 		
@@ -331,6 +332,11 @@ BEGIN
 				UNION ALL
 				SELECT ResultStatusID
 	  			FROM #ResultDetailOS rd WITH (NOLOCK) 
+	  			WHERE rd.ResourceID = c.ResourceID
+	  				AND rd.matchid = c.matchid
+				UNION ALL
+				SELECT ResultStatusID
+	  			FROM #ResultDetail rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
 	  				AND rd.matchid = c.matchid
 	  		) AS rs

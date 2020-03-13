@@ -11,7 +11,7 @@ AS
     Revisions:
         - 20180728@Vicky: ESPort [Redmine #95874]
         - 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
-        
+        - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
    
     Parameters Explanation:        
     
@@ -47,6 +47,12 @@ RETURN
 	    UNION ALL SELECT 9, '804', '4G', '0104', 'SP', 0, 4
 	    UNION ALL SELECT 9, '805', '5G', '0105', 'SP', 0, 5
 	    UNION ALL SELECT 9, '00' , 'FT', '00', 'FT', 1, 99
+		UNION ALL SELECT 5, '801', '1S', '01', 'SP', 0, 1 --Grouptype = Special
+	    UNION ALL SELECT 5, '802', '2S', '02', 'SP', 0, 2
+	    UNION ALL SELECT 5, '803', '3S', '03', 'SP', 0, 3
+	    UNION ALL SELECT 5, '804', '4S', '04', 'SP', 0, 4
+	    UNION ALL SELECT 5, '805', '5S', '05', 'SP', 0, 5
+	    UNION ALL SELECT 5, '00' , 'FT', '00', 'FT', 1, 99
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

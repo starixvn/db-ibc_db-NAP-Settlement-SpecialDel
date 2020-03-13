@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IP				VARCHAR(15)		= ''
 	,@IsReSettledTickets BIT			= 1
+	,@BetStatus			NVARCHAR(50)	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -16,6 +17,7 @@ AS
 	Revisions:
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
+		- 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - Added new param @Betstatus - [Redmine:#129316]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -92,6 +94,8 @@ BEGIN
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets)
+															+ ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
+                                                                                     ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 

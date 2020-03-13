@@ -55,6 +55,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584
 		- 20200122@Helen: Keep FT Score when re-calculating HT Score [Redmine:#127594]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
+        - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		
     Parameters Explanation:
 
@@ -551,12 +552,19 @@ BEGIN
     IF @Command = 'profile'
     BEGIN
 		DECLARE @ruben TINYINT
+
+        SELECT @Sporttype   = sporttype
+        FROM dbo.match WITH(NOLOCK)
+        WHERE matchid = @matchid
+
 		IF @IsFinalRound = 1
 		BEGIN
 			IF @action = 'REFUND'
            		SELECT @eventstatus        = N'completed'
 	                   ,@ruben             = 1
-	                   ,@betstatus         = 'refund;'
+	                   ,@betstatus         = CASE WHEN @Sporttype = 5 
+                                                    THEN CASE WHEN CHARINDEX('Refund;',@betstatus) > 0 THEN @betstatus ELSE 'Refund;' + @betstatus END
+                                                ELSE 'Refund;' END
 	                   
 	        IF @action = 'UNDO'
            		SELECT @eventstatus         = N'running'
@@ -567,8 +575,6 @@ BEGIN
 	                   
 	        IF @action = 'CAL'
 	        	SELECT @eventstatus			= N'completed'
-	        		   --,@HTHome = @HTHome, 0)
-	        		   --,@HTAway = @HTAway, 0)
 	        
 	        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus     = COALESCE(@eventstatus, eventstatus)
@@ -580,7 +586,13 @@ BEGIN
                 ,betstatus      = COALESCE(@betstatus, betstatus)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
-        WHERE   matchid = @matchid
+            WHERE matchid = @matchid
+        END
+        ELSE IF @IsFinalRound = 0 AND @Sporttype = 5
+        BEGIN
+            UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET betstatus = COALESCE(@betstatus, betstatus)
+            WHERE matchid = @matchid
         END
     END
 END
