@@ -24,6 +24,7 @@ AS
 		- 20200221@Max: HotFix [Redmine: #128924]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
+		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
 
 	Param's explanation:	
 	
@@ -83,7 +84,7 @@ BEGIN
 	SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 			, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 			, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
-			, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL-EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
+			, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL_EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 			
