@@ -16,6 +16,7 @@ AS
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 		- 20200302@Max: Hot fix - Order By IsConfirm [Redmine : #129214]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
+		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
 
 	
 	Param's explanation:	
@@ -24,17 +25,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT)
+	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid BIGINT)
 
 	IF LEN(@MatchId) < 10
 	BEGIN
-		INSERT INTO #MarkedTransaction_tmp(MatchId, bettype, UserId, MarkedTrans, CreateDate, MarkType)
+		INSERT INTO #MarkedTransaction_tmp(MatchId, bettype, UserId, MarkedTrans, CreateDate, MarkType, betid)
 		SELECT mt.MatchId
 			, mt.bettype
 			, mt.UserId
 			, COUNT(mt.TransId) AS MarkedTrans
 			, MAX(mt.CreatedDate) AS CreatedDate
 			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
+			, CASE WHEN f.GroupName = 'Special' THEN betid ELSE NULL END AS betid
 		FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
@@ -43,6 +45,7 @@ BEGIN
 							FROM dbo.f_SplitString(@Sporttype, ',')
 							WHERE val = m.sporttype
 						) AS tmp
+			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 		WHERE m.sporttype IN (1, 2 ,9, 43)
 			AND b.statusID NOT IN (101, 102)
 			AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
@@ -51,6 +54,7 @@ BEGIN
 			, mt.bettype
 			, mt.UserId
 			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END
+			, CASE WHEN f.GroupName = 'Special' THEN betid ELSE NULL END
 
 		SELECT mt.MatchId
 			, m.kickofftime
@@ -66,6 +70,7 @@ BEGIN
 			, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
 				   ELSE 1 END AS IsConfirm
 			, mt.MarkType
+			, mt.betid
 		FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 			OUTER APPLY (
@@ -88,6 +93,7 @@ BEGIN
 					WHERE t.Matchid = mt.MatchId
 						AND t.Bettype = mt.bettype
 						AND t.MarkedBy = mt.UserId
+						AND t.betid = mt.betid
 					ORDER BY t.CreatedDate DESC
 				)ta_tmp		
 			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
