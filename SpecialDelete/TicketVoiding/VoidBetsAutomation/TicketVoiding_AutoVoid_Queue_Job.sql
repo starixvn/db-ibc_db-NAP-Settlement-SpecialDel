@@ -9,6 +9,7 @@ AS
 	Revisions: 
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		- 20200316@Max: HotFix - Update item to Cancel even there are requests need to be executed [Redmine: #130303]
 	
 	Param's explanation:	
 	
@@ -50,6 +51,8 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@queue_cnt			TINYINT = 0
+			,@Max_QueueId		INT = 0
+
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
 	DECLARE @Subject	NVARCHAR(500) = ''
@@ -61,17 +64,18 @@ BEGIN
 	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
 	
-	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
+	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT, queueid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
 	-- update cancel: check abnormalbet and any mark ticket by auto			
-	INSERT INTO @tblMatchid_abnormal (matchid)
-	SELECT DISTINCT rd.matchid
+	INSERT INTO @tblMatchid_abnormal (matchid, queueid)
+	SELECT DISTINCT rd.matchid, QueueId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
 	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0
-					 
+	
+	SELECT @Max_QueueId = MAX(queueid) FROM @tblMatchid_abnormal
 	UPDATE q
 		SET StatusId = 4
 			,ErrMsg = 'None of AbnormalBet Request AND None of mark ticket by Auto Service.'
@@ -84,6 +88,7 @@ BEGIN
 	WHERE q.StatusId = 0 
 		AND q.RequestId = 0 
 		AND mt_tmp.TransId IS NULL AND m.matchid IS NULL	
+		AND q.QueueId <= @Max_QueueId
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
