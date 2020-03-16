@@ -100,6 +100,7 @@ BEGIN
 					 FROM #ProblemAccount_tmp t
 					 WHERE t.custid = b.custid
 					 ) AS tmp
+		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
@@ -107,6 +108,9 @@ BEGIN
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
 		AND tmp.CustID IS NULL
+		AND 1 = CASE WHEN f.GroupName = 'Special' AND b.betid = @Betid THEN 1
+					WHEN f.GroupName <> 'Special' THEN 1
+				ELSE 0 END
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
