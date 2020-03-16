@@ -1,11 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelInfo_Auto_1s]
 	@MatchID		INT
-
 AS
 /*	Creator: 20160516@Patrick
 	Task: Auto Settlement - Select match info
@@ -15,6 +10,7 @@ AS
 	Revisions:
 		- 20170123@Kathy:  Allow user to Enable/Disable Auto Settlement of Fast Market [Redmine:#69949]
 		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
+		- 20200311@Sol: PH5 Enhancement - Early popyp auto fill [Redmine:#128076]
 		
 	Param's Explanation:
 */
@@ -80,6 +76,7 @@ BEGIN
             ,@IsCalRefund AS IsCalRefund
             ,m.AutoSetting
             ,(SELECT AutoSetting FROM dbo.League WITH(NOLOCK) WHERE leagueid = m.leagueid) AS AutoSettingForLeague
+			,m.ChildMatchType
 	FROM	dbo.Match m WITH (NOLOCK)
 	WHERE	MatchID = @MatchID
 	
@@ -87,6 +84,3 @@ BEGIN
 
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Set_MatchSelInfo_Auto_1s] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Set_MatchSelInfo_Auto_1s] TO [vnteam] AS [dbo]
