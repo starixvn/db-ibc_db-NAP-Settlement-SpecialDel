@@ -67,15 +67,17 @@ BEGIN
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT, queueid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
-	-- update cancel: check abnormalbet and any mark ticket by auto			
+	-- update cancel: check abnormalbet and any mark ticket by auto
+	SET @Max_QueueId = (SELECT MAX(q.QueueId) FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK))
+
 	INSERT INTO @tblMatchid_abnormal (matchid, queueid)
 	SELECT DISTINCT rd.matchid, QueueId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
-	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0
+	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0 AND q.QueueId <= @Max_QueueId
 	
-	SELECT @Max_QueueId = MAX(queueid) FROM @tblMatchid_abnormal
+	
 	UPDATE q
 		SET StatusId = 4
 			,ErrMsg = 'None of AbnormalBet Request AND None of mark ticket by Auto Service.'
