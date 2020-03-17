@@ -81,6 +81,7 @@ BEGIN
 	UPDATE q
 		SET StatusId = 4
 			,ErrMsg = 'None of AbnormalBet Request AND None of mark ticket by Auto Service.'
+			,Exectime = GETDATE()
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 		OUTER APPLY (SELECT TOP 1 transid
