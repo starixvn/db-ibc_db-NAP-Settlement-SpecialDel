@@ -64,14 +64,14 @@ BEGIN
 	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
 	
-	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT, queueid INT)
+	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
 	-- update cancel: check abnormalbet and any mark ticket by auto
 	SET @Max_QueueId = (SELECT MAX(q.QueueId) FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK))
 
-	INSERT INTO @tblMatchid_abnormal (matchid, queueid)
-	SELECT DISTINCT rd.matchid, QueueId
+	INSERT INTO @tblMatchid_abnormal (matchid)
+	SELECT DISTINCT rd.matchid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
