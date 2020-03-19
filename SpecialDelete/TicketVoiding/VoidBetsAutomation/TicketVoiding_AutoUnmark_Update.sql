@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 	@Matchid		 INT,
 	@Bettype		 SMALLINT,
 	@MarkedBy		 INT,
+	@Betid			 BIGINT = NULL,
 	@UserId          INT           = 0,
     @Username        NVARCHAR(100) = '',
     @IP              VARCHAR(15)   = NULL,
@@ -24,6 +25,7 @@ AS
 		- 20200226@Max: Confirm Auto Unmark Group By User [Redmine: #129219]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
+		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
 		
 	Param's explanation:	
 		
@@ -55,8 +57,8 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
 	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
-	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId, MarkedBy)
-	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId, @MarkedBy)
+	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId, MarkedBy, betid)
+	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId, @MarkedBy, @Betid)
 
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
@@ -98,6 +100,7 @@ BEGIN
 					 FROM #ProblemAccount_tmp t
 					 WHERE t.custid = b.custid
 					 ) AS tmp
+		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
@@ -105,6 +108,9 @@ BEGIN
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
 		AND tmp.CustID IS NULL
+		AND 1 = CASE WHEN f.GroupName = 'Special' AND b.betid = @Betid THEN 1
+					WHEN f.GroupName <> 'Special' THEN 1
+				ELSE 0 END
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
