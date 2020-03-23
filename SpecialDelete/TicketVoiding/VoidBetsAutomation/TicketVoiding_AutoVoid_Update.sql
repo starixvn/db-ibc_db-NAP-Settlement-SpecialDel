@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 	
 	Param's explanation:	
 		
@@ -755,6 +756,7 @@ BEGIN
 				,@UserId = @UserId
 				,@Username = @Username
 				,@IP = @IP
+				,@LogActionId = 90510
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 			

@@ -22,6 +22,7 @@ AS
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
 		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
+		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 
 	Param's explanation:	
 	
@@ -145,7 +146,7 @@ BEGIN
 		IF @MarkedTransIds IS NOT NULL
 		BEGIN
 			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
-			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @MarkType = 1
+			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @MarkType = 1, @LogActionId = 90508
 		END
 
 		IF @ActionID = 1 AND (
