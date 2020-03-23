@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
 	@MatchId		VARCHAR(50)		= ''
 	,@Sporttype		VARCHAR(100)	= ''
 	,@IsExcludeTest BIT				= 1
+	,@MarkedBy		INT				= 0
 )
 AS
 /*	Created by: Max
@@ -17,6 +18,7 @@ AS
 		- 20200302@Max: Hot fix - Order By IsConfirm [Redmine : #129214]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
+		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 
 	
 	Param's explanation:	
@@ -50,6 +52,7 @@ BEGIN
 			AND b.statusID NOT IN (101, 102)
 			AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
+			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
 		GROUP BY mt.MatchId
 			, mt.bettype
 			, mt.UserId
