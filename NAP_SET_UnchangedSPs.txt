@@ -1,7 +1,5 @@
 Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_Push.proc.sql 
 Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar.proc.sql
-Settlement\VirtualBetRadar\Calculation\dbo.NAP_Admin_Calculate_VS_BetRadar_Main.proc.sql
 Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_MP.proc.sql
-Settlement\VirtualBetRadar\Parlay\dbo.NAP_Admin_Calculate_VS_BetRadar_Parlay.proc.sql
 Settlement\VirtualBetRadar\Calculation\dbo.NAP_Admin_Calculate_VS_BetRadar_Refund.proc.sql
 Settlement\VirtualBetRadar\Function\dbo.f_Set_VS_BetRadar_GetBalance.func.sql
