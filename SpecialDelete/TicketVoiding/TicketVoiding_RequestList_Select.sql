@@ -294,6 +294,7 @@ BEGIN
 					INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = f.val
 				WHERE b.statusID IN (112)
 			) AS tmp
+	OPTION (maxrecursion 0)
 
 	--Return Data
 	SELECT	t.RequestId
@@ -322,7 +323,7 @@ BEGIN
 				ELSE 0 END AS Status
 			,CASE WHEN ic.RequestId IS NOT NULL THEN 'Settled Tickets'
 				WHEN m.MatchId IS NOT NULL THEN 'Auto Void Failed'
-				ELSE NULL END AS IncompledReason
+				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
