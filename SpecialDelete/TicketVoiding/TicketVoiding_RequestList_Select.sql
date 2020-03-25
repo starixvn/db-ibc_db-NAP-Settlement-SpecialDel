@@ -75,8 +75,9 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
-	DECLARE @Incompleted_tmp TABLE (RequestId INT)
-	DECLARE @MatchidList_Waiting_10minutes_tmp TABLE (MatchId INT)
+	DECLARE @MatchidList_Waiting_30minutes_tmp TABLE (MatchId INT)
+
+	CREATE TABLE #Incompleted_tmp (RequestId INT, StatusId TINYINT)
 
 	IF @IssueTypeId IS NOT NULL AND @SubIssueType IS NOT NULL
 	BEGIN
@@ -280,21 +281,30 @@ BEGIN
 			ON t.MatchId = m.matchid
 
 	--Incompleted Request	
-	INSERT INTO @MatchidList_Waiting_10minutes_tmp (MatchId)
-	SELECT matchid
-	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-	WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10
+	IF @Status IN (0,3)
+	BEGIN
+		INSERT INTO @MatchidList_Waiting_30minutes_tmp (MatchId)
+		SELECT matchid
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+		WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30
 	
-	INSERT INTO @Incompleted_tmp (RequestId)
-	SELECT DISTINCT RequestId
-	FROM #tmpResult t
-	CROSS APPLY (
-				SELECT f.val AS transid, b.status
-				FROM dbo.f_SplitString(t.TransIds, ',') f
-					INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = f.val
-				WHERE b.statusID IN (112)
-			) AS tmp
-	OPTION (maxrecursion 0)
+		INSERT INTO #Incompleted_tmp (RequestId, StatusId)
+		SELECT RequestId, statusID
+		FROM #tmpResult t
+		CROSS APPLY (
+					SELECT TOP 1 f.val AS transid
+						,b.statusID
+					FROM dbo.f_SplitString(t.TransIds, ',') f
+						CROSS APPLY (
+									SELECT TOP 1 statusID
+									FROM bettrans b WITH (NOLOCK) 
+									WHERE transid = f.val
+										AND statuswinlost IN (1, 2) 
+										AND statusID IN (0,1,112)
+								) b
+				) AS tmp
+		OPTION (maxrecursion 0)		
+	END
 
 	--Return Data
 	SELECT	t.RequestId
@@ -319,10 +329,10 @@ BEGIN
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
-				WHEN (ic.RequestId IS NOT NULL OR m.MatchId IS NOT NULL) THEN 3
+				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 112) OR (m.MatchId IS NOT NULL AND ic.StatusId IN (0,1))) THEN 3
 				ELSE 0 END AS Status
-			,CASE WHEN ic.RequestId IS NOT NULL THEN 'Settled Tickets'
-				WHEN m.MatchId IS NOT NULL THEN 'Auto Void Failed'
+			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 112 THEN 'Settled Tickets'
+				WHEN m.MatchId IS NOT NULL AND ic.StatusId IN (0,1) THEN 'Auto Void Failed'
 				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
@@ -332,20 +342,20 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
 		OUTER APPLY (
-					SELECT RequestId
-					FROM @Incompleted_tmp
+					SELECT RequestId, StatusId
+					FROM #Incompleted_tmp
 					WHERE RequestId = t.RequestId
 			)ic
 		OUTER APPLY (
 					SELECT MatchId
-					FROM @MatchidList_Waiting_10minutes_tmp
+					FROM @MatchidList_Waiting_30minutes_tmp
 					WHERE MatchId = t.MatchId
 			)m
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
-				WHEN @Status = 3 AND (ic.RequestId IS NOT NULL OR m.MatchId IS NOT NULL) THEN 1
+				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 112) OR (m.MatchId IS NOT NULL AND ic.StatusId IN (0,1))) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC
