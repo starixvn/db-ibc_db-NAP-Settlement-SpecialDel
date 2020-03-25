@@ -7,8 +7,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@ToDate		DATETIME	= NULL
 	,@IsExcludeTest BIT			= 1
 	,@Status		INT			= 0
-	,@IssueTypeId	TINYINT			= 0
-	,@SubIssueType  VARCHAR(100) = NULL
+	,@IssueTypeId	VARCHAR(100)	= NULL
+	,@SubIssueType  VARCHAR(100)	= NULL
 )
 AS
 /*	Created by: Kathy
@@ -20,6 +20,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200103@Max: Enhance EKO Issue Type - [Redmine: #126418]
+		- 20200206@Max: Permission on data - [Redmine: #128014]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 
 	Param's explanation:	
@@ -35,6 +36,7 @@ BEGIN
 	DECLARE	@FilteredBy	TINYINT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
+	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 
 	DECLARE @tmpMatchVoidingHistory TABLE (
 		RequestId			INT
@@ -75,8 +77,14 @@ BEGIN
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
 
-	IF @SubIssueType IS NOT NULL
+	IF @IssueTypeId IS NOT NULL AND @SubIssueType IS NOT NULL
 	BEGIN
+		INSERT INTO @tmpIssueType (IssueTypeId)
+		SELECT DISTINCT val
+		FROM dbo.f_SplitString(@IssueTypeId, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+
 		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@SubIssueType, ',')
@@ -146,12 +154,12 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN @tmpIssueType tmp 
+				ON tmp.IssueTypeId = r.IssueTypeId
+			INNER JOIN @SubIssueType_tmp sub
+				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
-				AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
-				AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
-						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
-					ELSE 0 END
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -176,12 +184,12 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN @tmpIssueType tmp 
+				ON tmp.IssueTypeId = r.IssueTypeId
+			INNER JOIN @SubIssueType_tmp sub
+				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
-			AND ((r.IssueTypeId = @IssueTypeId) OR @IssueTypeId = 0)
-			AND 1 = CASE WHEN @IssueTypeId = 0 AND @SubIssueType = 0 THEN 1 
-						WHEN r.SubIssueTypeId IN (SELECT SubIssueTypeId FROM @SubIssueType_tmp) THEN 1
-					ELSE 0 END
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)

@@ -40,6 +40,7 @@ AS
 			  - 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 			  - 20181017@Alan: Write log new reason chinese simplified [102918]
 			  - 20181004@Alan: Add new column SettlementStatus [102423]
+			  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 			  
 	Param's Explanation:
 
@@ -438,7 +439,8 @@ BEGIN
 			   ,[balance]
 			   ,[SecAcceptFlag]
 			   ,[transid2]
-			   ,[RecommDate])
+			   ,[RecommDate]
+			   ,[epositiontaking])
 		SELECT  b.[custid]
 			   ,b.[transdate]
 			   ,0 [oddsid]
@@ -502,6 +504,7 @@ BEGIN
 			   ,0 [SecAcceptFlag]
 			   ,0 [transid2]
 			   ,NULL [RecommDate]
+			   ,b.[epositiontaking]
 		FROM	dbo.translog b WITH(NOLOCK)
 			INNER JOIN #BetDelete tmp
 				ON b.translogid = tmp.transid
