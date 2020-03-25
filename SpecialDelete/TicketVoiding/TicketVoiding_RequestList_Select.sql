@@ -281,7 +281,7 @@ BEGIN
 
 	--Incompleted Request	
 	INSERT INTO @MatchidList_Waiting_10minutes_tmp (MatchId)
-	SELECT TOP 10 matchid
+	SELECT matchid
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 	WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10
 	
