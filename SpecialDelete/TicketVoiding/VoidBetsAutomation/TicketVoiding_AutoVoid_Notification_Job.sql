@@ -56,7 +56,7 @@ BEGIN
 			SET @Recipients = 'dbaadmin@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
 			
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10 )'
+						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -80,7 +80,7 @@ BEGIN
 			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
 			*/
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 10 )'
+						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
