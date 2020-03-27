@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" selecters="vnteam" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" selecters="" isFunction="1" isNested="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_VS_BetRadar_GetBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -11,7 +11,8 @@ AS
     Revisions:
 		- 20160606@Bobby: Initialize
 		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
-		- 20181122@Kathy: Betradar VS 3 [Redmine:#105261] 
+		- 20181122@Kathy: Betradar VS 3 [Redmine:#105261]
+		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984]  
 		
 	Columns Explanation:    
 		- @CalMode: TINYINT [1:HT,2:FT]
@@ -73,6 +74,24 @@ RETURN (
 		UNION ALL SELECT 2705, 194, 2
 		UNION ALL SELECT 2706, 194, 1
 		UNION ALL SELECT 2707, 194, 2
+		
+		--Virtual Soccer English Premier
+		UNION ALL SELECT 2701, 195, 2
+		UNION ALL SELECT 2702, 195, 1
+		UNION ALL SELECT 2703, 195, 2
+		UNION ALL SELECT 2704, 195, 1
+		UNION ALL SELECT 2705, 195, 2
+		UNION ALL SELECT 2706, 195, 1
+		UNION ALL SELECT 2707, 195, 2
+		
+		--Virtual Soccer Champions Cup
+		UNION ALL SELECT 2701, 196, 2
+		UNION ALL SELECT 2702, 196, 1
+		UNION ALL SELECT 2703, 196, 2
+		UNION ALL SELECT 2704, 196, 1
+		UNION ALL SELECT 2705, 196, 2
+		UNION ALL SELECT 2706, 196, 1
+		UNION ALL SELECT 2707, 196, 2
 
 	) AS vs
 )
