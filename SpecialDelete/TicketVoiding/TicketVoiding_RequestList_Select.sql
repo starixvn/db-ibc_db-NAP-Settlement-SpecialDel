@@ -296,12 +296,14 @@ BEGIN
 						,b.statusID
 					FROM dbo.f_SplitString(t.TransIds, ',') f
 						CROSS APPLY (
-									SELECT TOP 1 statusID
+									SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
+										WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
+										ELSE 0 END AS statusID
 									FROM bettrans b WITH (NOLOCK) 
 									WHERE transid = f.val
-										AND statuswinlost IN (1, 2) 
 										AND statusID IN (0,1,112)
 								) b
+					WHERE statusID IN (1,2)
 				) AS tmp
 		OPTION (maxrecursion 0)		
 	END
@@ -329,10 +331,10 @@ BEGIN
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
-				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 112) OR (m.MatchId IS NOT NULL AND ic.StatusId IN (0,1))) THEN 3
+				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 3
 				ELSE 0 END AS Status
-			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 112 THEN 'Settled Tickets'
-				WHEN m.MatchId IS NOT NULL AND ic.StatusId IN (0,1) THEN 'Auto Void Failed'
+			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 1 THEN 'Settled Tickets'
+				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
 				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
@@ -355,7 +357,7 @@ BEGIN
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
-				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 112) OR (m.MatchId IS NOT NULL AND ic.StatusId IN (0,1))) THEN 1
+				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC
