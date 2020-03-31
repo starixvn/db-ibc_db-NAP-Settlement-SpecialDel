@@ -37,7 +37,7 @@ BEGIN
 	--Sending notification if auto void failed
 	SET @MatchIdList_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
 												FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-												WHERE StatusId = 3 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30												
+												WHERE StatusId = 3											
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
@@ -124,7 +124,7 @@ BEGIN
 			-- For Production -----------
 			SET @Recipients = 'dbaadmin@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
 			
-			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ' + @ErrMsg + ', Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
+			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
 							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
@@ -141,15 +141,15 @@ BEGIN
 		ELSE
 		BEGIN
 			-- Send via email 
-			SET @Subject = 'TVS: Auto Void Notification!'	
+			SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
 			-- For testing------------
 			SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
 			-- For Production -----------
 			/*
 			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
 			*/
-			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
+			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
+							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
