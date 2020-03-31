@@ -284,7 +284,7 @@ BEGIN
 	IF @Status IN (0,3)
 	BEGIN
 		INSERT INTO @MatchidList_Waiting_30minutes_tmp (MatchId)
-		SELECT matchid
+		SELECT DISTINCT matchid
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 		WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30
 	
@@ -363,5 +363,6 @@ BEGIN
 	ORDER BY t.RequestId DESC
 	
 	DROP TABLE #tmpResult
+	DROP TABLE #Incompleted_tmp
 	
 END
