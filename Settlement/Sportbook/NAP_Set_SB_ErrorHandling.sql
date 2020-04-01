@@ -16,7 +16,8 @@ AS
 		-20161013@Bobby: #65178 - Implement Instant calculation process
 		-20180124@Benjamin: Add @IsAutoInst variable for Auto Instant [Redmine:#86964]
 		-20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		-20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -57,7 +58,9 @@ BEGIN
 							WHEN CHARINDEX('NAP_Admin_Settlement_Parlay', @sqlCommand) > 0 THEN 4
 							WHEN CHARINDEX('NAP_Admin_Settlement_1', @sqlCommand) > 0
 								OR CHARINDEX('NAP_Admin_Settlement_RefundHT', @sqlCommand) > 0
-								OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 THEN 1
+								OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 
+								OR CHARINDEX('NAP_Admin_Settlement_Refund_All', @sqlCommand) > 0 THEN 1
+							WHEN CHARINDEX('NAP_Admin_Settlement_Profile', @sqlCommand) > 0 THEN 8
 						ELSE NULL END
 		IF @Mode IS NULL
 			RETURN
