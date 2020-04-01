@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VA
                                                              @IP              VARCHAR(15)   = NULL,
                                                              @MarkType		  TINYINT		= 0,
 															 @RequestId		  INT			= NULL,
+															 @LogActionId	  INT			= 90500,
                                                              @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
@@ -22,6 +23,7 @@ AS
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		
 */
 BEGIN
@@ -376,7 +378,7 @@ BEGIN
 
 	-- Write Log
 	SET @xmlLog = CAST((
-				SELECT 90500 AS '@LogActionId' -- 90500: Action Mark
+				SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request, 90509: Mark by auto void system
 					,@UserId AS '@UserId'
 					,@IP AS '@IP'
 					,@RequestId AS '@RequestId'

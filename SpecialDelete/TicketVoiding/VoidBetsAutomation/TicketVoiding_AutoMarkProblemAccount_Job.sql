@@ -15,6 +15,7 @@ AS
 	
 	Revisions: 
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
+		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 	
 	Param's explanation:	
 	
@@ -162,6 +163,7 @@ BEGIN
 					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @TransIds_tmp, @UserId = @UserId
 																	, @Username = @UserName, @IP = @IP
 																	, @MarkType = 2
+																	, @LogActionId = 90509
 																	, @ErrMsg = @ErrMsg_tmp OUTPUT
 																	, @ErrCode = @ErrCode OUTPUT;
 																	
@@ -234,6 +236,7 @@ BEGIN
 					,@UserId = @UserId
 					,@Username = @UserName
 					,@IP = @IP
+					,@LogActionId = 90510
 					,@ErrMsg = @ErrMsg_tmp OUTPUT
 					,@ErrCode = @ErrCode OUTPUT
 			END TRY

@@ -22,22 +22,22 @@ AS
 		- 20200103@Max: Enhance EKO Issue Type - [Redmine: #126418]
 		- 20200206@Max: Permission on data - [Redmine: #128014]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
+		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 
 	Param's explanation:	
 		@Status: 
 			- 0: All
 			- 1: New
 			- 2: Voided
+			- 3: Incompleted
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE	@FilteredBy	TINYINT
-
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
-
 	DECLARE @tmpMatchVoidingHistory TABLE (
 		RequestId			INT
 		,MatchId			INT
@@ -72,10 +72,12 @@ BEGIN
 		,TotalParlay	INT
 		,TotalCashOut	INT
 	)
-
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
+	DECLARE @MatchidList_Waiting_30minutes_tmp TABLE (MatchId INT)
+
+	CREATE TABLE #Incompleted_tmp (RequestId INT, StatusId TINYINT)
 
 	IF @IssueTypeId IS NOT NULL AND @SubIssueType IS NOT NULL
 	BEGIN
@@ -278,6 +280,35 @@ BEGIN
 		) m
 			ON t.MatchId = m.matchid
 
+	--Incompleted Request	
+	IF @Status IN (0,3)
+	BEGIN
+		INSERT INTO @MatchidList_Waiting_30minutes_tmp (MatchId)
+		SELECT DISTINCT matchid
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+		WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30
+	
+		INSERT INTO #Incompleted_tmp (RequestId, StatusId)
+		SELECT RequestId, statusID
+		FROM #tmpResult t
+		CROSS APPLY (
+					SELECT TOP 1 f.val AS transid
+						,b.statusID
+					FROM dbo.f_SplitString(t.TransIds, ',') f
+						CROSS APPLY (
+									SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
+										WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
+										ELSE 0 END AS statusID
+									FROM bettrans b WITH (NOLOCK) 
+									WHERE transid = f.val
+										AND statusID IN (0,1,112)
+								) b
+					WHERE statusID IN (1,2)
+				) AS tmp
+		OPTION (maxrecursion 0)		
+	END
+
+	--Return Data
 	SELECT	t.RequestId
 			,t.SubIssueTypeId
 			,t.MatchId
@@ -296,9 +327,15 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,t.TransIds
 			,CASE WHEN t.IssueTypeId = 11 THEN (LEN(t.TransIds) - LEN(REPLACE(t.TransIds, ',', '')) +1) ELSE 0 END AS TotalSingle
 			,t.IssueTypeId
+			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
+				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
+				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 3
+				ELSE 0 END AS Status
+			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 1 THEN 'Settled Tickets'
+				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
+				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -306,14 +343,26 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
+		OUTER APPLY (
+					SELECT RequestId, StatusId
+					FROM #Incompleted_tmp
+					WHERE RequestId = t.RequestId
+			)ic
+		OUTER APPLY (
+					SELECT MatchId
+					FROM @MatchidList_Waiting_30minutes_tmp
+					WHERE MatchId = t.MatchId
+			)m
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
-				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) THEN 1
-				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) THEN 1
+				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
+				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
+				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC
 	
 	DROP TABLE #tmpResult
+	DROP TABLE #Incompleted_tmp
 	
 END

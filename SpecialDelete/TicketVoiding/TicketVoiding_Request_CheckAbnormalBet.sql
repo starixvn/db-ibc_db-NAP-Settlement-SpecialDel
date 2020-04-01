@@ -23,6 +23,7 @@ AS
 		- 20200222@Helen: Hotfix - check early bettype for soccer only [Redmine: #127398]
 		- 20200303@Max: Auto Void Winning Bets - Allow bettype of early settlement -  [Redmine: #129184]
 		- 20200306@Max: Permission on add/void settled tickets [Redmine: #129902]
+		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -36,11 +37,13 @@ BEGIN
 	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
 	,@InvalidMatchId VARCHAR(200) = ''
 	,@SettledTransIds VARCHAR(MAX) = ''
+	,@UnsupportedTransids VARCHAR(MAX) = ''
+	,@ExistingReqTransIds VARCHAR(MAX) = ''
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		
 	INSERT INTO @bettype_tmp (bettype)
-	SELECT pt.bettype
+	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
@@ -68,18 +71,21 @@ BEGIN
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@SettledTransIds AS SettledTransIds
+			,@ExistingReqTransIds AS ExistingReqTransIds
+			,@UnsupportedTransids AS UnsupportedTransids
 
 		RETURN;
 	END
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
-
 	CREATE TABLE #validTransId (
-		transid BIGINT
+		transid BIGINT PRIMARY KEY
 		,isInMatch BIT
 		,StatusId INT
+		,bettype SMALLINT
 		)
+	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 
 	IF (@TransIds IS NULL
 		OR LEN(@TransIds) = 0
@@ -103,28 +109,18 @@ BEGIN
 	OPTION (maxrecursion 0)
 
 	
-	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+	SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t 
 										INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
 									FOR XML PATH('')
 							), 1, 1, ''), '')
-
-	IF @InvalidTransIds <> ''
-	BEGIN
-		SELECT @InvalidMatchId AS InvalidMatchId
-			,@InvalidTransIds AS InvalidTransIds
-			,@MovedTransIds AS MovedTransIds
-			,@DifferentMatchTransIds AS DifferentMatchTransIds
-			,@SettledTransIds AS SettledTransIds
-
-		RETURN;
-	END
 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
 		transid
 		,isInMatch
 		,StatusId
+		,bettype
 		)
 	SELECT b.transid
 		,CASE 
@@ -132,26 +128,50 @@ BEGIN
 			ELSE 0
 			END
 		,b.statusID
+		,b.bettype
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
-	WHERE b.statusID NOT IN (101, 102, 103) AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+
+	-- get unsuppored transid
+	INSERT #UnsupportedTransids (transid)
+	SELECT t.transid
+	FROM #validTransId t
+		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
+	WHERE bt.bettype IS NULL
+
+	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #UnsupportedTransids t
+									FOR XML PATH('')
+							), 1, 1, ''), '')
+	--final valid transid
+	DELETE t
+	FROM #validTransId t
+		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
+	WHERE StatusId IN (101, 102, 103) OR bt.bettype IS NULL
 		
 	-- invalid transId
 	;WITH t_invalid
 	AS (
-		SELECT transid
+		SELECT temp.transid
 			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-		FROM #transIdTemp AS TEMP
+			
+		FROM #transIdTemp AS temp
 			OUTER APPLY (
 			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 			FROM dbo.bettrans14 WITH (NOLOCK)
-			WHERE transid = TEMP.transid
+			WHERE transid = temp.transid
 			) bm
+			OUTER APPLY (
+			SELECT transid
+			FROM #UnsupportedTransids
+			WHERE transid = temp.transid
+			) u
 		WHERE NOT EXISTS (
 				SELECT 1
 				FROM #validTransId
 				WHERE transid = TEMP.transid
 				)
+			AND u.transid IS NULL
 		)
 	SELECT @InvalidTransIds = @InvalidTransIds + CASE 
 			WHEN isMoved = 0 THEN CASE 
@@ -185,12 +205,15 @@ BEGIN
 
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
-			,@InvalidTransIds AS InvalidTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
+			,@InvalidTransIds AS InvalidTransIds
 			,@SettledTransIds AS SettledTransIds
+			,@ExistingReqTransIds AS ExistingReqTransIds
+			,@UnsupportedTransids AS UnsupportedTransids
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
 	DROP TABLE #TransidInRequest
+	DROP TABLE #UnsupportedTransids
 END

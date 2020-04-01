@@ -10,6 +10,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200316@Max: HotFix - Update item to Cancel even there are requests need to be executed [Redmine: #130303]
+		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 	
 	Param's explanation:	
 	
@@ -198,55 +199,6 @@ BEGIN
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 					INNER JOIN @tblRequestList r ON q.RequestId = r.RequestID AND r.QueueID = q.QueueId
-			END		
-			
-			IF @@SERVERNAME IN ('DBTRANS')
-			BEGIN
-				-- Send Email
-				SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
-				
-				SET @Recipients = 'dbaadmin@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
-				
-				SET @Body = 'Ticket Voiding System: Void Bets automation failed: ' + @ErrMsg + ', Matchid: ' + CONVERT(VARCHAR(20),@MatchId) + ', Queueid(s): ' + CONVERT(VARCHAR(MAX),@QueueIDList) +
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
-					
-				EXEC msdb.dbo.sp_send_dbmail
-						@recipients= @Recipients
-						,@body=@Body
-						,@sensitivity ='Personal'
-						,@importance ='High'
-						,@subject =@Subject
-						,@body_format = 'HTML'
-						,@profile_name =DEFAULT;
-						
-				-- Send letstalk 
-				SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !
-				-----
-				' 
-				+'Matchid: ' + CONVERT(VARCHAR(20),@MatchId) + ', Queueid(s): ' + CONVERT(VARCHAR(MAX),@QueueIDList) +
-							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
-				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-				EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
-				
-			END
-			ELSE
-			BEGIN
-				-- send email for local environment	
-				SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
-				-- For testing------------
-				SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
-				
-				SET @Body = 'Ticket Voiding System: Void Bets automation failed: ' + @ErrMsg + ', Matchid: ' + CONVERT(VARCHAR(20),@MatchId) + ', Queueid(s): ' + CONVERT(VARCHAR(MAX),@QueueIDList) +
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
-					
-				EXEC msdb.dbo.sp_send_dbmail
-						@recipients= @Recipients
-						,@body=@Body
-						,@sensitivity ='Personal'
-						,@importance ='High'
-						,@subject =@Subject
-						,@body_format = 'HTML'
-						,@profile_name =DEFAULT;
 			END		
 					
 		END
