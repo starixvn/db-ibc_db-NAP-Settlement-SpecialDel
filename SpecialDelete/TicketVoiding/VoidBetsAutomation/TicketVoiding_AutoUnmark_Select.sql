@@ -19,6 +19,7 @@ AS
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 
 	
 	Param's explanation:	
@@ -48,7 +49,7 @@ BEGIN
 							WHERE val = m.sporttype
 						) AS tmp
 			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
-		WHERE m.sporttype IN (1, 2 ,9, 43)
+		WHERE m.sporttype IN (1, 2 ,9, 43, 5)
 			AND b.statusID NOT IN (101, 102)
 			AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
