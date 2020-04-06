@@ -19,6 +19,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis[Redmine:#131516]
 	
 	Param's explanation:	
 		
@@ -304,9 +305,9 @@ BEGIN
 		AND b.statuswinlost IN (1,2) 
 		AND b.statusID = 0
 		AND 1 = CASE 
-					 WHEN @sporttype IN (2,9,43) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11) THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+					 WHEN @sporttype IN (2,9,43,5) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11,7) THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3, 7) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3, 7) AND @IsMatchCalFT_All = 1 THEN 1
 					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
 					 ELSE 0
 				END
@@ -329,9 +330,9 @@ BEGIN
 		LEFT  JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
 		AND 1 = CASE 
-					 WHEN @sporttype IN (2,9,43) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11) THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3) AND @IsMatchCalFT_All = 1 THEN 1
+					 WHEN @sporttype IN (2,9,43,5) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11,7) THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3,7) AND @IsMatchCalHT = 1 THEN 1
+					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3,7) AND @IsMatchCalFT_All = 1 THEN 1
 					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
 					 ELSE 0
 				END
