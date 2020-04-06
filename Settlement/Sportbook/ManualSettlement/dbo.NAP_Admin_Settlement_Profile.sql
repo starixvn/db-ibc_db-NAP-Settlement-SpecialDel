@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@ErrMsg 			NVARCHAR(200)	= '' OUTPUT
 	,@SelectedResources VARCHAR(MAX)
 	,@IsReSettledTickets BIT			= 1
+	,@BetStatus			NVARCHAR(50)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -23,6 +24,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
+		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -171,10 +173,22 @@ BEGIN
 
 			END
 		END
+		-- Tennis
+		ELSE IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
+		BEGIN
+			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
+					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
+			FROM DBPRO.bodb02.dbo.ResultDetail WITH(ROWLOCK)
+			WHERE MatchID = @MatchID AND ResourceID IN ('01','02','03','04','05')
+					AND SettlementStatusID = 4
+					AND ResultStatusID = 5
+		END
 
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
-				HomeValue, AwayValue, sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE HomeValue END, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE AwayValue END, 
+				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
 				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
 				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
 				sp.GroupType, sp.OddsType
@@ -199,7 +213,7 @@ BEGIN
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 			FROM @tmpSelectedRID t
-			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9 
+			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT b.transid, m.modds, sr.OddsType, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
@@ -309,6 +323,7 @@ BEGIN
 						,@HTAway				= @hta
 						,@creator				= @creator
 						,@IsFinalRound			= @existsFinalRound
+						,@BetStatus				= @BetStatus
 		END
 		
 		-------------------------------------------------------------
@@ -424,6 +439,7 @@ BEGIN
 							,@MatchID			= @matchid
 							,@creator			= @creator
 							,@IsFinalRound		= @existsFinalRound
+							,@BetStatus			= @BetStatus
 														
 			IF @existsFinalRound = 1
 			BEGIN
@@ -445,6 +461,7 @@ BEGIN
 							,@HTHome			= @hth
 							,@HTAway			= @hta
 							,@IsFinalRound  	= @existsFinalRound
+							,@BetStatus			= @BetStatus
 							
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
 							@action				= 'REFUND'
@@ -531,6 +548,7 @@ BEGIN
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
 							+ ' Result: ' + @SelectedResources + '<br/> '
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+							+ ' Betstatus(' + @betstatus + ')' 
 						   
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
@@ -569,7 +587,7 @@ BEGIN
 				,@hthomescore		= @hth
 				,@htawayscore		= @hta
 				,@GoalRecord		= NULL
-				,@betstatus			= NULL
+				,@betstatus			= @betstatus
 				,@Remark			= @Remark
 				,@IP				= @ip
 	END CATCH

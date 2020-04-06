@@ -19,6 +19,7 @@ AS
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 			- 20190924@Sol: Incorporate BMAIO - modified sp to support new bettype [Redmine:#120324]
 			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+			- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 
 	Param's Explanation:		
 		
@@ -111,9 +112,21 @@ BEGIN
 			
 		END
 	END
+	-- Tennis
+	ELSE IF (@sportType = 5) AND Exists (SELECT 1 FROM @tempResource WHERE ResourceID = '00')
+	BEGIN
+		SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
+				@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
+		FROM @tempResource
+		WHERE ResourceID IN ('01','02','03','04','05')
+				AND ssID = 4
+	END
 	
 	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID, IsDetermined)
-    SELECT rs.ResourceID, rs.HomeValue, rs.AwayValue, rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID, 
+    SELECT rs.ResourceID, 
+			CASE WHEN sf.BetType = 153 THEN @TotalPointHomeValue ELSE rs.HomeValue END AS HomeValue, 
+			CASE WHEN sf.BetType = 153 THEN @TotalPointAwayValue ELSE rs.AwayValue END AS AwayValue, 
+			rs.ssID, sf.Bettype, CAST(sf.Betid AS NVARCHAR(50)) AS Betid, sf.pfID, 
 			CASE WHEN @Mode = 'REFUND' AND ssID = 7 THEN 1 ELSE 0 END AS IsDetermined
     FROM @tempResource rs
 	    INNER JOIN SettlementSpecialBettypeProfile sf WITH (NOLOCK) ON sf.ResourceID = rs.ResourceID
@@ -137,7 +150,7 @@ BEGIN
 			SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 				AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 		FROM @tempResultDetail t
-		WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType = 9
+		WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9)
 
 		INSERT INTO @tempRefno (refno, transid, modds)
 		SELECT bm.refno, bm.transid, m.modds

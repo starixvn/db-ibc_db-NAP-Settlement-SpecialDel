@@ -10,6 +10,7 @@ AS
     
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		
 */
 BEGIN
@@ -23,6 +24,7 @@ BEGIN
         ,m.awayid
         ,m.leagueId
         ,mr.BestOfMap
+		,m.betstatus
      FROM dbo.[match] m WITH (NOLOCK)
      	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
      WHERE m.matchid = @matchid

@@ -20,6 +20,7 @@ AS
     Revision
         - 20180803@Vicky: E-Sports 2.0 [Redmine:#95874] 
 		- 20190924@Sol: Incorporate BMAIO - insert/update data to resultdetailOS [Redmine:#120324]
+        - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
         
     Param's Explanation: 
     
@@ -65,7 +66,7 @@ BEGIN
        SET @ResultStatusID 		= 5   
        
        UPDATE sr 
-       SET HomeValue =  '0'
+       SET HomeValue = '0'
        	   ,AwayValue = '0'
        FROM @tblSelectedRID sr
        		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sr.ResourceID = sd.ResourceID

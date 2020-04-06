@@ -11,6 +11,7 @@ AS
     Revisions:
         - 20180728@Vicky: Incorporate eSports 2.0 [Redmine #95874]
         - 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
+		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
    
     Parameters Explanation:        
     
@@ -25,6 +26,7 @@ RETURN
 	(
 		SELECT CONVERT(SMALLINT, 43) AS Sporttype
 		UNION ALL SELECT 9 --Badminton
+		UNION ALL SELECT 5 --Tennis
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

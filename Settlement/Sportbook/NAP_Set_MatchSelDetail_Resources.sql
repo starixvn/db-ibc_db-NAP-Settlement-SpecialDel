@@ -14,6 +14,7 @@ AS
 		- 20190925@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - [Redmine:#127698]
+		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		
 */
 BEGIN
@@ -76,7 +77,7 @@ BEGIN
 				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 OR bt.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount,
 				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
-				MAX(CASE WHEN SP.ResourceID  = '70400' THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+				MAX(CASE WHEN SP.ResourceID  = '70400' OR bt.bettype = 153 THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
 		FROM bettrans bt WITH (NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -183,8 +184,10 @@ BEGIN
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 					WHEN bt.InRunning > 0 THEN 'Running'
+					WHEN bt.betMarkedCount > 0 THEN 'Marked'
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
 	                ELSE 'Calculated' END AS TicketStatus 
+				,bt.IsSpecialBettype --flag column for tennis
 	  	FROM @tmpTicketStatus bt
 	  			 FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
 				 OUTER  APPLY(

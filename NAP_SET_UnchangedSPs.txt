@@ -1,5 +1,11 @@
-Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_Push.proc.sql 
-Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar.proc.sql
-Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_MP.proc.sql
-Settlement\VirtualBetRadar\Calculation\dbo.NAP_Admin_Calculate_VS_BetRadar_Refund.proc.sql
-Settlement\VirtualBetRadar\Function\dbo.f_Set_VS_BetRadar_GetBalance.func.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP_Push.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP.sql
+Settlement\Sportbook\dbo.NAP_Admin_Result_Update_9001.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP_Push.proc.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP.proc.sql
+Settlement\Sportbook\NAP_Set_MatchSel_ResultDetail.sql
+Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Checking.sql
+Settlement\Sportbook\NAP_Set_MatchSel.sql
+Settlement\Sportbook\NAP_Set_MatchSelCompleted.sql
