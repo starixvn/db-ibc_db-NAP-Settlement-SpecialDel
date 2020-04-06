@@ -26,7 +26,7 @@ AS
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
-		
+		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]	
 	Param's explanation:	
 		
 */
@@ -41,11 +41,13 @@ BEGIN
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
+			,@Sporttype    SMALLINT
 
 			,@IsBettypeHT	BIT = 0
 			,@IsBettypeFT	BIT = 0
 			,@IsBettypeEAR	BIT = 0
-			
+			,@IsBettypeTennis BIT = 0
+
 			,@IsCalHTQueue		BIT = 0
 			,@IsCalFTQueue		BIT = 0
 			,@IsCalAllQueue		BIT = 0
@@ -177,6 +179,7 @@ BEGIN
 						, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 						, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
 						, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL_EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
+						, @Sporttype = MAX(sporttype)
 				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 
@@ -189,10 +192,13 @@ BEGIN
 				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = @Bettype)
 					SET @IsBettypeEAR = 1
 
+				IF @Sporttype = 5
+					SET @IsBettypeTennis = 1
+
 				IF (
 						(@IsCalHTQueue = 1 AND  @IsBettypeHT = 1)
 					OR  (@IsCalFTQueue = 1 AND  (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
-					OR	(@IsCalAllQueue = 1 AND (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
+					OR	(@IsCalAllQueue = 1 AND (@IsBettypeFT = 1 OR @IsBettypeHT = 1) OR @IsBettypeTennis = 1)
 					OR	(@IsCalEarlyQueue = 1 AND (@IsBettypeEAR = 1))
 					)
 				BEGIN

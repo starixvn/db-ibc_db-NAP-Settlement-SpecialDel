@@ -23,6 +23,7 @@ AS
 		- 20200228@Max: Auto Void Winning Bets [Redmine: #129184]
 		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 
 	Param's explanation:	
 	
@@ -52,6 +53,7 @@ BEGIN
 			,@IsTransidHT	BIT = 0
 			,@IsTransidFT	BIT = 0
 			,@IsTransidEAR	BIT = 0
+			,@IsTransidTennis BIT = 0
 			
 			,@IsCalHTQueue	BIT = 0
 			,@IsCalFTQueue	BIT = 0
@@ -103,7 +105,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43)
+	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43, 5)
 	BEGIN
 		
 		INSERT INTO #inputTransid (transid)
@@ -128,7 +130,10 @@ BEGIN
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp t
 					INNER JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = t.bettype)
 			SET @IsTransidEAR = 1
-	
+
+		IF (@Sporttype = 5)
+			SET @IsTransidTennis = 1
+			
 		SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
 				, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
 				, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
@@ -152,7 +157,7 @@ BEGIN
 		IF @ActionID = 1 AND (
 				(@IsCalHTQueue = 1 AND  @IsTransidHT = 1)
 			OR  (@IsCalFTQueue = 1 AND  (@IsTransidFT = 1 OR @IsTransidHT = 1))
-			OR	(@IsCalAllQueue = 1 AND (@IsTransidFT = 1 OR @IsTransidHT = 1))
+			OR	(@IsCalAllQueue = 1 AND (@IsTransidFT = 1 OR @IsTransidHT = 1 OR @IsTransidTennis = 1))
 			OR	(@IsCalEarlyQueue = 1 AND (@IsTransidEAR = 1))
 			)
 		BEGIN
