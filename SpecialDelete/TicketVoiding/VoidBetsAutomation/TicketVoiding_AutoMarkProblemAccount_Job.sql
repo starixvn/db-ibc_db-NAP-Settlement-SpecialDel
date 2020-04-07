@@ -16,7 +16,7 @@ AS
 	Revisions: 
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis[Redmine:#131516]
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
 	
 	Param's explanation:	
 	
@@ -73,7 +73,7 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND pt.SportType IN (1, 2, 9, 43)
+		AND pt.SportType IN (1, 2, 9, 43, 5)
 	
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
