@@ -19,7 +19,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis[Redmine:#131516]
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 	
 	Param's explanation:	
 		
@@ -38,16 +38,12 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
-			,@IsMatchCalHT	BIT = 0
-			,@IsMatchCalFT_All	BIT = 0
-			
+						
 			,@RequestId INT
 			,@LeagueId			INT
 			,@HomeId			INT
 			,@AwayId			INT
 			,@KickOffTime	DATETIME	
-			,@IsCalEarly	BIT = 0
-			,@IsCalEarlyQueue BIT = 0
 			
 			, @query NVARCHAR(MAX) = ''
 			, @ExecuteSQL NVARCHAR(MAX) = ''
@@ -170,20 +166,11 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT @IsMatchCalHT = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
-			, @IsMatchCalFT_All =MAX( CASE WHEN Action IN ('CAL-FT','CAL') THEN 1 ELSE 0 END)
-			, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL-EARLY','CAL_EAR') THEN 1 ELSE 0 END)
-	FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-	WHERE matchid = @MatchId
-	
 	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
 	
-	IF @Action IN ('CAL-EARLY','CAL_EAR')	
-		SET @IsCalEarly = 1
-			
 	IF @RequestIdList IS NOT NULL
 	BEGIN
 		INSERT INTO @AutoVoid_InputRequest_tmp (RequestID)
@@ -237,12 +224,11 @@ BEGIN
 									AND r.ActionId = 1 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
-					LEFT JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype	
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
-					AND (@IsCalEarly = 0 OR (@IsCalEarly = 1 AND eb.bettype IS NOT NULL ))
-					
+				
+				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
 				SELECT transid
 				FROM #Transid_mark_tmp
@@ -299,19 +285,10 @@ BEGIN
 	SELECT t.TransId, t.RequestID
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType 
-		LEFT JOIN  dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype
 	WHERE b.matchid = @MatchId 
 		AND b.statuswinlost IN (1,2) 
 		AND b.statusID = 0
-		AND 1 = CASE 
-					 WHEN @sporttype IN (2,9,43,5) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11,7) THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3, 7) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3, 7) AND @IsMatchCalFT_All = 1 THEN 1
-					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
-					 ELSE 0
-				END
-				
+						
 	SET @Void_cnt = @@ROWCOUNT
 	
 	-- get transid to unmark and resettle
@@ -326,16 +303,8 @@ BEGIN
 		
 		) AS t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid 
-		INNER JOIN dbo.f_Set_GetGroupBettypes() f ON b.bettype = f.BetType
-		LEFT  JOIN dbo.f_Set_GetEarlyBettypes() eb ON eb.bettype = b.bettype
+		
 	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
-		AND 1 = CASE 
-					 WHEN @sporttype IN (2,9,43,5) AND @Action = 'CAL' AND @IsCalEarly = 0 AND f.GroupId IN (1,2,10,11,7) THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-HT','AddRequest') AND f.GroupId IN (1,3,7) AND @IsMatchCalHT = 1 THEN 1
-					 WHEN @IsCalEarly = 0 AND @Action IN ('CAL', 'CAL-FT','AddRequest') AND f.GroupId IN (2,4,1,3,7) AND @IsMatchCalFT_All = 1 THEN 1
-					 WHEN @IsCalEarlyQueue = 1 AND eb.bettype IS NOT NULL THEN 1
-					 ELSE 0
-				END
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
