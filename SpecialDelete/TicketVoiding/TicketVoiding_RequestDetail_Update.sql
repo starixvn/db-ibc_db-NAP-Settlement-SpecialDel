@@ -52,9 +52,10 @@ BEGIN
 			,@Username			NVARCHAR(200)
 			,@IsCalQueue	BIT = 0
 			,@ActionID		INT = 0
+			,@IsTransidProcessed BIT = 0	
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -106,18 +107,20 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		INSERT INTO #transid_tmp (transid, bettype, groupid, StatusId)
-		SELECT t.transid, b.bettype, f.GroupId, b.statusID
+		INSERT INTO #transid_tmp (transid, bettype, StatusId,statuswinlost)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f ON f.BetType = b.bettype
 		WHERE b.statusID IN (0, 1)
 
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 							WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
 							)
-
+		
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+			SET @IsTransidProcessed = 1
+		
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
 			(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
@@ -131,7 +134,7 @@ BEGIN
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @MarkType = 1, @LogActionId = 90508
 		END
 
-		IF @ActionID = 1 AND @IsCalQueue = 1
+		IF @ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
 			VALUES(@RequestId, @MatchId, 'AddRequest', 0, 10278938, GETDATE(), '125.227.140.97')

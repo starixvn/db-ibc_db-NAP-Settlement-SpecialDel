@@ -11,7 +11,8 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200316@Max: HotFix - Update item to Cancel even there are requests need to be executed [Redmine: #130303]
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-	
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		
 	Param's explanation:	
 	
 	--[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY')
@@ -47,7 +48,6 @@ BEGIN
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@NegativeBalanceUsers VARCHAR(MAX)
-			,@QueueIDList		VARCHAR(MAX) = ''
 			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
@@ -129,10 +129,6 @@ BEGIN
 		WHERE matchid = @MatchId AND StatusId = 0 AND RequestId > 0
 							  
 		SET @RequestIDList = STUFF((SELECT ',', + CAST(RequestId AS VARCHAR(50))
-							  FROM @tblRequestList 
-							  FOR XML PATH('')),1,1,'')
-							  
-		SET @QueueIDList = STUFF((SELECT ',', + CAST(@QueueId AS VARCHAR(50))
 							  FROM @tblRequestList 
 							  FOR XML PATH('')),1,1,'')
 							  
