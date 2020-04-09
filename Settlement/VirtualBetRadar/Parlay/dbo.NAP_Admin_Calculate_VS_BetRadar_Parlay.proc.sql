@@ -23,7 +23,8 @@ AS
 		- 20170829@Kathy: Change datatype of bettransm.TransId, sporttype [Redmine:#73545]
 		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
 		- 20181212@Alan: Integrate Betradar VS phase 3 [106158]
-		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984]  
+		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
+		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]  
 		
 	Param's Explanation:
 		• @Mode:
@@ -261,7 +262,7 @@ BEGIN
 				, bm.transdesc
 			) AS ods
 		WHERE bm.statusID NOT IN (101,102) --void/reject	
-			AND mr.sporttype IN (190,191,192,194,195,196)
+			AND mr.sporttype IN (190,191,192,194,195,196,197)
 			
 		IF EXISTS (SELECT 1 FROM #tblMatchResult WHERE sporttype = 193 )
 		BEGIN

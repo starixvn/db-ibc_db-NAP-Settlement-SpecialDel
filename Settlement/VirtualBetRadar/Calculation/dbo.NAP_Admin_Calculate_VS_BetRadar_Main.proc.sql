@@ -24,6 +24,7 @@ AS
 		- 20180207@Helen: Betradar VS 2 - basketball [Redmine:#90154] 
 		- 20181212@Alan: Integrate Betradar VS phase 3 [106158]
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
+		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]
 		
 	Param's Explanation:
 		- ? @Mode:
@@ -263,7 +264,7 @@ BEGIN
 					, f.CalMode
 					, b.transdesc
 				) AS ods
-			WHERE	mr.sporttype IN (190,191,192,194,195,196)
+			WHERE	mr.sporttype IN (190,191,192,194,195,196,197)
 					AND b.statusID NOT IN (101,102) --void/reject	
 			
 			IF EXISTS (SELECT TOP 1 * FROM #tblMatchResult WITH (NOLOCK) WHERE sporttype = 193)
