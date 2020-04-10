@@ -48,6 +48,7 @@ AS
 	- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
 	- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 	- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+	- 20200410@Sol: Set Timeout for Direct Settlement - [Redmine:#132138]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -784,11 +785,12 @@ BEGIN
 		, ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
-		,exSource.SourceId
-		,exSource.ExHTHomeScore
-		,exSource.ExHTAwayScore
-		,exSource.ExFTHomeScore
-		,exSource.ExFTAwayScore
+		, exSource.SourceId
+		, exSource.ExHTHomeScore
+		, exSource.ExHTAwayScore
+		, exSource.ExFTHomeScore
+		, exSource.ExFTAwayScore
+		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
 	FROM #matchList m
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 		LEFT JOIN #tempmatch t ON t.matchid = m.matchid
@@ -799,6 +801,12 @@ BEGIN
 			WHERE	ss.LeagueId = m.leagueid
 					AND AutoType = 2
 		)ss
+		OUTER APPLY (
+			SELECT TOP 1 ss.WaitingTime
+			FROM	DBPRO.bodb02.dbo.SettlementSetting ss WITH (NOLOCK)
+			WHERE	ss.LeagueId = m.leagueid
+					AND AutoType = 5
+		)ssDirect
 	WHERE 1 = CASE WHEN @IsHTOverOnly = 1 OR @IsOverOnly = 1 THEN CASE WHEN m.BetCount > 0 THEN 1 ELSE 0 END
 				ELSE 1 END
 	ORDER BY CASE 
