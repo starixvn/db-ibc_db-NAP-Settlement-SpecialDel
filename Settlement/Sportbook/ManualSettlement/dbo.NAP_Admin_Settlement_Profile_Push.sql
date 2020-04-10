@@ -18,6 +18,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 		- 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - Added new param @Betstatus - [Redmine:#129316]
+		- 20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -164,7 +165,7 @@ BEGIN
 			,@sporttype
 			,@AdminId
 			,@IP
-			,'CAL'
+			,@Action
 			,@sqlCommand
 	END
 

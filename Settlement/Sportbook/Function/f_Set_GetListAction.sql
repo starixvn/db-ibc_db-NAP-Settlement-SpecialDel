@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER FUNCTION dbo.f_Set_GetListAction ()
 RETURNS TABLE
 AS
@@ -14,6 +8,7 @@ AS
 	DB: DBTRANS/BODB02
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
+		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 			
 	Parameters Explanation:	
 		@Mode: 1: For Single ticket - Manual
@@ -23,7 +18,7 @@ AS
 			   5: For Single ticket - Auto payout
 			   6: For Single ticket - Instant Calculation
 			   7: For Single ticket - UNDO Instant Calculation
-
+			   8: For sports: Esport, Badminton, Tennis
 			   
 */
 
@@ -35,6 +30,7 @@ RETURN (
 
 	SELECT 1 AS Mode, 'REFUND-HT' AS ActionName, 110 AS ActionId UNION ALL
 	SELECT 1 AS Mode, 'REFUND-FT' AS ActionName, 111 AS ActionId UNION ALL
+	SELECT 1 AS Mode, 'REFUND' AS ActionName, 109 AS ActionId UNION ALL
 
 	--FGLG
 	SELECT 2 AS Mode, 'CAL-FT' AS ActionName, 163 AS ActionId UNION ALL
@@ -62,7 +58,16 @@ RETURN (
 	--Instant Calculation
 	SELECT 6 AS Mode, 'INST-HT' AS ActionName, 178 AS ActionId UNION ALL
 	SELECT 6 AS Mode, 'INST-FT' AS ActionName, 179 AS ActionId UNION ALL
-	SELECT 7 AS Mode, 'INST-UNDO' AS ActionName, 182 AS ActionId
+	SELECT 7 AS Mode, 'INST-UNDO' AS ActionName, 182 AS ActionId UNION ALL
+
+	--For sports: Esport, Badminton, Tennis
+	SELECT 8 AS Mode, 'CAL' AS ActionName, 100 AS ActionId UNION ALL
+	SELECT 8 AS Mode, 'UNDO' AS ActionName, 103 AS ActionId UNION ALL
+	SELECT 8 AS Mode, 'REFUND' AS ActionName, 109 AS ActionId UNION ALL
+	SELECT 8 AS Mode, 'CAL_EAR' AS ActionName, 189 AS ActionId UNION ALL
+	SELECT 8 AS Mode, 'UNDO_EAR' AS ActionName, 190 AS ActionId UNION ALL
+	SELECT 8 AS Mode, 'REFUND_EAR' AS ActionName, 191 AS ActionId
+						  
 )
 GO
 
