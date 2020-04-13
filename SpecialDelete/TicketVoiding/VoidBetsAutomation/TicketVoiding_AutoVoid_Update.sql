@@ -19,7 +19,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix + VIP account [Redmine:#131516]
 	
 	Param's explanation:	
 		
@@ -141,6 +141,8 @@ BEGIN
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
 	
+	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
+	
 	CREATE TABLE #Transid_mark_void (transid BIGINT,isFinish BIT )
 	CREATE TABLE #Transid_mark_tmp (transid BIGINT, statuswinlost TINYINT)
 	
@@ -207,6 +209,14 @@ BEGIN
 			INSERT INTO @ProblemAccount_tmp (CustID)
 			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 		
+			SELECT  @query = N''		
+			SELECT	@query = @query + N'SELECT Custid 
+										FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+										'
+			SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+			INSERT INTO @VIPAccount_tmp(CustID)
+			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+			
 			-- check and create request first for auto mark ticket or marked manually
 			IF @@ROWCOUNT > 0
 			BEGIN
@@ -285,9 +295,14 @@ BEGIN
 	SELECT t.TransId, t.RequestID
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
+		OUTER APPLY (SELECT TOP (1) ac.CustID 
+					 FROM @VIPAccount_tmp ac 
+					 WHERE  ac.CustID = b.custid
+					 ) AS vip
 	WHERE b.matchid = @MatchId 
 		AND b.statuswinlost IN (1,2) 
 		AND b.statusID = 0
+		AND vip.CustID IS NULL
 						
 	SET @Void_cnt = @@ROWCOUNT
 	
