@@ -26,6 +26,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
+		- 20200410@Sol: HotFix - Tennis - Refund parlay [Redmine:#132208]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -304,6 +305,11 @@ BEGIN
 				UNION ALL
 				SELECT ResultStatusID
 	  			FROM DBPRO.bodb02.dbo.ResultDetailOS rd WITH (NOLOCK) 
+	  			WHERE rd.ResourceID = c.ResourceID
+	  				AND rd.matchid = c.matchid
+				UNION ALL
+				SELECT ResultStatusID
+	  			FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
 	  				AND rd.matchid = c.matchid
 	  		) AS rs
