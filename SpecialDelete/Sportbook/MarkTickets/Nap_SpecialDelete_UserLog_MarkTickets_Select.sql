@@ -15,6 +15,7 @@ AS
 		- 20190606@Raymond.Le: Create new SP [Redmine: #114596]
 		- 20191101@Charles: Get score and ko time for userlogs [122187]
 		- 20191126@Charles: Show DoneBy column when return results [124451]
+		- 20200414@Charles: Separate single tickets with parlay tickets on LogData [131670]
 
 	Param's explanation:
 */
@@ -46,11 +47,26 @@ BEGIN
 		HTScore		VARCHAR(10),
 		FTSCore		VARCHAR(10),
 		LogData		VARCHAR(MAX),
+		singleTransIds VARCHAR(MAX),
+		parlayTransIds VARCHAR(MAX),
 		username	VARCHAR(30)
 	);
 
 	-- Insert data to temp log result
-	INSERT INTO #LogResult(SessionId, CreatedDate, LogActionId, MatchId, homeid, awayid, kickofftime, HTScore, FTSCore, LogData, username)
+	INSERT INTO #LogResult(
+			SessionId
+			,CreatedDate
+			,LogActionId
+			,MatchId
+			,homeid
+			,awayid
+			,kickofftime
+			,HTScore
+			,FTSCore
+			,LogData
+			,singleTransIds
+			,parlayTransIds
+			,username)
 	SELECT l.SessionId
 			,l.CreatedDate
 			,l.LogActionId
@@ -61,6 +77,18 @@ BEGIN
 			,ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore'
 			,ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTSCore'
 			,l.LogData
+			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
+									FROM dbo.f_StringSplit(l.LogData, ',') 
+									INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
+									WHERE val <> '' AND bt.bettype NOT IN (9,29)
+									FOR XML PATH('')
+							), 1, 1, ''), '') AS singleTransIds
+			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
+									FROM dbo.f_StringSplit(l.LogData, ',') 
+									INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
+									WHERE val <> '' AND bt.bettype IN (9,29)
+									FOR XML PATH('')
+							), 1, 1, ''), '') AS parlayTransIds
 			,c.username 
 		FROM dbo.TicketVoiding_Log AS l WITH (NOLOCK)
 			LEFT JOIN bodb02.dbo.match AS m WITH (NOLOCK) ON l.MatchId = m.matchid
@@ -91,7 +119,19 @@ BEGIN
 	WHERE lr.homeid is NULL
 
 	-- Return log result
-	SELECT SessionId, CreatedDate, LogActionId, MatchId, homeid, awayid, kickofftime, HTScore, FTSCore, LogData, username AS 'DoneBy'
+	SELECT 	SessionId,
+			CreatedDate,
+			LogActionId,
+			MatchId,
+			homeid
+			awayid,
+			kickofftime,
+			HTScore,
+			FTSCore,
+			LogData,
+			singleTransIds,
+			parlayTransIds,
+			username AS 'DoneBy'
 	FROM #LogResult
 
 	DROP TABLE #LogActionId
