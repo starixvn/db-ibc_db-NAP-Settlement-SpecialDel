@@ -97,7 +97,7 @@ BEGIN
 					WHERE t.Matchid = mt.MatchId
 						AND t.Bettype = mt.bettype
 						AND t.MarkedBy = mt.UserId
-						AND t.betid = mt.betid
+						AND ISNULL(t.betid, 0) = ISNULL(mt.betid, 0)
 					ORDER BY t.CreatedDate DESC
 				)ta_tmp		
 			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
