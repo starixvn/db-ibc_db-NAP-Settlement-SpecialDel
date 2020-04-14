@@ -173,6 +173,15 @@ BEGIN
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
 	
+	--get list VIP Account
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+								'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+	INSERT INTO @VIPAccount_tmp(CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 	IF @RequestIdList IS NOT NULL
 	BEGIN
 		INSERT INTO @AutoVoid_InputRequest_tmp (RequestID)
@@ -207,14 +216,6 @@ BEGIN
 			SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
 
 			INSERT INTO @ProblemAccount_tmp (CustID)
-			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-		
-			SELECT  @query = N''		
-			SELECT	@query = @query + N'SELECT Custid 
-										FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-										'
-			SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-			INSERT INTO @VIPAccount_tmp(CustID)
 			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 			
 			-- check and create request first for auto mark ticket or marked manually
