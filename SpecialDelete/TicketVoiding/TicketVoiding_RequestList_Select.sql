@@ -305,22 +305,23 @@ BEGIN
 		INSERT INTO #Incompleted_tmp (RequestId, StatusId)
 		SELECT RequestId, statusID
 		FROM #tmpResult t
-		CROSS APPLY (
-					SELECT TOP 1 f.val AS transid
-						,b.statusID
-					FROM dbo.f_SplitString(t.TransIds, ',') f
-						CROSS APPLY (
-									SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
-										WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
-										WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
-										ELSE 0 END AS statusID
-									FROM bettrans b WITH (NOLOCK)
-										LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
-									WHERE transid = f.val
-										AND statusID IN (0,1,112)
-								) b
-					WHERE statusID IN (1,2,3)
-				) AS tmp
+			CROSS APPLY (
+						SELECT TOP 1 f.val AS transid
+							,b.statusID
+						FROM dbo.f_SplitString(t.TransIds, ',') f
+							CROSS APPLY (
+										SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
+											WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
+											WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
+											ELSE 0 END AS statusID
+										FROM bettrans b WITH (NOLOCK)
+											LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
+										WHERE transid = f.val
+											AND statusID IN (0,1,112)
+									) b
+						WHERE statusID IN (1,2,3)
+					) AS tmp
+		WHERE t.ActionId = 1
 		OPTION (maxrecursion 0)		
 	END
 
