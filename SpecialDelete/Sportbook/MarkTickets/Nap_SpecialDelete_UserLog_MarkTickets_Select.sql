@@ -46,7 +46,7 @@ BEGIN
 		kickofftime	DATETIME,
 		HTScore		VARCHAR(10),
 		FTSCore		VARCHAR(10),
-		LogData		VARCHAR(MAX),
+		totalSubTickets	VARCHAR(MAX),
 		singleTransIds VARCHAR(MAX),
 		parlayTransIds VARCHAR(MAX),
 		username	VARCHAR(30)
@@ -63,7 +63,7 @@ BEGIN
 			,kickofftime
 			,HTScore
 			,FTSCore
-			,LogData
+			,totalSubTickets
 			,singleTransIds
 			,parlayTransIds
 			,username)
@@ -76,7 +76,13 @@ BEGIN
 			,m.kickofftime
 			,ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore'
 			,ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTSCore'
-			,l.LogData
+			,(
+				SELECT COUNT(bm.transid)
+				FROM dbo.f_StringSplit(l.LogData, ',')
+				INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
+				INNER JOIN bodb02.dbo.bettransm AS bm WiTH(NOLOCK) ON bt.refno = bm.refno
+				WHERE val <> '' AND bt.bettype IN (9,29)
+			) AS totalSubTickets
 			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
 									FROM dbo.f_StringSplit(l.LogData, ',') 
 									INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
@@ -128,7 +134,7 @@ BEGIN
 			kickofftime,
 			HTScore,
 			FTSCore,
-			LogData,
+			totalSubTickets,
 			singleTransIds,
 			parlayTransIds,
 			username AS 'DoneBy'
