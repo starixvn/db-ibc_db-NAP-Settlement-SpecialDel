@@ -21,6 +21,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - New formular for 711, 712, 713, 714 [Redmine:#120324]
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200415@Sol: e-Sports - Incorporate New Correct Score Bet Type - new settle profile [Redmine:#132401]
 		
 */
 RETURN
@@ -180,6 +181,11 @@ RETURN
 			WHEN @pfID = 383 THEN -- Penalty Shootout Woodwork - Round X
 				CASE WHEN @betteam = 'H' AND @HomeValue = 'H' THEN 1
 					 WHEN @betteam = 'A' AND @AwayValue = 'H' THEN 1
+					 ELSE -1
+				END
+			
+			WHEN @pfID = 4 THEN -- Correct Score
+				CASE WHEN @betteam = @HomeValue + ':' + @AwayValue THEN 1
 					 ELSE -1
 				END
 
