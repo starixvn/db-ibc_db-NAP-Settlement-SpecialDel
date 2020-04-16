@@ -16,6 +16,7 @@ AS
 	Revisions: 
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
 	
 	Param's explanation:	
 	
@@ -72,7 +73,7 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND pt.SportType IN (1, 2, 9, 43)
+		AND pt.SportType IN (1, 2, 9, 43, 5)
 	
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
@@ -103,7 +104,7 @@ BEGIN
 			SELECT b.transid, b.matchid
 			FROM @ProblemAccountByBatch_tmp t
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43) AND eventstatus <> 'completed'
+				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43, 5) AND m.eventstatus <> 'completed'
 				OUTER APPLY (SELECT TOP 1 transid
 							FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 							WHERE  mt.transid = b.transid

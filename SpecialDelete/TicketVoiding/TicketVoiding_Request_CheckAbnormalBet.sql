@@ -24,6 +24,7 @@ AS
 		- 20200303@Max: Auto Void Winning Bets - Allow bettype of early settlement -  [Redmine: #129184]
 		- 20200306@Max: Permission on add/void settled tickets [Redmine: #129902]
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200413@Raymond: Not allow void if customer is VIP [Redmine: #131431]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -39,6 +40,7 @@ BEGIN
 	,@SettledTransIds VARCHAR(MAX) = ''
 	,@UnsupportedTransids VARCHAR(MAX) = ''
 	,@ExistingReqTransIds VARCHAR(MAX) = ''
+	,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		
@@ -73,6 +75,7 @@ BEGIN
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
+			,@TransIdsOfVIPCustomer AS TransIdsOfVIPCustomer
 
 		RETURN;
 	END
@@ -84,6 +87,7 @@ BEGIN
 		,isInMatch BIT
 		,StatusId INT
 		,bettype SMALLINT
+		,custId INT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 
@@ -121,6 +125,7 @@ BEGIN
 		,isInMatch
 		,StatusId
 		,bettype
+		,custId
 		)
 	SELECT b.transid
 		,CASE 
@@ -129,6 +134,7 @@ BEGIN
 			END
 		,b.statusID
 		,b.bettype
+		,b.custid
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
@@ -203,6 +209,16 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
+	SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((
+				SELECT ', ' + CAST(v.transid AS VARCHAR(50))
+				FROM #validTransId AS v				
+				WHERE EXISTS (
+					SELECT TOP 1 1
+					FROM DBCUST.CustDB.dbo.Dep_CustVIP as vip WITH (NOLOCK)
+					WHERE vip.CustID = v.custId
+				)
+				FOR XML PATH('')
+				), 1, 1, ''), '')
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
 			,@MovedTransIds AS MovedTransIds
@@ -211,6 +227,7 @@ BEGIN
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
+			,@TransIdsOfVIPCustomer AS TransIdsOfVIPCustomer
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

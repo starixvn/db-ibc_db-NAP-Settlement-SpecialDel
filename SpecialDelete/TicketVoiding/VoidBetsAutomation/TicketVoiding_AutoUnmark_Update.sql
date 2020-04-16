@@ -26,6 +26,8 @@ AS
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200312@Max: Hotfix - Confirm Auto Unmark not work for Early Settlement Bettype - [Redmine: #130279]
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
+		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]	
+		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		
 	Param's explanation:	
 		
@@ -33,7 +35,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @UnmarkTransids VARCHAR(MAX)  = ''
+	DECLARE @UnmarkTransids VARCHAR(MAX)  = '', @ResettleTransids VARCHAR(MAX) = '' 
 
 	DECLARE @query NVARCHAR(MAX) = ''
 	, @ExecuteSQL NVARCHAR(MAX) = ''
@@ -41,19 +43,12 @@ BEGIN
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
-
-			,@IsBettypeHT	BIT = 0
-			,@IsBettypeFT	BIT = 0
-			,@IsBettypeEAR	BIT = 0
+			,@Sporttype    SMALLINT
+			,@IsCalQueue		BIT = 0
 			
-			,@IsCalHTQueue		BIT = 0
-			,@IsCalFTQueue		BIT = 0
-			,@IsCalAllQueue		BIT = 0
-			,@IsCalEarlyQueue	BIT = 0
-			
-	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT)
+	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT)
 
-	CREATE TABLE #tmpTransid_unmark (transid BIGINT, isFinish INT)
+	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
 	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
@@ -91,8 +86,8 @@ BEGIN
 	INSERT INTO #ProblemAccount_tmp (CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	INSERT INTO #tmpTransid_unmark (transid)
-	SELECT mt.TransId
+	INSERT INTO #tmpTransid_unmark (transid,statuswinlost)
+	SELECT mt.TransId,b.statuswinlost
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) 
 			ON b.transid = mt.TransId
@@ -136,26 +131,40 @@ BEGIN
 	BEGIN		
 		RETURN
 	END
-
+	
+	SET @IsCalQueue = ( SELECT TOP (1) 1
+							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+							WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
+						)
 	WHILE (1 = 1)
 	BEGIN
 		BEGIN TRY
+			
 			DELETE @tmpMarkedTransIDBatch
-		
+			
+			SET @UnmarkTransids = ''
+			SET @ResettleTransids = ''
+			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT deleted.transid
-			INTO @tmpMarkedTransIDBatch(transid)
+			OUTPUT deleted.transid,deleted.statuswinlost
+			INTO @tmpMarkedTransIDBatch(transid,statuswinlost)
 			FROM #tmpTransid_unmark t 
 			WHERE isFinish IS NULL
 		
 			IF @@ROWCOUNT = 0 BREAK
-			SET @UnmarkTransids = ''
+			
 			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkedTransIDBatch
 											FOR XML PATH('')
 								), 1,1,'')
 		
+			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpMarkedTransIDBatch
+											WHERE statuswinlost IS NOT NULL
+											FOR XML PATH('')
+								), 1,1,'')
+								
 			--Step 3: Unmark
 			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @UnmarkTransids
 				,@UserId = @UserId
@@ -165,51 +174,19 @@ BEGIN
 				,@ErrCode = @ErrCode OUTPUT;
 
 			--Step 4: resettle ticket
-			IF EXISTS (
-					SELECT TOP (1) 1 
-					FROM @tmpMarkedTransIDBatch taq
-						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = taq.transid
-					WHERE b.statuswinlost IS NOT NULL
-				)
+			IF @ResettleTransids <> '' AND @IsCalQueue = 1 
 			BEGIN
-				
-				SELECT @IsCalHTQueue = MAX(CASE WHEN Action = 'CAL-HT' THEN 1 ELSE 0 END)
-						, @IsCalFTQueue =MAX( CASE WHEN Action = 'CAL-FT' THEN 1 ELSE 0 END)
-						, @IsCalAllQueue = MAX(CASE WHEN Action = 'CAL' THEN 1 ELSE 0 END)
-						, @IsCalEarlyQueue = MAX(CASE WHEN Action IN ('CAL_EAR', 'CAL-EARLY') THEN 1 ELSE 0 END)
-				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
-
-				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetGroupBettypes() WHERE groupid IN (1,3) AND bettype = @Bettype)
-					SET @IsBettypeHT = 1
-
-				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetGroupBettypes() WHERE groupid IN (2,4) AND bettype = @Bettype)
-					SET @IsBettypeFT = 1
-				
-				IF EXISTS (SELECT TOP (1) 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = @Bettype)
-					SET @IsBettypeEAR = 1
-
-				IF (
-						(@IsCalHTQueue = 1 AND  @IsBettypeHT = 1)
-					OR  (@IsCalFTQueue = 1 AND  (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
-					OR	(@IsCalAllQueue = 1 AND (@IsBettypeFT = 1 OR @IsBettypeHT = 1))
-					OR	(@IsCalEarlyQueue = 1 AND (@IsBettypeEAR = 1))
-					)
-				BEGIN
-			
 				EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
-						@Matchid = @Matchid	,
-						@TransIds = @UnmarkTransids,
-						@UserId  = @UserId,
-						@IP = @IP,
-						@FailedTransIds = @FailedTransIds OUTPUT,
-						@ErrMsg = @ErrMsg OUTPUT,
-						@ErrCode = @ErrCode OUTPUT,
-						@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-				END
+							@Matchid = @Matchid	,
+							@TransIds = @ResettleTransids,
+							@UserId  = @UserId,
+							@IP = @IP,
+							@FailedTransIds = @FailedTransIds OUTPUT,
+							@ErrMsg = @ErrMsg OUTPUT,
+							@ErrCode = @ErrCode OUTPUT,
+							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			END	
 			
-			SET @UnmarkTransids = ''
 		END TRY
 		BEGIN CATCH
 			SELECT @ErrCode = ERROR_NUMBER()

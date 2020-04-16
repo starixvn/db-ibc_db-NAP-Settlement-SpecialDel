@@ -23,6 +23,7 @@ AS
 		- 20200206@Max: Permission on data - [Redmine: #128014]
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200413@Max: [TVS] VIP account [Redmine: #131431]
 
 	Param's explanation:	
 		@Status: 
@@ -34,7 +35,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
+
 	DECLARE	@FilteredBy	TINYINT
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -47,6 +48,10 @@ BEGIN
 		,TotalCashOut		INT
 		,TotalParlay		INT
 	)
+
+	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
+	DECLARE  @query NVARCHAR(MAX) = ''
+		, @ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpResult (
 		RequestId		INT
@@ -283,28 +288,40 @@ BEGIN
 	--Incompleted Request	
 	IF @Status IN (0,3)
 	BEGIN
+
 		INSERT INTO @MatchidList_Waiting_30minutes_tmp (MatchId)
 		SELECT DISTINCT matchid
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 		WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30
+
+		SELECT  @query = N''		
+		SELECT	@query = @query + N'SELECT Custid 
+									FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+									'
+		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+		INSERT INTO @VIPAccount_tmp(CustID)
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 	
 		INSERT INTO #Incompleted_tmp (RequestId, StatusId)
 		SELECT RequestId, statusID
 		FROM #tmpResult t
-		CROSS APPLY (
-					SELECT TOP 1 f.val AS transid
-						,b.statusID
-					FROM dbo.f_SplitString(t.TransIds, ',') f
-						CROSS APPLY (
-									SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
-										WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
-										ELSE 0 END AS statusID
-									FROM bettrans b WITH (NOLOCK) 
-									WHERE transid = f.val
-										AND statusID IN (0,1,112)
-								) b
-					WHERE statusID IN (1,2)
-				) AS tmp
+			CROSS APPLY (
+						SELECT TOP 1 f.val AS transid
+							,b.statusID
+						FROM dbo.f_SplitString(t.TransIds, ',') f
+							CROSS APPLY (
+										SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
+											WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
+											WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
+											ELSE 0 END AS statusID
+										FROM bettrans b WITH (NOLOCK)
+											LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
+										WHERE transid = f.val
+											AND statusID IN (0,1,112)
+									) b
+						WHERE statusID IN (1,2,3)
+					) AS tmp
+		WHERE t.ActionId = 1
 		OPTION (maxrecursion 0)		
 	END
 
@@ -331,10 +348,11 @@ BEGIN
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
-				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 3
+				WHEN ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2) OR ic.StatusId = 3) THEN 3
 				ELSE 0 END AS Status
 			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 1 THEN 'Settled Tickets'
 				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
+				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
 				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
@@ -357,7 +375,7 @@ BEGIN
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
-				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2)) THEN 1
+				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2) OR ic.StatusId = 3) THEN 1
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC
