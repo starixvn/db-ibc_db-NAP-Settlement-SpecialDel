@@ -87,17 +87,17 @@ BEGIN
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
 
-	INSERT INTO ProviderResultDetail(MatchId,SourceId,TypeId,HomeValue,AwayValue,CreatedDate,IsConfirmed)
-	SELECT t.MatchId, 101, t.TypeId, 
-			CASE WHEN t.TypeId = 1 THEN HtHomescore ELSE FinalHomescore END, 
-			CASE WHEN t.TypeId = 1 THEN HtAwayscore ELSE FinalAwayscore END, 
-			@currTime, 0
-	FROM @tmpMatchAuto t
-		OUTER APPLY (
-						SELECT MatchId FROM ProviderResultDetail p WITH(NOLOCK)
-						WHERE t.MatchId = p.MatchId AND t.TypeId = p.TypeId AND p.SourceId = 101
-					) p
-	WHERE p.MatchId IS NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16
+	--INSERT INTO ProviderResultDetail(MatchId,SourceId,TypeId,HomeValue,AwayValue,CreatedDate,IsConfirmed)
+	--SELECT t.MatchId, 101, t.TypeId, 
+	--		CASE WHEN t.TypeId = 1 THEN HtHomescore ELSE FinalHomescore END, 
+	--		CASE WHEN t.TypeId = 1 THEN HtAwayscore ELSE FinalAwayscore END, 
+	--		@currTime, 0
+	--FROM @tmpMatchAuto t
+	--	OUTER APPLY (
+	--					SELECT MatchId FROM ProviderResultDetail p WITH(NOLOCK)
+	--					WHERE t.MatchId = p.MatchId AND t.TypeId = p.TypeId AND p.SourceId = 101
+	--				) p
+	--WHERE p.MatchId IS NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16
 
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
@@ -112,7 +112,7 @@ BEGIN
 			WHERE	ss.LeagueId = t.leagueid
 					AND ss.AutoType = 5 -- Direct Auto Payout
 		) ss
-	WHERE 1 = CASE WHEN 16 & ISNULL(t.AutoSetting, 0) = 16 AND p.SourceId = 101 AND p.CreatedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @currTime) THEN 1
+	WHERE 1 = CASE WHEN p.ProviderResultDetailId IS NOT NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16 AND p.SourceId = 101 AND p.CreatedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @currTime) THEN 1
 					WHEN 1 & ISNULL(t.AutoSetting, 0) = 1 THEN 1
 				END
 
