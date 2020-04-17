@@ -17,6 +17,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
+		- 20200417@Charles: Mark/Unmark Parlay Tickets and remaing sports [131670]
 	Explanation's Param:			    
 */
 BEGIN

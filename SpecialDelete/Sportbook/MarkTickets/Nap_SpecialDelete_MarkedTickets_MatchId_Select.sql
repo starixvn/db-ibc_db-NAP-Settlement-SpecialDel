@@ -579,7 +579,6 @@ BEGIN
 				,livehomescore 
 				,liveawayscore 
 				,creator
-				,UserName
 				,Stake
 				,CurrencyName
 				,status
@@ -606,8 +605,6 @@ BEGIN
 				,FilterGame	
 				,FilterValue
 				,FilterGoal
-				,FilterBetOption
-				,FilterTimeInterval
 			)
 			SELECT 
 				b.transid,
@@ -617,7 +614,6 @@ BEGIN
 				bm.oddsspread,
 				b.OddsType,  
 				bm.transdate,
-				bm.checktime,
 				b.bettype,
 				b.betteam,
 				b.betcheck,

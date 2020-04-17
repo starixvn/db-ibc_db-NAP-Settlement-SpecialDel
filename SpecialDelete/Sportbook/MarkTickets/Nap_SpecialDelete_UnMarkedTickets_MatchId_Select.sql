@@ -574,7 +574,6 @@ SET NOCOUNT ON
 				,livehomescore 
 				,liveawayscore 
 				,creator
-				,UserName
 				,Stake
 				,CurrencyName
 				,status
@@ -601,8 +600,6 @@ SET NOCOUNT ON
 				,FilterGame	
 				,FilterValue
 				,FilterGoal
-				,FilterBetOption
-				,FilterTimeInterval
 			)
 			SELECT 
 				b.transid,
@@ -612,7 +609,6 @@ SET NOCOUNT ON
 				bm.oddsspread,
 				b.OddsType,  
 				bm.transdate,
-				bm.checktime,
 				b.bettype,
 				b.betteam,
 				b.betcheck,
