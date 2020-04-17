@@ -286,7 +286,15 @@ CREATE TABLE #tmpRefCodeSummary
 				  WHERE m.TransId = t.transid)
 
 	-- delete Tickets is not Soccer, Basketball, Esport, Badminton and Tennis
-	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2, 5, 9, 43)
+	DELETE t FROM #Tickets t WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10) -- outright
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+			AND t.SportType = pt.SportType
+	)
 
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t

@@ -56,7 +56,16 @@ BEGIN
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
     WHERE MatchId = @MatchId;
-    IF @SportType NOT IN (1, 2, 5, 9, 43)
+	IF NOT EXISTS (
+		SELECT TOP 1 1
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10) -- outright
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+			AND @SportType = pt.SportType
+
+	) 
     RETURN;
 
 	CREATE TABLE #tblBetType
