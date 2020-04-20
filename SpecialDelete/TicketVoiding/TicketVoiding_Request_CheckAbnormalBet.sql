@@ -25,6 +25,7 @@ AS
 		- 20200306@Max: Permission on add/void settled tickets [Redmine: #129902]
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200413@Raymond: Not allow void if customer is VIP [Redmine: #131431]
+		- 20200415@Raymond: Refactor query link server [Redmine: #131670]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -41,7 +42,10 @@ BEGIN
 	,@UnsupportedTransids VARCHAR(MAX) = ''
 	,@ExistingReqTransIds VARCHAR(MAX) = ''
 	,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
+	,@query NVARCHAR(MAX) = ''
+	,@ExecuteSQL NVARCHAR(MAX) = ''
 	
+	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		
 	INSERT INTO @bettype_tmp (bettype)
@@ -209,16 +213,27 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
+
+	--get list VIP Account
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+								'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+	INSERT INTO @VIPAccount_tmp(CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 	SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((
 				SELECT ', ' + CAST(v.transid AS VARCHAR(50))
 				FROM #validTransId AS v				
 				WHERE EXISTS (
 					SELECT TOP 1 1
-					FROM DBCUST.CustDB.dbo.Dep_CustVIP as vip WITH (NOLOCK)
+					FROM @VIPAccount_tmp as vip
 					WHERE vip.CustID = v.custId
 				)
 				FOR XML PATH('')
 				), 1, 1, ''), '')
+
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
 			,@MovedTransIds AS MovedTransIds
