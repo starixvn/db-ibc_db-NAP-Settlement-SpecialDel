@@ -10,6 +10,7 @@ AS
       
     Revisions:      
         - 20191029@Charles: Badminton AIO - [120325]
+        - 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		
     Param's Explanation:  
     @Mode:   
@@ -63,7 +64,7 @@ BEGIN
         END
 
         -- bettransm
-        IF @Mode IN (0, 2, 3)
+        IF @Mode IN (0, 2, 3, 9)
         BEGIN
             INSERT INTO #TmpBettype(bettype)
             SELECT bt.bettype
