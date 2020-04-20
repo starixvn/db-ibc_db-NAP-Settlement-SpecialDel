@@ -81,7 +81,7 @@ BEGIN
 				FROM dbo.f_StringSplit(l.LogData, ',')
 				INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
 				INNER JOIN bodb02.dbo.bettransm AS bm WiTH(NOLOCK) ON bt.refno = bm.refno
-				WHERE val <> '' AND bt.bettype IN (9,29)
+				WHERE val <> '' AND bt.bettype IN (9,29) AND bm.matchid = l.MatchId
 			) AS totalSubTickets
 			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
 									FROM dbo.f_StringSplit(l.LogData, ',') 
