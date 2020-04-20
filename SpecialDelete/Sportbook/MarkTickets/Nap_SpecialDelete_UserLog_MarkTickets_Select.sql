@@ -129,7 +129,7 @@ BEGIN
 			CreatedDate,
 			LogActionId,
 			MatchId,
-			homeid
+			homeid,
 			awayid,
 			kickofftime,
 			HTScore,

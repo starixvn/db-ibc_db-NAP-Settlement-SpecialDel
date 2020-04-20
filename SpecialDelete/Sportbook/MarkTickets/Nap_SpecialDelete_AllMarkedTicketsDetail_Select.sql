@@ -79,6 +79,7 @@ SET NOCOUNT ON
             LiveIndicator BIT,
             LiveHomeScore SMALLINT,
             LiveAwayScore SMALLINT,
+			MatchId       INT,
             Creator       INT,
             TransDesc     NVARCHAR(1000),
             Refno         BIGINT,
@@ -163,7 +164,7 @@ SET NOCOUNT ON
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting
-		AND m.MatchId = @MatchId 
+		AND b.MatchId = @MatchId 
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
 
@@ -174,7 +175,8 @@ SET NOCOUNT ON
 			,checktime
 			,LiveIndicator	
 			,LiveHomeScore 	
-			,LiveAwayScore 	
+			,LiveAwayScore
+			,MatchId 	
 			,Creator
 			,TransDesc	
 			,Refno
@@ -195,6 +197,7 @@ SET NOCOUNT ON
 			bm.liveindicator,
 			bm.livehomescore,
 			bm.liveawayscore,
+			bm.matchid,
 			bm.creator,
 			bm.transdesc,
 			bm.refno,
@@ -210,6 +213,7 @@ SET NOCOUNT ON
 			INNER JOIN dbo.bettrans AS bt with (NOLOCK) ON bt.matchid = 29 AND bm.refno = bt.refno
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = bt.transid AND m.MatchId = @MatchId
 		WHERE bt.statusID IN (0, 1) -- running, waiting
+		AND bm.matchid = @MatchId
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
 
@@ -233,6 +237,7 @@ SET NOCOUNT ON
 			,custid	
 			,livehomescore
 			,liveawayscore
+			,matchid
 			,winlost
 			,TransDesc
 			,betdaqid
@@ -274,6 +279,7 @@ SET NOCOUNT ON
 			,bm.custid
 			,bm.livehomescore
 			,bm.liveawayscore
+			,bm.matchid
 			,(b.winlost - b.actual_stake) winlost
 			,bm.transdesc
 			,b.betdaqid
