@@ -189,6 +189,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
+		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 
     Param's Explanation:
         @action             @mode
@@ -1389,7 +1390,8 @@ BEGIN
                     EXEC dbo.NAP_Admin_Calculate_501 @matchid = @matchid
                         ,@bettype = 501
                         ,@betcount = 1
-                        ,@ScoreDiff = @ScoreDiff						
+                        ,@ScoreDiff = @ScoreDiff
+						,@IsReSettledTickets = @IsReSettledTickets
 
                 -- bettype 14 : FT-FGLG
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 14)
