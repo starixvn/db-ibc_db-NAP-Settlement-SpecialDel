@@ -651,6 +651,7 @@ BEGIN
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
 			FROM #ParlayTickets AS bm
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 		END
 	END
 
