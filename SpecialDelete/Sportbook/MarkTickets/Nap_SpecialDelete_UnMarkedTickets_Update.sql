@@ -46,6 +46,11 @@ BEGIN
 
      CREATE TABLE #Match(matchid INT);
 
+     CREATE TABLE #tblMatchProcess
+                  (matchid INT,
+                   KeyID   TINYINT
+                  );
+
      CREATE TABLE #Tickets
                   (TransId   BIGINT,
                    MatchId   INT,
@@ -290,6 +295,20 @@ BEGIN
 		SELECT TOP 1 @IsExistParlay = 1
 		FROM #Tickets AS t
 		WHERE t.IsParlay = 1
+
+		INSERT INTO #tblMatchProcess (
+			MatchId
+			,KeyID
+			)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN BetType NOT BETWEEN 221
+						AND 227 THEN 1 --SB
+				WHEN BetType BETWEEN 221
+						AND 227 THEN 6 -- Fast Market
+				ELSE 0
+				END AS KeyID
+		FROM #Tickets;
 
 		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
 			,@isExistParlay = @IsExistParlay
