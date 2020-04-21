@@ -110,6 +110,7 @@ BEGIN
 				)
 			AND (@DoneBy IS NULL OR c.username like '%' + @DoneBy +'%')
 	ORDER BY l.CreatedDate DESC
+	OPTION (MAXRECURSION 0);
 
 	-- Check and update information of match if it was moved to match14
 	UPDATE lr
