@@ -23,6 +23,7 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190228@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
+		- 20200422@Charles: Not support refund status [132661]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -291,7 +292,7 @@ CREATE TABLE #SpecialDeleteBets
 			AND b.bettype NOT BETWEEN 801 AND 806-- MG
 			AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket			
 			AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket	
-			AND b.statusID NOT IN (101, 102) -- reject, void
+			AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND b.betfrom <> 'P' -- exclude phone betting
 			AND b.matchid = @MatchID -- filer for @MatchID	
 			AND b.bettype <> 500 -- exclude charge comm
@@ -455,7 +456,7 @@ CREATE TABLE #SpecialDeleteBets
 							 ON tl.LicenseeName = c.site
 					 INNER JOIN match m WITH (NOLOCK)
 							 ON b.matchid = m.matchid
-				WHERE b.statusID NOT IN (101,102 ) -- reject, void		
+				WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			END  	  																					
 		END
 
@@ -724,7 +725,7 @@ CREATE TABLE #SpecialDeleteBets
 							AND charindex ('p25',main.extrainfo)> 0			
 							AND sub911.bettype = 911
 							AND sub911.matchid = @matchid
-			WHERE sub911.statusID NOT IN (102, 101) -- VOID, REJECT		
+			WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, REFUND		
 			
 			-- get cash-out member bet tickets
 			INSERT INTO #SpecialDeleteBets(
@@ -873,7 +874,7 @@ CREATE TABLE #SpecialDeleteBets
 								  WHERE b.refno = sub911.transid
 									AND b.matchid = sub911.matchid
 									AND b.bettype = sub911.OriginalBetType
-									AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+									AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, REFUND
 							 ) AS b			 				 
 				 LEFT JOIN match m WITH (NOLOCK)
 						 ON b.matchid = m.matchid
@@ -988,7 +989,7 @@ CREATE TABLE #SpecialDeleteBets
 			
 			AND m.sporttype BETWEEN 1 AND 99 -- sportbook only			
 			AND sub.matchid = @matchid -- filer for @MatchID
-			AND sub.statusID NOT IN (101, 102) -- reject, void
+			AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P' -- exclude phone betting		
 			
 			AND main.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
@@ -1094,7 +1095,7 @@ CREATE TABLE #SpecialDeleteBets
 					 ON b.matchid = m.matchid			 							 		 
 		WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only			
 			AND b.bettype = 38 -- Bet Builder
-			AND b.statusID NOT IN (101, 102) -- reject, void
+			AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND b.betfrom <> 'P' -- exclude phone betting
 			AND b.matchid = @MatchID -- filer for @MatchID
 			

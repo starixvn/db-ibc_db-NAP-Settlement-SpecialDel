@@ -45,6 +45,7 @@ AS
 		- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
+		- 20200422@Charles: Void settled for sub parlay bet [132661]
 		
 	Param's Explanation:
 */
@@ -448,7 +449,7 @@ BEGIN
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
 				AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket
-				AND b.statusID NOT IN (101, 102) -- reject, void
+				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.betfrom <> 'P' -- exclude phone betting
 				AND b.matchid = @MatchID -- filer for @MatchID
 				AND b.bettype <> 500 -- exclude charge comm	
@@ -598,7 +599,7 @@ BEGIN
 							 ON tl.LicenseeName = c.site
 					 INNER JOIN match m WITH (NOLOCK)
 							 ON b.matchid = m.matchid
-				WHERE b.statusID NOT IN (101,102 ) -- reject, void
+				WHERE b.statusID NOT IN (101,102,103) -- reject, void, refund
 			END
 			
 			SET @CountSingle = @CountSingle + @@ROWCOUNT
@@ -978,7 +979,7 @@ BEGIN
 								AND tmpmain.betdaqid = 0
 								AND charindex ('p25',tmpmain.extrainfo)> 0			
 								AND sub.bettype = 911								
-				WHERE sub.statusID NOT IN (102, 101) -- VOID, REJECT					 															 
+				WHERE sub.statusID NOT IN (102, 101, 103) -- VOID, REJECT, REFUND
 				
 				SET @CountSingle = @CountSingle + @@ROWCOUNT
 				
@@ -1136,7 +1137,7 @@ BEGIN
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, REFUND
 						 ) AS b
 						LEFT JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 	ON b.recommend = c.custid					
@@ -1166,7 +1167,7 @@ BEGIN
 							ON sub911.transId = sub_912_913.refno
 							   AND sub911.matchid = sub_912_913.matchid							   					
 							   AND sub_912_913.bettype IN (912,913)
-							   AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT
+							   AND sub_912_913.statusID NOT IN (102, 101, 103) -- VOID, REJECT, REFUND
 							   				
 				--insert custCashOut912
 				INSERT INTO @tblCustCashOut912( custid)
@@ -1288,7 +1289,7 @@ BEGIN
 				
 				AND m.sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND sub.matchid = @matchid -- filer for @MatchID
-				AND sub.statusID NOT IN (101, 102) -- reject, void
+				AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND sub.betfrom <> 'P' -- exclude phone betting	
 				
 				AND main.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
