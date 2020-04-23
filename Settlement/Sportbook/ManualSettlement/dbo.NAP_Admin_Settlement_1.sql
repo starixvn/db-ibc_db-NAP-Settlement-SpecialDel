@@ -84,6 +84,7 @@ AS
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		- 20200221@Sol:	HotFix - Event status of match still Running although there are no tickets running - [Redmine:#128657]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
+		- 20200423@Kathy: Write log @IsReSettledTickets for all sportType [Redmine:#131765]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -830,7 +831,7 @@ BEGIN
 							+ CASE WHEN @QuarterResult <> '' THEN 'Result: ' + @QuarterResult + '<br/> ' ELSE '' END
                             + 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
                             + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
-							+ CASE WHEN @Sporttype IN (1, 2) AND @action LIKE 'CAL%' THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';' ELSE '' END
+							+ CASE WHEN @action LIKE 'CAL%' THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';' ELSE '' END
                             + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
     BEGIN TRY
