@@ -283,7 +283,7 @@ SET NOCOUNT ON
 			,(b.winlost - b.actual_stake) winlost
 			,bm.transdesc
 			,b.betdaqid
-			,bm.creator
+			,b.username
 			,b.recommend
 			,b.ExtraInfo
 			,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId

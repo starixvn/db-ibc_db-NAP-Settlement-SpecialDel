@@ -574,6 +574,7 @@ SET NOCOUNT ON
 				,livehomescore 
 				,liveawayscore 
 				,creator
+				,UserName
 				,Stake
 				,CurrencyName
 				,status
@@ -618,6 +619,7 @@ SET NOCOUNT ON
 				bm.livehomescore,
 				bm.liveawayscore,
 				bm.creator,
+				b.username,
 				b.stake,
 				b.CurrencyName, 
 				b.status,

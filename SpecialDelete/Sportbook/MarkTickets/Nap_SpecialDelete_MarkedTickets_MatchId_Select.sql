@@ -579,6 +579,7 @@ BEGIN
 				,livehomescore 
 				,liveawayscore 
 				,creator
+				,UserName
 				,Stake
 				,CurrencyName
 				,status
@@ -623,6 +624,7 @@ BEGIN
 				bm.livehomescore,
 				bm.liveawayscore,
 				bm.creator,
+				b.UserName,
 				b.stake,
 				b.CurrencyName, 
 				b.status,
