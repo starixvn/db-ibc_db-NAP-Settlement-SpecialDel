@@ -68,7 +68,7 @@ BEGIN
          INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
          INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.MatchId = m.MatchId
          INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bm.refno = bt.refno AND bt.TransId = m.TransId
-    WHERE bt.statusID IN(0, 1) -- running, waiting
+    WHERE bm.statusID IN(0, 1) -- running, waiting
 
      -- get all tickets
      INSERT INTO #Tickets

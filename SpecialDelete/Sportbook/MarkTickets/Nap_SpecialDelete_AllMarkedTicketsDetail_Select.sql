@@ -212,7 +212,7 @@ SET NOCOUNT ON
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
 			INNER JOIN dbo.bettrans AS bt with (NOLOCK) ON bt.matchid = 29 AND bm.refno = bt.refno
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = bt.transid AND m.MatchId = @MatchId
-		WHERE bt.statusID IN (0, 1) -- running, waiting
+		WHERE bm.statusID IN (0, 1) -- running, waiting
 		AND bm.matchid = @MatchId
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate

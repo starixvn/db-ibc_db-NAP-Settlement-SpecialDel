@@ -20,7 +20,7 @@ AS
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
-
+		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 	
 	Param's explanation:	
 	
@@ -32,34 +32,79 @@ BEGIN
 
 	IF LEN(@MatchId) < 10
 	BEGIN
-		INSERT INTO #MarkedTransaction_tmp(MatchId, bettype, UserId, MarkedTrans, CreateDate, MarkType, betid)
-		SELECT mt.MatchId
-			, mt.bettype
-			, mt.UserId
-			, COUNT(mt.TransId) AS MarkedTrans
-			, MAX(mt.CreatedDate) AS CreatedDate
-			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
-			, CASE WHEN f.GroupName = 'Special' THEN betid ELSE NULL END AS betid
-		FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON mt.TransId = b.transid
-			CROSS APPLY (SELECT val AS sporttype
-							FROM dbo.f_SplitString(@Sporttype, ',')
-							WHERE val = m.sporttype
-						) AS tmp
-			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
-		WHERE m.sporttype IN (1, 2 , 9, 43, 5)
-			AND b.statusID NOT IN (101, 102)
-			AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
-			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
-		GROUP BY mt.MatchId
-			, mt.bettype
-			, mt.UserId
-			, CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END
-			, CASE WHEN f.GroupName = 'Special' THEN betid ELSE NULL END
+		;WITH CTE_FilterData
+		AS (
+			SELECT mt.TransId
+				,mt.MatchId
+				,mt.bettype
+				,mt.UserId
+				,mt.CreatedDate
+				,ISNULL(mt.MarkType, 0) AS MarkType
+				,CASE WHEN f.GroupName = 'Special' OR f.GroupId = 7 THEN 1 ELSE 0 END AS IsCheckBetId
+			FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				CROSS APPLY (
+					SELECT val AS sporttype
+					FROM dbo.f_SplitString(@Sporttype, ',')
+					WHERE val = m.sporttype
+				) AS tmp
+				INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
+			WHERE m.sporttype IN (1, 2 , 9, 43, 5)
+				AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+				AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
+				AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+				)
+		,CTE_FilterByTicketStatus
+		AS (
+			SELECT f.TransId
+				,f.MatchId
+				,f.bettype
+				,f.UserId
+				,f.CreatedDate
+				,f.MarkType
+				,CASE WHEN f.IsCheckBetId = 1 THEN b.betid ELSE NULL END AS BetId
+			FROM CTE_FilterData AS f
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	AND b.matchid = f.MatchId
+			WHERE b.statusID NOT IN (101, 102)
+	
+			UNION
+			SELECT f.TransId
+				,f.MatchId
+				,f.bettype
+				,f.UserId
+				,f.CreatedDate
+				,f.MarkType
+				,CASE WHEN f.IsCheckBetId = 1 THEN bm.betcheck ELSE NULL END AS BetId
+			FROM CTE_FilterData AS f
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = f.TransId	AND b.matchid = 29
+				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = f.MatchId
+			WHERE bm.statusID NOT IN (101, 102)
+			)
+		INSERT INTO #MarkedTransaction_tmp (
+			MatchId
+			,bettype
+			,UserId
+			,MarkedTrans
+			,CreateDate
+			,MarkType
+			,betid
+			)
+		SELECT f.MatchId
+			,f.bettype
+			,f.UserId
+			,COUNT(f.TransId) AS MarkedTrans
+			,MAX(f.CreatedDate) AS CreatedDate
+			,f.MarkType
+			,f.BetId
+		FROM CTE_FilterByTicketStatus AS f
+		GROUP BY f.MatchId
+			,f.bettype
+			,f.UserId
+			,f.MarkType
+			,f.BetId
 
+		-----------------
 		SELECT mt.MatchId
 			, m.kickofftime
 			, m.homeid
@@ -112,5 +157,4 @@ BEGIN
 	ELSE RETURN
 
 	DROP TABLE #MarkedTransaction_tmp
-
 END

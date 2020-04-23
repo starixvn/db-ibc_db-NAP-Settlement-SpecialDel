@@ -28,6 +28,7 @@ AS
 		- 20200313@Max: Support Quarter X, Y, Z on Auto Unmark Page - [Redmine: #130322]
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]	
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 		
 	Param's explanation:	
 		
@@ -46,9 +47,9 @@ BEGIN
 			,@Sporttype    SMALLINT
 			,@IsCalQueue		BIT = 0
 			
-	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT)
+	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
 
-	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT)
+	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT, IsMixParlay BIT DEFAULT(0))
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
 	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
@@ -86,26 +87,58 @@ BEGIN
 	INSERT INTO #ProblemAccount_tmp (CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	INSERT INTO #tmpTransid_unmark (transid,statuswinlost)
-	SELECT mt.TransId,b.statuswinlost
-	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) 
-			ON b.transid = mt.TransId
-		OUTER APPLY (SELECT TOP 1 custid
-					 FROM #ProblemAccount_tmp t
-					 WHERE t.custid = b.custid
-					 ) AS tmp
-		INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
+	-- get list transid to unmark
+	INSERT INTO #tmpTransid_unmark (
+		transid
+		,statuswinlost
+		,IsMixParlay
+		)
+	SELECT mt.TransId
+		,b.statuswinlost
+		,0
+	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
-		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
-		AND b.statusID IN (0, 1)
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND tmp.CustID IS NULL
-		AND 1 = CASE WHEN f.GroupName = 'Special' AND b.betid = @Betid THEN 1
-					WHEN f.GroupName <> 'Special' THEN 1
-				ELSE 0 END
+		AND mt.TransId NOT IN (
+			SELECT transid
+			FROM #ValidRequestTransId
+			)
+		AND NOT EXISTS (
+			SELECT TOP 1 1
+			FROM #ProblemAccount_tmp t
+			WHERE t.custid = b.custid
+			)
+		AND b.statusID IN (0, 1)
+		AND (
+			@Betid IS NULL
+			OR (
+				@Betid IS NOT NULL
+				AND b.betid = @Betid
+				)
+			)
+
+	UNION
+	SELECT bm.TransId
+		,NULL
+		,1
+	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId
+	WHERE mt.MatchId = @Matchid
+		AND mt.bettype = @Bettype
+		AND mt.UserId = @MarkedBy
+		AND mt.MarkType <> 2
+		AND bm.statusID IN (0, 1)
+		AND (
+			@Betid IS NULL
+			OR (
+				@Betid IS NOT NULL
+				AND bm.betcheck = @Betid
+				)
+			)
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
@@ -147,8 +180,8 @@ BEGIN
 			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT deleted.transid,deleted.statuswinlost
-			INTO @tmpMarkedTransIDBatch(transid,statuswinlost)
+			OUTPUT deleted.transid, deleted.statuswinlost, deleted.IsMixParlay
+			INTO @tmpMarkedTransIDBatch(transid, statuswinlost, IsMixParlay)
 			FROM #tmpTransid_unmark t 
 			WHERE isFinish IS NULL
 		
@@ -161,7 +194,8 @@ BEGIN
 		
 			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkedTransIDBatch
-											WHERE statuswinlost IS NOT NULL
+											WHERE IsMixParlay = 0
+											AND statuswinlost IS NOT NULL
 											FOR XML PATH('')
 								), 1,1,'')
 								
@@ -202,6 +236,5 @@ BEGIN
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransid_unmark
-	DROP TABLE #ProblemAccount_tmp
-	
+	DROP TABLE #ProblemAccount_tmp	
 END
