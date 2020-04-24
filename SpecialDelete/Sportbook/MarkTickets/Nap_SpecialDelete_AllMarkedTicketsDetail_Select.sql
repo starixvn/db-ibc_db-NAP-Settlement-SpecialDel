@@ -70,29 +70,7 @@ SET NOCOUNT ON
               SubHdp2         SMALLMONEY,
               SubOdds         MONEY
              );
-
-	CREATE TABLE #ParlayTickets
-            (CustId        INT,
-            OddsSpread    MONEY,
-            TransDate     DATETIME,
-			checktime	  DATETIME,
-            LiveIndicator BIT,
-            LiveHomeScore SMALLINT,
-            LiveAwayScore SMALLINT,
-			MatchId       INT,
-            Creator       INT,
-            TransDesc     NVARCHAR(1000),
-            Refno         BIGINT,
-            SubTransId    BIGINT,
-            SubStatus     NVARCHAR(10),
-            SubBetCheck   NVARCHAR(50),
-            SubBetTeam    NVARCHAR(10),
-            SubBetType    SMALLINT DEFAULT(0),
-            SubHdp1       SMALLMONEY,
-            SubHdp2       SMALLMONEY,
-            SubOdds       MONEY
-            );
-
+	-- get single tickets
 	INSERT INTO #Tickets (
 			GroupID
 			,bettype
@@ -167,56 +145,8 @@ SET NOCOUNT ON
 		AND b.MatchId = @MatchId 
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
-
-	INSERT INTO #ParlayTickets (
-			CustId
-			,OddsSpread			
-			,TransDate
-			,checktime
-			,LiveIndicator	
-			,LiveHomeScore 	
-			,LiveAwayScore
-			,MatchId 	
-			,Creator
-			,TransDesc	
-			,Refno
-			,SubTransId
-			,SubStatus
-			,SubBetCheck
-			,SubBetTeam
-			,SubBetType
-			,SubHdp1
-			,SubHdp2
-			,SubOdds
-		)
-		SELECT
-			bm.custid, 
-			bm.oddsspread,
-			bm.transdate,
-			bm.checktime,
-			bm.liveindicator,
-			bm.livehomescore,
-			bm.liveawayscore,
-			bm.matchid,
-			bm.creator,
-			bm.transdesc,
-			bm.refno,
-			bm.transid AS SubTransId,
-			bm.status AS SubStatus,
-			bm.betcheck AS SubBetCheck,
-			bm.betteam AS SubBetTeam,
-			bm.bettype AS SubBetType,
-			bm.hdp1 AS SubHdp1,
-			bm.hdp2 AS SubHdp2,
-			bm.odds As SubOdds
-		FROM dbo.bettransm AS bm WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS bt with (NOLOCK) ON bt.matchid = 29 AND bm.refno = bt.refno
-			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = bt.transid AND m.MatchId = @MatchId
-		WHERE bm.statusID IN (0, 1) -- running, waiting
-		AND bm.matchid = @MatchId
-		AND m.UserId = @UserId
-		AND m.CreatedDate = @CreatedDate
-
+	
+	-- get subparlay tickets
 	INSERT INTO #Tickets (
 			GroupID
 			,bettype
@@ -289,16 +219,21 @@ SET NOCOUNT ON
 			,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
 			,b.CurrencyName
 			,1 AS IsMixParlay
-			,bm.SubTransId
-			,bm.SubStatus
-			,bm.SubBetCheck
-			,bm.SubBetTeam
-			,bm.SubBetType
-			,bm.SubHdp1
-			,bm.SubHdp2
-			,bm.SubOdds
-		FROM #ParlayTickets AS bm
-			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+			,bm.transid AS SubTransId
+			,bm.status AS SubStatus
+			,bm.betcheck AS SubBetCheck
+			,bm.betteam AS SubBetTeam
+			,bm.bettype AS SubBetType
+			,bm.hdp1 AS SubHdp1
+			,bm.hdp2 AS SubHdp2
+			,bm.odds As SubOdds
+		FROM dbo.bettransm AS bm WITH (NOLOCK)
+			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
+		WHERE bm.statusID IN (0, 1) -- running, waiting
+		AND bm.matchid = @MatchId
+		AND m.UserId = @UserId
+		AND m.CreatedDate = @CreatedDate
 
 	CREATE TABLE #tmpRefCodeSummary (
 		 RefCode	BIGINT
@@ -732,7 +667,6 @@ SET NOCOUNT ON
 
 				
   DROP TABLE #Tickets
-  DROP TABLE #ParlayTickets
   DROP TABLE #tmpRefCodeSummary
   DROP TABLE #t_LicenseeNames
   DROP TABLE #t_UIRepresentativeLicenseeGroupNames

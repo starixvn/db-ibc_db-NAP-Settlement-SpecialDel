@@ -260,27 +260,6 @@ BEGIN
 		FilterTimeInterval	SMALLMONEY
 	)
 
-	CREATE TABLE #ParlayTickets
-            (CustId        INT,
-            OddsSpread    MONEY,
-            TransDate     DATETIME,
-			checktime		DATETIME,
-            LiveIndicator BIT,
-            LiveHomeScore SMALLINT,
-            LiveAwayScore SMALLINT,
-            Creator       INT,
-            TransDesc     NVARCHAR(1000),
-            Refno         BIGINT,
-            SubTransId    BIGINT,
-            SubStatus     NVARCHAR(10),
-            SubBetCheck   NVARCHAR(50),
-            SubBetTeam    NVARCHAR(10),
-            SubBetType    SMALLINT DEFAULT(0),
-            SubHdp1       SMALLMONEY,
-            SubHdp2       SMALLMONEY,
-            SubOdds       MONEY
-            );
-
 	CREATE TABLE #tmpRefCodeSummary (
 		 RefCode	BIGINT
 		 ,custid	INT
@@ -510,58 +489,6 @@ BEGIN
 
 		IF @Bet = 'All' OR @Bet = 'Parlay'
 		BEGIN
-			INSERT INTO #ParlayTickets (
-				CustId
-				,OddsSpread			
-				,TransDate
-				,checktime
-				,LiveIndicator	
-				,LiveHomeScore 	
-				,LiveAwayScore 	
-				,Creator
-				,TransDesc	
-				,Refno
-				,SubTransId
-				,SubStatus
-				,SubBetCheck
-				,SubBetTeam
-				,SubBetType
-				,SubHdp1
-				,SubHdp2
-				,SubOdds			
-			)
-			SELECT
-				bm.custid, 
-				bm.oddsspread,
-				bm.transdate,
-				bm.checktime,
-				bm.liveindicator,
-				bm.livehomescore,
-				bm.liveawayscore,
-				bm.creator,
-				bm.transdesc,
-				bm.refno,
-				bm.transid AS SubTransId,
-				bm.status AS SubStatus,
-				bm.betcheck AS SubBetCheck,
-				bm.betteam AS SubBetTeam,
-				bm.bettype AS SubBetType,
-				bm.hdp1 AS SubHdp1,
-				bm.hdp2 AS SubHdp2,
-				bm.odds As SubOdds				
-			FROM 
-				dbo.bettransm bm WITH (NOLOCK)
-				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
-				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
-				INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
-			WHERE
-				bm.statusID IN (0, 1)
-				AND bm.matchid = @MatchId
-				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
-				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
-				AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
-				
 			INSERT INTO #Tickets (
 				GroupID
 				,transid
@@ -637,23 +564,32 @@ BEGIN
 				bm.Refno,
 				b.WinLost - b.actual_stake AS WinLost,
 				1 AS IsMixParlay,
-				bm.SubTransId,
-				bm.SubStatus,
-				bm.SubBetCheck,
-				bm.SubBetTeam,
-				bm.SubBetType,
-				bm.SubHdp1,
-				bm.SubHdp2,
-				bm.SubOdds,
-				bm.SubBetType AS FilterBetType,
-				bm.SubBetTeam AS FilterBetTeam,
-				bm.SubBetCheck AS FilterSet,
-				RIGHT(bm.SubBetCheck, 2) AS FilterGame,
-				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
-				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
-			FROM #ParlayTickets AS bm
-			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
-			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
+				bm.transid AS SubTransId,
+				bm.status AS SubStatus,
+				bm.betcheck AS SubBetCheck,
+				bm.betteam AS SubBetTeam,
+				bm.bettype AS SubBetType,
+				bm.hdp1 AS SubHdp1,
+				bm.hdp2 AS SubHdp2,
+				bm.odds As SubOdds,
+				bm.bettype AS FilterBetType,
+				bm.betteam AS FilterBetTeam,
+				bm.betcheck AS FilterSet,
+				RIGHT(bm.betcheck, 2) AS FilterGame,
+				bm.hdp1 + bm.hdp2 AS FilterValue,
+				ISNULL(bm.betcheck, 0) AS FilterGoal
+			FROM dbo.bettransm bm WITH (NOLOCK)
+				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
+				INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
+				INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
+			WHERE
+				bm.statusID IN (0, 1)
+				AND bm.matchid = @MatchId
+				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
+				AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 		END
 	END
 
@@ -1088,7 +1024,6 @@ BEGIN
 	DROP TABLE #t_exchanges
 	DROP TABLE #t_LicenseeNames
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames
-	DROP TABLE #ParlayTickets
 
 	SET NOCOUNT OFF
 END
