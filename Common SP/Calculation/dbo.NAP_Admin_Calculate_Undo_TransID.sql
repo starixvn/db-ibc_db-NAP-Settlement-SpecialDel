@@ -12,6 +12,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		
 	Param's Explanation:
 			@transIds = '<root>
@@ -80,6 +81,7 @@ BEGIN
 		,acomm = 0
 		,scomm = 0
 		,statuswinlost = NULL
+		,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		

@@ -29,6 +29,7 @@ AS
 		- 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
+		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 	
     Parameters Explanation:    
     
@@ -456,6 +457,7 @@ RETURN (
 	UNION ALL SELECT 8,383,0,0,0,1,'Special',0,0,0
 	UNION ALL SELECT 8,382,0,0,0,1,'Special',0,0,0
 	UNION ALL SELECT 8,381,0,0,0,1,'Special',0,0,0
+	UNION ALL SELECT 8,376,0,0,0,0,'Special',0,0,0
 
 	UNION ALL SELECT 2,400,0,0,0,0,'FT',0,0,0
 	UNION ALL SELECT 2,399,1,0,0,0,'FT',3,0,0
@@ -466,6 +468,7 @@ RETURN (
 	UNION ALL SELECT 2,392,1,0,0,0,'FT',3,0,0
 	UNION ALL SELECT 2,389,1,0,0,0,'FT',3,0,0
 	UNION ALL SELECT 2,388,1,0,0,0,'FT',3,0,0
+
 	-- End
 	)
 GO
