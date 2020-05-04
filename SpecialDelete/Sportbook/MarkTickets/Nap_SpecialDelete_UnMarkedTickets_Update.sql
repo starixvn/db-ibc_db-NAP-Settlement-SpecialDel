@@ -6,7 +6,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VA
                                                              @MarkType		  TINYINT		= 0,
 															 @RequestId		  INT			= NULL,
 															 @LogActionId	  INT			= 90500,
-                                                             @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
 AS
@@ -400,27 +399,6 @@ BEGIN
             m.IsNeutral
      FROM #Match b
           LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
-
-	-- invalid trans
-     SELECT @InvalidTransIds = @InvalidTransIds + CASE
-                                                    WHEN @InvalidTransIds <> ''
-                                                    THEN ','
-                                                    ELSE ''
-                                                END + CAST(transid AS VARCHAR(100))
-     FROM #transIds t
-     WHERE NOT EXISTS
-	   (
-		  SELECT 1
-		  FROM #Tickets b
-		  WHERE b.transid = t.transid
-		  AND b.IsParlay = 0
-
-		  UNION
-		  SELECT 1
-		  FROM #Tickets b
-		  WHERE b.SubTransId = t.TransId
-		  AND b.IsParlay = 1
-	   );
 
 	-- Write Log
 	SET @xmlLog = CAST((
