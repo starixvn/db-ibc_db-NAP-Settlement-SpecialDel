@@ -31,27 +31,8 @@ BEGIN
                CreatedDate DATETIME,
                TransId     BIGINT
               );
-
-     -- get single tickets
-     INSERT INTO #TempTickets
-            (MatchId,
-             UserId,
-             Username,
-             CreatedDate,
-             TransId
-            )
-    SELECT m.MatchId,
-           UserId,
-           c.Username,
-           CreatedDate,
-           m.TransId
-    FROM dbo.MarkedTransaction m WITH (NOLOCK)
-         INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
-         INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = m.TransId
-                                                    AND b.MatchId = m.MatchId
-    WHERE b.statusID IN(0, 1) -- running, waiting
      
-     -- get parlay tickets
+     -- insert tickets into #TempTickets
      INSERT INTO #TempTickets
             (MatchId,
              UserId,
@@ -60,15 +41,23 @@ BEGIN
              TransId
             )
     SELECT m.MatchId,
-           UserId,
+           m.UserId,
            c.Username,
-           CreatedDate,
+           m.CreatedDate,
            m.TransId
     FROM dbo.MarkedTransaction m WITH (NOLOCK)
          INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
-         INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.MatchId = m.MatchId
-         INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bm.refno = bt.refno AND bt.TransId = m.TransId
-    WHERE bm.statusID IN(0, 1) -- running, waiting
+         INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bt.TransId = m.TransId
+         OUTER APPLY (
+                SELECT TOP 1 1 isParlay
+                FROM dbo.bettransm WITH (NOLOCK)
+                WHERE refno = bt.refno AND statusID IN (0,1) AND bt.matchid = 29
+         ) bm
+         
+    WHERE 1 = CASE WHEN bt.matchid <> 29 and bt.statusID IN (0,1) THEN 1
+                   WHEN bt.matchid = 29 AND bm.isParlay = 1 THEN 1
+                   ELSE 0
+              END
 
      -- get all tickets
      INSERT INTO #Tickets
@@ -92,7 +81,7 @@ BEGIN
      -- return final results   
      SELECT t.MatchId,
             t.UserId,
-			t.Username,
+            t.Username,
             t.CreatedDate,
             t.Total,
             m.HomeId,
