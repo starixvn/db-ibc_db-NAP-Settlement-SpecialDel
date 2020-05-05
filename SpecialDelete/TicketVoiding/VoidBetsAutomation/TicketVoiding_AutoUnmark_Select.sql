@@ -63,23 +63,21 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,CASE WHEN f.IsCheckBetId = 1 THEN b.betid ELSE NULL END AS BetId
+				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN b.betid
+						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN bm.betcheck 
+						ELSE NULL END AS BetId
 			FROM CTE_FilterData AS f
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	AND b.matchid = f.MatchId
-			WHERE b.statusID NOT IN (101, 102)
-	
-			UNION
-			SELECT f.TransId
-				,f.MatchId
-				,f.bettype
-				,f.UserId
-				,f.CreatedDate
-				,f.MarkType
-				,CASE WHEN f.IsCheckBetId = 1 THEN bm.betcheck ELSE NULL END AS BetId
-			FROM CTE_FilterData AS f
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = f.TransId	AND b.matchid = 29
-				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = f.MatchId
-			WHERE bm.statusID NOT IN (101, 102)
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
+				OUTER APPLY (
+					SELECT TOP 1 m.betcheck
+						,1 AS IsParlay
+					FROM dbo.bettransm AS m WITH (NOLOCK)
+					WHERE m.refno = b.refno
+						AND m.statusID NOT IN (101, 102)
+						AND b.matchId = 29
+				) AS bm
+			WHERE 1 = CASE WHEN b.matchid <> 29 AND b.statusID NOT IN (101, 102) THEN 1
+							WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1 ELSE 0 END
 			)
 		INSERT INTO #MarkedTransaction_tmp (
 			MatchId

@@ -30,10 +30,12 @@ BEGIN
 	DECLARE @xmlLog VARCHAR(MAX)
 			,@LogData VARCHAR(MAX) = '';
 
-    CREATE TABLE #TransIds
+    CREATE TABLE #TransIds -- single + parlay tickets
                   (TransId BIGINT
                    PRIMARY KEY
                   );
+
+	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 
 	CREATE TABLE #MarkedTransactionDeleted (
 		TransId BIGINT
@@ -100,21 +102,17 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.matchid <> 29
 
-	UNION
-	SELECT b.transid
-		,bm.matchid
-		,bm.bettype
-		,bm.custid
-		,NULL
-		,NULL
-		,NULL
-		,bm.refno
-		,1
-		,bm.transid
-	FROM #transIds t
-		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
-		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
-		AND b.matchid = 29
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (
+		TransId
+	)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM #Tickets AS t
+		WHERE t.TransId = tmp.TransId
+	)
 
 	-- delete cash-out member bet tickets
 	DELETE t
@@ -235,6 +233,38 @@ BEGIN
 				    ) AS b
     END;
 
+	-- get parlay tickets
+	IF EXISTS (SELECT TOP 1 1
+				FROM #ParlayTransIds)
+	BEGIN
+		INSERT INTO #Tickets (
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,Betdaqid
+			,ExtraInfo
+			,RefCode
+			,refno
+			,IsParlay
+			,SubTransId
+			)
+		SELECT b.transid
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,NULL
+			,NULL
+			,NULL
+			,bm.refno
+			,1
+			,bm.transid
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+				AND b.matchid = 29
+	END
+
 	-- Delete Transaction
 	WHILE (0=0)
 	BEGIN
@@ -332,6 +362,7 @@ BEGIN
      DROP TABLE #TransIds;
      DROP TABLE #Match;
      DROP TABLE #MarkedTransactionDeleted;
+	 DROP TABLE #ParlayTransIds
 
      SET NOCOUNT OFF;
 END

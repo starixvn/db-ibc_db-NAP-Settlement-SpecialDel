@@ -41,6 +41,8 @@ BEGIN
             FROM dbo.f_SplitString(@TransIds, ',')
             WHERE val <> '' OPTION(MAXRECURSION 0);
 
+	 CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
+
      DECLARE @tblInvalidTrans TABLE(transid BIGINT);
 
      CREATE TABLE #Match(matchid INT);
@@ -104,25 +106,19 @@ BEGIN
 		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
 	WHERE m.TransId IS NULL
 		AND b.matchid <> 29
-
-	UNION
-	SELECT b.TransId
-		,bm.matchid
-		,bm.bettype
-		,bm.custid
-		,NULL
-		,NULL
-		,NULL
-		,bm.refno
-		,1
-		,bm.transid
-	FROM #transIds t
-		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
-		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-		LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON m.TransId = b.TransId AND m.MatchId = bm.matchid
-	WHERE m.TransId IS NULL
-
-			
+	
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (
+		TransId
+	)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM #Tickets AS t
+		WHERE t.TransId = tmp.TransId
+	)
+	
 	-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
@@ -266,6 +262,39 @@ BEGIN
 					 AND b.bettype NOT IN(911, 912, 913)
 			 ) AS b
     END;
+
+	-- check if exists parlay tickets
+	IF EXISTS (SELECT TOP 1 1
+				FROM #ParlayTransIds)
+	BEGIN
+		INSERT INTO #Tickets (
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,Betdaqid
+			,ExtraInfo
+			,RefCode
+			,refno
+			,IsParlay
+			,SubTransId
+		)
+		SELECT b.TransId
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,NULL
+			,NULL
+			,NULL
+			,bm.refno
+			,1
+			,bm.transid
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
+			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON m.TransId = b.TransId AND m.MatchId = bm.matchid
+		WHERE m.TransId IS NULL
+	END
 
 	--check no data
     IF NOT EXISTS
@@ -428,6 +457,7 @@ BEGIN
      DROP TABLE #tmpRefCodeSummary;
      DROP TABLE #transIds;
      DROP TABLE #Match;
+	 DROP TABLE #ParlayTransIds;
 
      SET NOCOUNT OFF;
 END
