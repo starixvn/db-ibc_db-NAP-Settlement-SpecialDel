@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel]
 	,@FastMarketsOnly BIT = 0 
 	,@IsReLoad BIT = 0
 	,@IsMarkedTicket BIT = 0
+	,@IsIncludeTest BIT = 0
 AS
 /*  
  Created by: Kathy
@@ -47,6 +48,8 @@ AS
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [Redmine:#128069]
 		- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
+						  - Not display match with event status is refund & abandoned when check Un-Calculated Parlay Only filter [Redmine:#133518]
       
  Param explanation:  
 	@MatchCode: match code
@@ -55,6 +58,7 @@ AS
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
+	@IsIncludeTest: 1: include test matches, 0: exclude test matches
 */
 BEGIN
 	SET NOCOUNT ON
@@ -290,14 +294,15 @@ BEGIN
 			,m.ChildMatchType
 		FROM	dbo.match m WITH (NOLOCK)
 				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = r.MatchId AND r.ResourceId ='00'
+				INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate 
 			AND m.leagueID = CASE WHEN @LeagueID <> 0 THEN @LeagueID ELSE m.leagueID END 			
 			AND CASE 
 					WHEN @UncalMultiOnly = 0 THEN 1 
 					WHEN @UncalMultiOnly = 1 THEN 
 							CASE 
-								WHEN (m.betstatus LIKE 'Abandoned 1H%') THEN m.hthomescore * m.htawayscore
-								WHEN (m.betstatus LIKE 'Abandoned 2H%') THEN m.finalhomescore * m.finalawayscore
+								WHEN (m.betstatus LIKE '%Refund%' OR m.betstatus LIKE '%Abandoned%') THEN NULL
 								ELSE m.hthomescore * m.htawayscore * m.finalhomescore * m.finalawayscore 
 							END
 					WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
@@ -319,6 +324,7 @@ BEGIN
 					OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 				)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
+			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	WHERE	(@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 

@@ -49,6 +49,7 @@ AS
 	- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 	- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 	- 20200410@Sol: Set Timeout for Direct Settlement - [Redmine:#132138]
+	- 20200505@Kathy: Not display match with event status is refund & abandoned when check Un-Calculated Parlay Only filter [Redmine:#133518]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -248,8 +249,7 @@ BEGIN
 				WHEN @UncalMultiOnly = 0 THEN 1 
 				WHEN @UncalMultiOnly = 1 THEN 
 					CASE 
-						WHEN (m.betstatus LIKE 'Abandoned 1H%') THEN m.hthomescore * m.htawayscore
-						WHEN (m.betstatus LIKE 'Abandoned 2H%') THEN m.finalhomescore * m.finalawayscore
+						WHEN (m.betstatus LIKE '%Refund%' OR m.betstatus LIKE '%Abandoned%') THEN NULL
 						ELSE m.hthomescore * m.htawayscore * m.finalhomescore * m.finalawayscore 
 					END
 				WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
