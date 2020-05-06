@@ -23,28 +23,20 @@ BEGIN
                CreatedDate DATETIME,
                Total       INT
               );
-
-     CREATE TABLE #TempTickets
-              (MatchId     INT,
-               UserId      INT,
-               Username    NVARCHAR(100),
-               CreatedDate DATETIME,
-               TransId     BIGINT
-              );
      
-     -- insert tickets into #TempTickets
-     INSERT INTO #TempTickets
+     -- get all tickets
+     INSERT INTO #Tickets
             (MatchId,
              UserId,
              Username,
              CreatedDate,
-             TransId
+             Total
             )
     SELECT m.MatchId,
            m.UserId,
            c.Username,
            m.CreatedDate,
-           m.TransId
+           COUNT(m.TransId)
     FROM dbo.MarkedTransaction m WITH (NOLOCK)
          INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
          INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bt.TransId = m.TransId
@@ -58,25 +50,10 @@ BEGIN
                    WHEN bt.matchid = 29 AND bm.isParlay = 1 THEN 1
                    ELSE 0
               END
-
-     -- get all tickets
-     INSERT INTO #Tickets
-            (MatchId,
-             UserId,
-             Username,
-             CreatedDate,
-             Total
-            )
-    SELECT MatchId,
-           UserId,
-           Username,
-           CreatedDate,
-           COUNT(TransId)
-    FROM #TempTickets
-    GROUP BY MatchId,
-             UserId,
-             Username,
-             CreatedDate;
+    GROUP BY m.MatchId,
+             m.UserId,
+             c.Username,
+             m.CreatedDate;
 
      -- return final results   
      SELECT t.MatchId,
@@ -108,7 +85,6 @@ BEGIN
      ORDER BY m.kickofftime
 		, t.CreatedDate
               
-     DROP TABLE #TempTickets;
      DROP TABLE #Tickets;
      SET NOCOUNT OFF;
 END

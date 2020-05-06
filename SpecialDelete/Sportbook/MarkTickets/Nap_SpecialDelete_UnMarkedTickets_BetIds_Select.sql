@@ -650,8 +650,9 @@ CREATE TABLE #tmpRefCodeSummary
 			) bm
 			OUTER APPLY (
 				SELECT TOP (1) CAST(1 AS BIT) AS isMarked
-				FROM dbo.MarkedTransaction WITH(NOLOCK) 
-				WHERE transid = temp.transid
+				FROM dbo.MarkedTransaction m WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.transid = b.transid
+				WHERE m.transid = temp.transid AND b.bettype NOT IN (9, 29)
 			) m
 		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
 	)
