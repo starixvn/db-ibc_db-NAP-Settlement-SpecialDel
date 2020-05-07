@@ -17,6 +17,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
+		- 20200417@Charles: Mark/Unmark Parlay Tickets and remaing sports [131670]
 	Explanation's Param:			    
 */
 BEGIN
@@ -282,8 +283,15 @@ SET NOCOUNT ON
 				  WHERE m.TransId = t.transid)
 
 	-- delete Tickets is not Soccer, Basketball, Esport, Badminton and Tennis
-	DELETE t FROM #Tickets t WHERE t.SportType NOT IN (1, 2, 5, 9, 43)
-
+	DELETE t FROM #Tickets t WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10) -- outright
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+			AND t.SportType = pt.SportType
+	)
 	-- delete cash-out member bet tickets
 	DELETE t FROM #Tickets t
 	WHERE EXISTS (SELECT TOP (1) 1

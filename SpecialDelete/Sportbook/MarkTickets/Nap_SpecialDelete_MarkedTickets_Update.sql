@@ -1,6 +1,4 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds VARCHAR(MAX)  = NULL,
                                                            @UserId   INT           = 0,
                                                            @Username NVARCHAR(100) = '',
@@ -24,6 +22,7 @@ AS
 		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
 		- 20200304@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -31,10 +30,12 @@ BEGIN
 	DECLARE @xmlLog VARCHAR(MAX)
 			,@LogData VARCHAR(MAX) = '';
 
-    CREATE TABLE #TransIds
+    CREATE TABLE #TransIds -- single + parlay tickets
                   (TransId BIGINT
                    PRIMARY KEY
                   );
+
+	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 
 	CREATE TABLE #MarkedTransactionDeleted (
 		TransId BIGINT
@@ -46,6 +47,7 @@ BEGIN
                    val
             FROM dbo.f_SplitString(@TransIds, ',')
             WHERE val <> '' OPTION(MAXRECURSION 0);
+
      CREATE TABLE #Tickets
                   (TransId   BIGINT,
                    MatchId   INT,
@@ -54,7 +56,9 @@ BEGIN
                    Betdaqid  BIGINT,
                    ExtraInfo VARCHAR(1000),
                    RefCode   BIGINT,
-				   refno	 BIGINT
+				   refno	 BIGINT,
+				   IsParlay  BIT DEFAULT(0),
+				   SubTransId BIGINT
                   );
      CREATE TABLE #Cashout911Tickets
                   (TransId BIGINT,
@@ -70,41 +74,54 @@ BEGIN
      CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
      CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
      CREATE TABLE #Match(MatchId INT);
-     INSERT INTO #Match
-		SELECT DISTINCT
-				m.MatchId
-		FROM #TransIds t
-				INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId;
 	
--- Get tickets insert into transaction
-     INSERT INTO #Tickets
-            (TransId,
-             MatchId,
-             BetType,
-             CustId,
-             Betdaqid,
-             ExtraInfo,
-             RefCode,
-			 refno
-            )
-            SELECT t.TransId,
-                   b.MatchId,
-                   b.BetType,
-                   b.custid,
-                   b.betdaqid,
-                   b.ExtraInfo,
-                   b.RefCode,
-				   b.refno
-            FROM #transIds t
-                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid;
--- delete cash-out member bet tickets
+	-- Get tickets insert into transaction
+	INSERT INTO #Tickets (
+		TransId
+		,MatchId
+		,BetType
+		,CustId
+		,Betdaqid
+		,ExtraInfo
+		,RefCode
+		,refno
+		,IsParlay
+		,SubTransId
+		)
+	SELECT t.TransId
+		,b.MatchId
+		,b.BetType
+		,b.custid
+		,b.betdaqid
+		,b.ExtraInfo
+		,b.RefCode
+		,b.refno
+		,0
+		,NULL
+	FROM #transIds t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
+	WHERE b.matchid <> 29
+
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (
+		TransId
+	)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM #Tickets AS t
+		WHERE t.TransId = tmp.TransId
+	)
+
+	-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
 	WHERE EXISTS (SELECT TOP (1) 1
 				  FROM bettrans sub911 (NOLOCK)
 				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)				 
--- Bonus
-     IF EXISTS
+	-- Bonus
+    IF EXISTS
 	   (
 		  SELECT TOP (1) 1
 		  FROM #Tickets
@@ -145,7 +162,7 @@ BEGIN
                  END;
          END;	
 
--- get sub ticket of Cash-out (911) and cash-out member bet tickets
+	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
     IF(EXISTS
 	   (
 		  SELECT TOP (1) 1
@@ -154,7 +171,7 @@ BEGIN
 			   AND CHARINDEX('p25', extrainfo) > 0
 	   ))
     BEGIN
--- get sub ticket of Cash-out (911)	
+			-- get sub ticket of Cash-out (911)	
              INSERT INTO #Cashout911Tickets
                     (TransId,
                      MatchId
@@ -169,7 +186,7 @@ BEGIN
                                                                          AND CHARINDEX('p25', main.extrainfo) > 0
                                                                          AND sub911.bettype = 911;			 
 
--- get cash-out member bet tickets
+			-- get cash-out member bet tickets
              INSERT INTO #TransIds(TransId)
                     SELECT b.transid
                     FROM #Cashout911Tickets sub911
@@ -216,17 +233,55 @@ BEGIN
 				    ) AS b
     END;
 
+	-- get parlay tickets
+	IF EXISTS (SELECT TOP 1 1
+				FROM #ParlayTransIds)
+	BEGIN
+		INSERT INTO #Tickets (
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,Betdaqid
+			,ExtraInfo
+			,RefCode
+			,refno
+			,IsParlay
+			,SubTransId
+			)
+		SELECT b.transid
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,NULL
+			,NULL
+			,NULL
+			,bm.refno
+			,1
+			,bm.transid
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
+				AND b.matchid = 29
+	END
+
 	-- Delete Transaction
 	WHILE (0=0)
 	BEGIN
 		DELETE TOP (2000) m 
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
-		INTO #MarkedTransactionDeleted(TransId, MatchId)
+		INTO #MarkedTransactionDeleted (TransId, MatchId)
 		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-        INNER JOIN #TransIds t ON t.TransId = m.TransId;
+        INNER JOIN #Tickets t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
+
 		IF @@ROWCOUNT = 0 BREAK	  
 	END 
+
+    INSERT INTO #Match
+    SELECT DISTINCT
+            t.MatchId
+    FROM #Tickets t;
 
 	-- Write Log
 	SET @xmlLog = CAST((
@@ -250,7 +305,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
 		,@functionName = 'TicketVoiding'
 		,@MessageType = 'MessageType_TicketVoiding_Log';
-
 
 	-- Insert Settled_Message
      INSERT INTO [dbo].[Settled_Message]
@@ -280,6 +334,15 @@ BEGIN
 				    FROM dbo.MarkedTransaction m WITH (NOLOCK)
 					    INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
 														  AND b.statusID IN(0, 1)
+					WHERE b.matchid <> 29
+
+					UNION
+					SELECT bm.matchid
+					FROM dbo.MarkedTransaction AS m WITH (NOLOCK)
+						INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = m.TransId
+						INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON b.matchid = 29
+						AND bm.refno = b.refno
+					WHERE m.MatchId = bm.matchid
 				) mt ON mt.MatchId = t.MatchId
             WHERE mt.MatchId IS NULL;
 
@@ -299,6 +362,7 @@ BEGIN
      DROP TABLE #TransIds;
      DROP TABLE #Match;
      DROP TABLE #MarkedTransactionDeleted;
+	 DROP TABLE #ParlayTransIds
 
      SET NOCOUNT OFF;
 END

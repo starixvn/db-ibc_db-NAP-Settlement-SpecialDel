@@ -6,7 +6,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VA
                                                              @MarkType		  TINYINT		= 0,
 															 @RequestId		  INT			= NULL,
 															 @LogActionId	  INT			= 90500,
-                                                             @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
 AS
@@ -24,7 +23,7 @@ AS
 		- 20200216@Max: Abnormal Void Bets Automation - Log [Redmine: #128359]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-		
+		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -32,7 +31,7 @@ BEGIN
 	 DECLARE @xmlLog VARCHAR(MAX)
 			,@LogData VARCHAR(MAX) = '';
 
-     CREATE TABLE #transIds
+     CREATE TABLE #transIds -- single + sub parlay Id
                   (TransId BIGINT
                    PRIMARY KEY
                   );
@@ -42,12 +41,17 @@ BEGIN
             FROM dbo.f_SplitString(@TransIds, ',')
             WHERE val <> '' OPTION(MAXRECURSION 0);
 
+	 CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
+
      DECLARE @tblInvalidTrans TABLE(transid BIGINT);
+
      CREATE TABLE #Match(matchid INT);
+
      CREATE TABLE #tblMatchProcess
                   (matchid INT,
                    KeyID   TINYINT
                   );
+
      CREATE TABLE #Tickets
                   (TransId   BIGINT,
                    MatchId   INT,
@@ -56,7 +60,9 @@ BEGIN
                    Betdaqid  BIGINT,
                    ExtraInfo VARCHAR(1000),
                    RefCode   BIGINT,
-				   refno	 BIGINT
+				   refno	 BIGINT,
+				   IsParlay  BIT DEFAULT(0),
+				   SubTransId BIGINT
                   );
      CREATE TABLE #Cashout911Tickets
                   (TransId BIGINT,
@@ -73,29 +79,46 @@ BEGIN
      CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
     
 	-- Get tickets insert into transaction
-     INSERT INTO #Tickets
-            (TransId,
-             MatchId,
-             BetType,
-             CustId,
-             Betdaqid,
-             ExtraInfo,
-             RefCode,
-			 refno
-            )
-            SELECT t.TransId,
-                   b.MatchId,
-                   b.BetType,
-                   b.custid,
-                   b.betdaqid,
-                   b.ExtraInfo,
-                   b.RefCode,
-				   b.refno
-            FROM #transIds t
-                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-                 LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
-            WHERE m.TransId IS NULL;
-			
+	INSERT INTO #Tickets (
+		TransId
+		,MatchId
+		,BetType
+		,CustId
+		,Betdaqid
+		,ExtraInfo
+		,RefCode
+		,refno
+		,IsParlay
+		,SubTransId
+		)
+	SELECT t.TransId,
+		b.MatchId
+		,b.BetType
+		,b.custid
+		,b.betdaqid
+		,b.ExtraInfo
+		,b.RefCode
+		,b.refno
+		,0
+		,NULL
+	FROM #transIds t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
+		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
+	WHERE m.TransId IS NULL
+		AND b.matchid <> 29
+	
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (
+		TransId
+	)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS (
+		SELECT TOP 1 1
+		FROM #Tickets AS t
+		WHERE t.TransId = tmp.TransId
+	)
+	
 	-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
@@ -240,6 +263,39 @@ BEGIN
 			 ) AS b
     END;
 
+	-- check if exists parlay tickets
+	IF EXISTS (SELECT TOP 1 1
+				FROM #ParlayTransIds)
+	BEGIN
+		INSERT INTO #Tickets (
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,Betdaqid
+			,ExtraInfo
+			,RefCode
+			,refno
+			,IsParlay
+			,SubTransId
+		)
+		SELECT b.TransId
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,NULL
+			,NULL
+			,NULL
+			,bm.refno
+			,1
+			,bm.transid
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
+			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON m.TransId = b.TransId AND m.MatchId = bm.matchid
+		WHERE m.TransId IS NULL
+	END
+
 	--check no data
     IF NOT EXISTS
     (
@@ -253,45 +309,47 @@ BEGIN
     END;
 	
 	-- Check Lock Match
-    BEGIN
-        DECLARE @avaiableProcess BIT, @isExistMatch BIT= 0, @IsExistFM BIT= 0;
-        SELECT @isExistMatch = MAX(CASE
-                                    WHEN BetType NOT BETWEEN 221 AND 227
-                                    THEN 1
-                                    ELSE 0
-                                END),
-            @IsExistFM = MAX(CASE
-                                    WHEN BetType BETWEEN 221 AND 227
-                                    THEN 1
-                                    ELSE 0
-                                END)
-        FROM #Tickets;
-        INSERT INTO #tblMatchProcess
-            (MatchId,
-                KeyID
-            )
-            SELECT DISTINCT
-                    MatchId,
-                    CASE
-                        WHEN BetType NOT BETWEEN 221 AND 227
-                        THEN 1 --SB
-                        WHEN BetType BETWEEN 221 AND 227
-                        THEN 6 -- Fast Market
-                        ELSE 0
-                    END AS KeyID
-            FROM #Tickets;
-        EXEC dbo.NAP_Admin_CheckingProcess
-            @isExistMatch = @isExistMatch,
-            @IsExistFM = @IsExistFM,
-            @avaiableProcess = @avaiableProcess OUTPUT,
-            @ErrCode = @ErrCode OUTPUT,
-            @ErrMsg = @ErrMsg OUTPUT;
-        IF(@ErrCode <> 0
-        OR @avaiableProcess = 0)
-            BEGIN
-                RETURN;
-            END;
-    END;
+	BEGIN
+		DECLARE @avaiableProcess BIT
+			,@IsExistSingle BIT = 0
+			,@IsExistParlay BIT = 0
+			,@IsExistFM BIT = 0;
+
+		SELECT @IsExistSingle = MAX(CASE WHEN BetType NOT BETWEEN 221 AND 227 THEN 1 ELSE 0	END)
+			,@IsExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+		FROM #Tickets AS t
+		WHERE t.IsParlay = 0;
+
+		SELECT TOP 1 @IsExistParlay = 1
+		FROM #Tickets AS t
+		WHERE t.IsParlay = 1
+
+		INSERT INTO #tblMatchProcess (
+			MatchId
+			,KeyID
+			)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN BetType NOT BETWEEN 221
+						AND 227 THEN 1 --SB
+				WHEN BetType BETWEEN 221
+						AND 227 THEN 6 -- Fast Market
+				ELSE 0
+				END AS KeyID
+		FROM #Tickets;
+
+		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+			,@isExistParlay = @IsExistParlay
+			,@IsExistFM = @IsExistFM
+			,@avaiableProcess = @avaiableProcess OUTPUT
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT;
+
+		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		BEGIN
+			RETURN;
+		END;
+	END;
 
     INSERT INTO #Match
     SELECT DISTINCT
@@ -319,15 +377,23 @@ BEGIN
             0,
             NULL,
             0
-    FROM #Match t
-            LEFT JOIN
-	   (
-		  SELECT m.matchid
-		  FROM dbo.MarkedTransaction m WITH (NOLOCK)
-			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
-											 AND b.statusID IN(0, 1)
-	   ) mt ON mt.MatchId = t.MatchId
-    WHERE mt.MatchId IS NULL;
+	FROM #Match t
+		LEFT JOIN (
+		SELECT m.matchid
+		FROM dbo.MarkedTransaction AS m WITH (NOLOCK)
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = m.TransId
+			AND b.statusID IN (0, 1)
+		WHERE b.matchid <> 29
+	
+		UNION
+		SELECT bm.matchid
+		FROM dbo.MarkedTransaction AS m WITH (NOLOCK)
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = m.TransId
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON b.matchid = 29
+			AND bm.refno = b.refno
+		WHERE m.MatchId = bm.matchid
+		) mt ON mt.MatchId = t.MatchId
+	WHERE mt.MatchId IS NULL;
     
 	-- Insert Transaction
     INSERT INTO dbo.MarkedTransaction
@@ -346,10 +412,12 @@ BEGIN
             @UserId,
             CURRENT_TIMESTAMP,
             @MarkType
-    FROM #Tickets t; 
+    FROM #Tickets t;
+
 	-- Release Match
      EXEC dbo.NAP_Admin_CheckingProcess
-          @isExistMatch = @isExistMatch,
+          @isExistMatch = @IsExistSingle,
+		  @isExistParlay = @IsExistParlay,
           @IsExistFM = @IsExistFM,
           @IsReleased = 1;
 
@@ -359,22 +427,7 @@ BEGIN
             m.SportType,
             m.IsNeutral
      FROM #Match b
-          LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
-
-	-- invalid trans
-     SELECT @InvalidTransIds = @InvalidTransIds + CASE
-                                                    WHEN @InvalidTransIds <> ''
-                                                    THEN ','
-                                                    ELSE ''
-                                                END + CAST(transid AS VARCHAR(100))
-     FROM #transIds t
-     WHERE NOT EXISTS
-	   (
-		  SELECT 1
-		  FROM #Tickets b
-		  WHERE b.transid = t.transid
-	   );
-
+          LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
 
 	-- Write Log
 	SET @xmlLog = CAST((
@@ -404,6 +457,7 @@ BEGIN
      DROP TABLE #tmpRefCodeSummary;
      DROP TABLE #transIds;
      DROP TABLE #Match;
-     DROP TABLE #tblMatchProcess;
+	 DROP TABLE #ParlayTransIds;
+
      SET NOCOUNT OFF;
 END

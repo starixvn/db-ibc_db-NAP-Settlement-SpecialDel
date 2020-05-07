@@ -1,12 +1,10 @@
 ﻿
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update] @Status          SMALLINT      = 0,
                                                              @TransIds        VARCHAR(MAX)  = NULL,
                                                              @UserId          INT           = 0,
                                                              @Username        NVARCHAR(100) = '',
-                                                             @IP              VARCHAR(15)   = NULL,
-                                                             @InvalidTransIds VARCHAR(MAX)  = '' OUTPUT,
+                                                             @IP              VARCHAR(15)   = NULL,                        
                                                              @ErrMsg          NVARCHAR(200) = '' OUTPUT,
                                                              @ErrCode         INT           = 0 OUTPUT
 AS
@@ -24,6 +22,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
+		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -35,7 +34,6 @@ BEGIN
 			,@UserId = @UserId
 			,@Username = @Username
 			,@IP = @IP
-			,@InvalidTransIds = @InvalidTransIds OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;
 	END

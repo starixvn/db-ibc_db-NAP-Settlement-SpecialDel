@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Select] @Status          SM
                                                              @LicenseeNames   VARCHAR(MAX) = NULL,
                                                              @BetTypes        XML          = NULL,
                                                              @TransIds        VARCHAR(MAX) = NULL,
+                                                             @Bet             VARCHAR(10)  = 'All',
                                                              @InvalidTransIds VARCHAR(MAX) = '' OUTPUT,
                                                              @MovedTransIds   VARCHAR(MAX) = '' OUTPUT,
                                                              @MarkedTransIds  VARCHAR(MAX) = '' OUTPUT
@@ -34,7 +35,8 @@ AS
 			+ 1: BetIds
 
 	Revisions:
-		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]	 
+		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
+        - 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 */
 
          BEGIN
@@ -53,7 +55,8 @@ AS
                                   @LiveAwayScore = @LiveAwayScore,
                                   @CurrencyIDs = @CurrencyIDs,
                                   @LicenseeNames = @LicenseeNames,
-                                  @BetTypes = @BetTypes;
+                                  @BetTypes = @BetTypes,
+                                  @Bet = @Bet;
                          END;
                          ELSE
                          BEGIN -- Select UnMarked Tickets By BetIds;
@@ -78,7 +81,8 @@ AS
                                   @LiveAwayScore = @LiveAwayScore,
                                   @CurrencyIDs = @CurrencyIDs,
                                   @LicenseeNames = @LicenseeNames,
-                                  @BetTypes = @BetTypes;
+                                  @BetTypes = @BetTypes,
+                                  @Bet = @Bet;
                          END;
                          ELSE
                          BEGIN -- Select Marked Tickets By BetIds;

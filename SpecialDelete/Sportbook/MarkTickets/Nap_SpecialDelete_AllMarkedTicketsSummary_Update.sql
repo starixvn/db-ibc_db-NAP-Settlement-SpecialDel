@@ -17,6 +17,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
+		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
 		
 	Explanation's Param:
 	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -46,7 +47,7 @@ BEGIN
 	FROM @Matches.nodes('Matches/Match') XmlData(x)
 	OPTION (OPTIMIZE FOR (@Matches = NULL));
 
-	-- Delete Transaction
+	-- Delete transaction for single tickets
 	WHILE (0 = 0)
 	BEGIN
 		DELETE TOP (2000) m
@@ -59,6 +60,25 @@ BEGIN
 								AND t.UserId = m.UserId
 								AND m.CreatedDate = t.CreatedDate
 		WHERE b.statusID IN(0, 1);				
+
+		IF @@ROWCOUNT = 0
+			BREAK;
+	END;
+
+	-- Delete transaction for parlay tickets
+	WHILE (0 = 0)
+	BEGIN
+		DELETE TOP (2000) m
+		OUTPUT DELETED.TransId
+			,DELETED.MatchId
+		INTO #MarkedTransactionDeleted(TransId, MatchId)
+		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.MatchId = m.MatchId
+		INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bm.refno = bt.refno AND bt.TransId = m.TransId
+		INNER JOIN #Match t ON t.MatchId = m.MatchId
+								AND t.UserId = m.UserId
+								AND m.CreatedDate = t.CreatedDate
+		WHERE bm.statusID IN(0, 1);				
 
 		IF @@ROWCOUNT = 0
 			BREAK;

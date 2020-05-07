@@ -15,6 +15,7 @@ AS
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
 	Explanation's Param:
 */
 BEGIN
@@ -58,9 +59,18 @@ SET NOCOUNT ON
               RefCode         BIGINT,
               BonusID         INT,
               MainTransId     BIGINT,
-              WinLost         MONEY
+              WinLost         MONEY,
+			  IsMixParlay     BIT DEFAULT(0),
+			  SubTransId      BIGINT,
+              SubStatus       NVARCHAR(10),
+              SubBetCheck     NVARCHAR(50),
+              SubBetTeam      NVARCHAR(10),
+              SubBetType      SMALLINT DEFAULT(0),
+              SubHdp1         SMALLMONEY,
+              SubHdp2         SMALLMONEY,
+              SubOdds         MONEY
              );
-
+	-- get single tickets
 	INSERT INTO #Tickets (
 			GroupID
 			,bettype
@@ -132,10 +142,98 @@ SET NOCOUNT ON
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting
-		AND m.MatchId = @MatchId 
+		AND b.MatchId = @MatchId 
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
-		
+	
+	-- get subparlay tickets
+	INSERT INTO #Tickets (
+			GroupID
+			,bettype
+			,transid
+			,betid
+			,refno
+			,hdp1
+			,hdp2
+			,odds
+			,oddsspread	
+			,OddsType
+			,STATUS	
+			,stake
+			,transdate
+			,betteam
+			,betcheck
+			,IsLiveIndicator
+			,custid	
+			,livehomescore
+			,liveawayscore
+			,matchid
+			,winlost
+			,TransDesc
+			,betdaqid
+			,username
+			,recommend
+			,ExtraInfo
+			,MainCashoutId
+			,CurrencyName
+			,IsMixParlay
+			,SubTransId
+			,SubStatus
+			,SubBetCheck
+			,SubBetTeam
+			,SubBetType
+			,SubHdp1
+			,SubHdp2
+			,SubOdds
+		)
+		SELECT
+			b.transid AS GroupId
+			,b.bettype
+			,b.transid
+			,isnull(b.BetID, 0) AS BetID
+			,bm.refno
+			,b.hdp1
+			,b.hdp2
+			,b.odds
+			,bm.oddsspread
+			,b.OddsType
+			,CASE WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS STATUS
+			,b.stake
+			,bm.transdate
+			,b.betteam
+			,b.betcheck
+			,b.liveindicator
+			,bm.custid
+			,bm.livehomescore
+			,bm.liveawayscore
+			,bm.matchid
+			,(b.winlost - b.actual_stake) winlost
+			,bm.transdesc
+			,b.betdaqid
+			,b.username
+			,b.recommend
+			,b.ExtraInfo
+			,CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid ELSE NULL END AS MainCashoutId
+			,b.CurrencyName
+			,1 AS IsMixParlay
+			,bm.transid AS SubTransId
+			,bm.status AS SubStatus
+			,bm.betcheck AS SubBetCheck
+			,bm.betteam AS SubBetTeam
+			,bm.bettype AS SubBetType
+			,bm.hdp1 AS SubHdp1
+			,bm.hdp2 AS SubHdp2
+			,bm.odds As SubOdds
+		FROM dbo.bettransm AS bm WITH (NOLOCK)
+			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
+		WHERE bm.statusID IN (0, 1) -- running, waiting
+		AND bm.matchid = @MatchId
+		AND m.UserId = @UserId
+		AND m.CreatedDate = @CreatedDate
 
 	CREATE TABLE #tmpRefCodeSummary (
 		 RefCode	BIGINT
@@ -532,7 +630,16 @@ SET NOCOUNT ON
 		m.sporttype,
 		m.SettlementStatus,
 		c.site AS LicenseeName,
-		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
+		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit,
+		b.IsMixParlay,
+		b.SubTransid,
+		b.SubStatus,
+		b.SubBetcheck,
+		b.SubBetteam,
+		b.SubBettype,
+		b.SubHdp1,
+		b.SubHdp2,
+		b.SubOdds
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

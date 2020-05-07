@@ -11,6 +11,7 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20200207@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
+              - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
 	Explanation's Param:
 */
 BEGIN
@@ -22,6 +23,8 @@ BEGIN
                CreatedDate DATETIME,
                Total       INT
               );
+     
+     -- get all tickets
      INSERT INTO #Tickets
             (MatchId,
              UserId,
@@ -30,23 +33,32 @@ BEGIN
              Total
             )
     SELECT m.MatchId,
-           UserId,
+           m.UserId,
            c.Username,
-           CreatedDate,
+           m.CreatedDate,
            COUNT(m.TransId)
     FROM dbo.MarkedTransaction m WITH (NOLOCK)
          INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
-         INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = m.TransId
-                                                    AND b.MatchId = m.MatchId
-    WHERE b.statusID IN(0, 1) -- running, waiting
+         INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bt.TransId = m.TransId
+         OUTER APPLY (
+                SELECT TOP 1 1 isParlay
+                FROM dbo.bettransm WITH (NOLOCK)
+                WHERE refno = bt.refno AND statusID IN (0,1) AND bt.matchid = 29
+         ) bm
+         
+    WHERE 1 = CASE WHEN bt.matchid <> 29 and bt.statusID IN (0,1) THEN 1
+                   WHEN bt.matchid = 29 AND bm.isParlay = 1 THEN 1
+                   ELSE 0
+              END
     GROUP BY m.MatchId,
-             UserId,
+             m.UserId,
              c.Username,
-             CreatedDate;
-             
+             m.CreatedDate;
+
+     -- return final results   
      SELECT t.MatchId,
             t.UserId,
-			t.Username,
+            t.Username,
             t.CreatedDate,
             t.Total,
             m.HomeId,
