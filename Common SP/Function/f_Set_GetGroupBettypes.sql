@@ -28,6 +28,7 @@ AS
 		- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 		- 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
 	
     Parameters Explanation:    
     
@@ -366,6 +367,9 @@ RETURN (
 	UNION ALL SELECT 11,   9084  ,  0, 0, 0, 0, 'Special', 0, 0,1 
 	UNION ALL SELECT 11,   9085  ,  0, 0, 0, 0, 'Special', 0, 0,1 
 	UNION ALL SELECT 11,   9086  ,  0, 0, 0, 0, 'Special', 0, 0,1 
+	
+	-- E-Sports 3.0
+	UNION ALL SELECT 11,   9087  ,  0, 0, 0, 0, 'Special', 0, 0,0
 
 	-- new bettypes of PHAIO Phase 3
 	UNION ALL SELECT 2,448,1,1,0,0,'FT',3, 1,0
