@@ -49,7 +49,7 @@ AS
 		- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
-						  - Not display match with event status is refund & abandoned when check Un-Calculated Parlay Only filter [Redmine:#133518]
+						  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
       
  Param explanation:  
 	@MatchCode: match code
@@ -302,7 +302,8 @@ BEGIN
 					WHEN @UncalMultiOnly = 0 THEN 1 
 					WHEN @UncalMultiOnly = 1 THEN 
 							CASE 
-								WHEN (m.betstatus LIKE '%Refund%' OR m.betstatus LIKE '%Abandoned%') THEN NULL
+								WHEN (m.betstatus LIKE 'Abandoned 1H%') THEN m.hthomescore * m.htawayscore
+								WHEN (m.betstatus LIKE 'Abandoned 2H%') THEN m.finalhomescore * m.finalawayscore
 								ELSE m.hthomescore * m.htawayscore * m.finalhomescore * m.finalawayscore 
 							END
 					WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
@@ -328,7 +329,15 @@ BEGIN
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	WHERE	(@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
-			AND (@UncalMultiOnly = 0 OR (ISNULL(mr.multiple, 0) = 0 AND (ISNULL(mr.calculate, 0) = 1 OR ISNULL(mr.calrefund, 0) = 1)) OR @UncalMultiOnly IS NULL)	
+			AND 1 = CASE
+						WHEN @UncalMultiOnly = 1 
+							THEN CASE
+									WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
+										AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
+									ELSE 0
+								END
+						ELSE 1
+					END
 	
 	--check FGLG & BetRadar
 	DECLARE @strBettypesParlay	VARCHAR (MAX)		
