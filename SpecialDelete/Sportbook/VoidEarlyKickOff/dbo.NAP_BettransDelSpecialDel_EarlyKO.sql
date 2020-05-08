@@ -95,6 +95,7 @@ Revisions:
 	- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 	- 20191101@Charles: Remove column IsMarked [122187]
 	- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
+	- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 
 
 Param's Explanation: Special bet delete option  
@@ -528,13 +529,22 @@ BEGIN
 	  AND EXISTS (SELECT TOP 1 1
 				  FROM #tblBetType tp
 				  WHERE tp.Id = b.bettype
-				    AND CASE
-							WHEN tp.BetTeam = 'ALL' THEN 1									
-							ELSE CASE 
-									WHEN b.betteam = tp.BetTeam THEN 1
+					AND CASE
+							WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.betteam = tp.BetTeam THEN 1 ELSE 0 END
+							ELSE 
+								CASE tp.BetTeam
+									WHEN 'All-All' THEN 1
+									WHEN 'All-S' THEN CASE WHEN b.betteam LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'All-M' THEN CASE WHEN b.betteam LIKE '%M%' THEN 1 ELSE 0 END
+									WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+									WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+									WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+									WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
 									ELSE 0
-								 END 
-					    END = 1)
+								END
+						END = 1)
 	OPTION (OPTIMIZE FOR (@CountTransId = 1))
 	
 	/*

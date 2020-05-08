@@ -60,6 +60,7 @@ AS
 		- 20191015@Raymond.Le: Remove <ab="1"> in ExtraInfo when recover AbnormalBet 468, 469 [#122065]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191209@Charles: Add Column SportType to output tables [124675]
+		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
 	Param's Explanation:
 */
 BEGIN
@@ -1156,6 +1157,7 @@ BEGIN
 	    ,statusID = 0
 	    ,creator = t.creator
 		,actual_stake = CASE WHEN main.bettype BETWEEN 801 AND 806 THEN 0 ELSE main.actual_stake END
+		,odds = CASE WHEN main.bettype = 376 THEN main.oddsspread ELSE main.odds END
 		,@newBettypeTime = (SELECT TOP 1 custom1 FROM DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK) WHERE resultId = main.betid)
 		,transdesc = CASE WHEN main.bettype = 801 AND @newBettypeTime <> ''
 							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       

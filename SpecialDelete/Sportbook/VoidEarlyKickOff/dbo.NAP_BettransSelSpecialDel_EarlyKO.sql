@@ -55,6 +55,7 @@ AS;
 	- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]		  
 	- 20190301@Alan: Implement Bet Builder - [106898]
 	- 20190812@Charles: Add new column IsMarked [118437]
+	- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
 	- @BetTeam6: bettype=6: Total Goal; bettype = 126: 1st Total Goal
@@ -312,16 +313,25 @@ BEGIN
 			AND b.bettype NOT IN (805, 806, 9, 29)			
 			AND b.betfrom <> 'P'
 			-- filter for BetTeam
-			AND EXISTS (SELECT TOP 1 1
-						FROM #tblBetType tp
-						WHERE tp.Id = b.bettype
-						  AND CASE
-									WHEN tp.BetTeam = 'ALL' THEN 1									
-									ELSE CASE 
-											WHEN b.betteam = tp.BetTeam THEN 1
-											ELSE 0
-										 END 
-							  END = 1)
+			 AND EXISTS (SELECT TOP 1 1
+				  FROM #tblBetType tp
+				  WHERE tp.Id = b.bettype
+					AND CASE
+							WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.betteam = tp.BetTeam THEN 1 ELSE 0 END
+							ELSE 
+								CASE tp.BetTeam
+									WHEN 'All-All' THEN 1
+									WHEN 'All-S' THEN CASE WHEN b.betteam LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'All-M' THEN CASE WHEN b.betteam LIKE '%M%' THEN 1 ELSE 0 END
+									WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+									WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+									WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.betteam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+									WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.betteam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
+									ELSE 0
+								END
+						END = 1)
 							  
 	/*
 		filter for [Set] (+ [Quarter])
