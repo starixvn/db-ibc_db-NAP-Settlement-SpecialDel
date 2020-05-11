@@ -14,7 +14,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 	@IP					VARCHAR(15)  = '',  
 	@ErrorMsg			NVARCHAR(200) = '' OUTPUT,  
 	@ErrorCode			INT  = 0  OUTPUT,
-	@InvalidTransIds	VARCHAR(MAX) = '' OUTPUT -- invalid trans of BTrade 
+	@InvalidTransIds	VARCHAR(MAX) = '' OUTPUT, -- invalid trans of BTrade
+	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT
 AS
 /*
 	Created: Kent
@@ -57,6 +58,8 @@ BEGIN
 		 , @InvalidTransIds = ''
 	
 	-- Constant
+	DECLARE @NegativeBalanceCustIds		VARCHAR(MAX) = ''
+	SET @NegativeBalanceUsers = ''
 	DECLARE @SettlementStatus TINYINT = NULL
 			,@GlobalShowTime SMALLDATETIME
 	SELECT @SettlementStatus = m.SettlementStatus
@@ -90,7 +93,10 @@ BEGIN
 	DECLARE @tblTransIds TABLE (transid BIGINT)	
 	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
-		  , @tblAfterBalance TVP_BalanceWalletChange		
+		  , @tblAfterBalance TVP_BalanceWalletChange
+	CREATE TABLE #NegativeBalance (transid BIGINT)
+	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
+	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	
 	CREATE TABLE #SpecialDeleteBets (
 			id					INT IDENTITY,
@@ -1364,6 +1370,31 @@ BEGIN
 		FROM #SpecialDeleteBets_Single 
 		WHERE BetType = 501		
 		
+		--> capture Before Balance Update
+		IF @CountSingle > 0
+		BEGIN
+			INSERT INTO #NegativeBalance (transid)  
+			SELECT	b.transid
+			FROM  #SpecialDeleteBets_Single b WITH (NOLOCK)
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets_Single sub911 (NOLOCK)
+						WHERE sub911.bettype = 911 AND sub911.transid = b.refno) -- exclude Cash out
+				AND CASE WHEN b.betdaqid = 0 AND b.extrainfo IS NULL THEN 0 ELSE 1 END = 1 -- exclude BT member
+		END		
+		
+		IF @CountParlay > 0
+		BEGIN
+			INSERT INTO #NegativeBalance (transid)  
+			SELECT	b.transid
+			FROM  #SpecialDeleteBets_Parlay b WITH (NOLOCK)
+		END
+		
+
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+		GROUP BY b.CustID
+
 		-------> Insert backups	
 		--> backups for single
 		IF @CountSingle > 0
@@ -2014,6 +2045,24 @@ BEGIN
 				, @BalanceWalletAfter	= @tblAfterBalance
 				, @ActionId				= 0
 		
+		--> Capture balance after update	
+		INSERT INTO #AfterUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
+		GROUP BY b.CustID
+
+		SET @NegativeBalanceUsers = ''
+		SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
+			CASE WHEN @NegativeBalanceCustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
+		FROM #BeforeUpd b
+			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
+		WHERE b.balance > a.balance
+
+		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
+			@CustIds = @NegativeBalanceCustIds,
+			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
 		-------> Update odds
 		UPDATE odds  
 		SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
@@ -2180,6 +2229,23 @@ BEGIN
 	END CATCH		
 			
 	SET NOCOUNT OFF
+
+	DROP TABLE #SpecialDeleteBets
+	DROP TABLE #SpecialDeleteBets_Single
+	DROP TABLE #SpecialDeleteBets_Parlay
+	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #BTTransActive
+	DROP TABLE #CashOutTransActive
+	DROP TABLE #t_CustID_501  
+	DROP TABLE #t_LicenseeNames 
+	DROP TABLE #t_UIRepresentativeLicenseeGroupNames
+	DROP TABLE #t_exchanges  
+	DROP TABLE #tblMatchProcess 
+	DROP TABLE #tblCashOutProcess
+	DROP TABLE #BeforeUpd  
+	DROP TABLE #AfterUpd 
+	DROP TABLE #NegativeBalance
+
 END
 GO
 			
