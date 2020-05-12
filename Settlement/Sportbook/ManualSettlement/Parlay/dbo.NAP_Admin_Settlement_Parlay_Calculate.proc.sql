@@ -10,10 +10,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate] (
 	, @sportType		SMALLINT
 	, @betstatus		NVARCHAR(50)
 	, @GoalSequence		VARCHAR(50)
-	, @TennisTotal 		INT = NULL
-	, @TotalGameHomeMatch INT = NULL
-	, @TotalGameAwayMatch INT = NULL
-	, @resultDetail_ss 	VARCHAR(MAX) = NULL
 	, @resultDetail_bb	VARCHAR(MAX) = NULL
 	, @resultDetail		VARCHAR(MAX) = NULL
 	, @IsRefundHT		BIT  = 0
@@ -35,6 +31,7 @@ AS
 			- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]	
+			- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 			
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -50,23 +47,7 @@ BEGIN
 		, @ht_lg 			VARCHAR(10)
 		
 	DECLARE
-		@homeScoreSet1         tinyint
-        ,@homeScoreSet2         tinyint
-        ,@homeScoreSet3         tinyint
-        ,@homeScoreSet4         tinyint
-        ,@homeScoreSet5         tinyint
-        ,@awayScoreSet1         tinyint
-        ,@awayScoreSet2         tinyint
-        ,@awayScoreSet3         tinyint
-        ,@awayScoreSet4         tinyint
-        ,@awayScoreSet5         tinyint
-        ,@SetxGameyHomeWON        VARCHAR(MAX) = NULL 
-        ,@SetxGameyAwayWON        VARCHAR(MAX) = NULL 
-        ,@SetxGameyDRAW            VARCHAR(MAX) = NULL 
-        ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
-        ,@SelectedSetCAL        VARCHAR(50)  = NULL
-        ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-        ,@scorediff			SMALLINT = 0
+		@scorediff			SMALLINT = 0
 		,@totalgoal			SMALLINT = 0
 		,@oddeven			SMALLINT = 0
 		,@totalht			SMALLINT = 0
@@ -210,7 +191,7 @@ BEGIN
 							WHEN f.GroupId IN (1,3,7) AND @IsRefundHT = 0 THEN 1 
 							ELSE 0
 						END
-					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype IN (2,5)) THEN 1
+					WHEN @Mode IN ('CAL') OR (@Mode = 'REFUND' AND @Sporttype IN (2)) THEN 1
 					ELSE 0
 				END
 			AND f.GroupId NOT IN (8,9) --Exclude BetRadar, FM
@@ -219,34 +200,6 @@ BEGIN
 						WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
 						ELSE 1
 					END	
-	
-	IF @Sporttype = 5 AND @resultDetail_ss IS NOT NULL -- sportting solution
-	BEGIN
-		DECLARE @xmlSS XML
-
-		SET @xmlSS = CONVERT(XML, @resultDetail_ss)    
-		
-		SELECT TOP(1) 
-			@homeScoreSet1 = ISNULL(T.C.value('./@homeScoreSet1[1]', 'tinyint'), 0)
-			,@homeScoreSet2 = ISNULL(T.C.value('./@homeScoreSet2[1]', 'tinyint'), 0)
-			,@homeScoreSet3 = ISNULL(T.C.value('./@homeScoreSet3[1]', 'tinyint'), 0)
-			,@homeScoreSet4 = ISNULL(T.C.value('./@homeScoreSet4[1]', 'tinyint'), 0)
-			,@homeScoreSet5 = ISNULL(T.C.value('./@homeScoreSet5[1]', 'tinyint'), 0)
-			,@awayScoreSet1 = ISNULL(T.C.value('./@awayScoreSet1[1]', 'tinyint'), 0)
-			,@awayScoreSet2 = ISNULL(T.C.value('./@awayScoreSet2[1]', 'tinyint'), 0)
-			,@awayScoreSet3 = ISNULL(T.C.value('./@awayScoreSet3[1]', 'tinyint'), 0)
-			,@awayScoreSet4 = ISNULL(T.C.value('./@awayScoreSet4[1]', 'tinyint'), 0)
-			,@awayScoreSet5 = ISNULL(T.C.value('./@awayScoreSet5[1]', 'tinyint'), 0)
-			,@SetxGameyHomeWON = ISNULL(T.C.value('./@SetxGameyHomeWON[1]', 'varchar(max)'), '')
-			,@SetxGameyAwayWON = ISNULL(T.C.value('./@SetxGameyAwayWON[1]', 'varchar(max)'), '')
-			,@SetxGameyDRAW = ISNULL(T.C.value('./@SetxGameyDRAW[1]', 'varchar(max)'), '')
-			,@SetxGameyREFUND = ISNULL(T.C.value('./@SetxGameyREFUND[1]', 'varchar(max)'), '')
-			,@SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
-			,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
-		FROM @xmlSS.nodes('/root/r') as [T](C) --T: table, C: column    
-		OPTION ( OPTIMIZE FOR ( @xmlSS = NULL ) )
-	
-	END
 	
 	IF @Sporttype = 2 AND @resultDetail_bb IS NOT NULL -- Basketball
 	BEGIN
@@ -497,21 +450,6 @@ BEGIN
 					WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
 					ELSE 0
 					END	
-		AND 1 = CASE
-					WHEN @resultDetail_ss IS NULL THEN 1
-					WHEN @SelectedSetCAL LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
-					WHEN @SelectedSetCAL LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '802%' THEN 1 
-					WHEN @SelectedSetCAL LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '803%' THEN 1 
-					WHEN @SelectedSetCAL LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '804%' THEN 1 
-					WHEN @SelectedSetCAL LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '805%' THEN 1 
-					WHEN @SelectedSetCAL LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-					WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype = 1324 AND betcheck LIKE '801%' THEN 1 
-					WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype = 1324 AND betcheck LIKE '802%' THEN 1 
-					WHEN @SelectedSetREFUND LIKE '%3%' AND bm.Bettype = 1324 AND betcheck LIKE '803%' THEN 1 
-					WHEN @SelectedSetREFUND LIKE '%4%' AND bm.Bettype = 1324 AND betcheck LIKE '804%' THEN 1 
-					WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype = 1324 AND betcheck LIKE '805%' THEN 1  
-					ELSE 0 
-				END 	
 	
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0
@@ -539,7 +477,6 @@ BEGIN
 					b.transid AS t
 					,b.refno AS r
 					,odds.modds AS m
-					,odds.IsRefundGame AS i
 				FROM @tempBatch ref
 					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON ref.refno = b.refno
 					OUTER APPLY dbo.f_Set_Parlay_CalModds(
@@ -558,26 +495,7 @@ BEGIN
 						, @ht_fg
 						, @ht_lg
 						, @ft_fg
-						, @ft_lg
-						, @TennisTotal
-						, @TotalGameHomeMatch
-						, @TotalGameAwayMatch
-						, @homeScoreSet1
-						, @homeScoreSet2
-						, @homeScoreSet3
-						, @homeScoreSet4
-						, @homeScoreSet5
-						, @awayScoreSet1
-						, @awayScoreSet2
-						, @awayScoreSet3
-						, @awayScoreSet4
-						, @awayScoreSet5
-						, @SetxGameyHomeWON
-						, @SetxGameyAwayWON
-						, @SetxGameyDRAW
-						, @SetxGameyREFUND
-						, @SelectedSetCAL
-						, @SelectedSetREFUND										
+						, @ft_lg								
 						, @WinFromBehind
 						, @FirstGoal
 						, @FirstGoal1H

@@ -21,6 +21,7 @@ AS
 		- 20190218@Kathy: Wrong member balance when calculating parlay during move bet process [Redmine:#108768]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
 	Param's Explanation:		
 		
@@ -34,11 +35,9 @@ BEGIN
 		, @stop 				DATETIME
 		, @ActionID 			INT
 		, @IsDetermined 		BIT
-		, @resultDetail_ss 		VARCHAR(MAX)
 		, @resultDetail_bb		VARCHAR(MAX) -- for basketball
 		, @resultDetail			VARCHAR(MAX)
-		, @SelectedSetCAL 		VARCHAR(50)
-		, @SelectedSetREFUND 	VARCHAR(50)
+
 		--ticket count
 		, @ticketCountTotal		INT		
 		, @ticketCountEarly		INT
@@ -51,8 +50,6 @@ BEGIN
 		,@IsExistEarlyBettype	BIT
 		,@IsSettleBySetting 	BIT			= 0
 	
-	DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
-
 	SELECT @ActionID 	= CASE 
 						WHEN @action IN ('ABANDONED-2H', 'REFUND-FT') THEN 106
 						WHEN @action IN ('ABANDONED-1H', 'REFUND') THEN 107
@@ -161,15 +158,6 @@ BEGIN
 			,@str_resultDetail 	= @resultDetail OUTPUT
 	END
 	
-	IF @Sporttype = 5
-	BEGIN
-		EXEC dbo.NAP_Admin_Settlement_2 @mode = 'sporttingSolution'
-			,@matchid = @matchID
-			,@Total = @TennisTotal OUTPUT
-			,@TotalHome = @TotalGameHomeMatch OUTPUT
-			,@TotalAway = @TotalGameAwayMatch OUTPUT
-			,@str_resultDetail = @resultDetail_ss OUTPUT	
-	END
 	IF @SportType = 2
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_2 
@@ -194,7 +182,7 @@ BEGIN
 		IF @IsSettleBySetting = 0
 		BEGIN
 			IF @action IN ('REFUND-HT', 'ABANDONED-2H', 'REFUND-FT') 
-				OR (@SportType IN (2,5) AND @Action = 'REFUND')
+				OR (@SportType IN (2) AND @Action = 'REFUND')
 			BEGIN
 				--DO calculation
 				EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate
@@ -208,7 +196,6 @@ BEGIN
 					,@Sporttype			= @Sporttype
 					,@betstatus 		= @betstatus
 					,@GoalSequence 		= @GoalRecord
-					,@resultDetail_ss	= @resultDetail_ss
 					,@resultDetail_bb	= @resultDetail_bb
 					,@resultDetail		= @resultDetail
 					,@IsRefundHT		= @IsRefundHT
@@ -256,7 +243,6 @@ BEGIN
 				,@mode				= @Action
 				,@IsRefundHT		= @IsRefundHT
 				,@resultDetail_bb	= @resultDetail_bb
-				,@resultDetail_ss	= @resultDetail_ss
 				,@resultDetail		= @resultDetail
 				,@ticketCount		= @ticketCountREFUND OUTPUT
 		END

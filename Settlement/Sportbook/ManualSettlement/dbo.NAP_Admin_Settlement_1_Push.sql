@@ -8,18 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@HalfTimeAway          SMALLINT        = NULL 
     ,@GoalRecord			VARCHAR(50)     = NULL
     ,@BetStatus             NVARCHAR(50)    
-    ,@SetResult             VARCHAR(50)     = NULL 
-    ,@GameResult1           VARCHAR(MAX)    = NULL
-    ,@GameResult2           VARCHAR(MAX)    = NULL
-    ,@GameResult3           VARCHAR(MAX)    = NULL
-    ,@GameResult4           VARCHAR(MAX)    = NULL
-    ,@GameResult5           VARCHAR(MAX)    = NULL
-    ,@SelectedSet           VARCHAR(50)     = NULL 
-    ,@SelectedSet1Game      VARCHAR(MAX)    = NULL 
-    ,@SelectedSet2Game      VARCHAR(MAX)    = NULL 
-    ,@SelectedSet3Game      VARCHAR(MAX)    = NULL 
-    ,@SelectedSet4Game      VARCHAR(MAX)    = NULL 
-    ,@SelectedSet5Game      VARCHAR(MAX)    = NULL    
+   
     ,@SelectedQuarter		VARCHAR(50)		= NULL
     ,@QuarterResult			VARCHAR(MAX)	= NULL
     ,@ResourceResult		VARCHAR(MAX)	= NULL
@@ -56,6 +45,7 @@ AS
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -131,7 +121,6 @@ BEGIN
     , @Action = @Action
     , @Mode = 'CAL'
 	, @SelectedQuarter = @SelectedQuarter
-	, @SelectedSet = @SelectedSet
     , @ErrCode = @ErrCode OUTPUT
     , @ErrMsg = @ErrMsg OUTPUT
         
@@ -156,30 +145,6 @@ BEGIN
                                                                                       ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
                                                           + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
                                                                                      ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
-                                                          + ', @SetResult = ' + CASE WHEN @SetResult IS NULL THEN 'NULL'
-                                                                                     ELSE '''' + @SetResult + '''' END 
-                                                          + ', @GameResult1 = ' + CASE WHEN @GameResult1 IS NULL THEN 'NULL'
-                                                                                       ELSE '''' + @GameResult1 + '''' END 
-                                                          + ', @GameResult2 = ' + CASE WHEN @GameResult2 IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @GameResult2+ '''' END 
-                                                          + ', @GameResult3 = ' + CASE WHEN @GameResult3 IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @GameResult3+ '''' END  
-                                                          + ', @GameResult4 = ' + CASE WHEN @GameResult4 IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @GameResult4+ '''' END 
-                                                          + ', @GameResult5 = ' + CASE WHEN @GameResult5 IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @GameResult5+ '''' END 
-                                                          + ', @SelectedSet = ' + CASE WHEN @SelectedSet IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet+ '''' END 
-                                                          + ', @SelectedSet1Game = ' + CASE WHEN @SelectedSet1Game IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet1Game+ '''' END 
-                                                          + ', @SelectedSet2Game = ' + CASE WHEN @SelectedSet2Game IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet2Game+ '''' END
-                                                          + ', @SelectedSet3Game = ' + CASE WHEN @SelectedSet3Game IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet3Game+ '''' END 
-                                                          + ', @SelectedSet4Game = ' + CASE WHEN @SelectedSet4Game IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet4Game+ '''' END 
-                                                          + ', @SelectedSet5Game = ' + CASE WHEN @SelectedSet5Game IS NULL THEN 'NULL'    
-                                                                                       ELSE '''' + @SelectedSet5Game+ '''' END  
                                                           + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
                                                           + ', @SelectedQuarter = ' + CASE WHEN @SelectedQuarter IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @SelectedQuarter + '''' END 
@@ -195,26 +160,19 @@ BEGIN
 				,@IsSystemSettlement = CASE
 										WHEN @Action = 'UNDO' 
 											THEN CASE 
-													WHEN @sporttype NOT IN (2,5) THEN 0
+													WHEN @sporttype NOT IN (2) THEN 0
 													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 0
-													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%' THEN 0
 													ELSE NULL
 												END
 										WHEN @Action IN ('CAL', 'CAL-FT') 
 											THEN CASE
-													WHEN @sporttype NOT IN (2,5) THEN 1
+													WHEN @sporttype NOT IN (2) THEN 1
 													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 1
-													WHEN @sporttype = 5 AND @SelectedSet LIKE '%6%'	THEN 1
 													ELSE NULL
 												END
 										ELSE NULL
 									END
 
-
-    IF (@SelectedSet IS NOT NULL AND @SelectedSet NOT LIKE '%6%')   -- Tennis 
-    BEGIN
-        SELECT	@Action='CAL-SET'    -- CAL per SET of Tennis         
-    END 
 
 	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
 		SET	@IsExistNetPosition = 1 

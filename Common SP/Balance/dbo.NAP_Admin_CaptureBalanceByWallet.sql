@@ -7,7 +7,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	, @IsRefundHT		BIT				= 0
 	, @FMResults		VARCHAR(MAX)	= NULL
 	, @BAQuarter 		VARCHAR(100)	= NULL
-	, @TennisSet    	VARCHAR(100)	= NULL
 	, @BAResults		VARCHAR(MAX)	= NULL
 	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
@@ -25,6 +24,7 @@ AS
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -46,9 +46,6 @@ AS
 		- @BAQuarter: BAIO quater info 
 			+ Sample: '801,802,1H,803,804,2H,FT'
 
-		- @TennisSet: Tennis result
-			+ Sample: '1,2,3,4,5,6'
-			
 		- @SelectedRID = '<root>
 							<r bt="9001" b="801"/>
 							<r bt="9001" b="801"/>
@@ -313,21 +310,6 @@ BEGIN
 					) AS rs
 				WHERE b.matchid	= @matchid	
 					AND 1 = CASE 
-								WHEN @Mode IN (2, 3) AND @SportType = 5 THEN --Tennis
-									CASE 
-										WHEN @TennisSet IS NULL THEN 1
-										WHEN @TennisSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-										WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-											THEN CASE 
-													WHEN @TennisSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-													WHEN @TennisSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-													WHEN @TennisSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-													WHEN @TennisSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-													WHEN @TennisSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-												ELSE 0
-											END
-										ELSE 0
-									END
 								WHEN @Mode IN (2, 3) AND @SportType = 2 THEN -- BasketBall
 									CASE 
 										WHEN @BAQuarter IS NULL THEN 1

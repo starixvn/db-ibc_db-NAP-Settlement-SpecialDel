@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking]
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @SelectedQuarter 		VARCHAR(50) = NULL
-	, @SelectedSet			VARCHAR(50)     = NULL 
 	, @ErrCode 				INT = 0 OUTPUT
 	, @ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -130,22 +129,7 @@ BEGIN
 							WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1
 							WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
 							ELSE 0
-						END
-				AND 1 = CASE -- tennis
-							WHEN @SelectedSet IS NULL THEN 1
-							WHEN @SelectedSet LIKE '%6%' AND b.bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-							WHEN b.bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) 
-								THEN CASE 
-										WHEN @SelectedSet LIKE '%1%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '801' THEN 1
-										WHEN @SelectedSet LIKE '%2%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '802' THEN 1
-										WHEN @SelectedSet LIKE '%3%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '803' THEN 1
-										WHEN @SelectedSet LIKE '%4%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '804' THEN 1
-										WHEN @SelectedSet LIKE '%5%' AND LEFT(CAST(b.betid AS VARCHAR),3) = '805' THEN 1
-									ELSE 0
-								END
-							ELSE 0
-						END
-				
+						END				
 			)
 				SELECT @isExistWaitingTicket = 1
 		END

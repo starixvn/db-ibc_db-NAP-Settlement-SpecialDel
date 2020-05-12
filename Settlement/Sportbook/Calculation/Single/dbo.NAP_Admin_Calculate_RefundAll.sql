@@ -4,9 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_RefundAll]
     ,@IsExcludeBetdaq               BIT = 0
     ,@IsExcludeBetfair              BIT = 0
     ,@IsSettleAbandonedMatchIBC     BIT = 0
-    ,@SelectedSet                   VARCHAR(50)  = NULL 
-    ,@SelectedSettleFinishedGame    VARCHAR(50)  = NULL 
-    ,@SetxGameyFinishedGame         VARCHAR(MAX) = NULL 
 	,@strBettypes					VARCHAR(MAX) = NULL
 	,@SelectedQuarter				VARCHAR(50)	 = NULL
 AS
@@ -48,6 +45,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
     Note: For settlement SPs should hardcode the custid of betdaq customer to avoid replication problem
 */
@@ -204,25 +202,9 @@ BEGIN
 		WHERE	matchid = @matchid 
 				AND statusID NOT IN (103, 101) 
 				AND i.IsCalculated = 1
-				AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
-								WHEN @SelectedSet LIKE '%1%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (BetID = 801 OR BetID BETWEEN 80101 AND 80199) THEN 1 
-								WHEN @SelectedSet LIKE '%2%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (BetID = 802 OR BetID BETWEEN 80201 AND 80299) THEN 1
-								WHEN @SelectedSet LIKE '%3%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (BetID = 803 OR BetID BETWEEN 80301 AND 80399) THEN 1
-								WHEN @SelectedSet LIKE '%4%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (BetID = 804 OR BetID BETWEEN 80401 AND 80499) THEN 1
-								WHEN @SelectedSet LIKE '%5%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (BetID = 805 OR BetID BETWEEN 80501 AND 80599) THEN 1
-								WHEN @SelectedSet LIKE '%6%' AND b.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
-								ELSE 0 END 
-				AND 1 = CASE WHEN @SelectedSettleFinishedGame LIKE '%1%' AND betID BETWEEN 80101 AND 80199 AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(10)),2,4),@SetxGameyFinishedGame)>0 THEN 0 
-								WHEN @SelectedSettleFinishedGame LIKE '%2%' AND BetID BETWEEN 80201 AND 80299 AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(10)),2,4),@SetxGameyFinishedGame)>0 THEN 0  
-								WHEN @SelectedSettleFinishedGame LIKE '%3%' AND BetID BETWEEN 80301 AND 80399 AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(10)),2,4),@SetxGameyFinishedGame)>0 THEN 0  
-								WHEN @SelectedSettleFinishedGame LIKE '%4%' AND BetID BETWEEN 80401 AND 80499 AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(10)),2,4),@SetxGameyFinishedGame)>0 THEN 0   
-								WHEN @SelectedSettleFinishedGame LIKE '%5%' AND BetID BETWEEN 80501 AND 80599 AND CHARINDEX(SUBSTRING(CAST(BetID AS VARCHAR(10)),2,4),@SetxGameyFinishedGame)>0 THEN 0 
-								ELSE 1 END 
 				AND 1 = CASE 
-						WHEN @IsExcludeBetdaq = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR b.recommend = 1688156) 
-								AND (@SelectedSet IS NULL OR (@SelectedSet LIKE '%6%' AND b.Bettype IN (1,2,3,20))) THEN 0
-						WHEN @IsExcludeBetfair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) 
-								AND (@SelectedSet IS NULL OR (@SelectedSet LIKE '%6%' AND b.Bettype IN (1,2,3,20))) THEN 0
+						WHEN @IsExcludeBetdaq = 1 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR b.recommend = 1688156) THEN 0
+						WHEN @IsExcludeBetfair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 0
 						WHEN @IsSettleAbandonedMatchIBC = 1 
 								AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 									AND b.recommend <> 1688156) 

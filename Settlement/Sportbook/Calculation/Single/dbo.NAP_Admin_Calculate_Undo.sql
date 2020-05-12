@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo] 
 	 @matchid		INT
-	,@SelectedSet	VARCHAR(50)		= NULL
 	,@strBettypes	VARCHAR(MAX)	= NULL
 	,@SelectedQuarter VARCHAR(50)	= NULL
 AS
@@ -36,6 +35,7 @@ AS
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		
 	Param's Explanation:
 			• @matchid: matchid of match to be unsettled 
@@ -223,15 +223,6 @@ BEGIN
 							ELSE 0 END
 							
 				AND i.IsCalculated = 1
-				AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
-								WHEN @SelectedSet LIKE '%1%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 801 OR b.BetID BETWEEN 80101 AND 80199) THEN 1 
-								WHEN @SelectedSet LIKE '%2%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 802 OR b.BetID BETWEEN 80201 AND 80299) THEN 1
-								WHEN @SelectedSet LIKE '%3%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 803 OR b.BetID BETWEEN 80301 AND 80399) THEN 1
-								WHEN @SelectedSet LIKE '%4%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 804 OR b.BetID BETWEEN 80401 AND 80499) THEN 1
-								WHEN @SelectedSet LIKE '%5%' AND b.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND (b.BetID = 805 OR b.BetID BETWEEN 80501 AND 80599) THEN 1
-								WHEN @SelectedSet LIKE '%6%' AND b.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
-								ELSE 0 
-								END 
 				AND 1 = CASE -- basketball
 							WHEN @SelectedQuarter IS NULL THEN 1
 							WHEN @SelectedQuarter LIKE '%' + t.GroupName + '%' THEN 1

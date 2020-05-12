@@ -15,12 +15,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@VoidTransID VARCHAR(2000) = NULL
     ,@UserId INT = NULL
     ,@strXML VARCHAR(MAX) = NULL
-    ,@SelectedSet           VARCHAR(50) = NULL
     ,@TennisTotal       INT = NULL
-    ,@TotalGameHomeMatch    INT = NULL
-    ,@TotalGameAwayMatch    INT = NULL
     ,@GoalSequence          VARCHAR(50) = NULL
-    ,@resultDetail_ss VARCHAR(MAX) = NULL -- sportting solution
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
     ,@SelectedQuarter VARCHAR(MAX) = NULL
@@ -54,6 +50,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
     Param's Explanation:
         @action         @mode
@@ -91,12 +88,8 @@ BEGIN
                 + CASE WHEN @VoidTransID IS NULL THEN '' ELSE ',@VoidTransID = ''' + @VoidTransId + '''' END
                 + CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
                 + CASE WHEN @strXML IS NULL THEN '' ELSE ',@strXML = ''' + @strXML + '''' END
-                + CASE WHEN @SelectedSet IS NULL THEN '' ELSE ',@SelectedSet = ''' + @SelectedSet + '''' END
                 + CASE WHEN @TennisTotal IS NULL THEN '' ELSE ',@TennisTotal = ' + CONVERT(NVARCHAR(50), @TennisTotal) END
-                + CASE WHEN @TotalGameHomeMatch IS NULL THEN '' ELSE ',@TotalGameHomeMatch = ' + CONVERT(NVARCHAR(50), @TotalGameHomeMatch) END
-                + CASE WHEN @TotalGameAwayMatch IS NULL THEN '' ELSE ',@TotalGameAwayMatch = ' + CONVERT(NVARCHAR(50), @TotalGameAwayMatch) END
                 + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
-                + CASE WHEN @resultDetail_ss IS NULL THEN '' ELSE ',@resultDetail_ss = ''' + @resultDetail_ss + '''' END
                 + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
                 + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END
                 + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ''' + @SelectedQuarter + '''' END
@@ -114,24 +107,6 @@ BEGIN
         RETURN
     END
 
-    IF @mode = 'sporttingSolution_m'
-    BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @matchid
-            , @matchdate = @matchdate
-            , @fth = @fth
-            , @fta = @fta
-            , @hth = @hth
-            , @hta = @hta
-            , @action = 'CAL'
-            , @priorAction = 'REFUND'
-            , @IsRefundHT = @IsRefundHT
-            , @TennisTotal = @TennisTotal
-            , @TotalGameHomeMatch = @TotalGameHomeMatch
-            , @TotalGameAwayMatch = @TotalGameAwayMatch
-            , @resultDetail_ss = @resultDetail_ss
-            , @strBettypes = @strBettypes
-    END
-
     IF @mode = 'basketball_m'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m
@@ -147,7 +122,7 @@ BEGIN
             @resultDetail_bb = @resultDetail_bb,
             @strBettypes = @strBettypes
     END
-
+	
     IF @mode = 'm'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_m @matchid = @matchid
@@ -159,7 +134,6 @@ BEGIN
             , @action = @action
             , @priorAction = @priorAction
             , @IsRefundHT = @IsRefundHT
-            , @SelectedSet = @SelectedSet
             , @TennisTotal = @TennisTotal
             , @GoalSequence = @GoalSequence
             , @resultDetail = @resultDetail
