@@ -13,6 +13,7 @@ AS
     Revisions:
 		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
 		- 20200330@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200508@Kathy: wrong split string function if ResourceId exceed 100 values [Redmine:#133518]
 		
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -33,6 +34,7 @@ BEGIN
 	INSERT INTO @tmpResourceIds(ResourceID)
 	SELECT	CAST(val AS VARCHAR(20)) AS ResourceID
 	FROM	dbo.f_SplitString(@ResourceIDs,',')
+	OPTION (MAXRECURSION 0)
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpResourceIds WHERE ResourceID = '00') AND @SportType = 9
 	BEGIN
@@ -45,7 +47,6 @@ BEGIN
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON sp.ResourceID = c.ResourceID
 	WHERE	sp.SportType = @SportType 
-	OPTION (MAXRECURSION 0)
 
 	IF EXISTS (
 		SELECT	TOP 1 1

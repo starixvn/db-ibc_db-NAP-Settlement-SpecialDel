@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel]
 	,@FastMarketsOnly BIT = 0 
 	,@IsReLoad BIT = 0
 	,@IsMarkedTicket BIT = 0
+	,@IsIncludeTest BIT = 0
 AS
 /*  
  Created by: Kathy
@@ -47,6 +48,8 @@ AS
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [Redmine:#128069]
 		- 20200227@Sol: Sort Completed Matches With Running Tickets - [Redmine:#128968]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
+						  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
       
  Param explanation:  
 	@MatchCode: match code
@@ -55,6 +58,7 @@ AS
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
+	@IsIncludeTest: 1: include test matches, 0: exclude test matches
 */
 BEGIN
 	SET NOCOUNT ON
@@ -290,6 +294,8 @@ BEGIN
 			,m.ChildMatchType
 		FROM	dbo.match m WITH (NOLOCK)
 				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = r.MatchId AND r.ResourceId ='00'
+				INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate 
 			AND m.leagueID = CASE WHEN @LeagueID <> 0 THEN @LeagueID ELSE m.leagueID END 			
 			AND CASE 
@@ -319,10 +325,19 @@ BEGIN
 					OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 				)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
+			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	WHERE	(@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
-			AND (@UncalMultiOnly = 0 OR (ISNULL(mr.multiple, 0) = 0 AND (ISNULL(mr.calculate, 0) = 1 OR ISNULL(mr.calrefund, 0) = 1)) OR @UncalMultiOnly IS NULL)	
+			AND 1 = CASE
+						WHEN @UncalMultiOnly = 1 
+							THEN CASE
+									WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
+										AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
+									ELSE 0
+								END
+						ELSE 1
+					END
 	
 	--check FGLG & BetRadar
 	DECLARE @strBettypesParlay	VARCHAR (MAX)		

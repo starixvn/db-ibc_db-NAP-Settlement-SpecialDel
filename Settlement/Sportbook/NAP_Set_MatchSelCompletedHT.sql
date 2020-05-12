@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSelCompletedHT]
 	, @LeagueID 	INT = 0 -- 0 for ALL Leagues
 	, @isReLoad 	BIT = 0
 	, @IsManualSettlementOnly BIT = 0
+	, @IsIncludeTest BIT = 0
 AS
 /*
 	Created by: Kathy
@@ -39,6 +40,7 @@ AS
 		- 20190610@Kathy: Exclude checking running BetBuilder tickets [Redmine:#114877]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200505@Kathy: Add New Filter Option allowing user to exclude/include test matches [Redmine:#133518]
 		
 */
 BEGIN
@@ -98,8 +100,9 @@ BEGIN
 				ELSE CASE WHEN m.AutoSetting IS NULL AND (17 & ISNULL(l.AutoSetting, 0) IN (1,16)) THEN 0
 							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
 						ELSE 1 END
-				END'')
-		'
+				END
+		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END''
+		)'
 
 	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
 		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode

@@ -49,6 +49,8 @@ AS
 	- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 	- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 	- 20200410@Sol: Set Timeout for Direct Settlement - [Redmine:#132138]
+	- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
+					  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -281,7 +283,15 @@ BEGIN
 						AND (mr.ConfirmFT > 0 OR m.kickofftime < DATEADD(SS, - 6000, @Today)) THEN 1
 				ELSE 0 END
 		AND (@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
-		AND (@UncalMultiOnly = 0 OR ISNULL(mr.multiple, 0) = 0 OR @UncalMultiOnly IS NULL)
+		AND 1 = CASE
+					WHEN @UncalMultiOnly = 1 
+						THEN CASE
+								WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
+									AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
+								ELSE 0
+							END
+					ELSE 1
+				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 
 	--check auto setting
