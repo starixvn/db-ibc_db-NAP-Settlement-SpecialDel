@@ -55,6 +55,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		
 */
 BEGIN
@@ -733,6 +734,26 @@ BEGIN
 					,betMarkedCount
 			FROM	@status
 			WHERE GroupId IN (0,1,9)
+		) t
+	END
+	ELSE IF EXISTS
+				(
+					SELECT TOP 1 1
+					FROM Sports WITH (NOLOCK)
+					WHERE (SportType <= 99 AND SportType NOT IN (27,46,1,2,5,9,43,56,57,58,59,60,61,62,63,64,65,66)) 
+							AND SportType = @sporttype
+				)
+	BEGIN
+		SELECT 0 AS groupid
+				,SUM(t.betRunningCount) AS betRunningCount
+				,SUM(t.betSettledCount) AS betSettledCount
+				,SUM(t.betMarkedCount) AS betMarkedCount
+		FROM(
+			SELECT	betRunningCount
+					,betSettledCount
+					,betMarkedCount
+			FROM	@status
+			WHERE	GroupId IN (0,1,2,3)
 		) t
 	END
 	ELSE

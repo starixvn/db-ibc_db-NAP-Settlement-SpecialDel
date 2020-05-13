@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_501]
 	,@bettype	SMALLINT 
 	,@betcount	INT
 	,@ScoreDiff INT
+	,@IsReSettledTickets BIT = 1
 AS
 /*
 	Created: Kathy
@@ -15,6 +16,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Void - Recover tickets in Bet 14 [Redmine:115377]
+		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		
 	Parameter's Explanation:
 								
@@ -50,13 +52,13 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 	SET @settlementTime = GETDATE();
 
-	UPDATE	dbo.bettrans WITH (ROWLOCK, UPDLOCK)
+	UPDATE b
 		SET @modds = CASE 
 					WHEN (betteam = 'h' AND @ScoreDiff > 0) OR (betteam = 'a' AND @ScoreDiff < 0) THEN 1
 					WHEN @ScoreDiff = 0 THEN 0
 					ELSE -1
 					END
-			,@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+			,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END
 			,modds = @modds
 			,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
 								WHEN @modds = 0.25 THEN 1 
@@ -170,9 +172,20 @@ BEGIN
 						WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE 1
 					END
+	FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
+		OUTER APPLY (
+				SELECT TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transId
+						AND mt.CustId = b.custid
+			)mt
 	WHERE	matchid = @MatchId
 			AND bettype = @bettype
 			AND statusID NOT IN (101) -- REJECT
+			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+						 WHEN @IsReSettledTickets = 1 THEN 1
+						 ELSE 0
+					END
 END
 
 
