@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	@MatchId BIGINT
 	,@TransIds VARCHAR(MAX) = NULL
 	,@RequestId INT = 0
+	,@ActionId	TINYINT	= 0
 )
 AS
 /*  
@@ -26,6 +27,7 @@ AS
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200413@Raymond: Not allow void if customer is VIP [Redmine: #131431]
 		- 20200415@Raymond: Refactor query link server [Redmine: #131670]
+		- 20200512@Charles: Auto Void Immediately [Redmine:#133705]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -42,6 +44,9 @@ BEGIN
 	,@UnsupportedTransids VARCHAR(MAX) = ''
 	,@ExistingReqTransIds VARCHAR(MAX) = ''
 	,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
+	,@CN88TransIds VARCHAR(MAX) = ''
+	,@NonLiveTransIds VARCHAR(MAX) = ''
+	,@DifferentLiveScoreTransIds VARCHAR(MAX) = ''
 	,@query NVARCHAR(MAX) = ''
 	,@ExecuteSQL NVARCHAR(MAX) = ''
 	
@@ -80,6 +85,9 @@ BEGIN
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
 			,@TransIdsOfVIPCustomer AS TransIdsOfVIPCustomer
+			,@CN88TransIds AS CN88TransIds
+			,@NonLiveTransIds AS NonLiveTransIds
+			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 
 		RETURN;
 	END
@@ -92,8 +100,16 @@ BEGIN
 		,StatusId INT
 		,bettype SMALLINT
 		,custId INT
+		,livehomescore SMALLINT
+		,liveawayscore SMALLINT
+		,liveindicator SMALLINT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
+	CREATE TABLE #LiveTransIds (
+		transid BIGINT PRIMARY KEY
+		,nonLive BIT
+		,differentScore BIT
+		)
 
 	IF (@TransIds IS NULL
 		OR LEN(@TransIds) = 0
@@ -130,6 +146,9 @@ BEGIN
 		,StatusId
 		,bettype
 		,custId
+		,livehomescore
+		,liveawayscore
+		,liveindicator
 		)
 	SELECT b.transid
 		,CASE 
@@ -139,6 +158,9 @@ BEGIN
 		,b.statusID
 		,b.bettype
 		,b.custid
+		,b.livehomescore
+		,b.liveawayscore
+		,b.liveindicator
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
@@ -153,6 +175,7 @@ BEGIN
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
 							), 1, 1, ''), '')
+
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
@@ -234,6 +257,50 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
+	
+	IF @ActionId = 4 -- Auto Void All (Instant)
+	BEGIN
+		-- get non-live and different score transids
+		INSERT #LiveTransIds(transid, nonLive, differentScore)
+		SELECT t.transid
+			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
+			, CASE
+				WHEN m.sporttype IN (1,3,4,8,26,28,49,51)
+					THEN CASE WHEN m.livehomescore = t.livehomescore
+								AND m.liveawayscore = t.liveawayscore AND t.liveindicator = 1
+								THEN 0 ELSE 1
+						END
+				ELSE 0
+			END
+		FROM #validTransId t
+			OUTER APPLY ( 	SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
+							FROM dbo.match
+							WHERE @MatchId = matchid
+						) m
+
+		SELECT @NonLiveTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
+										FROM #LiveTransIds lt
+										WHERE lt.nonLive = 1
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+
+		SELECT @DifferentLiveScoreTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
+										FROM #LiveTransIds lt
+										WHERE lt.differentScore = 1
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+
+		-- get cn88 tickets
+		SELECT @CN88TransIds = ISNULL(STUFF((
+					SELECT ', ' + CAST(v.transid AS VARCHAR(50))
+					FROM #validTransId AS v				
+						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = v.transid
+						LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
+					WHERE cs.CustId IS NOT NULL
+					FOR XML PATH('')
+					), 1, 1, ''), '')
+	END
+
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
 			,@MovedTransIds AS MovedTransIds
@@ -243,9 +310,13 @@ BEGIN
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
 			,@TransIdsOfVIPCustomer AS TransIdsOfVIPCustomer
+			,@CN88TransIds AS CN88TransIds
+			,@NonLiveTransIds AS NonLiveTransIds
+			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids
+	DROP TABLE #LiveTransIds
 END
