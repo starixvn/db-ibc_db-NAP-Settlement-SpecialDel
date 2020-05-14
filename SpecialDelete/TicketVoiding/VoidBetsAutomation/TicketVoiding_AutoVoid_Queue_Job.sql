@@ -12,6 +12,7 @@ AS
 		- 20200316@Max: HotFix - Update item to Cancel even there are requests need to be executed [Redmine: #130303]
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		- 20200513@Helen: TVS insert into Queue multi when edit request [Redmine:#134107]
 		
 	Param's explanation:	
 	
@@ -128,7 +129,7 @@ BEGIN
 		FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 		WHERE matchid = @MatchId AND StatusId = 0 AND RequestId > 0
 							  
-		SET @RequestIDList = STUFF((SELECT ',', + CAST(RequestId AS VARCHAR(50))
+		SET @RequestIDList = STUFF((SELECT DISTINCT ',', + CAST(RequestId AS VARCHAR(50))
 							  FROM @tblRequestList 
 							  FOR XML PATH('')),1,1,'')
 							  
