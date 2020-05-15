@@ -328,6 +328,7 @@ RETURN (
 
 	-- E-Sports 3.0
 	UNION ALL SELECT 9087,'Special',1
+	UNION ALL SELECT 9088,'FT',0
 
 	-- new bettypes of PHAIO Phase 3
 	UNION ALL SELECT 448,'FT',0
