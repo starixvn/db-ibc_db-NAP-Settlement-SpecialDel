@@ -184,7 +184,7 @@ RETURN
 					 ELSE -1
 				END
 			
-			WHEN @pfID = 4 THEN -- Correct Score
+			WHEN @pfID = 9088 THEN -- Correct Map Score
 				CASE WHEN @betteam = @HomeValue + ':' + @AwayValue THEN 1
 					 ELSE -1
 				END

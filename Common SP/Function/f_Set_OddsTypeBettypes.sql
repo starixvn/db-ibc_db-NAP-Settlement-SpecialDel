@@ -16,6 +16,7 @@ AS
     Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200515@Kathy: Add new bettype for E-Sports [#132401]
 	
     Parameters Explanation:    
 		- oddsType
@@ -229,5 +230,6 @@ RETURN (
 	UNION ALL SELECT 396,1
 	UNION ALL SELECT 392,1
 		
+	UNION ALL SELECT 9088, 1
 	)
 GO
