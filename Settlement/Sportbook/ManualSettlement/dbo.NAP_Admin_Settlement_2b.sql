@@ -18,6 +18,7 @@ AS
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -88,7 +89,7 @@ BEGIN
 
         RETURN
 	END
-
+	
 	;WITH cteResourceIds
 	AS(
 		SELECT	T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
@@ -101,6 +102,39 @@ BEGIN
 		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
 			ON c.ResourceId LIKE CAST(f.bettype AS VARCHAR) + '%'
 	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )	
+	
+	IF @Action = 'REFUND'
+	BEGIN
+		DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
+		
+		INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
+		SELECT DISTINCT c.ResourceID, sp.BetType, sp.BetID
+		FROM @tmpResultDetail c
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+				ON sp.ResourceID = c.ResourceID
+		WHERE	sp.SportType = @SportType 
+
+		IF EXISTS (
+			SELECT	TOP 1 1
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	b.transid = mt.TransId
+			WHERE	b.matchid = @MatchID
+					AND b.statusID NOT IN (101, 102)
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
+		)
+		BEGIN
+			SELECT @ErrCode = 1001032
+					,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+
+			------ releasing Settlement process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
 	
 	SELECT	@strResourceIds = COALESCE(@strResourceIds + ',' + ResourceId, ResourceId)
 	FROM	@tmpResultDetail

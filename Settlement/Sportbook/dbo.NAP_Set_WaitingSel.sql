@@ -36,6 +36,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 	
 	Param's explanation:  
 		
@@ -72,6 +73,7 @@ BEGIN
 		,IsWaitingEarlyBettypesParlay	BIT
 		,IsExistMarkedTicket			BIT
 		,IsExistRunningTicket			BIT
+		,IsExistMarkedTicketParlay		BIT
 	)
 	DECLARE @tmp_ESportMatch TABLE (matchid INT)
 	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
@@ -110,7 +112,7 @@ BEGIN
 	INSERT INTO @TempMatch(MatchId, SportType, SingleStatus, ParlayStatus, IsSingle, IsMixParlay, IsExistFGLG, IsExistHTFGLG
 		, IsExistFastMarket, IsRunningFastMarket, IsExistFastMarketResult
 		, IsExistEarlyBettypes, IsExistEarlyBettypesParlay, IsRunningEarlyBettypes, IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
-		, IsExistMarkedTicket, IsExistRunningTicket
+		, IsExistMarkedTicket, IsExistRunningTicket, IsExistMarkedTicketParlay
 	)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 		, ISNULL(sg.SportType, pl.sporttype) AS SportType
@@ -131,6 +133,7 @@ BEGIN
 		, 0 AS IsWaitingEarlyBettypesParlay
 		, 0 AS IsExistMarkedTicket
 		, 0 AS IsExistRunningTicket
+		, 0 AS IsExistMarkedTicketParlay
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
 	
@@ -241,7 +244,7 @@ BEGIN
 		INNER JOIN cteBetStatus tt ON t.MatchId = tt.MatchId	
 	END
 
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
@@ -260,23 +263,43 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		UPDATE	mk 
-			SET  IsExistMarkedTicket = 1
+			SET  IsExistMarkedTicket = m.HasMarkedSingle
+				,IsExistMarkedTicketParlay = m.HasMarkedParlay
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
 				SELECT	mt.matchId
+						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
+						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
 					CROSS APPLY (
 						SELECT	TOP (1) b.transid
+								,b.refno
+								,b.matchid
+								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
-								AND b.statusID = 0
+								AND b.statusID NOT IN (101, 102)
 					) b
+					OUTER APPLY (
+						SELECT TOP 1 1 IsParlay
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+						WHERE	bm.refno = b.refno
+								AND bm.statusid = 0
+								AND b.matchid = 29
+								AND bm.matchid = mt.matchId
+					)bm
+				WHERE	1 = CASE
+								WHEN b.matchid <> 29 AND b.statusID = 0 THEN 1
+								WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1
+								ELSE 0
+							END
 				GROUP BY mt.matchid
 			) m
 				ON m.matchid = mk.MatchId
 
 		UPDATE m 
 			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+				,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
 		FROM	@TempMatch m
 			INNER JOIN @tmpMatchMarked t
 				ON m.matchid = t.MatchId
@@ -401,6 +424,7 @@ BEGIN
 		END AS EarlySettleStatus
 		,tm.IsExistMarkedTicket
 		,tm.IsExistRunningTicket
+		,tm.IsExistMarkedTicketParlay
 		,exSource.SourceId
 		,exSource.ExHTHomeScore
 		,exSource.ExHTAwayScore

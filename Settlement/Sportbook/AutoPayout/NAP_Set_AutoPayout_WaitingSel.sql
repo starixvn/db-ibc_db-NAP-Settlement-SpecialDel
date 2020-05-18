@@ -30,6 +30,7 @@ AS
 		- 20190620@Kathy: Remove corner betradar, auto betradar bettypes [Redmine:#109584]
 		- 20190801@Sol: Removed unused code IsNeedToCalculateFGLG [Redmine:#115232]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		
 	Param's explanation: 
 		
@@ -67,6 +68,7 @@ BEGIN
 		,IsExistFTLG					BIT
 		,IsExistMarkedTicket			BIT
 		,IsExistRunningTicket			BIT
+		,IsExistMarkedTicketParlay		BIT
 	)
 	
 	CREATE TABLE #tblBetStatus(
@@ -259,7 +261,7 @@ BEGIN
 				ON m.MatchId = b.matchid
 	END
 	
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
@@ -278,23 +280,41 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		UPDATE	mk 
-			SET  IsExistMarkedTicket = 1
+			SET  IsExistMarkedTicket = m.HasMarkedSingle
+				,IsExistMarkedTicketParlay = m.HasMarkedParlay
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
 				SELECT	mt.matchId
+						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
+						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
 					CROSS APPLY (
 						SELECT	TOP (1) b.transid
+								,b.refno
+								,b.matchid
+								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
-								AND b.statusID = 0
 					) b
+					OUTER APPLY (
+						SELECT TOP 1 1 IsParlay
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+						WHERE	bm.refno = b.refno
+								AND bm.statusid = 0
+								AND b.matchid = 29
+					)bm
+				WHERE	1 = CASE
+								WHEN b.matchid <> 29 AND b.statusID = 0 THEN 1
+								WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1
+								ELSE 0
+							END
 				GROUP BY mt.matchid
 			) m
 				ON m.matchid = mk.MatchId
 
 		UPDATE m 
 			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+				,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
 		FROM	#tblMatchInQueue m
 			INNER JOIN @tmpMatchMarked t
 				ON m.matchid = t.MatchId
@@ -413,6 +433,7 @@ BEGIN
 
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
+			,m.IsExistMarkedTicketParlay
 			,exSource.SourceId
 			,exSource.ExHTHomeScore
 			,exSource.ExHTAwayScore

@@ -38,6 +38,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
 		- 20200115@Max: Enhance SPs [Redmine: #127031]
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 
 	Param's Explanation:		
 		
@@ -51,14 +52,16 @@ BEGIN
 			,@NotExecutedFGLG VARCHAR(200)
 			,@procName nvarchar(50)	
 			,@matchid int
+			,@matchcode nvarchar(50)
 
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
 			,@IsExistsResourceEarlyRunning BIT = 0
+			,@HaveMarkedTicket VARCHAR(200)
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
-			
+		
 	DECLARE @tblBettype TABLE ( matchid INT
 						  ,Sporttype SMALLINT
 						  ,Bettype SMALLINT
@@ -83,7 +86,7 @@ BEGIN
 			,@procName = OBJECT_NAME(@@procid)
 			,@subErrCode = 0
 			,@subErrMsg = ''
-    
+			
 	-- get data from remote table match
 	DECLARE @queryMatch NVARCHAR(MAX) = '', @queryResultDetail NVARCHAR(MAX) = '', @queryResultDetailES NVARCHAR(MAX) = '', @queryResultDetailOS NVARCHAR(MAX) = ''
 	DECLARE @execSql NVARCHAR(MAX) = ''
@@ -452,7 +455,32 @@ BEGIN
 	WHERE matchid IN (SELECT val FROM dbo.f_SplitString(@MatchIds, ','))
 	OPTION (maxrecursion 0)
 	
+	-- check marked ticket
+	SELECT  @HaveMarkedTicket = COALESCE(@HaveMarkedTicket + ',' + m.matchcode, m.matchcode)
+	FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+		CROSS APPLY (
+			SELECT  TOP 1 b.refno
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.transid = mt.transid
+					AND b.matchid = 29
+					AND b.statusID NOT IN (101, 102)
+		) b
+		CROSS APPLY (
+			SELECT	TOP 1 bm.matchid
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+			WHERE	bm.refno = b.refno
+					AND bm.statusID = 0
+					AND bm.matchid = mt.MatchId
+		)bm
+		INNER JOIN #Match m 
+			ON mt.matchid = m.matchid	
+	GROUP BY m.matchid, m.matchcode
+
+	DELETE FROM #Match
+	WHERE	matchcode IN (SELECT val FROM dbo.f_SplitString(@HaveMarkedTicket, ','))
+	
 	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
+		OR ISNULL(@HaveMarkedTicket,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'All matches are being calculated, except following matches ' 
@@ -471,6 +499,10 @@ BEGIN
 							+ CASE WHEN ISNULL(@NotExecutedFGLG, '') <> ''
 									THEN ' (need to be executed "Calc FGLG"): ' + @NotExecutedFGLG
 									ELSE ''
+								END
+							+ CASE WHEN ISNULL(@HaveMarkedTicket, '') <> ''
+								THEN ' (existing some MARKED tickets): ' + @HaveMarkedTicket
+								ELSE ''
 								END
 							+ CASE WHEN ISNULL(@MovingMatchIds, '') <> ''
 									THEN ' (during move-bet progress): ' + @MovingMatchIds + '. Please contact Starix IT for further support!'
@@ -491,6 +523,7 @@ BEGIN
 			WHILE(1 = 1)
 			BEGIN
 				SELECT TOP 1 @matchid = matchid
+						,@matchcode = matchcode
 				FROM #Match
 
 				IF @@ROWCOUNT = 0
@@ -514,19 +547,23 @@ BEGIN
 						,@creator = @AdminId
 						,@action  = @action
 						,@IP      = @IP
-						,@ErrCode = @subErrCode OUTPUT
-						,@ErrMsg  = @subErrMsg   OUTPUT
+						,@ErrCode = @subErrCode 	OUTPUT
+						,@ErrMsg  = @subErrMsg   	OUTPUT
 				END TRY
-				BEGIN CATCH					
+				BEGIN CATCH			
 					UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-							SET VValue = 0
+						SET VValue = 0
 					WHERE VName = 'isCalculatingParlay'
-						
-					SELECT @ErrMsg  = @subErrMsg + ISNULL(ERROR_MESSAGE(),'')
+				
+					SELECT @ErrMsg  = @matchcode + ': ' + ISNULL(ERROR_MESSAGE(),'')
 						  ,@ErrCode = @@error
+					
 					RETURN
 				END CATCH
-								
+				
+				IF @subErrCode > 0
+					SELECT @ErrMsg = @ErrMsg + ' ' + @matchcode + ':' + @subErrMsg + ', '
+				
 				UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
 						SET VValue = 0
 				WHERE VName = 'isCalculatingParlay'

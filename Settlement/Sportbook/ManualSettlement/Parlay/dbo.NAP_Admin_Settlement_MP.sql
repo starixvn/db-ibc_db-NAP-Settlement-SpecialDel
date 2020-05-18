@@ -36,6 +36,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190924@Sol: Incorporate BMAIO - refactor code - removed sporttype 9 [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 
 	Param's Explanation:
 */
@@ -135,6 +136,34 @@ BEGIN
 					,@ErrMsg = 'This match has not been keyed in score yet'
 			RETURN
 		END
+	END
+
+	-- check marked ticket
+	IF EXISTS (SELECT TOP 1 1
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					CROSS APPLY (
+						SELECT TOP 1 b.refno
+								,b.statusID
+								,b.matchid
+						FROM	dbo.bettrans b WITH(NOLOCK)
+						WHERE	b.transid = mt.TransId
+								AND b.matchid = 29
+								AND b.statusID NOT IN (101, 102)
+					) b							
+					CROSS APPLY (
+						SELECT TOP 1 bm.transid
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+						WHERE	bm.matchid = mt.matchid
+								AND bm.refno = b.refno
+								AND bm.statusID = 0
+					)bm
+				WHERE	mt.MatchId = @MatchID
+	)
+	BEGIN
+		SELECT @ErrCode = 1001032
+				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+
+		RETURN
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------

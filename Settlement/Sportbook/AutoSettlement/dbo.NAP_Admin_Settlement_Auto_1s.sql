@@ -29,6 +29,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -157,6 +158,30 @@ BEGIN
 			ON	sp.ResourceID = tbl.Id
 	WHERE sp.SportType = @SportType 
 	
+	IF @Action = 'REFUND'
+	BEGIN
+		IF EXISTS (
+			SELECT	TOP 1 1
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	b.transid = mt.TransId
+			WHERE	b.matchid = @MatchID
+					AND b.statusID NOT IN (101, 102)
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
+		)
+		BEGIN
+			SELECT @ErrCode = 1001032
+					,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+
+			------ releasing Settlement process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
+
 	EXEC sp_xml_removedocument @handle
 
 	SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'

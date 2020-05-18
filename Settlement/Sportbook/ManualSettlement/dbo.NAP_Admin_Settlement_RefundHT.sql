@@ -45,6 +45,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		- 20200519@Kathy: Do not update match_remark.calculate if match is refund HT [Redmine:#134192]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -126,6 +127,31 @@ BEGIN
 
         RETURN
 	END
+
+	-- check marked ticket
+	IF EXISTS (SELECT TOP 1 1
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+						ON b.transid = mt.TransId
+					INNER JOIN dbo.f_Set_GetGroupBettypes() bt
+						ON b.bettype = bt.bettype
+				WHERE	b.matchid = @MatchID
+						AND b.statusID NOT IN (101, 102)
+						AND bt.IsAuto = 0
+						AND bt.GroupId IN (1,3)
+		)
+	BEGIN
+		SELECT @ErrCode = 1001032
+			,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		
+			------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
+			
+		RETURN
+	END    
+
 	IF @sportType = 1
 	BEGIN
 		

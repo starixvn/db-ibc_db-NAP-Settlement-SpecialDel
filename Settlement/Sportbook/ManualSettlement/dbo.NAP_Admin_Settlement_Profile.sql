@@ -25,6 +25,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -76,7 +77,7 @@ BEGIN
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-
+	DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -121,6 +122,57 @@ BEGIN
 		RETURN
 	END
   	
+	------------------------------------------parse XML -----------------------------------------
+
+	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+	INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+	SELECT Id, Home, Away
+	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+														,Home VARCHAR(50)
+														,Away VARCHAR(50)
+										) AS tbl
+	EXEC sp_xml_removedocument @handle
+
+	-- check marked ticket
+	IF @Action LIKE 'REFUND%'
+	BEGIN
+		INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
+		SELECT DISTINCT c.ResourceID, sp.BetType, sp.BetID
+		FROM (
+			SELECT	c.ResourceID
+			FROM	@tmpResourcesWeb c
+			UNION ALL
+			SELECT '70400' AS ResourceID 
+			FROM	@tmpResourcesWeb 
+			WHERE	ResourceID = '00'
+					AND @sportType = 9
+		) c
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+				ON sp.ResourceID = c.ResourceID
+		WHERE	sp.SportType = @SportType 
+	
+		IF EXISTS (
+			SELECT	TOP 1 1
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	b.transid = mt.TransId
+			WHERE	b.matchid = @MatchID
+					AND b.statusID NOT IN (101, 102)
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
+		)
+		BEGIN
+			SELECT @ErrCode = 1001032
+				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		
+				------ releasing Settlement process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
+
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
 
@@ -133,17 +185,6 @@ BEGIN
 						,@Sporttype				= @Sporttype
 						,@SelectedRID   		= @SelectedResources
 		END
-
-		------------------------------------------parse XML and add more info-----------------------------------------
-
-		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-		SELECT Id, Home, Away
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
-															,Home VARCHAR(50)
-															,Away VARCHAR(50)
-											) AS tbl
-		EXEC sp_xml_removedocument @handle
 
 		-- badminton
 		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')

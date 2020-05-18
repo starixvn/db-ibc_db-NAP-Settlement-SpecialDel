@@ -61,6 +61,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -195,6 +196,31 @@ BEGIN
 
         RETURN
 	END
+
+	-- check marked ticket
+	IF EXISTS (SELECT TOP 1 1
+				FROM	dbo.bettrans b WITH(NOLOCK)
+					INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+						ON b.transid = mt.TransId
+					INNER JOIN dbo.f_Set_GetGroupBettypes() bt
+						ON b.bettype = bt.bettype
+				WHERE	b.matchid = @MatchID
+						AND b.statusID NOT IN (101, 102)
+						AND bt.IsAuto = 0
+						AND bt.GroupId IN (2,4)
+		)
+	BEGIN
+		SELECT @ErrCode = 1001032
+			,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		
+			------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
+			
+		RETURN
+	END    
+
 	SELECT 	@strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM	dbo.f_Set_GetGroupBettypes() f 
 	WHERE  	f.IsAuto = 1
