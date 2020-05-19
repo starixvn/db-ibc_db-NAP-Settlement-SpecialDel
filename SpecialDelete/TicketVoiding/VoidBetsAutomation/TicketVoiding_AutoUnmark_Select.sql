@@ -64,8 +64,8 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN b.betid
-						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN bm.betcheck 
+				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN bm.betcheck
+						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN b.betid 
 						ELSE NULL END AS BetId
 			FROM CTE_FilterData AS f
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
