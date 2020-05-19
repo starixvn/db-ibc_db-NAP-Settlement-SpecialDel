@@ -13,6 +13,7 @@ AS
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200513@Helen: TVS insert into Queue multi when edit request [Redmine:#134107]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		
 	Param's explanation:	
 	
@@ -105,7 +106,7 @@ BEGIN
 					FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 						LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
 					WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
-					ORDER BY Starttime
+					ORDER BY q.Duration DESC, Starttime
 				)
 	
 	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId

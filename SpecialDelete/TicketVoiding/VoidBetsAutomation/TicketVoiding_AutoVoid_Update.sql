@@ -20,6 +20,7 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix + VIP account [Redmine:#131516]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	
 	Param's explanation:	
 		
@@ -198,7 +199,7 @@ BEGIN
 						 FROM dbo.f_SplitString(rd.TransIds, ',')
 						) AS tmp
 		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
-			AND req.ActionId = 1 -- void request only, not for take notes and waiting
+			AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
 		OPTION (maxrecursion 0)
 	END
 	ELSE
@@ -232,7 +233,7 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-									AND r.ActionId = 1 
+									AND r.ActionId IN (1,4) 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 

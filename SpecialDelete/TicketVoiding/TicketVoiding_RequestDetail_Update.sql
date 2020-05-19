@@ -25,6 +25,7 @@ AS
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 
 	Param's explanation:	
 	
@@ -98,7 +99,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43, 5)
+	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionID = 4)
 	BEGIN
 		
 		INSERT INTO #inputTransid (transid)
@@ -134,10 +135,10 @@ BEGIN
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @MarkType = 1, @LogActionId = 90508
 		END
 
-		IF @ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1
+		IF @ActionID = 4 OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
-			VALUES(@RequestId, @MatchId, 'AddRequest', 0, 10278938, GETDATE(), '125.227.140.97')
+			VALUES(@RequestId, @MatchId, CASE WHEN @ActionID = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97')
 		END
 	
 	END
