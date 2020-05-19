@@ -34,6 +34,7 @@ AS
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
         - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200522@Kathy: update settlementstatusid = 2 if refund HT [Redmine:#134192]
 		
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -341,7 +342,7 @@ BEGIN
         END
         
         UPDATE @tmpResultDetail
-            SET SettlementStatusID = 1 -- Refund
+            SET SettlementStatusID = CASE WHEN ResourceID = '01' AND @Action = 'CAL-HT' THEN 2 ELSE 1 END -- Refund
                 ,ResultStatusID = 5 -- Manual Settlement
         WHERE   SourceType = 0
         
@@ -597,10 +598,7 @@ BEGIN
         SELECT'01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50)) 
         
         UPDATE @tmpResultDetail
-            SET SettlementStatusID = CASE WHEN CHARINDEX('Refund;', @betstatus) > 0 THEN 1 
-                                           WHEN CHARINDEX('Refund HT;',@betstatus) > 0 THEN 2 
-                                           ELSE 2 
-                                           END --Refund HT                          
+            SET SettlementStatusID = 2 --Refund HT                          
                 ,ResultStatusID = 5 -- Manual Settlement 
         WHERE   SourceType = 0
         

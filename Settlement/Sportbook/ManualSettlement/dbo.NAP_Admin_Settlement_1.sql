@@ -85,6 +85,7 @@ AS
 		- 20200221@Sol:	HotFix - Event status of match still Running although there are no tickets running - [Redmine:#128657]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		- 20200423@Kathy: Write log @IsReSettledTickets for all sportType [Redmine:#131765]
+		- 20200519@Kathy: Do not update match_remark if match is refund [Redmine:#134192]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -620,7 +621,7 @@ BEGIN
                 END
             END
 
-        IF @eventstatus = 'completed'
+        IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
         BEGIN
             EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
                 @matchid    = @matchid

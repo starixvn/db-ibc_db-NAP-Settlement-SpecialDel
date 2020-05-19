@@ -44,6 +44,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
+		- 20200519@Kathy: Do not update match_remark.calculate if match is refund HT [Redmine:#134192]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -73,6 +74,7 @@ BEGIN
         ,@sportType INT
 		,@Action VARCHAR(20)
 		,@xmlResultDetail		XML
+		,@eventstatus NVARCHAR(50)
 
 		-- for corner bettype 
 		,@ChildMatchType		TINYINT
@@ -97,6 +99,7 @@ BEGIN
 	SELECT @matchdate = eventdate
         , @sporttype    = sporttype
 		, @ChildMatchType = ChildMatchType
+		, @eventstatus = eventstatus
     FROM	DBPRO.BODB02.dbo.Match WITH (NOLOCK)
     WHERE	matchid = @matchid
 	
@@ -291,8 +294,11 @@ BEGIN
 
 		IF @Rowcount > 0
 		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
-				,@command = 'F'
+			IF @eventstatus <> 'completed'
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
+					,@command = 'F'
+			END
 
 			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 				,@action = 'REFUND'
