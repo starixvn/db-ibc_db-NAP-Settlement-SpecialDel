@@ -39,6 +39,7 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
+			,@LeagueGroupID		INT
 						
 			,@RequestId INT
 			,@LeagueId			INT
@@ -169,7 +170,7 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = l.LeagueGroupID
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
@@ -292,6 +293,14 @@ BEGIN
 		OPTION (maxrecursion 0)
 		
 	END
+
+	--Check duplicate transid belong multi request--
+	IF EXISTS (SELECT TOP (1) 1 FROM #inputRequestTransId GROUP BY TransId HAVING COUNT(1) > 1)
+	BEGIN
+		SELECT	@ErrCode = 0
+				,@ErrMsg = 'Some tickets of this match are being duplicated in multi requests!'	
+		RETURN
+	END
 	-- get transid to VOID
 	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID)
 	SELECT t.TransId, t.RequestID
@@ -305,6 +314,7 @@ BEGIN
 		AND b.statuswinlost IN (1,2) 
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
+		AND 1 = CASE WHEN @sporttype IN (1,2) AND @LeagueGroupID NOT IN (74) THEN 1 ELSE 0 END
 						
 	SET @Void_cnt = @@ROWCOUNT
 	
@@ -319,9 +329,18 @@ BEGIN
 		WHERE statuswinlost IN (0,3,4)
 		
 		) AS t
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
+		OUTER APPLY  (SELECT TOP (1) ac.CustID 
+					 FROM @VIPAccount_tmp ac 
+					 WHERE  ac.CustID = b.custid
+					 ) AS vip
 		
-	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
+	WHERE b.matchid = @MatchId 
+		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
+					WHEN vip.CustID IS NOT NULL AND b.status IN (1,2) THEN 1
+					WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (74) THEN 1
+				ELSE 0 END
+		AND b.statusID = 0
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	

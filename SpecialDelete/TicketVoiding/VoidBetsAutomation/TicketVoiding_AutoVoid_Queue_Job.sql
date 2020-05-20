@@ -53,7 +53,7 @@ BEGIN
 			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
-			,@queue_cnt			TINYINT = 0
+			,@queue_cnt			INT 
 			,@Max_QueueId		INT = 0
 
 			
@@ -100,147 +100,123 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
+
 	----- Starting auto voiding process: FIFO --------
-	LoopMatch:
-	SET @MatchId = (SELECT TOP (1) q.matchid
-					FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
-						LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
-					WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
-					ORDER BY q.Duration DESC, Starttime
-				)
+	CREATE TABLE #Match_AutoVoid (QueueId INT, matchid INT, IsFinished INT DEFAULT(0))
+
+	INSERT #Match_AutoVoid (QueueId, matchid)
+	SELECT q.QueueId, q.matchid
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
+		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
+	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
+	ORDER BY q.Action DESC, Starttime
 	
-	SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId
-					, @Action = Action 
-					, @MatchId = matchID, @Checktime = DATEADD(SECOND,300,Starttime)
-					,@Sporttype = sporttype
-	FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
-	WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
-	ORDER BY RequestId, Action, Starttime DESC
-	
-	IF @@ROWCOUNT = 0
-		RETURN
-	
-	IF @RequestId = 0 AND @Checktime > GETDATE()
-		RETURN
-		
-	IF @RequestId > 0
+	WHILE(1=1)
 	BEGIN
-		INSERT INTO @tblRequestList (RequestID,Matchid,QueueID)
-		SELECT RequestId,MatchId,QueueId
-		FROM TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-		WHERE matchid = @MatchId AND StatusId = 0 AND RequestId > 0
-							  
-		SET @RequestIDList = STUFF((SELECT DISTINCT ',', + CAST(RequestId AS VARCHAR(50))
-							  FROM @tblRequestList 
-							  FOR XML PATH('')),1,1,'')
-							  
-		UPDATE q  WITH(ROWLOCK, UPDLOCK)
-			SET StatusId = 1
-				,Exectime = GETDATE()
-		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-			INNER JOIN @tblRequestList ql ON q.QueueId = ql.QueueId AND q.RequestID = ql.RequestID AND q.MatchId = ql.Matchid
-		WHERE q.MatchId = @MatchId
+		SELECT TOP (1) @queue_cnt = QueueId, @MatchId = matchid FROM #Match_AutoVoid WHERE IsFinished = 0
+		IF @@ROWCOUNT = 0 
+			BREAK
+
+		SELECT TOP (1) @QueueId = QueueId, @RequestId = RequestId
+						, @Action = Action 
+						, @MatchId = matchID
+						, @Checktime = DATEADD(SECOND,300,Starttime)
+						,@Sporttype = sporttype
+		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK)
+		WHERE	MatchId = @MatchId AND StatusId = 0 -- waiting
+		ORDER BY RequestId, Action, Starttime DESC
+	
+		IF @RequestId = 0 AND @Checktime > GETDATE()
+			CONTINUE
 		
-	END
-	ELSE
-	BEGIN
+		IF @RequestId > 0
+		BEGIN
+			SET @RequestIDList = CAST(@RequestId AS VARCHAR(50))
+		END
+
 		UPDATE	q  WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = 1
 				,Exectime = GETDATE()
 		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 		WHERE	q.QueueId = @QueueId
-	END	
-	
-	BEGIN TRY
-		EXEC dbo.TicketVoiding_AutoVoid_Update 
-			@MatchId = @MatchId
-			,@Sporttype = @Sporttype
-			,@UserId = @UserId
-			,@Action = @Action
-			,@RequestIdList = @RequestIdList
-			,@IP = @IP
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
+
+		BEGIN TRY
+			EXEC dbo.TicketVoiding_AutoVoid_Update 
+				@MatchId = @MatchId
+				,@Sporttype = @Sporttype
+				,@UserId = @UserId
+				,@Action = @Action
+				,@RequestIdList = @RequestIdList
+				,@IP = @IP
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT
 			
-		SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
-	END TRY
-	BEGIN CATCH
-		SELECT	 @ErrCode = ERROR_NUMBER()
-				,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
-	END CATCH
+			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
+		END CATCH
 	
-	IF (ISNULL(@ErrCode, 0) <> 0 )
-	BEGIN
-		IF @ErrCode = 9999 -- error due to lock match
+		IF (ISNULL(@ErrCode, 0) <> 0 )
 		BEGIN
-			UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = 0
-			WHERE QueueId = @QueueId
-			
-		END
-		ELSE -- other errors
-		BEGIN
-			IF @RequestId = 0
+			IF @ErrCode = 9999 -- error due to lock match
 			BEGIN
-				UPDATE	q WITH(ROWLOCK, UPDLOCK)
-				SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-					,StatusId = 3
-					,ErrMsg = @ErrMsg
-				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-				WHERE	QueueId = @QueueId 
+				UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH (ROWLOCK, UPDLOCK)
+				SET StatusId = 0
+				WHERE QueueId = @QueueId
+			
 			END
-			ELSE -- List of request
+			ELSE -- other errors
 			BEGIN
 				UPDATE	q WITH(ROWLOCK, UPDLOCK)
 				SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
 					,StatusId = 3
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-					INNER JOIN @tblRequestList r ON q.RequestId = r.RequestID AND r.QueueID = q.QueueId
-			END		
-					
+				WHERE	QueueId = @QueueId 					
+			END
+			RETURN
 		END
-		RETURN
-	END
 	
-	IF @RequestId > 0
-	BEGIN
-		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-				,StatusId = 2
-				,ErrMsg = @ErrMsg
-		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
-			INNER JOIN @tblRequestList ql ON q.RequestId = ql.RequestID AND q.QueueId = ql.QueueID AND q.MatchId = ql.Matchid
-		WHERE q.MatchId = @MatchId
+		IF @RequestId > 0
+		BEGIN
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+				SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
+					,StatusId = 2
+					,ErrMsg = @ErrMsg
+			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
+			WHERE q.QueueId = @QueueId
 			
+		END
+		ELSE
+		BEGIN
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+				SET	Duration = CASE WHEN QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE Duration END 				
+					,StatusId = CASE WHEN QueueId = @QueueId THEN 2 ELSE 4 END -- StatusID = 4: Cancelled
+					,ErrMsg = CASE WHEN QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END 
+			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
+			WHERE	QueueId <= @QueueId 
+					AND q.MatchId = @MatchId 
+					AND q.StatusId IN (0,1)
+					AND 1 = CASE 
+								WHEN QueueId = @QueueId THEN 1	
+								-- Soccer & basketball : Cal manually
+								WHEN @Sporttype IN (1,2) AND @Action = 'CAL' AND q.Action IN ('CAL-HT','CAL-FT') THEN 1
+								ELSE 0
+							END	  
+		END
+
+		IF @RequestId > 0
+		BEGIN
+			UPDATE #Match_AutoVoid SET IsFinished = 1 WHERE QueueId = @queue_cnt AND matchid = @MatchId AND IsFinished = 0
+		END
+		ELSE
+		BEGIN
+			UPDATE #Match_AutoVoid SET IsFinished = 1 WHERE matchid = @MatchId AND IsFinished = 0
+		END
 	END
-	ELSE
-	BEGIN
-		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = CASE WHEN QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE Duration END 				
-				,StatusId = CASE WHEN QueueId = @QueueId THEN 2 ELSE 4 END -- StatusID = 4: Cancelled
-				,ErrMsg = CASE WHEN QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END 
-		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-		WHERE	QueueId <= @QueueId 
-				AND q.MatchId = @MatchId 
-				AND q.StatusId IN (0,1)
-				AND 1 = CASE 
-							WHEN QueueId = @QueueId THEN 1	
-							-- Soccer & basketball : Cal manually
-							WHEN @Sporttype IN (1,2) AND @Action = 'CAL' AND q.Action IN ('CAL-HT','CAL-FT') THEN 1
-							ELSE 0
-						END	  
-	END
-	
-	SET @queue_cnt = @queue_cnt + 1
-	
-	IF @queue_cnt <= 10
-	BEGIN
-		WAITFOR DELAY '00:00:00.100'
-		GOTO LoopMatch
-	END	
-	ELSE
-		RETURN
+
 END		
 GO
 
