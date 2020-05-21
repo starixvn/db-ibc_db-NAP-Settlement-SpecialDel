@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@TransIds VARCHAR(MAX) = NULL
 	,@UserId		INT
 	,@IP			VARCHAR(50)	= NULL
+	,@ActionId		TINYINT
 )
 AS
 /*	Created by: Kathy
@@ -50,7 +51,6 @@ BEGIN
 			,@MarkedTransIds	VARCHAR(MAX)
 			,@Username			NVARCHAR(200)
 			,@IsCalQueue	BIT = 0
-			,@ActionID		INT = 0
 			,@IsTransidProcessed BIT = 0			
 
 	-- get match info
@@ -91,8 +91,7 @@ BEGIN
 	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds
 
 	-- Insert queue for auto void
-	SELECT @ActionID = ( SELECT R.ActionId FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId)
-	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionID = 4)
+	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionId = 4)
 	BEGIN
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
@@ -110,10 +109,10 @@ BEGIN
 															, @MarkType = 1, @LogActionId = 90508
 		END		
 		
-		IF @ActionID = 4 OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		IF @ActionId = 4 OR (@ActionId = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
-			VALUES(@RequestId, @MatchId, CASE WHEN @ActionID = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97')
+			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97')
 		END
 	END
 	-- Write Log
