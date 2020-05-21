@@ -234,7 +234,7 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-									AND r.ActionId IN (1,4) 
+									AND r.ActionId IN (1) 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 
@@ -311,7 +311,9 @@ BEGIN
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
 	WHERE b.matchid = @MatchId 
-		AND b.statuswinlost IN (1,2) 
+		AND 1 = CASE WHEN  b.statuswinlost IN (1,2) THEN 1
+					WHEN t.RequestType = 1 AND b.statuswinlost IS NULL THEN 1
+				ELSE 0 END
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
 		AND 1 = CASE WHEN @sporttype IN (1,2) AND @LeagueGroupID NOT IN (74) THEN 1 ELSE 0 END
@@ -321,7 +323,7 @@ BEGIN
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
 	SELECT DISTINCT t.TransId
-	FROM (SELECT transid 
+	FROM (SELECT transid
 		FROM #inputRequestTransId 
 		UNION  
 		SELECT transid 

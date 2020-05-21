@@ -87,8 +87,8 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds)
-	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds
+	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds, RequestType)
+	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionId = 4)
