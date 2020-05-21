@@ -107,6 +107,7 @@ BEGIN
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
 		transid BIGINT PRIMARY KEY
+		,liveindicator BIT
 		,nonLive BIT
 		,differentScore BIT
 		)
@@ -261,8 +262,8 @@ BEGIN
 	IF @ActionId = 4 -- Auto Void All (Instant)
 	BEGIN
 		-- get non-live and different score transids
-		INSERT #LiveTransIds(transid, nonLive, differentScore)
-		SELECT t.transid
+		INSERT #LiveTransIds(transid, liveindicator, nonLive, differentScore)
+		SELECT t.transid, liveindicator
 			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
 				WHEN m.sporttype IN (1,3,4,8,26,28,49,51)
@@ -286,7 +287,7 @@ BEGIN
 
 		SELECT @DifferentLiveScoreTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
-										WHERE lt.differentScore = 1
+										WHERE lt.differentScore = 1 AND lt.liveindicator = 1
 										FOR XML PATH('')
 								), 1, 1, ''), '')
 
