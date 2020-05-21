@@ -217,6 +217,7 @@ BEGIN
 		END
 	END
 
+	DROP TABLE #Match_AutoVoid
 END		
 GO
 
