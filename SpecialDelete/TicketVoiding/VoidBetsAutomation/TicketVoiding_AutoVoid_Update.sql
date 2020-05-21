@@ -316,7 +316,7 @@ BEGIN
 				ELSE 0 END
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
-		AND 1 = CASE WHEN @sporttype IN (1,2) AND @LeagueGroupID NOT IN (74) THEN 1 ELSE 0 END
+		AND 1 = CASE WHEN @sporttype IN (1,2) AND ISNULL(@LeagueGroupID,0) NOT IN (74) THEN 1 ELSE 0 END
 						
 	SET @Void_cnt = @@ROWCOUNT
 	
