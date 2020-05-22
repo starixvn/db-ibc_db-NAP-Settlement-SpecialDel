@@ -106,10 +106,9 @@ BEGIN
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
-		transid BIGINT PRIMARY KEY
-		,liveindicator BIT
-		,nonLive BIT
-		,differentScore BIT
+		TransId BIGINT PRIMARY KEY
+		,IsNonLive BIT
+		,IsDifferentScore BIT
 		)
 
 	IF (@TransIds IS NULL
@@ -262,32 +261,29 @@ BEGIN
 	IF @ActionId = 4 -- Auto Void All (Instant)
 	BEGIN
 		-- get non-live and different score transids
-		INSERT #LiveTransIds(transid, liveindicator, nonLive, differentScore)
-		SELECT t.transid, liveindicator
+		INSERT #LiveTransIds(TransId, IsNonLive, IsDifferentScore)
+		SELECT t.transid
 			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
-				WHEN m.sporttype IN (1,3,4,8,26,28,49,51)
-					THEN CASE WHEN m.livehomescore = t.livehomescore
-								AND m.liveawayscore = t.liveawayscore AND t.liveindicator = 1
-								THEN 0 ELSE 1
-						END
-				ELSE 0
+				WHEN m.sporttype IN (1,3,4,8,26,28,49,51) AND t.liveindicator = 1
+					AND (m.livehomescore <> t.livehomescore OR m.liveawayscore <> t.liveawayscore)
+				THEN 1 ELSE 0
 			END
 		FROM #validTransId t
 			OUTER APPLY ( 	SELECT GlobalShowTime, livehomescore, liveawayscore, sporttype    
-							FROM dbo.match
+							FROM dbo.match WITH (NOLOCK)
 							WHERE @MatchId = matchid
 						) m
 
 		SELECT @NonLiveTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
-										WHERE lt.nonLive = 1
+										WHERE lt.IsNonLive = 1
 										FOR XML PATH('')
 								), 1, 1, ''), '')
 
 		SELECT @DifferentLiveScoreTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
-										WHERE lt.differentScore = 1 AND lt.liveindicator = 1
+										WHERE lt.IsDifferentScore = 1
 										FOR XML PATH('')
 								), 1, 1, ''), '')
 
