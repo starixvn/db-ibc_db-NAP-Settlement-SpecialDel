@@ -101,10 +101,10 @@ BEGIN
 
 
 	----- Starting auto voiding process: FIFO --------
-	CREATE TABLE #Match_AutoVoid (QueueId INT, matchid INT, RequestId INT, IsFinished INT DEFAULT(0))
+	CREATE TABLE #Match_AutoVoid (QueueId INT, matchid INT, RequestId INT, Sporttype INT, IsFinished INT DEFAULT(0))
 
-	INSERT #Match_AutoVoid (QueueId, matchid, RequestId)
-	SELECT q.QueueId, q.matchid, q.RequestId
+	INSERT #Match_AutoVoid (QueueId, matchid, RequestId, Sporttype)
+	SELECT q.QueueId, q.matchid, q.RequestId, q.sporttype
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
@@ -120,6 +120,7 @@ BEGIN
 			, @QueueId = t.QueueId
 			, @RequestId = t.RequestId
 			, @MatchId = t.matchid
+			, @Sporttype = t.Sporttype
 		FROM #Match_AutoVoid t
 		WHERE IsFinished = 0 
 		
