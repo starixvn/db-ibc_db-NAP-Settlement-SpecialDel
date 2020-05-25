@@ -102,7 +102,7 @@ BEGIN
 		,custId INT
 		,livehomescore SMALLINT
 		,liveawayscore SMALLINT
-		,liveindicator SMALLINT
+		,liveindicator BIT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
