@@ -100,7 +100,7 @@ BEGIN
 		RETURN
 
 
-	----- Starting auto voiding process: FIFO --------
+	----- Starting auto voiding process--------
 	CREATE TABLE #Match_AutoVoid (QueueId INT, matchid INT, RequestId INT, Sporttype INT, IsFinished INT DEFAULT(0))
 
 	INSERT #Match_AutoVoid (QueueId, matchid, RequestId, Sporttype)
@@ -174,15 +174,16 @@ BEGIN
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 				WHERE	QueueId = @QueueId 					
 			END
-			RETURN
 		END
-
-		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-				,StatusId = 2
-				,ErrMsg = @ErrMsg
-		FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
-		WHERE q.QueueId = @QueueId
+		ELSE
+		BEGIN
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+				SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
+					,StatusId = 2
+					,ErrMsg = @ErrMsg
+			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
+			WHERE q.QueueId = @QueueId
+		END
 			
 	END
 

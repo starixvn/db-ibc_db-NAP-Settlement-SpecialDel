@@ -317,7 +317,7 @@ BEGIN
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
 		AND 1 = CASE WHEN @sporttype NOT IN (1,2) THEN 1 
-					WHEN @sporttype IN (1,2) AND ISNULL(@LeagueGroupID,0) NOT IN (74) THEN 1 
+					WHEN @sporttype IN (1,2) AND ISNULL(@LeagueGroupID,0) NOT IN (74) THEN 1 --Exclude Saba
 				ELSE 0 END
 						
 	SET @Void_cnt = @@ROWCOUNT
