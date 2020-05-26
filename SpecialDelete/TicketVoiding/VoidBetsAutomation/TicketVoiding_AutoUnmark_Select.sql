@@ -22,6 +22,7 @@ AS
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 		- 20200508@Raymond: Incorporate E-Sports (phase 3) [133121]
+		- 20200526@Max: Incorporate E-Sports (phase 3) - Change Group By MarkType [Redmine: #133121]
 		
 	Param's explanation:	
 	
@@ -40,7 +41,7 @@ BEGIN
 				,mt.bettype
 				,mt.UserId
 				,mt.CreatedDate
-				,ISNULL(mt.MarkType, 0) AS MarkType
+				,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
 				,f.IsNameXBettype AS IsCheckBetId
 			FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
