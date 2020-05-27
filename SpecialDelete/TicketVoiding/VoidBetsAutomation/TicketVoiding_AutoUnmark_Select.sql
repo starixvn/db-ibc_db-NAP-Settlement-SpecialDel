@@ -21,7 +21,9 @@ AS
 		- 20200320@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
-	
+		- 20200508@Raymond: Incorporate E-Sports (phase 3) [133121]
+		- 20200526@Max: Incorporate E-Sports (phase 3) - Change Group By MarkType [Redmine: #133121]
+		
 	Param's explanation:	
 	
 */
@@ -39,8 +41,8 @@ BEGIN
 				,mt.bettype
 				,mt.UserId
 				,mt.CreatedDate
-				,ISNULL(mt.MarkType, 0) AS MarkType
-				,CASE WHEN f.GroupName = 'Special' OR f.GroupId = 7 THEN 1 ELSE 0 END AS IsCheckBetId
+				,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
+				,f.IsNameXBettype AS IsCheckBetId
 			FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
@@ -49,7 +51,7 @@ BEGIN
 					FROM dbo.f_SplitString(@Sporttype, ',')
 					WHERE val = m.sporttype
 				) AS tmp
-				INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
 			WHERE m.sporttype IN (1, 2 , 9, 43, 5)
 				AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 				AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
@@ -63,8 +65,8 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN b.betid
-						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN bm.betcheck 
+				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN bm.betcheck
+						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN b.betid 
 						ELSE NULL END AS BetId
 			FROM CTE_FilterData AS f
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
@@ -143,7 +145,7 @@ BEGIN
 						AND ISNULL(t.betid, 0) = ISNULL(mt.betid, 0)
 					ORDER BY t.CreatedDate DESC
 				)ta_tmp		
-			INNER JOIN f_Set_GetGroupBettypes() f ON f.BetType = mt.bettype
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
 			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId	
 		ORDER BY m.kickofftime
 			, mt.MatchId
