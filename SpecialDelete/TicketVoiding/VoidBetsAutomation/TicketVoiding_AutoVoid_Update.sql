@@ -170,7 +170,7 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = l.LeagueGroupID
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
@@ -318,7 +318,7 @@ BEGIN
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
 		AND 1 = CASE WHEN @sporttype NOT IN (1,2) THEN 1 
-					WHEN @sporttype IN (1,2) AND ISNULL(@LeagueGroupID,0) NOT IN (74) THEN 1 --Exclude Saba
+					WHEN @sporttype IN (1,2) AND @LeagueGroupID NOT IN (42,74) THEN 1 --Exclude Saba
 				ELSE 0 END
 						
 	SET @Void_cnt = @@ROWCOUNT
@@ -343,7 +343,7 @@ BEGIN
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
 					WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
-					WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (74) THEN 1
+					WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (42,74) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
 				
