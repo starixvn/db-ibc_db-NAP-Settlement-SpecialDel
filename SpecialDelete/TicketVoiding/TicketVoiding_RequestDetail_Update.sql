@@ -10,8 +10,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@TransIds 		VARCHAR(MAX) = NULL
 	,@ActionId		TINYINT
 	,@IssueTypeId	TINYINT
-	,@ErrMsg          NVARCHAR(200) = '' OUTPUT
-    ,@ErrCode         INT           = 0 OUTPUT
 )
 AS
 /*	Created by: Kathy
@@ -83,7 +81,7 @@ BEGIN
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
 				,TransIds = ISNULL(@TransIds, TransIds)
-				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE RequestType END
+				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 
 		WHERE	RequestId = @RequestId
 	END
@@ -132,13 +130,7 @@ BEGIN
 		BEGIN
 			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-														, @MarkType = 1, @LogActionId = 90508, @ErrMsg = @ErrMsg OUTPUT, @ErrCode = @ErrCode OUTPUT
-			IF (@ErrCode <> 0)
-			BEGIN
-				SELECT @ErrCode = @ErrCode
-					, @ErrMsg = 'This match is being calculated or some tickets of this match are being deleted, please wait a few seconds until the on-going process is completed and try again.'
-				RETURN
-			END
+														, @MarkType = 1, @LogActionId = 90508
 		END
 
 		IF @ActionId = 4 OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)

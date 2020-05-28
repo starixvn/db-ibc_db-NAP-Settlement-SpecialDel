@@ -311,8 +311,9 @@ BEGIN
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
 	WHERE b.matchid = @MatchId 
-		AND 1 = CASE WHEN  b.statuswinlost IN (1,2) THEN 1
-					WHEN t.RequestType = 1 AND b.statuswinlost IS NULL THEN 1
+		AND 1 = CASE
+					WHEN t.RequestType = 1 THEN 1
+					WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
 		AND vip.CustID IS NULL
@@ -1107,7 +1108,7 @@ BEGIN
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @VoidingHistoryIdList = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
-	SET @LogData = CAST((SELECT	0 AS '@RequestId'
+	SET @LogData = CAST((SELECT CASE WHEN @RequestId > 0 THEN @RequestId ELSE 0 END AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'

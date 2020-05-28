@@ -76,7 +76,7 @@ BEGIN
 	SELECT DISTINCT rd.matchid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId
+			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
 	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0 AND q.QueueId <= @Max_QueueId
 	
 	
@@ -106,7 +106,7 @@ BEGIN
 	INSERT #Match_AutoVoid (QueueId, matchid, RequestId, Sporttype)
 	SELECT q.QueueId, q.matchid, q.RequestId, q.sporttype
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
-		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue
+		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
 					WHEN q.RequestId > 0 THEN 1
