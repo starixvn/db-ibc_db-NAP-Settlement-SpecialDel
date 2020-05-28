@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 CREATE PROCEDURE [dbo].[Dot_BalanceDebitUpd]
 (
 	@custID			INT,
@@ -32,7 +28,7 @@ AS
 			+ Implement bonus wallet by adding params (@walletType,@bonusId,@Bonus)
 			+ Move original SP's content to SP Dot_BalanceDebit_GeneralWalletlUpd
 		- 20171009@Kathy: Change parameter name of SP Dot_BalanceDebit_BonusWalletlUpd [Redmine:#72789]
-		- 20191010@Helen: add new input parameter @givenCredit [Redmine:121761]
+		- 20191010@Helen: add new input parameter @givenCredit  [Redmine:121761]
 		
 	Params explanation
 		@type:
