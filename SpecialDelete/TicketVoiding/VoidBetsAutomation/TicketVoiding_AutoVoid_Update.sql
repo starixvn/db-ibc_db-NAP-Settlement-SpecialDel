@@ -283,11 +283,10 @@ BEGIN
 						 FROM dbo.f_SplitString(rd.TransIds, ',')
 						) AS tmp
 		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
-			AND req.ActionId = 1 -- void request only, not for take notes and waiting
+			AND req.ActionId = 1 -- Auto Void Winning ONLY, Auto Void All (Instant) will cover at the time process for request in queue
 		OPTION (maxrecursion 0)
 		
 	END
-
 	--Check duplicate transid belong multi request--
 	IF EXISTS (SELECT TOP (1) 1 FROM #inputRequestTransId GROUP BY TransId HAVING COUNT(1) > 1)
 	BEGIN
@@ -306,15 +305,12 @@ BEGIN
 					 ) AS vip
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE
-					WHEN t.RequestType = 1 THEN 1
-					WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1
+					WHEN t.RequestType = 1 THEN 1 -- Void Instant Request
+					WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1 -- Auto void winning request
 				ELSE 0 END
-		AND b.statusID = 0
 		AND vip.CustID IS NULL
-		AND 1 = CASE WHEN @sporttype NOT IN (1,2) THEN 1 
-					WHEN @sporttype IN (1,2) AND @LeagueGroupID NOT IN (42,74) THEN 1 --Exclude Saba
-				ELSE 0 END
-						
+		AND b.statusID = 0
+		
 	SET @Void_cnt = @@ROWCOUNT
 	
 	-- get transid to unmark and resettle
@@ -337,7 +333,7 @@ BEGIN
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
 					WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
-					WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (42,74) THEN 1
+					--WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (42,74) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
 				
