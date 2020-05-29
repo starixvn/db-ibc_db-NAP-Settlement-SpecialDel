@@ -78,17 +78,16 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
 	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0 AND q.QueueId <= @Max_QueueId
-	
-	
+		
 	UPDATE q
 		SET StatusId = 4
-			,ErrMsg = 'None of AbnormalBet Request AND None of mark ticket by Auto Service.'
+			,ErrMsg = 'None of AbnormalBet Request AND None of marked ticket'
 			,Exectime = GETDATE()
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
 		LEFT JOIN @tblMatchid_abnormal m ON q.MatchId = m.matchid
 		OUTER APPLY (SELECT TOP 1 transid
 					FROM dbo.MarkedTransaction mt WITH (NOLOCK) 
-					WHERE mt.MatchId = q.matchid AND mt.MarkType = 2
+					WHERE mt.MatchId = q.matchid
 					) AS mt_tmp 
 	WHERE q.StatusId = 0 
 		AND q.RequestId = 0 
@@ -127,11 +126,6 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 		
-		IF @RequestId > 0
-		BEGIN
-			SET @RequestIDList = CAST(@RequestId AS VARCHAR(50))
-		END
-
 		UPDATE	q  WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = 1
 				,Exectime = GETDATE()
@@ -144,7 +138,7 @@ BEGIN
 				,@Sporttype = @Sporttype
 				,@UserId = @UserId
 				,@Action = @Action
-				,@RequestIdList = @RequestIdList
+				,@RequestId = @RequestId
 				,@IP = @IP
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT

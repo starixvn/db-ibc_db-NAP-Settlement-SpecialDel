@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@UserId		INT = 10278938
 	,@UserName		VARCHAR(100) = 'starixIT'
 	,@Action		VARCHAR(100) = NULL
-	,@RequestIdList VARCHAR(MAX) = NULL
+	,@RequestID		INT  = 0
 	,@IP			VARCHAR(50)		= '125.227.140.97'
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
@@ -41,7 +41,6 @@ BEGIN
 			,@IsTest			BIT = 0
 			,@LeagueGroupID		INT
 						
-			,@RequestId INT
 			,@LeagueId			INT
 			,@HomeId			INT
 			,@AwayId			INT
@@ -184,22 +183,17 @@ BEGIN
 	INSERT INTO @VIPAccount_tmp(CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	IF @RequestIdList IS NOT NULL
+	IF @RequestID > 0
 	BEGIN
-		INSERT INTO @AutoVoid_InputRequest_tmp (RequestID)
-		SELECT	val AS RequestID
-		FROM	dbo.f_SplitString(@RequestIdList, ',')
-		OPTION (maxrecursion 0)
 		
 		INSERT INTO #inputRequestTransId (TransId,RequestID,RequestType)
-		SELECT  tmp.transid,r.RequestID,rd.RequestType
-		FROM @AutoVoid_InputRequest_tmp r
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON r.RequestID = rd.RequestId 
+		SELECT  tmp.transid,rd.RequestID,rd.RequestType
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			CROSS APPLY (SELECT val AS transid
 						 FROM dbo.f_SplitString(rd.TransIds, ',')
 						) AS tmp
-		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
+		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND rd.RequestId = @RequestID 
 			AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
 		OPTION (maxrecursion 0)
 	END
