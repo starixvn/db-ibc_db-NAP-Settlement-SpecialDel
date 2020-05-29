@@ -275,8 +275,8 @@ BEGIN
 		END	
 	
 		-- get all transid from all requests
-		INSERT INTO #inputRequestTransId (RequestID,TransId)
-		SELECT  req.RequestID, tmp.transid
+		INSERT INTO #inputRequestTransId (RequestID,TransId,RequestType)
+		SELECT  req.RequestID, tmp.transid,rd.RequestType
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			CROSS APPLY (SELECT val AS transid
