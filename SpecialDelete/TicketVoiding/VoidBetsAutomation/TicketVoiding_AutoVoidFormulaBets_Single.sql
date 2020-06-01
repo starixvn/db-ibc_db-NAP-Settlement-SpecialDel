@@ -151,7 +151,7 @@ BEGIN
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE eventdate = @eventdate
-		AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74) THEN 1 ELSE 0 END
+		AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) IN (42,74) THEN 0 ELSE 1 END
 		AND m.sporttype < 99
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
