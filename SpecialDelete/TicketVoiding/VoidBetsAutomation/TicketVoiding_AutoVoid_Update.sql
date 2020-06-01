@@ -228,7 +228,8 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-									AND r.ActionId IN (1) 
+									--1: Auto Void Winning, 4: Auto Void All (Instant),5: Manual Void
+									AND r.ActionId IN (1,4,5) 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 
