@@ -12,6 +12,7 @@ AS
 		- 20191004@Charles: Get group bettypes [120325]
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
 		- 20200508@Raymond: Incorporate E-Sports (phase 3) [133121]
+		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 
     Parameters Explanation:    
     
@@ -425,6 +426,6 @@ RETURN (
 	UNION ALL SELECT 400,'FT',0
 
 	-- Incorporate PHAIO 5.1 [132985]
-	UNION ALL SELECT 376,'Special'
+	UNION ALL SELECT 376,'Special',1
 	)
 GO

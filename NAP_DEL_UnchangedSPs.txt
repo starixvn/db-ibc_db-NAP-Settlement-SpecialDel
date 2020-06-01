@@ -1,1 +1,2 @@
 SpecialDelete\Sportbook\NAP_BetTypeSel.sql
+SpecialDelete\TicketVoiding\VoidBetsAutomation\TicketVoiding_AutoUnmark_Select.sql
