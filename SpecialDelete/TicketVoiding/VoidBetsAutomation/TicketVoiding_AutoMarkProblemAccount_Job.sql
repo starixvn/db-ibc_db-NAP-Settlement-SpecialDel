@@ -17,6 +17,7 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
+		- 20200601@Helen: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	
 	Param's explanation:	
 	
