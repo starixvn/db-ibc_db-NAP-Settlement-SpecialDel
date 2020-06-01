@@ -98,18 +98,18 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
 
-
 	----- Starting auto voiding process--------
 	CREATE TABLE #Match_AutoVoid (QueueId INT, matchid INT, RequestId INT, Sporttype INT, IsFinished INT DEFAULT(0))
 
 	INSERT #Match_AutoVoid (QueueId, matchid, RequestId, Sporttype)
 	SELECT q.QueueId, q.matchid, q.RequestId, q.sporttype
-	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
 					WHEN q.RequestId > 0 THEN 1
 				ELSE 0 END
+		AND q.QueueId <= @Max_QueueId		
 	ORDER BY q.Action DESC, Starttime
 	
 	WHILE(1=1)
