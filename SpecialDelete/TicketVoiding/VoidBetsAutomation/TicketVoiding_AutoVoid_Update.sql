@@ -228,8 +228,7 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-									--1: Auto Void Winning, 4: Auto Void All (Instant),5: Manual Void
-									AND r.ActionId IN (1,4,5) 
+									AND r.ActionId NOT IN (2,3) -- 2: Take Note, 3 Waiting 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 
@@ -334,7 +333,6 @@ BEGIN
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
 					WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
-					--WHEN @sporttype IN (1,2) AND @LeagueGroupID IN (42,74) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
 				
