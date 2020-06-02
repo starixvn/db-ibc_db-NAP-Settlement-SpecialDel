@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
 	Created: 20200312@Max
 	Task: Support Quarter X, Y, Z on Auto Unmark Page [Redmine: #130205]
