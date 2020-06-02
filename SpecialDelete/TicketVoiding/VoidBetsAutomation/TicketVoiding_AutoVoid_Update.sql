@@ -234,8 +234,7 @@ BEGIN
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
-					AND mt.MarkType <> 0
-				
+					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
 				SELECT transid
