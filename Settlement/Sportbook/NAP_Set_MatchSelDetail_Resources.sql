@@ -15,6 +15,7 @@ AS
 		- 20200212@Sol: Show all bet option for Early of Esport based on OddsES table - [#128069]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - [Redmine:#127698]
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200601@Kathy: Wrong ticket count for eSports [Redmine:#132401]
 		
 */
 BEGIN
@@ -49,21 +50,24 @@ BEGIN
 				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
 				0 AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
-		FROM DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
+		FROM (
+			SELECT 	DISTINCT o.ResourceID, o.bettype
+			FROM 	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
+			WHERE	o.matchID = @matchID
+		)o
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = o.Bettype and sp.BetID = '8' + o.Resourceid 
 			OUTER APPLY 
 			(
 				SELECT bt.transid, bt.statusID
 				FROM bettrans bt WITH (NOLOCK) 
-				WHERE bt.matchid = o.matchid
+				WHERE bt.matchid = @matchid
 					AND bt.bettype = o.bettype
 					AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 					AND bt.statusID NOT IN (101, 102) --void/reject
 			) bt
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 				ON	bt.transid = mt.TransId
-		WHERE o.matchid = @matchid
-			AND sp.sporttype = @SportType
+		WHERE sp.sporttype = @SportType
 			AND sp.Settletype = @SettleType
 			AND SUBSTRING(sp.ResourceID, 5, 2) <= @BestOfMap
 		GROUP BY sp.ResourceID

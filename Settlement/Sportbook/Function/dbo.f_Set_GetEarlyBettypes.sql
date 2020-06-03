@@ -14,6 +14,7 @@ AS
 		- 20190620@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
 	
     Parameters Explanation:    
    
@@ -113,6 +114,8 @@ RETURN (
 	UNION ALL SELECT 9084
 	UNION ALL SELECT 9085
 	UNION ALL SELECT 9086
+	-- eSports phase 3
+	UNION ALL SELECT 9087
 
    -- Start #115232
    UNION ALL SELECT 424
