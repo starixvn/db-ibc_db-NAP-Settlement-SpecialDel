@@ -17,6 +17,7 @@ AS
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200405@Max: Enhance EKO Issue Type - [Redmine: #126418]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	      
 	Param's explanation:	
 		
@@ -1010,7 +1011,7 @@ BEGIN
 			LEFT JOIN #SpecialDeleteBets sub
 				ON	s.GroupID = sub.GroupID
 					AND s.transid <> sub.transid
-			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
+			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.recommend
 					
 		WHERE	f.CustID IS NULL
 				AND (s.username <> '12EU' AND ISNULL(sub.username,'') <> '12EU')
