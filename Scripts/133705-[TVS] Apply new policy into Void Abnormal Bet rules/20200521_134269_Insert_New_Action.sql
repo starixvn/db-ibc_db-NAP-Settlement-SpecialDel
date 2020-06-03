@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
-	Created: 20200312@Max
-	Task: Support Quarter X, Y, Z on Auto Unmark Page [Redmine: #130205]
-	DB: DBTRANS/bodb02
+	Created: 20200518@Max
+	Task: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+	DB: DBTXN/bodb02
 		
 */
 USE bodb02
