@@ -13,7 +13,7 @@ BEGIN
 	UPDATE TOP (3000) r
 	SET r.ActionId = 5 --Manual Void
 	FROM dbo.TicketVoiding_Request r WITH (ROWLOCK, UPDLOCK)
-	WHERE r.IssueTypeId <> 11 
+	WHERE r.IssueTypeId IN (8,9) 
 		AND r.ActionId = 1
 		
 	IF @@ROWCOUNT < 3000 
