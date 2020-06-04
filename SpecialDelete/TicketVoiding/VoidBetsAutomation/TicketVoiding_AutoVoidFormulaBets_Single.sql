@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20200308@Helen: Create new SP [Redmine:#129971]
 		- 20200309@Helen: Tuning [Redmine:#129971]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		
 	Param's explanation:	
 		
@@ -148,8 +149,10 @@ BEGIN
 	INSERT INTO #match_autovoidformula (matchid)
 	SELECT matchid
 	FROM dbo.match m WITH (NOLOCK)
+		INNER JOIN League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE eventdate = @eventdate
-		AND sporttype < 99
+		AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) IN (42,74) THEN 0 ELSE 1 END
+		AND m.sporttype < 99
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
 	BEGIN

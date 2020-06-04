@@ -24,6 +24,7 @@ AS
 		- 20200226@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200413@Max: [TVS] VIP account [Redmine: #131431]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 
 	Param's explanation:	
 		@Status: 
@@ -321,7 +322,7 @@ BEGIN
 									) b
 						WHERE statusID IN (1,2,3)
 					) AS tmp
-		WHERE t.ActionId = 1
+		WHERE t.ActionId IN (1,4,5)
 		OPTION (maxrecursion 0)		
 	END
 

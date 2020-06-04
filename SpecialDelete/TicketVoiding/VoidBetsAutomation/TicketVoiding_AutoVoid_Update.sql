@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@UserId		INT = 10278938
 	,@UserName		VARCHAR(100) = 'starixIT'
 	,@Action		VARCHAR(100) = NULL
-	,@RequestIdList VARCHAR(MAX) = NULL
+	,@RequestID		INT  = 0
 	,@IP			VARCHAR(50)		= '125.227.140.97'
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
@@ -20,6 +20,7 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix + VIP account [Redmine:#131516]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	
 	Param's explanation:	
 		
@@ -38,8 +39,8 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
+			,@LeagueGroupID		INT
 						
-			,@RequestId INT
 			,@LeagueId			INT
 			,@HomeId			INT
 			,@AwayId			INT
@@ -168,7 +169,7 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	
-	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
@@ -182,23 +183,18 @@ BEGIN
 	INSERT INTO @VIPAccount_tmp(CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	IF @RequestIdList IS NOT NULL
+	IF @RequestID > 0
 	BEGIN
-		INSERT INTO @AutoVoid_InputRequest_tmp (RequestID)
-		SELECT	val AS RequestID
-		FROM	dbo.f_SplitString(@RequestIdList, ',')
-		OPTION (maxrecursion 0)
 		
 		INSERT INTO #inputRequestTransId (TransId,RequestID,RequestType)
-		SELECT  tmp.transid,r.RequestID,rd.RequestType
-		FROM @AutoVoid_InputRequest_tmp r
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON r.RequestID = rd.RequestId 
+		SELECT  tmp.transid,rd.RequestID,rd.RequestType
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			CROSS APPLY (SELECT val AS transid
 						 FROM dbo.f_SplitString(rd.TransIds, ',')
 						) AS tmp
-		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
-			AND req.ActionId = 1 -- void request only, not for take notes and waiting
+		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND rd.RequestId = @RequestID 
+			AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
 		OPTION (maxrecursion 0)
 	END
 	ELSE
@@ -232,13 +228,13 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
 								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
-									AND r.ActionId = 1 
+									AND r.ActionId NOT IN (2,3) -- 2: Take Note, 3 Waiting 
 									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
-				
+					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
 				SELECT transid
@@ -279,17 +275,24 @@ BEGIN
 		END	
 	
 		-- get all transid from all requests
-		INSERT INTO #inputRequestTransId (RequestID,TransId)
-		SELECT  req.RequestID, tmp.transid
+		INSERT INTO #inputRequestTransId (RequestID,TransId,RequestType)
+		SELECT  req.RequestID, tmp.transid,rd.RequestType
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			CROSS APPLY (SELECT val AS transid
 						 FROM dbo.f_SplitString(rd.TransIds, ',')
 						) AS tmp
 		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
-			AND req.ActionId = 1 -- void request only, not for take notes and waiting
+			AND req.ActionId = 1 -- Auto Void Winning ONLY, Auto Void All (Instant) will cover at the time process for request in queue
 		OPTION (maxrecursion 0)
 		
+	END
+	--Check duplicate transid belong multi request--
+	IF EXISTS (SELECT TOP (1) 1 FROM #inputRequestTransId GROUP BY TransId HAVING COUNT(1) > 1)
+	BEGIN
+		SELECT	@ErrCode = 0
+				,@ErrMsg = 'Some tickets of this match are being duplicated in multi requests!'	
+		RETURN
 	END
 	-- get transid to VOID
 	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID)
@@ -301,16 +304,19 @@ BEGIN
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
 	WHERE b.matchid = @MatchId 
-		AND b.statuswinlost IN (1,2) 
-		AND b.statusID = 0
+		AND 1 = CASE
+					WHEN t.RequestType = 1 THEN 1 -- Void Instant Request
+					WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1 -- Auto void winning request
+				ELSE 0 END
 		AND vip.CustID IS NULL
-						
+		AND b.statusID = 0
+		
 	SET @Void_cnt = @@ROWCOUNT
 	
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
 	SELECT DISTINCT t.TransId
-	FROM (SELECT transid 
+	FROM (SELECT transid
 		FROM #inputRequestTransId 
 		UNION  
 		SELECT transid 
@@ -318,9 +324,17 @@ BEGIN
 		WHERE statuswinlost IN (0,3,4)
 		
 		) AS t
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
+		OUTER APPLY  (SELECT TOP (1) ac.CustID 
+					 FROM @VIPAccount_tmp ac 
+					 WHERE  ac.CustID = b.custid
+					 ) AS vip
 		
-	WHERE b.matchid = @MatchId AND b.statuswinlost IN (0,3,4) AND b.statusID = 0
+	WHERE b.matchid = @MatchId 
+		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
+					WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
+				ELSE 0 END
+		AND b.statusID = 0
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
@@ -1083,7 +1097,7 @@ BEGIN
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @VoidingHistoryIdList = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
-	SET @LogData = CAST((SELECT	0 AS '@RequestId'
+	SET @LogData = CAST((SELECT CASE WHEN @RequestId > 0 THEN @RequestId ELSE 0 END AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'

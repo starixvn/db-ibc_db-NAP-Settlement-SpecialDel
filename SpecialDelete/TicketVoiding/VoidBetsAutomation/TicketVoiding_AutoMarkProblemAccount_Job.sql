@@ -17,6 +17,7 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
+		- 20200601@Helen: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	
 	Param's explanation:	
 	
@@ -105,6 +106,7 @@ BEGIN
 			FROM @ProblemAccountByBatch_tmp t
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
 				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43, 5) AND m.eventstatus <> 'completed'
+				INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid 
 				OUTER APPLY (SELECT TOP 1 transid
 							FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 							WHERE  mt.transid = b.transid
@@ -116,6 +118,8 @@ BEGIN
 			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
 					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 					AND ISNULL(m_auto.[Enabled],1) = 1
+					AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) IN (42,74) THEN 0 ELSE 1 END
+					
 			OPTION (MAXDOP 1)
 			
 		END	
@@ -130,7 +134,7 @@ BEGIN
 		INSERT INTO @Matchid_Final(Matchid)
 		SELECT DISTINCT m.Matchid
 		FROM @Transid_Mark m
-			LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue
+			LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue AND tv.KeyID = 1
 		WHERE tv.KeyValue IS NULL
 		
 		SET @end = (SELECT MAX(ID) FROM @Matchid_Final )

@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@TransIds VARCHAR(MAX) = NULL
 	,@UserId		INT
 	,@IP			VARCHAR(50)	= NULL
+	,@ActionId		TINYINT
 )
 AS
 /*	Created by: Kathy
@@ -28,6 +29,7 @@ AS
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 
 	Param's explanation:	
 	
@@ -49,7 +51,6 @@ BEGIN
 			,@MarkedTransIds	VARCHAR(MAX)
 			,@Username			NVARCHAR(200)
 			,@IsCalQueue	BIT = 0
-			,@ActionID		INT = 0
 			,@IsTransidProcessed BIT = 0			
 
 	-- get match info
@@ -86,11 +87,11 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds)
-	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds
+	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds, RequestType)
+	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 
 	-- Insert queue for auto void
-	IF @IssueTypeId = 11 AND @Sporttype IN (1, 2, 9, 43, 5)
+	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionId = 4)
 	BEGIN
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(
@@ -106,14 +107,12 @@ BEGIN
 			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
 															, @MarkType = 1, @LogActionId = 90508
-		END
-	
-		SELECT @ActionID = ( SELECT R.ActionId FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId)
+		END		
 		
-		IF @ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1
+		IF @ActionId = 4 OR (@ActionId = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
-			VALUES(@RequestId, @MatchId, 'AddRequest', 0, 10278938, GETDATE(), '125.227.140.97')
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
 	-- Write Log

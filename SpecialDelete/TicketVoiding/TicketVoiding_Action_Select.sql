@@ -9,6 +9,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 	
 	Param's explanation:		
 */
@@ -19,6 +20,10 @@ BEGIN
 		SELECT 	ActionId 
 				,ActionName
 		FROM 	[dbo].[TicketVoiding_Action] WITH(NOLOCK)
+		ORDER BY CASE WHEN ActionName = 'Auto Void Winning' THEN '1'
+			WHEN ActionName = 'Auto Void All (Instant)' THEN '2'
+			WHEN ActionName = 'Manual Void' THEN '3'
+			ELSE ActionName END
 	END
 END
 GO
