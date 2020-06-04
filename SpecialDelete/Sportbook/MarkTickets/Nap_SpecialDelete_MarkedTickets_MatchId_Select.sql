@@ -27,6 +27,7 @@ AS;
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 
 	Explanation's Param:
 		- @LiveIndicator:
