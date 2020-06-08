@@ -25,6 +25,7 @@ AS
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200413@Max: [TVS] VIP account [Redmine: #131431]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 
 	Param's explanation:	
 		@Status: 
@@ -346,6 +347,7 @@ BEGIN
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
 			,CASE WHEN t.IssueTypeId = 11 THEN (LEN(t.TransIds) - LEN(REPLACE(t.TransIds, ',', '')) +1) ELSE 0 END AS TotalSingle
+			,t.TransIds
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
