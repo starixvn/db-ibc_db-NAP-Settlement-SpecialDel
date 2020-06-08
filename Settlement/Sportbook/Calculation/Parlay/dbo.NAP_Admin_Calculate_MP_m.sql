@@ -10,12 +10,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@action VARCHAR(10) = 'CAL'
     ,@VoidTransID VARCHAR(2000) = ''
     ,@UserID INT = 0    
-    ,@SelectedSet VARCHAR(50) = NULL     
-    ,@TennisTotal INT = NULL
-    ,@TotalGameHomeMatch INT = NULL
-    ,@TotalGameAwayMatch INT = NULL         
+    ,@TennisTotal INT = NULL     
     ,@GoalSequence VARCHAR(50) = NULL         
-    ,@resultDetail_ss VARCHAR(MAX) = NULL -- sportting solution
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
     ,@SelectedQuarter VARCHAR(MAX) = NULL
@@ -51,6 +47,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191112@Helen: Basketball calculation - sub parlay ticket is refunded then calculated in a tick [Redmine:123511]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		
     Param's Explanation:
        
@@ -80,24 +77,7 @@ BEGIN
     BEGIN --BEGIN: params for corner bets, sportting solution and betradar ----------------------------------
         DECLARE 
 			@xml XML     
-			,@xmlBettypes XML       
-            ,@homeScoreSet1         tinyint
-            ,@homeScoreSet2         tinyint
-            ,@homeScoreSet3         tinyint
-            ,@homeScoreSet4         tinyint
-            ,@homeScoreSet5         tinyint
-            ,@awayScoreSet1         tinyint
-            ,@awayScoreSet2         tinyint
-            ,@awayScoreSet3         tinyint
-            ,@awayScoreSet4         tinyint
-            ,@awayScoreSet5         tinyint
-            ,@SetxGameyHomeWON        VARCHAR(MAX) = NULL 
-            ,@SetxGameyAwayWON        VARCHAR(MAX) = NULL 
-            ,@SetxGameyDRAW            VARCHAR(MAX) = NULL 
-            ,@SetxGameyREFUND        VARCHAR(MAX) = NULL
-            ,@SelectedSetCAL        VARCHAR(50)  = NULL
-            ,@SelectedSetREFUND        VARCHAR(50)  = NULL 
-           
+			,@xmlBettypes XML                  
             ,@ht_fg 				VARCHAR(10)
 			,@ht_lg 				VARCHAR(10)
 			,@ft_fg 				VARCHAR(10)
@@ -205,17 +185,6 @@ BEGIN
 
         IF @doing = 'REFUND'
         BEGIN
-            IF @resultDetail_ss IS NOT NULL -- sportting solution
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_ss)    
-                
-                SELECT TOP(1) 
-                    @SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
-                    ,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column    
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )    
-            END
-                
             CREATE TABLE #RefundResult (transid BIGINT, refno BIGINT)
         
             UPDATE bm
@@ -260,15 +229,6 @@ BEGIN
             WHERE matchid = @matchid                 
                 AND statusID NOT IN (101)
 				AND t.groupId <> 8 -- Early Soccer
-			
-                AND 1 = CASE WHEN @SelectedSetREFUND IS NULL AND @SelectedSetCAL IS NULL THEN 1 
-                             WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '801%' THEN 1  --Exclude 1324
-                             WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '802%' THEN 1
-                             WHEN @SelectedSetREFUND LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '803%' THEN 1
-                             WHEN @SelectedSetREFUND LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '804%' THEN 1
-                             WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318) AND betcheck LIKE '805%' THEN 1
-                             WHEN @SelectedSetREFUND LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
-                             ELSE 0 END
 				AND 1 = CASE
 							WHEN @basketball_ResourceIdsREFUND IS NULL AND @basketball_ResourceIdsCAL IS NULL THEN 1 --s basketball
 							WHEN t.isEarly = 1 THEN CASE
@@ -469,14 +429,6 @@ BEGIN
             WHERE matchid = @matchid  
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
-                AND 1 = CASE WHEN @SelectedSet IS NULL THEN 1 
-                             WHEN @SelectedSet LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
-                             WHEN @SelectedSet LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '802%' THEN 1
-                             WHEN @SelectedSet LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '803%' THEN 1
-                             WHEN @SelectedSet LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '804%' THEN 1
-                             WHEN @SelectedSet LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '805%' THEN 1
-                             WHEN @SelectedSet LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1 
-                             ELSE 0 END
               AND 1 = CASE -- basketball
 							WHEN @SelectedQuarter IS NULL THEN 1
 							WHEN t.isEarly = 1 THEN CASE
@@ -505,32 +457,6 @@ BEGIN
         
         IF @doing = 'CAL'
         BEGIN
-            IF @resultDetail_ss IS NOT NULL -- sportting solution
-            BEGIN
-                SET @xml = CONVERT(XML, @resultDetail_ss)    
-                
-                SELECT TOP(1) 
-                    @homeScoreSet1 = ISNULL(T.C.value('./@homeScoreSet1[1]', 'tinyint'), 0)
-                    ,@homeScoreSet2 = ISNULL(T.C.value('./@homeScoreSet2[1]', 'tinyint'), 0)
-                    ,@homeScoreSet3 = ISNULL(T.C.value('./@homeScoreSet3[1]', 'tinyint'), 0)
-                    ,@homeScoreSet4 = ISNULL(T.C.value('./@homeScoreSet4[1]', 'tinyint'), 0)
-                    ,@homeScoreSet5 = ISNULL(T.C.value('./@homeScoreSet5[1]', 'tinyint'), 0)
-                    ,@awayScoreSet1 = ISNULL(T.C.value('./@awayScoreSet1[1]', 'tinyint'), 0)
-                    ,@awayScoreSet2 = ISNULL(T.C.value('./@awayScoreSet2[1]', 'tinyint'), 0)
-                    ,@awayScoreSet3 = ISNULL(T.C.value('./@awayScoreSet3[1]', 'tinyint'), 0)
-                    ,@awayScoreSet4 = ISNULL(T.C.value('./@awayScoreSet4[1]', 'tinyint'), 0)
-                    ,@awayScoreSet5 = ISNULL(T.C.value('./@awayScoreSet5[1]', 'tinyint'), 0)
-                    ,@SetxGameyHomeWON = ISNULL(T.C.value('./@SetxGameyHomeWON[1]', 'varchar(max)'), '')
-                    ,@SetxGameyAwayWON = ISNULL(T.C.value('./@SetxGameyAwayWON[1]', 'varchar(max)'), '')
-                    ,@SetxGameyDRAW = ISNULL(T.C.value('./@SetxGameyDRAW[1]', 'varchar(max)'), '')
-                    ,@SetxGameyREFUND = ISNULL(T.C.value('./@SetxGameyREFUND[1]', 'varchar(max)'), '')
-                    ,@SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
-                    ,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
-                FROM @xml.nodes('/root/r') as [T](C) --T: table, C: column    
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-                
-            END
-
             IF @resultDetail_bb IS NOT NULL -- for basketball
             BEGIN
 				
@@ -791,21 +717,18 @@ BEGIN
                 transid         BIGINT
                 ,refno          BIGINT
 				,modds			MONEY
-                ,isrefundgame	BIT
             )
 			
 			DECLARE @tmptransid TABLE (
 				transid			BIGINT
 				,refno			BIGINT
 				,modds			MONEY
-				,isrefundgame	BIT
 			)
 						
 			INSERT INTO #Result(
 				transid
 				,refno
 				,modds
-				,isrefundgame
 			)
 			SELECT	transId
                     ,refno
@@ -1167,27 +1090,6 @@ BEGIN
                                 WHEN betteam = 'du' AND (@fth - @fta) = 0 THEN hdp1 - (@fth+ @fta)
                                 ELSE -1
                                 END        
-                        -- Tennis New bet types         
-                        WHEN 153 THEN -- Match Games Handicap
-                            CASE betteam 
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@TotalGameHomeMatch - livehomescore) - (@TotalGameAwayMatch - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@TotalGameHomeMatch - livehomescore) + (@TotalGameAwayMatch - liveawayscore)
-                                END 
-                        WHEN 154 THEN -- Set x Winner
-                            CASE betteam 
-                                WHEN N'h' THEN (i.TotalGameHomeSetx - i.TotalGameAwaySetx)
-                                WHEN N'a' THEN (i.TotalGameAwaySetx - i.TotalGameHomeSetx)
-                                END 
-                        WHEN 155 THEN -- Set x Game Handicap
-                            CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (i.TotalGameHomeSetx - livehomescore) - (i.TotalGameAwaySetx - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (i.TotalGameHomeSetx - livehomescore) + (i.TotalGameAwaySetx - liveawayscore)
-                                END
-                        WHEN 156 THEN --Set x Total Games Over/Under 
-                            CASE betteam 
-                                WHEN N'o' THEN (i.TotalGameHomeSetx + i.TotalGameAwaySetx) - hdp1 
-                                WHEN N'u' THEN hdp1 - (i.TotalGameHomeSetx + i.TotalGameAwaySetx) 
-                                END
                         -- Betradar 2 Manual Bettype 
                         WHEN 157 THEN 
                             CASE WHEN betteam =N'h' AND ((@fth + @fta) &1) = 1 THEN 1 
@@ -1750,72 +1652,6 @@ BEGIN
                                 WHEN @fth = @fta THEN 0
                                 ELSE -1
                                 END
-                        -- Tennis Sporting Solution 
-                        WHEN 1301 THEN -- Match Winner 
-                            CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
-                                END
-                        WHEN 1302 THEN -- Match Correct Score 
-                            CASE 
-                                WHEN betteam = (CAST(@fth AS VARCHAR(4)) + CAST(@fta AS VARCHAR(4))) THEN 1
-                                ELSE - 1
-                                END
-                        WHEN 1303 THEN -- Set Handicap 
-                            CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
-                                END
-                        WHEN 1305 THEN -- Match Total Games Odd/Even
-                            CASE WHEN betteam = N'h' AND (@TotalGameHomeMatch + @TotalGameAwayMatch)%2 = 1 THEN 1 
-                                 WHEN betteam = N'a' AND (@TotalGameHomeMatch + @TotalGameAwayMatch)%2 = 0 THEN 1 
-                                 ELSE - 1 
-                                 END 
-                        WHEN 1306 THEN -- Match Total Games Over/Under - 1306
-                            CASE betteam 
-                                WHEN N'h' THEN  (@TotalGameHomeMatch + @TotalGameAwayMatch) - hdp1 
-                                WHEN N'a' THEN  hdp1 - (@TotalGameHomeMatch + @TotalGameAwayMatch) 
-                                END 
-                        WHEN 1308 THEN  -- Match Games Handicap - 1308
-                            CASE betteam 
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@TotalGameHomeMatch - livehomescore) - (@TotalGameAwayMatch - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@TotalGameHomeMatch - livehomescore) + (@TotalGameAwayMatch - liveawayscore)
-                                END 
-                        WHEN 1311 THEN -- Set x Winner - 1311
-                            CASE betteam 
-                                WHEN N'h' THEN (i.TotalGameHomeSetx - i.TotalGameAwaySetx)
-                                WHEN N'a' THEN (i.TotalGameAwaySetx - i.TotalGameHomeSetx)
-                                END 
-                        WHEN 1312 THEN --Set x Total Games Over/Under - 1312
-                            CASE betteam 
-                                WHEN N'o' THEN (i.TotalGameHomeSetx + i.TotalGameAwaySetx) - hdp1 
-                                WHEN N'u' THEN hdp1 - (i.TotalGameHomeSetx +i.TotalGameAwaySetx) 
-                                END
-                        WHEN 1316 THEN -- Set x Game Handicap
-                            CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (i.TotalGameHomeSetx - livehomescore) - (i.TotalGameAwaySetx - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (i.TotalGameHomeSetx - livehomescore) + (i.TotalGameAwaySetx - liveawayscore)
-                                END
-                        WHEN 1317 THEN -- Set x Correct Score
-                            CASE 
-                                WHEN betteam = (CASE WHEN i.TotalGameHomeSetx > 7 AND (i.TotalGameHomeSetx - i.TotalGameAwaySetx)>=2 THEN 'haos'
-                                                     WHEN i.TotalGameAwaySetx > 7 AND (i.TotalGameAwaySetx - i.TotalGameHomeSetx)>=2 THEN 'aaos'
-                                                     ELSE (CAST(i.TotalGameHomeSetx AS VARCHAR(4)) + CAST(i.TotalGameAwaySetx AS VARCHAR(4))) 
-                                                     END) THEN 1
-                                ELSE - 1
-                                END
-                        WHEN 1318 THEN -- Set x Total Games Odd/Even
-                            CASE WHEN betteam = N'o' AND (i.TotalGameHomeSetx + i.TotalGameAwaySetx)%2 = 1 THEN 1 
-                                 WHEN betteam = N'e' AND (i.TotalGameHomeSetx + i.TotalGameAwaySetx)%2 = 0 THEN 1 
-                                 ELSE - 1 
-                                 END 
-                        WHEN 1324 THEN -- Set x Game y Winner 
-                            CASE WHEN betteam =N'h' AND CHARINDEX(SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,4),@SetxGameyHomeWON)>0 THEN 1 
-                                 WHEN betteam =N'a' AND CHARINDEX(SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,4),@SetxGameyAwayWON)>0 THEN 1   
-                                 WHEN CHARINDEX(SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,4),@SetxGameyDRAW)>0 THEN 0 
-                                 WHEN CHARINDEX(SUBSTRING(CAST(betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 0
-                                 ELSE -1 END
-                      
                         WHEN 14 THEN 
 							CASE WHEN (betteam = (CASE 
 													WHEN @ft_fg = 'N' THEN '0:0'
@@ -2378,31 +2214,13 @@ BEGIN
 
                         ELSE NULL -- Not support bettype
                         END AS modds
-						,CAST(CASE 
-							WHEN bm.Bettype = 1324 AND CHARINDEX(SUBSTRING(CAST(Betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 1 
-							ELSE 0 
-						END AS BIT) AS isRefundGame
+						
             FROM    @tblBettypes t
 			INNER JOIN	dbo.bettransm bm WITH (NOLOCK)
 				ON bm.bettype = t.bettype
 			 CROSS APPLY (
-					SELECT CAST(CASE 
-								WHEN betCheck = '801' THEN @homeScoreSet1
-                                WHEN betCheck = '802' THEN @homeScoreSet2
-                                WHEN betCheck = '803' THEN @homeScoreSet3
-                                WHEN betCheck = '804' THEN @homeScoreSet4
-                                WHEN betCheck = '805' THEN @homeScoreSet5
-                                ELSE NULL 
-                                END AS INT) AS  TotalGameHomeSetx
-							,CAST(CASE 
-								WHEN betCheck = '801' THEN @awayScoreSet1
-                                WHEN betCheck = '802' THEN @awayScoreSet2
-                                WHEN betCheck = '803' THEN @awayScoreSet3
-                                WHEN betCheck = '804' THEN @awayScoreSet4
-                                WHEN betCheck = '805' THEN @awayScoreSet5
-                                ELSE NULL
-                                END AS INT)  AS TotalGameAwaySetx
-							,CAST(CASE 
+					SELECT 
+							CAST(CASE 
 									WHEN bm.bettype = 416 THEN SUBSTRING(transdesc,0, CHARINDEX('/',transdesc)) 
 									ELSE NULL 
 								END AS NVARCHAR(1000)) AS ExcludingHTChoice
@@ -2445,21 +2263,6 @@ BEGIN
 					ON r.ResourceId = rd.ResourceId
             WHERE   bm.matchid = @matchid
 					AND bm.statusID NOT IN (101)  
-					AND 1 = CASE 
-							WHEN @SelectedSetCAL IS NULL AND @SelectedSetREFUND IS NULL THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%1%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '801%' THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%2%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '802%' THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%3%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '803%' THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%4%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '804%' THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%5%' AND bm.Bettype IN (154,155,156,1311,1312,1316,1317,1318,1324) AND betcheck LIKE '805%' THEN 1 
-                            WHEN @SelectedSetCAL LIKE '%6%' AND bm.Bettype IN (1,2,3,20,153,1301,1302,1303,1305,1306,1308) THEN 1
-                            WHEN @SelectedSetREFUND LIKE '%1%' AND bm.Bettype = 1324 AND betcheck LIKE '801%' THEN 1 
-                            WHEN @SelectedSetREFUND LIKE '%2%' AND bm.Bettype = 1324 AND betcheck LIKE '802%' THEN 1 
-                            WHEN @SelectedSetREFUND LIKE '%3%' AND bm.Bettype = 1324 AND betcheck LIKE '803%' THEN 1 
-                            WHEN @SelectedSetREFUND LIKE '%4%' AND bm.Bettype = 1324 AND betcheck LIKE '804%' THEN 1 
-                            WHEN @SelectedSetREFUND LIKE '%5%' AND bm.Bettype = 1324 AND betcheck LIKE '805%' THEN 1  
-                            ELSE 0 
-                            END 
                     AND 1 = CASE -- basketball
 								WHEN @resultDetail_bb IS NULL THEN 1
 								WHEN t.isEarly = 1 THEN CASE
@@ -2482,8 +2285,8 @@ BEGIN
 				
 				DELETE TOP (2000 )
 				FROM #Result
-				OUTPUT deleted.transid, deleted.refno, deleted.modds, deleted.isrefundgame 
-				INTO @tmptransid (transid, refno, modds, isrefundgame)				
+				OUTPUT deleted.transid, deleted.refno, deleted.modds
+				INTO @tmptransid (transid, refno, modds)				
 				
 				IF @@ROWCOUNT = 0
 					BREAK									
@@ -2508,8 +2311,7 @@ BEGIN
 									WHEN @IsUpd_Void = 0 THEN bm.[status] 
 									ELSE CASE 
 											WHEN t.modds IS NULL THEN N'running'
-											WHEN t.modds = 0 AND t.isRefundGame = 0 THEN N'DRAW'
-											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN N'Refund'
+											WHEN t.modds = 0 THEN N'DRAW'
 											WHEN t.modds < 0 THEN N'LOSE'
 											WHEN t.modds > 0 THEN N'WON'
 										END
@@ -2519,8 +2321,7 @@ BEGIN
 									WHEN @IsUpd_Void = 0 THEN bm.statusID 
 									ELSE CASE 
 											WHEN t.modds IS NULL THEN 0
-											WHEN t.modds = 0 AND t.isRefundGame = 0 THEN 111
-											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 103 
+											WHEN t.modds = 0 THEN 111
 											WHEN t.modds < 0 THEN 113
 											WHEN t.modds > 0 THEN 112
 										END
@@ -2531,7 +2332,6 @@ BEGIN
 											WHEN t.modds >= 0.5 THEN 2 -- WIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
-											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 6 -- REFUND
 											ELSE 0 -- DRAW
 										END										
 				FROM	dbo.bettransm bm 
@@ -2543,8 +2343,7 @@ BEGIN
 					SET winlostdate = @matchdate
 						 ,statusID = CASE 
 										WHEN t.modds IS NULL THEN 0
-										WHEN t.modds = 0 AND t.isRefundGame = 0 THEN 111
-										WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 103 
+										WHEN t.modds = 0 THEN 111
 										WHEN t.modds < 0 THEN 113
 										WHEN t.modds > 0 THEN 112
 									END
@@ -2553,7 +2352,6 @@ BEGIN
 											WHEN t.modds >= 0.5 THEN 2 -- WIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
-											WHEN t.modds = 0 AND t.isRefundGame = 1 THEN 6 -- REFUND
 											ELSE 0 -- DRAW
 										END
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)

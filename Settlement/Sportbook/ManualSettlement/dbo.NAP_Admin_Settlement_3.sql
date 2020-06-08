@@ -38,6 +38,7 @@ AS
        - 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
        - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 	   - 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Cal 0-0 [Redmine:#124951]
+	   - 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
 
     Param's Explanation:
@@ -526,7 +527,6 @@ BEGIN
 		,@correctscore_2h = @correctscore_2h
         ,@HTFT = @HTFT
         ,@WinFromBehind = @WinFromBehind
-        ,@TennisTotal = @TennisTotal
         ,@T_Home = @T_Home
         ,@T_Away = @T_Away
         ,@isRefundHT = @isRefundHT      

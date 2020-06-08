@@ -16,6 +16,7 @@ AS
 		- 20170719@Kathy: Correct statuswinlost of refund [Redmine:#77835]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
     Param's Explanation:
         
@@ -26,17 +27,16 @@ BEGIN
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
 		
-	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)		
+	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY)		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	
-	INSERT INTO #parlayTicket (transid, refno, statusId, modds, IsRefundGame)
+	INSERT INTO #parlayTicket (transid, refno, statusId, modds)
 	SELECT T.C.value('./@t', 'BIGINT') 			AS transid
 			,T.C.value('./@r', 'BIGINT') 		AS refno
 			,T.C.value('./@s', 'TINYINT') 		AS statusId
 			,T.C.value('./@m', 'SMALLMONEY') 	AS modds
-			,T.C.value('./@i', 'BIT') 			AS IsRefundGame
 	FROM @xmlParlayTicket.nodes('/b') AS T(C)
 	OPTION (OPTIMIZE FOR (@xmlParlayTicket = NULL ))
 	
@@ -125,8 +125,7 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN [status] 
 							ELSE CASE 
 									WHEN t.modds IS NULL THEN N'running'
-									WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN N'DRAW'
-									WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN N'Refund'
+									WHEN t.modds = 0  THEN N'DRAW'
 									WHEN t.modds < 0 THEN N'LOSE'
 									WHEN t.modds > 0 THEN N'WON'
 								END
@@ -136,8 +135,7 @@ BEGIN
 								WHEN @IsUpd_Void = 0 THEN bm.statusID 
 								ELSE CASE 
 										WHEN t.modds IS NULL THEN 0
-										WHEN t.modds = 0 AND t.IsRefundGame = 0 THEN 111
-										WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN 103 
+										WHEN t.modds = 0 THEN 111
 										WHEN t.modds < 0 THEN 113
 										WHEN t.modds > 0 THEN 112
 									END
@@ -147,7 +145,6 @@ BEGIN
 								WHEN t.modds = 0.25 THEN 1 -- Half WON
 								WHEN t.modds = - 0.25 THEN 3 -- Half LOSE
 								WHEN t.modds < - 0.25 THEN 4 -- LOSE
-								WHEN t.modds = 0 AND t.IsRefundGame = 1 THEN 6 -- REFUND
 								ELSE 0 -- DRAW
 							END
 		OUTPUT INSERTED.transid

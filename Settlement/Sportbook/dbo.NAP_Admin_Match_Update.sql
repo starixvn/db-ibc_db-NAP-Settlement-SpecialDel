@@ -9,7 +9,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @HTAway                     SMALLINT = NULL,
     @BetStatus                  NVARCHAR(50)= NULL,
     @GoalRecord                 VARCHAR(50) = NULL,
-    @SelectedSet                VARCHAR(50) = NULL,
     @SelectedQuarter            VARCHAR(50) = NULL,
     @Action                     VARCHAR(10)         = NULL,
     @FTDone                     BIT = 0,
@@ -56,6 +55,7 @@ AS
 		- 20200122@Helen: Keep FT Score when re-calculating HT Score [Redmine:#127594]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
         - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		
     Parameters Explanation:
 
@@ -71,21 +71,17 @@ BEGIN
     IF @Command = 'NAP_Admin_Settlement_1-UNDO'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-		SET  eventstatus	= CASE WHEN (Sporttype = 5 AND @SelectedSet NOT LIKE '%6%')
-										OR (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN eventstatus 
+		SET  eventstatus	= CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN eventstatus 
 								   ELSE 'running' END 
-			,finalhomescore = CASE WHEN (Sporttype = 5 AND @SelectedSet NOT LIKE '%6%')
-										OR (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalhomescore
+			,finalhomescore = CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalhomescore
 								   ELSE NULL END 
-			,finalawayscore = CASE WHEN (Sporttype = 5 AND @SelectedSet NOT LIKE '%6%') 
-										OR (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalawayscore
+			,finalawayscore = CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalawayscore
 								   ELSE NULL END 
 			,hthomescore	= CASE WHEN Sporttype = 2 AND @SelectedQuarter NOT LIKE '%1H%' THEN hthomescore
 									ELSE NULL END
 			,htawayscore	= CASE WHEN Sporttype = 2 AND @SelectedQuarter NOT LIKE '%1H%' THEN htawayscore
 									ELSE NULL END
-			,betstatus		= CASE WHEN (Sporttype = 5 AND @SelectedSet NOT LIKE '%6%')
-										OR (sporttype = 2) THEN @BetStatus
+			,betstatus		= CASE WHEN (sporttype = 2) THEN @BetStatus
 								   ELSE N'' END 
 			,GoalRecord		= ''
 			,changetime		= GETDATE(), settleTime = GETDATE()
@@ -103,8 +99,8 @@ BEGIN
             goalrecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
                               WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> '' AND CHARINDEX(';',GoalRecord) > 0 THEN REPLACE(GoalRecord,LEFT(GoalRecord,CHARINDEX(';',GoalRecord)),(LEFT(@goalrecord,CHARINDEX(';',@goalrecord)))) -- only update HT part
                               ELSE @goalrecord END,
-            eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (2,5)		THEN N'completed'
-								WHEN @action = 'CAL' AND ((Sporttype = 5 AND @SelectedSet LIKE '%6%') OR (sporttype = 2 AND @SelectedQuarter LIKE '%FT%')) THEN N'completed'
+            eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (2)		THEN N'completed'
+								WHEN @action = 'CAL' AND (sporttype = 2 AND @SelectedQuarter LIKE '%FT%') THEN N'completed'
 								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 							ELSE eventstatus END,
             changetime = GETDATE(),
@@ -127,73 +123,7 @@ BEGIN
             SET @betstatus = ''
         END
 
-
-        IF @Sporttype = 5
-        BEGIN
-            IF @SelectedSet LIKE '%6%'
-            BEGIN
-                SET @BetStatus =''
-                DECLARE @tmpSelectedSet TABLE(
-                     SetIndex   TINYINT IDENTITY(1,1)
-                    ,Score      VARCHAR(10)
-                )
-
-                DECLARE @tmpResultSet TABLE(
-                     SetIndex   TINYINT
-                    ,Score      VARCHAR(10)
-                )
-
-                INSERT INTO @tmpSelectedSet(Score)
-                          SELECT '0-0'
-                UNION ALL SELECT '0-0'
-                UNION ALL SELECT '0-0'
-                UNION ALL SELECT '0-0'
-                UNION ALL SELECT '0-0'
-
-
-                INSERT INTO @tmpResultSet(SetIndex,Score)
-                SELECT RIGHT(ResourceID,1),ISNULL(HomeValue,0) +'-'+ISNULL(AwayValue,0)
-                FROM    ResultDetail WITH (NOLOCK)
-                WHERE   matchID = @MatchID
-                        AND SettlementStatusID > 0
-                        AND ResourceID LIKE '0[1-5]'
-                UPDATE  @tmpSelectedSet
-                SET     Score = s2.Score
-                FROM    @tmpSelectedSet s
-                        INNER JOIN @tmpResultSet s2 ON s.SetIndex = s2.SetIndex
-
-                SELECT @betstatus= @betstatus + Score + ','
-                FROM   @tmpSelectedSet
-
-                IF RIGHT(@betstatus,1)=','
-                    SELECT @betstatus= LEFT(@betstatus,LEN(@betstatus)-1)
-
-                IF  @betstatus='0-0,0-0,0-0,0-0,0-0'
-                    SELECT @betstatus=''
-
-            END
-
-
-            UPDATE match WITH(ROWLOCK,UPDLOCK)
-            SET eventstatus= CASE WHEN @SelectedSet LIKE '%6%' THEN N'Completed'
-                                  ELSE eventstatus END
-                , ruben = CASE WHEN @SelectedSet LIKE '%6%' THEN 1
-                               ELSE ruben END
-                , finalhomescore= CASE WHEN @SelectedSet LIKE '%6%' THEN 0
-                                       ELSE finalhomescore END
-                , finalawayscore= CASE WHEN @SelectedSet LIKE '%6%' THEN 0
-                                       ELSE finalawayscore END
-                , hthomescore=0
-                , htawayscore=0
-                ,betstatus = CASE WHEN @SelectedSet LIKE '%6%' THEN 'Refund;'
-                                  ELSE '' END
-                                + CASE  WHEN CHARINDEX('Refund;',@betstatus) > 0 AND @SelectedSet LIKE '%6%' THEN REPLACE(@betstatus,'Refund;','')
-                                        ELSE @betstatus END
-                ,GoalRecord =''
-                ,changetime = GETDATE(), settleTime = GETDATE()
-            WHERE matchid=@MatchID
-        END
-        ELSE IF @sporttype = 2
+        IF @sporttype = 2
         BEGIN
             UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
                 SET eventstatus = CASE

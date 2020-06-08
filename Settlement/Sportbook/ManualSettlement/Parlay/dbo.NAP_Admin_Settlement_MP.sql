@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	@matchid		INT
 	,@creator		INT
-	,@action		VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND
-	,@SelectedSet	VARCHAR(50)		= NULL
+	,@action		VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IP			VARCHAR(15)		= ''
@@ -36,6 +35,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190924@Sol: Incorporate BMAIO - refactor code - removed sporttype 9 [Redmine:#120324]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 
 	Param's Explanation:
 */
@@ -143,15 +143,11 @@ BEGIN
 		INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 		VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start handle bettransM')
 
-		-- for Tennis/VolleyBall/Badminton/Squash
-		DECLARE @TennisTotal INT = NULL, @TotalGameHomeMatch INT = NULL, @TotalGameAwayMatch INT = NULL
-		DECLARE @resultDetail_ss VARCHAR(MAX) -- sporttingSolution
+		-- for VolleyBall/Badminton/Squash
+		DECLARE @TennisTotal INT = NULL
 		DECLARE @resultDetail_bb VARCHAR(MAX) -- basketball
 		DECLARE @resultDetail VARCHAR(MAX)
 
-		DECLARE @SelectedSetCAL VARCHAR(50)
-		DECLARE @SelectedSetREFUND VARCHAR(50)
-		
 		SET @strBettypes = CAST((SELECT  BetType '@t'
 										,GroupId '@g'
 										,GroupName '@n'
@@ -180,8 +176,6 @@ BEGIN
 			EXEC dbo.NAP_Admin_Settlement_2 @mode = 'tennis'
 				,@betstatus = @betstatus
 				,@Total = @TennisTotal OUTPUT
-				,@TotalHome = @TotalGameHomeMatch OUTPUT
-				,@TotalAway = @TotalGameAwayMatch OUTPUT
 		END
 		
 		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
@@ -212,40 +206,7 @@ BEGIN
 		
 		IF @IsSettleBySetting = 0 AND @SelectedResources IS NULL
 		BEGIN
-			IF @Sporttype = 5 AND @action IN ('REFUND', 'CAL')--Tennis
-			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'sporttingSolution'
-					,@matchid = @matchID
-					,@Total = @TennisTotal OUTPUT
-					,@TotalHome = @TotalGameHomeMatch OUTPUT
-					,@TotalAway = @TotalGameAwayMatch OUTPUT
-					,@str_resultDetail = @resultDetail_ss OUTPUT
-
-				-- get @SelectedSetCAL/	@SelectedSetREFUND from XML for update match_remark
-				DECLARE @xml_ss XML = CONVERT(XML, @resultDetail_ss)
-
-				SELECT TOP(1) @SelectedSetCAL = ISNULL(T.C.value('./@SelectedSetCAL[1]', 'varchar(50)'), '')
-					,@SelectedSetREFUND = ISNULL(T.C.value('./@SelectedSetREFUND[1]', 'varchar(50)'), '')
-				FROM @xml_ss.nodes('/root/r') as [T](C) --T: table, C: column
-				OPTION ( OPTIMIZE FOR ( @xml_ss = NULL ) )
-				------------------------------
-
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@matchid = @matchid
-					,@matchdate = @matchdate
-					,@mode = 'sporttingSolution_m'
-					,@fth = @finalhomescore
-					,@fta = @finalawayscore
-					,@hth = @hthomescore
-					,@hta = @htawayscore
-					,@IsRefundHT = @IsRefundHT
-					,@TennisTotal = @TennisTotal
-					,@TotalGameHomeMatch = @TotalGameHomeMatch
-					,@TotalGameAwayMatch = @TotalGameAwayMatch
-					,@resultDetail_ss = @resultDetail_ss
-					,@strBettypes = @strBettypes
-			END
-			ELSE IF @SportType = 2 AND @Action IN ('REFUND', 'CAL') -- Basketball
+			IF @SportType = 2 AND @Action IN ('REFUND', 'CAL') -- Basketball
 			BEGIN
 				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'basketball'
 					,@matchid = @matchid
@@ -328,7 +289,6 @@ BEGIN
 					@hth = @hthomescore,
 					@hta = @htawayscore,
 					@matchdate = @matchdate,
-					@SelectedSet = @SelectedSet,
 					@TennisTotal = @TennisTotal,
 					@resultDetail = @resultDetail,
 					@strBettypes = @strBettypes,
@@ -512,8 +472,6 @@ BEGIN
 
 			EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
 					,@command = @command
-					,@SelectedSetCAL = @SelectedSetCAL
-					,@SelectedSetREFUND = @SelectedSetREFUND
 		END
 
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'

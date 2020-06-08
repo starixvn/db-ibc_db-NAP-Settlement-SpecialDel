@@ -3,9 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@matchid 			INT,
 	@command 			VARCHAR(5),
 	@ivalue 			BIGINT = NULL,
-	@SelectedSet		VARCHAR(50) = NULL,
-	@SelectedSetCAL		VARCHAR(50) = NULL,
-	@SelectedSetREFUND	VARCHAR(50) = NULL,
 	@SelectedQuarter 	VARCHAR(50) = NULL,
 	@IsFinalRound       BIT = 0
 WITH RECOMPILE
@@ -26,6 +23,7 @@ WITH RECOMPILE
 		- 20170525@Kathy: Set calrefund = 1 when refund FT basketball  [Redmine:#77046]
 		- 20170901@Kathy: Update parlay info base on user action [Redmine:#82122]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 	Param's Explanation: 
 */
 AS
@@ -76,8 +74,7 @@ BEGIN
 	END
 	
 	-- Match Refund
-	IF @command = 'F' AND ((@SelectedSet IS NULL AND @SelectedQuarter IS NULL)
-							OR @SelectedSet LIKE'%6%'
+	IF @command = 'F' AND (@SelectedQuarter IS NULL
 							OR @SelectedQuarter LIKE '%FT%'
 							OR ISNULL(@IsFinalRound,0) = 1
 						)
@@ -112,8 +109,7 @@ BEGIN
 	END
 	
 	-- [U]ndo settlement
-	IF @command = 'U' AND ((@SelectedSet IS NULL AND @SelectedQuarter IS NULL) 
-							OR @SelectedSet LIKE'%6%'
+	IF @command = 'U' AND (@SelectedQuarter IS NULL
 							OR ISNULL(@SelectedQuarter,'') LIKE '%FT%'
 							OR ISNULL(@IsFinalRound,0) = 1
 							)
@@ -125,7 +121,6 @@ BEGIN
 			,calrefund				= 0
 			,refund					= 0
 			,isUndecided			= 0
-		--	,SettlementStatus135	= @ivalue -- 0: No offer; 1: Has ticket; 4: No ticket
 		WHERE matchid = @matchid 
 	END
 	

@@ -16,25 +16,6 @@ ALTER FUNCTION [dbo].[f_Set_Parlay_CalModds] (
 	, @HT_FGLG2 VARCHAR(10)
 	, @FGLG1 VARCHAR(10)
 	, @FGLG2 VARCHAR(10)
-	, @TennisTotal INT = NULL
-	, @TotalGameHomeMatch INT = NULL
-	, @TotalGameAwayMatch INT = NULL
-	, @homeScoreSet1 TINYINT
-	, @homeScoreSet2 TINYINT
-	, @homeScoreSet3 TINYINT
-	, @homeScoreSet4 TINYINT
-	, @homeScoreSet5 TINYINT
-	, @awayScoreSet1 TINYINT
-	, @awayScoreSet2 TINYINT
-	, @awayScoreSet3 TINYINT
-	, @awayScoreSet4 TINYINT
-	, @awayScoreSet5 TINYINT
-	, @SetxGameyHomeWON VARCHAR(MAX) = NULL
-	, @SetxGameyAwayWON VARCHAR(MAX) = NULL
-	, @SetxGameyDRAW VARCHAR(MAX) = NULL
-	, @SetxGameyREFUND VARCHAR(MAX) = NULL
-	, @SelectedSetCAL VARCHAR(50) = NULL
-	, @SelectedSetREFUND VARCHAR(50) = NULL
 	, @WinFromBehind NVARCHAR(1)
 	, @FirstGoal NVARCHAR(50)
 	, @FirstGoal1H VARCHAR(1)
@@ -80,6 +61,7 @@ AS
 			- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+			- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 			
     Parameters Explanation:    
 	
@@ -87,25 +69,27 @@ AS
 
 RETURN (
 	SELECT odds.modds
-		, ip.IsRefundGame
+		--, ip.IsRefundGame
 	FROM (
 		SELECT 
-			CASE WHEN  @bettype = 1324 AND CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 1 ELSE 0 END  AS IsRefundGame
-			,CASE WHEN @betcheck = '801' THEN @homeScoreSet1
-									   WHEN @betcheck = '802' THEN @homeScoreSet2
-									   WHEN @betcheck = '803' THEN @homeScoreSet3
-									   WHEN @betcheck = '804' THEN @homeScoreSet4
-									   WHEN @betcheck = '805' THEN @homeScoreSet5
-									   ELSE 0
-									END AS TotalGameHomeSetx
-			,CASE WHEN @betcheck = '801' THEN @awayScoreSet1
-								   WHEN @betcheck = '802' THEN @awayScoreSet2
-								   WHEN @betcheck = '803' THEN @awayScoreSet3
-								   WHEN @betcheck = '804' THEN @awayScoreSet4
-								   WHEN @betcheck = '805' THEN @awayScoreSet5
-								   ELSE 0
-								   END   AS TotalGameAwaySetx
-			,CASE WHEN @bettype = 416 THEN SUBSTRING(@transdesc,0, CHARINDEX('/',@transdesc)) ELSE NULL END AS ExcludingHTChoice
+			--CASE WHEN  @bettype = 1324 AND CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 1 ELSE 0 END  AS IsRefundGame
+			--,
+			--CASE WHEN @betcheck = '801' THEN @homeScoreSet1
+			--						   WHEN @betcheck = '802' THEN @homeScoreSet2
+			--						   WHEN @betcheck = '803' THEN @homeScoreSet3
+			--						   WHEN @betcheck = '804' THEN @homeScoreSet4
+			--						   WHEN @betcheck = '805' THEN @homeScoreSet5
+			--						   ELSE 0
+			--						END AS TotalGameHomeSetx
+			--,CASE WHEN @betcheck = '801' THEN @awayScoreSet1
+			--					   WHEN @betcheck = '802' THEN @awayScoreSet2
+			--					   WHEN @betcheck = '803' THEN @awayScoreSet3
+			--					   WHEN @betcheck = '804' THEN @awayScoreSet4
+			--					   WHEN @betcheck = '805' THEN @awayScoreSet5
+			--					   ELSE 0
+			--					   END   AS TotalGameAwaySetx
+			--,
+			CASE WHEN @bettype = 416 THEN SUBSTRING(@transdesc,0, CHARINDEX('/',@transdesc)) ELSE NULL END AS ExcludingHTChoice
 			,CASE WHEN @bettype = 416 THEN SUBSTRING(@transdesc,CHARINDEX('/',@transdesc)+1,LEN(@transdesc)) ELSE NULL END AS ExcludingFTChoice
 	) AS ip
 	CROSS APPLY (
@@ -123,14 +107,8 @@ RETURN (
 						END
 				WHEN 3 THEN -- Over/Under
 					CASE @betteam
-						WHEN N'h' THEN (CASE 
-								WHEN ISNULL(@TennisTotal,0)=0 THEN @fth + @fta
-								ELSE @TennisTotal END
-								) - @hdp1
-						WHEN N'a' THEN @hdp1 - (CASE 
-								WHEN ISNULL(@TennisTotal,0)=0 THEN @fth + @fta
-								ELSE @TennisTotal END
-								)
+						WHEN N'h' THEN (@fth + @fta) - @hdp1
+						WHEN N'a' THEN @hdp1 - (@fth + @fta)
 						END
 				WHEN 8 THEN -- 1st Over/Under
 					CASE @betteam
@@ -140,16 +118,10 @@ RETURN (
 				WHEN 2 THEN -- Odd/Even
 					CASE 
 						WHEN (@betteam = N'h') AND (
-								(CASE 
-									WHEN ISNULL(@TennisTotal,0)=0 THEN @fth + @fta
-									ELSE @TennisTotal END
-									) & 1 = 1
+								(@fth + @fta) & 1 = 1
 								) THEN 1
 						WHEN (@betteam = N'a') AND (
-								(CASE 
-									WHEN ISNULL(@TennisTotal,0)=0 THEN @fth + @fta
-									ELSE @TennisTotal END
-									) & 1 = 0
+								(@fth + @fta) & 1 = 0
 								) THEN 1
 						ELSE - 1
 						END
@@ -240,23 +212,18 @@ RETURN (
 						END
 				WHEN 6 THEN -- Total Goal
 					CASE 
-						WHEN (CASE 
-								WHEN @TennisTotal IS NULL THEN @fth + @fta
-								ELSE @TennisTotal END >= cast(left(@betteam, 1) AS INT) AND CASE 
-								WHEN @TennisTotal IS NULL THEN @fth + @fta
-								ELSE @TennisTotal END <= (CASE 
-									WHEN right(@betteam, 1) = 'r' THEN 999
-									ELSE cast(right(@betteam, 1) AS INT) END
-									)
+						WHEN (@fth + @fta >= cast(left(@betteam, 1) AS INT) 
+								AND @fth + @fta <= (CASE 
+														WHEN right(@betteam, 1) = 'r' THEN 999
+														ELSE cast(right(@betteam, 1) AS INT) 
+													END
+													)
 								) THEN 1
 						ELSE - 1
 						END
 				WHEN 126 THEN -- 1H total goal
-					CASE WHEN (
-								CASE WHEN @TennisTotal IS NULL THEN @hth + @hta ELSE @TennisTotal END >= CAST(LEFT(@betteam,1) AS int) AND
-								CASE WHEN @TennisTotal IS NULL then @hth + @hta ELSE @TennisTotal END <= (
-									CASE when RIGHT(@betteam,1)= 'r' then 999 ELSE CAST(RIGHT(@betteam,1)AS int) END 
-									)
+					CASE WHEN (@hth + @hta >= CAST(LEFT(@betteam,1) AS int) 
+								AND @hth + @hta <= (CASE when RIGHT(@betteam,1)= 'r' then 999 ELSE CAST(RIGHT(@betteam,1)AS int) END)
 							) then 1 ELSE -1 END 
 				WHEN 13 THEN -- Clean Sheet
 					CASE 
@@ -1055,93 +1022,7 @@ RETURN (
 						WHEN @betteam = 'a' AND @fth < @fta THEN 1
 						WHEN @fth = @fta THEN 0
 						ELSE -1
-						END
-				-- Tennis New bet types         
-				WHEN 153 THEN -- Match Games Handicap
-					CASE @betteam 
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (@TotalGameHomeMatch - @livehomescore) - (@TotalGameAwayMatch - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (@TotalGameHomeMatch - @livehomescore) + (@TotalGameAwayMatch - @liveawayscore)
-						END 
-				WHEN 154 THEN -- Set x Winner
-					CASE @betteam 
-						WHEN N'h' THEN (ip.TotalGameHomeSetx - ip.TotalGameAwaySetx)
-						WHEN N'a' THEN (ip.TotalGameAwaySetx - ip.TotalGameHomeSetx)
-						END 
-				WHEN 155 THEN -- Set x Game Handicap
-					CASE @betteam
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (ip.TotalGameHomeSetx - @livehomescore) - (ip.TotalGameAwaySetx - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (ip.TotalGameHomeSetx - @livehomescore) + (ip.TotalGameAwaySetx - @liveawayscore)
-						END
-				WHEN 156 THEN --Set x Total Games Over/Under 
-					CASE @betteam 
-						WHEN N'o' THEN (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx) - @hdp1 
-						WHEN N'u' THEN @hdp1 - (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx) 
-						END
-				-- Tennis Sporting Solution 
-				WHEN 1301 THEN -- Match Winner 
-					CASE @betteam
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (@fth - @livehomescore) - (@fta - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (@fth - @livehomescore) + (@fta - @liveawayscore)
-						END
-				WHEN 1302 THEN -- Match Correct Score 
-					CASE 
-						WHEN @betteam = (CAST(@fth AS VARCHAR(4)) + CAST(@fta AS VARCHAR(4))) THEN 1
-						ELSE - 1
-						END
-				WHEN 1303 THEN -- Set Handicap 
-					CASE @betteam
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (@fth - @livehomescore) - (@fta - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (@fth - @livehomescore) + (@fta - @liveawayscore)
-						END
-				WHEN 1305 THEN -- Match Total Games Odd/Even
-					CASE WHEN @betteam = N'h' AND (@TotalGameHomeMatch + @TotalGameAwayMatch)%2 = 1 THEN 1 
-						 WHEN @betteam = N'a' AND (@TotalGameHomeMatch + @TotalGameAwayMatch)%2 = 0 THEN 1 
-						 ELSE - 1 
-						 END 
-				WHEN 1306 THEN -- Match Total Games Over/Under - 1306
-					CASE @betteam 
-						WHEN N'h' THEN  (@TotalGameHomeMatch + @TotalGameAwayMatch) - @hdp1 
-						WHEN N'a' THEN  @hdp1 - (@TotalGameHomeMatch + @TotalGameAwayMatch) 
-						END 
-				WHEN 1308 THEN  -- Match Games Handicap - 1308
-					CASE @betteam 
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (@TotalGameHomeMatch - @livehomescore) - (@TotalGameAwayMatch - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (@TotalGameHomeMatch - @livehomescore) + (@TotalGameAwayMatch - @liveawayscore)
-						END 
-				WHEN 1311 THEN -- Set x Winner - 1311
-					CASE @betteam 
-						WHEN N'h' THEN (ip.TotalGameHomeSetx - ip.TotalGameAwaySetx)
-						WHEN N'a' THEN (ip.TotalGameAwaySetx - ip.TotalGameHomeSetx)
-						END 
-				WHEN 1312 THEN --Set x Total Games Over/Under - 1312
-					CASE @betteam 
-						WHEN N'o' THEN (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx) - @hdp1 
-						WHEN N'u' THEN @hdp1 - (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx) 
-						END
-				WHEN 1316 THEN -- Set x Game Handicap
-					CASE @betteam
-						WHEN N'h' THEN (@hdp2 - @hdp1) + (ip.TotalGameHomeSetx - @livehomescore) - (ip.TotalGameAwaySetx - @liveawayscore)
-						WHEN N'a' THEN (@hdp1 - @hdp2) - (ip.TotalGameHomeSetx - @livehomescore) + (ip.TotalGameAwaySetx - @liveawayscore)
-						END
-				WHEN 1317 THEN -- Set x Correct Score
-					CASE 
-						WHEN @betteam = (CASE WHEN ip.TotalGameHomeSetx > 7 AND (ip.TotalGameHomeSetx - ip.TotalGameAwaySetx)>=2 THEN 'haos'
-											 WHEN ip.TotalGameAwaySetx > 7 AND (ip.TotalGameAwaySetx - ip.TotalGameHomeSetx)>=2 THEN 'aaos'
-											 ELSE (CAST(ip.TotalGameHomeSetx AS VARCHAR(4)) + CAST(ip.TotalGameAwaySetx AS VARCHAR(4))) 
-											 END) THEN 1
-						ELSE - 1
-						END
-				WHEN 1318 THEN -- Set x Total Games Odd/Even
-					CASE WHEN @betteam = N'o' AND (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx)%2 = 1 THEN 1 
-						 WHEN @betteam = N'e' AND (ip.TotalGameHomeSetx + ip.TotalGameAwaySetx)%2 = 0 THEN 1 
-						 ELSE - 1 
-						 END 
-				WHEN 1324 THEN -- Set x Game y Winner 
-					CASE WHEN @betteam =N'h' AND CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyHomeWON)>0 THEN 1 
-						 WHEN @betteam =N'a' AND CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyAwayWON)>0 THEN 1   
-						 WHEN CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyDRAW)>0 THEN 0 
-						 WHEN CHARINDEX(SUBSTRING(CAST(@betcheck AS VARCHAR(10)),2,4),@SetxGameyREFUND)>0 THEN 0
-						 ELSE -1 END        
+						END        
 				WHEN 14 THEN 
 					CASE WHEN (@betteam = (CASE 
 												WHEN @FGLG1 = 'N' THEN '0:0'

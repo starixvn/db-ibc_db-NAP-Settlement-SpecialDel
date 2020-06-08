@@ -24,6 +24,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		- 20190924@Sol: Incorporate BMAIO [Redmine:#120324]
+		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -44,67 +45,6 @@ BEGIN
 		FROM @xml.nodes('/root/r') AS T(C)
 		--OPTION (OPTIMIZE FOR (@xml = NULL))
 	END -- end tennis	
-
-	IF @mode = 'sporttingSolution'
-	BEGIN		
-		INSERT INTO @temp_resultDetail(rID, H, A, ssID)
-		SELECT resourceID, homeValue, awayValue, SettlementStatusID
-		FROM DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
-		WHERE MatchID = @MatchID
-			AND SettlementStatusID > 0 
-			AND ResultStatusID = 5 -- Score from Settlement Site 
-
-		DECLARE @h int, @a int, @gameHomeSet_bin binary(5), @gameAwaySet_bin binary(5)
-		DECLARE @SetxGameyHomeWON varchar(max) = ''
-		DECLARE @SetxGameyAwayWON varchar(max) = ''
-		DECLARE @SetxGameyDRAW varchar(max) = ''
-		DECLARE @SetxGameyREFUND varchar(max) = ''
-		DECLARE @SetxGameyFinishedGame varchar(max) = ''
-		DECLARE @SelectedSetCAL varchar(50) = ''
-		DECLARE @SelectedSetREFUND varchar(50) = ''
-		
-		SELECT @TotalHome = 0, @TotalAway = 0, @Total = 0
-		
-		SELECT @h = CASE H WHEN 'A' THEN 65 ELSE CAST(H AS int) END
-			,@a = CASE A WHEN 'A' THEN 65 ELSE CAST(A AS int) END
-			,@SetxGameyHomeWON		+= CASE WHEN rID LIKE '0[1-5][0-9][0-9]' AND ssID = 4 AND @h > @a THEN rID +',' ELSE '' END
-			,@SetxGameyAwayWON		+= CASE WHEN rID LIKE '0[1-5][0-9][0-9]' AND ssID = 4 AND  @h < @a THEN rID +',' ELSE '' END
-			,@SetxGameyDRAW			+= CASE WHEN rID LIKE '0[1-5][0-9][0-9]' AND ssID = 4 AND @h = @a THEN rID +',' ELSE '' END
-			,@SetxGameyREFUND		+= CASE WHEN rID LIKE '0[1-5][0-9][0-9]' AND ssID = 1 THEN rID +',' ELSE '' END
-			,@SetxGameyFinishedGame	+= CASE WHEN rID LIKE '0[1-5][0-9][0-9]' AND ssID = 4 THEN rID +',' ELSE '' END		
-			,@SelectedSetCAL		+= CASE WHEN rID LIKE '0[0-5]' AND ssID = 4 THEN REPLACE(RIGHT(rID,1), '0', '6') ELSE '' END
-			,@SelectedSetREFUND		+= CASE WHEN rID LIKE '0[0-5]' AND ssID = 1 THEN REPLACE(RIGHT(rID,1), '0', '6') ELSE '' END
-			,@TotalHome += CAST(CASE WHEN rID LIKE '0[1-5]' THEN ISNULL(H,0) ELSE 0 END AS INT)
-			,@TotalAway += CAST(CASE WHEN rID LIKE '0[1-5]' THEN ISNULL(A,0) ELSE 0 END AS INT)
-		FROM @temp_resultDetail
-		WHERE rID LIKE '0[0-5]%'
-		
-		SET @Total = @TotalHome + @TotalAway
-		
-		SET @str_resultDetail = CONVERT(VARCHAR(MAX), (
-			SELECT '@homeScoreSet1' 		= NULLIF(MAX(CASE WHEN rID ='01' THEN ISNULL(H,0) ELSE 0 END),0)
-				,'@homeScoreSet2' 			= NULLIF(MAX(CASE WHEN rID ='02' THEN ISNULL(H,0) ELSE 0 END),0)
-				,'@homeScoreSet3' 			= NULLIF(MAX(CASE WHEN rID ='03' THEN ISNULL(H,0) ELSE 0 END),0)
-				,'@homeScoreSet4' 			= NULLIF(MAX(CASE WHEN rID ='04' THEN ISNULL(H,0) ELSE 0 END),0)
-				,'@homeScoreSet5' 			= NULLIF(MAX(CASE WHEN rID ='05' THEN ISNULL(H,0) ELSE 0 END),0)
-				,'@awayScoreSet1' 			= NULLIF(MAX(CASE WHEN rID ='01' THEN ISNULL(A,0) ELSE 0 END),0)
-				,'@awayScoreSet2' 			= NULLIF(MAX(CASE WHEN rID ='02' THEN ISNULL(A,0) ELSE 0 END),0)
-				,'@awayScoreSet3' 			= NULLIF(MAX(CASE WHEN rID ='03' THEN ISNULL(A,0) ELSE 0 END),0)
-				,'@awayScoreSet4' 			= NULLIF(MAX(CASE WHEN rID ='04' THEN ISNULL(A,0) ELSE 0 END),0)
-				,'@awayScoreSet5' 			= NULLIF(MAX(CASE WHEN rID ='05' THEN ISNULL(A,0) ELSE 0 END),0)				
-				,'@SetxGameyHomeWON'		= NULLIF(@SetxGameyHomeWON,'')
-				,'@SetxGameyAwayWON'		= NULLIF(@SetxGameyAwayWON,'')
-				,'@SetxGameyDRAW'			= NULLIF(@SetxGameyDRAW,'')
-				,'@SetxGameyREFUND'			= NULLIF(@SetxGameyREFUND,'')
-				,'@SetxGameyFinishedGame'	= NULLIF(@SetxGameyFinishedGame,'')
-				,'@SelectedSetCAL'			= NULLIF(@SelectedSetCAL,'')
-				,'@SelectedSetREFUND'		= NULLIF(@SelectedSetREFUND,'')
-			FROM @temp_resultDetail
-			WHERE ssID = 4
-				AND rID LIKE '0[1-5]'
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		))		
-	END -- end sporttingSolution
 	
 	IF @mode = 'basketball' or @mode = 'all'
 	BEGIN
