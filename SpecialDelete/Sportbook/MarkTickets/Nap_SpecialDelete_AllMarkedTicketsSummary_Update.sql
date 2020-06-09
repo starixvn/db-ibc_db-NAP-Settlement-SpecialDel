@@ -18,6 +18,7 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
+		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		
 	Explanation's Param:
 	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -83,37 +84,6 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			BREAK;
 	END;
-
-	-- Insert Settled_Message
-	INSERT INTO [dbo].[Settled_Message] (
-		[AdminId]
-		,[MatchId]
-		,[IP]
-		,[Starttime]
-		,[Action]
-		,[Message]
-		,[IsRead]
-		,[Warning]
-		,[IsSent]
-		)
-	SELECT 111
-		,t.matchid
-		,@IP
-		,GETDATE()
-		,'UNMARK'
-		,'has all tickets unmarked by ' + @Username
-		,0
-		,NULL
-		,0
-    FROM #Match t 
-        LEFT JOIN
-		(
-			SELECT m.matchid
-			FROM dbo.MarkedTransaction m WITH (NOLOCK)
-				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.TransId
-													AND b.statusID IN(0, 1)
-		) mt ON mt.MatchId = t.MatchId
-    WHERE mt.MatchId IS NULL;
 
 	SELECT b.MatchId
 		,m.HomeId

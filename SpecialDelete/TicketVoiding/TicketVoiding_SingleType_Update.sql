@@ -25,6 +25,7 @@ AS
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200210@Helen: Hotfix - cashout - not insert 914 [Redmine:#128190]
 		- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
+		- 20200609@Charles: Remove notify when void tickets [131865]
 	
 	Param's explanation:	
 		
@@ -766,23 +767,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 			@Mode = 'Original'
 		  , @Action = 'Void'
-		  , @IsReleased = 1  
-
-	-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-	DECLARE @allTransId VARCHAR(MAX) = ''
-	DECLARE @username NVARCHAR(50)
-
-	SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
-	FROM	#tmpTransId
-
-	SELECT	@username = username
-	FROM	CustDB.dbo.custInfo WITH(NOLOCK)
-	WHERE	custid = @UserId
-
-	EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-		@TransId = @allTransId
-		,@Username = @Username
-		,@MatchId = @MatchId	
+		  , @IsReleased = 1  	
 
 	-- Write Log
 	SET @EndTime = GETDATE()

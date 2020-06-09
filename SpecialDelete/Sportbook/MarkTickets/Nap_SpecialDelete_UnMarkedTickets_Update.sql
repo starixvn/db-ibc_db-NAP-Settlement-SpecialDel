@@ -24,6 +24,7 @@ AS
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -355,45 +356,6 @@ BEGIN
     SELECT DISTINCT
             t.MatchId
     FROM #Tickets t;
-	  	  
-	-- Insert Settled_Message
-     INSERT INTO [dbo].[Settled_Message]
-            ([AdminId],
-             [MatchId],
-             [IP],
-             [Starttime],
-             [Action],
-             [Message],
-             [IsRead],
-             [Warning],
-             [IsSent]
-            )
-    SELECT 111,
-            t.matchid,
-            @IP,
-            GETDATE(),
-            'MARK',
-            'has some tickets marked by '+@Username,
-            0,
-            NULL,
-            0
-	FROM #Match t
-		LEFT JOIN (
-		SELECT m.matchid
-		FROM dbo.MarkedTransaction AS m WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = m.TransId
-			AND b.statusID IN (0, 1)
-		WHERE b.matchid <> 29
-	
-		UNION
-		SELECT bm.matchid
-		FROM dbo.MarkedTransaction AS m WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = m.TransId
-			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON b.matchid = 29
-			AND bm.refno = b.refno
-		WHERE m.MatchId = bm.matchid
-		) mt ON mt.MatchId = t.MatchId
-	WHERE mt.MatchId IS NULL;
     
 	-- Insert Transaction
     INSERT INTO dbo.MarkedTransaction

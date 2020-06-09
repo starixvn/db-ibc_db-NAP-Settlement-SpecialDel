@@ -100,6 +100,7 @@ AS
 		- 20191018@Charles: Support filter ticket by Checktime in Void Single Bet [121868]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
+		- 20200609@Charles: Remove notify when void tickets [131865]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1982,19 +1983,7 @@ BEGIN
 			,@Action = 'Void'
 			,@IsReleased = 1	
 			
-		------------------***** End of Special Delete *****------------------
-		
-		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-		DECLARE @allTransId VARCHAR(MAX) = ''
-
-		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
-		FROM	#BetDelete
-
-		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-			@TransId = @allTransId
-			,@Username = @Username
-			,@MatchId = @MatchId		 
-
+		------------------***** End of Special Delete *****------------------		 
 		IF(@FromTransId > 0)
 		BEGIN
 			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
