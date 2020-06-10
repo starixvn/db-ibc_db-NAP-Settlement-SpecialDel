@@ -189,12 +189,12 @@ RETURN
 				CASE WHEN @betteam = @HomeValue + ':' + @AwayValue THEN 1
 					 ELSE -1
 				END
-			WHEN @pfID = 376 THEN dbo.PRODUCT( 
+			WHEN @pfID = 376 THEN ROUND(dbo.PRODUCT( 
 						CASE WHEN SUBSTRING(@HomeValue, ps.rn, 1) = 'N' THEN 1
 							 WHEN SUBSTRING(@betteam, ps.rn, 1) = '-' THEN 1
 							 WHEN SUBSTRING(@HomeValue, ps.rn, 1) = SUBSTRING(@betteam, ps.rn, 1) then ps.odds
 							 ELSE 0
-						END)
+						END),2)
 
 			ELSE -1 
 		END AS modds
