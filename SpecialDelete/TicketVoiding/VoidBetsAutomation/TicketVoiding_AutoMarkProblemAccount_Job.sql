@@ -57,7 +57,7 @@ BEGIN
 	IF ISNULL(@IsActiveVoidWinning,0) = 0
 		RETURN
 
-	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT PRIMARY KEY)
 	DECLARE @Matchid_Final AS TABLE (Matchid INT, ID INT IDENTITY(1,1))
 	
 	DECLARE @tmpAutoTransIDBatch TABLE (TransId	BIGINT)
@@ -69,7 +69,7 @@ BEGIN
 	DECLARE @ProblemAccountByBatch_tmp AS TABLE (CustID INT)
 		
 	INSERT INTO @bettype_tmp (bettype)
-	SELECT pt.bettype
+	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
