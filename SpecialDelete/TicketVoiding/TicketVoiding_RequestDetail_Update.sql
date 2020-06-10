@@ -28,6 +28,7 @@ AS
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 
 	Param's explanation:	
 	
@@ -96,7 +97,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND (@Sporttype IN (1, 2, 9, 43, 5) OR @ActionId = 4)
+	IF @IssueTypeId = 11
 	BEGIN
 		
 		INSERT INTO #inputTransid (transid)
