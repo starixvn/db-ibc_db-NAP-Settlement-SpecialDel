@@ -75,6 +75,7 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+		AND pt.SportType < 99
 	
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
@@ -105,7 +106,7 @@ BEGIN
 			SELECT b.transid, b.matchid
 			FROM @ProblemAccountByBatch_tmp t
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.eventstatus <> 'completed'
+				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype < 99 AND m.eventstatus <> 'completed'
 				INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid 
 				OUTER APPLY (SELECT TOP 1 transid
 							FROM dbo.MarkedTransaction mt WITH (NOLOCK)
