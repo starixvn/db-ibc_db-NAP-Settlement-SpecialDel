@@ -92,7 +92,7 @@ BEGIN
 	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 
 	-- Insert queue for auto void
-	IF @IssueTypeId = 11 AND @Sporttype < 99
+	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
 		-- mark ticket
 		SELECT @MarkedTransIds = STUFF(

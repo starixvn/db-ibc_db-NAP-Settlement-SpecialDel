@@ -56,7 +56,7 @@ BEGIN
 			WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 				AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
 				AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
-				AND m.sporttype < 99
+				AND m.sporttype <= 99
 				)
 		,CTE_FilterByTicketStatus
 		AS (

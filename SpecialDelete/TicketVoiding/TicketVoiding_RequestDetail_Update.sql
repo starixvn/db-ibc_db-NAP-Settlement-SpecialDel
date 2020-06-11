@@ -97,7 +97,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND @Sporttype < 99
+	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
 		
 		INSERT INTO #inputTransid (transid)
