@@ -160,20 +160,19 @@ BEGIN
 	
 	IF @Action = 'REFUND'
 	BEGIN
-		IF EXISTS (
-			SELECT	TOP 1 1
-			FROM	dbo.bettrans b WITH(NOLOCK)
-				INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-					ON	b.transid = mt.TransId
-			WHERE	b.matchid = @MatchID
-					AND b.statusID NOT IN (101, 102)
-					AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
-		)
-		BEGIN
-			SELECT @ErrCode = 1001032
-					,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		DECLARE @ResourceIds VARCHAR(MAX) = ''
 
-			------ releasing Settlement process
+		SELECT @ResourceIds = @ResourceIds + ResourceID + ','
+		FROM	@tmpSelectedRID
+
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @ResourceIds
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistMatch		= 1
 				, @IsReleased		= 1

@@ -560,7 +560,6 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
-								AND b.statusID NOT IN (101, 102)
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay

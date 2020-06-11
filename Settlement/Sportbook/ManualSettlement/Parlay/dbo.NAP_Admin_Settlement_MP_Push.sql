@@ -463,7 +463,6 @@ BEGIN
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	b.transid = mt.transid
 					AND b.matchid = 29
-					AND b.statusID NOT IN (101, 102)
 		) b
 		CROSS APPLY (
 			SELECT	TOP 1 bm.matchid

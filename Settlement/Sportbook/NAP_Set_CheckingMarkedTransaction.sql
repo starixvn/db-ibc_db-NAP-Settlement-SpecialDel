@@ -1,7 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_CheckingMarkedTransaction]
-    @MatchID        INT
-	,@Action		VARCHAR(20)
+    @MatchID				INT
+	,@Action				VARCHAR(20)
+	,@IsExistMarkedTicket  	BIT = 0 			OUTPUT
+	,@ErrCode				INT = 0 			OUTPUT
+	,@ErrMsg				VARCHAR(MAX) = '' 	OUTPUT
 AS
 /*    
 	Creator: Kathy
@@ -17,17 +20,13 @@ AS
 
     Param's Explanation:
 		@Action: single ticket: REFUND, REFUND-HT, REFUND-FT
-				 parlay ticket: MP-REFUND, MP-REFUND-HT, MP-REFUND-FT
+				 parlay ticket: MP-REFUND, MP-REFUND-HT, MP-REFUND-FT, MP
 
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	DECLARE @IsExistMarkedTicket  BIT
 
 	DECLARE @tmpBettype TABLE (bettype SMALLINT)	
-
-	SET @IsExistMarkedTicket = 0
 
 	INSERT INTO @tmpBettype(bettype)
 	SELECT	BetType
@@ -54,7 +53,7 @@ BEGIN
 			SET @IsExistMarkedTicket = 1
 		END
 	END
-	ELSE IF @Action IN ('MP-REFUND', 'MP-REFUND-HT', 'MP-REFUND-FT')
+	ELSE IF @Action LIKE 'MP%'
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1
 					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -65,7 +64,6 @@ BEGIN
 							FROM	dbo.bettrans b WITH(NOLOCK)
 							WHERE	b.transid = mt.TransId
 									AND b.matchid = 29
-									AND b.statusID NOT IN (101, 102)
 						) b							
 						CROSS APPLY (
 							SELECT TOP 1 bm.transid
@@ -80,7 +78,9 @@ BEGIN
 			SET @IsExistMarkedTicket = 1
 		END
 	END
-
-	SELECT @IsExistMarkedTicket AS IsExistMarkedTicket
+	
+	IF @IsExistMarkedTicket = 1
+		SELECT 	@ErrCode = 1001032
+				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
 END
 GO

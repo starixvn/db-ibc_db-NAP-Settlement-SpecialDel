@@ -673,6 +673,7 @@ BEGIN
 						WHERE	bm.refno = b.refno
 								AND bm.statusid = 0
 								AND b.matchid = 29
+								AND bm.matchid = mt.matchid
 					)bm
 				WHERE	1 = CASE
 								WHEN b.matchid <> 29 AND b.statusID = 0 THEN 1

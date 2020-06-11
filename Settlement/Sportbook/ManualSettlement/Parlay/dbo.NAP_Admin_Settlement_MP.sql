@@ -139,31 +139,16 @@ BEGIN
 	END
 
 	-- check marked ticket
-	IF EXISTS (SELECT TOP 1 1
-				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-					CROSS APPLY (
-						SELECT TOP 1 b.refno
-								,b.statusID
-								,b.matchid
-						FROM	dbo.bettrans b WITH(NOLOCK)
-						WHERE	b.transid = mt.TransId
-								AND b.matchid = 29
-								AND b.statusID NOT IN (101, 102)
-					) b							
-					CROSS APPLY (
-						SELECT TOP 1 bm.transid
-						FROM	dbo.bettransm bm WITH(NOLOCK)
-						WHERE	bm.matchid = mt.matchid
-								AND bm.refno = b.refno
-								AND bm.statusID = 0
-					)bm
-				WHERE	mt.MatchId = @MatchID
-	)
+	IF @action = 'CAL'
 	BEGIN
-		SELECT @ErrCode = 1001032
-				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'MP'
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	OUTPUT
 
-		RETURN
+		IF @ErrCode <> 0
+			RETURN
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------

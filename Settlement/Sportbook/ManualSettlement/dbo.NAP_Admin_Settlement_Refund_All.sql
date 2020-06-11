@@ -242,21 +242,15 @@ BEGIN
 	END
 	
 	-- check marked ticket
-	IF EXISTS (SELECT TOP 1 1
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-						ON b.transid = mt.TransId
-					INNER JOIN dbo.f_Set_GetGroupBettypes() bt
-						ON b.bettype = bt.bettype
-				WHERE	b.matchid = @MatchID
-						AND b.statusID NOT IN (101, 102)
-						AND bt.IsAuto = 0
-		)
+	EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'REFUND'
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	OUTPUT
+
+	IF @ErrCode <> 0
 	BEGIN
-		SELECT @ErrCode = 1001032
-			,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
-		
-			------ releasing Settlement process
+		------ releasing Settlement process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= 1
 			, @IsReleased		= 1

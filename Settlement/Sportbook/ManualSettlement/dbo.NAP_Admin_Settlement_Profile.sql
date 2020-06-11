@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -77,7 +73,7 @@ BEGIN
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-	DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
+
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -122,8 +118,6 @@ BEGIN
 		RETURN
 	END
   	
-	------------------------------------------parse XML -----------------------------------------
-
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 	SELECT Id, Home, Away
@@ -133,38 +127,21 @@ BEGIN
 										) AS tbl
 	EXEC sp_xml_removedocument @handle
 
-	-- check marked ticket
 	IF @Action LIKE 'REFUND%'
 	BEGIN
-		INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
-		SELECT DISTINCT c.ResourceID, sp.BetType, sp.BetID
-		FROM (
-			SELECT	c.ResourceID
-			FROM	@tmpResourcesWeb c
-			UNION ALL
-			SELECT '70400' AS ResourceID 
-			FROM	@tmpResourcesWeb 
-			WHERE	ResourceID = '00'
-					AND @sportType = 9
-		) c
-			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
-				ON sp.ResourceID = c.ResourceID
-		WHERE	sp.SportType = @SportType 
-	
-		IF EXISTS (
-			SELECT	TOP 1 1
-			FROM	dbo.bettrans b WITH(NOLOCK)
-				INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-					ON	b.transid = mt.TransId
-			WHERE	b.matchid = @MatchID
-					AND b.statusID NOT IN (101, 102)
-					AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
-		)
+		DECLARE @ResourceIds VARCHAR(MAX) = ''
+
+		SELECT @ResourceIds = @ResourceIds + ResourceID + ','
+		FROM	@tmpResourcesWeb
+
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @ResourceIds
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
 		BEGIN
-			SELECT @ErrCode = 1001032
-				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
-		
-				------ releasing Settlement process
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistMatch		= 1
 				, @IsReleased		= 1
@@ -172,7 +149,6 @@ BEGIN
 			RETURN
 		END
 	END
-
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
 
@@ -186,6 +162,7 @@ BEGIN
 						,@SelectedRID   		= @SelectedResources
 		END
 
+		-----------------------------------------add more info-----------------------------------------
 		-- badminton
 		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
