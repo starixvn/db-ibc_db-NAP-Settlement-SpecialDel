@@ -29,6 +29,7 @@ AS
 		- 20200403@Raymond: Auto void for Tennis [Redmind: #131516]	
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
+		- 20200615@Max: HotFix - Do not settle after confirm auto unmark - Remove check StatusId in Queue - [Redmine: #135864]
 		
 	Param's explanation:	
 		
@@ -167,7 +168,8 @@ BEGIN
 	
 	SET @IsCalQueue = ( SELECT TOP (1) 1
 							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-							WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
+							WHERE matchid = @MatchId AND RequestId = 0
+								--AND StatusId IN (1,2,4) 
 						)
 	WHILE (1 = 1)
 	BEGIN
