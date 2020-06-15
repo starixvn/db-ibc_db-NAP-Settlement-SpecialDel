@@ -242,11 +242,22 @@ BEGIN
 	END
 	
 	-- check marked ticket
-	EXEC dbo.NAP_Set_CheckingMarkedTransaction
-			@MatchID  = @matchid
-			,@Action  = 'REFUND'
+	IF @sporttype = 2
+	BEGIN
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @SelectedQuarter
 			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+	END
+	ELSE
+	BEGIN
+		EXEC dbo.NAP_Set_CheckingMarkedTransaction
+				@MatchID  = @matchid
+				,@Action  = 'REFUND'
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg  = @ErrMsg	OUTPUT
+	END 
 
 	IF @ErrCode <> 0
 	BEGIN
@@ -256,7 +267,7 @@ BEGIN
 			, @IsReleased		= 1
 			
 		RETURN
-	END    
+	END   
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------

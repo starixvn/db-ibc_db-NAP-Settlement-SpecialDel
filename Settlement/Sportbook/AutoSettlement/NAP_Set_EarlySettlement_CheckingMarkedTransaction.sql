@@ -16,6 +16,7 @@ AS
     Revisions:
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190702@Kathy: PH AIO phase 4 [Redmine:#115232]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -40,6 +41,28 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpResourceIds WHERE ResourceID = '00') AND @SportType = 9
 	BEGIN
 		INSERT INTO @tmpResourceIds(ResourceID) VALUES('70400')
+	END
+
+	IF @SportType = 2
+	BEGIN
+		UPDATE t 
+			SET ResourceId = CASE
+								WHEN t.ResourceId LIKE '80[1-4]' THEN 'Q' + SUBSTRING(t.ResourceId,3,1)
+								WHEN t.ResourceId = '1H' THEN '01'
+								WHEN t.ResourceId = '2H' THEN '02'
+								WHEN t.ResourceId = 'FT' THEN '00'
+								ELSE t.ResourceId
+							END
+		FROM	@tmpResourceIds t
+
+		INSERT INTO @tmpResourceIds (ResourceId)
+		SELECT	'605'
+		FROM	@tmpResourceIds
+		WHERE	ResourceId = '00'
+		UNION ALL
+		SELECT	'6170' + SUBSTRING(ResourceId,2,1)
+		FROM	@tmpResourceIds
+		WHERE	ResourceId LIKE 'Q[1-4]'
 	END
 
 	INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
