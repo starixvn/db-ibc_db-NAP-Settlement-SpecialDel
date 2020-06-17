@@ -51,6 +51,7 @@ AS
 		- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
 						  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 
       
  Param explanation:  
@@ -313,7 +314,7 @@ BEGIN
 					WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
 				END IS NOT NULL 
 			AND m.sporttype = @sporttype 
-			AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode)) 
+			AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode LIKE + '%' + @matchcode + '%')) 
 			AND (@eventstatus = '' OR eventstatus IN (@eventstatus, 'internal')) 
 			AND (@isRefund IS NULL 
 						OR (
@@ -527,7 +528,7 @@ BEGIN
 	END
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
