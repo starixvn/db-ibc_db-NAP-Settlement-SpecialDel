@@ -25,6 +25,7 @@ AS;
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -656,8 +657,25 @@ SET NOCOUNT ON
 	BEGIN
 		DELETE b
 		FROM  #Tickets b
-		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam ))
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND 
+				CASE
+					WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam THEN 1 ELSE 0 END
+					ELSE 
+						CASE tp.BetTeam
+							 WHEN 'All-All' THEN 1
+							 WHEN 'All-S' THEN CASE WHEN b.FilterBetTeam LIKE '%S%' THEN 1 ELSE 0 END
+							 WHEN 'All-M' THEN CASE WHEN b.FilterBetTeam LIKE '%M%' THEN 1 ELSE 0 END
+							 WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+							 WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+							 WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+							 WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+							 WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+							 WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
+							 ELSE 0
+						END
+				END = 1
+		)
 
 		DELETE b
 		FROM  #Tickets b
