@@ -1,8 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -25,6 +21,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - modified sp to add oddstype [Redmine:#120324]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -121,6 +118,37 @@ BEGIN
 		RETURN
 	END
   	
+	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+	INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+	SELECT Id, Home, Away
+	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+														,Home VARCHAR(50)
+														,Away VARCHAR(50)
+										) AS tbl
+	EXEC sp_xml_removedocument @handle
+
+	IF @Action LIKE 'REFUND%'
+	BEGIN
+		DECLARE @ResourceIds VARCHAR(MAX) = ''
+
+		SELECT @ResourceIds = @ResourceIds + ResourceID + ','
+		FROM	@tmpResourcesWeb
+
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @ResourceIds
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
 
@@ -134,17 +162,7 @@ BEGIN
 						,@SelectedRID   		= @SelectedResources
 		END
 
-		------------------------------------------parse XML and add more info-----------------------------------------
-
-		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-		SELECT Id, Home, Away
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
-															,Home VARCHAR(50)
-															,Away VARCHAR(50)
-											) AS tbl
-		EXEC sp_xml_removedocument @handle
-
+		-----------------------------------------add more info-----------------------------------------
 		-- badminton
 		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN

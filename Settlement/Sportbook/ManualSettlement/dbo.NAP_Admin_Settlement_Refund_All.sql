@@ -74,6 +74,7 @@ AS
 		- 20191028@Sol: Prevent Direct Actions for Soccer Matches - Fixed wrong settlement when Refund All button is clicked second times [Redmine:#122176]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -239,7 +240,34 @@ BEGIN
 
         RETURN
 	END
-    
+	
+	-- check marked ticket
+	IF @sporttype = 2
+	BEGIN
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @SelectedQuarter
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+	END
+	ELSE
+	BEGIN
+		EXEC dbo.NAP_Set_CheckingMarkedTransaction
+				@MatchID  = @matchid
+				,@Action  = 'REFUND'
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg  = @ErrMsg	OUTPUT
+	END 
+
+	IF @ErrCode <> 0
+	BEGIN
+		------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
+			
+		RETURN
+	END   
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------

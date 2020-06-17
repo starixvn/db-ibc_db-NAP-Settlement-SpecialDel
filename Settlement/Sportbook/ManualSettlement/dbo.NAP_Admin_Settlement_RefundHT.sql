@@ -45,6 +45,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		- 20200519@Kathy: Do not update match_remark.calculate if match is refund HT [Redmine:#134192]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -126,6 +127,24 @@ BEGIN
 
         RETURN
 	END
+
+	-- check marked ticket
+	EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'REFUND-HT'
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	OUTPUT
+
+	IF @ErrCode <> 0
+	BEGIN
+		------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
+			
+		RETURN
+	END    
+
 	IF @sportType = 1
 	BEGIN
 		

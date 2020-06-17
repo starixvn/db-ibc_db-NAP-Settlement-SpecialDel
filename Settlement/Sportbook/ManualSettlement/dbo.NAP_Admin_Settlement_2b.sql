@@ -18,6 +18,7 @@ AS
 		- 20170801@Bobby: Implement new capture balance method [Redmine:#80774]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		
     Param's Explanation:
 		* @QuarterResult: the result of each quarter bettype of basketball
@@ -88,7 +89,7 @@ BEGIN
 
         RETURN
 	END
-
+	
 	;WITH cteResourceIds
 	AS(
 		SELECT	T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
@@ -101,6 +102,29 @@ BEGIN
 		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
 			ON c.ResourceId LIKE CAST(f.bettype AS VARCHAR) + '%'
 	OPTION ( OPTIMIZE FOR ( @xml = NULL ) )	
+	
+	IF @Action = 'REFUND'
+	BEGIN
+		DECLARE @ResourceIds VARCHAR(MAX) = ''
+
+		SELECT @ResourceIds = @ResourceIds + ResourceID + ','
+		FROM	@tmpResultDetail
+
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @ResourceIds
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
 	
 	SELECT	@strResourceIds = COALESCE(@strResourceIds + ',' + ResourceId, ResourceId)
 	FROM	@tmpResultDetail

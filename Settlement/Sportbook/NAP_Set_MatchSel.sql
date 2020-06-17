@@ -50,6 +50,8 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
 						  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+
       
  Param explanation:  
 	@MatchCode: match code
@@ -194,6 +196,7 @@ BEGIN
 		,IsWaitingEarlyBettypesParlay BIT
 		,IsExistRunningTicket BIT
 		,IsExistMarkedTicket BIT
+		,IsExistMarkedTicketParlay BIT
 		,ChildMatchType TINYINT
 		)
 
@@ -212,7 +215,7 @@ BEGIN
 		,IsExistFastMarket,IsRunningFastMarket 
 		,IsExistFastMarketResult
 		,IsExistEarlyBettypes,IsExistEarlyBettypesParlay,IsRunningEarlyBettypes,IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
-		,IsExistRunningTicket, IsExistMarkedTicket
+		,IsExistRunningTicket, IsExistMarkedTicket, IsExistMarkedTicketParlay
 		,ChildMatchType
 	)
 	SELECT 
@@ -269,6 +272,7 @@ BEGIN
 		,0 AS IsWaitingEarlyBettypeParlay 
 		,0 AS IsExistRunningTicket
 		,0 AS IsExistMarkedTicket
+		,0 AS IsExistMarkedTicketParlay
 		,tmp.ChildMatchType
 	FROM (
 		SELECT hthomescore
@@ -522,7 +526,7 @@ BEGIN
 		
 	END
 
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
@@ -541,23 +545,42 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		UPDATE	mk 
-			SET  IsExistMarkedTicket = 1
+			SET  IsExistMarkedTicket = m.HasMarkedSingle
+				,IsExistMarkedTicketParlay = m.HasMarkedParlay
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
 				SELECT	mt.matchId
+						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
+						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
 					CROSS APPLY (
 						SELECT	TOP (1) b.transid
+								,b.refno
+								,b.matchid
+								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
-								AND b.statusID = 0
 					) b
+					OUTER APPLY (
+						SELECT TOP 1 1 IsParlay
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+						WHERE	bm.refno = b.refno
+								AND bm.statusid = 0
+								AND b.matchid = 29
+								AND bm.matchid = mt.matchId
+					)bm
+				WHERE	1 = CASE
+								WHEN b.matchid <> 29 AND b.statusID = 0 THEN 1
+								WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1
+								ELSE 0
+							END
 				GROUP BY mt.matchid
 			) m
 				ON m.matchid = mk.MatchId
 
 		UPDATE m 
 			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+				,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
 		FROM	#matchList m
 			INNER JOIN @tmpMatchMarked t
 				ON m.matchid = t.MatchId
@@ -568,7 +591,7 @@ BEGIN
 	BEGIN
 		DELETE m
 		FROM #matchList m 
-		WHERE	IsExistMarkedTicket = 0
+		WHERE	IsExistMarkedTicket = 0 AND m.IsExistMarkedTicketParlay = 0
 	END
 
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
@@ -702,6 +725,7 @@ BEGIN
 			
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
+			,m.IsExistMarkedTicketParlay
 			,exSource.SourceId
 			,exSource.ExHTHomeScore
 			,exSource.ExHTAwayScore

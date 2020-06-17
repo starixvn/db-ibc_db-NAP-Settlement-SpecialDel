@@ -36,6 +36,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190924@Sol: Incorporate BMAIO - refactor code - removed sporttype 9 [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 
 	Param's Explanation:
 */
@@ -135,6 +136,19 @@ BEGIN
 					,@ErrMsg = 'This match has not been keyed in score yet'
 			RETURN
 		END
+	END
+
+	-- check marked ticket
+	IF @action = 'CAL'
+	BEGIN
+		EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'MP'
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	OUTPUT
+
+		IF @ErrCode <> 0
+			RETURN
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------

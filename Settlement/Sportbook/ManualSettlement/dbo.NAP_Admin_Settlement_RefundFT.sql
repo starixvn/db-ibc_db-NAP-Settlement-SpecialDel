@@ -61,6 +61,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -195,6 +196,24 @@ BEGIN
 
         RETURN
 	END
+
+	-- check marked ticket
+	EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'REFUND-FT'
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	OUTPUT
+
+	IF @ErrCode <> 0
+	BEGIN
+		------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch		= 1
+			, @IsReleased		= 1
+			
+		RETURN
+	END    
+
 	SELECT 	@strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM	dbo.f_Set_GetGroupBettypes() f 
 	WHERE  	f.IsAuto = 1

@@ -22,6 +22,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 
 	Param's Explanation:		
 		
@@ -149,7 +150,16 @@ BEGIN
 		END
 	END 
 	
-	
+	-- check marked ticket
+	EXEC dbo.NAP_Set_CheckingMarkedTransaction
+		@MatchID  = @matchid
+		,@Action  = 'MP'
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg  = @ErrMsg	OUTPUT
+
+	IF @ErrCode <> 0
+		RETURN
+
 	IF @Sporttype = 1
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_2 

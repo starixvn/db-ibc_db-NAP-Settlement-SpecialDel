@@ -29,6 +29,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -157,6 +158,29 @@ BEGIN
 			ON	sp.ResourceID = tbl.Id
 	WHERE sp.SportType = @SportType 
 	
+	IF @Action = 'REFUND'
+	BEGIN
+		DECLARE @ResourceIds VARCHAR(MAX) = ''
+
+		SELECT @ResourceIds = @ResourceIds + ResourceID + ','
+		FROM	@tmpSelectedRID
+
+		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
+			@MatchID = @MatchID
+			,@ResourceIds = @ResourceIds
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch		= 1
+				, @IsReleased		= 1
+			
+			RETURN
+		END
+	END
+
 	EXEC sp_xml_removedocument @handle
 
 	SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
