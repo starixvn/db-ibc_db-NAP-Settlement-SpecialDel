@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
 (
 	@MatchId		VARCHAR(50)		= ''
-	,@Sporttype		VARCHAR(100)	= ''
+	,@Sporttype		VARCHAR(MAX)	= ''
 	,@IsExcludeTest BIT				= 1
 	,@MarkedBy		INT				= 0
 )
@@ -48,7 +48,7 @@ BEGIN
 				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				CROSS APPLY (
-					SELECT val AS sporttype
+					SELECT DISTINCT val AS sporttype
 					FROM dbo.f_SplitString(@Sporttype, ',')
 					WHERE val = m.sporttype
 				) AS tmp
