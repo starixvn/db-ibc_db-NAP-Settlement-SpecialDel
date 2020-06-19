@@ -45,6 +45,7 @@ AS
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200505@Kathy: Add New Filter Option allowing user to exclude/include test matches [Redmine:#133518]
+		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -151,7 +152,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@n = 1))	
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, mt.matchid
@@ -179,6 +180,7 @@ BEGIN
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
 								AND b.statusID = 0
+								AND b.matchid <> 29
 					) b
 				GROUP BY mt.matchid
 			) m
