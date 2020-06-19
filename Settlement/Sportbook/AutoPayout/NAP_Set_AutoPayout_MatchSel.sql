@@ -52,6 +52,8 @@ AS
 	- 20200505@Kathy: - Add New Filter Option allowing user to exclude/include test matches 
 					  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
 	- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+	- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
+
 	
  Param explanation:  
 	@MatchCode: match code
@@ -87,11 +89,11 @@ BEGIN
 		BEGIN
 			SET @MatchId = CAST(@matchcode AS INT)
 		END
-		ELSE
-		BEGIN
-			SELECT @MatchId = matchid
-			FROM dbo.match m WITH(NOLOCK) WHERE matchcode = @matchcode
-		END
+		--ELSE
+		--BEGIN
+		--	SELECT @MatchId = matchid
+		--	FROM dbo.match m WITH(NOLOCK) WHERE matchcode = @matchcode
+		--END
 	END
 	ELSE
 	BEGIN
@@ -260,7 +262,7 @@ BEGIN
 				WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
 			END IS NOT NULL 
 		AND m.sporttype = CASE WHEN @sporttype = 0 THEN m.sporttype ELSE @sporttype END 
-		AND (@MatchId = 0 OR (@MatchId <> 0 AND m.matchid = @matchid))
+		AND (@MatchCode = '' OR (m.matchid = @matchid OR m.matchcode LIKE '%'+ @MatchCode +'%'))
 		AND (@eventstatus = '' OR eventstatus IN (@eventstatus, 'internal')) 
 		AND (@isRefund IS NULL
 				OR (@isRefund = 1 
@@ -633,7 +635,7 @@ BEGIN
 	END
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, mt.matchid
