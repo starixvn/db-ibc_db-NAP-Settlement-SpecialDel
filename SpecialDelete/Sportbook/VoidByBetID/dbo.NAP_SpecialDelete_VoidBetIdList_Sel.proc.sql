@@ -1,6 +1,4 @@
-
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            INT          = NULL,
                                                             @TransIds          VARCHAR(MAX) = NULL,
                                                             @FromDate          DATETIME     = NULL,
@@ -50,6 +48,7 @@ AS;
 		- 20190227@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191106@Charles: Implement NPM Promotion [122187]
+		- 20200618@Max: Hotfix Change Primary key on MarkedTransaction [Redmine: #136064]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -254,7 +253,11 @@ BEGIN
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 			ON b.translogid = temp.transid
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.translogid = TransId
+					)m		
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -360,7 +363,11 @@ BEGIN
 				AND b.matchid 	= tl.eventid
 			INNER JOIN #transIdTemp temp
 			ON tl.translogid 	= temp.transid			
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.transid = TransId
+					)m
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102)
@@ -424,7 +431,11 @@ BEGIN
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId					
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.transid = TransId
+					)m				
 		WHERE	b.winlostdate >= @FromDate				
 			AND b.bettype < 19001
 			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
