@@ -31,6 +31,7 @@ AS
 		- 20190801@Sol: Removed unused code IsNeedToCalculateFGLG [Redmine:#115232]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		
 	Param's explanation: 
 		
@@ -262,7 +263,7 @@ BEGIN
 	END
 	
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, mt.matchid
