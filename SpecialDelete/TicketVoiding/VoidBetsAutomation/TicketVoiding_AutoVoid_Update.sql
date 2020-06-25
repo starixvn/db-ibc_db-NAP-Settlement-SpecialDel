@@ -236,7 +236,7 @@ BEGIN
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
-					AND @sporttype NOT IN (50) -- Exclude Cricket
+					AND 1 = CASE WHEN @Sporttype = 50 AND b.bettype IN (501) THEN 0 ELSE 1 END -- Exclude bettype 501 of Cricket
 					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
