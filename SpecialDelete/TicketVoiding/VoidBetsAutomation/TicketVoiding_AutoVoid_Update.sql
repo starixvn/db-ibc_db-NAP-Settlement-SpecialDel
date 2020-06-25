@@ -22,6 +22,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix + VIP account [Redmine:#131516]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Charles: Remove notify when void tickets [131865]
+		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 	
 	Param's explanation:	
 		
@@ -235,6 +236,7 @@ BEGIN
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
+					AND @sporttype NOT IN (50) -- Exclude Cricket
 					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
