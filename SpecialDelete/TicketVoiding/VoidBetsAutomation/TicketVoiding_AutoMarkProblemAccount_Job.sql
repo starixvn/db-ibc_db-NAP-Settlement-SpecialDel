@@ -120,7 +120,7 @@ BEGIN
 			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
 					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 					AND ISNULL(m_auto.[Enabled],1) = 1
-					AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) IN (42,74) THEN 0 ELSE 1 END
+					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74)
 					
 			OPTION (MAXDOP 1)
 			
