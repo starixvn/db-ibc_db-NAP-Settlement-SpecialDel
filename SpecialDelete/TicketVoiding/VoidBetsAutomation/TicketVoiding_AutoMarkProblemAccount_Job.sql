@@ -75,7 +75,8 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND pt.SportType <= 99
+		AND 1 = CASE WHEN pt.SportType IN (50) AND pt.BetType IN (501) THEN 0
+					WHEN pt.SportType <= 99 THEN 1 END
 	
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
