@@ -23,6 +23,7 @@ AS
 		- 20200304@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -113,13 +114,7 @@ BEGIN
 		FROM #Tickets AS t
 		WHERE t.TransId = tmp.TransId
 	)
-
-	-- delete cash-out member bet tickets
-	DELETE t
-	FROM #Tickets t
-	WHERE EXISTS (SELECT TOP (1) 1
-				  FROM bettrans sub911 (NOLOCK)
-				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)				 
+			 
 	-- Bonus
     IF EXISTS
 	   (
