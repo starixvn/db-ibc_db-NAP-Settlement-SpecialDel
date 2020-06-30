@@ -152,8 +152,8 @@ BEGIN
                     HAVING COUNT(*) = 1;
              IF @@ROWCOUNT > 0
                  BEGIN
-                     INSERT INTO #TransIds(TransId)
-                            SELECT b.transid
+                     INSERT INTO #Tickets(TransId, MatchId)
+                            SELECT b.transid, b.matchid
                             FROM #tmpRefCodeSummary t
                                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.RefCode = t.RefCode
                                                                             AND b.transid <> t.transid
