@@ -469,6 +469,7 @@ BEGIN
 							,@creator			= @creator
 							,@action			= 'UNDO'
 							,@SelectedResources = @SelectedResources
+							,@IsSettleBySetting = 1
 							,@IP				= @IP
 			IF @existsFinalRound = 1
 			BEGIN
