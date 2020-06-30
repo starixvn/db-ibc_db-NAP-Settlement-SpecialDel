@@ -27,6 +27,7 @@ AS
 		- 20190725@Sol: Incorporate PHAIO 4b - Implement [ResourceID] = '09' to Settle PH4B Bet Types [Redmine:#115232]
 		- 20190924@Sol: Incorporate BMAIO - modified sp to support ResultDetailOS [Redmine:#120324]
 		- 20200410@Sol: HotFix - Tennis - Refund parlay [Redmine:#132208]
+		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -225,49 +226,6 @@ BEGIN
 		)
 	END
 
-	IF @sporttype = 2
-	BEGIN
-		;WITH cteBetstatus
-		AS(
-			SELECT	bm.matchid
-					,bm.bettype
-					,bm.betcheck
-			FROM	dbo.bettransm bm WITH(NOLOCK)
-			WHERE	bm.matchid IN (SELECT matchid FROM @match)
-					AND bm.statusID = 0
-			GROUP BY bm.matchid, bm.bettype, bm.betcheck
-		)
-		,cteResourceID
-		AS(
-			SELECT c.matchid
-					,CASE 
-						WHEN f.isEarly = 1 OR f.bettype IN (605, 617) THEN CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(c.betcheck, 2, LEN(c.betcheck)), '')
-						WHEN f.GroupName = 'FT' THEN '00'
-						WHEN f.GroupName = '1H' THEN '01'
-						WHEN f.GroupName = '2H' THEN '02'
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
-						ELSE NULL
-					END AS ResourceID
-					,CASE 
-						WHEN f.isEarly = 1 THEN 'Early Settle'
-						WHEN f.GroupName IN ('FT', '1H', '2H') THEN f.GroupName
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
-						ELSE NULL
-					END AS QuarterX
-			FROM	cteBetstatus c
-				INNER JOIN	@tmpBettypes f
-					ON c.bettype = f.BetType
-		)
-		INSERT INTO @tmpRunningBAIO (matchid, QuarterX)
-		SELECT	c.matchid, c.QuarterX
-		FROM	cteResourceID c
-			LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-				ON	c.matchid = r.matchid
-					AND c.ResourceId = r.ResourceId
-		WHERE	ISNULL(r.ResultStatusId,'') <> 5
-		GROUP BY c.matchid, c.QuarterX
-	END
-	
 	IF EXISTS (SELECT TOP 1 1 FROM @match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
 	BEGIN
 		
@@ -285,13 +243,25 @@ BEGIN
 		,cteResourceID
 		AS(
 			SELECT c.matchid
-					,CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END AS ResourceID
+					,CASE 
+						WHEN f.ResourceID IN('70400','605')
+							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+						WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
+						ELSE f.ResourceID 
+					END AS ResourceID
 					,f.SettleType
 					,MAX(f.OrdNo) AS OrdNo
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.matchid, CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END,f.SettleType
+			GROUP BY c.matchid
+				,CASE 
+					WHEN f.ResourceID IN('70400','605')
+						OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+					WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
+					ELSE f.ResourceID 
+				END
+				,f.SettleType
 		)
 			
 		INSERT INTO @tmpRunningBAIO (matchid, QuarterX, OrdNo)

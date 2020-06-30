@@ -50,6 +50,14 @@ BEGIN
         
     EXEC sp_xml_removedocument @handle
     
+	IF @Sporttype = 2
+	BEGIN
+		UPDATE @tblSelectedRID
+		SET	HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
+			,AwayValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE AwayValue END
+		WHERE ResourceID = 'OT'
+	END
+
     IF @action = 'CAL'
     BEGIN
        SET @SettlementStatusID 	= 4
@@ -70,7 +78,6 @@ BEGIN
        	   ,AwayValue = '0'
        FROM @tblSelectedRID sr
        		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sr.ResourceID = sd.ResourceID
-       			
     END 
     ELSE
     BEGIN
@@ -137,6 +144,12 @@ BEGIN
 	    WHEN NOT MATCHED BY TARGET THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+
+		IF @Sporttype = 2 AND @action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+			DELETE
+			FROM	dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
+			WHERE	MatchId = @MatchID
+					AND ResourceId = 'OT'
     END 
     
 END 

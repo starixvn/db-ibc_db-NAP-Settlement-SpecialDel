@@ -39,6 +39,7 @@ AS
 		- 20200115@Max: Enhance SPs [Redmine: #127031]
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 
 	Param's Explanation:		
 		
@@ -252,50 +253,6 @@ BEGIN
 		WHERE ISNULL(r.SettlementStatusId,0) <> 4
 		GROUP BY c.matchid, c.matchcode			
 	END
-
-	IF EXISTS (SELECT TOP 1 1 FROM #Match WHERE sporttype = 2)
-	BEGIN
-		;WITH cteBetstatus
-		AS(
-			SELECT	bm.matchid
-					,bm.bettype
-					,bm.betcheck
-			FROM	dbo.bettransm bm WITH(NOLOCK)
-			WHERE	bm.matchid IN (SELECT matchid FROM #Match)
-					AND bm.statusID = 0
-			GROUP BY bm.matchid, bm.bettype, bm.betcheck
-		)
-		,cteResourceID
-		AS(
-			SELECT c.matchid
-					,CASE 
-						WHEN f.isEarly = 1 OR c.bettype IN (605, 617) THEN CAST(c.bettype AS VARCHAR) + ISNULL(SUBSTRING(c.betcheck, 2, LEN(c.betcheck)), '')
-						WHEN f.GroupName = 'FT' THEN '00'
-						WHEN f.GroupName = '1H' THEN '01'
-						WHEN f.GroupName = '2H' THEN '02'
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
-						ELSE NULL
-					END AS ResourceID
-					,CASE 
-						WHEN f.isEarly = 1 THEN 'Early Settle'
-						WHEN f.GroupName IN ('FT', '1H', '2H') THEN f.GroupName
-						WHEN f.GroupName = 'Special' THEN 'Q' + SUBSTRING(c.betcheck,3,1)
-						ELSE NULL
-					END AS QuarterX
-			FROM	cteBetstatus c
-				INNER JOIN	@tmpBettypes f
-					ON c.bettype = f.BetType
-		)
-		INSERT INTO @tblRunningBAIO (matchid, QuarterX)
-		SELECT	c.matchid, c.QuarterX
-		FROM	cteResourceID c
-			LEFT JOIN #ResultDetail r WITH(NOLOCK)
-				ON	c.matchid = r.matchid
-					AND c.ResourceId = r.ResourceId
-		WHERE	ISNULL(r.ResultStatusId,0) <> 5
-		GROUP BY c.matchid, c.QuarterX
-	END
-
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #Match m CROSS APPLY dbo.f_Set_SettingByProfile(m.sporttype))
 	BEGIN
@@ -315,13 +272,25 @@ BEGIN
 		AS(
 			SELECT c.sporttype
 					,c.matchid
-					,CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END AS ResourceID
+					,CASE 
+						WHEN f.ResourceID IN('70400','605')
+							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+						WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
+						ELSE f.ResourceID 
+					END AS ResourceID
 					,f.SettleType
 					,MAX(f.OrdNo) AS OrdNo
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.sporttype, c.matchid, CASE WHEN f.ResourceID = '70400' THEN '00' ELSE f.ResourceID END,f.SettleType
+			GROUP BY c.sporttype, c.matchid
+					,CASE 
+						WHEN f.ResourceID IN('70400','605')
+							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+						WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
+						ELSE f.ResourceID 
+					END
+					,f.SettleType
 		)
 			
 		INSERT INTO @tblRunningBAIO (matchid, QuarterX, OrdNo)

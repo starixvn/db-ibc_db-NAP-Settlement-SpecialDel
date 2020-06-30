@@ -1,13 +1,13 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
-	@matchid		INT
-	,@creator		INT
-	,@action		VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
+	@matchid				INT
+	,@creator				INT
+	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
-	,@IP			VARCHAR(15)		= ''
-	,@ErrCode		INT				= 0		OUTPUT
-	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
+	,@IP					VARCHAR(15)		= ''
+	,@ErrCode				INT				= 0		OUTPUT
+	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
 AS
 /*	Creator: Viet
 	Date: 20151001
@@ -37,6 +37,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - refactor code - removed sporttype 9 [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 
 	Param's Explanation:
 */
@@ -47,7 +48,6 @@ BEGIN
 			,@stop		DATETIME
 			,@ActionID	INT
 			,@strBettypes	VARCHAR(MAX)
-      		,@IsSettleBySetting BIT
       		,@ticketCountTotal INT
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
@@ -75,6 +75,7 @@ BEGIN
 			,@GoalRecord		VARCHAR(50)
 			,@IsRefundHT		BIT
 			,@priorAction		VARCHAR(20)
+			,@IsSettleBySetting	BIT = 0
 			,@IsExistEarlyBettype BIT
 
 	SELECT	@matchdate = eventdate
@@ -116,9 +117,7 @@ BEGIN
 	BEGIN
 	  	SET @IsSettleBySetting = 1
 	END
-	ELSE 
-		SET @IsSettleBySetting = 0
-
+		
 	IF @action <> 'UNDO'
 	BEGIN
 		SELECT	TOP (1) @ErrCode = 1000000
@@ -168,7 +167,7 @@ BEGIN
 										,Is3x30 '@is3x'
 										,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
 								FROM	dbo.f_Set_GetGroupBettypes() f
-								WHERE	f.GroupId <> 8 -- Early Soccer
+								WHERE	f.GroupId <> 8 -- Early Soccer									
 								FOR XML PATH ('r'), ROOT('root'), TYPE
 							) AS VARCHAR(MAX))
 
@@ -220,95 +219,75 @@ BEGIN
 		
 		IF @IsSettleBySetting = 0 AND @SelectedResources IS NULL
 		BEGIN
-			IF @SportType = 2 AND @Action IN ('REFUND', 'CAL') -- Basketball
+			IF @Sporttype = 1
 			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'basketball'
-					,@matchid = @matchid
-					,@str_resultDetail = @resultDetail_bb OUTPUT
-
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@matchid = @matchid
-					,@matchdate = @matchdate
-					,@mode = 'basketball_m'
-					,@fth = @finalhomescore
-					,@fta = @finalawayscore
-					,@hth = @hthomescore
-					,@hta = @htawayscore
-					,@resultDetail_bb = @resultDetail_bb
-					,@strBettypes = @strBettypes
-			END
-			ELSE
-			BEGIN
-				IF @Sporttype = 1
-				BEGIN
-					EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
-						,@matchid = @matchID
-						,@str_resultDetail = @resultDetail OUTPUT
+				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
+					,@matchid = @matchID
+					,@str_resultDetail = @resultDetail OUTPUT
 					
-					DECLARE @xmlResultDetail XML
-					-- check GoalBettype if all tickets have been voided
-					SET @xmlResultDetail = CAST(@resultDetail AS XML)
+				DECLARE @xmlResultDetail XML
+				-- check GoalBettype if all tickets have been voided
+				SET @xmlResultDetail = CAST(@resultDetail AS XML)
 			
-					INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue)
-					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-							,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-					FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
-					OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )	
+				INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue)
+				SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
+						,T.c.value('./@home','VARCHAR(50)') AS HomeValue
+				FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
+				OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )	
 					
-					INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
-					SELECT b.bettype
-						, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
-						, COUNT(1) AS ticket_cnt
-					FROM bettransm b WITH (NOLOCK)
-						INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
-					WHERE b.matchid = @matchid 
-					GROUP BY b.bettype
+				INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
+				SELECT b.bettype
+					, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
+					, COUNT(1) AS ticket_cnt
+				FROM bettransm b WITH (NOLOCK)
+					INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
+				WHERE b.matchid = @matchid 
+				GROUP BY b.bettype
 					
-					DELETE g 
-					FROM @GoalBettype_tmp g
-						INNER JOIN dbo.SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
-					WHERE g.Voided_cnt = g.ticket_cnt
-						AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)	
+				DELETE g 
+				FROM @GoalBettype_tmp g
+					INNER JOIN dbo.SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
+				WHERE g.Voided_cnt = g.ticket_cnt
+					AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)	
 					
-					-- Do NOT touch on goal bettype having all tickets voided AND no results
-					SET @strBettypes = CAST((SELECT  f.BetType '@t'
-												,GroupId '@g'
-												,GroupName '@n'
-												,Is3x30 '@is3x'
-												,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
-										FROM	dbo.f_Set_GetGroupBettypes() f
-											LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
-										WHERE	f.GroupId <> 8 -- Early Soccer
-											AND 1= CASE 
-														WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
-														WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
-													ELSE 1
-												END
-										FOR XML PATH ('r'), ROOT('root'), TYPE
-									) AS VARCHAR(MAX))
-				END
+				-- Do NOT touch on goal bettype having all tickets voided AND no results
+				SET @strBettypes = CAST((SELECT  f.BetType '@t'
+											,GroupId '@g'
+											,GroupName '@n'
+											,Is3x30 '@is3x'
+											,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
+									FROM	dbo.f_Set_GetGroupBettypes() f
+										LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
+									WHERE	f.GroupId <> 8 -- Early Soccer
+										AND 1= CASE 
+													WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
+													WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
+												ELSE 1
+											END
+									FOR XML PATH ('r'), ROOT('root'), TYPE
+								) AS VARCHAR(MAX))
+			END
 
-				-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
-				IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
+			-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
+			IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
 				
-				EXEC dbo.NAP_Admin_Calculate_MP_broker
-					@matchid = @matchid,
-					@mode = 'm',
-					@priorAction = @priorAction,
-					@action = @action,
-					@IsRefundHT = @IsRefundHT,
-					@GoalSequence = @GoalRecord,
-					@fth = @finalhomescore ,
-					@fta = @finalawayscore,
-					@hth = @hthomescore,
-					@hta = @htawayscore,
-					@matchdate = @matchdate,
-					@TennisTotal = @TennisTotal,
-					@resultDetail = @resultDetail,
-					@strBettypes = @strBettypes,
-					@betstatus	= @betstatus,
-					@SelectedQuarter = @SelectedQuarter
-			END --@Sporttype = 1
+			EXEC dbo.NAP_Admin_Calculate_MP_broker
+				@matchid = @matchid,
+				@mode = 'm',
+				@priorAction = @priorAction,
+				@action = @action,
+				@IsRefundHT = @IsRefundHT,
+				@GoalSequence = @GoalRecord,
+				@fth = @finalhomescore ,
+				@fta = @finalawayscore,
+				@hth = @hthomescore,
+				@hta = @htawayscore,
+				@matchdate = @matchdate,
+				@TennisTotal = @TennisTotal,
+				@resultDetail = @resultDetail,
+				@strBettypes = @strBettypes,
+				@betstatus	= @betstatus,
+				@SelectedQuarter = @SelectedQuarter
 		END
 	END --END: handle bettransM ------------------------------------------
 
