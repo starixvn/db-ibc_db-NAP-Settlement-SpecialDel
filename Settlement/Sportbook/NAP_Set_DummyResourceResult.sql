@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
+ALTER PROCEDURE dbo.NAP_Set_DummyResourceResult
 	@MatchId INT
 	,@Sporttype SMALLINT
 	,@DummyResourceIds VARCHAR(MAX)
@@ -19,7 +19,6 @@ BEGIN
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
-	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 
 	INSERT INTO @tmpDummyResourceIds(ResourceId)
 	SELECT	val
