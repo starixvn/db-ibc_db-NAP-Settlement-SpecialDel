@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	@transIds		   VARCHAR(MAX)
 	
@@ -14,6 +14,7 @@ AS
 		- 20190225@Sol:  New Formula for Comm [Redmine:#109007]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		
 	Param's Explanation:  
 		   
@@ -47,7 +48,7 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT)
+	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY)
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -77,7 +78,17 @@ BEGIN
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
 	  SET	isCN88 = CASE WHEN cs.CustId IS NULL THEN 0 ELSE 1 END,
-			isMajorGroup = CASE WHEN f.CommBettypeGroupId IS NOT NULL AND f.CommBettypeGroupId = 1 THEN 1 ELSE 0 END
+			isMajorGroup = CASE WHEN f.CommBettypeGroupId IS NOT NULL AND f.CommBettypeGroupId = 1 THEN 1 ELSE 0 END,
+			finalodds = CASE WHEN f.BetType = 376 THEN tmp.modds ELSE NULL END,
+			modds = CASE 
+						WHEN f.BetType = 376 
+							THEN CASE 
+									WHEN tmp.modds = 1 THEN 0
+									WHEN tmp.modds > 1 THEN 1
+									ELSE -1
+								END
+						ELSE tmp.modds
+					END
 	FROM   @tempTrans tmp
 			   LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
 				   ON tmp.srecommend = cs.CustId
@@ -101,8 +112,16 @@ BEGIN
 							ELSE 0.5
 						END
 	   ,@odds = (CASE WHEN b.odds < 0 THEN 1 
-	   				 WHEN sr.oddstype = 1 THEN b.odds - 1 ----/*DECIMAL ONLY*/
+	   				 WHEN sr.oddstype = 1 THEN CASE WHEN b.bettype = 376 THEN sr.finalodds - 1 ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
 					 ELSE b.odds END)
+		,odds = CASE 
+					WHEN b.bettype = 376 
+						THEN CASE 
+								WHEN @modds IN(0, 1) THEN sr.finalodds
+								ELSE b.oddsspread
+							END
+					ELSE b.odds
+				END
 		----------------------------------------------------------------------------------------------------------------
 		,@IsUpd_Void = CASE WHEN statusID = 102 OR sr.IsMarked = 1 THEN 0 ELSE 1 END
 		,modds = @modds

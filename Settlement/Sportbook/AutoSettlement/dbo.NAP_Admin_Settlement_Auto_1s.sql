@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_CoreAPI" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s]
      @AdminID                       INT             = 148        -- calculated by system (default)
     ,@MatchID                       INT
@@ -30,6 +30,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
+		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -218,7 +219,9 @@ BEGIN
 	  			WHERE	b.BetType = t.BetType 
 						AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		) sr
-	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL) m
+	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, NULL
+													, CASE WHEN b.bettype = 376 THEN ISNULL(sr.HomeValue,'') + ISNULL(sr.AwayValue,'') ELSE sr.HomeValue END
+													, CASE WHEN b.bettype = 376 THEN b.betcheck ELSE sr.AwayValue END, NULL, NULL) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
 	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1

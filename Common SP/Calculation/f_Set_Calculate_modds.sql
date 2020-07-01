@@ -22,6 +22,7 @@ AS
 		- 20190924@Tiara: BMAIO - Badminton All In One [Redmine: #120324]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200415@Sol: e-Sports - Incorporate New Correct Score Bet Type - new settle profile [Redmine:#132401]
+		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		
 */
 RETURN
@@ -188,6 +189,12 @@ RETURN
 				CASE WHEN @betteam = @HomeValue + ':' + @AwayValue THEN 1
 					 ELSE -1
 				END
+			WHEN @pfID = 376 THEN ROUND(dbo.PRODUCT( 
+						CASE WHEN SUBSTRING(@HomeValue, ps.rn, 1) = 'N' THEN 1
+							 WHEN SUBSTRING(@betteam, ps.rn, 1) = '-' THEN 1
+							 WHEN SUBSTRING(@HomeValue, ps.rn, 1) = SUBSTRING(@betteam, ps.rn, 1) then ps.odds
+							 ELSE 0
+						END),2)
 
 			ELSE -1 
 		END AS modds
@@ -214,5 +221,15 @@ RETURN
 					ELSE -1 END)
 			AS fm
 	) tbl
+	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
+	(
+		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)) AS rn
+				,CAST(CASE WHEN f.val = '' THEN CAST(1 AS SMALLMONEY) ELSE f.val END AS SMALLMONEY) AS odds
+		FROM	dbo.f_SplitString(@AwayValue, ',') f
+		WHERE	@pfID = 376
+				AND ISNULL(@AwayValue,'') <> ''
+	) ps
+	GROUP BY tbl.fm
+
 )
 GO
