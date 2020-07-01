@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [NAP_OtherSportsSel]
+ALTER PROCEDURE [NAP_Set_OtherSportsSel]
 	@FromDate	DATETIME
 	,@ToDate	DATETIME
 AS
