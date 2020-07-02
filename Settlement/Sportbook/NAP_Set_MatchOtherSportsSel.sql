@@ -70,7 +70,7 @@ BEGIN
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
-	DECLARE @tmpBettypeStatus TABLE(
+	DECLARE @tmpEarlyBettypeStatus TABLE(
 		MatchId				INT
 		,bettype			SMALLINT
 		,isExistSingle		BIT DEFAULT(0)
@@ -124,7 +124,8 @@ BEGIN
 
 		,IsExistMarkedTicket			BIT DEFAULT (0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT (0)
-		,IsExistRunningTicket			BIT DEFAULT (0)
+		,IsExistRunningBettypeSingle	BIT DEFAULT (0) -- exclude early bettype
+		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -347,7 +348,7 @@ BEGIN
 			,@maxBettype = MAX(bettype)
 	FROM	dbo.f_Set_GetEarlyBettypes()
 
-	INSERT INTO @tmpBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
+	INSERT INTO @tmpEarlyBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
 	SELECT	m.matchid
 			,MAX(b.isExistSingle)
 			,MAX(b.IsRunningSingle)
@@ -398,8 +399,32 @@ BEGIN
 			,IsWaitingEarlyBettypesSingle = b.isWaitingSingle
 			,IsWaitingEarlyBettypesParlay = b.isWaitingParlay
 	FROM	#tmpMatchIds m 
-		INNER JOIN @tmpBettypeStatus b
+		INNER JOIN @tmpEarlyBettypeStatus b
 			ON m.matchid = b.MatchId
+
+	UPDATE m
+		SET IsExistRunningBettypeSingle = 1
+	FROM	#tmpMatchIds m
+		INNER JOIN (
+			SELECT	m.matchid
+					,MAX(b.IsRunningBettypeSingle) AS IsRunningBettypeSingle
+			FROM #tmpMatchIds m
+			CROSS APPLY (
+				SELECT	b.bettype
+						,MAX(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) AS IsRunningBettypeSingle
+				FROM	dbo.bettrans b WITH(NOLOCK)
+				WHERE	m.matchid = b.matchid
+				GROUP BY b.bettype
+			) b
+			INNER JOIN dbo.f_Set_GetGroupBettypes() f
+				ON	b.bettype = f.BetType
+			LEFT JOIN dbo.f_Set_GetEarlyBettypes() e
+				ON	b.bettype = e.bettype
+			WHERE	e.bettype IS NULL
+			GROUP BY m.matchid
+		)t
+			ON m.matchid = t.matchid
+	WHERE t.IsRunningBettypeSingle = 1
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
@@ -468,11 +493,8 @@ BEGIN
 			WHERE	1 = CASE
 							WHEN t.Id = 0 THEN 1
 							WHEN t.Id = 1 AND (m.IsExistMarkedTicket > 0 OR m.IsExistMarkedTicketParlay > 0) THEN 1 -- marked ticket
-							WHEN t.Id = 2 AND (m.IsExistEarlyBettypesSingle > 0 OR m.IsExistEarlyBettypesParlay > 0)
-								AND (m.IsRunningEarlyBettypesSingle > 0 OR m.IsRunningEarlyBettypesParlay > 0 
-										OR m.IsWaitingEarlyBettypesSingle > 0 OR m.IsWaitingEarlyBettypesParlay > 0
-							) THEN 1 -- un-calculated early
-							WHEN t.Id = 3 AND ISNULL(m.IsCalculated,0) = 0 THEN 1 -- un-calculate single
+							WHEN t.Id = 2 AND m.IsExistEarlyBettypesSingle > 0 AND m.IsRunningEarlyBettypesSingle > 0 THEN 1 -- un-calculated early
+							WHEN t.Id = 3 AND m.IsExistRunningBettypeSingle = 1 THEN 1 -- un-calculate single
 							WHEN t.Id = 4 AND (ISNULL(m.IsCalculated,0) = 1 OR ISNULL(m.IsCalRefund,0) = 1) AND (ISNULL(m.IsMultiCaled,0) = 0 AND ISNULL(m.IsRefund,0) = 0) THEN 1 -- un-calculate parlay
 							ELSE 0
 						END
@@ -506,7 +528,7 @@ BEGIN
 			)b
 
 		UPDATE m 
-			SET IsExistRunningTicket = t.IsExistRunningTicket
+			SET IsExistRunningTicketAfterCompleted = t.IsExistRunningTicket
 		FROM	#tmpMatchIds m
 			INNER JOIN @tmpMatchCompleted t
 				ON	m.matchid = t.MatchId
@@ -642,7 +664,7 @@ BEGIN
 				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
 				ELSE 'Completed'
 			END AS EarlySettleStatus
-			,m.IsExistRunningTicket
+			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 	FROM	#tmpMatchIds m
