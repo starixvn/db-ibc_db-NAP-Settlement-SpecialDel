@@ -10,6 +10,7 @@ RETURNS VARCHAR(100)
 	Revisions:
 		- 20200527@Helen: support deploy without UM - [Redmine:134854]
 		- 20200604@Max: [TVS] Apply new policy into Void Abnormal Bet rules - rollback - [Redmine: #133705]
+		- 20200702@Max: [TVS] Hotfix - Cash out ticket of Cash-Out member is not unmarked in Unmark action [Redmine: #136524]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
@@ -19,6 +20,6 @@ RETURNS VARCHAR(100)
 */
 AS
 BEGIN
-    RETURN '00:00:03:100'
+    RETURN '00:15:00:100'
 END
 GO
