@@ -23,6 +23,7 @@ AS
 		- 20200304@Max: Auto Void Winning Bets - [Redmine: #129184]
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -113,13 +114,14 @@ BEGIN
 		FROM #Tickets AS t
 		WHERE t.TransId = tmp.TransId
 	)
-
-	-- delete cash-out member bet tickets
+	
+		-- delete cash-out member bet tickets
 	DELETE t
 	FROM #Tickets t
 	WHERE EXISTS (SELECT TOP (1) 1
 				  FROM bettrans sub911 (NOLOCK)
-				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)				 
+				  WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
+
 	-- Bonus
     IF EXISTS
 	   (
@@ -150,8 +152,8 @@ BEGIN
                     HAVING COUNT(*) = 1;
              IF @@ROWCOUNT > 0
                  BEGIN
-                     INSERT INTO #TransIds(TransId)
-                            SELECT b.transid
+                     INSERT INTO #Tickets(TransId, MatchId)
+                            SELECT b.transid, b.matchid
                             FROM #tmpRefCodeSummary t
                                  INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.RefCode = t.RefCode
                                                                             AND b.transid <> t.transid
@@ -187,8 +189,8 @@ BEGIN
                                                                          AND sub911.bettype = 911;			 
 
 			-- get cash-out member bet tickets
-             INSERT INTO #TransIds(TransId)
-                    SELECT b.transid
+             INSERT INTO #Tickets(TransId, MatchId)
+                    SELECT b.transid, b.matchid
                     FROM #Cashout911Tickets sub911
                          CROSS APPLY
 				(
@@ -229,7 +231,7 @@ BEGIN
 				    WHERE b.refno = sub911.transid
 						AND b.matchid = sub911.MatchId
 						AND b.bettype NOT IN(911, 912, 913)
-						AND NOT EXISTS (SELECT TOP 1 1 FROM #TransIds r WHERE r.TransId = b.transid)
+						AND NOT EXISTS (SELECT TOP 1 1 FROM #Tickets r WHERE r.TransId = b.transid)
 				    ) AS b
     END;
 
