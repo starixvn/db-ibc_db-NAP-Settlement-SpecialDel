@@ -576,7 +576,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
 		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode
-		FROM #tmpRefCodeSummary_VOID r
+		FROM #tmpRefCodeSummary_Recalculate r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
 					AND b.transid <> r.transid
