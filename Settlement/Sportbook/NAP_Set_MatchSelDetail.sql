@@ -56,6 +56,7 @@ AS
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - [Redmine:#126963]
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
+		- 20200701@Kathy: get all ticket instead of exclude status Refund in Refund popup [Redmine:#134840]
 		
 */
 BEGIN
@@ -210,10 +211,10 @@ BEGIN
 				)mt
 	WHERE	b.matchid = @matchid
 			AND b.statusID NOT IN (101, 102)
-			AND 1 = CASE 
-						WHEN @IsRefundPage = 1 AND b.statusID = 103 THEN 0
-						ELSE 1
-					END
+			--AND 1 = CASE 
+			--			WHEN @IsRefundPage = 1 AND b.statusID = 103 THEN 0
+			--			ELSE 1
+			--		END
 	GROUP BY b.bettype
 	
 	UNION ALL
@@ -248,10 +249,10 @@ BEGIN
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
-			AND 1 = CASE 
-						WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
-						ELSE 1
-					END
+			--AND 1 = CASE 
+			--			WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
+			--			ELSE 1
+			--		END
 	GROUP BY bm.bettype
 	
 	SELECT	
@@ -284,10 +285,10 @@ BEGIN
 			ON	bm.bettype = f.bettype
 	WHERE	matchid = @matchid
 			AND statusID NOT IN (101, 102)
-			AND 1 = CASE 
-						WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
-						ELSE 1
-					END
+			--AND 1 = CASE 
+			--			WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
+			--			ELSE 1
+			--		END
 	
     IF @IsRefundPage = 0 -- Calculate page
     BEGIN	
