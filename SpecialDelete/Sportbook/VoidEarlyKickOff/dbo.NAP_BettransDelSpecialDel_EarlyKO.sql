@@ -95,6 +95,7 @@ Revisions:
 	- 20190909@Kathy: Do not update statuswinlost when voiding ticket [Redmine:#115376]
 	- 20191101@Charles: Remove column IsMarked [122187]
 	- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
+	- 20200609@Charles: Remove notify when void tickets [131865]
 
 
 Param's Explanation: Special bet delete option  
@@ -2343,18 +2344,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 				@Mode = 'Original'
 			  , @Action = 'Void'
-			  , @IsReleased = 1  
-	   
-		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-		DECLARE @allTransId VARCHAR(MAX) = ''
-
-		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
-		FROM	#BetDelete
-
-		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-			@TransId = @allTransId
-			,@Username = @Username
-			,@MatchId = @MatchId		 
+			  , @IsReleased = 1  		 
 
 		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
 			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC

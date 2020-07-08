@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
 (
 	@MatchId		VARCHAR(50)		= ''
-	,@Sporttype		VARCHAR(100)	= ''
+	,@Sporttype		VARCHAR(MAX)	= ''
 	,@IsExcludeTest BIT				= 1
 	,@MarkedBy		INT				= 0
 )
@@ -23,6 +23,7 @@ AS
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 		- 20200508@Raymond: Incorporate E-Sports (phase 3) [133121]
 		- 20200526@Max: Incorporate E-Sports (phase 3) - Change Group By MarkType [Redmine: #133121]
+		- 20200608@Charles: Auto Void for remaining sports [Redmine: #131865]
 		
 	Param's explanation:	
 	
@@ -47,15 +48,15 @@ BEGIN
 				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				CROSS APPLY (
-					SELECT val AS sporttype
+					SELECT DISTINCT val AS sporttype
 					FROM dbo.f_SplitString(@Sporttype, ',')
 					WHERE val = m.sporttype
 				) AS tmp
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
-			WHERE m.sporttype IN (1, 2 , 9, 43, 5)
-				AND ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+			WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
 				AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
 				AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+				AND m.sporttype <= 99
 				)
 		,CTE_FilterByTicketStatus
 		AS (

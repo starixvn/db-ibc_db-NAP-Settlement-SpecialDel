@@ -47,6 +47,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
 		- 20200422@Charles: Void settled for sub parlay bet [132661]
+		- 20200609@Charles: Remove notify when void tickets [131865]
 		
 	Param's Explanation:
 */
@@ -2094,18 +2095,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 				@Mode = 'Original'
 			  , @Action = 'Void'
-			  , @IsReleased = 1			
-
-		-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-		DECLARE @allTransId VARCHAR(MAX) = ''
-
-		SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
-		FROM	#SpecialDeleteBets_Single
-
-		EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-			@TransId = @allTransId
-			,@Username = @Username
-			,@MatchId = @MatchID		 
+			  , @IsReleased = 1				 
 			
 		-------> write log		
 		EXEC WriteLog_UserLog 

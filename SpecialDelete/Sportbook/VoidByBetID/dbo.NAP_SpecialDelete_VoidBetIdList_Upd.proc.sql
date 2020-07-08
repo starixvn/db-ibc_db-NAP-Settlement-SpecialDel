@@ -79,6 +79,7 @@ AS
 	  - 20191101@Charles: Remove column IsMarked [122187]
 	  - 20191106@Charles: Implement NPM Promotion [122187]
 	  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
+	  - 20200609@Charles: Remove notify when void tickets [131865]
 
 	 Param's Explanation:   
 	*/
@@ -2616,18 +2617,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess
 			@Mode = 'Original'
 		  , @Action = 'Void' 
-		  , @IsReleased = 1		
-
-	-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-	DECLARE @allTransId VARCHAR(MAX) = ''
-
-	SELECT	@allTransId = @allTransId + CAST(transid AS VARCHAR(20)) + ','
-	FROM	#BetDelete
-
-	EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-		@TransId = @allTransId
-		,@Username = @Username
-		,@MatchId = 0		 
+		  , @IsReleased = 1				 
 
 	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
 		+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC

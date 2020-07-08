@@ -28,6 +28,7 @@ AS
 		- 20200413@Raymond: Not allow void if customer is VIP [Redmine: #131431]
 		- 20200415@Raymond: Refactor query link server [Redmine: #131670]
 		- 20200512@Charles: Auto Void Immediately [Redmine:#133705]
+		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -60,6 +61,7 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+		AND 1 = CASE WHEN @ActionId IN (1,4) AND pt.SportType IN (50) AND pt.BetType IN (501) THEN 0 ELSE 1 END --Exclude bettype 501 of Cricket when add Void Auto Winning & Void Instant Request
 
 	-- check valid match id
 	IF NOT EXISTS (
@@ -169,8 +171,8 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL
-
+	WHERE bt.bettype IS NULL 
+		
 	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
@@ -180,7 +182,8 @@ BEGIN
 	DELETE t
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE StatusId IN (101, 102, 103) OR bt.bettype IS NULL
+	WHERE StatusId IN (101, 102, 103)
+		OR bt.bettype IS NULL
 		
 	-- invalid transId
 	;WITH t_invalid

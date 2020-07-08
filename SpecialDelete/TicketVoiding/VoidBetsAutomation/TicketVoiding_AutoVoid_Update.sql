@@ -21,6 +21,8 @@ AS
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix + VIP account [Redmine:#131516]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20200609@Charles: Remove notify when void tickets [131865]
+		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 	
 	Param's explanation:	
 		
@@ -234,6 +236,7 @@ BEGIN
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
+					AND 1 = CASE WHEN @Sporttype = 50 AND b.bettype IN (501) THEN 0 ELSE 1 END -- Exclude bettype 501 of Cricket
 					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
@@ -573,7 +576,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
 		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode
-		FROM #tmpRefCodeSummary_VOID r
+		FROM #tmpRefCodeSummary_Recalculate r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
 					AND b.transid <> r.transid
@@ -1036,22 +1039,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 			@Mode = 'Original'
 		  , @Action = 'Void'
-		  , @IsReleased = 1  
-
-	-- If void all marked tickets of one match (number of waiting/running marked tickets after voiding = 0), shall notify message to Settlement site
-	DECLARE @allTransId_Void VARCHAR(MAX) = ''
-	DECLARE @allTransId_Recal VARCHAR(MAX) = ''
-	
-	SELECT	@allTransId_Void = @allTransId_Void + CAST(transid AS VARCHAR(20)) + ','
-	FROM	#tmpTransId_VOID_RequestID
-	
-	SELECT	@allTransId_Recal = @allTransId_Recal + CAST(transid AS VARCHAR(20)) + ','
-	FROM	#tmpTransId_Recalculate
-
-	EXEC dbo.NAP_SpecialDelete_CheckingMarkedTransaction
-		@TransId = @allTransId_Recal
-		,@Username = @Username
-		,@MatchId = @MatchId	
+		  , @IsReleased = 1  	
 
 	--Insert data for TicketVoiding_Queue
 	SET @EndTime = GETDATE()
@@ -1095,6 +1083,15 @@ BEGIN
 	FROM @VoidingHistory_tmp vh
 		
 	-- Write Log
+	DECLARE @allTransId_Void VARCHAR(MAX) = ''
+	DECLARE @allTransId_Recal VARCHAR(MAX) = ''
+	
+	SELECT	@allTransId_Void = @allTransId_Void + CAST(transid AS VARCHAR(20)) + ','
+	FROM	#tmpTransId_VOID_RequestID
+	
+	SELECT	@allTransId_Recal = @allTransId_Recal + CAST(transid AS VARCHAR(20)) + ','
+	FROM	#tmpTransId_Recalculate
+
 	SET @EndTime = GETDATE()
 	SET @VoidingHistoryIdList = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
 	SET @LogData = CAST((SELECT CASE WHEN @RequestId > 0 THEN @RequestId ELSE 0 END AS '@RequestId'

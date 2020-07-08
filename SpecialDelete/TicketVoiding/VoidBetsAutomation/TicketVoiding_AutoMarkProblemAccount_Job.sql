@@ -18,6 +18,7 @@ AS
 		- 20200323@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
 		- 20200601@Helen: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 	
 	Param's explanation:	
 	
@@ -56,7 +57,7 @@ BEGIN
 	IF ISNULL(@IsActiveVoidWinning,0) = 0
 		RETURN
 
-	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT PRIMARY KEY)
 	DECLARE @Matchid_Final AS TABLE (Matchid INT, ID INT IDENTITY(1,1))
 	
 	DECLARE @tmpAutoTransIDBatch TABLE (TransId	BIGINT)
@@ -68,13 +69,14 @@ BEGIN
 	DECLARE @ProblemAccountByBatch_tmp AS TABLE (CustID INT)
 		
 	INSERT INTO @bettype_tmp (bettype)
-	SELECT pt.bettype
+	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND pt.SportType IN (1, 2, 9, 43, 5)
+		AND 1 = CASE WHEN pt.SportType IN (50) AND pt.BetType IN (501) THEN 0
+					WHEN pt.SportType <= 99 THEN 1 END
 	
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
@@ -105,7 +107,7 @@ BEGIN
 			SELECT b.transid, b.matchid
 			FROM @ProblemAccountByBatch_tmp t
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype IN (1, 2, 9, 43, 5) AND m.eventstatus <> 'completed'
+				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype <= 99 AND m.eventstatus <> 'completed'
 				INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid 
 				OUTER APPLY (SELECT TOP 1 transid
 							FROM dbo.MarkedTransaction mt WITH (NOLOCK)
@@ -118,7 +120,7 @@ BEGIN
 			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
 					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 					AND ISNULL(m_auto.[Enabled],1) = 1
-					AND 1 = CASE WHEN m.sporttype IN (1,2) AND ISNULL(l.LeagueGroupID,0) IN (42,74) THEN 0 ELSE 1 END
+					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74)
 					
 			OPTION (MAXDOP 1)
 			
