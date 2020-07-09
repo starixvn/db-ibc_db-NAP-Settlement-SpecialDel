@@ -26,6 +26,7 @@ AS
 		- 20200413@Max: [TVS] VIP account [Redmine: #131431]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
+		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 
 	Param's explanation:	
 		@Status: 
@@ -78,6 +79,8 @@ BEGIN
 		,TotalSingle	INT
 		,TotalParlay	INT
 		,TotalCashOut	INT
+		,VoidFromTime	DATETIME
+		,VoidToTime		DATETIME
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -128,6 +131,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -158,6 +163,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -189,7 +196,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
-
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId

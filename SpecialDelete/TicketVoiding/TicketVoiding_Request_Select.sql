@@ -17,6 +17,7 @@ AS
 		- 20191220@Max: Some enhancement for TVS Abnormal Bets [Redmine: #125828]
 		- 20200106@Max: Update KO Time to GlobalShowTime on General Info of Abnormal Bet [Redmine: #126623]
 		- 20200215@Max: Abnormal Void Bets Automation [Redmine: #128359]
+		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 	
 	Param's explanation:	
 	
@@ -73,6 +74,19 @@ BEGIN
 			,m.finalhomescore
 			,m.finalawayscore
 			,m.GlobalShowTime
+			,rd.FilterFromTransTime
+			,rd.FilterToTransTime
+			,rd.FilterFromBetId
+			,rd.FilterToBetId
+			,rd.IsFilterByTransTime
+			,rd.SingleCount
+			,rd.MainParlayCount
+			,rd.MinSingleTransId
+			,rd.MaxSingleTransId
+			,rd.MinMainParlayTransId
+			,rd.MaxMainParlayTransId
+			,rd.VoidFromTime
+			,rd.VoidToTime
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
