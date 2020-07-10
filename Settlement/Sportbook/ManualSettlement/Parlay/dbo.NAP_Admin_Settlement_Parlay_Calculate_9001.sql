@@ -184,7 +184,7 @@ BEGIN
 		SELECT bm.refno, bm.transid, m.modds
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
-			CROSS APPLY dbo.f_Set_Calculate_modds(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore) m
+			CROSS APPLY dbo.f_Set_Calculate_modds(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, NULL) m
 		WHERE bm.matchid = @matchid
 			AND bm.statusID NOT IN (101)
 	END

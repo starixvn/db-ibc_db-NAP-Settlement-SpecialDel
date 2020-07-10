@@ -273,7 +273,7 @@ BEGIN
 	  							FROM @tmpSelectedRID t
 	  							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  						) sr
-	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
+	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
 	  		WHERE b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
 				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
@@ -469,7 +469,6 @@ BEGIN
 							,@creator			= @creator
 							,@action			= 'UNDO'
 							,@SelectedResources = @SelectedResources
-							,@IsSettleBySetting = 1
 							,@IP				= @IP
 			IF @existsFinalRound = 1
 			BEGIN
