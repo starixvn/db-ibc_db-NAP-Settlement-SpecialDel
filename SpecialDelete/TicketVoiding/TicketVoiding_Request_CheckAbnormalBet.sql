@@ -29,6 +29,7 @@ AS
 		- 20200415@Raymond: Refactor query link server [Redmine: #131670]
 		- 20200512@Charles: Auto Void Immediately [Redmine:#133705]
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -128,10 +129,12 @@ BEGIN
 	SELECT tmp.transid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		CROSS APPLY (SELECT val AS transid
-						FROM dbo.f_SplitString(rd.TransIds, ',')
-					) AS tmp
-	WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.RequestId <> @RequestId
+		CROSS APPLY (
+					SELECT TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE RequestId = req.RequestId
+				) AS tmp
+	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId
 	OPTION (maxrecursion 0)
 
 	

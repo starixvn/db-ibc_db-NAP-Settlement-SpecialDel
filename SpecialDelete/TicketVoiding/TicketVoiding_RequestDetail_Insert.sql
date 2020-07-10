@@ -9,6 +9,19 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@UserId		INT
 	,@IP			VARCHAR(50)	= NULL
 	,@ActionId		TINYINT
+	,@FilterFromTransTime DATETIME = NULL
+	,@FilterToTransTime DATETIME = NULL
+	,@FilterFromBetId BIGINT = NULL
+	,@FilterToBetId BIGINT = NULL
+	,@IsFilterByTransTime BIT = NULL
+	,@SingleCount INT = NULL
+	,@MainParlayCount INT = NULL
+	,@MinSingleTransId BIGINT = NULL
+	,@MaxSingleTransId BIGINT = NULL
+	,@MinMainParlayTransId BIGINT = NULL
+	,@MaxMainParlayTransId BIGINT = NULL
+	,@VoidFromTime DATETIME = NULL
+	,@VoidToTime DATETIME = NULL
 )
 AS
 /*	Created by: Kathy
@@ -31,6 +44,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 
 	Param's explanation:	
 	
@@ -88,8 +102,50 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds, RequestType)
-	SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIds, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+	INSERT INTO dbo.TicketVoiding_RequestDetail (
+		RequestId
+		, MatchId
+		, LeagueId
+		, HomeId
+		, AwayId
+		, KickOffTime
+		, TransIds
+		, RequestType
+		, FilterFromTransTime
+		, FilterToTransTime
+		, FilterFromBetId
+		, FilterToBetId
+		, IsFilterByTransTime
+		, SingleCount
+		, MainParlayCount
+		, MinSingleTransId
+		, MaxSingleTransId
+		, MinMainParlayTransId
+		, MaxMainParlayTransId
+		, VoidFromTime
+		, VoidToTime
+		)
+	SELECT @RequestId
+		, @MatchId
+		, @LeagueId
+		, @HomeId
+		, @AwayId
+		, @KickOffTime
+		, @TransIds
+		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+		,@FilterFromTransTime
+		,@FilterToTransTime
+		,@FilterFromBetId
+		,@FilterToBetId
+		,@IsFilterByTransTime
+		,@SingleCount
+		,@MainParlayCount
+		,@MinSingleTransId
+		,@MaxSingleTransId
+		,@MinMainParlayTransId
+		,@MaxMainParlayTransId
+		,@VoidFromTime
+		,@VoidToTime
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99

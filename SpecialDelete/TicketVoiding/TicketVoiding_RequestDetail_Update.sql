@@ -10,6 +10,19 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@TransIds 		VARCHAR(MAX) = NULL
 	,@ActionId		TINYINT
 	,@IssueTypeId	TINYINT
+	,@FilterFromTransTime DATETIME = NULL
+	,@FilterToTransTime DATETIME = NULL
+	,@FilterFromBetId BIGINT = NULL
+	,@FilterToBetId BIGINT = NULL
+	,@IsFilterByTransTime BIT = NULL
+	,@SingleCount INT = NULL
+	,@MainParlayCount INT = NULL
+	,@MinSingleTransId BIGINT = NULL
+	,@MaxSingleTransId BIGINT = NULL
+	,@MinMainParlayTransId BIGINT = NULL
+	,@MaxMainParlayTransId BIGINT = NULL
+	,@VoidFromTime DATETIME = NULL
+	,@VoidToTime DATETIME = NULL
 )
 AS
 /*	Created by: Kathy
@@ -29,6 +42,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 
 	Param's explanation:	
 	
@@ -83,6 +97,25 @@ BEGIN
 				,@OldTransIds = TransIds
 				,TransIds = ISNULL(@TransIds, TransIds)
 				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+
+		WHERE	RequestId = @RequestId
+	END
+	ELSE IF @IssueTypeId = 1
+	BEGIN
+		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
+			SET FilterFromTransTime = @FilterFromTransTime
+			, FilterToTransTime = @FilterToTransTime
+			, FilterFromBetId = @FilterFromBetId
+			, FilterToBetId = @FilterToBetId
+			, IsFilterByTransTime = @IsFilterByTransTime
+			, SingleCount = @SingleCount
+			, MainParlayCount = @MainParlayCount
+			, MinSingleTransId = @MinSingleTransId
+			, MaxSingleTransId = @MaxSingleTransId
+			, MinMainParlayTransId = @MinMainParlayTransId
+			, MaxMainParlayTransId = @MaxMainParlayTransId
+			, VoidFromTime = @VoidFromTime
+			, VoidToTime = @VoidToTime
 
 		WHERE	RequestId = @RequestId
 	END

@@ -860,107 +860,107 @@ BEGIN
 					AND b.GameID IN (805, 806) 
 					AND b.betfrom <> 'P'
 									
+			---get sub ticket of a mix parlay	
+			IF EXISTS (
+					SELECT 1
+					FROM dbo.bettransm AS bm WITH (NOLOCK)
+					WHERE bm.matchid = @matchid
+						AND bm.transdate >= @KickOffDate
+						AND bm.statusID NOT IN (101, 102, 103)
+						AND bm.liveindicator = 0
+						AND bm.betfrom <> 'P'
+					)
+			BEGIN		
+				INSERT INTO #SpecialDeleteBets(
+						GroupID			
+						,transid		
+						,SubTransid		
+						,refno			
+						,custid					
+						,odds			
+						,SubOdds	
+						,oddsspread
+						,OddsType		
+						,transdate		
+						,bettype		
+						,betteam		
+						,SubBetTeam
+						,betcheck	
+						,SubBetcheck	
+						,Subhdp1
+						,Subhdp2
+						,hdp1 			
+						,hdp2 			
+						,livehomescore	
+						,liveawayscore	
+						,creator		
+						,Stake			
+						,currencyname						
+						,STATUS			
+						,SubStatus	
+						,srecommend		
+						,mrecommend		
+						,recommend						
+						,Transdesc		
+						,ParlayType		
+						,IsMixParlay
+						,modds
+						,WinLost
+						,IsMarked
+						,LiveIndicator
+					)
+				SELECT 
+						main.transid AS GroupID
+						,main.transid AS TransId
+						,sub.transid AS SubTransID
+						,sub.refno
+						,sub.custid				
+						,main.odds
+						,sub.odds AS SubOdds
+						,sub.oddsspread
+						,main.OddsType
+						,sub.transdate
+						,main.bettype
+						,main.betteam
+						,sub.betteam
+						,main.betcheck				
+						,sub.betcheck
+						,sub.hdp1
+						,sub.hdp2
+						,main.hdp1
+						,main.hdp2
+						,sub.livehomescore
+						,sub.liveawayscore
+						,main.creator
+						,main.stake
+						,main.currencyname				
+						,main.STATUS
+						,sub.STATUS AS SubStatus
+						,main.srecommend
+						,main.mrecommend
+						,main.recommend
+						,sub.Transdesc
+						,sub.bettype AS parlaytype
+						,1 AS IsMixParlay
+						,main.modds
+						,main.winlost -main.actual_stake AS WinLost
+						,0
+						,sub.liveindicator
+				FROM	dbo.bettransm sub WITH (NOLOCK)				
+						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
+							ON	main.refno = sub.refno				
+								AND sub.matchid = @matchid
+				WHERE	sub.transdate >= @KickOffDate
+						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+						AND sub.liveindicator = 0
+						AND sub.betfrom <> 'P'
+						AND main.matchid = 29
+						AND main.bettype = 29
+						AND main.liveindicator = 0
+						AND main.transdate >= @KickOffDate
+						AND main.statusID NOT IN (101, 102, 103)
+			END 
 		END
-		---get sub ticket of a mix parlay	
-		IF EXISTS (
-				SELECT 1
-				FROM dbo.bettransm AS bm WITH (NOLOCK)
-				WHERE bm.matchid = @matchid
-					AND bm.transdate >= @KickOffDate
-					AND bm.statusID NOT IN (101, 102, 103)
-					AND bm.liveindicator = 0
-					AND bm.betfrom <> 'P'
-				)
-		BEGIN		
-			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
-					,SubTransid		
-					,refno			
-					,custid					
-					,odds			
-					,SubOdds	
-					,oddsspread
-					,OddsType		
-					,transdate		
-					,bettype		
-					,betteam		
-					,SubBetTeam
-					,betcheck	
-					,SubBetcheck	
-					,Subhdp1
-					,Subhdp2
-					,hdp1 			
-					,hdp2 			
-					,livehomescore	
-					,liveawayscore	
-					,creator		
-					,Stake			
-					,currencyname						
-					,STATUS			
-					,SubStatus	
-					,srecommend		
-					,mrecommend		
-					,recommend						
-					,Transdesc		
-					,ParlayType		
-					,IsMixParlay
-					,modds
-					,WinLost
-					,IsMarked
-					,LiveIndicator
-				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
-					,sub.transid AS SubTransID
-					,sub.refno
-					,sub.custid				
-					,main.odds
-					,sub.odds AS SubOdds
-					,sub.oddsspread
-					,main.OddsType
-					,sub.transdate
-					,main.bettype
-					,main.betteam
-					,sub.betteam
-					,main.betcheck				
-					,sub.betcheck
-					,sub.hdp1
-					,sub.hdp2
-					,main.hdp1
-					,main.hdp2
-					,sub.livehomescore
-					,sub.liveawayscore
-					,main.creator
-					,main.stake
-					,main.currencyname				
-					,main.STATUS
-					,sub.STATUS AS SubStatus
-					,main.srecommend
-					,main.mrecommend
-					,main.recommend
-					,sub.Transdesc
-					,sub.bettype AS parlaytype
-					,1 AS IsMixParlay
-					,main.modds
-					,main.winlost -main.actual_stake AS WinLost
-					,0
-					,sub.liveindicator
-			FROM	dbo.bettransm sub WITH (NOLOCK)				
-					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
-						ON	main.refno = sub.refno				
-							AND sub.matchid = @matchid
-			WHERE	sub.transdate >= @KickOffDate
-					AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
-					AND sub.liveindicator = 0
-					AND sub.betfrom <> 'P'
-					AND main.matchid = 29
-					AND main.bettype = 29
-					AND main.liveindicator = 0
-					AND main.transdate >= @KickOffDate
-					AND main.statusID NOT IN (101, 102, 103)
-		END 
 		
 		-- delete cash-out member bet tickets
 		DELETE t
