@@ -383,9 +383,14 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 		FROM	bettrans b WITH (NOLOCK)	
-		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
+		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+		   CROSS APPLY (
+						SELECT TOP (1) transid
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE transid = b.transid
+							AND RequestId = @RequestId
+				) ts
 		WHERE	b.matchid = @matchid
-				AND b.transdate >= @KickOffDate
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.liveindicator = 0
 				AND b.bettype NOT IN (805, 806, 9, 29)			
@@ -567,8 +572,13 @@ BEGIN
 				 LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId	
 				 INNER JOIN #tblBettype tp 
 					ON	tp.Id = b.gameID
+				CROSS APPLY (
+							SELECT TOP (1) transid
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE transid = b.translogid
+								AND RequestId = @RequestId
+					) ts
 			WHERE	b.EventID = @matchid
-					AND b.transdate >= @KickOffDate
 					AND b.statusID NOT IN (101, 102, 103) -- REJECT, VOID, refund
 					AND b.liveindicator = 0
 					AND b.GameID IN (805, 806) 
@@ -583,7 +593,6 @@ BEGIN
 				SELECT 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
-					AND bm.transdate >= @KickOffDate
 					AND bm.statusID NOT IN (101, 102, 103)
 					AND bm.liveindicator = 0
 					AND bm.betfrom <> 'P'
@@ -670,14 +679,18 @@ BEGIN
 							AND sub.matchid = @matchid
 					INNER JOIN #tblBettype tp
 						ON	main.bettype = tp.Id
-			WHERE	sub.transdate >= @KickOffDate
-					AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+					CROSS APPLY (
+								SELECT TOP (1) transid
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+								WHERE transid = sub.transid
+									AND RequestId = @RequestId
+						) ts
+			WHERE	sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND sub.liveindicator = 0
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
 					AND main.liveindicator = 0
-					AND main.transdate >= @KickOffDate
 					AND main.statusID NOT IN (101, 102, 103)
 		END 
 	END

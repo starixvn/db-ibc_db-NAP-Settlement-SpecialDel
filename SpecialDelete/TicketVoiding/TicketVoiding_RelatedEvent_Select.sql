@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 (	
 	@MatchId		INT
-	,@EventDate		DATETIME
+	,@EventDate		DATETIME = NULL
 	,@IsMainMatch	BIT = 1
 )
 AS
@@ -33,6 +33,7 @@ BEGIN
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
+			AND m.sporttype IN (1)
 	END
 	
 END
