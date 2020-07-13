@@ -114,7 +114,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -146,7 +146,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -179,7 +179,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -365,6 +365,8 @@ BEGIN
 				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
 				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
 				ELSE NULL END AS IncompletedReason
+			,t.VoidFromTime
+			,t.VoidToTime
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
