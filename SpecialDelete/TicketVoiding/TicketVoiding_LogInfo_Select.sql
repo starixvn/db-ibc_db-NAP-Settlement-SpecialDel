@@ -137,7 +137,7 @@ BEGIN
 		WHERE rd.RequestId = @RequestId
 	END
 	
-	IF @IssueTypeId <> 8
+	IF @IssueTypeId NOT IN (8,9)
 	BEGIN
 	/*Generate LogInfo*/
 	/*Check valid transid*/
@@ -986,7 +986,7 @@ BEGIN
 	END
 	
 	/*Get Transid in Request of range Transid*/
-	IF @IssueTypeId = 8
+	IF @IssueTypeId IN (8,9)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId, RequestId)
 		SELECT tmp.transid, rd.RequestId
@@ -1028,7 +1028,7 @@ BEGIN
 	END
 
 	--For EKO check transid exists in request
-	IF @IssueTypeId = 8
+	IF @IssueTypeId IN (8,9)
 	BEGIN
 		SELECT RequestId,
 			STUFF((
