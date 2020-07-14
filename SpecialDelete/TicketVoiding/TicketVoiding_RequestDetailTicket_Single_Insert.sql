@@ -6,8 +6,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@KickOffDate	DATETIME = NULL
 	,@IssueTypeId INT
 	,@SubIssueTypeId INT
-	,@FromTransId BIGINT = NULL
-	,@ToTransId BIGINT = NULL
+	,@MinSingleTransId BIGINT = NULL
+	,@MaxSingleTransId BIGINT = NULL
 	,@TransIds VARCHAR(MAX) = NULL
 	,@IsEditRequest BIT = 0
 )
