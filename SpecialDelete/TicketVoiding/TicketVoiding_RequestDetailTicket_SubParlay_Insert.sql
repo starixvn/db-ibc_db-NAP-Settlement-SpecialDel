@@ -108,11 +108,14 @@ BEGIN
 		SELECT @RequestId
 			,@IssueTypeId
 			,@SubIssueTypeId
-			,b.transid
+			,sub.transid
 			,@MatchId
-		FROM dbo.bettransm b WITH (NOLOCK)
-		WHERE b.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId
-			AND b.statusID NOT IN (101, 102, 103)
+		FROM dbo.bettransm sub WITH (NOLOCK)
+			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
+							ON	main.refno = sub.refno				
+								AND sub.matchid = @matchid
+		WHERE main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId
+			AND sub.statusID NOT IN (101, 102, 103)
 	END
 	ELSE
 	BEGIN
