@@ -111,7 +111,7 @@ BEGIN
 			,b.transid
 			,@MatchId
 		FROM dbo.bettransm b WITH (NOLOCK)
-		WHERE b.transid BETWEEN @FromTransId AND @ToTransId
+		WHERE b.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId
 			AND b.statusID NOT IN (101, 102, 103)
 	END
 	ELSE
