@@ -151,7 +151,7 @@ BEGIN
 						,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 
 					--TransId in request table
-					SELECT r.TransId AS TransIds
+					SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 						,r.RequestId
 					FROM #TransidInRequest r
 			
@@ -901,7 +901,7 @@ BEGIN
 						,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 
 					--TransId in request table
-					SELECT r.TransId AS TransIds
+					SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 						,r.RequestId
 					FROM #TransidInRequest r
 			
@@ -926,8 +926,8 @@ BEGIN
 			INSERT INTO #logInfo (LiveHomeScore, LiveAwayScore, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 			SELECT b.livehomescore
 				,b.liveawayscore
-				,MIN(b.transdate) AS VoidFromTime
-				,MAX(b.transdate) AS VoidToTime
+				,CASE WHEN @IsFilterByTransTime = 1 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
+				,CASE WHEN @IsFilterByTransTime = 1 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
 				,COUNT(CASE WHEN b.MainTransId IS NULL THEN b.transid ELSE NULL END) AS SingleCount
 				,MIN(CASE WHEN b.MainTransId IS NULL THEN b.transid ELSE NULL END) AS MinSingleTransId
 				,MAX(CASE WHEN b.MainTransId IS NULL THEN b.transid ELSE NULL END) AS MaxSingleTransId
@@ -954,7 +954,7 @@ BEGIN
 					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 
 				--TransId in request table
-				SELECT r.TransId AS TransIds
+				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 					,r.RequestId
 				FROM #TransidInRequest r
 			
@@ -1019,7 +1019,24 @@ BEGIN
 			OPTION (maxrecursion 0)
 		END
 
-		--For EKO check transid exists in request
+		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+		BEGIN
+			SELECT @IsExistedInOtherRequest = 1
+		END
+	END
+	
+	--Data Section
+	--Error Table
+	SELECT @IsInvalidTransId AS IsInvalidTransId
+		,@IsInvalidLiveScore AS IsInvalidLiveScore
+		,@IsInValidTotalTickets AS IsInValidTotalTickets
+		,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+	--TransId in request table
+	--For EKO check transid exists in request
+		
+	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+	BEGIN			
 		IF @IssueTypeId IN (8,9)
 		BEGIN
 			SELECT RequestId,
@@ -1031,19 +1048,9 @@ BEGIN
 				,1,2,'') AS TransIds
 			FROM #TransidInRequest r
 			GROUP BY r.RequestId
-
-			RETURN;
 		END
-
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+		ELSE
 		BEGIN
-			SELECT @IsExistedInOtherRequest = 1
-
-			SELECT @IsInvalidTransId AS IsInvalidTransId
-				,@IsInvalidLiveScore AS IsInvalidLiveScore
-				,@IsInValidTotalTickets AS IsInValidTotalTickets
-				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
 			SELECT RequestId,
 				STUFF((
 				SELECT ', ' + CAST(TransId AS VARCHAR(50)) 
@@ -1055,76 +1062,45 @@ BEGIN
 			GROUP BY r.RequestId
 		END
 	END
-	
-	--LogInfo Section
-	IF @IssueTypeId = 1
+	ELSE
 	BEGIN
-		--Error Table
-			SELECT @IsInvalidTransId AS IsInvalidTransId
-				,@IsInvalidLiveScore AS IsInvalidLiveScore
-				,@IsInValidTotalTickets AS IsInValidTotalTickets
-				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
-		--TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT @IsExistedInOtherRequest = 1
-
-			SELECT @IsInvalidTransId AS IsInvalidTransId
-				,@IsInvalidLiveScore AS IsInvalidLiveScore
-				,@IsInValidTotalTickets AS IsInValidTotalTickets
-				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
-			SELECT RequestId,
-				STUFF((
-				SELECT ', ' + CAST(TransId AS VARCHAR(50)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId
-		END
-		ELSE
-		BEGIN
-			SELECT r.TransId AS TransIds
-				,r.RequestId
-			FROM #TransidInRequest r
-		END
+		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+			,r.RequestId
+		FROM #TransidInRequest r
+	END
 		
-		/*Get log info for Void Page*/
-		IF @RequestId <> 0
-		BEGIN
-			SELECT @MatchId AS MatchId 
-				,rd.LiveHomeScore
-				,rd.LiveAwayScore
-				,rd.VoidFromTime
-				,rd.VoidToTime
-				,rd.SingleCount
-				,rd.MainParlayCount
-				,rd.MinSingleTransId
-				,rd.MaxSingleTransId
-				,rd.MinMainParlayTransId
-				,rd.MaxMainParlayTransId
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			WHERE rd.RequestId = @RequestId
-		END
-		ELSE
-		BEGIN
-			--Loginfo table
-			SELECT @MatchId AS MatchId 
-				,l.LiveHomeScore
-				,l.LiveAwayScore
-				,l.VoidFromTime
-				,l.VoidToTime
-				,l.SingleCount
-				,l.MainParlayCount
-				,l.MinSingleTransId
-				,l.MaxSingleTransId
-				,l.MinMainParlayTransId
-				,l.MaxMainParlayTransId
-			FROM #logInfo l
-		END
+	/*Get log info for Void Page*/
+	IF @RequestId <> 0
+	BEGIN
+		SELECT @MatchId AS MatchId 
+			,rd.LiveHomeScore
+			,rd.LiveAwayScore
+			,rd.VoidFromTime
+			,rd.VoidToTime
+			,rd.SingleCount
+			,rd.MainParlayCount
+			,rd.MinSingleTransId
+			,rd.MaxSingleTransId
+			,rd.MinMainParlayTransId
+			,rd.MaxMainParlayTransId
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		WHERE rd.RequestId = @RequestId
+	END
+	ELSE
+	BEGIN
+		--Loginfo table
+		SELECT @MatchId AS MatchId 
+			,l.LiveHomeScore
+			,l.LiveAwayScore
+			,l.VoidFromTime
+			,l.VoidToTime
+			,l.SingleCount
+			,l.MainParlayCount
+			,l.MinSingleTransId
+			,l.MaxSingleTransId
+			,l.MinMainParlayTransId
+			,l.MaxMainParlayTransId
+		FROM #logInfo l
 	END
 
 	DROP TABLE #SpecialDeleteBets

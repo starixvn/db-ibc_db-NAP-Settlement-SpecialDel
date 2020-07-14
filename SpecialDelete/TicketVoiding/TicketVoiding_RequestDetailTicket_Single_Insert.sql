@@ -3,7 +3,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 (	 
 	@RequestId INT
 	,@MatchId INT
-	,@KickOffDate	DATETIME = NULL
+	,@KickOffTime	DATETIME = NULL
 	,@IssueTypeId INT
 	,@SubIssueTypeId INT
 	,@MinSingleTransId BIGINT = NULL
@@ -217,7 +217,7 @@ BEGIN
 		FROM	bettrans b WITH (NOLOCK)	
 		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 		WHERE	b.matchid = @matchid
-				AND b.transdate >= @KickOffDate
+				AND b.transdate >= @KickOffTime
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.liveindicator = 0
 				AND b.bettype NOT IN (805, 806, 9, 29)			

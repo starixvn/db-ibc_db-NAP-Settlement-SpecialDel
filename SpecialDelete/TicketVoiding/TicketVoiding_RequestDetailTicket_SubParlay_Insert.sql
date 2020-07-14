@@ -3,7 +3,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 (	 
 	@RequestId INT
 	,@MatchId INT
-	,@KickOffDate	DATETIME = NULL
+	,@KickOffTime	DATETIME = NULL
 	,@IssueTypeId INT
 	,@SubIssueTypeId INT
 	,@MinMainParlayTransId BIGINT = NULL
@@ -124,7 +124,7 @@ BEGIN
 					SELECT 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 					WHERE bm.matchid = @matchid
-						AND bm.transdate >= @KickOffDate
+						AND bm.transdate >= @KickOffTime
 						AND bm.statusID NOT IN (101, 102, 103)
 						AND bm.liveindicator = 0
 						AND bm.betfrom <> 'P'
@@ -209,14 +209,14 @@ BEGIN
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
-				WHERE	sub.transdate >= @KickOffDate
+				WHERE	sub.transdate >= @KickOffTime
 						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND sub.liveindicator = 0
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
 						AND main.liveindicator = 0
-						AND main.transdate >= @KickOffDate
+						AND main.transdate >= @KickOffTime
 						AND main.statusID NOT IN (101, 102, 103)
 			END
 
