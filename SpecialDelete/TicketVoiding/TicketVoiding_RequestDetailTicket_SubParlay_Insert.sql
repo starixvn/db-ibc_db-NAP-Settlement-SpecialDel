@@ -5,7 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@MatchId INT
 	,@KickOffDate	DATETIME = NULL
 	,@IssueTypeId INT
-	,@SubIssuTypeId INT
+	,@SubIssueTypeId INT
 	,@FromTransId BIGINT = NULL
 	,@ToTransId BIGINT = NULL
 	,@IsEditRequest BIT = 0
@@ -107,7 +107,7 @@ BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
 		SELECT @RequestId
 			,@IssueTypeId
-			,@SubIssuTypeId
+			,@SubIssueTypeId
 			,b.transid
 			,@MatchId
 		FROM dbo.bettransm b WITH (NOLOCK)
@@ -220,7 +220,7 @@ BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
 		SELECT @RequestId
 			,@IssueTypeId
-			,@SubIssuTypeId
+			,@SubIssueTypeId
 			,s.transid
 			,@MatchId
 		FROM #SpecialDeleteBets s

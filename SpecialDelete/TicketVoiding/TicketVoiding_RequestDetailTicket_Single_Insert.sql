@@ -5,7 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@MatchId INT
 	,@KickOffDate	DATETIME = NULL
 	,@IssueTypeId INT
-	,@SubIssuTypeId INT
+	,@SubIssueTypeId INT
 	,@FromTransId BIGINT = NULL
 	,@ToTransId BIGINT = NULL
 	,@TransIds VARCHAR(MAX) = NULL
@@ -108,7 +108,7 @@ BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
 		SELECT @RequestId
 			,@IssueTypeId
-			,@SubIssuTypeId
+			,@SubIssueTypeId
 			,b.transid
 			,@MatchId
 		FROM dbo.bettrans b WITH (NOLOCK)
@@ -118,7 +118,7 @@ BEGIN
 	ELSE IF @IssueTypeId = 11 AND @TransIds IS NOT NULL
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssuTypeId, val, @MatchId
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId
 		FROM dbo.f_SplitString(@TransIds, ',')
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
@@ -656,7 +656,7 @@ BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
 		SELECT @RequestId
 			,@IssueTypeId
-			,@SubIssuTypeId
+			,@SubIssueTypeId
 			,s.transid
 			,@MatchId
 		FROM #SpecialDeleteBets s
