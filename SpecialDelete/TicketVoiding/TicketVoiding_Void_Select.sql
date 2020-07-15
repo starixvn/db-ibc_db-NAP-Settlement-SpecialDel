@@ -236,7 +236,7 @@ BEGIN
 			  	
 					
 	END
-	ELSE IF @IssueTypeId = 1 AND @BetTypes IS NOT NULL
+	ELSE IF @IssueTypeId = 1
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
