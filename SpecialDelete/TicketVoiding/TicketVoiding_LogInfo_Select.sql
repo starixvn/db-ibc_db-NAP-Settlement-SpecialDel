@@ -10,6 +10,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IsFilterByTransTime BIT = 1
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
+	,@IsShowLogOnly BIT = 0
 )
 AS
 /*	
@@ -123,7 +124,37 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 
-		
+	IF @IsShowLogOnly = 1 AND @RequestId <> 0
+	BEGIN
+		--Error Table
+				SELECT @IsInvalidTransId AS IsInvalidTransId
+					,@IsInvalidLiveScore AS IsInvalidLiveScore
+					,@IsInValidTotalTickets AS IsInValidTotalTickets
+					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+		--TransId in request table
+		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+			,r.RequestId
+		FROM #TransidInRequest r
+
+		/*Get log info for Void Page*/
+		SELECT rd.MatchId
+			,rd.LiveHomeScore
+			,rd.LiveAwayScore
+			,rd.VoidFromTime
+			,rd.VoidToTime
+			,rd.SingleCount
+			,rd.MainParlayCount
+			,rd.MinSingleTransId
+			,rd.MaxSingleTransId
+			,rd.MinMainParlayTransId
+			,rd.MaxMainParlayTransId
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		WHERE rd.RequestId = @RequestId
+
+		RETURN;
+	END
+	
 	IF @IssueTypeId NOT IN (8,9)
 	BEGIN
 		/*Generate LogInfo*/
@@ -1073,40 +1104,21 @@ BEGIN
 			,r.RequestId
 		FROM #TransidInRequest r
 	END
-		
-	/*Get log info for Void Page*/
-	IF @RequestId <> 0
-	BEGIN
-		SELECT @MatchId AS MatchId 
-			,rd.LiveHomeScore
-			,rd.LiveAwayScore
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.SingleCount
-			,rd.MainParlayCount
-			,rd.MinSingleTransId
-			,rd.MaxSingleTransId
-			,rd.MinMainParlayTransId
-			,rd.MaxMainParlayTransId
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		WHERE rd.RequestId = @RequestId
-	END
-	ELSE
-	BEGIN
-		--Loginfo table
-		SELECT @MatchId AS MatchId 
-			,l.LiveHomeScore
-			,l.LiveAwayScore
-			,l.VoidFromTime
-			,l.VoidToTime
-			,l.SingleCount
-			,l.MainParlayCount
-			,l.MinSingleTransId
-			,l.MaxSingleTransId
-			,l.MinMainParlayTransId
-			,l.MaxMainParlayTransId
-		FROM #logInfo l
-	END
+
+	--Loginfo table
+	SELECT @MatchId AS MatchId 
+		,l.LiveHomeScore
+		,l.LiveAwayScore
+		,l.VoidFromTime
+		,l.VoidToTime
+		,l.SingleCount
+		,l.MainParlayCount
+		,l.MinSingleTransId
+		,l.MaxSingleTransId
+		,l.MinMainParlayTransId
+		,l.MaxMainParlayTransId
+	FROM #logInfo l
+
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TransidInRequest
