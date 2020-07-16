@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-	" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
 	@MatchId		INT
@@ -589,9 +589,6 @@ BEGIN
 		
 			---get sub ticket of a mix parlay	
 			IF EXISTS (
-					SELECT TOP 1 1 FROM #tblBettype WHERE Id IN (9,29)
-					)
-				AND EXISTS (
 					SELECT 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 					WHERE bm.matchid = @matchid
@@ -680,7 +677,7 @@ BEGIN
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
 						INNER JOIN #tblBettype tp
-							ON	main.bettype = tp.Id
+							ON	sub.bettype = tp.Id
 						CROSS APPLY (
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
