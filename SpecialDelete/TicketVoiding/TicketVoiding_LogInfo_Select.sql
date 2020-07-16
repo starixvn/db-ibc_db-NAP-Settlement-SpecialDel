@@ -1044,9 +1044,24 @@ BEGIN
 				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 
 			--TransId in request table
-			SELECT r.TransId AS TransIds
-				,r.RequestId
-			FROM #TransidInRequest r
+			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+			BEGIN			
+				SELECT RequestId,
+					STUFF((
+					SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
+					FROM #TransidInRequest
+					WHERE (RequestId = r.RequestId) 
+					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+					,1,2,'') AS TransIds
+				FROM #TransidInRequest r
+				GROUP BY r.RequestId
+			END
+			ELSE
+			BEGIN
+				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+					,r.RequestId
+				FROM #TransidInRequest r
+			END
 			
 			--Loginfo Table
 			SELECT @MatchId AS MatchId 
