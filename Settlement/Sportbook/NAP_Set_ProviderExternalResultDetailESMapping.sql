@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailESMapping]
 	@MatchId3rd		INT
 	,@MatchId		INT 
