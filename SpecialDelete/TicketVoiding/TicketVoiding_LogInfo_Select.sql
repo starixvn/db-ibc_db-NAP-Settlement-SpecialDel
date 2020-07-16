@@ -1027,41 +1027,45 @@ BEGIN
 	GROUP BY b.livehomescore
 		,b.liveawayscore
 
-	SELECT @SingleCount = SingleCount
-		,@MainParlayCount = MainParlayCount
-	FROM #logInfo
-
-	IF @SingleCount = 0 AND @MainParlayCount = 0
+	IF @IssueTypeId = 1
 	BEGIN
-		SELECT @IsInValidTotalTickets = 1
+		SELECT @SingleCount = SingleCount
+			,@MainParlayCount = MainParlayCount
+		FROM #logInfo
 
-		--Error Table
-		SELECT @IsInvalidTransId AS IsInvalidTransId
-			,@IsInvalidLiveScore AS IsInvalidLiveScore
-			,@IsInValidTotalTickets AS IsInValidTotalTickets
-			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+		IF @SingleCount = 0 AND @MainParlayCount = 0
+		BEGIN
+			SELECT @IsInValidTotalTickets = 1
 
-		--TransId in request table
-		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-			,r.RequestId
-		FROM #TransidInRequest r
+			--Error Table
+			SELECT @IsInvalidTransId AS IsInvalidTransId
+				,@IsInvalidLiveScore AS IsInvalidLiveScore
+				,@IsInValidTotalTickets AS IsInValidTotalTickets
+				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+			--TransId in request table
+			SELECT r.TransId AS TransIds
+				,r.RequestId
+			FROM #TransidInRequest r
 			
-		--Loginfo Table
-		SELECT @MatchId AS MatchId 
-			,l.LiveHomeScore
-			,l.LiveAwayScore
-			,l.VoidFromTime
-			,l.VoidToTime
-			,l.SingleCount
-			,l.MainParlayCount
-			,l.MinSingleTransId
-			,l.MaxSingleTransId
-			,l.MinMainParlayTransId
-			,l.MaxMainParlayTransId
-		FROM #logInfo l
+			--Loginfo Table
+			SELECT @MatchId AS MatchId 
+				,l.LiveHomeScore
+				,l.LiveAwayScore
+				,l.VoidFromTime
+				,l.VoidToTime
+				,l.SingleCount
+				,l.MainParlayCount
+				,l.MinSingleTransId
+				,l.MaxSingleTransId
+				,l.MinMainParlayTransId
+				,l.MaxMainParlayTransId
+			FROM #logInfo l
 
-		RETURN;
+			RETURN;
+		END
 	END
+
 	--Error Table
 	SELECT @IsInvalidTransId AS IsInvalidTransId
 		,@IsInvalidLiveScore AS IsInvalidLiveScore
@@ -1073,30 +1077,15 @@ BEGIN
 		
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN			
-		IF @IssueTypeId IN (8,9)
-		BEGIN
-			SELECT RequestId,
-				STUFF((
-				SELECT ', ' + CAST(TransId AS VARCHAR(50)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId
-		END
-		ELSE
-		BEGIN
-			SELECT RequestId,
-				STUFF((
-				SELECT ', ' + CAST(TransId AS VARCHAR(50)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId
-		END
+		SELECT RequestId,
+			STUFF((
+			SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
+			FROM #TransidInRequest
+			WHERE (RequestId = r.RequestId) 
+			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+			,1,2,'') AS TransIds
+		FROM #TransidInRequest r
+		GROUP BY r.RequestId
 	END
 	ELSE
 	BEGIN
