@@ -1,0 +1,55 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+
+/*  Creator: 20200703@Kathy
+	Task: New bettypes for basketball [Redmine:#135846]
+	DB: DBTXN/BODB02 
+*/
+
+
+USE [bodb02]
+GO
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 618, 2, 0, N'00', N'MNL', N'FT', 99, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 619, 2, 0, N'00', N'MNL', N'FT', 99, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 620, 2, 0, N'00', N'MNL', N'FT', 99, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (646, 646, 2, 0, N'00', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 621, 2, 0, N'01', N'MNL', N'1H', 3, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 622, 2, 0, N'01', N'MNL', N'1H', 3, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 623, 2, 0, N'01', N'MNL', N'1H', 3, N'0', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 624, 2, 0, N'624', N'MNL', N'2H', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 625, 2, 0, N'625', N'MNL', N'2H', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 626, 2, 0, N'626', N'MNL', N'2H', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (424, 632, 2, 0, N'632', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (633, 633, 2, 0, N'633', N'MNL', N'1H', 3, N'0', 1, N'01')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (633, 634, 2, 0, N'634', N'MNL', N'2H', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (635, 635, 2, 0, N'635', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (424, 636, 2, 0, N'636', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (10, 637, 2, 0, N'637', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (3, 638, 2, 0, N'638', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (3, 639, 2, 0, N'639', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (640, 640, 2, 0, N'640', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (3, 641, 2, 0, N'641', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (424, 642, 2, 0, N'642', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (424, 643, 2, 0, N'643', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (644, 644, 2, 0, N'644', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (424, 645, 2, 0, N'645', N'MNL', N'FT', 99, N'0', 1, N'00')
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 627, 2, 801, N'Q1', N'MNL', N'SP', 1, N'801', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 628, 2, 801, N'Q1', N'MNL', N'SP', 1, N'801', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 629, 2, 801, N'Q1', N'MNL', N'SP', 1, N'801', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (5, 630, 2, 801, N'Q1', N'MNL', N'SP', 1, N'801', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (24, 631, 2, 801, N'Q1', N'MNL', N'SP', 1, N'801', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 627, 2, 802, N'Q2', N'MNL', N'SP', 2, N'802', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 628, 2, 802, N'Q2', N'MNL', N'SP', 2, N'802', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 629, 2, 802, N'Q2', N'MNL', N'SP', 2, N'802', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (5, 630, 2, 802, N'Q2', N'MNL', N'SP', 2, N'802', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (24, 631, 2, 802, N'Q2', N'MNL', N'SP', 2, N'802', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 627, 2, 803, N'Q3', N'MNL', N'SP', 4, N'803', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 628, 2, 803, N'Q3', N'MNL', N'SP', 4, N'803', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 629, 2, 803, N'Q3', N'MNL', N'SP', 4, N'803', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (5, 630, 2, 803, N'Q3', N'MNL', N'SP', 4, N'803', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (24, 631, 2, 803, N'Q3', N'MNL', N'SP', 4, N'803', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (618, 627, 2, 804, N'Q4', N'MNL', N'SP', 5, N'804', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (619, 628, 2, 804, N'Q4', N'MNL', N'SP', 5, N'804', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (620, 629, 2, 804, N'Q4', N'MNL', N'SP', 5, N'804', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (5, 630, 2, 804, N'Q4', N'MNL', N'SP', 5, N'804', 1, NULL)
+INSERT [dbo].[SettlementSpecialBettypeProfile] ([pfID], [BetType], [SportType], [BetID], [ResourceID], [SettleType], [GroupType], [OrdNo], [RoundID], [OddsType], [RefResourceId]) VALUES (24, 631, 2, 804, N'Q4', N'MNL', N'SP', 5, N'804', 1, NULL)
+GO
