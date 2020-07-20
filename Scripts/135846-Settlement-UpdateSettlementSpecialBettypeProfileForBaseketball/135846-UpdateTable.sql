@@ -4,7 +4,7 @@
     Created: Kathy
     Date: 20200716
     Task : update SettlementSpecialBettypeProfile for basketball [Redmine:#135846]
-    DB: DBPRO/bodb02
+    DB: DBTXN/bodb02
 */
 
 USE bodb02
