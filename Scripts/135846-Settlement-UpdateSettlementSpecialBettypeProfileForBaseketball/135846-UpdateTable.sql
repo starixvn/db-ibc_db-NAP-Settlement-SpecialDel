@@ -28,14 +28,6 @@ WHERE	SportType = 2
 		AND bettype = 606
 		AND ResourceID = '62630'
 
--- change resourceId of 603
-UPDATE	dbo.SettlementSpecialBettypeProfile WITH(ROWLOCK, UPDLOCK)
-	SET	ResourceID = '603'
-		,RefResourceId = '00'
-WHERE	SportType = 2
-		AND bettype = 603
-		AND ResourceID = '00'
-
 -- update ord
 UPDATE SettlementSpecialBettypeProfile WITH(ROWLOCK, UPDLOCK)
 	SET OrdNo = CASE
