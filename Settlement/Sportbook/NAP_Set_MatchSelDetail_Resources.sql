@@ -17,6 +17,7 @@ AS
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200601@Kathy: Wrong ticket count for eSports [Redmine:#132401]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
 */
 BEGIN
@@ -119,13 +120,13 @@ BEGIN
 			FROM (	SELECT DISTINCT bt.bettype, bt.betid
 					FROM	dbo.bettrans bt WITH (NOLOCK)
 					WHERE	bt.matchid = @matchid
-							AND bt.bettype IN (603, 605, 617)
+							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 632 AND 644)
 							AND bt.statusID NOT IN (101, 102) --void/reject
 					UNION ALL
 					SELECT DISTINCT btm.bettype, btm.betcheck
 					FROM	dbo.bettransm btm WITH (NOLOCK)
 					WHERE	btm.matchid = @matchid
-							AND btm.bettype IN (603, 605, 617)
+							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 632 AND 644)
 							AND btm.statusID	NOT IN (101, 102) --void/reject
 				)bt
 				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype

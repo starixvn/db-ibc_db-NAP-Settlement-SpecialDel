@@ -134,13 +134,13 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '632')
 		BEGIN
 			SELECT	@CorrectQuaterOddEven = @CorrectQuaterOddEven 
-						+ CASE WHEN result.HomeValue % 2 = 0 THEN 'e' ELSE 'o' END
+						+ CASE WHEN result.Value % 2 = 0 THEN 'e' ELSE 'o' END
 			FROM	@tmpResultDetail r
 				CROSS APPLY (
-					SELECT	CAST(r.HomeValue AS INT) AS HomeValue
-							,CAST(r.AwayValue AS INT) AS AwayValue
+					SELECT	CAST(r.HomeValue AS INT) + CAST(r.AwayValue AS INT) AS Value
 				) result
 			WHERE	r.ResourceId LIKE 'Q[1-4]'
+			ORDER BY r.ResourceId
 
 			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 			SELECT	'632', @CorrectQuaterOddEven, ssId
@@ -173,26 +173,27 @@ BEGIN
 					,MAX(CASE WHEN r.ResourceId = '00' THEN r.ssId ELSE 0 END) AS ssId
 			FROM	@tmpResultDetail r 
 				CROSS APPLY(
+					SELECT	ResourceId
+					FROM	@tmpDummyResourceIds
+					WHERE	ResourceId IN ('635', '636', '637', '638', '639', '640', '641', '644')
+				)res
+				CROSS APPLY(
 					SELECT	CASE 
 								WHEN r.ResourceId = '00' THEN 0
-								WHEN r.ResourceId = '639' THEN 0 -- only count the number of away team have higher scores (Away Team Quarters Win Over/Under)
-								WHEN r.ResourceId IN ('640', '641') AND CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) = 0 THEN 1
+								WHEN res.ResourceId = '639' THEN 0 -- only count the number of away team have higher scores (Away Team Quarters Win Over/Under)
+								WHEN res.ResourceId IN ('640', '641') THEN CASE WHEN CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) = 0 THEN 1 ELSE 0 END
 								WHEN CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) > 0 THEN 1
 								ELSE 0
 							END AS HomeValue
 							,CASE 
 								WHEN r.ResourceId = '00' THEN 0
-								WHEN r.ResourceId = '638' THEN 0 -- only count the number of home team have higher scores (Home Team Quarters Win Over/Under)
-								WHEN r.ResourceId IN ('640', '641') THEN 0
+								WHEN res.ResourceId = '638' THEN 0 -- only count the number of home team have higher scores (Home Team Quarters Win Over/Under)
+								WHEN res.ResourceId IN ('640', '641') THEN 0
 								WHEN CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) < 0 THEN 1
 								ELSE 0
 							END AS AwayValue
 				) result
-				CROSS APPLY(
-					SELECT	ResourceId
-					FROM	@tmpDummyResourceIds
-					WHERE	ResourceId IN ('635', '636', '637', '638', '639', '640', '641', '644')
-				)res
+				
 			WHERE	r.ResourceId LIKE 'Q[1-4]' OR r.resourceId = '00'
 			GROUP BY res.ResourceId
 
@@ -263,24 +264,35 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '643')
 		BEGIN
+			DECLARE @MaxValue INT
+			SELECT	@MaxValue = MAX(CAST(HomeValue AS INT) + CAST(AwayValue AS INT))
+			FROM	@tmpResultDetail
+			WHERE	ResourceId LIKE 'Q[1-4]'
+
 			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
 			SELECT	'643'
-					,CASE
-						WHEN 4* result.Q1Total > result.Q2Total + result.Q3Total + result.Q4Total THEN '1q'
-						WHEN 4* result.Q2Total > result.Q1Total + result.Q3Total + result.Q4Total THEN '1q'
-						WHEN 4* result.Q3Total > result.Q1Total + result.Q2Total + result.Q4Total THEN '1q'
-						WHEN 4* result.Q4Total > result.Q1Total + result.Q2Total + result.Q3Total THEN '1q'
+					,CASE 
+						WHEN m.Q1Max+ m.Q2Max + m.Q3Max + m.Q4Max = 1 
+							THEN CASE 
+									WHEN m.Q1Max = 1 THEN '1q'
+									WHEN m.Q2Max = 1 THEN '2q'
+									WHEN m.Q3Max = 1 THEN '3q'
+									WHEN m.Q4Max = 1 THEN '4q'
+									ELSE '' -- not happend
+								END
 						ELSE 'tie'
 					END
 					,''
 					,r.ssId
 			FROM	@tmpResultDetail r
 				CROSS APPLY (
-					SELECT	@Q1Home + @Q1Away AS Q1Total
-							,@Q2Home + @Q2Away AS Q2Total
-							,@Q3Home + @Q3Away AS Q3Total
-							,@Q4Home + @Q4Away AS Q4Total
-				)result
+					SELECT	CASE WHEN @Q1Home + @Q1Away = @MaxValue THEN 1 ELSE 0 END AS Q1Max
+							,CASE WHEN @Q2Home + @Q2Away = @MaxValue THEN 1 ELSE 0 END AS Q2Max
+							,CASE WHEN @Q3Home + @Q3Away = @MaxValue THEN 1 ELSE 0 END AS Q3Max
+							,CASE WHEN @Q4Home + @Q4Away = @MaxValue THEN 1 ELSE 0 END AS Q4Max
+							
+				)m
+				
 			WHERE	r.resourceId = '00'
 		END
 

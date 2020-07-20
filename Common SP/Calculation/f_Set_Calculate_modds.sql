@@ -307,7 +307,7 @@ RETURN
 			WHEN @pfID = 640 THEN
 				CASE
 					WHEN @betteam = '0' AND CAST(@HomeValue AS INT) = 0 THEN 1
-					WHEN @betteam = '1+' AND CAST(@HomeValue AS INT) > 0 THEN 1
+					WHEN @betteam = '1' AND CAST(@HomeValue AS INT) > 0 THEN 1
 					ELSE -1
 				END
 			WHEN @pfID = 644 THEN -- --WHEN @pfID = 644 THEN @HomeValue + ':' + @AwayValue
