@@ -21,6 +21,7 @@ AS
         - 20180803@Vicky: E-Sports 2.0 [Redmine:#95874] 
 		- 20190924@Sol: Incorporate BMAIO - insert/update data to resultdetailOS [Redmine:#120324]
         - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
         
     Param's Explanation: 
     
@@ -35,6 +36,11 @@ BEGIN
 
     DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
+	DECLARE @hthomescore INT
+			,@htawayscore INT
+			,@othomescore INT
+			,@otawayscore INT
+
     -------------END DECLARE    
     
     --parse XML   
@@ -145,11 +151,44 @@ BEGIN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
 
-		IF @Sporttype = 2 AND @action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
-			DELETE
-			FROM	dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
-			WHERE	MatchId = @MatchID
-					AND ResourceId = 'OT'
+		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		BEGIN
+			SELECT	@hthomescore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.HomeValue ELSE 0 END), 0)
+					,@htawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.AwayValue ELSE 0 END), 0)
+					,@othomescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'OT' THEN rd.HomeValue ELSE 0 END), 0)
+					,@otawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'OT' THEN rd.AwayValue ELSE 0 END), 0)
+			FROM	dbo.ResultDetail rd WITH(NOLOCK)
+			WHERE	rd.MatchId = @matchid
+					AND rd.ResourceId IN ('00', '01', 'OT')
+
+			IF @action = 'REFUND'
+			BEGIN
+				DELETE
+				FROM	dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
+				WHERE	MatchId = @MatchID
+						AND ResourceId = 'OT'
+			END
+
+			MERGE dbo.ResultDetail TARGET
+			USING (
+				SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+				FROM    @tblSelectedRID sr
+				WHERE	sr.ResourceID = '00'
+				) AS SOURCE ON  TARGET.ResourceId = '02' AND TARGET.MatchId = @matchid
+			WHEN MATCHED THEN
+				UPDATE SET HomeValue     = CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.HomeValue - @hthomescore - @othomescore END
+					,AwayValue           = CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.AwayValue - @htawayscore - @otawayscore END
+					,ResultStatusID      = @ResultStatusID
+					,SettlementStatusID  = @SettlementStatusID
+					,LastModifyDate      = GETDATE()
+					,LastModifyBy        = @creator
+	
+			WHEN NOT MATCHED BY TARGET THEN
+				INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
+				VALUES(@matchid, '02', CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.HomeValue - @hthomescore - @othomescore END
+					, CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.AwayValue - @htawayscore - @otawayscore END
+					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
+		END
     END 
     
 END 
