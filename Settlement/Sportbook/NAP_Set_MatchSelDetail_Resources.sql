@@ -111,7 +111,7 @@ BEGIN
 		IF @SportType = 2
 		BEGIN
 			INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo)
-			SELECT  sp.ResourceID,					
+			SELECT  CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END,					
 					0 AS BetCount,
 					0 As InRunning,
 					0 AS betSettledCount,
@@ -120,20 +120,20 @@ BEGIN
 			FROM (	SELECT DISTINCT bt.bettype, bt.betid
 					FROM	dbo.bettrans bt WITH (NOLOCK)
 					WHERE	bt.matchid = @matchid
-							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 632 AND 644)
+							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 627 AND 644)
 							AND bt.statusID NOT IN (101, 102) --void/reject
 					UNION ALL
 					SELECT DISTINCT btm.bettype, btm.betcheck
 					FROM	dbo.bettransm btm WITH (NOLOCK)
 					WHERE	btm.matchid = @matchid
-							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 632 AND 644)
+							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 627 AND 644)
 							AND btm.statusID	NOT IN (101, 102) --void/reject
 				)bt
 				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			WHERE	(sp.Betid = 0 OR sp.BetID = bt.BetID)
 				AND sp.sporttype = @SportType
 				AND (sp.Settletype = @SettleType)	
-			GROUP BY sp.ResourceID
+			GROUP BY CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END
 		END
 	END
 	

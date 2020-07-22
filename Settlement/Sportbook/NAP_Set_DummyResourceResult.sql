@@ -209,12 +209,12 @@ BEGIN
 				SET HomeValue = CASE
 									WHEN @FTHomePoint > @FTAwayPoint 
 										THEN CASE
-												WHEN @Q1Home < @Q1Away OR @Q2Home < @Q2Away THEN 'H'
+												WHEN @Q1Home < @Q1Away OR (@Q1Home = @Q1Away AND @Q2Home < @Q2Away) THEN 'H'
 												ELSE '' 
 											END
 									WHEN @FTHomePoint < @FTAwayPoint
 										THEN CASE
-												WHEN @Q1Home > @Q1Away OR @Q2Home > @Q2Away THEN 'A'
+												WHEN @Q1Home > @Q1Away OR (@Q1Home = @Q1Away AND @Q2Home > @Q2Away) THEN 'A'
 												ELSE ''
 											END
 									ELSE ''
@@ -225,41 +225,26 @@ BEGIN
 		
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '642')
 		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'642'
-					,CASE
-						WHEN result.Q1Diff > 0 AND result.Q2Diff > 0 THEN 'h12'
-						WHEN result.Q1Diff > 0 AND result.Q3Diff > 0 THEN 'h13'
-						WHEN result.Q1Diff > 0 AND result.Q4Diff > 0 THEN 'h14'
-						WHEN result.Q2Diff > 0 AND result.Q3Diff > 0 THEN 'h23'
-						WHEN result.Q2Diff > 0 AND result.Q4Diff > 0 THEN 'h24'
-						WHEN result.Q3Diff > 0 AND result.Q4Diff > 0 THEN 'h34'
+			
+			DECLARE @QuaterResult VARCHAR(20) = ''
 
-						WHEN result.Q1Diff < 0 AND result.Q2Diff < 0 THEN 'a12'
-						WHEN result.Q1Diff < 0 AND result.Q3Diff < 0 THEN 'a13'
-						WHEN result.Q1Diff < 0 AND result.Q4Diff < 0 THEN 'a14'
-						WHEN result.Q2Diff < 0 AND result.Q3Diff < 0 THEN 'a23'
-						WHEN result.Q2Diff < 0 AND result.Q4Diff < 0 THEN 'a24'
-						WHEN result.Q3Diff < 0 AND result.Q4Diff < 0 THEN 'a34'
-
-						WHEN result.Q1Diff = 0 OR result.Q2Diff = 0 OR (result.Q1Diff < 0 AND result.Q2Diff > 0) OR (result.Q1Diff > 0 AND result.Q2Diff < 0) THEN 'aos12'
-						WHEN result.Q1Diff = 0 OR result.Q3Diff = 0 OR (result.Q1Diff < 0 AND result.Q3Diff > 0) OR (result.Q1Diff > 0 AND result.Q3Diff < 0) THEN 'aos13'
-						WHEN result.Q1Diff = 0 OR result.Q4Diff = 0 OR (result.Q1Diff < 0 AND result.Q4Diff > 0) OR (result.Q1Diff > 0 AND result.Q4Diff < 0) THEN 'aos14'
-						WHEN result.Q2Diff = 0 OR result.Q3Diff = 0 OR (result.Q2Diff < 0 AND result.Q3Diff > 0) OR (result.Q2Diff > 0 AND result.Q3Diff < 0) THEN 'aaos23'
-						WHEN result.Q2Diff = 0 OR result.Q4Diff = 0 OR (result.Q2Diff < 0 AND result.Q4Diff > 0) OR (result.Q2Diff > 0 AND result.Q4Diff < 0) THEN 'aaos24'
-						WHEN result.Q3Diff = 0 OR result.Q4Diff = 0 OR (result.Q3Diff < 0 AND result.Q4Diff > 0) OR (result.Q3Diff > 0 AND result.Q4Diff < 0) THEN 'aaos34'
-						ELSE ''
-					END AS HomeValue
-					,'' AS AwayValue
-					,r.ssId
+			SELECT	@QuaterResult = @QuaterResult 
+						+ r.ResourceId + CASE 
+											WHEN result.Value > 0 THEN 'h'
+											WHEN result.value = 0 THEN 'd'
+											ELSE 'a'
+										END + ','
 			FROM	@tmpResultDetail r
-				CROSS APPLY(
-					SELECT	@Q1Home - @Q1Away AS Q1Diff
-							,@Q2Home - @Q2Away AS Q2Diff
-							,@Q3Home - @Q3Away AS Q3Diff
-							,@Q4Home - @Q4Away AS Q4Diff
-				)result
-			WHERE	ResourceId = '00'
+				CROSS APPLY (
+					SELECT	CAST(r.HomeValue AS INT) - CAST(r.AwayValue AS INT) AS Value
+				) result
+			WHERE	r.ResourceId LIKE 'Q[1-4]'
+			ORDER BY r.ResourceId
+
+			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+			SELECT	'642', @QuaterResult, ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '00' 
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '643')

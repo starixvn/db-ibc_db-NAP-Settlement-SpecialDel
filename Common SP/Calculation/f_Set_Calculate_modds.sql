@@ -310,6 +310,60 @@ RETURN
 					WHEN @betteam = '1' AND CAST(@HomeValue AS INT) > 0 THEN 1
 					ELSE -1
 				END
+			WHEN @pfID = 642 THEN
+				CASE
+					WHEN @betteam = 'h12' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q2h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h13' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h14' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h23' AND CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h24' AND CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h34' AND CHARINDEX('q3h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+
+					WHEN @betteam = 'a12' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q2a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a13' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a14' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a23' AND CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a24' AND CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a34' AND CHARINDEX('q3a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					
+					WHEN @betteam = 'aos12' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q2d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q2h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q2a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos13' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q3d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos14' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos23' 
+						AND (CHARINDEX('q2d', @HomeValue) > 0 
+								OR CHARINDEX('q3d', @HomeValue) > 0
+								OR (CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0)
+								OR (CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos24' 
+						AND (CHARINDEX('q2d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos34' 
+						AND (CHARINDEX('q3d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q3a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q3h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					ELSE -1
+				END
 			WHEN @pfID = 644 THEN -- --WHEN @pfID = 644 THEN @HomeValue + ':' + @AwayValue
 				CASE
 					WHEN @betteam = @HomeValue + ':' + @AwayValue  THEN 1
@@ -318,10 +372,10 @@ RETURN
 				END					
 			WHEN @pfID = 646 THEN
 				CASE
-					WHEN @betteam = 'ho' AND (CAST(@HomeValue AS INT) - @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
-					WHEN @betteam = 'hu' AND (CAST(@HomeValue AS INT) - @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
-					WHEN @betteam = 'ao' AND (CAST(@HomeValue AS INT) - @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
-					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) - @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					WHEN @betteam = 'ho' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'hu' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					WHEN @betteam = 'ao' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
 					ELSE -1
 				END	
 			ELSE -1 
