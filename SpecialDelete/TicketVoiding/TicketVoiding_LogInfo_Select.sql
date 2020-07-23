@@ -123,6 +123,7 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -206,6 +207,14 @@ BEGIN
 				,@FilterToTransTime = MAX(t.transdate)
 			FROM #transIdTemp t
 		END
+
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
@@ -296,95 +305,15 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 		FROM	bettrans b WITH (NOLOCK)	
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.matchid = @matchid
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.liveindicator = 0
-				AND b.bettype NOT IN (805, 806, 9, 29)			
-				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'
 				AND 1 = CASE WHEN @IsFilterByTransTime = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @IsFilterByTransTime = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
-
-		-- Metric Gaming Super Live
-		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
-				,SubTransid		
-				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread							
-				,OddsType		
-				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
-				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
-				,betdaqid
-				,WinLost
-				,IsMarked
-				,LiveIndicator
-			)	
-		SELECT 
-				b.TranslogID AS GroupID
-				,b.TranslogID AS TransId
-				,b.TranslogID AS SubTransID
-				,b.TranslogID refno
-				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,0 AS oddsspread			
-				,b.custom1 OddsType
-				,b.transdate
-				,b.GameID
-				,NULL betteam
-				,NULL Subbetteam
-				,NULL betcheck
-				,NULL Subbetcheck
-				,0 hdp1
-				,0 hdp2
-				,NULL livehomescore
-				,NULL liveawayscore
-				,b.creator
-				,b.stake			
-				,b.currencyname			
-				,b.STATUS
-				,b.Status AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend		
-				,NULL betid
-				,b.Transdesc
-				,-1 AS betdaqid -- normal ticket
-				,- b.actual_stake as winlost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,b.liveindicator
-		FROM	Translog b WITH (NOLOCK)
-				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId	
-		WHERE	b.EventID = @matchid
-				AND b.statusID NOT IN (101, 102, 103) -- REJECT, VOID, refund
-				AND b.liveindicator = 0
-				AND b.GameID IN (805, 806) 
-				AND b.betfrom <> 'P'
-				AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
