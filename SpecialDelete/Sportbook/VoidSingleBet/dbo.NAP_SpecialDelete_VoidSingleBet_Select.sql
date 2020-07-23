@@ -73,7 +73,7 @@ AS;
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20191011@Charles: Support filter ticket by Checktime in Void Single Bet [121868]
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
-		- 20200722@Zane: Basketball AIO Phase 2 [137189]
+		- 20200723@Zane: Basketball AIO Phase 2 [137189]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -442,7 +442,7 @@ BEGIN
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 			b.hdp1 AS FilterHdp1,
-			b.hdp1 AS FilterHdp2,
+			b.hdp2 AS FilterHdp2,
 			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
@@ -675,6 +675,8 @@ BEGIN
 				,FilterSet
 				,FilterGame	
 				,FilterValue
+				,FilterHdp1
+				,FilterHdp2
 				,FilterGoal
 			)
 			SELECT
@@ -721,7 +723,9 @@ BEGIN
 				bm.SubBetCheck AS FilterSet,
 				RIGHT(bm.SubBetCheck, 2) AS FilterGame,
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
-				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
+				bm.SubHdp1 AS FilterHdp1,
+				bm.SubHdp2 AS FilterHdp2,
+				ISNULL(bm.SubBetCheck, 0) AS FilterGoal				
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 		END
@@ -780,16 +784,6 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.hdp1 = tp.ValueHdp1 ))
-
-		DELETE b
-		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.hdp2 = tp.ValueHdp2 ))
-
-		DELETE b
-		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
 
 		DELETE b
@@ -800,7 +794,12 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ) OR b.bettype = 29) 
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
+
+		DELETE b
+		FROM  #SpecialDeleteBets b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 )) 
 	END	
 
 	-- delete cash-out member bet tickets
