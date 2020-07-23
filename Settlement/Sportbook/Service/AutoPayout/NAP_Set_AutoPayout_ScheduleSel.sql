@@ -14,6 +14,7 @@ AS
 		- 20190704@Sol: Auto payout phase 3 - Modify returned fields [Redmine:#116073]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200412@Sol: Allow User to Set Timeout for Direct Settlement - [Redmine:#132138]
+		- 20200723@Kathy: Exclude ET and PEN matches [Redmine:#136350]
 
 	Param's Explanation:
  
@@ -64,6 +65,7 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			CROSS APPLY @typeIds f
 		WHERE m.eventstatus = 'running' and m.sporttype = 1
+			AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203
 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
 			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 			AND NOT EXISTS (SELECT TOP 1 1 
