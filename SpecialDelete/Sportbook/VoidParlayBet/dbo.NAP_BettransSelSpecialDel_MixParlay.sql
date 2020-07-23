@@ -54,7 +54,7 @@ AS
 		- 20180514@Alan: Return column IsNeutral for neutral match [Redmine: #94308]
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
-		- 20200723@Zane: Basketball AIO Phase 2 - Change filter addvanced mode [137189]
+		- 20200723@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 
 	Param's Explanation:
 			@Type:	  0	Dead
