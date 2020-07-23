@@ -8,7 +8,7 @@ ALTER PROCEDURE dbo.NAP_Set_DummyResourceResult
 AS
 /*  Creator: 20200703@Kathy
 	Task: Calculate result for dummy resourceId
-	DB: DBPRO/BODB02
+	DB: DBTXN/BODB02
 
 	Revisions:
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
