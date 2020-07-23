@@ -17,6 +17,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190702@Kathy: PH AIO phase 4 [Redmine:#115232]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
+		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -43,34 +44,20 @@ BEGIN
 		INSERT INTO @tmpResourceIds(ResourceID) VALUES('70400')
 	END
 
-	IF @SportType = 2
-	BEGIN
-		UPDATE t 
-			SET ResourceId = CASE
-								WHEN t.ResourceId LIKE '80[1-4]' THEN 'Q' + SUBSTRING(t.ResourceId,3,1)
-								WHEN t.ResourceId = '1H' THEN '01'
-								WHEN t.ResourceId = '2H' THEN '02'
-								WHEN t.ResourceId = 'FT' THEN '00'
-								ELSE t.ResourceId
-							END
-		FROM	@tmpResourceIds t
-
-		INSERT INTO @tmpResourceIds (ResourceId)
-		SELECT	'605'
-		FROM	@tmpResourceIds
-		WHERE	ResourceId = '00'
-		UNION ALL
-		SELECT	'6170' + SUBSTRING(ResourceId,2,1)
-		FROM	@tmpResourceIds
-		WHERE	ResourceId LIKE 'Q[1-4]'
-	END
-
 	INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
 	SELECT DISTINCT c.ResourceID, sp.BetType, sp.BetID
 	FROM @tmpResourceIds c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = c.ResourceID
 	WHERE	sp.SportType = @SportType 
+
+	INSERT INTO @tmpBettype(ResourceId, bettype, BetId)
+	SELECT	c.ResourceId, sp.BetType, sp.BetID
+	FROM	@tmpResourceIds c
+		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+			ON c.ResourceId = sp.RefResourceId
+	WHERE	sp.SportType = @SportType
+			AND sp.RefResourceId IS NOT NULL
 
 	IF EXISTS (
 		SELECT	TOP 1 1

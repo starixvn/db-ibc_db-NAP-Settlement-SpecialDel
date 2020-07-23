@@ -16,6 +16,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - [Redmine:#127698]
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200601@Kathy: Wrong ticket count for eSports [Redmine:#132401]
+		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
 */
 BEGIN
@@ -75,7 +76,13 @@ BEGIN
 	ELSE 
 	BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo, IsSpecialBettype)
-		SELECT  CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
+		SELECT  CASE 
+					WHEN sp.ResourceID = '70400'
+						OR sp.ResourceID = '605' THEN '00' 
+					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bt.betid AS VARCHAR),3,3)
+					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+					ELSE sp.ResourceID 
+				END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
 				COUNT(1) AS BetCount,
 				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
 				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 OR bt.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount,
@@ -91,7 +98,42 @@ BEGIN
 			AND bt.statusID NOT IN (101, 102) --void/reject
 			AND sp.sporttype = @SportType
 			AND (sp.Settletype = @SettleType)	
-		GROUP BY CASE WHEN sp.ResourceID = '70400' THEN '00' ELSE sp.ResourceID END
+		GROUP BY CASE 
+					WHEN sp.ResourceID = '70400'
+						OR sp.ResourceID = '605' THEN '00' 
+					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bt.betid AS VARCHAR),3,3)
+					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+					ELSE sp.ResourceID 
+				END 
+
+		-- insert more result
+		IF @SportType = 2
+		BEGIN
+			INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetMarkedCount, OrdNo)
+			SELECT  sp.ResourceID,					
+					0 AS BetCount,
+					0 As InRunning,
+					0 AS betSettledCount,
+					0 AS betMarkedCount,
+					MAX(sp.OrdNo)
+			FROM (	SELECT DISTINCT bt.bettype, bt.betid
+					FROM	dbo.bettrans bt WITH (NOLOCK)
+					WHERE	bt.matchid = @matchid
+							AND bt.bettype IN (603, 605, 617)
+							AND bt.statusID NOT IN (101, 102) --void/reject
+					UNION ALL
+					SELECT DISTINCT btm.bettype, btm.betcheck
+					FROM	dbo.bettransm btm WITH (NOLOCK)
+					WHERE	btm.matchid = @matchid
+							AND btm.bettype IN (603, 605, 617)
+							AND btm.statusID	NOT IN (101, 102) --void/reject
+				)bt
+				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
+			WHERE	(sp.Betid = 0 OR sp.BetID = bt.BetID)
+				AND sp.sporttype = @SportType
+				AND (sp.Settletype = @SettleType)	
+			GROUP BY sp.ResourceID
+		END
 	END
 	
 	IF @Settletype <> 'MNL'

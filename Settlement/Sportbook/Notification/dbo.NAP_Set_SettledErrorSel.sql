@@ -13,6 +13,7 @@ AS
 		- 20170112@Kathy: Add AdminId 111 into Soccer Team [Redmine:#70302]
 		- 20190418@Kathy: Add starix56 to view notification [Redmine:#106823]
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - Added AdminId = 111 to Other sport - [Redmine:#126963]  
+		- 20200720@Kathy: Extend datatype for table Settled_Message.Action [Redmine:#135846]
 		
 	Param's Explanation:
 		@Top: 0 -- Get all
@@ -33,7 +34,7 @@ BEGIN
 		,matchcode NVARCHAR(50)
 		,homeid INT
 		,awayid INT
-		,Action VARCHAR(10)
+		,Action VARCHAR(20)
 		,Message VARCHAR(300)
 		,starttime DATETIME
 		,isRead BIT

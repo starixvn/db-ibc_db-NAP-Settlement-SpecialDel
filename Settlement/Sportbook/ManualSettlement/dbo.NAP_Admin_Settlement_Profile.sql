@@ -22,6 +22,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
+		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -58,6 +59,9 @@ BEGIN
 			,@SelectedRID		VARCHAR(MAX)	= ''
 			,@TotalPointHomeValue VARCHAR(50)		= NULL
 			,@TotalPointAwayValue VARCHAR(50)		= NULL
+			,@DummyResourceIds		VARCHAR(MAX) = ''
+			,@DummyResourceResults VARCHAR(MAX) = ''
+
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -163,12 +167,36 @@ BEGIN
 		END
 
 		-----------------------------------------add more info-----------------------------------------
+		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
+		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+			INNER JOIN @tmpResourcesWeb t
+				ON s.RefResourceId = t.ResourceID
+		WHERE	s.SportType = @sportType
+				AND s.RefResourceId IS NOT NULL
+		
+		IF @DummyResourceIds <> ''
+		BEGIN
+			EXEC dbo.NAP_Set_DummyResourceResult
+				@MatchID = @MatchID
+				,@sportType = @sportType
+				,@DummyResourceIds = @DummyResourceIds
+				,@DummyResourceResults = @DummyResourceResults OUTPUT
+
+			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+			INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
+			SELECT Id, Home, Away
+			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+																,Home VARCHAR(50)
+																,Away VARCHAR(50)
+												) AS tbl
+			EXEC sp_xml_removedocument @handle
+		END
+
 		-- badminton
 		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
 			IF @Action LIKE 'CAL%'
 			BEGIN
-
 				--Insert data for internal ResourceId 70400
 				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 				SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
@@ -214,8 +242,7 @@ BEGIN
 			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
 			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
 		WHERE sp.SportType = @SportType
-
-		-------------------------------------------------------END parse XML----------------------------------------------------------------------
+		-----------------------------------------------------END parse XML----------------------------------------------------------------------
 
 		SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
 											 ,BetID	AS '@b'
@@ -616,4 +643,5 @@ BEGIN
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
 END
+
 GO

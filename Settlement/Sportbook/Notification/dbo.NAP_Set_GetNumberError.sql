@@ -16,6 +16,7 @@ AS
 						  -	Add starix56 to view notification
 		- 20191210@Helen: Hotfix GetNumberOfNotifications failed when message length is over 300 characters - [Redmine:#125246]						  
 		- 20200120@Sol:	Settlement with Ticket Exclusion for Other Sports - Added AdminId = 111 to Other sport - [Redmine:#126963]
+		- 20200720@Kathy: Extend datatype for table Settled_Message.Action [Redmine:#135846]
 							
 	Param's Explanation:
 		
@@ -64,7 +65,7 @@ BEGIN
 		,sporttype SMALLINT
 		,IP VARCHAR(15)
 		,starttime DATETIME
-		,Action VARCHAR(10)
+		,Action VARCHAR(20)
 		,Message VARCHAR(MAX)
 		,IsSent BIT
 		)

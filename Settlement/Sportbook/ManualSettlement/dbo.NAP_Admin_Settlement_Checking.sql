@@ -35,6 +35,7 @@ AS
 		- 20190124@Sol: Second Accept Process of Parlay Tickets [Redmine #107296]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
+		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -85,12 +86,19 @@ BEGIN
 		BEGIN			
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT Id, sp.BetType, sp.BetID
+		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
 		    FROM OPENXML(@handle,'Resources/Resource',1) WITH (Id VARCHAR(20)) AS tbl
 		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.Id
 		    WHERE sp.SportType = @SportType 
 		    EXEC sp_xml_removedocument @handle
 	
+			INSERT INTO @tmpResourceIDs(ResourceID, Bettype, BetID)
+			SELECT	t.ResourceID, sp.BetType, sp.BetID
+			FROM	@tmpResourceIDs t
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					ON	sp.RefResourceId = t.ResourceID
+			WHERE	sp.SportType = @Sporttype
+					AND sp.RefResourceId IS NOT NULL
 		    
 			IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettrans b WITH(NOLOCK)

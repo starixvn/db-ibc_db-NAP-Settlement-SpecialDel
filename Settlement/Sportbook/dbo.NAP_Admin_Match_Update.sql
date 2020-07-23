@@ -56,6 +56,7 @@ AS
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
         - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
     Parameters Explanation:
 
@@ -518,7 +519,7 @@ BEGIN
                 ,settletime     = GETDATE()
             WHERE matchid = @matchid
         END
-        ELSE IF @IsFinalRound = 0 AND @Sporttype = 5
+        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (2,5)
         BEGIN
             UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET betstatus = COALESCE(@betstatus, betstatus)

@@ -23,12 +23,13 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200415@Sol: e-Sports - Incorporate New Correct Score Bet Type - new settle profile [Redmine:#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20200625@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
 */
 RETURN
 (
    SELECT  CASE
-			WHEN @pfID = 1 THEN --Handicap
+			WHEN @pfID IN (1, 10) THEN --Handicap
 			   CASE  WHEN @betteam = 'h' THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 					 			 WHEN fm = 0.25 THEN 0.25
@@ -195,29 +196,94 @@ RETURN
 							 WHEN SUBSTRING(@HomeValue, ps.rn, 1) = SUBSTRING(@betteam, ps.rn, 1) then ps.odds
 							 ELSE 0
 						END),2)
-
+			WHEN @pfID IN (401, 402) THEN -- Home/Away Team Over/Under
+				CASE WHEN @betteam = 'o' THEN tbl.fm
+					 WHEN @betteam = 'u' THEN - tbl.fm
+					 ELSE -1
+				END
+			WHEN @pfID = 601 THEN
+				CASE WHEN @betteam = 'H1-2' AND fm BETWEEN 1 AND 2 THEN 1
+					 WHEN @betteam = 'H3-6' AND fm BETWEEN 3 AND 6 THEN 1
+					 WHEN @betteam = 'H7-9' AND fm BETWEEN 7 AND 9 THEN 1
+					 WHEN @betteam = 'H10-13' AND fm BETWEEN 10 AND 13 THEN 1
+					 WHEN @betteam = 'H14-16' AND fm BETWEEN 14 AND 16 THEN 1
+					 WHEN @betteam = 'H17-20' AND fm BETWEEN 17 AND 20 THEN 1
+					 WHEN @betteam = 'H21+' AND fm >= 21 THEN 1
+					 WHEN @betteam = 'A1-2' AND fm BETWEEN -2 AND -1 THEN 1
+					 WHEN @betteam = 'A3-6' AND fm BETWEEN -6 AND -3 THEN 1
+					 WHEN @betteam = 'A7-9' AND fm BETWEEN -9 AND -7 THEN 1
+					 WHEN @betteam = 'A10-13' AND fm BETWEEN -13 AND -10 THEN 1
+					 WHEN @betteam = 'A14-16' AND fm BETWEEN -16 AND -14 THEN 1
+					 WHEN @betteam = 'A17-20' AND fm BETWEEN -20 AND -17 THEN 1
+					 WHEN @betteam = 'A21+' AND fm <= -21 THEN 1
+					 ELSE -1
+				END		
+			WHEN @pfID = 602 THEN
+				CASE WHEN @betteam = 'H1-5' AND fm BETWEEN 1 AND 5 THEN 1
+					WHEN @betteam = 'H6-10' AND fm BETWEEN 6 AND 10 THEN 1
+					WHEN @betteam = 'H11-15' AND fm BETWEEN 11 AND 15 THEN 1
+					WHEN @betteam = 'H16-20' AND fm BETWEEN 16 AND 20 THEN 1
+					WHEN @betteam = 'H21-25' AND fm BETWEEN 21 AND 25 THEN 1
+					WHEN @betteam = 'H26+' AND fm >= 26 THEN 1
+					WHEN @betteam = 'A1-5' AND fm BETWEEN -5 AND -1 THEN 1
+					WHEN @betteam = 'A6-10' AND fm BETWEEN -10 AND -6 THEN 1
+					WHEN @betteam = 'A11-15' AND fm BETWEEN -15 AND -11 THEN 1
+					WHEN @betteam = 'A16-20' AND fm BETWEEN -20 AND -16 THEN 1
+					WHEN @betteam = 'A21-25' AND fm BETWEEN -25 AND -21 THEN 1
+					WHEN @betteam = 'A26+' AND fm <= -26 THEN 1	
+					ELSE -1
+				END
+			WHEN @pfID = 608 THEN
+				CASE WHEN @betteam = 'H1-5' AND fm BETWEEN 1 AND 5 THEN 1
+					WHEN @betteam = 'H6-10' AND fm BETWEEN 6 AND 10 THEN 1
+					WHEN @betteam = 'H11-15' AND fm BETWEEN 11 AND 15 THEN 1
+					WHEN @betteam = 'H16-20' AND fm BETWEEN 16 AND 20 THEN 1
+					WHEN @betteam = 'H21-25' AND fm BETWEEN 21 AND 25 THEN 1
+					WHEN @betteam = 'H26+' AND fm >= 26 THEN 1
+					WHEN @betteam = 'D' AND fm = 0 THEN 1
+					WHEN @betteam = 'A1-5' AND fm BETWEEN -5 AND -1 THEN 1
+					WHEN @betteam = 'A6-10' AND fm BETWEEN -10 AND -6 THEN 1
+					WHEN @betteam = 'A11-15' AND fm BETWEEN -15 AND -11 THEN 1
+					WHEN @betteam = 'A16-20' AND fm BETWEEN -20 AND -16 THEN 1
+					WHEN @betteam = 'A21-25' AND fm BETWEEN -25 AND -21 THEN 1
+					WHEN @betteam = 'A26+' AND fm <= -26 THEN 1
+					ELSE -1
+					END 
+			WHEN @pfID = 614 THEN
+				CASE 
+					WHEN @betteam = 'H1-4' AND fm BETWEEN 1 AND 4 THEN 1
+					WHEN @betteam = 'H5-8' AND fm BETWEEN 5 AND 8 THEN 1
+					WHEN @betteam = 'H9+' AND fm >= 9 THEN 1
+					WHEN @betteam = 'D' AND fm = 0 THEN 1
+					WHEN @betteam = 'A1-4' AND fm BETWEEN -4 AND -1 THEN 1
+					WHEN @betteam = 'A5-8' AND fm BETWEEN -8 AND -5 THEN 1
+					WHEN @betteam = 'A9+' AND fm <= -9 THEN 1
+					ELSE -1
+					END
 			ELSE -1 
 		END AS modds
    FROM
 	(
 		SELECT (CASE 
 					WHEN @pfID = 1 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @LiveHomeScore) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 - @LiveAwayScore)
+					WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2) -- not use livescore
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
 					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
-					WHEN @pfID IN (20,711) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (20,711, 608, 614) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
 					WHEN @pfID = 8101 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
-					WHEN @pfID = 8104 THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (8104, 601, 602) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 8105 THEN CAST(@HomeValue AS SMALLMONEY)
 
 					--PHAIO 5
-					WHEN @pfID = 391 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (391) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
-					
+					WHEN @pfID = 401 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
+					WHEN @pfID = 402 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
 					ELSE -1 END)
 			AS fm
 	) tbl

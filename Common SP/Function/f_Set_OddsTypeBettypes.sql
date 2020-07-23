@@ -18,6 +18,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200515@Kathy: Add new bettype for E-Sports [#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20200625@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 	
     Parameters Explanation:    
 		- oddsType
@@ -233,5 +234,11 @@ RETURN (
 	UNION ALL SELECT 376,1
 		
 	UNION ALL SELECT 9088, 1
+
+	-- basketball
+	UNION ALL SELECT 601, 1
+	UNION ALL SELECT 602, 1
+	UNION ALL SELECT 608, 1
+	UNION ALL SELECT 614, 1
 	)
 GO

@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @MatchId INT
-	, @sqlCommand VARCHAR(1024)	
+	, @sqlCommand VARCHAR(MAX)	
 	, @ErrMsg VARCHAR(500)
 	, @AdminId INT
 	, @IP VARCHAR(20)
@@ -18,6 +18,7 @@ AS
 		-20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		-20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
+		-20200720@Kathy: Extend datatype of @sqlCommand to VARCHAR(MAX) [Redmine:#135846]
 */
 BEGIN
 	SET NOCOUNT ON

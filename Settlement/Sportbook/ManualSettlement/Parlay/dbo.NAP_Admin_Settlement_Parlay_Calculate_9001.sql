@@ -20,6 +20,7 @@ AS
 			- 20190924@Sol: Incorporate BMAIO - modified sp to support new bettype [Redmine:#120324]
 			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 			- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
+			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 
 	Param's Explanation:		
 		
@@ -45,6 +46,9 @@ BEGIN
 		,@homeRound			TINYINT
 		,@awayRound			TINYINT
 		,@IsExistDetermined BIT = 0
+
+		,@DummyResourceIds VARCHAR(MAX) = ''
+		,@DummyResourceResults VARCHAR(MAX) = ''
 	
 	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
 	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
@@ -121,6 +125,30 @@ BEGIN
 		WHERE ResourceID IN ('01','02','03','04','05')
 				AND ssID = 4
 	END
+	
+	-- insert dummy resourceid
+	SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
+	FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+		INNER JOIN @tempResource t
+			ON s.RefResourceId = t.ResourceID
+	WHERE	s.SportType = @sportType
+			AND s.RefResourceId IS NOT NULL
+
+	EXEC dbo.NAP_Set_DummyResourceResult
+		@matchId = @matchId
+		,@sportType = @sportType
+		,@DummyResourceIds = @DummyResourceIds
+		,@DummyResourceResults = @DummyResourceResults OUTPUT
+
+	EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+	INSERT INTO @tempResource (ResourceID, HomeValue, AwayValue, ssID)
+	SELECT Id, Home, Away, ssID
+	FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+											,Home VARCHAR(50)
+											,Away VARCHAR(50)
+											,ssId TINYINT
+										) AS tbl
+	EXEC sp_xml_removedocument @handle
 	
 	INSERT INTO @tempResultDetail(ResourceID, HomeValue, AwayValue, ssID, Bettype, Betid, pfID, IsDetermined)
     SELECT rs.ResourceID, 
