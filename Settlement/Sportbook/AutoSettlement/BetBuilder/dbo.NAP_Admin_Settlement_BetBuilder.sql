@@ -17,6 +17,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		
 	Param's Explanation:
 		@Action : CAL, UNDO, 

@@ -30,6 +30,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 	
     Parameters Explanation:    
     
@@ -97,6 +98,10 @@ RETURN (
 	UNION ALL SELECT 1,    427  ,  1, 0, 1, 0, '1H', 1, 0,0
 	UNION ALL SELECT 1,    606  ,  0, 0, 0, 1, '1H', 0, 0,0 -- Basketball
 	UNION ALL SELECT 1,    608  ,  0, 0, 0, 0, '1H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 1,    621  ,  0, 0, 0, 0, '1H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 1,    622  ,  0, 0, 0, 0, '1H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 1,    623  ,  0, 0, 0, 0, '1H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 1,    633  ,  0, 0, 0, 0, '1H', 0, 0,0 -- Basketball
 	--End HT
 	 
 	--FT
@@ -207,6 +212,27 @@ RETURN (
 	UNION ALL SELECT 2,    604  ,  0, 0, 0, 1, 'FT', 0, 0,0 -- Basketball
 	UNION ALL SELECT 2,    605  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
 	UNION ALL SELECT 2,    607  ,  0, 0, 0, 1, '2H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    618  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    619  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    620  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    624  ,  0, 0, 0, 0, '2H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    625  ,  0, 0, 0, 0, '2H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    626  ,  0, 0, 0, 0, '2H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    634  ,  0, 0, 0, 0, '2H', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    632  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    635  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    636  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    637  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    638  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    639  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    640  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    641  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    642  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    643  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    644  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    645  ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+	UNION ALL SELECT 2,    646 ,  0, 0, 0, 0, 'FT', 0, 0,0 -- Basketball
+
 	--End FT
 	 
 	--HT-FGLG
@@ -280,6 +306,11 @@ RETURN (
 	UNION ALL SELECT 10,   615  ,  0, 0, 0, 0, 'Special', 0, 0,1
 	UNION ALL SELECT 10,   616  ,  0, 0, 0, 0, 'Special', 0, 0,1
 	UNION ALL SELECT 10,   617  ,  0, 0, 0, 0, 'Special', 0, 0,0
+	UNION ALL SELECT 10,   627  ,  0, 0, 0, 0, 'Special', 0, 0,0
+	UNION ALL SELECT 10,   628  ,  0, 0, 0, 0, 'Special', 0, 0,0
+	UNION ALL SELECT 10,   629  ,  0, 0, 0, 0, 'Special', 0, 0,0
+	UNION ALL SELECT 10,   630  ,  0, 0, 0, 0, 'Special', 0, 0,0
+	UNION ALL SELECT 10,   631  ,  0, 0, 0, 0, 'Special', 0, 0,0
 
 	-- E-Sports 2.0
 	UNION ALL SELECT 11,   9001  ,  0, 0, 0, 0, 'Special', 0, 0,0

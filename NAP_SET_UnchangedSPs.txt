@@ -4,3 +4,5 @@ Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP_Push.sq
 Settlement\Sportbook\AutoSettlement\BetBuilder\dbo.NAP_Admin_Settlement_BetBuilder_Push.sql
 Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s_Push.sql
 SpecialDelete\Sportbook\RecoverSingleBet\dbo.NAP_BettransRecoverBet.sql
+Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s.sql
+Settlement\Sportbook\NAP_Admin_Settlement_Validation_PrePush.sql

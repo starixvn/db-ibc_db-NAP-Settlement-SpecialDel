@@ -13,6 +13,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		
 	Param's Explanation:
 				  
@@ -70,7 +71,7 @@ BEGIN
   		,modds = m.modds
 	FROM #tblTransID t 
 		INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON t.matchID = mk.matchID AND t.marketID = mk.marketID
-		CROSS APPLY dbo.f_Set_Calculate_modds(@pfID, NULL, NULL, NULL, mk.Result, NULL, NULL, NULL) m
+		CROSS APPLY dbo.f_Set_Calculate_modds(@pfID, NULL, NULL, NULL, mk.Result, NULL, NULL, NULL, NULL, NULL) m
 	WHERE mk.VendorID = 34
 		AND mk.ResultStatusID NOT IN (0,1)
 
