@@ -51,7 +51,6 @@ BEGIN
 		,@maxRefno				BIGINT
 		,@IsExistEarlyBettype	BIT
 		,@IsSettleBySetting 	BIT			= 0
-		,@IsSettleBySettingMNLBasketball BIT = 0
 	
 	SELECT @ActionID 	= CASE 
 						WHEN @action IN ('ABANDONED-2H', 'REFUND-FT') THEN 106
@@ -124,20 +123,6 @@ BEGIN
 			AND statusID	NOT IN (101, 102)
 	END
 
-	IF @SportType = 2
-	BEGIN
-		SELECT TOP(1) @IsSettleBySettingMNLBasketball = 1
-		FROM dbo.bettransm bm WITH (NOLOCK)
-			CROSS APPLY (
-				SELECT TOP 1 1 AS IsSettleBySettingMNLBasketball, s.SportType, s.SettleType
-				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-				WHERE	s.BetType = bm.bettype 
-			) AS f
-		WHERE matchid 		= @matchId
-			AND f.SportType = @SportType
-			AND f.SettleType = 'MNL'
-			AND statusID	NOT IN (101, 102)
-	END
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
     BEGIN
         SET @IsSettleBySetting = 1
@@ -195,7 +180,7 @@ BEGIN
 	
 	BEGIN TRY
 		--CHECK for CAL fisrt
-		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1 OR @IsSettleBySettingMNLBasketball = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid
@@ -251,7 +236,7 @@ BEGIN
 		END
 
 		--REFUND the REST
-		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1 OR @IsSettleBySettingMNLBasketball = 1
+		IF @IsSettleBySetting = 1 OR @IsExistEarlyBettype = 1
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Parlay_Calculate_9001
                 @matchid 			= @matchid

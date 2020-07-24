@@ -32,7 +32,6 @@ AS
 			- 20190718@Sol: Relocate bettype 22 From early settlement to Main settlement [Redmine:#115232]
 			- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]	
 			- 20200511@Kathy: Remove tennis code [Redmine:#129316]
-			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 			
 	Param's Explanation:		
 		- @Mode: ['REFUND-HT', 'REFUND-FT', 'ABANDONED-2H'] - ['CAL', 'CAL-HT', 'CAL-FT']
@@ -181,8 +180,6 @@ BEGIN
 			,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) AS isEarly
 	FROM	dbo.[f_Set_GetGroupBettypes]() AS f
 		LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
-		LEFT JOIN dbo.SettlementSpecialBettypeProfile p WITH(NOLOCK)
-			ON f.BetType = p.BetType
 	WHERE	1 = CASE 
 					WHEN @Mode IN ('REFUND-HT') THEN 
 						CASE 
@@ -203,10 +200,6 @@ BEGIN
 						WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
 						ELSE 1
 					END	
-			AND 1 = CASE 
-						WHEN @sportType = 2 AND p.SettleType = 'MNL' THEN 0
-						ELSE 1
-					END
 	
 	IF @Sporttype = 2 AND @resultDetail_bb IS NOT NULL -- Basketball
 	BEGIN

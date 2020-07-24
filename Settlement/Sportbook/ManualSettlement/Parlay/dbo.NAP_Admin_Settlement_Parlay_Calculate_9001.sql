@@ -21,6 +21,7 @@ AS
 			- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 			- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+			- 20200721@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 
 	Param's Explanation:		
 		

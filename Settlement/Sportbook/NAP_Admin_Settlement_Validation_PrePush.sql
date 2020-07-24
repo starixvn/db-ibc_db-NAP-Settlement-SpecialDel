@@ -16,6 +16,7 @@ AS
     Revisions:        
         - 20191231@Helen: Basketball | Accidentally Settled Running Match caused by Keyscore - [Redmine:126287]
 		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
+		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
      
     Param's Explanation:
 		* sample @SelectedResource for manual:	'801,802,1H,803,804,FT'
@@ -60,7 +61,7 @@ BEGIN
 								AND 1 = CASE 
 											WHEN GroupId = 10 AND CHARINDEX (o.Resourceid,@SelectedResource ) > 0 THEN 1 -- special -> Calculate Quarter X
 											WHEN CHARINDEX ('1H',@SelectedResource) > 0 AND f.GroupName = '1H' THEN 1 -- HT
-											WHEN CHARINDEX ('FT',@SelectedResource) > 0 AND f.GroupName = 'FT' THEN 1 -- FT
+											WHEN CHARINDEX ('FT',@SelectedResource) > 0 AND f.GroupName IN ('FT', '2H') THEN 1 -- FT
 											ELSE 0
 										END	
 								AND f.IsAuto = 0
