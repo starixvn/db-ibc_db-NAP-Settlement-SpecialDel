@@ -98,7 +98,7 @@ BEGIN
 
 	IF @IsEditRequest = 1
 	BEGIN
-		DELETE dbo.TicketVoiding_RequestDetailTicket_Single
+		DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
 		WHERE RequestId = @RequestId
 	END
 

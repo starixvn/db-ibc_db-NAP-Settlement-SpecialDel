@@ -27,62 +27,70 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	CREATE TABLE #SpecialDeleteBets
-             (GroupID               BIGINT,
-              transid               BIGINT,
-              SubTransid            BIGINT,
-              refno                 BIGINT,
-              custid                INT,
-              username              VARCHAR(30),
-              odds                  MONEY,
-              SubOdds               MONEY,
-              oddsspread            MONEY,
-              OddsType              INT,
-              transdate             DATETIME,
-              bettype               SMALLINT,
-              OriginalBetType       SMALLINT,
-              betteam               NVARCHAR(10),
-              SubBetTeam            NVARCHAR(10),
-              betcheck              NVARCHAR(50),
-              SubBetcheck           NVARCHAR(50),
-              Subhdp1               SMALLMONEY,
-              Subhdp2               SMALLMONEY,
-              hdp1                  SMALLMONEY,
-              hdp2                  SMALLMONEY,
-              livehomescore         SMALLINT,
-              liveawayscore         SMALLINT,
-              creator               INT,
-              creatorName           VARCHAR(30),
-              Stake                 MONEY,
-              currencyname          VARCHAR(20),
-              IsDeposit             BIT DEFAULT(0),
-              STATUS                NVARCHAR(10),
-              SubStatus             NVARCHAR(10),
-              srecommend            INT,
-              mrecommend            INT,
-              recommend             INT,
-              SubLeagueId           INT,
-              betid                 BIGINT DEFAULT(0),
-              Transdesc             NVARCHAR(1000),
-              betdaqid              BIGINT,
-              ParlayType            SMALLINT DEFAULT(0)
-              , -- sub bettype of parlay 
-              IsMixParlay           BIT DEFAULT(0),
-              SoldId                BIGINT,
-              sporttype             SMALLINT,
-              modds                 MONEY,
-              ExtraInfo             VARCHAR(1000),
-              IsCashOutMemberTicket BIT DEFAULT 0,
-              MainCashoutId         BIGINT,
-              matchid               INT,
-              WalletType            TINYINT,
-              RefCode               BIGINT,
-              BonusID               INT,
-              MainTransId           BIGINT,
-              WinLost               MONEY,
-              IsMarked              BIT,
-              LiveIndicator			BIT
-             )
+	CREATE TABLE #SpecialDeleteBets (
+		GroupID               BIGINT,
+        transid               BIGINT,
+        SubTransid            BIGINT,
+        refno                 BIGINT,
+        custid                INT,
+        username              VARCHAR(30),
+        odds                  MONEY,
+        SubOdds               MONEY,
+        oddsspread            MONEY,
+        OddsType              INT,
+        transdate             DATETIME,
+        bettype               SMALLINT,
+        OriginalBetType       SMALLINT,
+        betteam               NVARCHAR(10),
+        SubBetTeam            NVARCHAR(10),
+        betcheck              NVARCHAR(50),
+        SubBetcheck           NVARCHAR(50),
+        Subhdp1               SMALLMONEY,
+        Subhdp2               SMALLMONEY,
+        hdp1                  SMALLMONEY,
+        hdp2                  SMALLMONEY,
+        livehomescore         SMALLINT,
+        liveawayscore         SMALLINT,
+        creator               INT,
+        creatorName           VARCHAR(30),
+        Stake                 MONEY,
+        currencyname          VARCHAR(20),
+        IsDeposit             BIT DEFAULT(0),
+        STATUS                NVARCHAR(10),
+        SubStatus             NVARCHAR(10),
+        srecommend            INT,
+        mrecommend            INT,
+        recommend             INT,
+        SubLeagueId           INT,
+        betid                 BIGINT DEFAULT(0),
+        Transdesc             NVARCHAR(1000),
+        betdaqid              BIGINT,
+        ParlayType            SMALLINT DEFAULT(0)
+        , -- sub bettype of parlay 
+        IsMixParlay           BIT DEFAULT(0),
+        SoldId                BIGINT,
+        sporttype             SMALLINT,
+        modds                 MONEY,
+        ExtraInfo             VARCHAR(1000),
+        IsCashOutMemberTicket BIT DEFAULT 0,
+        MainCashoutId         BIGINT,
+        matchid               INT,
+        WalletType            TINYINT,
+        RefCode               BIGINT,
+        BonusID               INT,
+        MainTransId           BIGINT,
+        WinLost               MONEY,
+        IsMarked              BIT,
+        LiveIndicator			BIT,
+		FilterBettype      SMALLINT,
+        FilterBetTeam      NVARCHAR(10),
+        FilterSet          VARCHAR(50),
+        FilterGame         VARCHAR(50),
+        FilterValue        SMALLMONEY,
+        FilterGoal         BIGINT,
+        FilterBetOption    NVARCHAR(50),
+        FilterTimeInterval SMALLMONEY,
+    )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
               custid   INT,
@@ -97,7 +105,18 @@ BEGIN
 
 	CREATE TABLE #tblBetType
 	(
-		Id				SMALLINT,		 				
+		Id				SMALLINT PRIMARY KEY,
+		BetTeam			NVARCHAR(MAX), 
+		[Set]			VARCHAR(10),
+		Game			VARCHAR(3),
+		BetOption		NVARCHAR(250),
+		[Value]			VARCHAR(500),
+		Goal			VARCHAR(10)
+	)
+
+	CREATE TABLE #tblBetType_Detail
+	(
+		Id				SMALLINT,
 		BetTeam			NVARCHAR(10), 
 		[Set]			VARCHAR(10),
 		Game			VARCHAR(3),
@@ -241,38 +260,18 @@ BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
 			-- Parse xml @BetTypes
-			;WITH CTE_ParsedBettypes_1 AS
-			(	
-				SELECT t.c.value('@Id','SMALLINT') AS Id
-					 , t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-					 , t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
-					 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
-					 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
-					 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-					 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-				FROM @BetTypes.nodes('BetTypes/BetType') t(c)
-			),
-			CTE_ParsedBettypes AS
-			(
-				SELECT cte.Id
-					 , bt.val AS BetTeam 
-					 , cte.[Set]
-					 , cte.Game
-					 , bop.val AS BetOption
-					 , CAST(CASE
-								WHEN v.val = 'ALL' THEN 9999.00 
-								ELSE v.val
-							END AS SMALLMONEY) AS [Value]			 
-					 , CAST(CASE 
-								WHEN cte.Goal = 'ALL' THEN 100 
-								ELSE cte.Goal
-							END AS BIGINT) AS Goal
-				FROM CTE_ParsedBettypes_1 cte
-					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			)	 
-			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal)
+			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+			SELECT t.c.value('@Id','SMALLINT') AS Id
+					, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
+					, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
+					, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
+					, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
+					, t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+					, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			FROM @BetTypes.nodes('BetTypes/BetType') t(c)
+			OPTION (OPTIMIZE FOR (@BetTypes = NULL))
+			 
+			INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal)
 			SELECT cte.Id
 				 , CASE
 						WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -288,13 +287,24 @@ BEGIN
 				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 227) OR (cte.Id IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 				 , cte.Goal
-			FROM CTE_ParsedBettypes cte	
-			WHERE CASE
-						WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
-						WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
-						ELSE 1
-				  END = 1
-			OPTION (OPTIMIZE FOR (@BetTypes = NULL))
+			FROM (
+				SELECT cte.Id
+					 , bt.val AS BetTeam 
+					 , cte.[Set]
+					 , cte.Game
+					 , bop.val AS BetOption
+					 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
+								ELSE v.val END AS SMALLMONEY) AS [Value]			 
+					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
+								ELSE cte.Goal END AS BIGINT) AS Goal
+				FROM #tblBetType cte
+					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
+					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
+					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+			) cte	
+			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
+					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
+					ELSE 1 END = 1
 
 			-- search tickets : not metric gaming tickets, mix parlay tickets
 			INSERT INTO #SpecialDeleteBets(
@@ -336,6 +346,14 @@ BEGIN
 					,WinLost
 					,IsMarked
 					,LiveIndicator
+					,FilterBettype
+					,FilterBetTeam
+					,FilterSet
+					,FilterGame	
+					,FilterValue
+					,FilterGoal
+					,FilterBetOption
+					,FilterTimeInterval
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -384,119 +402,30 @@ BEGIN
 					,b.WinLost - b.actual_stake AS WinLost
 					,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 					,b.liveindicator
+					,b.bettype AS FilterBetType
+					,b.betteam AS FilterBetTeam
+					,b.betid AS FilterSet
+					,RIGHT(b.betid, 2) AS FilterGame
+					,b.hdp1 + b.hdp2 AS FilterValue
+					,ISNULL(b.betid, 0) AS FilterGoal
+					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
+					,b.hdp1 AS FilterTimeInterval
 			FROM	bettrans b WITH (NOLOCK)	
-			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-			   CROSS APPLY (
+				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+				CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE transid = b.transid
 								AND RequestId = @RequestId
 					) ts
+				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			WHERE	b.matchid = @matchid
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.liveindicator = 0
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
 					AND b.betfrom <> 'P'	
-					---- filter for BetTeam
-					AND EXISTS (SELECT TOP 1 1
-								FROM #tblBetType tp
-								WHERE tp.Id = b.bettype
-								  AND CASE
-											WHEN tp.BetTeam = 'ALL' THEN 1									
-											ELSE CASE 
-													WHEN b.betteam = tp.BetTeam THEN 1
-													ELSE 0
-												 END 
-									  END = 1)
 		
-			/*
-				filter for [Set] (+ [Quarter])
-				[Set] : 8xx; 1324 : 8xxyy
-				[Quarter] : 80X; 613 : 80XYY		
-				filter for Game : Only handle for bettype 1324		 
-				filter for BetOption : Only handle for bettypes 221 -> 227		 
-				filter for [Value]		
-				filter for TimeInterval		 
-				filter for Goal
-			*/			
-			BEGIN		
-			DELETE s
-			FROM #SpecialDeleteBets s	 
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.[Set] = 'ALL' THEN 1							
-										ELSE CASE 						  
-												WHEN s.betid LIKE tp.[Set] + '%' THEN 1
-												ELSE 0
-											 END
-									END = 1) 
-				
-			DELETE s
-			FROM #SpecialDeleteBets s	 	
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.Game = 'ALL' THEN 1
-										WHEN (tp.Game LIKE '>%' AND RIGHT(s.betid, 2) > RIGHT(tp.Game, 2)) 
-											 OR (RIGHT(s.betid, 2) = tp.Game)
-												THEN 1											
-										ELSE 0
-									END = 1)
-				
-			DELETE s
-			FROM #SpecialDeleteBets s
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.BetOption = 'ALL' THEN 1				
-										ELSE CASE
-												WHEN CAST(CAST(s.hdp2 AS INT) AS VARCHAR(50)) + '-' + s.betteam = tp.BetOption THEN 1
-												ELSE 0
-											 END
-									END = 1)				
-					 
-			DELETE s
-			FROM #SpecialDeleteBets s		 		
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.[Value] = 9999 THEN 1				
-										ELSE CASE
-												WHEN s.hdp1 + s.hdp2 = tp.[Value] THEN 1
-												ELSE 0
-											 END
-									END = 1)
-		  
-			DELETE s
-			FROM #SpecialDeleteBets s
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.TimeInterval = 9999 THEN 1				
-										ELSE CASE
-												WHEN s.hdp1 = tp.TimeInterval THEN 1
-												ELSE 0
-											 END
-									END = 1)		  
-				
-			DELETE s
-			FROM #SpecialDeleteBets s		 
-			WHERE NOT EXISTS (SELECT TOP 1 1
-							  FROM #tblBetType tp
-							  WHERE tp.Id = s.bettype
-								AND CASE
-										WHEN tp.Goal = 100 THEN 1
-										WHEN ISNULL(s.betID, 0) = tp.Goal THEN 1			
-										ELSE 0
-									END = 1)
-			END	
 
 			-- Metric Gaming Super Live
 			IF EXISTS( SELECT TOP 1 1 FROM #tblBettype WHERE Id IN (805, 806))
@@ -634,6 +563,12 @@ BEGIN
 						,WinLost
 						,IsMarked
 						,LiveIndicator
+						,FilterBettype
+						,FilterBetTeam
+						,FilterSet
+						,FilterGame	
+						,FilterValue
+						,FilterGoal
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -672,6 +607,12 @@ BEGIN
 						,main.winlost -main.actual_stake AS WinLost
 						,0
 						,sub.liveindicator
+						,sub.bettype AS FilterBetType
+						,sub.betteam AS FilterBetTeam
+						,sub.betcheck AS FilterSet
+						,RIGHT(sub.betcheck, 2) AS FilterGame
+						,sub.hdp1 + sub.hdp2 AS FilterValue
+						,ISNULL(sub.betcheck, 0) AS FilterGoal
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -692,6 +633,70 @@ BEGIN
 						AND main.liveindicator = 0
 						AND main.statusID NOT IN (101, 102, 103)
 			END 
+
+			/*
+				filter for [Set] (+ [Quarter])
+				[Set] : 8xx; 1324 : 8xxyy
+				[Quarter] : 80X; 613 : 80XYY		
+				filter for Game : Only handle for bettype 1324		 
+				filter for BetOption : Only handle for bettypes 221 -> 227		 
+				filter for [Value]		
+				filter for TimeInterval		 
+				filter for Goal
+			*/			
+			BEGIN
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND 
+						CASE
+							WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam THEN 1 ELSE 0 END
+							ELSE 
+								CASE tp.BetTeam
+									 WHEN 'All-All' THEN 1
+									 WHEN 'All-S' THEN CASE WHEN b.FilterBetTeam LIKE '%S%' THEN 1 ELSE 0 END
+									 WHEN 'All-M' THEN CASE WHEN b.FilterBetTeam LIKE '%M%' THEN 1 ELSE 0 END
+									 WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+									 WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+									 WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									 WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+									 WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+									 WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
+									 ELSE 0
+								END
+						END = 1
+				)
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%'  ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ) OR b.bettype = 29)
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.TimeInterval = 9999 OR b.FilterTimeInterval = tp.TimeInterval ) OR b.bettype = 29) 
+			END
 		END
 		ELSE
 		BEGIN
