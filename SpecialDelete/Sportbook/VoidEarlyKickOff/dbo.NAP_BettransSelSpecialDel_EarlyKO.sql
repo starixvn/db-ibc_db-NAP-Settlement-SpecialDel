@@ -63,8 +63,6 @@ AS;
 	- @BetTeam14: bettype=14: First Goal/Last Goal; bettype = 127: 1st First Goal/ Last Goal
 	- @BetTeam16: bettype=16: Half Time/Full Time
 	- @BetOptionXXX: formation.('[[hdp2-value]-[betteam-value]]^...n') & Example.('1-1^2-2^4-4')
-	- @TimeIntervalXXX: formation.('[hdp1-value]^...n') & Example.('0^1^2^3')
-
   
 */
 BEGIN
@@ -161,7 +159,6 @@ BEGIN
 		[Value]			SMALLMONEY,	
 		ValueHdp1		SMALLMONEY,	
 		ValueHdp2		SMALLMONEY,
-		TimeInterval	SMALLMONEY,	
 		Goal			BIGINT
 	)
 	
@@ -342,7 +339,8 @@ BEGIN
 		filter for Game : Only handle for bettype 1324		 
 		filter for BetOption : Only handle for bettypes 221 -> 227		 
 		filter for [Value]		
-		filter for TimeInterval		 
+		filter for ValueHdp1
+		filter for ValueHdp2
 		filter for Goal
 	*/			
 	BEGIN		

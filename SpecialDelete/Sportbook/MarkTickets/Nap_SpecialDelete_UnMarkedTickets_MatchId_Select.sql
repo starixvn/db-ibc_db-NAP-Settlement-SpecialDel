@@ -26,6 +26,7 @@ AS;
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
+		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -40,7 +41,9 @@ AS;
 					 Set="801"				-- Default : "All" ; Format : 80X ; Additional handled field : [Quarter]
 					 Game="01"				-- Default : "All" ; Format : 0X 
 					 BetOption="4-4,5-5"	-- Default : "All" ; Format : hdp2-betteam,...					 
-					 Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ; Additional handled field : TimeInterval
+					 Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ;
+					 ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
+					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 			/>
 		 <BetTypes/>'
@@ -75,6 +78,8 @@ SET NOCOUNT ON
               Game      VARCHAR(3),
               BetOption NVARCHAR(250),
               [Value]   VARCHAR(500),
+			  ValueHdp1	SMALLMONEY,
+			  ValueHdp2	SMALLMONEY,
               Goal      VARCHAR(10)
              );
     CREATE TABLE #tblBetType_Detail
@@ -84,23 +89,26 @@ SET NOCOUNT ON
               Game         VARCHAR(3),
               BetOption    NVARCHAR(50),
               [Value]      SMALLMONEY,
-              TimeInterval SMALLMONEY,
+              ValueHdp1	   SMALLMONEY,
+			  ValueHdp2	   SMALLMONEY,
               Goal         BIGINT
              );
 		
 	-- Parse xml @BetTypes
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
 			, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
-			, t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@Value','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
+			, t.c.value('@Value','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -111,10 +119,9 @@ SET NOCOUNT ON
 		 , cte.[Set]
 		 , cte.Game
 		 , cte.BetOption
-		 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 227) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
-					ELSE 9999.00 END AS SMALLMONEY) AS [Value]
-		 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 227) OR (cte.Id IN (479, 481)) THEN cte.[Value]
-					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
+		 , cte.[Value]
+		 , cte.ValueHdp1
+		 , cte.ValueHdp2
 		 , cte.Goal
 	FROM (
 		SELECT cte.Id
@@ -123,11 +130,14 @@ SET NOCOUNT ON
 			 , cte.Game
 			 , bop.val AS BetOption
 			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE v.val END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE cte.val END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -256,7 +266,8 @@ SET NOCOUNT ON
               FilterValue           SMALLMONEY,
               FilterGoal            BIGINT,
               FilterBetOption       NVARCHAR(50),
-              FilterTimeInterval    SMALLMONEY
+              FilterHdp1		 	SMALLMONEY,
+        	  FilterHdp2		 	SMALLMONEY,
              );
 
 	CREATE TABLE #ParlayTickets
@@ -335,7 +346,8 @@ SET NOCOUNT ON
 			,FilterValue
 			,FilterGoal
 			,FilterBetOption
-			,FilterTimeInterval
+			,FilterHdp1
+			,FilterHdp2
 		)
 		SELECT
 			b.transid,
@@ -380,7 +392,8 @@ SET NOCOUNT ON
 			b.hdp1 + b.hdp2 AS FilterValue,
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-			b.hdp1 AS FilterTimeInterval
+			b.hdp1 AS FilterHdp1,
+			b.hdp2 AS FilterHdp2
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
@@ -443,7 +456,8 @@ SET NOCOUNT ON
 				,FilterValue
 				,FilterGoal
 				,FilterBetOption
-				,FilterTimeInterval
+				,FilterHdp1
+				,FilterHdp2
 			)
 			SELECT 
 				b.transid,
@@ -488,7 +502,8 @@ SET NOCOUNT ON
 				b.hdp1 + b.hdp2 AS FilterValue,
 				ISNULL(b.betid, 0) AS FilterGoal,
 				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-				b.hdp1 AS FilterTimeInterval
+				b.hdp1 AS FilterHdp1,
+				b.hdp2 AS FilterHdp2
 			FROM 
 				dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
@@ -601,6 +616,8 @@ SET NOCOUNT ON
 				,FilterSet
 				,FilterGame	
 				,FilterValue
+				,FilterHdp1
+				,FilterHdp2
 				,FilterGoal
 			)
 			SELECT 
@@ -646,6 +663,8 @@ SET NOCOUNT ON
 				bm.SubBetCheck AS FilterSet,
 				RIGHT(bm.SubBetCheck, 2) AS FilterGame,
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
+				bm.SubHdp1 AS FilterHdp1,
+				bm.SubHdp2 AS FilterHdp2,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
 			FROM #ParlayTickets AS bm
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
@@ -705,7 +724,12 @@ SET NOCOUNT ON
 		DELETE b
 		FROM  #Tickets b
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.TimeInterval = 9999 OR b.FilterTimeInterval = tp.TimeInterval) OR b.bettype = 29) 
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1))
+
+		DELETE b
+		FROM  #Tickets b
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2))  
 	END
 
 	-- delete marked tickets
