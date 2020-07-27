@@ -6,7 +6,7 @@ AS
 /*	Created by: Helen
 	Date 20200713
 	Task: [CTS] Customer Category - Auto tag Problem Customer [Redmine:#136460]
-	DB: DBTXN/bodb02
+	DB: DBACC/bodb02
 	
 	Revisions: 
 		- 20200713@Helen: Create new SP [Redmine:#136460]
