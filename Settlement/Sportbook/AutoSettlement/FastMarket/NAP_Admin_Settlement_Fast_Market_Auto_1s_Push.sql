@@ -100,16 +100,22 @@ BEGIN
 		RETURN
 	END
 
-	IF @Action LIKE 'CAL%'
+	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0
 	BEGIN
+		DECLARE @fixedErrMsg VARCHAR(300) = '' --cannot pass varchar(max) via linked server 
+
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
 			,@Action	= @action
+			,@IsEarly 	= 1
 			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
+			,@ErrMsg	= @fixedErrMsg	OUTPUT
 
 		IF @ErrCode > 0
+		BEGIN
+			SET @ErrMsg = @fixedErrMsg
 			RETURN
+		END
 	END
 
 	IF EXISTS (SELECT	TOP 1 1 

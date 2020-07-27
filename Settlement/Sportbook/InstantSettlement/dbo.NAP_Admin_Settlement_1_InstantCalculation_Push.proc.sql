@@ -62,6 +62,18 @@ BEGIN
 	-- checking for instant match validation
 	IF(@Action = 'CAL')
 	BEGIN
+		IF @IsAutoInst = 0
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+				@MatchId	= @matchid
+				,@Action	= @action
+				,@ErrCode	= @ErrCode	OUTPUT
+				,@ErrMsg	= @ErrMsg	OUTPUT
+
+			IF @ErrCode > 0
+				RETURN
+		END
+
 		EXEC dbo.NAP_Settlement_InstantCalculation_Checking 
 		@MatchId 			 = @MatchId
 		, @InstantKey		 = @InstantKey

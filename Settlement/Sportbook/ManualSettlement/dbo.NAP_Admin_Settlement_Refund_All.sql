@@ -222,7 +222,7 @@ BEGIN
             ,@HomeValue = CAST(@fta AS VARCHAR(20))
             ,@IsHedgeMatch = CASE WHEN @matchcode LIKE '%hedge%' AND @IsSettleAbandonedMatchIBC = 1 THEN 1 ELSE 0 END
 			
-	IF @sporttype = 1
+	IF @sporttype = 1 AND @IsSettleAbandonedMatchIBC = 0
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid

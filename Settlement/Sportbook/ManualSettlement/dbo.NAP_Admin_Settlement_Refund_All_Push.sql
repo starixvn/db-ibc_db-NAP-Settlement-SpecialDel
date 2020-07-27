@@ -136,11 +136,11 @@ BEGIN
         RETURN
 	END
 	
-	IF @sporttype = 1
+	IF @sporttype = 1 AND @IsSettleAbandonedMatchIBC = 0
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
-			,@Action	= @action
+			,@Action	= 'REFUND'
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT
 

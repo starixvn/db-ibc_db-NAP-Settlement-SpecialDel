@@ -2,8 +2,9 @@
 ALTER PROCEDURE [NAP_Set_SettlementStatusChecking]
 	@MatchId	INT
 	,@Action	VARCHAR(20)
+	,@IsEarly	BIT = 0
 	,@ErrCode	INT = 0 OUTPUT
-	,@ErrMsg	VARCHAR(300) = '' OUTPUT
+	,@ErrMsg	VARCHAR(200) = '' OUTPUT
 AS
 /*
 	Created: Kathy
@@ -15,7 +16,7 @@ AS
 		- 20200724@Kathy: Prevent Refund Wrong Match by Checking Settlement Status [Redmine:#136390]
 		
 	Parameters Explanation:    
-		@Action: CAL
+		@Action: CAL, REFUND
 
 		
 */
@@ -37,14 +38,14 @@ BEGIN
 		END
 		ELSE IF @Action = 'REFUND'
 		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.liveindicator = 1 AND o.oddsstatus <> 'closed') 	-- check running odds
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal')) 	-- check running odds
 				SELECT	@ErrCode = 1001035
 						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
 		END
     END
 	ELSE
 	BEGIN
-		IF @Action = 'REFUND'
+		IF @Action = 'REFUND' AND @IsEarly = 0
 			SELECT	@ErrCode = 1001034
 					,@ErrMsg = 'WARNING! Cannot proceed due to this match is NOT marked for Refund All.'
 

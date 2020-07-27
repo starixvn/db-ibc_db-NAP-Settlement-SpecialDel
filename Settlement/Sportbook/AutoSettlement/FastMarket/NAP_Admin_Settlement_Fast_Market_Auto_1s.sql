@@ -106,11 +106,12 @@ BEGIN
 	FROM	dbo.match WITH (NOLOCK)
 	WHERE	matchid = @matchid
 
-	IF @Action LIKE 'CAL%'
+	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
 			,@Action	= @action
+			,@IsEarly 	= 1
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT
 
