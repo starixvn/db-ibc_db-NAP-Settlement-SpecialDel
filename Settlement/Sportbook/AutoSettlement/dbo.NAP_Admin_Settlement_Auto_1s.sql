@@ -32,6 +32,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -133,6 +134,18 @@ BEGIN
             ,@sportType     = sportType
     FROM    DBPRO.BODB02.dbo.match WITH (NOLOCK)
     WHERE    matchid = @matchid
+
+	IF @Action LIKE 'CAL%'
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
         
     INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT @matchId AS matchid
@@ -159,7 +172,7 @@ BEGIN
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.Id
 	WHERE sp.SportType = @SportType 
-	
+
 	IF @Action = 'REFUND'
 	BEGIN
 		DECLARE @ResourceIds VARCHAR(MAX) = ''

@@ -75,6 +75,7 @@ AS
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -221,6 +222,18 @@ BEGIN
             ,@HomeValue = CAST(@fta AS VARCHAR(20))
             ,@IsHedgeMatch = CASE WHEN @matchcode LIKE '%hedge%' AND @IsSettleAbandonedMatchIBC = 1 THEN 1 ELSE 0 END
 			
+	IF @sporttype = 1
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= 'REFUND'
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
+
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid

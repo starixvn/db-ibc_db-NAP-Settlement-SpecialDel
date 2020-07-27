@@ -50,6 +50,7 @@ AS
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -133,6 +134,18 @@ BEGIN
             ,@ErrMsg    = 'This match has been executed Instant Settlement with score '+ CAST(@Inst_HomeScore AS VARCHAR) + '-' + CAST(@Inst_AwayScore AS VARCHAR) + '. Please uncalculate it first!'
 
         RETURN
+	END
+	
+	IF @sporttype = 1
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
 	END
 
     IF EXISTS (

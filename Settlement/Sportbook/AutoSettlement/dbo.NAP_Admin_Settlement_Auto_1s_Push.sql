@@ -21,6 +21,7 @@ AS
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		
 	Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -52,6 +53,18 @@ BEGIN
 				,@ErrMsg	= 'Match does not exist!'
 
 		RETURN
+	END
+
+	IF @Action LIKE 'CAL%'
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
 	END
 
 	IF EXISTS (

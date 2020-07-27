@@ -33,6 +33,7 @@ AS
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -182,6 +183,18 @@ BEGIN
 		, @FGNG		= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
 		, @FGLGCheck	= 0
 	
+	IF @Action LIKE 'CAL%' AND @IsAutoInst = 0
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
+
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT @matchid AS matchid
 		,1 AS KeyId

@@ -26,6 +26,7 @@ AS
 		- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190813@Helen: Remove vnteam in metadata
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -104,6 +105,18 @@ BEGIN
 			,@sportType	= sportType
 	FROM	dbo.match WITH (NOLOCK)
 	WHERE	matchid = @matchid
+
+	IF @Action LIKE 'CAL%'
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
 
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
