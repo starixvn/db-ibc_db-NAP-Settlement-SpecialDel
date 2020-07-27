@@ -318,8 +318,7 @@ BEGIN
 					,@fth = sr.HomeValue
 					,@fta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE GroupType = 'FT' AND isFinal = 1 
-  	
+  		WHERE sr.ResourceID = '00'
   	
   		---check HT round
   		SET @existsHTRound = 0
@@ -327,7 +326,8 @@ BEGIN
 					,@hth = sr.HomeValue
 					,@hta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE GroupType = 'HT' AND isFinal = 1 
+  		WHERE sr.ResourceID = '01' AND @sportType = 2
+			
 
   		IF @existsFinalRound = 1
   		BEGIN
