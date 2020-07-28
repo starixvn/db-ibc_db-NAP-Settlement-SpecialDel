@@ -68,7 +68,11 @@ BEGIN
 			,@MarkedTransIds	VARCHAR(MAX)
 			,@Username			NVARCHAR(200)
 			,@IsCalQueue	BIT = 0
-			,@IsTransidProcessed BIT = 0	
+			,@IsTransidProcessed BIT = 0
+			,@OldFilterFromTransTime DATETIME = NULL
+			,@OldFilterToTransTime DATETIME = NULL
+			,@OldFilterFromBetId BIGINT = NULL
+			,@OldFilterToBetId BIGINT = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -103,7 +107,11 @@ BEGIN
 	ELSE IF @IssueTypeId = 1
 	BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
-			SET FilterFromTransTime = @FilterFromTransTime
+			SET @OldFilterFromTransTime = FilterFromTransTime
+			, @OldFilterToTransTime = FilterToTransTime
+			, @OldFilterFromBetId = FilterFromBetId
+			, @OldFilterToBetId = FilterToBetId
+			, FilterFromTransTime = @FilterFromTransTime
 			, FilterToTransTime = @FilterToTransTime
 			, FilterFromBetId = @FilterFromBetId
 			, FilterToBetId = @FilterToBetId
@@ -187,6 +195,29 @@ BEGIN
 		IF @TransIds <> @OldTransIds
 		BEGIN
 			SET @LogDataContent += ' Old TransIds: ' + @OldTransIds + ' New TransIds: ' + @TransIds
+		END
+	END
+	ELSE IF @IssueTypeId = 1
+	BEGIN
+		IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
+		BEGIN
+			SET @LogDataContent += ' Old From Transdate: ' + CONVERT(VARCHAR(30), @OldFilterFromTransTime, 21)
+								+ ' New From Transdate: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21)
+		END
+		ELSE IF @IsFilterByTransTime = 1 AND @OldFilterToTransTime <> @FilterToTransTime
+		BEGIN
+			SET @LogDataContent += ' Old To Transdate: ' + CONVERT(VARCHAR(30), @OldFilterToTransTime, 21)
+								+ ' New To Transdate: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+		END
+		ELSE IF @IsFilterByTransTime = 0 AND @OldFilterFromBetId <> @FilterFromBetId
+		BEGIN
+			SET @LogDataContent += ' Old From BetID: ' + CAST(@OldFilterFromBetId AS VARCHAR(20))
+									+ ' New From BetID: ' + CAST(@FilterFromBetId AS VARCHAR(20))
+		END
+		ELSE IF @IsFilterByTransTime = 0 AND @OldFilterToBetId <> @FilterToBetId
+		BEGIN
+			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
+									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))
 		END
 	END
 	ELSE

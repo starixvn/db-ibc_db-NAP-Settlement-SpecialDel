@@ -908,6 +908,7 @@ BEGIN
 					)tmp
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
+				AND r.ActionId NOT IN (2,3)
 			OPTION (maxrecursion 0)
 		END
 		ELSE
@@ -930,6 +931,7 @@ BEGIN
 				INNER JOIN #SpecialDeleteBets t ON t.transid = tmp.transid
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
+				AND r.ActionId NOT IN (2,3)
 			OPTION (maxrecursion 0)
 		END
 
