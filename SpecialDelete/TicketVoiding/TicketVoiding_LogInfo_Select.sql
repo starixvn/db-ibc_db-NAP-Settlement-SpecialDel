@@ -827,7 +827,7 @@ BEGIN
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
 					)tmp
-				INNER JOIN #SpecialDeleteBets t ON t.transid = tmp.transid
+				INNER JOIN #SpecialDeleteBets t ON t.SubTransid = tmp.transid
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2,3)
@@ -853,7 +853,7 @@ BEGIN
 		,MIN(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MaxSingleTransId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.transid)
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
 	GROUP BY b.livehomescore
 		,b.liveawayscore
 

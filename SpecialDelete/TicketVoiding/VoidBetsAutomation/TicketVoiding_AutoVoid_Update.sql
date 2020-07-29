@@ -23,6 +23,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 	
 	Param's explanation:	
 		
@@ -189,15 +190,12 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO #inputRequestTransId (TransId,RequestID,RequestType)
-		SELECT  tmp.transid,rd.RequestID,rd.RequestType
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			CROSS APPLY (SELECT val AS transid
-						 FROM dbo.f_SplitString(rd.TransIds, ',')
-						) AS tmp
+		SELECT  rds.transid,rd.RequestID,rd.RequestType
+		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId
 		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND rd.RequestId = @RequestID 
 			AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
-		OPTION (maxrecursion 0)
 	END
 	ELSE
 	BEGIN
@@ -226,12 +224,12 @@ BEGIN
 					CROSS APPLY (SELECT TOP (1) custid
 								FROM @ProblemAccount_tmp pa
 								WHERE pa.CustID = b.CustId ) pa_tmp
-					OUTER APPLY (SELECT TOP 1 rd.RequestId
-								FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId
-								WHERE mt.MatchId = rd.MatchId AND r.IssueTypeId = 11 
+					OUTER APPLY (SELECT TOP 1 r.RequestId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) 
+									INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
+								WHERE mt.MatchId = rds.MatchId AND r.IssueTypeId = 11 
 									AND r.ActionId NOT IN (2,3) -- 2: Take Note, 3 Waiting 
-									AND CHARINDEX(',' + CAST(mt.TransId AS VARCHAR(50)) + ',', ',' + rd.TransIds + ',') > 0
+									AND mt.TransId = rds.TransId
 								) AS tmp
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
@@ -261,7 +259,6 @@ BEGIN
 				
 				IF @@ROWCOUNT = 0 BREAK
 				
-				SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
 				
 				-- Create new request here
 				INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
@@ -269,25 +266,24 @@ BEGIN
 
 				SET @RequestId = SCOPE_IDENTITY()
 			
-				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime, TransIds,RequestType)
-				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, @TransIDList_tmp, 2
-					
-				SET @TransIDList_tmp = ''	 
+				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType)
+				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 
+
+				INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId,IssueTypeId,SubIssueTypeId,TransId,MatchId)
+				SELECT @RequestID, 11, 38, TransId, @MatchId
+				FROM @tmpTransIDBatch
 				
 			END
 		END	
 	
 		-- get all transid from all requests
 		INSERT INTO #inputRequestTransId (RequestID,TransId,RequestType)
-		SELECT  req.RequestID, tmp.transid,rd.RequestType
+		SELECT  req.RequestID, rds.transid,rd.RequestType
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			CROSS APPLY (SELECT val AS transid
-						 FROM dbo.f_SplitString(rd.TransIds, ',')
-						) AS tmp
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId
 		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
 			AND req.ActionId = 1 -- Auto Void Winning ONLY, Auto Void All (Instant) will cover at the time process for request in queue
-		OPTION (maxrecursion 0)
 		
 	END
 	--Check duplicate transid belong multi request--
