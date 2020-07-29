@@ -24,7 +24,8 @@ AS
 		- 20200508@Raymond: Incorporate E-Sports (phase 3) [133121]
 		- 20200526@Max: Incorporate E-Sports (phase 3) - Change Group By MarkType [Redmine: #133121]
 		- 20200608@Charles: Auto Void for remaining sports [Redmine: #131865]
-		
+		- 20200729@Zane: Basketball AIO Phase 2 - Fix error when show tickets [Redmine: #137189]
+
 	Param's explanation:	
 	
 */
@@ -78,6 +79,7 @@ BEGIN
 					WHERE m.refno = b.refno
 						AND m.statusID NOT IN (101, 102)
 						AND b.matchId = 29
+						AND m.matchid = f.MatchId
 				) AS bm
 			WHERE 1 = CASE WHEN b.matchid <> 29 AND b.statusID NOT IN (101, 102) THEN 1
 							WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1 ELSE 0 END
