@@ -923,14 +923,25 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 		FROM	bettrans b WITH (NOLOCK)	
-		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
+		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+		    OUTER APPLY (
+							SELECT TOP 1 rs.TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+							WHERE rs.TransId = b.transid
+								AND rs.MatchId = @MatchId
+								AND r.ActionId NOT IN (2,3)
+								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
+											ELSE 1 END
+					)tmp
 		WHERE	b.matchid = @matchid
 				AND b.transdate >= @KickOffDate
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.liveindicator = 0
 				AND b.bettype NOT IN (805, 806, 9, 29)			
 				AND b.bettype NOT BETWEEN 901 AND 920
-				AND b.betfrom <> 'P'		 
+				AND b.betfrom <> 'P'	
+				AND tmp.TransId IS NULL
 		
 		-- Metric Gaming Super Live
 			INSERT INTO #SpecialDeleteBets(
@@ -1105,6 +1116,16 @@ BEGIN
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
+						OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
+								WHERE rs.TransId = sub.transid
+									AND rs.MatchId = @MatchId
+									AND r.ActionId NOT IN (2,3)
+									AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
+											ELSE 1 END
+							)tmp
 				WHERE	sub.transdate >= @KickOffDate
 						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND sub.liveindicator = 0
@@ -1114,6 +1135,7 @@ BEGIN
 						AND main.liveindicator = 0
 						AND main.transdate >= @KickOffDate
 						AND main.statusID NOT IN (101, 102, 103)
+						AND tmp.TransId IS NULL
 			END 
 		END
 		

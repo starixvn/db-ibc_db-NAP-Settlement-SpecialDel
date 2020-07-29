@@ -215,7 +215,15 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 		FROM	bettrans b WITH (NOLOCK)	
-		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
+		   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			OUTER APPLY (
+							SELECT TOP 1 rs.TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+							WHERE rs.TransId = b.transid
+								AND rs.MatchId = @MatchId
+								AND r.ActionId NOT IN (2,3)
+					)tmp
 		WHERE	b.matchid = @matchid
 				AND b.transdate >= @KickOffTime
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -223,6 +231,7 @@ BEGIN
 				AND b.bettype NOT IN (805, 806, 9, 29)			
 				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'
+				AND tmp.TransId IS NULL
 
 		-- delete cash-out member bet tickets
 		DELETE t

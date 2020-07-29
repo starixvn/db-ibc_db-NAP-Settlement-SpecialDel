@@ -209,6 +209,14 @@ BEGIN
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
+						 OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
+								WHERE rs.TransId = sub.transid
+									AND rs.MatchId = @MatchId
+									AND r.ActionId NOT IN (2,3)
+							)tmp
 				WHERE	sub.transdate >= @KickOffTime
 						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND sub.liveindicator = 0
@@ -218,6 +226,7 @@ BEGIN
 						AND main.liveindicator = 0
 						AND main.transdate >= @KickOffTime
 						AND main.statusID NOT IN (101, 102, 103)
+						AND tmp.TransId IS NULL
 			END
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
