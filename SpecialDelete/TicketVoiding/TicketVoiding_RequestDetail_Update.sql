@@ -73,6 +73,7 @@ BEGIN
 			,@OldFilterToTransTime DATETIME = NULL
 			,@OldFilterFromBetId BIGINT = NULL
 			,@OldFilterToBetId BIGINT = NULL
+			,@OldIsFilterByTransTime BIT = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -111,6 +112,7 @@ BEGIN
 			, @OldFilterToTransTime = FilterToTransTime
 			, @OldFilterFromBetId = FilterFromBetId
 			, @OldFilterToBetId = FilterToBetId
+			, @OldIsFilterByTransTime = IsFilterByTransTime
 			, FilterFromTransTime = @FilterFromTransTime
 			, FilterToTransTime = @FilterToTransTime
 			, FilterFromBetId = @FilterFromBetId
@@ -199,7 +201,12 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 1
 	BEGIN
-		IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
+		IF @OldIsFilterByTransTime <> @IsFilterByTransTime
+		BEGIN
+			SET @LogDataContent += ' Old IsFilterByTransTime: ' + CAST(@OldIsFilterByTransTime AS VARCHAR(10))
+								+ ' New IsFilterByTransTime: ' + CAST(@IsFilterByTransTime AS VARCHAR(10))
+		END
+		ELSE IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
 		BEGIN
 			SET @LogDataContent += ' Old From Transdate: ' + CONVERT(VARCHAR(30), @OldFilterFromTransTime, 21)
 								+ ' New From Transdate: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21)
