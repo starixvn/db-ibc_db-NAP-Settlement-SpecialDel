@@ -505,9 +505,9 @@ BEGIN
 	                   ,@FTHome     		= -1
 	                   ,@FTAway     		= -1
 				
-				IF @IsHTRound = 1
-					SELECT	 @HTHome = NULL
-							,@HTAway = NULL
+				IF @IsHTRound = 1 OR @Sporttype <> 2
+					SELECT	 @HTHome = -1
+							,@HTAway = -1
 			END
 	                   
 	        IF @action = 'CAL'
@@ -518,8 +518,16 @@ BEGIN
                 ,ruben          = COALESCE(@ruben, ruben)
                 ,finalhomescore = CASE WHEN @FTHome < 0 THEN NULL ELSE COALESCE(@FTHome, finalhomescore) END
                 ,finalawayscore = CASE WHEN @FTAway < 0 THEN NULL ELSE COALESCE(@FTAway, finalawayscore) END
-                ,hthomescore    = CASE WHEN @IsHTRound = 1 THEN @HTHome ELSE hthomescore END
-                ,htawayscore    = CASE WHEN @IsHTRound = 1 THEN @HTAway ELSE htawayscore END
+                ,hthomescore    = CASE 
+									WHEN @HTHome < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									ELSE hthomescore 
+								END
+                ,htawayscore    = CASE 
+									WHEN @HTAway < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									ELSE htawayscore 
+								END
                 ,betstatus      = COALESCE(@betstatus, betstatus)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
@@ -527,14 +535,22 @@ BEGIN
         END
         ELSE IF @IsFinalRound = 0 AND @Sporttype IN (2,5)
         BEGIN
-			IF @IsHTRound = 1 AND @Action = 'UNDO'
-				SELECT	@HTHome = NULL
-						,@HTAway = NULL
+			IF (@IsHTRound = 1 OR @Sporttype <> 2) AND @Action = 'UNDO'
+				SELECT	@HTHome = -1
+						,@HTAway = -1
 
             UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET betstatus = COALESCE(@betstatus, betstatus)
-				,hthomescore = CASE WHEN @IsHTRound = 1 THEN @HTHome ELSE hthomescore END
-				,htawayscore = CASE WHEN @IsHTRound = 1 THEN @HTAway ELSE htawayscore END
+				,hthomescore    = CASE 
+									WHEN @HTHome < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									ELSE hthomescore 
+								END
+                ,htawayscore    = CASE 
+									WHEN @HTAway < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									ELSE htawayscore 
+								END
             WHERE matchid = @matchid
         END
     END
