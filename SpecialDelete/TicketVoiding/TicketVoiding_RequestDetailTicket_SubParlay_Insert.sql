@@ -282,7 +282,7 @@ BEGIN
 		SELECT @RequestId
 			,@IssueTypeId
 			,@SubIssueTypeId
-			,s.transid
+			,s.SubTransid
 			,@MatchId
 		FROM #SpecialDeleteBets s
 	END
