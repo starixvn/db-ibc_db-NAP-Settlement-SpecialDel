@@ -10,6 +10,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@MaxSingleTransId BIGINT = NULL
 	,@TransIds VARCHAR(MAX) = NULL
 	,@IsEditRequest BIT = 0
+	,@UserId		INT = NULL
+	,@IP			VARCHAR(50) = NULL
 )
 AS
 /*	
@@ -26,6 +28,9 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
+
+	DECLARE @UnMarkedTransIds	VARCHAR(MAX) = NULL
+		,@UserName		VARCHAR(100) = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -94,6 +99,9 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
+	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT)
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
+
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
@@ -105,16 +113,56 @@ BEGIN
 
 	IF @IssueTypeId = 1
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
-		SELECT @RequestId
-			,@IssueTypeId
-			,@SubIssueTypeId
-			,b.transid
-			,@MatchId
+		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId)
+		SELECT b.transid
+			, b.statusID
+			, @MatchId
 		FROM dbo.bettrans b WITH (NOLOCK)
 		WHERE b.matchid = @MatchId
 			AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId
 			AND b.statusID NOT IN (101, 102, 103)
+
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, @SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+		FROM #DangerAccept_SingleTickets t 
+
+		--Mark Ticket
+		WHILE (1=1)
+		BEGIN
+			DELETE @tmpTransIDBatch
+					
+			UPDATE TOP(2000) t
+				SET isFinish = 1
+			OUTPUT DELETED.TransId, DELETED.StatusId					
+			INTO @tmpTransIDBatch(TransId, StatusId)
+			FROM #DangerAccept_SingleTickets t 
+			WHERE isFinish IS NULL
+				AND t.Matchid = @matchid
+				
+			IF @@ROWCOUNT = 0 BREAK
+				
+			SELECT @UnMarkedTransIds = STUFF(
+				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+				FROM @tmpTransIDBatch tp
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+					AND  tp.StatusId IN (0, 1) 
+				GROUP BY TransId for XML PATH('')), 1, 1, ''
+				)
+		
+			IF @UnMarkedTransIds IS NOT NULL
+			BEGIN
+				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
+																, @MarkType = 1, @LogActionId = 90508
+			END	
+
+			SET @UnMarkedTransIds = ''
+				
+		END
 	END
 	ELSE IF @IssueTypeId = 11 AND @TransIds IS NOT NULL
 	BEGIN
@@ -675,4 +723,5 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #DangerAccept_SingleTickets
 END

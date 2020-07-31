@@ -205,8 +205,17 @@ BEGIN
 		BEGIN
 			SET @LogDataContent += ' Old IsFilterByTransTime: ' + CAST(@OldIsFilterByTransTime AS VARCHAR(10))
 								+ ' New IsFilterByTransTime: ' + CAST(@IsFilterByTransTime AS VARCHAR(10))
+			IF @IsFilterByTransTime = 1 
+			BEGIN
+				SET @LogDataContent += ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+			END
+			ELSE
+			BEGIN
+				SET @LogDataContent += ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+			END
+
 		END
-		ELSE IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
+		IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
 		BEGIN
 			SET @LogDataContent += ' Old From Transdate: ' + CONVERT(VARCHAR(30), @OldFilterFromTransTime, 21)
 								+ ' New From Transdate: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21)
