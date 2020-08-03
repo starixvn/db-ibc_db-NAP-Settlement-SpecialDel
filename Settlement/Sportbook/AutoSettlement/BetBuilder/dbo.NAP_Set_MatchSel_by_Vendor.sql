@@ -4,9 +4,9 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_by_Vendor]
 	,@ToDate			DATETIME
 	,@Status			VARCHAR(200) 	
 	,@MatchCode 		NVARCHAR(50) 	= ''
-	,@LeagueID 			INT 			= 0 -- 0 for ALL Leagues
+	,@LeagueID 			VARCHAR(MAX) 
 	,@VendorID			INT				= 34
-	,@SportType 		TINYINT			= 1
+	,@SportType 		VARCHAR(MAX)
 AS
 /*
 	Created by: 20190103@Vicky
@@ -15,7 +15,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		
+		- 20200731 : Edit get list SportType and LeagueID [Redmine:#138475]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -29,12 +29,24 @@ BEGIN
 			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
 	DECLARE @TempMatch TABLE (MatchId INT, IsCalculating INT)
+	DECLARE @tmpSporttypes TABLE ( Sporttypes SMALLINT)
+	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
 	-------------------------------------------------------------------------------------------------
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
 	FROM dbo.f_SplitString(@Status, ',')
 	option (maxrecursion 0)
-	
+
+	INSERT INTO @tmpSporttypes(Sporttypes)
+	SELECT Val 
+	FROM dbo.f_SplitString(@SportType, ',')
+	option (maxrecursion 0)
+
+	INSERT INTO @tmpLeagueIds(LeagueId)
+	SELECT Val 
+	FROM dbo.f_SplitString(@LeagueID, ',')
+	option (maxrecursion 0)
+
 	IF EXISTS(SELECT 1 FROM @tblEventStatus HAVING COUNT(*) > 1)
 		SET @CheckEventStatus = 0
 	ELSE
@@ -60,16 +72,16 @@ BEGIN
 	;WITH SingleTicket AS (
 		SELECT matchid
 		FROM dbo.[match] m WITH (NOLOCK)
+			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttypes 
+			INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
-			AND Sporttype = @SportType
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
-			AND (@LeagueID = 0 OR m.leagueid = @LeagueID)
 	),
 	QueueSingleMatch AS (
 		SELECT matchid, MIN(IsCalculating)  IsCalculating
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
+			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttypes
 		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
-			AND Sporttype = @SportType
 			AND s.IsCalculating IN (0,1)
 		GROUP BY matchid 
 	)	
@@ -128,4 +140,3 @@ BEGIN
 		, m.betstatus
 		, m.matchcode
 END
-GO
