@@ -15,7 +15,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20200731 : Edit get list SportType and LeagueID [Redmine:#138475]
+		- 20200731@July : Edit get list SportType and LeagueID [Redmine:#138475]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed

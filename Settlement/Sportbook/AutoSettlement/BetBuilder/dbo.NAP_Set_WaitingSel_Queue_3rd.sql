@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel_Queue_3rd] 
-	@LeagueId 		INT 			= 0			 -- 0 for ALL Leagues
-	,@SportType 	INT 			 
+	 @LeagueIds 	VARCHAR(MAX) 		
+	,@SportTypes 	VARCHAR(MAX) 			 
 	,@SettleType	VARCHAR(50)
 AS
 /*
@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200803@July : Get list Sporttype and LeagueId [Redmine:#138475]
 		
 	Param's Explanation: 
 		@SettleType = BBD: BetBuilder
@@ -25,21 +26,29 @@ BEGIN
 	DECLARE @tblTicketStatusBySettleType TABLE (matchid INT, totalTicket INT, totalTicketRunning INT, SettleType VARCHAR(20))
 	DECLARE @tblBettype TABLE (Bettype INT, SettleType VARCHAR(3))
 	DECLARE @tblTicketStatus TABLE (MatchID INT, ParlayStatus VARCHAR(20))
+	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
+	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
+
 	------------------------------------------------------------------------------	
-	SELECT @LeagueId = ISNULL(@LeagueID, 0)
-		   ,@SportType = ISNULL(@SportType, 0)
+	INSERT INTO @tmpSporttypes(Sporttype)
+	SELECT Val 
+	FROM dbo.f_SplitString(@SportTypes, ',')
+	option (maxrecursion 0)
 
-		   
-
+	INSERT INTO @tmpLeagueIds(LeagueId)
+	SELECT Val 
+	FROM dbo.f_SplitString(@LeagueIds, ',')
+	option (maxrecursion 0)
+    	
 	----------------------------------------------------------------------------
 	--Get Bettype from PROFILE
 	IF @SettleType IS NOT NULL
 	BEGIN
 		INSERT INTO @tblBettype (Bettype, SettleType)
-		SELECT DISTINCT Bettype, SettleType
-		FROM dbo.SettlementSpecialBettypeProfile WITH (NOLOCK)
-		WHERE Sporttype = @Sporttype 
-			AND SettleType IN (SELECT val FROM dbo.[f_SplitString](@SettleType, ','))
+		SELECT DISTINCT ss.Bettype, ss.SettleType
+		FROM dbo.SettlementSpecialBettypeProfile ss WITH (NOLOCK)
+			INNER JOIN @tmpSporttypes st ON ss.Sporttype = st.Sporttype 
+		WHERE ss.SettleType IN (SELECT val FROM dbo.[f_SplitString](@SettleType, ','))
 		ORDER BY Bettype
 	END
 	
@@ -53,18 +62,18 @@ BEGIN
 	;WITH SingleTicket AS (
 		SELECT matchid, MIN(IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
+			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
+			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-			AND (sporttype = @sporttype OR @sporttype = 0)
-			AND (leagueid = @leagueid OR @leagueId = 0)
 		GROUP BY matchid 
 	),
 	SingleTicketMainQueue AS (
 		SELECT s.matchid, MIN(IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 			INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) ON vs.MatchID = s.MatchID
+			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
+			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-			AND (sporttype = @sporttype OR @sporttype = 0)
-			AND (leagueid = @leagueid OR @leagueId = 0)
 			AND vs.Opened = 1 
 			AND IsCalculating = 2
 		GROUP BY s.matchid 
@@ -128,8 +137,8 @@ BEGIN
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
 	BEGIN
-		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel_Queue_3rd @LeagueId = ' + CONVERT(VARCHAR(10),@LeagueId) 
-														+ ', @SportType =' + CONVERT(VARCHAR(10),@SportType)
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel_Queue_3rd @LeagueId = ' + CONVERT(VARCHAR(MAX),@LeagueIds) 
+														+ ', @SportType =' + CONVERT(VARCHAR(MAX),@SportTypes)
 														+ ', @SettleType =' + CONVERT(VARCHAR(50),@SettleType)
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
