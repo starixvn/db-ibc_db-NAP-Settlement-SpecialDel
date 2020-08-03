@@ -4,9 +4,9 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_by_Vendor]
 	,@ToDate			DATETIME
 	,@Status			VARCHAR(200) 	
 	,@MatchCode 		NVARCHAR(50) 	= ''
-	,@LeagueID 			VARCHAR(MAX) 
+	,@LeagueIds 		VARCHAR(MAX) 
 	,@VendorID			INT				= 34
-	,@SportType 		VARCHAR(MAX)
+	,@SportTypes 		VARCHAR(MAX)
 AS
 /*
 	Created by: 20190103@Vicky
@@ -29,7 +29,7 @@ BEGIN
 			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
 	DECLARE @TempMatch TABLE (MatchId INT, IsCalculating INT)
-	DECLARE @tmpSporttypes TABLE ( Sporttypes SMALLINT)
+	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
 	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
 	-------------------------------------------------------------------------------------------------
 	INSERT INTO @tblEventStatus(EventStatus)
@@ -37,14 +37,14 @@ BEGIN
 	FROM dbo.f_SplitString(@Status, ',')
 	option (maxrecursion 0)
 
-	INSERT INTO @tmpSporttypes(Sporttypes)
+	INSERT INTO @tmpSporttypes(Sporttype)
 	SELECT Val 
-	FROM dbo.f_SplitString(@SportType, ',')
+	FROM dbo.f_SplitString(@SportTypes, ',')
 	option (maxrecursion 0)
 
 	INSERT INTO @tmpLeagueIds(LeagueId)
 	SELECT Val 
-	FROM dbo.f_SplitString(@LeagueID, ',')
+	FROM dbo.f_SplitString(@LeagueIds, ',')
 	option (maxrecursion 0)
 
 	IF EXISTS(SELECT 1 FROM @tblEventStatus HAVING COUNT(*) > 1)
@@ -65,14 +65,14 @@ BEGIN
 		END CATCH
 		
 		SELECT @CheckEventStatus = 0
-			,@LeagueID = 0
+			,@LeagueIds = 0 
 	END
 	
 	--Get match info in queue
 	;WITH SingleTicket AS (
 		SELECT matchid
 		FROM dbo.[match] m WITH (NOLOCK)
-			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttypes 
+			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
 			INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
@@ -80,7 +80,7 @@ BEGIN
 	QueueSingleMatch AS (
 		SELECT matchid, MIN(IsCalculating)  IsCalculating
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
-			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttypes
+			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttype
 		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
 			AND s.IsCalculating IN (0,1)
 		GROUP BY matchid 
