@@ -25,7 +25,7 @@ ADD
 GO
 
 CREATE TABLE [dbo].[TicketVoiding_RequestDetailTicket_Single](
-	[Id]				INT	IDENTITY (1,1),
+	[Id]				INT	IDENTITY (1,1) NOT FOR REPLICATION NOT NULL,
 	[RequestId]			INT		NOT NULL,
 	[IssueTypeId]		INT		NOT NULL,
 	[SubIssueTypeId]	INT		NOT NULL,
@@ -50,7 +50,7 @@ CREATE NONCLUSTERED INDEX [IX_TicketVoiding_RequestDetailTicket_Single_MatchId_T
 GO
 
 CREATE TABLE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay](
-	[Id]				INT	IDENTITY (1,1),
+	[Id]				INT	IDENTITY (1,1) NOT FOR REPLICATION NOT NULL,
 	[RequestId]			INT		NOT NULL,
 	[IssueTypeId]		INT		NOT NULL,
 	[SubIssueTypeId]	INT		NOT NULL,
