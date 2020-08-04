@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
     Created: 20200701@Max
 	Task: [TVS] Danger Accept Bets Issue Type - [Redmine: #111573]
