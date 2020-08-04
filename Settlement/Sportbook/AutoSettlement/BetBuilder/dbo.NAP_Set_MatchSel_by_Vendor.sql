@@ -15,7 +15,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20200731@July : Edit get list SportType and LeagueID [Redmine:#138475]
+		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for Basketball  [Redmine:#138475]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -26,11 +26,22 @@ BEGIN
 	
 	DECLARE @MatchId			INT
 			,@CheckEventStatus	BIT
+			,@strMatchIds		VARCHAR(MAX)
+			,@remoteQuery		NVARCHAR(MAX)
+			,@strResourceIds	VARCHAR(MAX)
 			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
 	DECLARE @TempMatch TABLE (MatchId INT, IsCalculating INT)
 	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
 	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
+	DECLARE @tmpResultDetail TABLE (
+		MatchId				INT
+		,ResourceId			VARCHAR(20)
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+		,ResultStatusId		TINYINT
+		,SettlementStatusId TINYINT
+	)
 	-------------------------------------------------------------------------------------------------
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
@@ -91,7 +102,40 @@ BEGIN
 		LEFT JOIN QueueSingleMatch q ON q.matchID = sg.matchID
 	WHERE v.vendorId = @VendorID 
 			AND v.Opened = 1 
-	
+	;
+	--- Get resultdetail for Basketball
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype = 2)
+	BEGIN 
+		SELECT @strMatchIds = ''
+			   ,@remoteQuery = ''
+			   ,@strResourceIds = ''
+
+		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
+		FROM @TempMatch tempM
+			INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
+		WHERE m.sporttype=2
+		
+		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+		FROM (
+			SELECT DISTINCT f.ResourceID
+			FROM @TempMatch tempM
+				INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID 
+				CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
+			WHERE m.sporttype =2
+		)f
+		
+		SELECT @strMatchIds = LEFT(@strMatchIds,LEN(@strMatchIds)-1)
+			   ,@strResourceIds = LEFT(@strResourceIds, LEN(@strResourceIds) - 1)
+
+		
+		SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
+						    FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
+							WHERE	r.MatchId IN ('+ @strMatchIds+ ')
+									AND r.ResourceId IN (' + @strResourceIds+ ')'
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
+		EXECUTE sys.sp_executesql @remoteQuery
+	END
+	--------------------------------------------------------------------------------
 	;WITH cteBettrans AS(
 		SELECT matchID
 				,CASE	WHEN totalTicket = 0 			THEN 'No Ticket'
@@ -139,4 +183,12 @@ BEGIN
 		, m.matchid
 		, m.betstatus
 		, m.matchcode
+
+	SELECT	MatchId
+			,ResourceId
+			,HomeValue
+			,AwayValue
+			,ResultStatusId
+			,SettlementStatusId
+	FROM	@tmpResultDetail		
 END
