@@ -426,7 +426,6 @@ BEGIN
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			WHERE	b.matchid = @matchid
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-					AND b.liveindicator = 0
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
 					AND b.betfrom <> 'P'	
@@ -437,7 +436,6 @@ BEGIN
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 					WHERE bm.matchid = @matchid
 						AND bm.statusID NOT IN (101, 102, 103)
-						AND bm.liveindicator = 0
 						AND bm.betfrom <> 'P'
 					)
 			BEGIN		
@@ -543,11 +541,9 @@ BEGIN
 										AND RequestId = @RequestId
 							) ts
 				WHERE	sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
-						AND sub.liveindicator = 0
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
-						AND main.liveindicator = 0
 						AND main.statusID NOT IN (101, 102, 103)
 			END 
 
@@ -717,7 +713,6 @@ BEGIN
 					) ts
 			WHERE	b.matchid = @matchid
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-					AND b.liveindicator = 0
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
 					AND b.betfrom <> 'P'	
@@ -729,7 +724,6 @@ BEGIN
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 					WHERE bm.matchid = @matchid
 						AND bm.statusID NOT IN (101, 102, 103)
-						AND bm.liveindicator = 0
 						AND bm.betfrom <> 'P'
 					)
 			BEGIN		
@@ -821,11 +815,9 @@ BEGIN
 										AND RequestId = @RequestId
 							) ts
 				WHERE	sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
-						AND sub.liveindicator = 0
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
-						AND main.liveindicator = 0
 						AND main.statusID NOT IN (101, 102, 103)
 			END 
 		END

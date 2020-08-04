@@ -309,7 +309,6 @@ BEGIN
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.matchid = @matchid
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-				AND b.liveindicator = 0
 				AND b.betfrom <> 'P'
 				AND 1 = CASE WHEN @IsFilterByTransTime = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @IsFilterByTransTime = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
@@ -321,7 +320,6 @@ BEGIN
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
 					AND bm.statusID NOT IN (101, 102, 103)
-					AND bm.liveindicator = 0
 					AND bm.betfrom <> 'P'
 				)
 		BEGIN		
@@ -405,11 +403,9 @@ BEGIN
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
 			WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
-					AND sub.liveindicator = 0
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND main.liveindicator = 0
 					AND main.statusID NOT IN (101, 102, 103)
 					AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		END 
