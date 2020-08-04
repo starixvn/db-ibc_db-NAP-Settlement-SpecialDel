@@ -1,7 +1,7 @@
 /*
     Created: 20200701@Max
 	Task: [TVS] Danger Accept Bets Issue Type - [Redmine: #111573]
-	DB: bodb02 - DBTRANS & Replicated Server for DBTrans_Bet
+	DB: bodb02 - DBTRANS & Replicated Server for DBTrans_API_Data
 */
 
 USE bodb02
