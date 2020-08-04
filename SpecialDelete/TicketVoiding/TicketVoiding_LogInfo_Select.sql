@@ -845,9 +845,9 @@ BEGIN
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS SingleCount
 		,MIN(CASE WHEN b.transid = b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid = b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS MaxSingleTransId
-		,COUNT(CASE WHEN b.transid <> b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS MainParlayCount
-		,MIN(CASE WHEN b.transid <> b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS MinSingleTransId
-		,MAX(CASE WHEN b.transid <> b.SubTransid AND b.betdaqid IN (-1,0) THEN b.transid ELSE NULL END) AS MaxSingleTransId
+		,COUNT(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid IN (-1,0) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MainParlayCount
+		,MIN(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid IN (-1,0) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MinSingleTransId
+		,MAX(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid IN (-1,0) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
 	GROUP BY b.livehomescore
