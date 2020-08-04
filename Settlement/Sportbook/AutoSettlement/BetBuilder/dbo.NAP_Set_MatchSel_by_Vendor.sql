@@ -65,7 +65,6 @@ BEGIN
 		END CATCH
 		
 		SELECT @CheckEventStatus = 0
-			,@LeagueIds = 0 
 	END
 	
 	--Get match info in queue
@@ -126,6 +125,7 @@ BEGIN
 			,l.autoSetting AS autoSettingForLeague
 			,ISNULL(cteBt.parlayStatus, 'No Ticket') AS parlayStatus
 			,ISNULL(tempM.IsCalculating, 2) AS QueueStatus
+			,m.sporttype
 	FROM @TempMatch	tempM
 		INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
 		INNER JOIN dbo.League l WITH (NOLOCK) ON m.leagueID = l.LeagueID

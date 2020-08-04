@@ -25,7 +25,7 @@ BEGIN
 	FROM dbo.f_SplitString(@SportTypes,',')f
 	OPTION (MAXRECURSION 0)
 
-	SELECT s.SportType,m.leagueid,l.leaguename
+	SELECT m.leagueid
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN @tmpSports s ON m.sporttype=s.SportType 
 		INNER JOIN VendorStatus vs WITH (NOLOCK) ON m.matchid = vs.matchid
@@ -33,7 +33,7 @@ BEGIN
 	WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 		  AND vs.opened = 1		
 		  AND vs.VendorID = @vendorId
-	GROUP BY s.SportType,m.leagueid,l.leaguename;
+	GROUP BY m.leagueid;
 
 END
 GO
