@@ -43,6 +43,10 @@ BEGIN
 		,SettlementStatusId TINYINT
 	)
 	-------------------------------------------------------------------------------------------------
+	IF @Status ='All'
+	BEGIN
+		SET @Status ='Running, Completed'
+	END 	
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
 	FROM dbo.f_SplitString(@Status, ',')
