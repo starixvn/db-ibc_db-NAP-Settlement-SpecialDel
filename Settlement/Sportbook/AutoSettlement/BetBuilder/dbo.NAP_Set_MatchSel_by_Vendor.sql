@@ -125,7 +125,7 @@ BEGIN
 		)f
 		
 		SELECT @strMatchIds = LEFT(@strMatchIds,LEN(@strMatchIds)-1)
-			   ,@strResourceIds = LEFT(@strResourceIds, LEN(@strResourceIds) - 1)
+			   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
 
 		
 		SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
