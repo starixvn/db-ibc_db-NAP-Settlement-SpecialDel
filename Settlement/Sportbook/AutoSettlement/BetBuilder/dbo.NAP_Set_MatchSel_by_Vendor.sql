@@ -15,7 +15,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for Basketball  [Redmine:#138475]
+		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for BBD   [Redmine:#138475]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -103,8 +103,8 @@ BEGIN
 	WHERE v.vendorId = @VendorID 
 			AND v.Opened = 1 
 	;
-	--- Get resultdetail for Basketball
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype = 2)
+	--------------------------------------------------------------------------------
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype IN (1,2))
 	BEGIN 
 		SELECT @strMatchIds = ''
 			   ,@remoteQuery = ''
@@ -113,7 +113,7 @@ BEGIN
 		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
 		FROM @TempMatch tempM
 			INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
-		WHERE m.sporttype=2
+		WHERE m.sporttype IN (1,2)
 		
 		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
 		FROM (
@@ -121,7 +121,7 @@ BEGIN
 			FROM @TempMatch tempM
 				INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID 
 				CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
-			WHERE m.sporttype =2
+			WHERE m.sporttype IN (1,2)
 		)f
 		
 		SELECT @strMatchIds = LEFT(@strMatchIds,LEN(@strMatchIds)-1)
@@ -131,7 +131,9 @@ BEGIN
 		SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
 						    FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
 							WHERE	r.MatchId IN ('+ @strMatchIds+ ')
-									AND r.ResourceId IN (' + @strResourceIds+ ')'
+									' + CASE WHEN @strResourceIds <> '' THEN 
+									' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
+
 		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
 		EXECUTE sys.sp_executesql @remoteQuery
 	END
