@@ -38,6 +38,7 @@ BEGIN
 			,m.awayID
 			,m.htHomeScore AS halfTimeHomeScore
 			,m.htAwayScore AS halfTimeAwayScore
+			,m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE m.MatchId = @matchid 
 
