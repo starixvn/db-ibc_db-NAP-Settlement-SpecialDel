@@ -137,8 +137,8 @@ BEGIN
 			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			 , t.c.value('@Value','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
-			 , t.c.value('@Value','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
+			 , t.c.value('@ValueHdp1','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
@@ -338,7 +338,7 @@ BEGIN
 					  FROM #tblBetType tp
 					  WHERE tp.Id = s.bettype
 						AND CASE
-								WHEN tp.[Value] = 9999 THEN 1				
+								WHEN tp.ValueHdp1 = 9999 THEN 1				
 								ELSE CASE
 										WHEN s.hdp1 = tp.ValueHdp1 THEN 1
 										ELSE 0
@@ -351,7 +351,7 @@ BEGIN
 					  FROM #tblBetType tp
 					  WHERE tp.Id = s.bettype
 						AND CASE
-								WHEN tp.[Value] = 9999 THEN 1				
+								WHEN tp.ValueHdp2 = 9999 THEN 1				
 								ELSE CASE
 										WHEN s.hdp2 = tp.ValueHdp2 THEN 1
 										ELSE 0
