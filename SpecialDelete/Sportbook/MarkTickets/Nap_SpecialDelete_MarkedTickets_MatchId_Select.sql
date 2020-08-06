@@ -80,8 +80,8 @@ BEGIN
               Game      VARCHAR(3),
               BetOption NVARCHAR(250),
               [Value]   VARCHAR(500),
-			  ValueHdp1	SMALLMONEY,
-			  ValueHdp2	SMALLMONEY,
+			  ValueHdp1	VARCHAR(20),
+			  ValueHdp2	VARCHAR(20),
               Goal      VARCHAR(10)
              );
     CREATE TABLE #tblBetType_Detail
@@ -133,7 +133,7 @@ BEGIN
 			 , bop.val AS BetOption
 			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE v.val END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
-			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE cte.val END AS SMALLMONEY) AS ValueHdp2
+			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
