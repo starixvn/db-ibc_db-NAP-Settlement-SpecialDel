@@ -128,18 +128,20 @@ BEGIN
 			WHERE m.sporttype IN (1,2)
 		)f
 		
-		SELECT @strMatchIds = LEFT(@strMatchIds,LEN(@strMatchIds)-1)
+		SELECT @strMatchIds		= CASE WHEN @strMatchIds ='' THEN @strMatchIds ELSE LEFT(@strMatchIds,LEN(@strMatchIds)-1) END
 			   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
 
-		
-		SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
-						    FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
-							WHERE	r.MatchId IN ('+ @strMatchIds+ ')
-									' + CASE WHEN @strResourceIds <> '' THEN 
-									' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
+		IF @strMatchIds ='' 
+			SET @remoteQuery =''
+		ELSE 
+			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
+								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
+								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
+										' + CASE WHEN @strResourceIds <> '' THEN 
+										' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
 
-		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-		EXECUTE sys.sp_executesql @remoteQuery
+			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
+			EXECUTE sys.sp_executesql @remoteQuery
 	END
 	--------------------------------------------------------------------------------
 	;WITH cteBettrans AS(
