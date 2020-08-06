@@ -8,6 +8,8 @@ ALTER FUNCTION [dbo].[f_Set_Calculate_modds] (
 		,@AwayValue 	VARCHAR(50)
 		,@LiveHomeScore SMALLINT
 		,@LiveAwayScore SMALLINT
+		,@Transdesc		NVARCHAR(1000)
+		,@betcheck		NVARCHAR(50)
 		)
 RETURNS TABLE
 AS  
@@ -24,6 +26,7 @@ AS
 		- 20200415@Sol: e-Sports - Incorporate New Correct Score Bet Type - new settle profile [Redmine:#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20200625@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		
 */
 RETURN
@@ -260,6 +263,121 @@ RETURN
 					WHEN @betteam = 'A9+' AND fm <= -9 THEN 1
 					ELSE -1
 					END
+			WHEN @pfID BETWEEN 618 AND 620 THEN
+				CASE
+					WHEN RIGHT(CAST(tbl.fm AS INT),1) = @betteam THEN 1
+					ELSE -1
+					END
+			WHEN @pfID = 5 THEN
+				CASE 
+					WHEN tbl.fm > 0 AND @betteam = '1' THEN 1
+					WHEN tbl.fm = 0 AND @betteam = 'x' THEN 1
+					WHEN tbl.fm < 0 AND @betteam = '2' THEN 1
+					ELSE -1
+					END
+			WHEN @pfID = 24 THEN
+				CASE
+					WHEN tbl.fm >= 0 AND @betteam = 'hd' THEN 1
+					WHEN tbl.fm <= 0 AND @betteam = 'da' THEN 1
+					WHEN tbl.fm <> 0 AND @betteam = 'ha' THEN 1
+					ELSE -1
+					END
+			WHEN @pfID = 633 THEN
+				CASE
+					WHEN CASE
+							WHEN CAST(@HomeValue AS INT) > 0 THEN 'h'
+							WHEN CAST(@HomeValue AS INT) = 0 THEN 'd'
+							WHEN CAST(@HomeValue AS INT) < 0 THEN 'a'
+							ELSE ''
+						END +
+							CASE
+								WHEN CAST(@AwayValue AS INT) > 0 THEN 'h'
+								WHEN CAST(@AwayValue AS INT) = 0 THEN 'd'
+								WHEN CAST(@AwayValue AS INT) < 0 THEN 'a'
+								ELSE ''
+							END = @betteam THEN 1
+					ELSE -1
+					END
+			WHEN @pfID = 635 THEN
+				CASE
+					WHEN @betteam = 'h' AND (CAST(@HomeValue AS INT) > 0 AND CAST(@AwayValue AS INT) = 0) THEN 1
+					WHEN @betteam = 'a' AND (CAST(@HomeValue AS INT) = 0 AND CAST(@AwayValue AS INT) > 0) THEN 1 
+					ELSE -1
+				END
+			WHEN @pfID = 640 THEN
+				CASE
+					WHEN @betteam = '0' AND CAST(@HomeValue AS INT) = 0 THEN 1
+					WHEN @betteam = '1' AND CAST(@HomeValue AS INT) > 0 THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 642 THEN
+				CASE
+					WHEN @betteam = 'h12' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q2h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h13' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h14' AND CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h23' AND CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h24' AND CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'h34' AND CHARINDEX('q3h', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0 THEN 1
+
+					WHEN @betteam = 'a12' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q2a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a13' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a14' AND CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a23' AND CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a24' AND CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					WHEN @betteam = 'a34' AND CHARINDEX('q3a', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0 THEN 1
+					
+					WHEN @betteam = 'aos12' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q2d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q2h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q2a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos13' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q3d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos14' 
+						AND (CHARINDEX('q1d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q1a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q1h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos23' 
+						AND (CHARINDEX('q2d', @HomeValue) > 0 
+								OR CHARINDEX('q3d', @HomeValue) > 0
+								OR (CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q3h', @HomeValue) > 0)
+								OR (CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q3a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos24' 
+						AND (CHARINDEX('q2d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q2a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q2h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					WHEN @betteam = 'aos34' 
+						AND (CHARINDEX('q3d', @HomeValue) > 0 
+								OR CHARINDEX('q4d', @HomeValue) > 0
+								OR (CHARINDEX('q3a', @HomeValue) > 0 AND CHARINDEX('q4h', @HomeValue) > 0)
+								OR (CHARINDEX('q3h', @HomeValue) > 0 AND CHARINDEX('q4a', @HomeValue) > 0)
+						) THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 644 THEN -- --WHEN @pfID = 644 THEN @HomeValue + ':' + @AwayValue
+				CASE
+					WHEN @betteam = @HomeValue + ':' + @AwayValue  THEN 1
+					WHEN @betteam = 'aos' AND CHARINDEX(@HomeValue + ':' + @AwayValue, @Transdesc) = 0 THEN 1
+					ELSE -1
+				END					
+			WHEN @pfID = 646 THEN
+				CASE
+					WHEN @betteam = 'ho' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'hu' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) > 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					WHEN @betteam = 'ao' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
+					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
+					ELSE -1
+				END	
 			ELSE -1 
 		END AS modds
    FROM
@@ -269,24 +387,26 @@ RETURN
 					WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2) -- not use livescore
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
 					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
-					WHEN @pfID IN (20,711, 608, 614) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (20,711, 608, 614, 5, 24) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
-					WHEN @pfID = 8101 THEN CAST(@HomeValue AS SMALLMONEY)
+					WHEN @pfID IN (8101, 619) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID IN (8104, 601, 602) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 8105 THEN CAST(@HomeValue AS SMALLMONEY)
 
+					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
 					--PHAIO 5
-					WHEN @pfID IN (391) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (391, 601, 602, 618) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID = 401 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID = 402 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
 					ELSE -1 END)
 			AS fm
 	) tbl
+
 	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
 	(
 		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)) AS rn

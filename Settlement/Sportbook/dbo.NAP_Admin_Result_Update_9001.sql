@@ -22,7 +22,8 @@ AS
 		- 20190924@Sol: Incorporate BMAIO - insert/update data to resultdetailOS [Redmine:#120324]
         - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
-        
+        - 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		
     Param's Explanation: 
     
        + @SelectedRID: <Resources>
@@ -176,8 +177,8 @@ BEGIN
 				WHERE	sr.ResourceID = '00'
 				) AS SOURCE ON  TARGET.ResourceId = '02' AND TARGET.MatchId = @matchid
 			WHEN MATCHED THEN
-				UPDATE SET HomeValue     = CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.HomeValue - @hthomescore - @othomescore END
-					,AwayValue           = CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.AwayValue - @htawayscore - @otawayscore END
+				UPDATE SET HomeValue     = CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore - @othomescore ELSE 0 END
+					,AwayValue           = CASE WHEN @action = 'CAL' THEN SOURCE.AwayValue - @htawayscore - @otawayscore ELSE 0 END
 					,ResultStatusID      = @ResultStatusID
 					,SettlementStatusID  = @SettlementStatusID
 					,LastModifyDate      = GETDATE()
@@ -185,8 +186,8 @@ BEGIN
 	
 			WHEN NOT MATCHED BY TARGET THEN
 				INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-				VALUES(@matchid, '02', CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.HomeValue - @hthomescore - @othomescore END
-					, CASE WHEN @action = 'REFUND' THEN 0 ELSE SOURCE.AwayValue - @htawayscore - @otawayscore END
+				VALUES(@matchid, '02', CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore - @othomescore ELSE 0 END
+					, CASE WHEN @action = 'CAL' THEN SOURCE.AwayValue - @htawayscore - @otawayscore ELSE 0 END
 					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
 		END
     END 

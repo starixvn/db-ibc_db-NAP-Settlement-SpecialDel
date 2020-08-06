@@ -31,6 +31,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -221,7 +222,7 @@ BEGIN
 	  		) sr
 	  		CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, NULL
 													, CASE WHEN b.bettype = 376 THEN ISNULL(sr.HomeValue,'') + ISNULL(sr.AwayValue,'') ELSE sr.HomeValue END
-													, CASE WHEN b.bettype = 376 THEN b.betcheck ELSE sr.AwayValue END, NULL, NULL) m
+													, CASE WHEN b.bettype = 376 THEN b.betcheck ELSE sr.AwayValue END, NULL, NULL, NULL, NULL) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
 	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1

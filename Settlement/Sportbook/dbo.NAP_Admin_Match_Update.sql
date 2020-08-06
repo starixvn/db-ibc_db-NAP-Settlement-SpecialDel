@@ -15,7 +15,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @HTDone                     BIT = 0,
     @RowCount                   INT = 0 OUTPUT,
 	@Creator 					INT = 0,
-	@IsFinalRound               BIT = NULL
+	@IsFinalRound               BIT = NULL,
+	@IsHTRound					BIT = 0 
 )
 AS
 /*
@@ -57,6 +58,7 @@ AS
         - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
 		
     Parameters Explanation:
 
@@ -498,11 +500,15 @@ BEGIN
                                                 ELSE 'Refund;' END
 	                   
 	        IF @action = 'UNDO'
+			BEGIN
            		SELECT @eventstatus         = N'running'
 	                   ,@FTHome     		= -1
 	                   ,@FTAway     		= -1
-	                   ,@HTHome				= -1
-	                   ,@HTAway				= -1
+				
+				IF @IsHTRound = 1 OR @Sporttype <> 2
+					SELECT	 @HTHome = -1
+							,@HTAway = -1
+			END
 	                   
 	        IF @action = 'CAL'
 	        	SELECT @eventstatus			= N'completed'
@@ -512,8 +518,16 @@ BEGIN
                 ,ruben          = COALESCE(@ruben, ruben)
                 ,finalhomescore = CASE WHEN @FTHome < 0 THEN NULL ELSE COALESCE(@FTHome, finalhomescore) END
                 ,finalawayscore = CASE WHEN @FTAway < 0 THEN NULL ELSE COALESCE(@FTAway, finalawayscore) END
-                ,hthomescore    = CASE WHEN @HTHome < 0 THEN NULL ELSE COALESCE(@HTHome, hthomescore) END
-                ,htawayscore    = CASE WHEN @HTAway < 0 THEN NULL ELSE COALESCE(@HTAway, htawayscore) END
+                ,hthomescore    = CASE 
+									WHEN @HTHome < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									ELSE hthomescore 
+								END
+                ,htawayscore    = CASE 
+									WHEN @HTAway < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									ELSE htawayscore 
+								END
                 ,betstatus      = COALESCE(@betstatus, betstatus)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
@@ -521,8 +535,22 @@ BEGIN
         END
         ELSE IF @IsFinalRound = 0 AND @Sporttype IN (2,5)
         BEGIN
+			IF (@IsHTRound = 1 OR @Sporttype <> 2) AND @Action = 'UNDO'
+				SELECT	@HTHome = -1
+						,@HTAway = -1
+
             UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET betstatus = COALESCE(@betstatus, betstatus)
+				,hthomescore    = CASE 
+									WHEN @HTHome < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									ELSE hthomescore 
+								END
+                ,htawayscore    = CASE 
+									WHEN @HTAway < 0 THEN NULL
+									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									ELSE htawayscore 
+								END
             WHERE matchid = @matchid
         END
     END

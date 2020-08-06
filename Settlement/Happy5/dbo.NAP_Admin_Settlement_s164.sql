@@ -17,6 +17,7 @@ AS
 	
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -133,7 +134,7 @@ BEGIN
 								FROM @tmpResultDetail t
 								WHERE b.BetType = t.BetType
 							) sr
-				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL) m
+				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL, NULL, NULL) m
 			WHERE b.matchid = @MatchId
 				AND b.statusID NOT IN (101,102)
 		END

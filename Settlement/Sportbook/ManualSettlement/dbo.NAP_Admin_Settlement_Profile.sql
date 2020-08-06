@@ -23,6 +23,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -273,7 +274,7 @@ BEGIN
 	  							FROM @tmpSelectedRID t
 	  							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  						) sr
-	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore) m
+	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
 	  		WHERE b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
 				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
@@ -318,8 +319,7 @@ BEGIN
 					,@fth = sr.HomeValue
 					,@fta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE GroupType = 'FT' AND isFinal = 1 
-  	
+  		WHERE sr.ResourceID = '00'
   	
   		---check HT round
   		SET @existsHTRound = 0
@@ -327,8 +327,12 @@ BEGIN
 					,@hth = sr.HomeValue
 					,@hta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE GroupType = 'HT' AND isFinal = 1 
+  		WHERE sr.ResourceID = '01' AND @sportType = 2
 
+		IF @existsHTRound = 1
+			SELECT  @hth	= COALESCE (@hth, 0)
+					,@hta   = COALESCE (@hta, 0)
+			
   		IF @existsFinalRound = 1
   		BEGIN
 	  		IF @Action LIKE 'CAL%'
@@ -368,6 +372,7 @@ BEGIN
 						,@HTAway				= @hta
 						,@creator				= @creator
 						,@IsFinalRound			= @existsFinalRound
+						,@IsHTRound				= @existsHTRound
 						,@BetStatus				= @BetStatus
 		END
 		
@@ -484,6 +489,7 @@ BEGIN
 							,@MatchID			= @matchid
 							,@creator			= @creator
 							,@IsFinalRound		= @existsFinalRound
+							,@IsHTRound			= @existsHTRound
 							,@BetStatus			= @BetStatus
 														
 			IF @existsFinalRound = 1
@@ -506,6 +512,7 @@ BEGIN
 							,@HTHome			= @hth
 							,@HTAway			= @hta
 							,@IsFinalRound  	= @existsFinalRound
+							,@IsHTRound			= @existsHTRound
 							,@BetStatus			= @BetStatus
 							
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
