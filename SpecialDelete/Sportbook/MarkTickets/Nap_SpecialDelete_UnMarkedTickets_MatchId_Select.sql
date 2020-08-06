@@ -102,8 +102,8 @@ SET NOCOUNT ON
 			, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			, t.c.value('@Value','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
-			, t.c.value('@Value','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
+			, t.c.value('@ValueHdp1','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
@@ -130,8 +130,8 @@ SET NOCOUNT ON
 			 , cte.Game
 			 , bop.val AS BetOption
 			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE v.val END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
-			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
+			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
