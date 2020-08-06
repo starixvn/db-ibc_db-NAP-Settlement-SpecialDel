@@ -13,7 +13,7 @@ AS
 		
 		Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20200730@July: Edit get league belong to sport for BetBuilder [Redmine:#138475] 
+		- 20200730@July	:  Get league belong to sport for BetBuilder [Redmine:#138475] 
 	*/
 BEGIN
 	SET NOCOUNT ON
@@ -25,15 +25,14 @@ BEGIN
 	FROM dbo.f_SplitString(@SportTypes,',')f
 	OPTION (MAXRECURSION 0)
 
-	SELECT m.leagueid
+	SELECT s.SportType,m.leagueid
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN @tmpSports s ON m.sporttype=s.SportType 
 		INNER JOIN VendorStatus vs WITH (NOLOCK) ON m.matchid = vs.matchid
-		INNER JOIN league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 		  AND vs.opened = 1		
 		  AND vs.VendorID = @vendorId
-	GROUP BY m.leagueid;
+	GROUP BY s.SportType, m.leagueid;
 
 END
 GO
