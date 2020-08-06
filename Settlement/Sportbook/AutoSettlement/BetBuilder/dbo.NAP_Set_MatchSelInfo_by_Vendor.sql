@@ -5,8 +5,8 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSelInfo_by_Vendor]
 AS
 /*
 	Created by: 20200806@July
-	Task: Incorporate BetBuilder 
-	DB: DBTXN.BODB02
+	Task: Info of match for BBD
+	DB: DBPRO.BODB02
 	
 	Revisions:
 		- 20200806@July : Info of match for BBD   [Redmine:#138475]
@@ -22,28 +22,36 @@ BEGIN
 	INSERT INTO @tmpResourceIds (ResourceId)
 	SELECT DISTINCT f.ResourceID
 	FROM dbo.match m WITH (NOLOCK) 
-		CROSS APPLY dbo.f_Set_MajorRound_xpre (m.sporttype) f
+		CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
 	WHERE m.matchid = @matchid AND m.sporttype IN (1,2)
 
-	SELECT	 r.MatchID
-			,r.ResourceId
-			,r.HomeValue
-			,r.AwayValue
-			,r.ResultStatusID
-			,r.SettlementStatusID
+	SELECT	 m.matchID
 			,m.matchCode
 			,m.leagueID
 			,m.kickOffTime
+			,m.SettlementStatus 
+			,m.betStatus
+			,m.eventStatus
 			,m.finalHomeScore
 			,m.finalAwayScore
 			,m.homeID
 			,m.awayID
 			,m.htHomeScore AS halfTimeHomeScore
 			,m.htAwayScore AS halfTimeAwayScore
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-	INNER JOIN dbo.match m WITH(NOLOCK) ON r.MatchId=m.matchid
-	INNER JOIN @tmpResourceIds temp ON temp.ResourceId = r.ResourceId
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE m.MatchId = @matchid 
+
+	SELECT	 r.MatchId
+			,r.ResourceId
+			,r.HomeValue
+			,r.AwayValue
+			,r.ResultStatusId
+			,r.SettlementStatusId
+	FROM	dbo.ResultDetail r WITH(NOLOCK)
+		INNER JOIN @tmpResourceIds temp ON temp.ResourceId = r.ResourceId
 	WHERE r.MatchId =@matchid
-		
+	
 END
+
+GO
 
