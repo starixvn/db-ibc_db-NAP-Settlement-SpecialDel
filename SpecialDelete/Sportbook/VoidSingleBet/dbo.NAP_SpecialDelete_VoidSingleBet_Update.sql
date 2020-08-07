@@ -101,7 +101,8 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20200609@Charles: Remove notify when void tickets [131865]
-		
+		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
+
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
 		  + 0: All tickets
@@ -124,7 +125,9 @@ AS
 					 Set="801"				-- Default : "All" ; Format : 80X ; Additional handled field : [Quarter]
 					 Game="01"				-- Default : "All" ; Format : 0X 
 					 BetOption="4-4,5-5"	-- Default : "All" ; Format : hdp2-betteam,...					 
-					 Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ; Additional handled field : TimeInterval
+					 Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ;
+					 ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
+					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 			/>
 		 <BetTypes/>'
@@ -151,7 +154,8 @@ BEGIN
 		Game			VARCHAR(3),
 		BetOption		NVARCHAR(50),
 		[Value]			SMALLMONEY,	
-		TimeInterval	SMALLMONEY,	
+		ValueHdp1		SMALLMONEY,
+		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT
 	)					
 	
@@ -224,7 +228,8 @@ BEGIN
 		FilterValue			SMALLMONEY,	
 		FilterGoal			BIGINT,
 		FilterBetOption		NVARCHAR(50),
-		FilterTimeInterval	SMALLMONEY
+		FilterHdp1		 	SMALLMONEY,
+        FilterHdp2		 	SMALLMONEY,
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -332,6 +337,8 @@ BEGIN
 			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp1','VARCHAR(20)') AS ValueHdp1	-- check columns : hdp1	 	 	 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
@@ -343,24 +350,28 @@ BEGIN
 			 , cte.Game
 			 , bop.val AS BetOption
 			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
-						ELSE v.val END AS SMALLMONEY) AS [Value]			 
+						ELSE v.val END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 
+						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
 	SELECT cte.Id
 		 , cte.BetTeam
 		 , cte.[Set]
 		 , cte.Game
 		 , cte.BetOption
-		 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 227) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
-					ELSE 9999.00 END AS SMALLMONEY) AS [Value]
-		 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 227) OR (cte.Id IN (479, 481)) THEN cte.[Value]
-					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
+		 , cte.[Value]
+		 , cte.ValueHdp1
+		 , cte.ValueHdp2
 		 , cte.Goal
 	FROM CTE_ParsedBettypes cte		 		
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
@@ -454,7 +465,8 @@ BEGIN
 			,FilterValue
 			,FilterGoal
 			,FilterBetOption
-			,FilterTimeInterval
+			,FilterHdp1
+			,FilterHdp2
 		)
 		SELECT	
 			b.transid
@@ -502,7 +514,8 @@ BEGIN
 			,b.hdp1 + b.hdp2 AS FilterValue
 			,ISNULL(b.betid, 0) AS FilterGoal
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
-			,b.hdp1 AS FilterTimeInterval
+			,b.hdp1 AS FilterHdp1
+			,b.hdp2 AS FilterHdp2
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -564,7 +577,8 @@ BEGIN
 			,FilterValue
 			,FilterGoal
 			,FilterBetOption
-			,FilterTimeInterval
+			,FilterHdp1
+			,FilterHdp2
 		)
 		SELECT	
 			b.transid
@@ -612,7 +626,8 @@ BEGIN
 			,b.hdp1 + b.hdp2 AS FilterValue
 			,ISNULL(b.betid, 0) AS FilterGoal
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
-			,b.hdp1 AS FilterTimeInterval
+			,b.hdp1 AS FilterHdp1
+			,b.hdp2 AS FilterHdp2
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -726,6 +741,8 @@ BEGIN
 				,FilterSet
 				,FilterGame	
 				,FilterValue
+				,FilterHdp1
+				,FilterHdp2
 				,FilterGoal
 			)
 			SELECT
@@ -771,6 +788,8 @@ BEGIN
 				bm.SubBetCheck AS FilterSet,
 				RIGHT(bm.SubBetCheck, 2) AS FilterGame,
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
+				bm.SubHdp1 AS FilterHdp1,
+				bm.SubHdp2 AS FilterHdp2,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
@@ -784,7 +803,8 @@ BEGIN
 		filter for Game : Only handle for bettype 1324		 
 		filter for BetOption : Only handle for bettypes 221 -> 227		 
 		filter for [Value]		
-		filter for TimeInterval		 
+		filter for ValuaHdp1
+		filter for ValuaHdp2		 
 		filter for Goal
 	*/
 	BEGIN
@@ -838,7 +858,12 @@ BEGIN
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype AND (tp.TimeInterval = 9999 OR b.FilterTimeInterval = tp.TimeInterval ) OR b.bettype = 29) 
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.Filterhdp1 = tp.ValueHdp1 ))
+		
+		DELETE b
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.Filterhdp2 = tp.ValueHdp2 ))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------		

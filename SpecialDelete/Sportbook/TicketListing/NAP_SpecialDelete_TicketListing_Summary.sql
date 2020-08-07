@@ -59,6 +59,7 @@ AS
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
 		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
+		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -95,7 +96,9 @@ AS
 					Set="801"				-- Default : "All" ; Format : 80X ; Additional handled field : [Quarter]
 					Game="01"				-- Default : "All" ; Format : 0X 
 					BetOption="4-4,5-5"		-- Default : "All" ; Format : hdp2-betteam,...					 
-					Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ; Additional handled field : TimeInterval
+					Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ;
+					ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
+					ValueHdp2				-- Default : "All" ; Format : Single Number
 					Goal="2"				-- Default : "All" ; Format : Single Number
 		/>
 	<BetTypes/>'
@@ -363,8 +366,8 @@ BEGIN
 				WHEN 1 THEN 0
 				WHEN 2 THEN 1 END
 				AND (@Quarter = 'All' 
-					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
+					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE b.betid LIKE q.Id + '%')))
 		UNION ALL
 		SELECT bl.translogid transid 
@@ -459,8 +462,8 @@ BEGIN
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype
 							AND (@Quarter = 'All' 
-								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
+								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																													WHERE b.betid LIKE q.Id + '%')))
 			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
 		END
@@ -570,8 +573,8 @@ BEGIN
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
@@ -639,8 +642,8 @@ BEGIN
 					END
 				AND (b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -731,8 +734,8 @@ BEGIN
 						END
 					AND ( b.betid = 0 OR b.betid IS NULL )
 					AND (@Quarter = 'All' 
-						OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-						OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+						OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+						OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																											WHERE bm.betcheck LIKE q.Id + '%')))				
 			)
 			INSERT INTO @TmpTotal (
@@ -804,8 +807,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -888,8 +891,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))			
 			)
 			INSERT INTO @TmpTotal (
@@ -957,8 +960,8 @@ BEGIN
 					END
 				AND ( b.betid = 0 OR b.betid IS NULL )
 				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE bm.betcheck LIKE q.Id + '%')))
 			GROUP BY b.bettype
 				,bm.liveIndicator
@@ -1052,8 +1055,8 @@ BEGIN
 				    END
 			 AND (b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))
 		)
 		INSERT INTO @TmpTotal (
@@ -1136,8 +1139,8 @@ BEGIN
 				    END
 			 AND ( b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
+				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%'))) 
 		  GROUP BY s.site
 			 ,bm.liveindicator

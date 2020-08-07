@@ -44,6 +44,7 @@ AS
 		- 20181228@Alan: E-Sports Phase 2b - Support In-play status [106456]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
+		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -53,7 +54,9 @@ AS
 						Set="801"				-- Default : "All" ; Format : 80X ; Additional handled field : [Quarter]
 						Game="01"				-- Default : "All" ; Format : 0X 
 						BetOption="4-4,5-5"	-- Default : "All" ; Format : hdp2-betteam,...					 
-						Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ; Additional handled field : TimeInterval
+						Value="1,2,3"			-- Default : "All" ; Format : 1,2,3,4,... ;
+						ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
+					 	ValueHdp2				-- Default : "All" ; Format : Single Number
 						Goal="2"				-- Default : "All" ; Format : Single Number
 			/>
 			<BetTypes/>'
@@ -75,7 +78,8 @@ BEGIN
 		[Set]			VARCHAR(10),
 		Game			VARCHAR(3),
 		[Value]			SMALLMONEY,
-		TimeInterval	SMALLMONEY,
+		ValueHdp1		SMALLMONEY,
+		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT
 	)
 			
@@ -133,6 +137,8 @@ BEGIN
 			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp1','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
@@ -145,7 +151,16 @@ BEGIN
 			 , CAST(CASE
 						WHEN v.val = 'ALL' THEN 9999.00 
 						ELSE v.val
-					END AS SMALLMONEY) AS [Value]			 
+					END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE
+						WHEN vhdp1.val = 'ALL' THEN 9999.00 
+						ELSE vhdp1.val
+					END AS SMALLMONEY) AS ValueHdp1
+
+			 , CAST(CASE
+						WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+						ELSE cte.ValueHdp2
+					END AS SMALLMONEY) AS ValueHdp2			 
 			 , CAST(CASE 
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
@@ -153,8 +168,9 @@ BEGIN
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
+			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, TimeInterval)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -166,8 +182,8 @@ BEGIN
 		 , cte.Game
 		 , cte.[Value]
 		 , cte.Goal
-		 , CAST(CASE WHEN cte.Id IN (479, 481) THEN cte.[Value]
-					ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
+		 , cte.ValueHdp1
+		 , cte.ValueHdp2
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -312,6 +328,32 @@ BEGIN
 								WHEN tp.[Value] = 9999 THEN 1				
 								ELSE CASE
 										WHEN s.hdp1 + s.hdp2 = tp.[Value] THEN 1
+										ELSE 0
+									 END
+							END = 1)
+
+	DELETE s
+	FROM #BetDelete s		 		
+	WHERE NOT EXISTS (SELECT TOP 1 1
+					  FROM #tblBetType tp
+					  WHERE tp.Id = s.bettype
+						AND CASE
+								WHEN tp.ValueHdp1 = 9999 THEN 1				
+								ELSE CASE
+										WHEN s.hdp1 = tp.ValueHdp1 THEN 1
+										ELSE 0
+									 END
+							END = 1)
+
+	DELETE s
+	FROM #BetDelete s		 		
+	WHERE NOT EXISTS (SELECT TOP 1 1
+					  FROM #tblBetType tp
+					  WHERE tp.Id = s.bettype
+						AND CASE
+								WHEN tp.ValueHdp2 = 9999 THEN 1				
+								ELSE CASE
+										WHEN s.hdp2 = tp.ValueHdp2 THEN 1
 										ELSE 0
 									 END
 							END = 1)		  
