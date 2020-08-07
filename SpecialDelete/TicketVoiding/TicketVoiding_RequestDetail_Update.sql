@@ -23,6 +23,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@MaxMainParlayTransId BIGINT = NULL
 	,@VoidFromTime DATETIME = NULL
 	,@VoidToTime DATETIME = NULL
+	,@LiveHomeScore TINYINT = NULL
+	,@LiveAwayScore TINYINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -126,6 +128,8 @@ BEGIN
 			, MaxMainParlayTransId = @MaxMainParlayTransId
 			, VoidFromTime = @VoidFromTime
 			, VoidToTime = @VoidToTime
+			, LiveHomeScore = @LiveHomeScore
+			, LiveAwayScore = @LiveAwayScore
 
 		WHERE	RequestId = @RequestId
 	END

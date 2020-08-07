@@ -22,6 +22,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@MaxMainParlayTransId BIGINT = NULL
 	,@VoidFromTime DATETIME = NULL
 	,@VoidToTime DATETIME = NULL
+	,@LiveHomeScore TINYINT = NULL
+	,@LiveAwayScore TINYINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -124,6 +126,8 @@ BEGIN
 		, MaxMainParlayTransId
 		, VoidFromTime
 		, VoidToTime
+		, LiveHomeScore
+		, LiveAwayScore
 		)
 	SELECT @RequestId
 		, @MatchId
@@ -146,6 +150,8 @@ BEGIN
 		,@MaxMainParlayTransId
 		,@VoidFromTime
 		,@VoidToTime
+		,@LiveHomeScore
+		,@LiveAwayScore
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99

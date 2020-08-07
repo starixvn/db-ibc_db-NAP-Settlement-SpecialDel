@@ -87,6 +87,8 @@ BEGIN
 			,rd.MaxMainParlayTransId
 			,rd.VoidFromTime
 			,rd.VoidToTime
+			,rd.LiveHomeScore
+			,rd.LiveAwayScore
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
