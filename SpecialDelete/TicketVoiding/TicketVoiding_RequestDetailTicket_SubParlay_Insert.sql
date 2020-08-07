@@ -109,7 +109,7 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	IF @IssueTypeId = 1
+	IF @IssueTypeId = 1 AND @MinMainParlayTransId IS NOT NULL
 	BEGIN
 		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId)
 		SELECT sub.transid

@@ -111,7 +111,7 @@ BEGIN
 		WHERE RequestId = @RequestId
 	END
 
-	IF @IssueTypeId = 1
+	IF @IssueTypeId = 1 AND @MinSingleTransId IS NOT NULL
 	BEGIN
 		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId)
 		SELECT b.transid
