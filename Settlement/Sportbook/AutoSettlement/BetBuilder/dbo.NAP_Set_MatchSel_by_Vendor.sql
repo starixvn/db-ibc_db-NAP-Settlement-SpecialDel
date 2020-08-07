@@ -198,5 +198,14 @@ BEGIN
 			,AwayValue
 			,ResultStatusId
 			,SettlementStatusId
-	FROM	@tmpResultDetail		
+			,CASE ResourceId	WHEN 'Q1' THEN 1
+								WHEN 'Q2' THEN 2
+								WHEN 'Q3' THEN 3
+								WHEN 'Q4' THEN 4
+								WHEN 'OT' THEN 5
+								WHEN '01' THEN 6
+								WHEN '00' THEN 7					
+			END AS OrderNo
+	FROM	@tmpResultDetail
+	ORDER BY OrderNo	
 END
