@@ -13,7 +13,7 @@ SELECT   MessageId
 			WHEN Content_en LIKE '%Due to wrong score displayed%' THEN 'wrong score'
 			WHEN Content_en LIKE '%Due to wrong odds displayed%' THEN 'wrong odds'
 			WHEN Content_en LIKE '%Due to wrong%OU displayed%' 
-				OR Content_en LIKE  '%Due to wrong%Game Over/Under%'   THEN 'wrong OU'
+				OR Content_en LIKE  '%Due to wrong%Game Over/Under%' THEN 'wrong OU'
 			WHEN Content_en LIKE '%Due to wrong%HDP displayed%' THEN 'wrong HPD'
 			WHEN Content_en LIKE '%Due to bets erroneously accepted%danger play%' THEN 'Danger Accept'
 			WHEN Content_en LIKE '%wrong team name displayed%considered VOID%' 
@@ -22,16 +22,24 @@ SELECT   MessageId
 				OR content_en LIKE '%Wrong%Team Name%'
 		THEN 'Wrong Team Name'
 			WHEN Content_en LIKE '%Due to wrong market offered%considered VOID%' THEN 'Wrong Market'
-			
+			WHEN Content_en LIKE '%Due to 1st corner has been completed%' THEN 'Others'
 		END as Reason																						
 		, t.transid																							
-from Db05bk1.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)																									
+from Db05bk1.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 	CROSS APPLY (SELECT DISTINCT BetTransId																								
 			FROM Db05bk1.bodb_Message_Archive.[dbo].[MsgTarget_Archive] mt1 with (nolock)																						
 			WHERE mt1.MessageId= ms.MessageId																						
 				AND mt1.isDeleted = 0																					
 				AND mt1.BettransId <> ''																					
-			) mt																						
+			) mt	
+	--Db05bk1.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)	
+	--CROSS APPLY (SELECT DISTINCT BetTransId																								
+	--		FROM Db05bk1.bodb_Message.[dbo].[MsgTarget] mt1 with (nolock)																						
+	--		WHERE mt1.MessageId= ms.MessageId																						
+	--			AND mt1.isDeleted = 0																					
+	--			AND mt1.BettransId <> ''																					
+	--		) mt
+																										
 	CROSS APPLY (select ltrim(rtrim(val)) as transid from bodb02.[dbo].f_SplitString (mt.BetTransId,',')
 				
 		) as t																								
@@ -44,7 +52,7 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 		OR Content_en LIKE '%Due to wrong odds displayed%'
 		-- #3 wrong OU
 		OR Content_en LIKE '%Due to wrong%OU displayed%' 
-		OR Content_en LIKE  '%Due to wrong%Game Over/Under%' 
+		OR Content_en LIKE  '%Due to wrong%Game Over/Under%'
 		-- #4 wrong HDP
 		OR Content_en LIKE '%Due to wrong%HDP displayed%'
 		-- #5 Danger Accept
@@ -56,11 +64,12 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 		OR content_en LIKE  '%Wrong%Team Name%'
 		-- #7 Wrong market
 		OR Content_en LIKE '%Due to wrong market offered%considered VOID%'
+		-- #8 Others
+		OR Content_en LIKE  '%Due to 1st corner has been completed%' 
 		)																	
 	--AND ms.MatchId > 0																								
 	AND ms.IsTest = 0																								
-option (maxrecursion 0)
-																								
+OPTION (maxrecursion 0)
 																									
 CREATE TABLE #temp_transid (transid bigint,reason varchar(50), matchid INT,sporttype tinyint, sportName nVARCHAR(100), home nvarchar(200), away varchar(200), leaguename varchar(1000), LeagueGroup varchar(200))																									
 INSERT INTO #temp_transid (transid,reason,matchid,sporttype, sportName, home, away, leaguename, LeagueGroup)																									
