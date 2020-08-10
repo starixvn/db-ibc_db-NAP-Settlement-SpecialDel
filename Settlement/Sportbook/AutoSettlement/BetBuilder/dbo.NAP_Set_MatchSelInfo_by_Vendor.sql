@@ -42,8 +42,7 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE m.MatchId = @matchid 
 
-	SELECT	 r.MatchId
-			,r.ResourceId
+	SELECT	 COALESCE (temp.ResourceId,r.ResourceId) AS ResourceId
 			,r.HomeValue
 			,r.AwayValue
 			,r.ResultStatusId
@@ -57,8 +56,8 @@ BEGIN
 								WHEN '00' THEN 7					
 			END AS OrderNo
 	FROM	dbo.ResultDetail r WITH(NOLOCK)
-		INNER JOIN @tmpResourceIds temp ON temp.ResourceId = r.ResourceId
-	WHERE r.MatchId =@matchid
+		FULL JOIN @tmpResourceIds temp ON temp.ResourceId = r.ResourceId AND r.MatchId =@matchid
+	WHERE temp.ResourceId IS NOT NULL
 	ORDER BY OrderNo 
 	
 END
