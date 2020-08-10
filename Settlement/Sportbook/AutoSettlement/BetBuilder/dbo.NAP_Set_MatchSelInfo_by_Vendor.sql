@@ -47,13 +47,13 @@ BEGIN
 			,r.AwayValue
 			,r.ResultStatusId
 			,r.SettlementStatusId
-			,CASE r.ResourceId	WHEN 'Q1' THEN 1
-								WHEN 'Q2' THEN 2
-								WHEN 'Q3' THEN 3
-								WHEN 'Q4' THEN 4
-								WHEN 'OT' THEN 5
-								WHEN '01' THEN 6
-								WHEN '00' THEN 7					
+			,CASE temp.ResourceId	WHEN 'Q1' THEN 1
+									WHEN 'Q2' THEN 2
+									WHEN 'Q3' THEN 3
+									WHEN 'Q4' THEN 4
+									WHEN 'OT' THEN 5
+									WHEN '01' THEN 6
+									WHEN '00' THEN 7					
 			END AS OrderNo
 	FROM	dbo.ResultDetail r WITH(NOLOCK)
 		FULL JOIN @tmpResourceIds temp ON temp.ResourceId = r.ResourceId AND r.MatchId =@matchid
