@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02,DBARC-bodb_Archive" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_SD_GetGroupBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING

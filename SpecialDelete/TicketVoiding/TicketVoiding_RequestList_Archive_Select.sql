@@ -82,13 +82,13 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpIssueType (IssueTypeId)
 		SELECT DISTINCT val
-		FROM dbo.f_SplitString(@IssueTypeId, ',')
+		FROM bodb02.dbo.f_SplitString(@IssueTypeId, ',')
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
 
 		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
 		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@SubIssueType, ',')
+		FROM	bodb02.dbo.f_SplitString(@SubIssueType, ',')
 		OPTION (maxrecursion 0) 
 	END
 
@@ -265,19 +265,7 @@ BEGIN
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
 					AND vh.MatchId = t.MatchId
-		) vh
-	
-	UPDATE t 
-		SET EventDate = m.eventdate
-	FROM	#tmpResult t
-		INNER JOIN (
-			SELECT m.matchid, m.eventdate
-			FROM	dbo.match m WITH(NOLOCK)
-			UNION ALL
-			SELECT	m14.MatchId, m14.eventdate
-			FROM	dbo.match14 m14 WITH(NOLOCK)
-		) m
-			ON t.MatchId = m.matchid
+		) vh	
 
 	--Incompleted Request	
 	IF @Status IN (0,3)
@@ -302,13 +290,13 @@ BEGIN
 			CROSS APPLY (
 						SELECT TOP 1 f.val AS transid
 							,b.statusID
-						FROM dbo.f_SplitString(t.TransIds, ',') f
+						FROM bodb02.dbo.f_SplitString(t.TransIds, ',') f
 							CROSS APPLY (
 										SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
 											WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
 											WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
 											ELSE 0 END AS statusID
-										FROM bettrans b WITH (NOLOCK)
+										FROM bodb02.dbo.bettrans b WITH (NOLOCK)
 											LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
 										WHERE transid = f.val
 											AND statusID IN (0,1,112)
@@ -350,11 +338,11 @@ BEGIN
 				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
 				ELSE NULL END AS IncompletedReason
 	FROM	#tmpResult t
-		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+		LEFT JOIN DBCUST.CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
-		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
+		LEFT JOIN DBCUST.CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.LastVoidedBy = v.CustId
-		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
+		LEFT JOIN DBCUST.CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
 		OUTER APPLY (
 					SELECT RequestId, StatusId

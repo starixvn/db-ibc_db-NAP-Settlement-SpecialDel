@@ -1,3 +1,1 @@
-SpecialDelete\Sportbook\NAP_BetTypeSel.sql
-SpecialDelete\TicketVoiding\TicketVoiding_BettypesForRequest_Select.sql
-SpecialDelete\TicketVoiding\VoidBetsAutomation\TicketVoiding_AutoUnmark_Select.sql
+SpecialDelete\TicketVoiding\TicketVoiding_BettypesForRequest_Archive_Select.sql
