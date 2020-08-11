@@ -121,7 +121,7 @@ BEGIN
 		,MaxMainParlayTransId BIGINT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -786,20 +786,18 @@ BEGIN
 	BEGIN
 		IF @IssueTypeId IN (8,9)
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId)
-			SELECT tmp.transid, rd.RequestId, tmp.MainTransId
+			INSERT INTO #TransidInRequest (TransId, RequestId)
+			SELECT tmp.transid, rd.RequestId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
 				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId
+							SELECT rs.TransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId
 								AND rs.MatchId = @MatchId
 							UNION ALL
-							SELECT rp.TransId, b.transid AS MainTransId
+							SELECT rp.TransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
 					)tmp
@@ -810,20 +808,18 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId)
-			SELECT tmp.transid, rd.RequestId, tmp.MainTransId
+			INSERT INTO #TransidInRequest (TransId, RequestId)
+			SELECT tmp.transid, rd.RequestId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
 				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId
+							SELECT rs.TransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId
 								AND rs.MatchId = @MatchId
 							UNION ALL
-							SELECT rp.TransId, b.transid AS MainTransId
+							SELECT rp.TransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
 					)tmp
@@ -878,7 +874,7 @@ BEGIN
 			BEGIN			
 				SELECT RequestId,
 					STUFF((
-					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+					SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
 					WHERE (RequestId = r.RequestId) 
 					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
@@ -924,7 +920,7 @@ BEGIN
 	BEGIN			
 		SELECT RequestId,
 			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+			SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
 			FROM #TransidInRequest
 			WHERE (RequestId = r.RequestId) 
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
