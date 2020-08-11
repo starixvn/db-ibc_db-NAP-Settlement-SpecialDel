@@ -22,13 +22,23 @@ BEGIN
 
 	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
 			,@MinBettype INT, @MaxBettype INT
+			,@strMatchIds		VARCHAR(MAX)
+			,@remoteQuery		NVARCHAR(MAX)
+			,@strResourceIds	VARCHAR(MAX)
 	DECLARE @TempMatch TABLE (MatchId INT, QueueStatus INT)
 	DECLARE @tblTicketStatusBySettleType TABLE (matchid INT, totalTicket INT, totalTicketRunning INT, SettleType VARCHAR(20))
 	DECLARE @tblBettype TABLE (Bettype INT, SettleType VARCHAR(3))
 	DECLARE @tblTicketStatus TABLE (MatchID INT, ParlayStatus VARCHAR(20))
 	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
 	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
-
+	DECLARE @tmpResultDetail TABLE (
+		MatchId				INT
+		,ResourceId			VARCHAR(20)
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+		,ResultStatusId		TINYINT
+		,SettlementStatusId TINYINT
+	)
 	------------------------------------------------------------------------------	
 	INSERT INTO @tmpSporttypes(Sporttype)
 	SELECT Val 
@@ -83,7 +93,42 @@ BEGIN
 		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
 	FROM SingleTicket sg
 		FULL OUTER JOIN SingleTicketMainQueue mq ON sg.matchid = mq.matchid
-	
+	----------------------------------------------------------------------------------------
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype IN (1,2))
+	BEGIN
+		SELECT @strMatchIds = ''
+			   ,@remoteQuery = ''
+			   ,@strResourceIds = ''
+
+		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
+		FROM @TempMatch tempM
+			INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
+		WHERE m.sporttype IN (1,2)
+		
+		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+		FROM (
+			SELECT DISTINCT f.ResourceID
+			FROM @TempMatch tempM
+				INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID 
+				CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
+			WHERE m.sporttype IN (1,2)
+		)f
+		SELECT @strMatchIds		= CASE WHEN @strMatchIds ='' THEN @strMatchIds ELSE LEFT(@strMatchIds,LEN(@strMatchIds)-1) END
+			   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+
+		IF @strMatchIds ='' 
+			SET @remoteQuery =''
+		ELSE 
+			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
+								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
+								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
+										' + CASE WHEN @strResourceIds <> '' THEN 
+										' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
+
+			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
+			EXECUTE sys.sp_executesql @remoteQuery
+	END
+	----------------------------------------------------------------------------------------
 	
 	--count ticket on table Bettrans
 	;WITH cteTicketCount AS(
@@ -120,10 +165,10 @@ BEGIN
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
-			,m.finalHomeScore
-			,m.finalAwayScore
-			,m.htHomeScore AS halfTimeHomeScore
-			,m.htAwayScore AS halfTimeAwayScore
+			--,m.finalHomeScore
+			--,m.finalAwayScore
+			--,m.htHomeScore AS halfTimeHomeScore
+			--,m.htAwayScore AS halfTimeAwayScore
 			,m.autoSetting
 			--,l.autoSetting AS autoSettingForLeague
 			,ISNULL(rs.parlayStatus,'No Ticket') AS parlayStatus
@@ -133,6 +178,22 @@ BEGIN
 		--INNER JOIN dbo.[League] l WITH (NOLOCK) ON m.leagueID = l.LeagueID
 		LEFT JOIN @tblTicketStatus rs ON m.matchid = rs.matchid
 
+	SELECT	MatchId
+			,ResourceId
+			,HomeValue
+			,AwayValue
+			,ResultStatusId
+			,SettlementStatusId
+			,CASE ResourceId	WHEN 'Q1' THEN 1
+								WHEN 'Q2' THEN 2
+								WHEN 'Q3' THEN 3
+								WHEN 'Q4' THEN 4
+								WHEN 'OT' THEN 5
+								WHEN '01' THEN 6
+								WHEN '00' THEN 7					
+			END AS OrderNo
+	FROM	@tmpResultDetail
+	ORDER BY OrderNo	
 	
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
