@@ -42,7 +42,7 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE m.MatchId = @matchid 
 
-	SELECT	 COALESCE (temp.ResourceId,r.ResourceId) AS ResourceId
+	SELECT	 temp.ResourceId AS ResourceId
 			,r.HomeValue
 			,r.AwayValue
 			,r.ResultStatusId

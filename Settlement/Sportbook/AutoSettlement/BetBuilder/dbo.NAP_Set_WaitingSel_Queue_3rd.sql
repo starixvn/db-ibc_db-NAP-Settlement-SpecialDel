@@ -165,10 +165,6 @@ BEGIN
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
-			--,m.finalHomeScore
-			--,m.finalAwayScore
-			--,m.htHomeScore AS halfTimeHomeScore
-			--,m.htAwayScore AS halfTimeAwayScore
 			,m.autoSetting
 			--,l.autoSetting AS autoSettingForLeague
 			,ISNULL(rs.parlayStatus,'No Ticket') AS parlayStatus
