@@ -130,6 +130,15 @@ BEGIN
 			, t.TransId
 			, t.MatchId
 		FROM #DangerAccept_SubParlayTickets t
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = @MatchId
+									AND r.ActionId NOT IN (2,3)
+							)tmp
+		WHERE tmp.TransId IS NULL
 		
 		--Mark Ticket
 		WHILE (1=1)
