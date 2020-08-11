@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate
 (
 	@TransIds VARCHAR(MAX)  = NULL,
