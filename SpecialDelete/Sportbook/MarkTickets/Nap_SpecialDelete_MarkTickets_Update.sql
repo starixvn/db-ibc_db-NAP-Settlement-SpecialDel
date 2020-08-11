@@ -23,6 +23,7 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20200730@Max: [TVS] Enhance Block Match of Unmark Ticket  [Redmine: #136734]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -40,7 +41,7 @@ BEGIN
 	-- Marked;
 	ELSE
 	BEGIN
-		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds
+		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_ManualUpdate] @TransIds = @TransIds
 			,@UserId = @UserId
 			,@Username = @Username
 			,@IP = @IP
