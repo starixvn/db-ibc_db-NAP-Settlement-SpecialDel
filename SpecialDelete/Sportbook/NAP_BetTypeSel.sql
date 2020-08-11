@@ -37,6 +37,7 @@ AS
 		- 20190228@Alan: Implement Bet Builder, remove Live Casino - [106898]
         - 20191004@Charles: Badminton AIO - [120325]
         - 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
+        - 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		
     Param's Explanation:  
     @Mode:   
@@ -246,7 +247,7 @@ BEGIN
             ,1 AS type -- type = 1: NG
             ,1 AS liveindicator            
         FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND (typeid BETWEEN 85 AND 90 OR typeid BETWEEN 8101 AND 8105)
+        WHERE @matchid = 0 AND (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105)
     END
 
     ----- virtual sports  

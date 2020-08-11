@@ -28,6 +28,7 @@ AS
 		- 20171215@Kent: Number Game Ball Sequence [Redmine:#54346]
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20181121@Alan: Incorporate Happy 5 into Number Game [102845]
+		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		
 	Param's Explanation:
 			- @Opition: 
@@ -194,7 +195,7 @@ BEGIN
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
 				OUTER APPLY (SELECT BallSequence 
 							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-							WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp							
 			WHERE b.matchid = @matchid 
 				AND ((@FromTransId IS NULL AND @ToTransId IS NULL) OR (b.transid BETWEEN @FromTransId AND @ToTransId)) 
@@ -261,7 +262,7 @@ BEGIN
 			INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
 			OUTER APPLY (SELECT BallSequence 
 						FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-						WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+						WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 						) AS BS_tmp
 						
 		WHERE b.transid IN (SELECT [@tblTransIds].transid FROM @tblTransIds ) 
