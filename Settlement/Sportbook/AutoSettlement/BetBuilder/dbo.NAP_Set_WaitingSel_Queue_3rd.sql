@@ -169,6 +169,7 @@ BEGIN
 			--,l.autoSetting AS autoSettingForLeague
 			,ISNULL(rs.parlayStatus,'No Ticket') AS parlayStatus
 			,tm.QueueStatus
+			,m.sporttype
 	FROM	@TempMatch tm
 		INNER JOIN dbo.[match] m WITH (NOLOCK) ON m.matchid = tm.matchid
 		--INNER JOIN dbo.[League] l WITH (NOLOCK) ON m.leagueID = l.LeagueID
