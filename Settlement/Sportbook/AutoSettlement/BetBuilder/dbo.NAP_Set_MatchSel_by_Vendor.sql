@@ -31,7 +31,7 @@ BEGIN
 			,@strResourceIds	VARCHAR(MAX)
 			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
-	DECLARE @TempMatch TABLE (MatchId INT, IsCalculating INT)
+	DECLARE @TempMatch TABLE (MatchId INT,Sporttype SMALLINT, IsCalculating INT)
 	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
 	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
 	DECLARE @tmpResultDetail TABLE (
@@ -92,15 +92,15 @@ BEGIN
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
 	),
 	QueueSingleMatch AS (
-		SELECT matchid, MIN(IsCalculating)  IsCalculating
+		SELECT matchid,s.SportType, MIN(IsCalculating)  IsCalculating
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttype
 		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
 			AND s.IsCalculating IN (0,1)
-		GROUP BY matchid 
+		GROUP BY matchid,s.SportType
 	)	
-	INSERT INTO @TempMatch(MatchId, IsCalculating)
-	SELECT sg.matchid, q.IsCalculating
+	INSERT INTO @TempMatch(MatchId,Sporttype, IsCalculating)
+	SELECT sg.matchid, q.SportType, q.IsCalculating
 	FROM SingleTicket sg
 		INNER LOOP JOIN dbo.VendorStatus v WITH (NOLOCK) ON sg.matchID = v.matchID
 		LEFT JOIN QueueSingleMatch q ON q.matchID = sg.matchID
@@ -116,24 +116,21 @@ BEGIN
 
 		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
 		FROM @TempMatch tempM
-			INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
-		WHERE m.sporttype IN (1,2)
-		
-		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-		FROM (
-			SELECT DISTINCT f.ResourceID
-			FROM @TempMatch tempM
-				INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID 
-				CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
-			WHERE m.sporttype IN (1,2)
-		)f
-		
-		SELECT @strMatchIds		= CASE WHEN @strMatchIds ='' THEN @strMatchIds ELSE LEFT(@strMatchIds,LEN(@strMatchIds)-1) END
-			   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+		WHERE tempM.Sporttype in (1,2)
 
-		IF @strMatchIds ='' 
-			SET @remoteQuery =''
-		ELSE 
+		IF @strMatchIds <> '' 
+		BEGIN
+			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+			FROM (
+				SELECT DISTINCT f.ResourceID
+				FROM @TempMatch tempM
+					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
+				
+			)f
+		
+			SELECT @strMatchIds		=  LEFT(@strMatchIds,LEN(@strMatchIds)-1) 
+				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+
 			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
 								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
 								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
@@ -142,6 +139,7 @@ BEGIN
 
 			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
 			EXECUTE sys.sp_executesql @remoteQuery
+		END
 	END
 	--------------------------------------------------------------------------------
 	;WITH cteBettrans AS(
@@ -194,14 +192,5 @@ BEGIN
 			,AwayValue
 			,ResultStatusId
 			,SettlementStatusId
-			,CASE ResourceId	WHEN 'Q1' THEN 1
-								WHEN 'Q2' THEN 2
-								WHEN 'Q3' THEN 3
-								WHEN 'Q4' THEN 4
-								WHEN 'OT' THEN 5
-								WHEN '01' THEN 6
-								WHEN '00' THEN 7					
-			END AS OrderNo
-	FROM	@tmpResultDetail
-	ORDER BY OrderNo	
+	FROM	@tmpResultDetail	
 END

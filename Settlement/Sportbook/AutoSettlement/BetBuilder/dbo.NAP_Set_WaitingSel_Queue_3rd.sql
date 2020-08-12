@@ -25,7 +25,7 @@ BEGIN
 			,@strMatchIds		VARCHAR(MAX)
 			,@remoteQuery		NVARCHAR(MAX)
 			,@strResourceIds	VARCHAR(MAX)
-	DECLARE @TempMatch TABLE (MatchId INT, QueueStatus INT)
+	DECLARE @TempMatch TABLE (MatchId INT,Sporttype SMALLINT, QueueStatus INT )
 	DECLARE @tblTicketStatusBySettleType TABLE (matchid INT, totalTicket INT, totalTicketRunning INT, SettleType VARCHAR(20))
 	DECLARE @tblBettype TABLE (Bettype INT, SettleType VARCHAR(3))
 	DECLARE @tblTicketStatus TABLE (MatchID INT, ParlayStatus VARCHAR(20))
@@ -70,7 +70,7 @@ BEGIN
 	
 	--Get match info in queue
 	;WITH SingleTicket AS (
-		SELECT matchid, MIN(IsCalculating) AS QueueStatus
+		SELECT matchid,s.SportType, MIN(IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
 			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
@@ -78,7 +78,7 @@ BEGIN
 		GROUP BY matchid 
 	),
 	SingleTicketMainQueue AS (
-		SELECT s.matchid, MIN(IsCalculating) AS QueueStatus
+		SELECT s.matchid,s.SportType, MIN(IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 			INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) ON vs.MatchID = s.MatchID
 			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
@@ -88,9 +88,10 @@ BEGIN
 			AND IsCalculating = 2
 		GROUP BY s.matchid 
 	)
-	INSERT INTO @TempMatch(MatchId, QueueStatus)
+	INSERT INTO @TempMatch(MatchId,SportType, QueueStatus)
 	SELECT ISNULL(sg.MatchID, mq.MatchID) AS MatchID
 		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
+		, ISNULL(sg.SportType, mq.SportType) AS SportType
 	FROM SingleTicket sg
 		FULL OUTER JOIN SingleTicketMainQueue mq ON sg.matchid = mq.matchid
 	----------------------------------------------------------------------------------------
@@ -102,23 +103,20 @@ BEGIN
 
 		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
 		FROM @TempMatch tempM
-			INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
-		WHERE m.sporttype IN (1,2)
+		WHERE tempM.Sporttype IN (1,2)
 		
-		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-		FROM (
-			SELECT DISTINCT f.ResourceID
-			FROM @TempMatch tempM
-				INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID 
-				CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
-			WHERE m.sporttype IN (1,2)
-		)f
-		SELECT @strMatchIds		= CASE WHEN @strMatchIds ='' THEN @strMatchIds ELSE LEFT(@strMatchIds,LEN(@strMatchIds)-1) END
-			   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+		IF @strMatchIds <>''
+		BEGIN
+			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+			FROM (
+				SELECT DISTINCT f.ResourceID
+				FROM @TempMatch tempM
+					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
+				ORDER BY f.OrdNo
+			)f
+			SELECT @strMatchIds		= LEFT(@strMatchIds,LEN(@strMatchIds)-1)
+				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
 
-		IF @strMatchIds ='' 
-			SET @remoteQuery =''
-		ELSE 
 			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
 								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
 								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
@@ -127,6 +125,7 @@ BEGIN
 
 			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
 			EXECUTE sys.sp_executesql @remoteQuery
+		END
 	END
 	----------------------------------------------------------------------------------------
 	
@@ -180,17 +179,8 @@ BEGIN
 			,HomeValue
 			,AwayValue
 			,ResultStatusId
-			,SettlementStatusId
-			,CASE ResourceId	WHEN 'Q1' THEN 1
-								WHEN 'Q2' THEN 2
-								WHEN 'Q3' THEN 3
-								WHEN 'Q4' THEN 4
-								WHEN 'OT' THEN 5
-								WHEN '01' THEN 6
-								WHEN '00' THEN 7					
-			END AS OrderNo
+			,SettlementStatusId	
 	FROM	@tmpResultDetail
-	ORDER BY OrderNo	
 	
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
