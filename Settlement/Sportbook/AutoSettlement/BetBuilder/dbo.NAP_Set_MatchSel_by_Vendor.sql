@@ -125,7 +125,6 @@ BEGIN
 				SELECT DISTINCT f.ResourceID
 				FROM @TempMatch tempM
 					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
-				
 			)f
 		
 			SELECT @strMatchIds		=  LEFT(@strMatchIds,LEN(@strMatchIds)-1) 

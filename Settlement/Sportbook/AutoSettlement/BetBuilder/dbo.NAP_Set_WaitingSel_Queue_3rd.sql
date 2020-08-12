@@ -112,7 +112,6 @@ BEGIN
 				SELECT DISTINCT f.ResourceID
 				FROM @TempMatch tempM
 					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
-				ORDER BY f.OrdNo
 			)f
 			SELECT @strMatchIds		= LEFT(@strMatchIds,LEN(@strMatchIds)-1)
 				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
