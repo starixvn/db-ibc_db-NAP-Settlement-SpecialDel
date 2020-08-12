@@ -11,24 +11,19 @@
 USE [bodb02]
 GO
 
+DECLARE @batch INT = 1000
 
-IF OBJECT_ID('dbo.ProviderExternalResultDetailES', 'U') IS NOT NULL 
+WHILE (1=1)
 
 BEGIN
 
-DECLARE @batch SMALLINT=1000
+	DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailES 
 
-	WHILE (@batch > 0)
+	IF @@ROWCOUNT = 0
+		BREAK			
 
-		BEGIN
-
-			DELETE TOP(1000) FROM dbo.ProviderExternalResultDetailES
-
-			SET @batch =@@ROWCOUNT
-
-			WAITFOR DELAY '00:00:00:280'
-
-		END
+	WAITFOR DELAY '00:00:00:280'
 
 END
+
 GO
