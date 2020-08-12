@@ -32,12 +32,12 @@ BEGIN
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
-			,m.finalHomeScore
-			,m.finalAwayScore
+			--,m.finalHomeScore
+			--,m.finalAwayScore
 			,m.homeID
 			,m.awayID
-			,m.htHomeScore AS halfTimeHomeScore
-			,m.htAwayScore AS halfTimeAwayScore
+			--,m.htHomeScore AS halfTimeHomeScore
+			--,m.htAwayScore AS halfTimeAwayScore
 			,m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE m.MatchId = @matchid 
