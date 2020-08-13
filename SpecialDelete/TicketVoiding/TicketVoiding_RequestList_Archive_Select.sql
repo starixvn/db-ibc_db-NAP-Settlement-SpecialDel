@@ -296,7 +296,7 @@ BEGIN
 											WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
 											WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
 											ELSE 0 END AS statusID
-										FROM bodb02.dbo.bettrans b WITH (NOLOCK)
+										FROM dbo.bettrans_bk b WITH (NOLOCK)
 											LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
 										WHERE transid = f.val
 											AND statusID IN (0,1,112)

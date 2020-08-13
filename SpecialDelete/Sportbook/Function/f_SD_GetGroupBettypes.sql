@@ -16,6 +16,7 @@ AS
 		- 20200717@Zane: Basketball AIO Phase 2 [137189]
 		- 20201006@Charles: Integrate for Time Machine OU bettype [143032]
 		- 20201019@Charles: Rearrange position of OU Time Machine [143744]
+		- 20200813@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 
     Parameters Explanation:    
     
