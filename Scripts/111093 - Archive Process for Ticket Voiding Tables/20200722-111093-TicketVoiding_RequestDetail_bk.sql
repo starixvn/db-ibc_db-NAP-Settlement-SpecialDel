@@ -1,3 +1,4 @@
+/*<info serverAlias="DBARC-bodb_Archive" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
 /*
     Created: 20200722@Max
 	Task: [TVS] Archive process for Ticket Voiding tables - [Redmine: #111093]
