@@ -90,8 +90,8 @@ BEGIN
 	)
 	INSERT INTO @TempMatch(MatchId,SportType, QueueStatus)
 	SELECT ISNULL(sg.MatchID, mq.MatchID) AS MatchID
-		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
 		, ISNULL(sg.SportType, mq.SportType) AS SportType
+		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
 	FROM SingleTicket sg
 		FULL OUTER JOIN SingleTicketMainQueue mq ON sg.matchid = mq.matchid
 	----------------------------------------------------------------------------------------
