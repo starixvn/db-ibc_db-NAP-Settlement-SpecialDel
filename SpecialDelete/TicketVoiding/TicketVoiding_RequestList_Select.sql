@@ -354,7 +354,7 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,CASE WHEN t.IssueTypeId = 11 THEN (LEN(t.TransIds) - LEN(REPLACE(t.TransIds, ',', '')) +1) ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,t.TransIds
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
@@ -384,6 +384,11 @@ BEGIN
 					FROM @MatchidList_Waiting_30minutes_tmp
 					WHERE MatchId = t.MatchId
 			)m
+		CROSS APPLY (
+					SELECT COUNT(1) AS TotalSingle
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE RequestId = t.RequestId
+			)ts
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
