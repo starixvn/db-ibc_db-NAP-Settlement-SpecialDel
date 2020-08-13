@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailESMapping]
 	,@MatchId		INT 
 	,@SourceId		SMALLINT
 	,@UserId		INT
+	,@EnvFlag		SMALLINT
 AS
 /*
 	Creator: 20200713@Kathy
@@ -13,6 +14,7 @@ AS
 		- 20200713@Kathy: Mapping between in-house and external match [Redmine:#136931]
 		
 	Param's Explanation:
+		@EnvFlag: -1: UAT, 0:PROD
 
 */
 BEGIN
@@ -30,13 +32,15 @@ BEGIN
 	FROM	dbo.ProviderExternalResultDetailES WITH(NOLOCK)
 	WHERE	SourceId = @SourceId
 			AND MatchId3rd = @MatchId3rd
-			AND MatchId <> @MatchId
+			AND MatchId = @EnvFlag
 
 	IF @@ROWCOUNT = 0
 		RETURN
 
 	WHILE (1=1)
 	BEGIN
+		DELETE FROM @tmpId
+
 		DELETE TOP (@batchNo)
 		FROM	#tmpProviderExternalResultDetail
 		OUTPUT DELETED.ProviderExternalId INTO @tmpId (ProviderExternalId)
