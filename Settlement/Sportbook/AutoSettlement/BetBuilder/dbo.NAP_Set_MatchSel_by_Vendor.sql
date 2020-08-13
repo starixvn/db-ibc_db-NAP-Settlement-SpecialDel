@@ -84,7 +84,7 @@ BEGIN
 	
 	--Get match info in queue
 	;WITH SingleTicket AS (
-		SELECT matchid
+		SELECT matchid,st.Sporttype
 		FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
 			INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
@@ -92,15 +92,15 @@ BEGIN
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
 	),
 	QueueSingleMatch AS (
-		SELECT matchid,s.SportType, MIN(IsCalculating)  IsCalculating
+		SELECT matchid, MIN(IsCalculating)  IsCalculating
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttype
 		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
 			AND s.IsCalculating IN (0,1)
-		GROUP BY matchid,s.SportType
+		GROUP BY matchid
 	)	
 	INSERT INTO @TempMatch(MatchId,Sporttype, IsCalculating)
-	SELECT sg.matchid, q.SportType, q.IsCalculating
+	SELECT sg.matchid, sg.Sporttype, q.IsCalculating
 	FROM SingleTicket sg
 		INNER LOOP JOIN dbo.VendorStatus v WITH (NOLOCK) ON sg.matchID = v.matchID
 		LEFT JOIN QueueSingleMatch q ON q.matchID = sg.matchID
