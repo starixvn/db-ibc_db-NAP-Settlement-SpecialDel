@@ -49,6 +49,7 @@ AS;
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191106@Charles: Implement NPM Promotion [122187]
 		- 20200618@Max: Hotfix Change Primary key on MarkedTransaction [Redmine: #136064]
+		- 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -643,13 +644,14 @@ BEGIN
 			
 		WHERE d.bettype IN (1231,1232,1233,1237,1238)
 	END
-	-- UPDATE Sportype for NPH Promotion (bettype = 17000)
-	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype IN (17000)))
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE d
-		SET sporttype 	= d.matchid
+		SET sporttype = sb.SportType
 		FROM #Data d
-		WHERE d.bettype IN (17000)
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON d.bettype = sb.BetType
+		WHERE sb.ProductID = 37
 	END
 
 	--- Remove invalid sporttype	

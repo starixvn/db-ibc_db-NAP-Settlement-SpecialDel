@@ -80,6 +80,7 @@ AS
 	  - 20191106@Charles: Implement NPM Promotion [122187]
 	  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 	  - 20200609@Charles: Remove notify when void tickets [131865]
+	  - 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 
 	 Param's Explanation:   
 	*/
@@ -719,13 +720,14 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
-	-- UPDATE Sportype for NPH Promotion (bettype = 17000)
-	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype IN (17000)))
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
-		SET sporttype 	= b.matchid
+		SET sporttype = sb.SportType
 		FROM #BetDelete b
-		WHERE b.bettype IN (17000)
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON b.bettype = sb.BetType
+		WHERE sb.ProductID = 37
 	END
 	
 	-- remove un-supported sports & bettype
