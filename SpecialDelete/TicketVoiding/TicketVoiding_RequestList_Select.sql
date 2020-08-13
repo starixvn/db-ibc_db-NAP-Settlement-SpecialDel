@@ -355,7 +355,7 @@ BEGIN
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
-			,t.TransIds
+			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
@@ -386,8 +386,16 @@ BEGIN
 			)m
 		CROSS APPLY (
 					SELECT COUNT(1) AS TotalSingle
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = t.RequestId
+						,STUFF((
+								SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
+								FROM TicketVoiding_RequestDetailTicket_Single
+								WHERE (RequestId = s.RequestId) 
+								FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+								,1,2,''
+							) AS TransIds
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					WHERE s.RequestId = t.RequestId
+					GROUP BY s.RequestId
 			)ts
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
