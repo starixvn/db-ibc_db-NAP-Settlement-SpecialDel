@@ -121,9 +121,12 @@ BEGIN
 				,m.eventdate
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
-			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
+			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype
+			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
+				AND v.vendorId = @VendorID 
+				AND v.Opened = 1 
 	END
 	ELSE
 	BEGIN
@@ -159,7 +162,10 @@ BEGIN
 			INNER JOIN @tmpLeagueIds tl ON	m.leagueid = tl.LeagueId
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
+			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
 		WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
+				AND v.vendorId = @VendorID 
+				AND v.Opened = 1 
 
 	END
 	
