@@ -71,6 +71,7 @@ BEGIN
 			
 	SELECT	t.SourceId
 			,pi.SourceName
+			,pi.Remark
 			,t.ResourceId
 			,t.HomeValue
 			,t.AwayValue
