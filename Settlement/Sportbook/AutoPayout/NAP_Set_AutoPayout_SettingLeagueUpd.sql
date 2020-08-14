@@ -65,7 +65,7 @@ BEGIN
 		SET AutoSetting = @AutoSettingForLeague
 	FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
 	WHERE	m.leagueid = @LeagueId 
-			AND sporttype = 1 
+			AND sporttype IN (1,2)
 			AND AutoSetting IS NULL
 	
 	SELECT	@AutoSettingForLeague =  CASE 
@@ -114,7 +114,7 @@ BEGIN
 		OUTPUT  deleted.matchid INTO @tmpUpdatedMatches (matchid)
 		FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
 		WHERE	m.leagueid 	= @LeagueId 
-				AND sporttype 	= 1 
+				AND sporttype IN (1,2)
 				AND 1 = CASE 
 							WHEN @AutoType IN (1,3,5) AND eventstatus <> 'completed' THEN 1
 							WHEN @AutoType = 2 AND eventstatus IN ('running', 'closed') THEN 1
