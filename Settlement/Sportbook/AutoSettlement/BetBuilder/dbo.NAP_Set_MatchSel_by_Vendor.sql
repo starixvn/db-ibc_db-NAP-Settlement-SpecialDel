@@ -205,7 +205,7 @@ BEGIN
 			FROM (
 				SELECT DISTINCT f.ResourceID
 				FROM @TempMatch tempM
-					CROSS APPLY dbo.f_Set_MajorRound_xpre (tempM.sporttype) f
+					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
 			)f
 		
 			SELECT @strMatchIds		=  LEFT(@strMatchIds,LEN(@strMatchIds)-1) 
@@ -275,3 +275,5 @@ BEGIN
 
 	DROP TABLE #tmpMatchIds;
 END
+
+GO
