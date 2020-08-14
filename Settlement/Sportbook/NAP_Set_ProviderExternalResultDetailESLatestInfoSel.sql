@@ -5,7 +5,7 @@ AS
 /*
     Created by: 20200721@Kathy
     Task: get provider result [Redmine:#136931]
-    DB: DBPRO/BODB02 
+    DB: DBPRO/BODB02  
     
     Revisions:            
 		- 20200721@Kathy: get provider result [Redmine:#136931]

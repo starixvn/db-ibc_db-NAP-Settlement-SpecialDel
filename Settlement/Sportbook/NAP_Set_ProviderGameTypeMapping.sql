@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ProviderGameTypeMapping]
 
 AS
 /*
-	Creator: 20200713@Kathy
+	Creator: 20200713@Kathy 
 	Task: Mapping between provider and game type [Redmine:#136931]
 	DB: DBPRO/bodb02
 	Revisions:
