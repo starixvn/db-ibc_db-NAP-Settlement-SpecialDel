@@ -17,7 +17,7 @@ AS
 
 	Param explanation:
 					PGId ="0" : The first time mapping for Screenshot and League
-	@PGIdSources =  '<PGIds><PGId PGId ="12"  OrderNo="1"/>
+	@PGIdSources =  '<PGIds><PGId PGId ="0"  OrderNo="1"/>
  							 <PGId PGId ="45" OrderNo="2"/>
  							 <PGId PGId ="48" OrderNo="3"/>
  							 <PGId PGId ="30" OrderNo="4"/>
@@ -83,11 +83,11 @@ BEGIN
 			)
 
 			MERGE dbo.ProviderLeagueMappingOutsideSource  AS Target
-			USING (SELECT LeagueId, PGId, OrderNo FROM cte_Source ) AS Source
+			USING (SELECT LeagueId, PGId, OrderNo FROM cte_Source ) AS SOURCE
 				ON	TARGET.LeagueId = SOURCE.LeagueId
 					AND Target.PGId = SOURCE.PGId
 			WHEN MATCHED THEN 
-				UPDATE SET Target.OrderNo = Source.OrderNo
+				UPDATE SET Target.OrderNo = SOURCE.OrderNo
 			WHEN NOT MATCHED BY TARGET THEN
 				INSERT (LeagueId, PGId, OrderNo)
 				VALUES (SOURCE.LeagueId, SOURCE.PGId, SOURCE.OrderNo)

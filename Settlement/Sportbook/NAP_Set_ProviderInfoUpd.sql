@@ -3,13 +3,8 @@ ALTER  PROC NAP_Set_ProviderInfoUpd
 (
 	 @GameType		TINYINT 
 	,@ProviderSources VARCHAR(MAX)
-<<<<<<< 138656-Settlemet-ApplyKeyscoreSOPESSports-Phase2:Settlement/Sportbook/NAP_Set_ProviderInfoUpd.sql
 	,@ErrCode		INT				= 0		OUTPUT
-	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT	 
-=======
-	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT	 
->>>>>>> local:Settlement/Sportbook/NAP_Set_ProviderSort.sql
+	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 )
 AS
 /*
@@ -54,13 +49,10 @@ BEGIN
 					AND	pgm.GameType  = @GameType
 			
 		END TRY
+
 		BEGIN CATCH 
 				SELECT @ErrCode	= ERROR_NUMBER()
-<<<<<<< 138656-Settlemet-ApplyKeyscoreSOPESSports-Phase2:Settlement/Sportbook/NAP_Set_ProviderInfoUpd.sql
 					, @ErrMsg 	= @ErrMsg + ISNULL(ERROR_MESSAGE(),'')
-=======
-					, @ErrMsg 	= ERROR_MESSAGE()
->>>>>>> local:Settlement/Sportbook/NAP_Set_ProviderSort.sql
 		END CATCH
 
 	END

@@ -61,7 +61,7 @@ BEGIN
 	WHERE  SourceId <> 1001
 
 	SELECT
-		 ISNULL(plmo.PGId,GM.PGId) AS PGId
+		 ISNULL(plmo.PGId,gm.PGId) AS PGId
 		,gm.SourceName
 		,gm.Remark
 		,ISNULL( OrderNo,1) OrderNo 

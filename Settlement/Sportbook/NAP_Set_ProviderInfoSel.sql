@@ -13,13 +13,13 @@ AS
     DB: DBPRO/BODB02 
     
     Revisions:            
-		- 20200805@Louisa: get provider info [Redmine:#138656]
+		- 20200805@Louisa: get provider and OutsideSource info [Redmine:#138656]
 
 	Param's Explanation:
-		@GameTypes : '1,2,3,4'
-		@Status: Status of provider ( 0:Inactive	1: Active )
-		@SourceType: 0: Provider Source  1: Outsite source
-		If get ProviderSource: input  @GameTypes , @SourceType
+		@GameTypes		: '1,2,3,4'
+		@SourceStatus	: Status of provider ( 0: Inactive		1: Active	99: Get all )
+		@SourceType		: 0: Provider Source  1: Outsite source
+		If get Provider : input  @GameTypes , @SourceType
 		
 */
 BEGIN
@@ -36,9 +36,9 @@ BEGIN
 	IF ISNULL(@SourceName,'') <>''
 	BEGIN
 		INSERT INTO @tmpSource (SourceId)
-		SELECT  SourceId 
+		SELECT  pi.SourceId 
 		FROM	ProviderInfo pi WITH(NOLOCK) 
-		WHERE	pi.SourceName Like '%'+ @Sourcename + '%' or pi.Remark Like '%'+ @Sourcename + '%' 
+		WHERE	pi.SourceName LIKE '%'+ @Sourcename + '%' OR pi.Remark LIKE '%'+ @Sourcename + '%' 
 		AND @SourceType  = 1 
 		AND pi.SourceId > 1001
 	END
@@ -47,7 +47,7 @@ BEGIN
 	BEGIN
 		IF ISNULL(@GameTypes, '') <> ''	
 			INSERT INTO @tmpSource (SourceId)
-			SELECT  DISTINCT SourceId 
+			SELECT  DISTINCT pgm.SourceId 
 			FROM	ProviderGameTypeMapping pgm WITH(NOLOCK)
 				INNER JOIN  dbo.f_SplitString(@GameTypes, ',') fs
 					ON pgm.GameType = fs.Val
@@ -63,10 +63,10 @@ BEGIN
 	FROM  ProviderInfo pi WITH(NOLOCK)
 		INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)
 			ON pi.SourceId = pgm.SourceId
-	WHERE  ( pi.Isactive =  @SourceStatus or @SourceStatus  =99)
+	WHERE  ( pi.Isactive =  @SourceStatus OR @SourceStatus  = 99)
 		AND (
 				(
-					(pi.SourceId IN (SELECT SourceId FROM @tmpSource ) or @GameTypes ='')
+					(pi.SourceId IN (SELECT SourceId FROM @tmpSource ) OR @GameTypes ='')
 					AND @SourceType  = 1 
 					AND pi.SourceId > 1001
 				)
@@ -74,8 +74,8 @@ BEGIN
 				(@SourceType = 0 
 					AND pi.SourceId < 1001 
 					AND pi.SourceId <> 100 
-					AND  pgm.GameType in (select fs.Val from dbo.f_SplitString(@GameTypes, ',') fs) 
-					and pgm.isActive = 1
+					AND  pgm.GameType IN (SELECT fs.Val FROM dbo.f_SplitString(@GameTypes, ',') fs) 
+					AND pgm.isActive = 1
 				)
 			)
 	ORDER BY CASE @SourceType
