@@ -42,7 +42,10 @@ BEGIN
 	BEGIN TRY
 	IF (@SourceId = 0 )
 		BEGIN
+
 			SELECT @MaxSourceID = Max(SourceID) + 1 from ProviderInfo
+			IF @MaxSourceID <= 1001
+			SET @MaxSourceID = 1001 + 1
 			
 			IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.ProviderInfo pi WITH(NOLOCK) WHERE pi.SourceId = @MaxSourceID)
 				INSERT INTO dbo.ProviderInfo (SourceId, SourceName, Remark, IsActive) 

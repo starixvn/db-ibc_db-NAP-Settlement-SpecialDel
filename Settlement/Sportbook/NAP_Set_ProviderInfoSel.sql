@@ -51,6 +51,7 @@ BEGIN
 			FROM	ProviderGameTypeMapping pgm WITH(NOLOCK)
 				INNER JOIN  dbo.f_SplitString(@GameTypes, ',') fs
 					ON pgm.GameType = fs.Val
+			WHERE pgm.isActive = 1
 	END
  
 	SELECT 	 pi.SourceId

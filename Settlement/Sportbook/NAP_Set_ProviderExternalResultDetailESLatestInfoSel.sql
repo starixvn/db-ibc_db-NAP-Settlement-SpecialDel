@@ -13,6 +13,7 @@ AS
 
 	Param's Explanation:
 		If not exists SourceId = 1001 ==> Add dummy values
+		If not exist score for Top 4 OutsideSource: HomeValue=AwayValue=''
 		
 */
 BEGIN
@@ -23,7 +24,7 @@ BEGIN
 	DECLARE @GameType TINYINT
 
 	DECLARE @tmpLatestResult AS TABLE (ProviderExternalId INT)
-	DECLARE @tmpProviderExternalResult AS TABLE (SourceId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
+	DECLARE @tmpProviderExternalResult AS TABLE (SourceId INT,SourceName varchar(50) ,Remark nvarchar(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 
 	SET @SportType = 43
 
@@ -42,36 +43,39 @@ BEGIN
 	FROM cteLatestId
 	WHERE rn = 1
 
-	;WITH cteSourceId (SourceId, OrderNo)
+	;WITH cteSourceId (SourceId,SourceName, Remark, OrderNo)
 	AS(
-		SELECT  pgm.SourceId, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
+		SELECT  pgm.SourceId, pi.SourceName, pi.Remark, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
 		FROM  ProviderGameTypeMapping pgm WITH(NOLOCK)
 		OUTER APPLY(
 					SELECT plmo.OrderNo, plmo.PGId FROM ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK)
 					WHERE plmo.PGId = pgm.PGId AND plmo.LeagueId  = @LeagueId
 					) plmo
+		INNER JOIN ProviderInfo pi 
+			ON pgm.SourceId = pi.SourceId
 		WHERE (pgm.SourceId <= 1001 OR  plmo.PGId  IS NOT NULL) 
 			AND GameType = @GameType
+			AND pi.isActive = 1
 			AND pgm.isActive = 1
 	)
 
-	INSERT INTO @tmpProviderExternalResult(SourceId, ResourceId, HomeValue, AwayValue, OrderNo)
-	SELECT	perde.SourceId, perde.ResourceId, perde.HomeValue, perde.AwayValue, ct.OrderNo
+	INSERT INTO @tmpProviderExternalResult(SourceId,SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
+	SELECT	ct.SourceId, ct.SourceName, ct.Remark, ISNULL(perde.ResourceId,'00'), ISNULL(perde.HomeValue,'') , ISNULL(perde.AwayValue,''), ct.OrderNo
 	FROM	@tmpLatestResult l
 		INNER JOIN dbo.ProviderExternalResultDetailES perde WITH(NOLOCK)
 			ON l.ProviderExternalId = perde.ProviderExternalId
-		INNER JOIN cteSourceId ct 
+		RIGHT JOIN cteSourceId ct 
 			ON ct.SourceId = perde.SourceId
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpProviderExternalResult per WHERE per.SourceId = 1001)
 		BEGIN
-			INSERT INTO @tmpProviderExternalResult (SourceId, ResourceId, HomeValue, AwayValue, OrderNo)
-			VALUES (1001,'M1','','', 1)
+			INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
+			VALUES (1001,'Screenshot','n/a','00','','', 1)
 		END
 			
 	SELECT	t.SourceId
-			,pi.SourceName
-			,pi.Remark
+			,t.SourceName
+			,t.Remark
 			,t.ResourceId
 			,t.HomeValue
 			,t.AwayValue
@@ -79,7 +83,5 @@ BEGIN
 	FROM	@tmpProviderExternalResult t
 		INNER JOIN dbo.f_Set_MajorRound(@SportType) fsmr
 			ON t.ResourceId = fsmr.ResourceId
-		INNER JOIN ProviderInfo pi 
-			ON t.SourceId = pi.SourceId
 END
 GO
