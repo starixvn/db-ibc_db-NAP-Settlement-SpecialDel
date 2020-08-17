@@ -153,7 +153,7 @@ BEGIN
 				,settlementstatus
 				,m.homeid
 				,m.awayid
-				,eventstatus		
+				,m.eventstatus		
 				,betstatus		
 				,ISNULL(m.autoSetting, l.autoSetting) AS autoSetting
 				,l.autoSetting AS autoSettingForLeague
@@ -163,6 +163,7 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
 			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
+			INNER JOIN @tblEventStatus es ON m.eventstatus =es.EventStatus
 		WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
 				AND v.vendorId = @VendorID 
 				AND v.Opened = 1 
@@ -261,7 +262,9 @@ BEGIN
 	FROM #tmpMatchIds m
 		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
-	WHERE	(@CheckEventStatus = 0 OR cteBt.parlayStatus = @Status)
+	WHERE 1 = CASE WHEN @CheckEventStatus = 0 THEN 1
+				   WHEN @CheckEventStatus = 1 AND cteBt.parlayStatus=m.eventstatus THEN 1
+				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
 		, m.kickofftime
