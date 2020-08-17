@@ -42,6 +42,22 @@ BEGIN
 		,ResultStatusId		TINYINT
 		,SettlementStatusId TINYINT
 	)
+	CREATE TABLE #tmpMatchIds
+	(
+		 matchid						INT
+		,matchcode						NVARCHAR(50)
+		,leagueid						INT
+		,sporttype						SMALLINT
+		,kickofftime					DATETIME
+		,settlementstatus				TINYINT
+		,homeid							INT
+		,awayid							INT		
+		,eventstatus					NVARCHAR(50)
+		,betstatus						NVARCHAR(50)
+		,autosetting					TINYINT
+		,autosettingforleague			TINYINT		
+		,eventdate						DATETIME
+	)
 	-------------------------------------------------------------------------------------------------
 	IF @Status ='All'
 	BEGIN
@@ -68,18 +84,89 @@ BEGIN
 		SET @CheckEventStatus = 1
 		
 		
-	SET @MatchCode = ISNULL(@MatchCode,'')
+	IF ISNUMERIC(@MatchCode) = 1
+	BEGIN
+		SET @MatchId = CAST(@MatchCode AS INT)
+	END
 	
 	IF @MatchCode <> ''
 	BEGIN 
-		BEGIN TRY 
-			SET @MatchId = CASE WHEN ISNUMERIC(@MatchCode) = 1 THEN CAST(@MatchCode AS INT) ELSE NULL END
-		END TRY  
-		BEGIN CATCH
-			SET @MatchId = NULL
-		END CATCH
-		
-		SELECT @CheckEventStatus = 0
+		INSERT INTO #tmpMatchIds(
+				 matchid			
+				,matchcode			
+				,leagueid			
+				,sporttype			
+				,kickofftime
+				,settlementstatus	
+				,homeid				
+				,awayid				
+				,eventstatus		
+				,betstatus			
+				,autosetting		
+				,autosettingforleague
+				,eventdate
+			)
+		SELECT 	m.matchid
+				,m.matchcode
+				,m.LeagueId
+				,m.sporttype
+				,m.kickofftime
+				,m.settlementstatus
+				,m.homeid
+				,m.awayid
+				,eventstatus		
+				,betstatus		
+				,ISNULL(m.autoSetting, l.autoSetting) AS autoSetting
+				,l.autoSetting AS autoSettingForLeague
+				,m.eventdate
+		FROM	dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype
+			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
+		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
+				AND m.eventdate BETWEEN @FromDate AND @ToDate
+				AND v.vendorId = @VendorID 
+				AND v.Opened = 1 
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tmpMatchIds(
+				 matchid			
+				,matchcode			
+				,leagueid			
+				,sporttype			
+				,kickofftime
+				,settlementstatus	
+				,homeid				
+				,awayid				
+				,eventstatus		
+				,betstatus			
+				,autosetting		
+				,autosettingforleague
+				,eventdate
+			)
+		SELECT 	m.matchid
+				,m.matchcode
+				,m.LeagueId
+				,m.sporttype
+				,m.kickofftime
+				,settlementstatus
+				,m.homeid
+				,m.awayid
+				,eventstatus		
+				,betstatus		
+				,ISNULL(m.autoSetting, l.autoSetting) AS autoSetting
+				,l.autoSetting AS autoSettingForLeague
+				,m.eventdate
+		FROM	dbo.match m WITH(NOLOCK)
+			INNER JOIN @tmpLeagueIds tl ON	m.leagueid = tl.LeagueId
+			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
+			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
+		WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
+				AND v.vendorId = @VendorID 
+				AND v.Opened = 1 
+
 	END
 	
 	--Get match info in queue
@@ -87,7 +174,7 @@ BEGIN
 		SELECT matchid,st.Sporttype
 		FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
-			--INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
+			INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
 	),
@@ -166,14 +253,13 @@ BEGIN
 			,m.eventStatus
 			,m.homeID
 			,m.awayID
-			,ISNULL(m.autoSetting, l.autoSetting) AS autoSetting
-			,l.autoSetting AS autoSettingForLeague
+			,m.autosetting
+			,m.autosetting 
 			,ISNULL(cteBt.parlayStatus, 'No Ticket') AS parlayStatus
 			,ISNULL(tempM.IsCalculating, 2) AS QueueStatus
 			,m.sporttype
-	FROM @TempMatch	tempM
-		INNER JOIN dbo.match m WITH (NOLOCK) ON tempM.MatchID = m.MatchID
-		INNER JOIN dbo.League l WITH (NOLOCK) ON m.leagueID = l.LeagueID
+	FROM #tmpMatchIds m
+		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
 	WHERE	(@CheckEventStatus = 0 OR cteBt.parlayStatus = @Status)
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
@@ -191,7 +277,8 @@ BEGIN
 			,AwayValue
 			,ResultStatusId
 			,SettlementStatusId
-	FROM	@tmpResultDetail	
+	FROM	@tmpResultDetail
+
+	DROP TABLE #tmpMatchIds;
 END
 
-GO
