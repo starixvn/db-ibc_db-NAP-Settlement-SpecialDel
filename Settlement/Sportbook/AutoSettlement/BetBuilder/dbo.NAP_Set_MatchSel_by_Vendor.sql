@@ -163,7 +163,6 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
 			INNER JOIN dbo.VendorStatus v WITH(NOLOCK) ON m.matchID = v.matchID
-			INNER JOIN @tblEventStatus es ON m.eventstatus =es.EventStatus
 		WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
 				AND v.vendorId = @VendorID 
 				AND v.Opened = 1 
