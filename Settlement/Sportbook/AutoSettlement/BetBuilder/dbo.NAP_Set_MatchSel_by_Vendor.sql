@@ -175,7 +175,6 @@ BEGIN
 		SELECT matchid,st.Sporttype
 		FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
-			INNER JOIN @tmpLeagueIds l ON m.leagueid=l.LeagueId      
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
 			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
 	),
