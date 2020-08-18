@@ -1,0 +1,45 @@
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailOSSel]
+	@MatchId3rd INT
+	,@SourceId SMALLINT
+AS
+/*
+    Created by: 20200818@Louisa
+    Task: get result for LSports Redmine:#139627]
+    DB: DBPRO/BODB02 
+    
+    Revisions:            
+		- 20200818@Louisa: get result for LSports Redmine:#139627]
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	;WITH cteLatestId
+	AS(
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+				,p.MatchId
+				,p.ResourceId
+				,p.HomeValue
+				,p.AwayValue
+				,p.CreateDate
+				,p.CreateBy
+				,p.LastModifyDate
+				,p.LastModifyBy
+		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
+		WHERE	p.MatchId3rd = @MatchId3rd
+				AND p.SourceId = @SourceId
+	)
+	SELECT MatchId
+		  ,ResourceId
+		  ,HomeValue
+		  ,AwayValue
+		  ,CreateDate
+		  ,CreateBy
+		  ,LastModifyDate
+		  ,LastModifyBy
+	FROM	cteLatestId
+	WHERE	rn = 1
+END
+GO
+
