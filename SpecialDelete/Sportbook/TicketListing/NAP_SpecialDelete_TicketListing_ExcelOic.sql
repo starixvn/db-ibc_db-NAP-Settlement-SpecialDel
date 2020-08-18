@@ -17,7 +17,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
     @BallSequence		VARCHAR(200)	= '',
 	@Quarter			VARCHAR(200)	= 'All',
 	@BetTeams			XML				= NULL,
-	@SingleOrSubParlay VARCHAR(20)	    = 'All'
+	@SingleOrSubParlay VARCHAR(20)	    = 'All',
+	@SelectionType     VARCHAR(200)		= ''
 WITH RECOMPILE
 AS
 /*	Created by: Kent
@@ -107,6 +108,21 @@ BEGIN
 		FROM dbo.f_SplitString(@Quarter, ',')
 		OPTION (maxrecursion 0) 
 	END
+	--===========================--
+	DECLARE @tmpSelectionType TABLE (Selectiontype INT)
+	INSERT INTO @tmpSelectionType (Selectiontype)
+	SELECT val
+	FROM dbo.f_SplitString(@SelectionType, ',')
+	OPTION (maxrecursion 0) 
+
+	DECLARE @tmpTransid TABLE (Transid BIGINT)
+	INSERT INTO @tmpTransid (Transid)
+	SELECT DISTINCT b.transid
+	FROM dbo.bettrans b WITH(NOLOCK) 
+		INNER JOIN  dbo.SMP_MarketSelection ms WITH(NOLOCK) ON b.betcheck =ms.MarketId
+		INNER JOIN  @tmpSelectionType s ON ms.SelectionType=s.Selectiontype
+	WHERE ms.matchid = @MatchId	
+	--===========================--
 
 	DECLARE @SportType SMALLINT = NULL
 	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
@@ -285,6 +301,15 @@ BEGIN
 				AND CASE WHEN @LiveType <> 2 THEN b.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END 
 			OPTION (RECOMPILE)
 
+			--========================================================================--
+			IF (@BetTypes ='38' AND @Selectiontype <>'')
+			BEGIN
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
+			END
+			--========================================================================--
+
 			IF @SportType = 43 -- E-Sports
 			BEGIN
 				DELETE b
@@ -354,6 +379,14 @@ BEGIN
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%')))
+		--========================================================================--
+		IF (@BetTypes ='38' AND @Selectiontype <>'')
+		BEGIN
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
+		END
+		--========================================================================--
 		IF @SportType = 43 -- E-Sports
 		BEGIN
 			DELETE b
