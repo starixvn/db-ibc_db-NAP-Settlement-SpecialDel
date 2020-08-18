@@ -102,7 +102,6 @@ BEGIN
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
-				,TransIds = ISNULL(@TransIds, TransIds)
 				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 
 		WHERE	RequestId = @RequestId

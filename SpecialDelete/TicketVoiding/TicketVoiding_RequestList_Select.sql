@@ -384,7 +384,7 @@ BEGIN
 					FROM @MatchidList_Waiting_30minutes_tmp
 					WHERE MatchId = t.MatchId
 			)m
-		CROSS APPLY (
+		OUTER APPLY (
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
 								SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 

@@ -111,7 +111,6 @@ BEGIN
 		, HomeId
 		, AwayId
 		, KickOffTime
-		, TransIds
 		, RequestType
 		, FilterFromTransTime
 		, FilterToTransTime
@@ -135,7 +134,6 @@ BEGIN
 		, @HomeId
 		, @AwayId
 		, @KickOffTime
-		, @TransIds
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 		,@FilterFromTransTime
 		,@FilterToTransTime
