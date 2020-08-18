@@ -387,7 +387,7 @@ BEGIN
 		OUTER APPLY (
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
-								SELECT ', ' + CAST(TransId AS VARCHAR(MAX)) 
+								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 								FROM TicketVoiding_RequestDetailTicket_Single
 								WHERE (RequestId = s.RequestId) 
 								FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
