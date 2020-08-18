@@ -253,7 +253,7 @@ BEGIN
 			,m.homeID
 			,m.awayID
 			,m.autosetting
-			,m.autosetting 
+			,m.autosettingforleague 
 			,ISNULL(cteBt.parlayStatus, 'No Ticket') AS parlayStatus
 			,ISNULL(tempM.IsCalculating, 2) AS QueueStatus
 			,m.sporttype
