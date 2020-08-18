@@ -13,11 +13,8 @@ AS
 
 	*/
 BEGIN
-    SELECT DISTINCT ms.SelectionType typeid,
-			s.SelectionName bettypename,
-			0 type,
-			0 liveindicator,
-			'Single Match Parlay' GroupName
+    SELECT DISTINCT ms.SelectionType ,
+			s.SelectionName
 	FROM dbo.SMP_MarketSelection ms WITH(NOLOCK)
 		INNER JOIN  dbo.SMP_Selection s WITH(NOLOCK) 
 			ON ms.SelectionType=s.SelectionType
