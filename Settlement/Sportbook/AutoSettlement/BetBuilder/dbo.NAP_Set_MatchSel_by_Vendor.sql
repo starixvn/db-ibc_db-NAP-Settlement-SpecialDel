@@ -61,7 +61,7 @@ BEGIN
 	-------------------------------------------------------------------------------------------------
 	IF @Status ='All'
 	BEGIN
-		SET @Status ='Running, Completed'
+		SET @Status ='Running,Completed'
 	END 	
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
@@ -262,7 +262,7 @@ BEGIN
 		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
 	WHERE 1 = CASE WHEN @CheckEventStatus = 0 THEN 1
-				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND cteBt.parlayStatus = m.eventstatus THEN 1
+				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND cteBt.parlayStatus = @Status THEN 1
 				   WHEN  @CheckEventStatus = 1 AND @MatchCode <>''  THEN 1
 				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
