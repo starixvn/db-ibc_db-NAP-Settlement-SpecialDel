@@ -135,7 +135,6 @@ BEGIN
 					WHERE RequestId = req.RequestId
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId
-	OPTION (maxrecursion 0)
 
 	
 	SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
