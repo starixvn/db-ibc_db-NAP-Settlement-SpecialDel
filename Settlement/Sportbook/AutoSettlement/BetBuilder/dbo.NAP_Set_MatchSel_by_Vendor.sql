@@ -203,7 +203,7 @@ BEGIN
 			   ,@strResourceIds = ''
 
 		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
-		FROM @TempMatch tempM
+		FROM #tmpMatchIds tempM
 		WHERE tempM.Sporttype in (1,2)
 
 		IF @strMatchIds <> '' 
@@ -211,7 +211,7 @@ BEGIN
 			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
 			FROM (
 				SELECT DISTINCT f.ResourceID
-				FROM @TempMatch tempM
+				FROM #tmpMatchIds tempM
 					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
 			)f
 		
