@@ -36,7 +36,7 @@ BEGIN
 	
 	DELETE FROM @tmpTransIdBatch
 			
-	DELETE TOP (2000) #TicketVoiding_RequestDetailTicket_Single
+	DELETE TOP (10000) #TicketVoiding_RequestDetailTicket_Single
 	OUTPUT	DELETED.RequestId, DELETED.IssueTypeId, DELETED.SubIssueTypeId, DELETED.MatchId, DELETED.TransId
 	INTO @tmpTransIdBatch(RequestId, IssueTypeId, SubIssueTypeId, MatchId, TransId)
 			
