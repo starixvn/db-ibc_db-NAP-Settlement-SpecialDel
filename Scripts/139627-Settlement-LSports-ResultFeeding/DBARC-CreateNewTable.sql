@@ -14,7 +14,7 @@ GO
 
 CREATE TABLE [dbo].[ProviderExternalResultDetailOS_bk]
 (
-	[ProviderExternalId] [int] IDENTITY(1,1) NOT NULL,
+	[ProviderExternalId] [int]  NOT NULL,
 	[MatchId3rd]	[int] NOT NULL,
 	[MatchId]		[int] NOT NULL,
 	[SourceId]		[smallint] NOT NULL,
