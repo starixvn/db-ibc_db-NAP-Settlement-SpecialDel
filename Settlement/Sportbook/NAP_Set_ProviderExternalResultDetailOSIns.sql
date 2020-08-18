@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailOSIns]
 	@MatchId3rd INT
 	,@MatchId INT = 0
@@ -18,8 +18,8 @@ AS
 		@Resources:
 			<Resources>
 				  <Resource Id = "00" Home="4" Away="3"/>
-				  <Resource Id = "M1" Home="2" Away="3"/>
-				  <Resource Id = "M2" Home="6" Away="4"/>
+				  <Resource Id = "01" Home="2" Away="3"/>
+				  <Resource Id = "02" Home="6" Away="4"/>
 			</Resources>
 
 */
