@@ -175,7 +175,7 @@ BEGIN
 		FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
-			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode = @MatchCode)
+			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 	),
 	QueueSingleMatch AS (
 		SELECT matchid, MIN(IsCalculating)  IsCalculating
