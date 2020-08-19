@@ -806,7 +806,6 @@ BEGIN
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2,3)
-			OPTION (maxrecursion 0)
 		END
 		ELSE
 		BEGIN
@@ -831,7 +830,6 @@ BEGIN
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2,3)
-			OPTION (maxrecursion 0)
 		END
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)

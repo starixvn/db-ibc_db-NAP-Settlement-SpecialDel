@@ -67,7 +67,6 @@ BEGIN
 	SELECT  rd.transid
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single rd WITH (NOLOCK) 
 	WHERE rd.IssueTypeId = 11 AND rd.MatchId = @MatchId
-	OPTION (maxrecursion 0)
 	
 	INSERT INTO #ValidRequestTransId (TransId)	
 	SELECT t.TransId
