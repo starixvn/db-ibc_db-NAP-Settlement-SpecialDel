@@ -18,6 +18,7 @@ AS
 		- 20200106@Max: Update KO Time to GlobalShowTime on General Info of Abnormal Bet [Redmine: #126623]
 		- 20200215@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
 	
 	Param's explanation:	
 	
@@ -68,7 +69,7 @@ BEGIN
 			,rd.HomeId
 			,rd.AwayId
 			,rd.KickOffTime
-			,rd.TransIds
+			,ts.TransIds
 			,m.hthomescore
 			,m.htawayscore
 			,m.finalhomescore
@@ -99,6 +100,19 @@ BEGIN
 			FROM	dbo.match14 m WITH(NOLOCK)
 			WHERE	m.matchid = rd.matchid
 		) m
+		OUTER APPLY (
+					SELECT COUNT(1) AS TotalSingle
+						,STUFF((
+							SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+							FROM TicketVoiding_RequestDetailTicket_Single
+							WHERE (RequestId = s.RequestId) 
+							FOR XML PATH(''))
+							,1,1,''
+						) AS TransIds
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					WHERE s.RequestId = @RequestId
+					GROUP BY s.RequestId
+			)ts
 	WHERE	rd.RequestId = @RequestId
 	
 	SELECT TOP 1 tv.MessageId
