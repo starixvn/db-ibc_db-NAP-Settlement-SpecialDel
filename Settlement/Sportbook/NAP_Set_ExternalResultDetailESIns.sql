@@ -3,7 +3,9 @@ ALTER PROCEDURE NAP_Set_ExternalResultDetailESIns
 (
 	 @MatchId INT   
 	,@UserId INT 
-	,@OutsideSources VARCHAR(MAX)
+	,@OutsideSources	VARCHAR(MAX)
+	,@ActionName		VARCHAR(10) =''
+	,@IP				varchar(15)=''
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 )
@@ -24,6 +26,7 @@ AS
 							<Source SourceId= "1005" ResourceId = "M3" HomeValue="2" AwayValue=""/>
 						</OutsideSources>'
 		@MatchId3rd: 0 - Result of OutsideSource
+		If it's Final result, SourceId= ""
 */
 
 BEGIN
@@ -33,6 +36,8 @@ BEGIN
 	DECLARE @GameType TINYINT
 	DECLARE @LeagueId	INT
 	DECLARE @handle INT
+	DECLARE @ActionID int
+	DECLARE @Remark VARCHAR(MAX)
 
 	DECLARE @tmpExternalResultDetailES TABLE (
 												SourceId SMALLINT
@@ -48,6 +53,11 @@ BEGIN
 						WHERE m.MatchId = @MatchId
 
 	SELECT @LeagueId = m.leagueid FROM match m WITH(NOLOCK)  where m.matchid = @MatchId
+	
+	IF ( @ActionName   = 'CAL')
+		BEGIN SELECT @ActionID = 81017 END
+	ELSE
+		BEGIN SELECT @ActionID  =81016 END
 		
 	BEGIN TRY
 		IF ISNULL(@OutsideSources, '') <>''
@@ -67,7 +77,7 @@ BEGIN
 													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  =pgm.PGId
 												WHERE pgm.SourceId  =1001	AND pgm.GameType = @GameType)
 				BEGIN				
-					EXEC dbo.NAP_Set_OutsideSourceByLeagueIns
+					EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Create Source 1001 and mapping with GameType, League if 1001 does not exists
 						@LeagueId		= @LeagueId
 						,@PGIdSources	= '<PGIds><PGId PGId ="0"  OrderNo="1"/></PGIds>'
 						,@ErrCode		=	@ErrCode			
@@ -86,14 +96,55 @@ BEGIN
 			)
 			SELECT @MatchId3rd
 				,@MatchId
-				,SourceId
-				,ResourceId
-				,HomeValue
-				,AwayValue
+				,r.SourceId
+				,r.ResourceId
+				,r.HomeValue
+				,r.AwayValue
 				,@UserId
 				,@UserId
-			FROM @tmpExternalResultDetailES														
+			FROM @tmpExternalResultDetailES	 r	
+			WHERE r.SourceId >= 1001												
 			END
+
+
+			
+			;WITH cte_Log ( Result ) AS 
+				(
+					SELECT DISTINCT CASE ResourceId WHEN '00' THEN 'Z' ELSE ResourceId END -- to Order Fulltime at the last
+							+ STUFF(
+									 (
+										 SELECT '' 
+												+ CASE l1.SourceId 
+								  						WHEN 0 THEN ''
+								  						ELSE CAST( l1.SourceId AS varchar(5)	)
+												  END	+'('+ l1.HomeValue + '-'+ l1.AwayValue + ')'
+								  
+										 FROM @tmpExternalResultDetailES as l1 
+										 WHERE l1.ResourceId = l2.ResourceId
+										 FOR XML PATH ('')
+									 )
+									 , 1, 0, ''
+								   ) 
+					FROM @tmpExternalResultDetailES  l2
+				)
+
+			SELECT @Remark = (SELECT TOP 1 REPLACE ( 
+															STUFF (  (SELECT  ',<br/>' + Result FROM cte_Log   FOR XML PATH, type).value('.','varchar(max)') , 1 , 6, ''  ) 
+															 , 'Z','FT'
+															)  FROM cte_Log )
+				
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@userid				= @UserId
+				,@matchid			= @MatchId
+				,@actionid			= @ActionID
+				,@finalhomescore	= NULL
+				,@finalawayscore	= NULL
+				,@hthomescore		= NULL
+				,@htawayscore		= NULL
+				,@GoalRecord		= NULL
+				,@Remark			= @Remark
+				,@ip				= @IP
+
 	END TRY
 
 	BEGIN CATCH
