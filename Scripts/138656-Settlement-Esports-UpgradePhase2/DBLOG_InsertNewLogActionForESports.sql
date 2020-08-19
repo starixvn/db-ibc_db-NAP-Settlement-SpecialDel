@@ -21,7 +21,7 @@ BEGIN
 			,[ActionNameCH]
 		)
 		VALUES ( 81016, 'NAP_Set_ExternalResultDetailESIns', 'Save Score'	  , 'Save Score' )
-			 , ( 81017, 'NAP_Set_ExternalResultDetailESIns', 'Reference Score', 'Reference Score')
+			 , ( 81017, 'NAP_Set_ExternalResultDetailESIns', 'Calculate Score', 'Calculate Score')
 	
 		SELECT @@ROWCOUNT, ERROR_MESSAGE()
 

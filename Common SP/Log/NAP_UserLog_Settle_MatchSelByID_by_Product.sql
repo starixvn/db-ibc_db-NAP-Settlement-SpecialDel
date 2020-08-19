@@ -13,6 +13,8 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 		- 20190517@Kathy: archive a part of old log records to new database [Redmine: #106903]
 		- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
+		- 20200819@Louisa: Exclude 81016 ESports(Save Score) 
+
 
 	Param's Explanation:
 		@ProductType:  list of product, separated by ","
@@ -21,7 +23,7 @@ AS
 		@ProductType = 'BBD' -- BetBuilder
 		@ProductType = 'FMK' -- FastMarket
 		@ProductType = 'OTH' -- All - excluded MetricGaming, FastMarket, BetBuilder, Number Game, Happy 5
-		@ProductType = 'ALL' -- All - excluded MetricGaming, BetBuilder, Number Game, Happy 5
+		@ProductType = 'ALL' -- All - excluded MetricGaming, BetBuilder, Number Game, Happy 5, ESports(Save Score)
 		@ProductType = 'NBG' -- Number game
 		@ProductType = 'HPF' -- Happy 5
 */
@@ -62,7 +64,7 @@ BEGIN
 																				81000, 81001, -- exclude Happy 5
 																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
 																				) THEN 1 
-						WHEN @ProductType = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude NumberGame, Happy5, BetBuilder
+						WHEN @ProductType = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014, 81016) THEN 1 --exclude NumberGame, Happy5, BetBuilder, ESports(Save Score)
 						ELSE 0
 					END
 			AND LogDate >= @__archiveDate
@@ -95,7 +97,7 @@ BEGIN
 																				81000, 81001, -- exclude Happy 5
 																				81007, 81009, 81010, 81012, 81013, 81014 -- exclude BetBuilder
 																				) THEN 1 
-						WHEN @ProductType = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014) THEN 1 --exclude NumberGame, Happy5, BetBuilder
+						WHEN @ProductType = 'ALL' AND l.ActionID NOT IN (115, 116, 117, 118, 119, 81000, 81001, 81007, 81009, 81010, 81012, 81013, 81014, 81016) THEN 1 --exclude NumberGame, Happy5, BetBuilder, ESports(Save Score)
 						ELSE 0
 					END
 			AND LogDate < @__archiveDate
