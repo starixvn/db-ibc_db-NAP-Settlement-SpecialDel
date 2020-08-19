@@ -12,12 +12,15 @@ USE [bodb02]
 GO
 
 DECLARE @batch INT = 1000
+declare @last datetime  =  dateadd( DAY, -7 , getdate() ) 
 
 WHILE (1=1)
 
 BEGIN
 
-	DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailES 
+	DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailES
+	WHERE MatchID IN (0,-1)
+		AND CreateDate < @last
 
 	IF @@ROWCOUNT = 0
 		BREAK			
