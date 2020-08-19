@@ -21,6 +21,7 @@ AS
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
+		- 20200817@July: Add sporttype = 2 (BetBulder BasketBall) - [Redmine:#138475]
 		
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
