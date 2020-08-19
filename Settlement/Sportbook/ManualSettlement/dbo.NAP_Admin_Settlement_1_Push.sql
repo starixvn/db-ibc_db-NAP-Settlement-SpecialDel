@@ -46,6 +46,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -96,6 +97,18 @@ BEGIN
 
         RETURN
     END
+
+	IF @sporttype = 1 AND @action LIKE 'CAL%'
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
 
     IF EXISTS (
             SELECT	1

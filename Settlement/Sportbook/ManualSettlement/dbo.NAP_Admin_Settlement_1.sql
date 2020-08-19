@@ -75,6 +75,8 @@ AS
 		- 20200423@Kathy: Write log @IsReSettledTickets for all sportType [Redmine:#131765]
 		- 20200519@Kathy: Do not update match_remark if match is refund [Redmine:#134192]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -164,6 +166,19 @@ BEGIN
 
         RETURN
     END
+
+	IF @sporttype = 1 AND @action LIKE 'CAL%'
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
+
     
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)

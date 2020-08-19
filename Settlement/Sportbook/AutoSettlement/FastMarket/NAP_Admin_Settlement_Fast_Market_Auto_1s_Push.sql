@@ -25,6 +25,7 @@ AS
 			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20190813@Helen: Remove vnteam in metadata
+			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 			
 	Param's Explanation:
 		- @Result: 
@@ -97,6 +98,24 @@ BEGIN
 				,@ErrMsg = 'Match does not exist!'
 				
 		RETURN
+	END
+
+	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0
+	BEGIN
+		DECLARE @fixedErrMsg VARCHAR(300) = '' --cannot pass varchar(max) via linked server 
+
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @action
+			,@IsEarly 	= 1
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @fixedErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+		BEGIN
+			SET @ErrMsg = @fixedErrMsg
+			RETURN
+		END
 	END
 
 	IF EXISTS (SELECT	TOP 1 1 
