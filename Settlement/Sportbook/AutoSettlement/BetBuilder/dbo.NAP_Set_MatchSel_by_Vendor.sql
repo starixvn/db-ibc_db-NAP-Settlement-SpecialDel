@@ -25,7 +25,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @MatchId			INT
-			,@CheckEventStatus	BIT
+			,@CheckEventStatus	SMALLINT
 			,@strMatchIds		VARCHAR(MAX)
 			,@remoteQuery		NVARCHAR(MAX)
 			,@strResourceIds	VARCHAR(MAX)
@@ -74,12 +74,9 @@ BEGIN
 	FROM dbo.f_SplitString(@LeagueIds, ',')
 	option (maxrecursion 0)
 
-	IF EXISTS(SELECT 1 FROM @tblEventStatus HAVING COUNT(*) > 1)
-		SET @CheckEventStatus = 0
-	ELSE
-		SET @CheckEventStatus = 1
-		
-		
+
+	SET @CheckEventStatus =(SELECT COUNT(*) FROM @tblEventStatus)
+	
 	IF ISNUMERIC(@MatchCode) = 1
 	BEGIN
 		SET @MatchId = CAST(@MatchCode AS INT)
@@ -256,9 +253,9 @@ BEGIN
 	FROM #tmpMatchIds m
 		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
-	WHERE 1 = CASE WHEN @CheckEventStatus = 0 OR @Status='' THEN 1
-				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') = @Status THEN 1
-				   WHEN @CheckEventStatus = 1 AND @MatchCode <>''  THEN 1
+	WHERE 1 = CASE WHEN @CheckEventStatus = 3 OR @Status='' OR @MatchCode <>'' THEN 1
+				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') = @Status THEN 1 
+				   WHEN @CheckEventStatus = 2 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') IN (SELECT EventStatus FROM @tblEventStatus)   THEN 1
 				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
