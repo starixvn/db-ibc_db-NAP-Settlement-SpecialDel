@@ -2,11 +2,11 @@
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_by_Vendor]
 	@FromDate			DATETIME
 	,@ToDate			DATETIME
-	,@Status			VARCHAR(200) 	
+	,@Status			VARCHAR(200) 	= ''
 	,@MatchCode 		NVARCHAR(50) 	= ''
 	,@LeagueIds 		VARCHAR(MAX) 
 	,@VendorID			INT				= 34
-	,@SportTypes 		VARCHAR(MAX)
+	,@SportTypes 		VARCHAR(MAX)	
 AS
 /*
 	Created by: 20190103@Vicky
@@ -59,10 +59,6 @@ BEGIN
 		,eventdate						DATETIME
 	)
 	-------------------------------------------------------------------------------------------------
-	IF @Status ='All'
-	BEGIN
-		SET @Status ='Running,Completed,No Ticket'
-	END 	
 	INSERT INTO @tblEventStatus(EventStatus)
 	SELECT Val 
 	FROM dbo.f_SplitString(@Status, ',')
@@ -260,9 +256,9 @@ BEGIN
 	FROM #tmpMatchIds m
 		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
-	WHERE 1 = CASE WHEN @CheckEventStatus = 0 THEN 1
+	WHERE 1 = CASE WHEN @CheckEventStatus = 0 OR @Status='' THEN 1
 				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') = @Status THEN 1
-				   WHEN  @CheckEventStatus = 1 AND @MatchCode <>''  THEN 1
+				   WHEN @CheckEventStatus = 1 AND @MatchCode <>''  THEN 1
 				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
