@@ -75,7 +75,7 @@ BEGIN
 	option (maxrecursion 0)
 
 
-	SET @CheckEventStatus =(SELECT COUNT(*) FROM @tblEventStatus)
+	SET @CheckEventStatus =(SELECT COUNT(EventStatus) FROM @tblEventStatus)
 	
 	IF ISNUMERIC(@MatchCode) = 1
 	BEGIN
@@ -254,8 +254,8 @@ BEGIN
 		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
 		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
 	WHERE 1 = CASE WHEN @CheckEventStatus = 3 OR @Status='' OR @MatchCode <>'' THEN 1
+				   WHEN @CheckEventStatus = 2 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') IN (SELECT EventStatus FROM @tblEventStatus) THEN 1
 				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') = @Status THEN 1 
-				   WHEN @CheckEventStatus = 2 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') IN (SELECT EventStatus FROM @tblEventStatus)   THEN 1
 				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
