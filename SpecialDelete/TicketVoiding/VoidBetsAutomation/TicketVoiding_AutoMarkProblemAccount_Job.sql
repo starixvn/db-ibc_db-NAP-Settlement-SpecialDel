@@ -19,6 +19,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis [Redmine:#131516]
 		- 20200601@Helen: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 	
 	Param's explanation:	
 	
@@ -208,8 +209,8 @@ BEGIN
 		FROM #Transid_UnMark_tmp um
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON um.Transid = b.transid
 			OUTER APPLY (SELECT TOP (1) RequestId 
-						 FROM TicketVoiding_RequestDetail td WITH (NOLOCK)
-						 WHERE td.matchid = b.matchid AND CHARINDEX(',' + CAST(b.transid AS VARCHAR(50)) + ',', ','+ td.TransIds + ',') > 0
+						 FROM TicketVoiding_RequestDetailTicket_Single td WITH (NOLOCK)
+						 WHERE td.matchid = b.matchid AND td.TransId = b.transid
 						) AS tmp		 
 		WHERE b.statusID = 0
 			AND tmp.RequestId IS NULL

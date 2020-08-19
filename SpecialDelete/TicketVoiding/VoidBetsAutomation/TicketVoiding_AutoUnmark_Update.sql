@@ -30,6 +30,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 		- 20200615@Max: HotFix - Do not settle after confirm auto unmark - Remove check StatusId in Queue - [Redmine: #135864]
+		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		
 	Param's explanation:	
 		
@@ -63,14 +64,9 @@ BEGIN
 	CREATE TABLE #ProblemAccount_tmp (CustID INT)
 	
 	INSERT INTO #inputRequestTransId (TransId)
-	SELECT  tmp.transid
-	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		CROSS APPLY (SELECT val AS transid
-					 FROM dbo.f_SplitString(rd.TransIds, ',')
-					) AS tmp
-	WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId
-	OPTION (maxrecursion 0)
+	SELECT  rd.transid
+	FROM dbo.TicketVoiding_RequestDetailTicket_Single rd WITH (NOLOCK) 
+	WHERE rd.IssueTypeId = 11 AND rd.MatchId = @MatchId
 	
 	INSERT INTO #ValidRequestTransId (TransId)	
 	SELECT t.TransId
