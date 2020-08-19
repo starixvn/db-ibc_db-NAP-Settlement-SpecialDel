@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@SelectedResources VARCHAR(MAX)
 	,@IsReSettledTickets BIT			= 1
 	,@BetStatus			NVARCHAR(50)	= NULL
+	,@IsLeader			BIT				= 0
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -24,6 +25,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
+		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -604,6 +606,10 @@ BEGIN
 						   
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
+						+ CASE
+							WHEN @sportType = 43 THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							ELSE ''
+						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
@@ -650,5 +656,4 @@ BEGIN
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
 END
-
 GO

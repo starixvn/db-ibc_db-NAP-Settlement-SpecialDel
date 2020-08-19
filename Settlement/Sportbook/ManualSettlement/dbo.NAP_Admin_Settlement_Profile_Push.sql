@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IP				VARCHAR(15)		= ''
 	,@IsReSettledTickets BIT			= 1
 	,@BetStatus			NVARCHAR(50)	= NULL
+	,@IsLeader			BIT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -19,6 +20,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Add new param @IsReSettledTickets - [Redmine:#127698]
 		- 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - Added new param @Betstatus - [Redmine:#129316]
 		- 20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
+		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -97,6 +99,10 @@ BEGIN
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets)
 															+ ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
                                                                                      ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
+															+  CASE 
+																	WHEN @IsLeader = 1 THEN ', @IsLeader = ' + CONVERT(NVARCHAR(50), @IsLeader) 
+																ELSE '' 
+															END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -170,4 +176,5 @@ BEGIN
 	END
 
 END
+
 GO 
