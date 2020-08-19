@@ -27,7 +27,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
-		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #00000]
+		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
 
 	Param's explanation:	
 		@Status: 
