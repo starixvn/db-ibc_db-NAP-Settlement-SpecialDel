@@ -42,6 +42,7 @@ AS
 		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 
 	Param's Explanation:
 	- @Type: sports type
