@@ -97,7 +97,7 @@ BEGIN
 								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
 								ELSE
 									CASE 
-										WHEN @MatchId IS NOT NULL THEN 2 -- MatchId & Fromdate, Todate
+										WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
 										ELSE 3 -- Fromdate, Todate
 									END
 							END
@@ -160,12 +160,13 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN dbo.[match_bk] m WITH(NOLOCK)
+				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
-		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
-				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
+		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -191,11 +192,13 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN dbo.[match_bk] m WITH(NOLOCK)
+				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
-		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
+		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 

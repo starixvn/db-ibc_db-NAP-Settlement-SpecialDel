@@ -1,1 +1,2 @@
 SpecialDelete\TicketVoiding\TicketVoiding_BettypesForRequest_Archive_Select.sql
+SpecialDelete\TicketVoiding\TicketVoiding_BettypesForRequest_Select.sql
