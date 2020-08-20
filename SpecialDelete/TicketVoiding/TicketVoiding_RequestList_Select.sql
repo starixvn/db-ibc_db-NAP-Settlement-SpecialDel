@@ -28,6 +28,7 @@ AS
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
+		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 
 	Param's explanation:	
 		@Status: 
@@ -389,7 +390,7 @@ BEGIN
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
 							SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-							FROM TicketVoiding_RequestDetailTicket_Single
+							FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE (RequestId = s.RequestId) 
 							FOR XML PATH(''))
 							,1,1,''
