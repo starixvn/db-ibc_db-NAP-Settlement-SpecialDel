@@ -14,6 +14,8 @@ AS
 
 	Revisions:
 		- 20200724@Kathy: Prevent Refund Wrong Match by Checking Settlement Status [Redmine:#136390]
+		- 20200819@Kathy: Allow to Refund a postponed match without checking Refund flag [Redmine:#139903]
+
 		
 	Parameters Explanation:    
 		@Action: CAL, REFUND
@@ -24,12 +26,14 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @SettlementStatus TINYINT
+			,@EventStatus NVARCHAR(50)
 
 	SELECT	@SettlementStatus = m.SettlementStatus
+			,@EventStatus = m.eventstatus
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 	
-	IF @SettlementStatus & 32 > 0
+	IF @SettlementStatus & 32 > 0 OR (@Action = 'REFUND' AND @EventStatus = 'Postponed')
 	BEGIN
 		IF @Action LIKE 'CAL%'
 		BEGIN
