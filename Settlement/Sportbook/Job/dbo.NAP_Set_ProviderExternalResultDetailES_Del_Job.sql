@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailES_Del]  
+CREATE PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailES_Del_Job]  
 	@DateBefore INT
 AS
 /* 
