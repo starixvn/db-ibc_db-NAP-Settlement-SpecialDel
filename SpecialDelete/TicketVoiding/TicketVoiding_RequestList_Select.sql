@@ -27,6 +27,8 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
+		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 
 	Param's explanation:	
 		@Status: 
@@ -387,12 +389,12 @@ BEGIN
 		OUTER APPLY (
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
-								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-								FROM TicketVoiding_RequestDetailTicket_Single
-								WHERE (RequestId = s.RequestId) 
-								FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-								,1,2,''
-							) AS TransIds
+							SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+							FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE (RequestId = s.RequestId) 
+							FOR XML PATH(''))
+							,1,1,''
+						) AS TransIds
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId
 					GROUP BY s.RequestId

@@ -20,6 +20,7 @@ AS
 		- 20200405@Max: Enhance EKO Issue Type - [Redmine: #126418]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200819@Max: HotFix - [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 	      
 	Param's explanation:	
 		
@@ -143,23 +144,12 @@ BEGIN
 	
 	IF @IssueTypeId = 11 --11: AbnormalBet
 	BEGIN
-		DECLARE @TransIds VARCHAR(MAX)
 		DECLARE @transIdTemp TABLE (transid BIGINT NULL);
-		
-		SET @TransIds = (
-						SELECT trd.TransIds
-						FROM TicketVoiding_Request tr WITH (NOLOCK)
-						INNER JOIN TicketVoiding_RequestDetail trd WITH (NOLOCK)
-							ON trd.RequestId = tr.RequestId
-						WHERE tr.RequestId = @RequestId
-						)
-		IF @TransIds IS NOT NULL
-		BEGIN
-			INSERT INTO @transIdTemp (transid)
-			SELECT DISTINCT val
-			FROM dbo.f_SplitString(@TransIds, ',')
-			OPTION (MAXRECURSION 0)
-		END
+				
+		INSERT INTO @transIdTemp (transid)
+		SELECT DISTINCT TransId
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+		WHERE RequestId = @RequestId
 	
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
