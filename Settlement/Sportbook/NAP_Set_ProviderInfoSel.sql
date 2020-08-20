@@ -38,9 +38,10 @@ BEGIN
 		INSERT INTO @tmpSource (SourceId)
 		SELECT  pi.SourceId 
 		FROM	ProviderInfo pi WITH(NOLOCK) 
-		WHERE	pi.SourceName LIKE '%'+ @Sourcename + '%' OR pi.Remark LIKE '%'+ @Sourcename + '%' 
+		WHERE	pi.SourceName LIKE '%'+ @Sourcename + '%' OR ISNULL(pi.Remark,'') LIKE '%'+ @Sourcename + '%' 
 		AND @SourceType  = 1 
 		AND pi.SourceId > 1001
+
 	END
 
 	ELSE 
@@ -67,7 +68,7 @@ BEGIN
 	WHERE  ( pi.Isactive =  @SourceStatus OR @SourceStatus  = 99)
 		AND (
 				(
-					(pi.SourceId IN (SELECT SourceId FROM @tmpSource ) OR @GameTypes ='')
+					(pi.SourceId IN (SELECT SourceId FROM @tmpSource ) OR (@GameTypes ='' AND @SourceName = '') )
 					AND @SourceType  = 1 
 					AND pi.SourceId > 1001
 				)
@@ -75,7 +76,7 @@ BEGIN
 				(@SourceType = 0 
 					AND pi.SourceId < 1001 
 					AND pi.SourceId <> 100 
-					AND  pgm.GameType IN (SELECT fs.Val FROM dbo.f_SplitString(@GameTypes, ',') fs) 
+					AND pgm.GameType IN (SELECT fs.Val FROM dbo.f_SplitString(@GameTypes, ',') fs)
 					AND pgm.isActive = 1
 				)
 			)

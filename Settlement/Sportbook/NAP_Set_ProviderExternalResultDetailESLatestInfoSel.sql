@@ -24,7 +24,8 @@ BEGIN
 	DECLARE @GameType TINYINT
 
 	DECLARE @tmpLatestResult AS TABLE (ProviderExternalId INT)
-	DECLARE @tmpProviderExternalResult AS TABLE (SourceId INT,SourceName varchar(50) ,Remark nvarchar(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
+	DECLARE @tmpProviderExternalResult AS TABLE (SourceId INT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
+	DECLARE @tmpSourceId AS TABLE ( SourceId INT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
 
 	SET @SportType = 43
 
@@ -43,35 +44,39 @@ BEGIN
 	FROM cteLatestId
 	WHERE rn = 1
 
-	;WITH cteSourceId (SourceId,SourceName, Remark, OrderNo)
-	AS(
-		SELECT  pgm.SourceId, pi.SourceName, pi.Remark, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
-		FROM  ProviderGameTypeMapping pgm WITH(NOLOCK)
-		OUTER APPLY(
-					SELECT plmo.OrderNo, plmo.PGId FROM ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK)
-					WHERE plmo.PGId = pgm.PGId AND plmo.LeagueId  = @LeagueId
-					) plmo
-		INNER JOIN ProviderInfo pi 
-			ON pgm.SourceId = pi.SourceId
-		WHERE (pgm.SourceId <= 1001 OR  plmo.PGId  IS NOT NULL) 
-			AND GameType = @GameType
-			AND pi.isActive = 1
-			AND pgm.isActive = 1
-	)
+	INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
+	SELECT  pgm.SourceId, pi.SourceName, pi.Remark, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
+	FROM  ProviderGameTypeMapping pgm WITH(NOLOCK)
+	OUTER APPLY(
+				SELECT plmo.OrderNo, plmo.PGId FROM ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK)
+				WHERE plmo.PGId = pgm.PGId AND plmo.LeagueId  = @LeagueId
+				) plmo
+	INNER JOIN ProviderInfo pi 
+		ON pgm.SourceId = pi.SourceId
+	WHERE (pgm.SourceId <= 1001 OR  plmo.PGId  IS NOT NULL) 
+		AND GameType = @GameType
+		AND pi.isActive = 1
+		AND pgm.isActive = 1
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpSourceId s WHERE s.SourceId = 100)
+		BEGIN
+			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
+			VALUES (100,'Trader Score','n/a', 0)
+		END
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpSourceId s WHERE s.SourceId = 1001)
+		BEGIN
+			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
+			VALUES (1001,'Screenshot','n/a', 1)
+		END
 
 	INSERT INTO @tmpProviderExternalResult(SourceId,SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
-	SELECT	ct.SourceId, ct.SourceName, ct.Remark, ISNULL(perde.ResourceId,'00'), ISNULL(perde.HomeValue,'') , ISNULL(perde.AwayValue,''), ct.OrderNo
+	SELECT	s.SourceId, s.SourceName, s.Remark, ISNULL(perde.ResourceId,'00'), ISNULL(perde.HomeValue,'') , ISNULL(perde.AwayValue,''), s.OrderNo
 	FROM	@tmpLatestResult l
 		INNER JOIN dbo.ProviderExternalResultDetailES perde WITH(NOLOCK)
 			ON l.ProviderExternalId = perde.ProviderExternalId
-		RIGHT JOIN cteSourceId ct 
-			ON ct.SourceId = perde.SourceId
-
-	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpProviderExternalResult per WHERE per.SourceId = 1001)
-		BEGIN
-			INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
-			VALUES (1001,'Screenshot','n/a','00','','', 1)
-		END
+		RIGHT JOIN @tmpSourceId s 
+			ON s.SourceId = perde.SourceId
 			
 	SELECT	t.SourceId
 			,t.SourceName

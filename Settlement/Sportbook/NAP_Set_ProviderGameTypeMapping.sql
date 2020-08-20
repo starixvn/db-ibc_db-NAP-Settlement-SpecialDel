@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ProviderGameTypeMapping]
 	,@GameTypes		VARCHAR(MAX)	= NULL
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT	
+	,@NewSourceId	INT				= 0		OUTPUT
 
 AS
 /*
@@ -51,7 +52,9 @@ BEGIN
 				INSERT INTO dbo.ProviderInfo (SourceId, SourceName, Remark, IsActive) 
 				VALUES (@MaxSourceID, @SourceName, @Remark, 1)
 
-			SELECT @SourceId  = @MaxSourceID
+				SELECT @SourceId  = @MaxSourceID --- continue this SourceID with GameType
+
+				SELECT @NewSourceId = @SourceId --output 
 
 		END
 	
