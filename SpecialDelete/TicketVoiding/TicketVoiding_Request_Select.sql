@@ -19,6 +19,7 @@ AS
 		- 20200215@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
+		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 	
 	Param's explanation:	
 	
@@ -104,7 +105,7 @@ BEGIN
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
 							SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-							FROM TicketVoiding_RequestDetailTicket_Single
+							FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE (RequestId = s.RequestId) 
 							FOR XML PATH(''))
 							,1,1,''
