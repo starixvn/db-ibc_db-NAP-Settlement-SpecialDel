@@ -1,12 +1,12 @@
-/*<info serverAlias="DBARC-bodb_Archive" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 (
-	@RequestId		INT			    = NULL
-	,@MatchId		INT			    = NULL
-	,@FromDate		DATETIME	    = NULL
-	,@ToDate		DATETIME	    = NULL
-	,@IsExcludeTest BIT			    = 1
-	,@Status		INT			    = 0
+	@RequestId		INT				= NULL
+	,@MatchId		INT				= NULL
+	,@FromDate		DATETIME		= NULL
+	,@ToDate		DATETIME		= NULL
+	,@IsExcludeTest BIT				= 1
+	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
 	,@SubIssueType  VARCHAR(100)	= NULL
 )
@@ -25,7 +25,6 @@ AS
 			- 1: New
 			- 2: Voided
 			- 3: Incompleted
-		
 */
 BEGIN
 	SET NOCOUNT ON
@@ -70,6 +69,8 @@ BEGIN
 		,TotalSingle	INT
 		,TotalParlay	INT
 		,TotalCashOut	INT
+		,VoidFromTime	DATETIME
+		,VoidToTime		DATETIME
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -103,7 +104,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -120,6 +121,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -133,7 +136,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -150,6 +153,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -164,7 +169,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -181,7 +186,8 @@ BEGIN
 				,rd.KickOffTime
 				,rd.TransIds
 				,r.IssueTypeId
-
+				,rd.VoidFromTime
+				,rd.VoidToTime
 		FROM	dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -265,7 +271,7 @@ BEGIN
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
 					AND vh.MatchId = t.MatchId
-		) vh	
+		) vh
 
 	--Incompleted Request	
 	IF @Status IN (0,3)
@@ -326,8 +332,8 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,CASE WHEN t.IssueTypeId = 11 THEN (LEN(t.TransIds) - LEN(REPLACE(t.TransIds, ',', '')) +1) ELSE 0 END AS TotalSingle
-			,t.TransIds
+			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
 				WHEN (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 2
@@ -337,6 +343,8 @@ BEGIN
 				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
 				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
 				ELSE NULL END AS IncompletedReason
+			,t.VoidFromTime
+			,t.VoidToTime
 	FROM	#tmpResult t
 		LEFT JOIN DBCUST.CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -354,6 +362,19 @@ BEGIN
 					FROM @MatchidList_Waiting_30minutes_tmp
 					WHERE MatchId = t.MatchId
 			)m
+		OUTER APPLY (
+					SELECT COUNT(1) AS TotalSingle
+						,STUFF((
+								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+								FROM TicketVoiding_RequestDetailTicket_Single_bk
+								WHERE (RequestId = s.RequestId) 
+								FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+								,1,2,''
+							) AS TransIds
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+					WHERE s.RequestId = t.RequestId
+					GROUP BY s.RequestId
+			)ts
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
