@@ -459,7 +459,6 @@ BEGIN
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
 		SET winlost = actual_stake
 			,ruben = 1
-			,statuswinlost = 6
 			,STATUS = 'Void'
 			,creator = @UserID
 			,awinlost = 0
