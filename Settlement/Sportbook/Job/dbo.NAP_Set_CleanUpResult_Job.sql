@@ -35,17 +35,17 @@ BEGIN
 	END
 
 	-- OS
-	WHILE (1=1)
-	BEGIN
+	--WHILE (1=1)
+	--BEGIN
 
-		DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailOS WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchID = 0
-			AND CreateDate < @compareDate
+	--	DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailOS WITH(ROWLOCK, UPDLOCK)
+	--	WHERE MatchID = 0
+	--		AND CreateDate < @compareDate
 	
-		IF @@ROWCOUNT = 0
-			BREAK			
+	--	IF @@ROWCOUNT = 0
+	--		BREAK			
 
-		WAITFOR DELAY '00:00:00:280'
-	END
+	--	WAITFOR DELAY '00:00:00:280'
+	--END
 END
 GO
