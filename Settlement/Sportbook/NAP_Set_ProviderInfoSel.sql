@@ -35,13 +35,15 @@ BEGIN
 
 	IF ISNULL(@SourceName,'') <>''
 	BEGIN
+		SELECT @SourceStatus  = 99
+
 		INSERT INTO @tmpSource (SourceId)
 		SELECT  pi.SourceId 
 		FROM	ProviderInfo pi WITH(NOLOCK) 
 		WHERE	pi.SourceName LIKE '%'+ @Sourcename + '%' OR ISNULL(pi.Remark,'') LIKE '%'+ @Sourcename + '%' 
 		AND @SourceType  = 1 
 		AND pi.SourceId > 1001
-
+	
 	END
 
 	ELSE 
