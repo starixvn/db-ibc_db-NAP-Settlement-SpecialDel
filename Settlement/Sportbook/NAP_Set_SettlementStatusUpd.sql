@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet,dot_admin" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_SettlementStatusUpd]
 	@MatchId	INT
 	,@Type		TINYINT
@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
+		- 20200821@Kathy: Add log for refund flag"  [Redmine:#140092]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -24,6 +25,7 @@ AS
 			+ 3: IsUnderSettlement	
 			+ 4: IsSystemSettlement
 			+ 5: IsMTDHold
+			+ 6: IsRefund
 	
 */
 BEGIN
@@ -43,6 +45,7 @@ BEGIN
 							WHEN @Type = 2 THEN 81003
 							WHEN @Type = 3 THEN 81004
 							WHEN @Type = 5 THEN 81005
+							WHEN @Type = 6 THEN 81018
 							ELSE NULL
 						END
 
@@ -68,7 +71,7 @@ BEGIN
 
 	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
-	IF @Type IN (1,2,3,5)
+	IF @Type IN (1,2,3,5,6)
 	BEGIN
 		SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END
 						 + CASE
@@ -76,6 +79,7 @@ BEGIN
 								WHEN @Type = 2 THEN 'Undecided '
 								WHEN @Type = 3 THEN 'Under Settlement '
 								WHEN @Type = 5 THEN 'MTD Hold '
+								WHEN @Type = 6 THEN 'Refund '
 								ELSE ''
 							END
 						+ 'on match: ' + CAST(@MatchId AS VARCHAR) + '<br/> '
@@ -92,7 +96,7 @@ BEGIN
 		BEGIN CATCH
 			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
 
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+			EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID             = @AdminId
 				,@Matchid           = @matchid
 				,@ActionID          = @ActionID
