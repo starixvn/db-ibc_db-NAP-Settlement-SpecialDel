@@ -94,7 +94,7 @@ BEGIN
 						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
 						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
 						,1										AS IsChanged
-						FROM	@xmlOutsideSources.nodes('/Sources/Source') AS T(C)
+						FROM	@xmlOutsideSources.nodes('/OutsideSources/Source') AS T(C)
 
 						INSERT INTO dbo.ProviderExternalResultDetailES 	(
 							MatchId3rd

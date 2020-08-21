@@ -21,14 +21,13 @@ BEGIN
 			,[ActionNameCH]
 		)
 		VALUES ( 81016, 'NAP_Set_ExternalResultDetailESIns', 'Save Score'	  , 'Save Score' )
-			 , ( 81017, 'NAP_Set_ExternalResultDetailESIns', 'Calculate Score', 'Calculate Score')
 	
-		SELECT @@ROWCOUNT, ERROR_MESSAGE()
+		SELECT  ERROR_MESSAGE()
 
 	END TRY
 
 	BEGIN CATCH
-		SELECT	@@ERROR, ERROR_MESSAGE()
+		SELECT	ERROR_MESSAGE()
 	END CATCH
 END
 
