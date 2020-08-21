@@ -4,8 +4,8 @@ ALTER PROCEDURE NAP_Set_ExternalResultDetailESIns
 	 @MatchId INT   
 	,@UserId INT 
 	,@OutsideSources	VARCHAR(MAX)
-	,@ActionName		VARCHAR(10) =''
-	,@IP				varchar(15)=''
+	,@Sources			VARCHAR(MAX) =''
+	,@IP				varchar(15)	 =''
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 )
@@ -19,31 +19,46 @@ AS
 		- 20200810@Louisa: Insert OutsideSource result [Redmine:#138656]
 
 	Param's Explanation:
+		@OutsideSources : any OutsideSource scores have changed by user
+
+		@Sources		: record all scores to write log
+
 		@OutsideSources	VARCHAR(MAX)	 =
 						'<OutsideSources>
-							<Source SourceId= "1002"  ResourceId = "M1" HomeValue="2" AwayValue="3"/>
-							<Source SourceId= "1001" ResourceId = "M1" HomeValue="2" AwayValue="3"/>
-							<Source SourceId= "1005" ResourceId = "M3" HomeValue="2" AwayValue=""/>
+							<Source SourceId= "1001"  ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+							<Source SourceId= "1002" ResourceId  = "M1" HomeValue="2" AwayValue="4"/>
 						</OutsideSources>'
-		@MatchId3rd: 0 - Result of OutsideSource
-		If it's Final result, SourceId= ""
+
+		@Sources VARCHAR(MAX)	 =
+						'<Sources>
+								<Source SourceId= ""	 ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+								<Source SourceId= "100"  ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+								<Source SourceId= "16"   ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+								<Source SourceId= "23"   ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+								<Source SourceId= "1001" ResourceId = "M1" HomeValue="2" AwayValue="3"/>
+								<Source SourceId= "1002" ResourceId = "M1" HomeValue="2" AwayValue="4"/>
+						</Sources>
+
+		If it's Final Result, SourceId= ""
 */
 
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @MatchId3rd INT = 0
+	DECLARE @MatchId3rd INT = 0 --- Result of OutsideSource
 	DECLARE @GameType TINYINT
 	DECLARE @LeagueId	INT
 	DECLARE @handle INT
-	DECLARE @ActionID int
+	DECLARE @ActionID int = 81016 ---Save Score
 	DECLARE @Remark VARCHAR(MAX)
+	DECLARE @xmlSources XML , @xmlOutsideSources XML
 
-	DECLARE @tmpExternalResultDetailES TABLE (
+	DECLARE @tmpAllResult TABLE (
 												SourceId SMALLINT
 												, ResourceId VARCHAR(20)
 												, HomeValue	VARCHAR(50)
 												, AwayValue	VARCHAR(50)
+												, IsChanged BIT
 											)
 
 	SELECT @GameType =  l.OverTimeSession 
@@ -54,58 +69,69 @@ BEGIN
 
 	SELECT @LeagueId = m.leagueid FROM match m WITH(NOLOCK)  where m.matchid = @MatchId
 	
-	IF ( @ActionName   = 'CAL')
-		BEGIN SELECT @ActionID = 81017 END
-	ELSE
-		BEGIN SELECT @ActionID  =81016 END
-		
 	BEGIN TRY
-		IF ISNULL(@OutsideSources, '') <>''
+		IF ISNULL(@Sources,'') <> '' -- record all scores to write log
 			BEGIN
-				EXEC sp_xml_preparedocument @handle OUTPUT, @OutsideSources
+				
+				SET @xmlSources = CAST(@Sources AS XML)
 
-				INSERT INTO @tmpExternalResultDetailES ( SourceId , ResourceId  , HomeValue , AwayValue)
-				SELECT SourceId , ResourceId  , HomeValue , AwayValue
-				FROM OPENXML (@handle, 'OutsideSources/Source', 1) WITH (
-															 			SourceId SMALLINT
-															 			, ResourceId VARCHAR(20)
-															 			, HomeValue	VARCHAR(50) 
-															 			, AwayValue	VARCHAR(50)
-																	)
+				INSERT INTO @tmpAllResult ( SourceId, ResourceId, HomeValue, AwayValue, IsChanged)
+				SELECT	 T.C.value('@SourceId', 'SMALLINT')		AS SourceId
+						,T.C.value('@ResourceId', 'VARCHAR(20)')AS ResourceId
+						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+						,0										AS IsChanged
+				FROM	@xmlSources.nodes('/Sources/Source') AS T(C)
+
+
+				IF ISNULL( @OutsideSources, '' ) <> '' --- OutsideSource scores have changed by user
+					BEGIN
+						SET @xmlOutsideSources = CAST (@OutsideSources AS XML)
+
+						INSERT INTO @tmpAllResult  ( SourceId, ResourceId, HomeValue, AwayValue, IsChanged) 
+						SELECT	 T.C.value('@SourceId', 'SMALLINT')		AS SourceId
+						,T.C.value('@ResourceId', 'VARCHAR(20)')AS ResourceId
+						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+						,1										AS IsChanged
+						FROM	@xmlOutsideSources.nodes('/Sources/Source') AS T(C)
+
+						INSERT INTO dbo.ProviderExternalResultDetailES 	(
+							MatchId3rd
+							,MatchId
+							,SourceId
+							,ResourceId
+							,HomeValue
+							,AwayValue
+							,CreateBy
+							,LastModifyBy
+						)
+						SELECT @MatchId3rd
+							,@MatchId
+							,r.SourceId
+							,r.ResourceId
+							,r.HomeValue
+							,r.AwayValue
+							,@UserId
+							,@UserId
+						FROM @tmpAllResult	 r	
+						WHERE r.IsChanged = 1
+
+					END
+
 
 				IF NOT EXISTS (	SELECT TOP 1 1 FROM ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK) 
 													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  =pgm.PGId
 												WHERE pgm.SourceId  =1001	AND pgm.GameType = @GameType)
-				BEGIN				
-					EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Create Source 1001 and mapping with GameType, League if 1001 does not exists
-						@LeagueId		= @LeagueId
-						,@PGIdSources	= '<PGIds><PGId PGId ="0"  OrderNo="1"/></PGIds>'
-						,@ErrCode		=	@ErrCode			
-						,@ErrMsg		=	@ErrMsg			
-				END
+					BEGIN				
+						EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Init Source 1001 and mapping with GameType, League if 1001 does not exists
+							@LeagueId		= @LeagueId
+							,@PGIdSources	= '<PGIds><PGId PGId ="0"  OrderNo="1"/></PGIds>'
+							,@ErrCode		=	@ErrCode			
+							,@ErrMsg		=	@ErrMsg			
+					END
 
-			INSERT INTO dbo.ProviderExternalResultDetailES 	(
-				MatchId3rd
-				,MatchId
-				,SourceId
-				,ResourceId
-				,HomeValue
-				,AwayValue
-				,CreateBy
-				,LastModifyBy
-			)
-			SELECT @MatchId3rd
-				,@MatchId
-				,r.SourceId
-				,r.ResourceId
-				,r.HomeValue
-				,r.AwayValue
-				,@UserId
-				,@UserId
-			FROM @tmpExternalResultDetailES	 r	
-			WHERE r.SourceId >= 1001												
 			END
-
 
 			
 			;WITH cte_Log ( Result ) AS 
@@ -119,19 +145,20 @@ BEGIN
 								  						ELSE CAST( l1.SourceId AS varchar(5)	)
 												  END	+'('+ l1.HomeValue + '-'+ l1.AwayValue + ')'
 								  
-										 FROM @tmpExternalResultDetailES as l1 
+										 FROM @tmpAllResult as l1 
 										 WHERE l1.ResourceId = l2.ResourceId
 										 FOR XML PATH ('')
 									 )
 									 , 1, 0, ''
-								   ) 
-					FROM @tmpExternalResultDetailES  l2
+								   )
+					FROM @tmpAllResult  l2
+					WHERE l2.IsChanged = 0
 				)
 
 			SELECT @Remark = (SELECT TOP 1 REPLACE ( 
-															STUFF (  (SELECT  ',<br/>' + Result FROM cte_Log   FOR XML PATH, type).value('.','varchar(max)') , 1 , 6, ''  ) 
-															 , 'Z','FT'
-															)  FROM cte_Log )
+													 STUFF (  (SELECT  ',<br/>' + Result FROM cte_Log   FOR XML PATH, type).value('.','varchar(max)') , 1 , 6, ''  ) 
+													 , 'Z','FT'
+													)   FROM cte_Log )
 				
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@userid				= @UserId
