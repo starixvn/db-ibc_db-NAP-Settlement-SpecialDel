@@ -70,12 +70,12 @@ BEGIN
 	FROM  
 	   (
 			SELECT sporttype, betstatus, matchid, matchcode, leagueid, eventdate, eventstatus, kickofftime, homeid  
-			FROM MATCH (NOLOCK)  
+			FROM MATCH WITH(NOLOCK)  
 			WHERE	eventdate BETWEEN  @FromDate  AND  @ToDate 
 					AND sporttype=161
 	   ) AS m 
 		LEFT OUTER JOIN (
-							SELECT matchid, seq, number, Color FROM bingoball(NOLOCK)
+							SELECT matchid, seq, number, Color FROM bingoball WITH(NOLOCK)
 						) AS B ON B.matchid = m.matchid
 		LEFT OUTER JOIN match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid  
 	WHERE (
