@@ -359,23 +359,26 @@ BEGIN
 	FROM #Tickets t;
     
 	-- Insert Transaction
-	INSERT INTO dbo.MarkedTransaction
-		(TransId,
-			MatchId,
-			BetType,
-			CustId,
-			UserId,
-			CreatedDate,
-			MarkType 
-		)
-	SELECT t.TransId,
-		t.MatchId,
-		t.BetType,
-		t.CustId,
-		@UserId,
-		CURRENT_TIMESTAMP,
-		@MarkType
-	FROM #Tickets t;
+	DECLARE @TransIds_SB VARCHAR(MAX)
+
+	SELECT @TransIds_SB = CAST((
+								SELECT t.TransId AS '@TransId'
+									,t.MatchId AS '@MatchId'
+									,t.BetType AS '@Bettype'
+									,t.CustId AS '@CustId'
+									,@MarkType AS '@MarkType'
+								FROM #Tickets t
+								FOR XML PATH('r')
+									,ROOT('root')
+									,TYPE
+							) AS VARCHAR(MAX));
+	
+	EXEC dbo.TicketVoiding_Admin_VoidingTransId
+		@TransIds = @TransIds_SB,
+		@UserId = @UserId,
+		@CalledByBrokerService = 0,
+		@IsCallByMarkUnmark = 1,
+		@ActionType = 1
 
 	-- Release Match
 	EXEC dbo.NAP_Admin_CheckingProcess

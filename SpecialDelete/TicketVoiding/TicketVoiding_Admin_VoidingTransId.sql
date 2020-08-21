@@ -1,13 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 (
-	@TransIds	VARCHAR(MAX)
-	,@UserId	INT
-	,@IssueTypeId	INT = 0
-	,@CalledByBrokerService      BIT         = 0
-	,@IsCallByMarkUnmark BIT = 0
-	,@MarkType		  TINYINT		= 0
-	,@ActionType TINYINT = NULL
+	@TransIds					VARCHAR(MAX)
+	,@UserId					INT
+	,@IssueTypeId				INT = 0
+	,@CalledByBrokerService     BIT         = 0
+	,@IsCallByMarkUnmark		BIT = 0
+	,@ActionType				TINYINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -29,10 +28,14 @@ AS
 					</root>'
 					isMG: metric gaming ticket
 		
-		- IF @IsCallByMarkUnmark = true then @TransIds = '109631388136,109631388137,...'
 		- @ActionType:
 			1: Mark
 			2: Unmark
+		- @IsCallByMarkUnmark = 1:
+			+ @TransIds = '<root>
+								<r TransId="104730774034" MatchId="432934573" Bettype="1" CustId="1" MarkType="0"/>
+								<r transid="104729373985" MatchId="432934573"/>
+							</root>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -43,33 +46,29 @@ BEGIN
 			,@transid BIGINT
 			,@matchid INT
 
-	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT)    
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
+	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId BIGINT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
 	SET @xml = CONVERT(XML, @TransIds)
 
 	IF @IsCallByMarkUnmark = 1
 	BEGIN
 		 IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
-				, 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
-				, 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
-				, 'SITDB052', 'SITDB053','SITDB06', 'SITDB055'
-				, 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02', 'DB055')
-			AND @CalledByBrokerService = 0
+					, 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
+					, 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
+					, 'SITDB052', 'SITDB053','SITDB06', 'SITDB055'
+					, 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02', 'DB055')
+				AND @CalledByBrokerService = 0
 		BEGIN
 			-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 			DECLARE @sMessage NVARCHAR(MAX)
 
 			SET @sMessage = 'EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-				@TransIds = ' + CASE
-					WHEN @TransIds IS NULL THEN 'NULL'
-					ELSE '''' + CONVERT(NVARCHAR(MAX), @TransIds) + ''''
-					END + '
-				,@UserId = ' + CASE
-					WHEN @UserId = 0 THEN '0'
-					ELSE '''' + CONVERT(NVARCHAR(50), @UserId) + ''''
-					END
-				+ ',@CalledByBrokerService = 1'
-				+ ',@CalledByBrokerService = 1'
+					@TransIds = ' + @TransIds
+					+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
+					+ ',@CalledByBrokerService = 1'
+					+ ',@IsCallByMarkUnmark = 1'
+					+ ',@ActionType = ' + CONVERT(NVARCHAR(10), @ActionType)
 
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
 				,@toService = N'//Service/Calculation_receive'
@@ -83,6 +82,16 @@ BEGIN
 		BEGIN
 			IF @ActionType = 1
 			BEGIN
+				INSERT INTO @tmpTrans_SB(TransId, MatchId, Bettype, CustId, MarkType)
+				SELECT	T.C.value('./@TransId', 'bigint')
+						,T.C.value('./@MatchId', 'int')
+						,T.C.value('./@Bettype', 'smallint')
+						,T.C.value('./@CustId', 'int')
+						,T.C.value('./@MarkType', 'tinyint')
+						,CURRENT_TIMESTAMP
+				FROM	@xml.nodes('/root/r') AS T(C)
+				OPTION (OPTIMIZE FOR (@xml = NULL ))
+
 				INSERT INTO dbo.MarkedTransaction
 					(TransId,
 						MatchId,
@@ -98,23 +107,24 @@ BEGIN
 					t.CustId,
 					@UserId,
 					CURRENT_TIMESTAMP,
-					@MarkType
-				FROM #Tickets t;
+					t.MarkType
+				FROM @tmpTrans_SB t;
 			END
 			ELSE IF @ActionType = 2
 			BEGIN
-				-- Delete Transaction
-				WHILE (0=0)
-				BEGIN
-					DELETE TOP (2000) m 
-					OUTPUT DELETED.TransId
-						,DELETED.MatchId
-					INTO #MarkedTransactionDeleted (TransId, MatchId)
-					FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN #Tickets t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
+				INSERT INTO @tmpTrans_SB(TransId, MatchId, Bettype, CustId, MarkType)
+				SELECT	T.C.value('./@TransId', 'bigint')
+						,T.C.value('./@MatchId', 'int')
+						,T.C.value('./@Bettype', 'smallint')
+						,T.C.value('./@CustId', 'int')
+						,T.C.value('./@MarkType', 'tinyint')
+						,CURRENT_TIMESTAMP
+				FROM	@xml.nodes('/root/r') AS T(C)
+				OPTION (OPTIMIZE FOR (@xml = NULL ))
 
-					IF @@ROWCOUNT = 0 BREAK	  
-				END 
+				DELETE m 
+				FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+					INNER JOIN @tmpTrans_SB t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
 			END
 		END
 	END

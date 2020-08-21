@@ -314,16 +314,35 @@ BEGIN
 	END;
 	
 	-- Delete Transaction
+	DECLARE @TransIds_SB VARCHAR(MAX)
 	WHILE (0=0)
 	BEGIN
-		DELETE TOP (2000) m 
+		DELETE TOP (2000) t 
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
 		INTO #MarkedTransactionDeleted (TransId, MatchId)
-		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN #Tickets t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
+		FROM #Tickets t
 
-		IF @@ROWCOUNT = 0 BREAK	  
+		IF @@ROWCOUNT = 0 BREAK	
+
+		SELECT @TransIds_SB = CAST((
+									SELECT m.TransId AS '@TransId'
+										,m.MatchId AS '@MatchId'
+									FROM #MarkedTransactionDeleted m
+									FOR XML PATH('r')
+										,ROOT('root')
+										,TYPE
+								) AS VARCHAR(MAX));
+
+		EXEC dbo.TicketVoiding_Admin_VoidingTransId
+			@TransIds = @TransIds_SB,
+			@UserId = @UserId,
+			@CalledByBrokerService = 0,
+			@IsCallByMarkUnmark = 1,
+			@ActionType = 2
+		
+		SET @TransIds = ''
+		  
 	END 
 
 	-- Release Match
