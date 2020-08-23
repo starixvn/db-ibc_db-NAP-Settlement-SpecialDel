@@ -56,9 +56,13 @@ DECLARE @BalanceInfoAfterUpd TABLE (
 SET @TransIds = STUFF((SELECT ',' + CONVERT(VARCHAR(20), transid)
 				 FROM bettrans14 b WITH (NOLOCK)
 					INNER JOIN custdb.dbo.Customer c with (nolock) on b.custid = c.custid
-				  WHERE c.recommend = 38611878 and b.bettype < 19999 
-					and b.winlostdate >= '20200817'
+				  WHERE c.recommend = 38611878 
+						and b.bettype < 19999 
+						and b.winlostdate >= '20200817'
+						and b.statusid in (111,112,113)
+					FOR XML PATH ('')
 					),1,1,'')
+					
 --SELECT @TransIds					
 
 CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)	
@@ -132,6 +136,7 @@ FROM bettrans14 b WITH (NOLOCK)
 	INNER JOIN custdb.dbo.Customer c with (nolock) on b.custid = c.custid
 WHERE c.recommend = 38611878 and b.bettype < 19999 
 	and b.winlostdate >= '20200817'
+	and b.statusid in (111,112,113)
 
 INSERT INTO #BetDelete(
 	GroupTransId	
