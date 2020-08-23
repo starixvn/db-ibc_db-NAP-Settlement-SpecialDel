@@ -419,17 +419,17 @@ DECLARE @AffectedList		VARCHAR(MAX)
 SET @AffectedList = CAST((
 	SELECT	CustId AS '@c'
 			,WinlostDate AS '@w'
-			,SUM(stake) AS '@st'
-			,SUM(actual_stake) AS '@ast'
-			,SUM(Winlost) AS '@w_dif'
-			,SUM(aWinlost) AS '@aw_dif'
-			,SUM(mWinlost) AS '@mw_dif'
-			,SUM(sWinlost) AS '@sw_dif'
-			,SUM(playerComm) AS '@pc_dif'
-			,SUM(Comm) AS '@c_dif'
-			,SUM(aComm) AS '@ac_dif'
-			,SUM(sComm) AS '@sc_dif'
-	FROM	@BalanceInfoAfterUpd 
+			,0 AS '@st'
+			,0 AS '@ast'
+			,-SUM(Winlost) AS '@w_dif'
+			,-SUM(aWinlost) AS '@aw_dif'
+			,-SUM(mWinlost) AS '@mw_dif'
+			,-SUM(sWinlost) AS '@sw_dif'
+			,-SUM(playerComm) AS '@pc_dif'
+			,-SUM(Comm) AS '@c_dif'
+			,-SUM(aComm) AS '@ac_dif'
+			,-SUM(sComm) AS '@sc_dif'
+	FROM	@BalanceInfoBeforeUpd 
 	GROUP BY CustId
 			,WinlostDate
 	FOR XML PATH('r'), ROOT('root'), TYPE
