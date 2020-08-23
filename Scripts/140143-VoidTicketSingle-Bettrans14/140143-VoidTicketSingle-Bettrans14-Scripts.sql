@@ -8,7 +8,6 @@
 DECLARE @TransIds			VARCHAR(MAX) = ''
 	,@TransIdSolds		VARCHAR(MAX)	= '' -- just for BetTrade's subticket (transid of bettype 901)  
 	,@UserName			VARCHAR(30) = 'starixIT'
-	,@Password			VARCHAR(50)
 	,@UserId			INT = 10278938 -- custid of Admin
 	,@IP				VARCHAR(15) ='125.227.140.97'
 	,@Reason			NVARCHAR(500) = '@@'
@@ -54,8 +53,7 @@ DECLARE @BalanceInfoAfterUpd TABLE (
 	,balance		MONEY
 )
 
-
-SET @TransIds = STUFF((SELECT ',' + transid
+SET @TransIds = STUFF((SELECT ',' + CONVERT(VARCHAR(20), transid)
 				 FROM bettrans14 b WITH (NOLOCK)
 					INNER JOIN custdb.dbo.Customer c with (nolock) on b.custid = c.custid
 				  WHERE c.recommend = 38611878 and b.bettype < 19999 
@@ -443,7 +441,7 @@ EXEC dbo.TicketVoiding_Admin_Bet14_19999
 EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 	@AffectedList = @AffectedList
 
-SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
+SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(MAX))+ ' by_login:' + @username 
 	+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC
 EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
 
