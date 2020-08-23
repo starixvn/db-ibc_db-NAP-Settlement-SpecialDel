@@ -419,8 +419,8 @@ DECLARE @AffectedList		VARCHAR(MAX)
 SET @AffectedList = CAST((
 	SELECT	CustId AS '@c'
 			,WinlostDate AS '@w'
-			,0 AS '@st'
-			,0 AS '@ast'
+			,-SUM(stake) AS '@st'
+			,-SUM(actual_stake) AS '@ast'
 			,-SUM(Winlost) AS '@w_dif'
 			,-SUM(aWinlost) AS '@aw_dif'
 			,-SUM(mWinlost) AS '@mw_dif'
