@@ -338,7 +338,7 @@ BEGIN
 			@TransIds = @TransIds_SB,
 			@UserId = @UserId,
 			@CalledByBrokerService = 0,
-			@IsCallByMarkUnmark = 1,
+			@IsUseServiceBroker = 1,
 			@ActionType = 2
 		
 		SET @TransIds = ''
