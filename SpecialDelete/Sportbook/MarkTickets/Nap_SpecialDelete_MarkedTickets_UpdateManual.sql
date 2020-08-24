@@ -341,7 +341,7 @@ BEGIN
 			@IsUseServiceBroker = 1,
 			@ActionType = 2
 		
-		SET @TransIds = ''
+		SET @TransIds_SB = ''
 		  
 	END 
 
@@ -355,7 +355,7 @@ BEGIN
 	INSERT INTO #Match
 	SELECT DISTINCT
 			t.MatchId
-	FROM #Tickets t;
+	FROM #MarkedTransactionDeleted t;
 
 	-- Write Log
 	SET @xmlLog = CAST((
