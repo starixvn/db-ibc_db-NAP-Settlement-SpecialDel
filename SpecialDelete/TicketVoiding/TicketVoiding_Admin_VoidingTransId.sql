@@ -47,7 +47,7 @@ BEGIN
 			,@matchid INT
 
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
-	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId BIGINT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
+	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
 	SET @xml = CONVERT(XML, @TransIds)
 
@@ -86,7 +86,6 @@ BEGIN
 					,T.C.value('./@Bettype', 'smallint')
 					,T.C.value('./@CustId', 'int')
 					,T.C.value('./@MarkType', 'tinyint')
-					,CURRENT_TIMESTAMP
 			FROM	@xml.nodes('/root/r') AS T(C)
 			OPTION (OPTIMIZE FOR (@xml = NULL ))
 
