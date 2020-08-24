@@ -64,7 +64,7 @@ BEGIN
 			DECLARE @sMessage NVARCHAR(MAX)
 
 			SET @sMessage = 'EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-					@TransIds = ' + @TransIds
+					@TransIds = ''' + @TransIds + ''''
 					+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
 					+ ',@CalledByBrokerService = 1'
 					+ ',@IsUseServiceBroker = 1'
