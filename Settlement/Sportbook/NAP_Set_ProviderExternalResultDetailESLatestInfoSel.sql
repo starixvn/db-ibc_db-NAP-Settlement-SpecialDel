@@ -54,7 +54,7 @@ BEGIN
 		INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)
 			ON pi.SourceId  = pgm.SourceId
 		LEFT JOIN ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK)
-			ON plmo.PGId =  pgm.PGId 
+			ON plmo.PGId =  pgm.PGId and plmo.LeagueId  = @LeagueId
 	WHERE GameType = @GameType
 		AND (
 				pgm.SourceId <= 1001 
