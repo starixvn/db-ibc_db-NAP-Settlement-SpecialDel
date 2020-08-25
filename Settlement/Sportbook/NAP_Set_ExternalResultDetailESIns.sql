@@ -19,15 +19,15 @@ AS
 		- 20200810@Louisa: Insert OutsideSource result [Redmine:#138656]
 
 	Param's Explanation:
-		@OutsideSources : any OutsideSource scores have changed by user
+		@OutsideSources : any scores(OutsideSource) have changed by user
 
 		@Sources		: record all scores to write log
 
 		@OutsideSources	VARCHAR(MAX)	 =
-						'<OutsideSources>
+						'<Sources>
 							<Source SourceId= "1001"  ResourceId = "M1" HomeValue="2" AwayValue="3"/>
 							<Source SourceId= "1002" ResourceId  = "M1" HomeValue="2" AwayValue="4"/>
-						</OutsideSources>'
+						</Sources>'
 
 		@Sources VARCHAR(MAX)	 =
 						'<Sources>
@@ -45,11 +45,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @MatchId3rd INT = 0 --- Result of OutsideSource
+	DECLARE @MatchId3rd INT = 0
 	DECLARE @GameType TINYINT
 	DECLARE @LeagueId	INT
 	DECLARE @handle INT
-	DECLARE @ActionID int = 81016 ---Save Score
+	DECLARE @ActionID INT = 81016 ---Save Score
 	DECLARE @Remark VARCHAR(MAX)
 	DECLARE @xmlSources XML , @xmlOutsideSources XML
 
@@ -67,7 +67,7 @@ BEGIN
 								ON l.leagueid  =m.leagueid
 						WHERE m.MatchId = @MatchId
 
-	SELECT @LeagueId = m.leagueid FROM match m WITH(NOLOCK)  where m.matchid = @MatchId
+	SELECT @LeagueId = m.leagueid FROM match m WITH(NOLOCK)  WHERE m.matchid = @MatchId
 	
 	BEGIN TRY
 		IF ISNULL(@Sources,'') <> '' -- record all scores to write log
@@ -84,7 +84,7 @@ BEGIN
 				FROM	@xmlSources.nodes('/Sources/Source') AS T(C)
 
 
-				IF ISNULL( @OutsideSources, '' ) <> '' --- OutsideSource scores have changed by user
+				IF ISNULL( @OutsideSources, '' ) <> '' --- OutsideSources score have changed by user
 					BEGIN
 						SET @xmlOutsideSources = CAST (@OutsideSources AS XML)
 
@@ -94,7 +94,7 @@ BEGIN
 						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
 						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
 						,1										AS IsChanged
-						FROM	@xmlOutsideSources.nodes('/OutsideSources/Source') AS T(C)
+						FROM	@xmlOutsideSources.nodes('/Sources/Source') AS T(C)
 
 						INSERT INTO dbo.ProviderExternalResultDetailES 	(
 							MatchId3rd
@@ -121,10 +121,12 @@ BEGIN
 
 
 				IF NOT EXISTS (	SELECT TOP 1 1 FROM ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK) 
-													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  =pgm.PGId
-												WHERE pgm.SourceId  =1001	AND pgm.GameType = @GameType)
+													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  = pgm.PGId
+												WHERE pgm.SourceId  =1001	
+													AND pgm.GameType = @GameType
+													AND plmo.LeagueId =@LeagueId)
 					BEGIN				
-						EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Init Source 1001 and mapping with GameType, League if 1001 does not exists
+						EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Init Source 1001 and mapping with GameType and League if 1001 does not exists
 							@LeagueId		= @LeagueId
 							,@PGIdSources	= '<PGIds><PGId PGId ="0"  OrderNo="1"/></PGIds>'
 							,@ErrCode		=	@ErrCode			
@@ -136,7 +138,7 @@ BEGIN
 			
 			;WITH cte_Log ( Result ) AS 
 				(
-					SELECT DISTINCT CASE ResourceId WHEN '00' THEN 'Z' ELSE ResourceId END -- to Order Fulltime at the last
+					SELECT DISTINCT CASE ResourceId WHEN '00' THEN 'Z' ELSE ResourceId END -- to order FullTime at the last
 							+ STUFF(
 									 (
 										 SELECT '' 
@@ -147,6 +149,7 @@ BEGIN
 								  
 										 FROM @tmpAllResult as l1 
 										 WHERE l1.ResourceId = l2.ResourceId
+											AND  l1.IsChanged = 0
 										 FOR XML PATH ('')
 									 )
 									 , 1, 0, ''
