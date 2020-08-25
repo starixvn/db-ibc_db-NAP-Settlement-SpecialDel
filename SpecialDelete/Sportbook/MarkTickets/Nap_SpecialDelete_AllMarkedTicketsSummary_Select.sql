@@ -11,7 +11,8 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20200207@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
-              - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
+        - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
+		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 	Explanation's Param:
 */
 BEGIN
@@ -43,7 +44,10 @@ BEGIN
          OUTER APPLY (
                 SELECT TOP 1 1 isParlay
                 FROM dbo.bettransm WITH (NOLOCK)
-                WHERE refno = bt.refno AND statusID IN (0,1) AND bt.matchid = 29
+                WHERE refno = bt.refno 
+					AND statusID IN (0,1) 
+					AND bt.matchid = 29
+					AND matchid = m.MatchId
          ) bm
          
     WHERE 1 = CASE WHEN bt.matchid <> 29 and bt.statusID IN (0,1) THEN 1
