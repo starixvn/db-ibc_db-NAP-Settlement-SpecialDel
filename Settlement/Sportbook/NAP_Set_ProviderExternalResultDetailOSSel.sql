@@ -12,6 +12,7 @@ AS
     
     Revisions:            
 		- 20200818@Louisa: get result for LSports Redmine:#139627]
+		- 20200825@Louisa: allow get result by @MatchId (request from TW )
 		
 	Param's explanation:
 		@MatchId	: Inhouse MatchId
