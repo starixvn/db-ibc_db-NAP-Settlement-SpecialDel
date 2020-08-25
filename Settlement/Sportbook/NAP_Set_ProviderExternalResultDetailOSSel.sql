@@ -12,9 +12,10 @@ AS
     
     Revisions:            
 		- 20200818@Louisa: get result for LSports Redmine:#139627]
-		- 20200825@Louisa: allow get result by @MatchId (request from TW )
+		- 20200825@Louisa: allow get result by InHouse MatchId (request from TW )
 		
 	Param's explanation:
+		@SourceId	: LSport = 25
 		@MatchId	: Inhouse MatchId
 		@IsInhouse = 0: Query by @MatchId3rd
 		@IsInhouse = 1: Query by @MatchId
