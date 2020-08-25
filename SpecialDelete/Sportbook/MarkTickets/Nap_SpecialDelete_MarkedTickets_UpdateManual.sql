@@ -57,7 +57,8 @@ BEGIN
 					RefCode   BIGINT,
 					refno	 BIGINT,
 					IsParlay  BIT DEFAULT(0),
-					SubTransId BIGINT
+					SubTransId BIGINT,
+					IsFinish	BIT
 					);
 		CREATE TABLE #Cashout911Tickets
 					(TransId BIGINT,
@@ -317,17 +318,21 @@ BEGIN
 	DECLARE @TransIds_SB VARCHAR(MAX)
 	WHILE (0=0)
 	BEGIN
-		DELETE TOP (2000) t 
+		DELETE #MarkedTransactionDeleted
+
+		UPDATE TOP (2000) t
+			SET t.IsFinish = 1
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
 		INTO #MarkedTransactionDeleted (TransId, MatchId)
 		FROM #Tickets t
+		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK	
 
 		SELECT @TransIds_SB = CAST((
-									SELECT m.TransId AS '@TransId'
-										,m.MatchId AS '@MatchId'
+									SELECT m.TransId AS '@id'
+										,m.MatchId AS '@match'
 									FROM #MarkedTransactionDeleted m
 									FOR XML PATH('r')
 										,ROOT('root')
@@ -355,7 +360,7 @@ BEGIN
 	INSERT INTO #Match
 	SELECT DISTINCT
 			t.MatchId
-	FROM #MarkedTransactionDeleted t;
+	FROM #Tickets t;
 
 	-- Write Log
 	SET @xmlLog = CAST((
@@ -366,7 +371,7 @@ BEGIN
 					,m.matchid AS '@MatchId'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
-							FROM #MarkedTransactionDeleted AS d
+							FROM #Tickets AS d
 							WHERE d.MatchId = m.MatchId
 							FOR XML PATH('')
 							), 1, 1, '')  AS '@LogData'

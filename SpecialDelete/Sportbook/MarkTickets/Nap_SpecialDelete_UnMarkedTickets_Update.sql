@@ -64,7 +64,8 @@ BEGIN
 				RefCode   BIGINT,
 				refno	 BIGINT,
 				IsParlay  BIT DEFAULT(0),
-				SubTransId BIGINT
+				SubTransId BIGINT,
+				IsFinish	BIT
 				);
 	CREATE TABLE #Cashout911Tickets
 				(TransId BIGINT,
@@ -360,25 +361,43 @@ BEGIN
     
 	-- Insert Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX)
+	DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT);
+	WHILE (0=0)
+	BEGIN
+		DELETE @MarkedTransactionDeleted
+		UPDATE TOP (2000) t
+			SET t.IsFinish = 1
+		OUTPUT DELETED.TransId
+			,DELETED.MatchId
+			,DELETED.BetType
+			,DELETED.CustId
+		INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
+		FROM #Tickets t
+		WHERE t.IsFinish IS NULL
 
-	SELECT @TransIds_SB = CAST((
-								SELECT t.TransId AS '@TransId'
-									,t.MatchId AS '@MatchId'
-									,t.BetType AS '@Bettype'
-									,t.CustId AS '@CustId'
-									,@MarkType AS '@MarkType'
-								FROM #Tickets t
-								FOR XML PATH('r')
-									,ROOT('root')
-									,TYPE
-							) AS VARCHAR(MAX));
+		IF @@ROWCOUNT = 0 BREAK	
+
+		SELECT @TransIds_SB = CAST((
+									SELECT t.TransId AS '@id'
+										,t.MatchId AS '@match'
+										,t.BetType AS '@bettype'
+										,t.CustId AS '@cust'
+										,@MarkType AS '@type'
+									FROM @MarkedTransactionDeleted t
+									FOR XML PATH('r')
+										,ROOT('root')
+										,TYPE
+								) AS VARCHAR(MAX));
 	
-	EXEC dbo.TicketVoiding_Admin_VoidingTransId
-		@TransIds = @TransIds_SB,
-		@UserId = @UserId,
-		@CalledByBrokerService = 0,
-		@IsUseServiceBroker = 1,
-		@ActionType = 1
+		EXEC dbo.TicketVoiding_Admin_VoidingTransId
+			@TransIds = @TransIds_SB,
+			@UserId = @UserId,
+			@CalledByBrokerService = 0,
+			@IsUseServiceBroker = 1,
+			@ActionType = 1
+
+		SET @TransIds_SB = ''
+	END
 
 	-- Release Match
 	EXEC dbo.NAP_Admin_CheckingProcess

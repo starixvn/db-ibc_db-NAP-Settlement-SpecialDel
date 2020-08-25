@@ -21,21 +21,23 @@ AS
 		- 20200212@Helen: update if <> void status [Redmine:#127398]
 		- 20200820@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 	
-	Param's explanation:	
-		- @transIds = '<root>
-						<r transid="104730774034" translogid="432934573" betid="1" isMG="1" actual_stake="100"/>
-						<r transid="104729373985" />
-					</root>'
-					isMG: metric gaming ticket
+	Param's explanation:
+		Version 1: Only use for Void Ticket via TVS
+			- @transIds = '<root>
+							<r transid="104730774034" translogid="432934573" betid="1" isMG="1" actual_stake="100"/>
+							<r transid="104729373985" />
+						</root>'
+						isMG: metric gaming ticket
 		
-		- @ActionType:
-			1: Mark
-			2: Unmark
-		- @IsUseServiceBroker = 1:
-			+ @TransIds = '<root>
-								<r TransId="104730774034" MatchId="432934573" Bettype="1" CustId="1" MarkType="0"/>
-								<r transid="104729373985" MatchId="432934573"/>
-							</root>'
+		Version 2: Include some function use ExecRep SP and ServiceBroker
+			- @IsUseServiceBroker = 1:
+				+ @TransIds = '<root>
+									<r id="104730774034" match="432934573" bettype="1" cust="1" type="0"/>
+									<r id="104729373985" match="432934573"/>
+								</root>'
+			- @ActionType:
+				1: Mark
+				2: Unmark			
 */
 BEGIN
 	SET NOCOUNT ON
@@ -81,11 +83,11 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO @tmpTrans_SB(TransId, MatchId, Bettype, CustId, MarkType)
-			SELECT	T.C.value('./@TransId', 'bigint')
-					,T.C.value('./@MatchId', 'int')
-					,T.C.value('./@Bettype', 'smallint')
-					,T.C.value('./@CustId', 'int')
-					,T.C.value('./@MarkType', 'tinyint')
+			SELECT	T.C.value('./@id', 'bigint')
+					,T.C.value('./@match', 'int')
+					,T.C.value('./@bettype', 'smallint')
+					,T.C.value('./@cust', 'int')
+					,T.C.value('./@type', 'tinyint')
 			FROM	@xml.nodes('/root/r') AS T(C)
 			OPTION (OPTIMIZE FOR (@xml = NULL ))
 
