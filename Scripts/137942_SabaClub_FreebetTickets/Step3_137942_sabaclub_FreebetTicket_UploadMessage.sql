@@ -108,6 +108,6 @@ BEGIN
 	--dbo.MsgTarget
 	INSERT dbo.MsgTarget(MessageId, TargetId, TargetName, isRead ,PostTime)
 	SELECT @MessageId, CustId, Username, 0, GETDATE()
-	FROM #Member_tmp
+	FROM #SMA_tmp
 	
 END
