@@ -3,9 +3,9 @@
 	Created: Helen
 	Date: 20200826
 	Task: Saba.club - Offer Freebet tickets for 789y market - https://nexdev.net/issues/137942
-	DB: DBMSG-bodb_Message
+	DB: DBTXN-bodb02
 */
-USE bodb_Message
+USE bodb02
 GO
 
 DECLARE @sporttype INT 
