@@ -12,13 +12,14 @@ AS
 		
 		Revisions:
 			- 20190319@Johnson: migrate server DB061,062 [redmine: #110514]
+			- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
 		Parameter's Explanation:
 		
 	*/
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DB061', 'DB062', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06','DB231\DBSPU2','DB232\DBSPU2' ) AND @CalledByBrokerService = 0
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB055', 'DB06', 'DB06C2\DB06', 'DB061', 'DB062', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06','DB231\DBSPU2','DB232\DBSPU2' ) AND @CalledByBrokerService = 0
 	BEGIN
 		-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 		DECLARE @sMessage NVARCHAR(MAX)

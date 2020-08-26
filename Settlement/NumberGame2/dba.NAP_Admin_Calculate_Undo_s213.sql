@@ -13,13 +13,14 @@ AS
 		Revisions:
 			- 20190109@Johnson: create sp [redmine:#107658]
 			- 20190319@Johnson: migrate server DB061,062 [redmine: #110514]
+			- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
 		Parameter's Explanation:
 		
 	*/
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DB061', 'DB062', 'DBTP', 'DB042'
+	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB055', 'DB06', 'DB06C2\DB06', 'DB061', 'DB062', 'DBTP', 'DB042'
             , 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
             , 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
 			, 'DB231\DBSPU2','DB232\DBSPU2'
