@@ -21,6 +21,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: HotFix - [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 	      
 	Param's explanation:	
 		
@@ -534,7 +535,6 @@ BEGIN
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
-						AND main.statusID NOT IN (101, 102, 103)
 			END 
 
 			/*
@@ -808,7 +808,6 @@ BEGIN
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
-						AND main.statusID NOT IN (101, 102, 103)
 			END 
 		END
 	END
@@ -1116,7 +1115,6 @@ BEGIN
 						AND main.bettype = 29
 						AND main.liveindicator = 0
 						AND main.transdate >= @KickOffDate
-						AND main.statusID NOT IN (101, 102, 103)
 						AND tmp.TransId IS NULL
 			END 
 		END
