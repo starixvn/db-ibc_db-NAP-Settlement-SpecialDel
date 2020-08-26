@@ -51,6 +51,8 @@ AS
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
+		
 
     Param's Explanation:
         @action         @mode
@@ -58,15 +60,20 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
-
+	
+	DECLARE @IsEnableServiceBroker BIT 
+	
     IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
-
-    IF @@SERVERNAME IN ('DB052', 'DB053', 'DB06', 'DBTP', 'DB061', 'DB062'
-		, 'DB231', 'DB232','DB215','DB234'
-		,'SITDB052', 'SITDB053', 'SITDB06', 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02' ) AND @CalledByBrokerService = 0
+	
+	SET @IsEnableServiceBroker = 0
+	
+	EXEC dbo.NAP_Set_ServerInfo 
+		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+		
+    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)

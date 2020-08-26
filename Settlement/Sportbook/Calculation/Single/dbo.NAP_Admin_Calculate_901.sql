@@ -21,6 +21,8 @@
 			- 20181129@Kathy: Allow to cal/undo sub tickets on DB04x [Redmine:#105327]
 			- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 			- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+			- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
+			
 			
 		Parameter's Explantion:
 	*/
@@ -29,6 +31,7 @@ BEGIN
 
 	DECLARE @statusID INT
 			,@winlost MONEY
+			,@ServerAlias VARCHAR(50) = ''
 	
 	DECLARE @tmpBettype TABLE(bettype INT)
 	CREATE TABLE #tmp (transid BIGINT)
@@ -191,8 +194,14 @@ BEGIN
 			AND status IN ('Accept','Confirm')
 	END
 	
-	--recover BetTradeSelling & BetTradeSellingCancelled on DBTXN
-	IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DB061', 'DB062')
+	EXEC dbo.NAP_Set_ServerInfo @ServerAlias = @ServerAlias OUTPUT
+
+	--recover BetTradeSelling & BetTradeSellingCancelled on DBTXN	
+	IF @@SERVERNAME IN ('DB230' -- local dev
+		,'DB206' -- local test
+		,'SITDBTRANS' -- SIT
+		,'DBTRANS','DBTP','DB061', 'DB062' -- prod
+	) OR @ServerAlias = 'DBACC'
 	BEGIN		
 		UPDATE dbo.BetTradeSellingCancelled WITH(UPDLOCK,ROWLOCK)
 		SET BTBuyback = -BTBuyback,
