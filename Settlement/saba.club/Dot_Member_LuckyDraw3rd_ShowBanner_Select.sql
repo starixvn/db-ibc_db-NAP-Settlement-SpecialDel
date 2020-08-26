@@ -20,7 +20,7 @@ BEGIN
 	
 	SET @ShowBannerEndDate_tmp  = (SELECT MAX(ShowBannerEndDate) 	
 									FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
-									WHERE custid = @CustID
+									WHERE custid = @CustID AND statusid = 1
 									)
 	IF 	@ShowBannerEndDate_tmp > GETDATE()
 	BEGIN
