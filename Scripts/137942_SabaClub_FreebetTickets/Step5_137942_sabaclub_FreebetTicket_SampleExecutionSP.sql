@@ -12,4 +12,4 @@ DECLARE @CustID INT
 	
 EXEC dbo.NAP_Set_LuckyDraw3rd_Select @CustID = @CustID,@IsShowBanner= @IsShowBanner OUT, @ShowBannerEndDate = @ShowBannerEndDate OUT
 
-SELECT  @IsShowBanner, @ShowBannerEndDate
+SELECT  @IsShowBanner AS IsShowBanner, @ShowBannerEndDate AS ShowBannerEndDate

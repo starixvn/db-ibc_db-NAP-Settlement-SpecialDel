@@ -22,7 +22,7 @@ BEGIN
 									FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 									WHERE custid = @CustID
 									)
-	IF 	@ShowBannerEndDate_tmp < GETDATE()
+	IF 	@ShowBannerEndDate_tmp > GETDATE()
 	BEGIN
 		SELECT @IsShowBanner = 1
 			, @ShowBannerEndDate = @ShowBannerEndDate_tmp						
