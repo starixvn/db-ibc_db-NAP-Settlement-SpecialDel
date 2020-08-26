@@ -13,6 +13,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
+		- 20200825@July: Change datatype [Redmine: #139914]
 
 	
 	Param's explanation:	
@@ -64,8 +65,8 @@ BEGIN
 		,subOdds		SMALLMONEY
 		,subbetteam		NVARCHAR(10)
 		,subbettype		SMALLINT
-		,subhdp1		SMALLINT
-		,subhdp2		SMALLINT
+		,subhdp1		SMALLMONEY
+		,subhdp2		SMALLMONEY
 		,subtransdesc	NVARCHAR(1000)
 		
 		,Refno			BIGINT
