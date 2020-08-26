@@ -1,1 +1,0 @@
-SpecialDelete\TicketVoiding\VoidBetsAutomation\TicketVoiding_AutoVoidFormulaBets_Single.sql
