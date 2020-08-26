@@ -407,7 +407,6 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND main.statusID NOT IN (101, 102, 103)
 					AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		END 
 
