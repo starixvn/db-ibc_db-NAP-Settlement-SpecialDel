@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="dot_intg" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Dot_Admin_LuckyDraw3rd_ShowBanner_Select]
+ALTER PROCEDURE [dbo].[Dot_Member_LuckyDraw3rd_ShowBanner_Select]
 	@CustID INT
 	,@IsShowBanner BIT = 0 OUTPUT
 	,@ShowBannerEndDate DATETIME = NULL OUTPUT

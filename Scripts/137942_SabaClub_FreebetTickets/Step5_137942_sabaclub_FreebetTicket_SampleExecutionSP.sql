@@ -11,6 +11,6 @@ DECLARE @CustID INT = xxx
 	,@IsShowBanner BIT = 0 
 	,@ShowBannerEndDate DATETIME = NULL
 	
-EXEC dbo.Dot_Admin_LuckyDraw3rd_ShowBanner_Select @CustID = @CustID,@IsShowBanner= @IsShowBanner OUT, @ShowBannerEndDate = @ShowBannerEndDate OUT
+EXEC dbo.Dot_Member_LuckyDraw3rd_ShowBanner_Select @CustID = @CustID,@IsShowBanner= @IsShowBanner OUT, @ShowBannerEndDate = @ShowBannerEndDate OUT
 
 SELECT  @IsShowBanner AS IsShowBanner, @ShowBannerEndDate AS ShowBannerEndDate
