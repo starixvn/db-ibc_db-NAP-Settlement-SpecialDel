@@ -1,4 +1,4 @@
-/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBMSG-bodb_Message" executers="" isFunction="0"></info>*/
 /*
 	Created: Helen
 	Date: 20200826
