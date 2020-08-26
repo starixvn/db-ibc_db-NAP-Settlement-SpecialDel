@@ -7,7 +7,7 @@
 	
 	-- FOR sample execution, permission: dot_intg 
 */
-DECLARE @CustID INT
+DECLARE @CustID INT = xxx
 	,@IsShowBanner BIT = 0 
 	,@ShowBannerEndDate DATETIME = NULL
 	
