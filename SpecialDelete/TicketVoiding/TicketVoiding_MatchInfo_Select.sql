@@ -3,7 +3,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 (
 	@EventDate		DATETIME		= NULL
 	,@Sporttype		SMALLINT		= NULL	
-	,@LeagueId		INT				= 0
+	,@MatchId		INT				= NULL
 	,@TransIds		VARCHAR(MAX)	= NULL
 	,@IsUpdRequest	BIT = 0
 )
@@ -16,13 +16,14 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200826@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		
 	Param's explanation:		
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @matchID INT
+	DECLARE @tmpMatchId INT
 	DECLARE @transIdTemp TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @query NVARCHAR(MAX) = ''
 	DECLARE @execSql NVARCHAR(MAX) = ''
@@ -43,7 +44,7 @@ BEGIN
 		FROM dbo.f_SplitString(@TransIds, ',')
 		OPTION (MAXRECURSION 0)
 		
-		SET @matchID = (SELECT TOP 1 b.matchid
+		SET @tmpMatchId = (SELECT TOP 1 b.matchid
 						FROM dbo.bettrans AS b WITH (NOLOCK)
 							INNER JOIN @transIdTemp tmp ON b.transid = tmp.transid
 						WHERE ((b.statusID NOT IN (101, 102) AND @IsUpdRequest = 0) OR @IsUpdRequest = 1)
@@ -51,13 +52,13 @@ BEGIN
 		
 		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 						FROM	dbo.match m WITH(NOLOCK) 
-						WHERE	m.matchid = @matchID
+						WHERE	m.matchid = @tmpMatchId
 									'
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@matchid INT'' , @matchid'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@tmpMatchId INT'' , @tmpMatchId'
 
-		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @matchid INT', @query, @matchid
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @tmpMatchId INT', @query, @tmpMatchId
 	END
-	ELSE IF (@LeagueId = 0 AND @TransIds IS NULL)
+	ELSE IF (@MatchId IS NULL AND @TransIds IS NULL)
 	BEGIN
 		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
 						FROM	dbo.match m WITH(NOLOCK)
@@ -74,10 +75,10 @@ BEGIN
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.eventdate = @EventDate
 							AND m.sporttype = @Sporttype
-							AND m.leagueid = @LeagueId
+							AND m.matchid = @MatchId
 									'
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @LeagueId INT'' , @Sporttype, @EventDate, @LeagueId '
-		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @LeagueId INT ', @query, @Sporttype, @EventDate, @LeagueId
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT'' , @Sporttype, @EventDate, @MatchId '
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT ', @query, @Sporttype, @EventDate, @MatchId
 	
 	END
 END
