@@ -44,7 +44,7 @@ BEGIN
 	INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
 	SELECT b.custid
 		,b.srecommend,b.mrecommend,b.recommend
-		,SUM (winlost - actual_stake) NetWinLoss
+		,ROUND(SUM (winlost - actual_stake),0) NetWinLoss
 	FROM bettrans b WITH (NOLOCK) 
 		INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER  JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -71,7 +71,7 @@ BEGIN
 	INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
 	SELECT b.custid
 		,b.srecommend,b.mrecommend,b.recommend
-		,SUM (winlost - actual_stake) NetWinLoss
+		,ROUND(SUM (winlost - actual_stake),0) NetWinLoss
 	FROM dbo.bettrans14 b WITH (NOLOCK) 
 		INNER JOIN dbo.match14 m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -113,10 +113,11 @@ BEGIN
 		,srecommend,mrecommend,recommend
 		,NetWinLoss
 	FROM #temp_result 
-	WHERE NetWinLoss < 0
+	WHERE NetWinLoss < 0 AND ABS(NetWinLoss) >= 50
 END
 
 SELECT * FROM LuckyDraw3rd WITH (NOLOCK)
 
 SELECT @RoundID AS RoundID
 --DROP TABLE #temp_result
+
