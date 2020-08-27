@@ -28,15 +28,15 @@ FROM #LuckyDraw3rd ld WITH (NOLOCK)
 	INNER JOIN bodb02.dbo.custinfo c WITH (NOLOCK) ON c.custid = ld.custid
 
 INSERT INTO #SMA_tmp (CustId, Username)
-SELECT DISTINCT ld.CustID, c.username
+SELECT DISTINCT ld.srecommend, c.username
 FROM #LuckyDraw3rd ld WITH (NOLOCK)
 	INNER JOIN bodb02.dbo.custinfo c WITH (NOLOCK) ON c.custid = ld.srecommend
 UNION ALL
-SELECT DISTINCT ld.CustID, c.username
+SELECT DISTINCT ld.mrecommend, c.username
 FROM #LuckyDraw3rd ld WITH (NOLOCK)
 	INNER JOIN bodb02.dbo.custinfo c WITH (NOLOCK) ON c.custid = ld.mrecommend
 UNION ALL
-SELECT DISTINCT ld.CustID, c.username
+SELECT DISTINCT ld.recommend, c.username
 FROM #LuckyDraw3rd ld WITH (NOLOCK)
 	INNER JOIN bodb02.dbo.custinfo c WITH (NOLOCK) ON c.custid = ld.recommend
 	

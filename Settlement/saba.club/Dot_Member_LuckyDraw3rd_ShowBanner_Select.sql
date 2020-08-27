@@ -1,9 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="dot_intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Dot_Member_LuckyDraw3rd_ShowBanner_Select]
-	@CustID INT
-	,@IsShowBanner BIT = 0 OUTPUT
-	,@ShowBannerEndDate DATETIME = NULL OUTPUT
-	,@RoundID INT = NULL OUTPUT
+(
+	@sporttype TINYINT = 150
+	, @ErrCode	INT				= 0		OUTPUT	
+	, @ErrMsg	VARCHAR(300)	= ''	OUTPUT
+)
 AS
 /*
 	Creator: 20200826@Helen
@@ -18,35 +19,22 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @ShowBannerEndDate_tmp DATETIME
+	DECLARE @RoundID INT
 	
 	SET @RoundID = (SELECT MAX(RoundID) 	
 					FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
-					WHERE custid = @CustID AND statusid = 1
+					WHERE statusid = 1 AND Sporttype = @sporttype
 					)
-					
-	IF @RoundID IS NULL
-	BEGIN
-		SELECT @IsShowBanner = 0
-			, @ShowBannerEndDate = NULL	
-			, @RoundID = NULL
-		RETURN
-	END	
 	
-	SET @ShowBannerEndDate_tmp  = (SELECT TOP (1) ShowBannerEndDate 	
-									FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
-									WHERE custid = @CustID AND statusid = 1 AND RoundID = @RoundID
-									)
-	IF 	@ShowBannerEndDate_tmp > GETDATE()
+	SELECT RoundID, CustID, ShowBannerEndDate 	
+	FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
+	WHERE Sporttype = @sporttype AND statusid = 1 AND RoundID = @RoundID AND ShowBannerEndDate > GETDATE()
+		
+	IF @@ROWCOUNT = 0
 	BEGIN
-		SELECT @IsShowBanner = 1
-			, @ShowBannerEndDate = @ShowBannerEndDate_tmp
-									
-	END	
-	ELSE 
-	BEGIN
-		SELECT @IsShowBanner = 0
-			, @ShowBannerEndDate = NULL												
+		SELECT	 @ErrCode = 100
+				,@ErrMsg = 'No data found'
 	END
-	
+		
 END
 GO
