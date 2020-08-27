@@ -63,7 +63,7 @@ DECLARE @MessageId int = NULL,
 SELECT @Creator = 10278938, @CreatorName = 'starixIT'	
 
 ------- Message for members ----------------
-IF EXISTS (SELECT TOP (1) 1 FROM #Master_tmp )
+IF EXISTS (SELECT TOP (1) 1 FROM #Member_tmp )
 BEGIN
 	SET @Content_en = 'Member - gogogogogogogogo'
 	--Msg
@@ -88,7 +88,7 @@ BEGIN
 END
 
 ------- Message for SMA ----------------
-IF EXISTS (SELECT TOP (1) 1 FROM #Master_tmp )
+IF EXISTS (SELECT TOP (1) 1 FROM #SMA_tmp )
 BEGIN
 	SET @Content_en = 'SMA - gogogogogogogogo'
 	--Msg
