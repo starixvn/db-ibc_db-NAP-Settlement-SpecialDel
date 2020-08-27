@@ -760,7 +760,7 @@ BEGIN
 	FROM #matchList
 	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 	    
-	EXEC [dbo].[NAP_Set_ResultDetailSel]
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
 		@matchidList = @matchidList
   
 	DROP TABLE #matchList
