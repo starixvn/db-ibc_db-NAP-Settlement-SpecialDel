@@ -11,7 +11,7 @@ GO
 DECLARE @sporttype INT 
 DECLARE @RoundID INT, @ShowBannerEndDate DATETIME
 
-SELECT @sporttype = 150, @RoundID = 1
+SELECT @sporttype = 150, @RoundID = XXX
 
 SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 7, GETDATE()),102) + ' 23:59:59.000'
 

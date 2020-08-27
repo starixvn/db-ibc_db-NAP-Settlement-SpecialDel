@@ -14,7 +14,7 @@ DECLARE @RoundID INT
 CREATE TABLE #Member_tmp (CustId INT, Username VARCHAR(50), IsFinish BIT)
 CREATE TABLE #SMA_tmp (CustId INT, Username VARCHAR(50), IsFinish BIT)
 
-SELECT @sporttype = 150, @RoundID = 1
+SELECT @sporttype = 150, @RoundID = XXX
 
 CREATE TABLE #LuckyDraw3rd (CustID INT, srecommend INT, mrecommend INT, recommend INT)
 INSERT INTO #LuckyDraw3rd (CustID,srecommend, mrecommend,recommend)

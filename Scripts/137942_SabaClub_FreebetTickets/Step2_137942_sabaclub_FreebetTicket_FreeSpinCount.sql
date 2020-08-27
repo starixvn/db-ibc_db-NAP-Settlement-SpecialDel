@@ -24,8 +24,7 @@ DECLARE @RoundID INT
 		, @IsTicket14 BIT = 0
 
 -- Input param value here
-SELECT @RoundID	= 1
-		, @Sporttype = 150
+SELECT  @Sporttype = 150
 		, @winlostdate = '2020-08-26'
 		
 CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, NetWinLoss MONEY)
@@ -117,4 +116,5 @@ END
 
 SELECT * FROM LuckyDraw3rd WITH (NOLOCK)
 
+SELECT @RoundID AS RoundID
 --DROP TABLE #temp_result
