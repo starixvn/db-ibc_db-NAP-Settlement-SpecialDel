@@ -46,7 +46,8 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200505@Kathy: Add New Filter Option allowing user to exclude/include test matches [Redmine:#133518]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
-		
+		- 20200827@Louisa: Get external score [Redmine:#139979]
+
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
 */
@@ -272,34 +273,15 @@ BEGIN
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 	ORDER BY m.eventstatus, m.matchcode
 
-	IF @isSettingByProfile = 1
-    BEGIN	
-		DECLARE @matchidList VARCHAR(MAX) = ''
+	DECLARE @matchidList VARCHAR(MAX) = ''
 	    
-	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	    FROM @DataTmp
-	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM @DataTmp
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 	    
-		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
-					@matchidList = @matchidList
-					,@Sporttype = @Sporttype
-    END
-    ELSE
-    BEGIN
-		-- Get TENNIS, BASKETBALL RESULT 
-		SELECT	MatchId
-				, ResourceId
-				, HomeValue
-				, AwayValue
-				, ResultStatusID
-				, SettlementStatusID
-		FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
-		WHERE	@Sporttype IN (0, 2, 5)
-				AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
-				AND (ResourceId LIKE '0[0-5]' -- Tennis
-					OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-				)
-	END
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+  
 	
 END
 GO
