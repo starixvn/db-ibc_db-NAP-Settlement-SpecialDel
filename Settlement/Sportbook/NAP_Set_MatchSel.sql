@@ -52,6 +52,7 @@ AS
 						  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
+		- 20200827@Louisa: Get external score [Redmine:#139979]
 
       
  Param explanation:  
@@ -753,36 +754,15 @@ BEGIN
 		, m.betstatus
 		, m.matchcode			
 
-	-- Get TENNIS, BASKETBALL RESULT 
-	
-
-	IF @isSettingByProfile = 1
-    BEGIN
-	    DECLARE @matchidList VARCHAR(MAX) = ''
+	DECLARE @matchidList VARCHAR(MAX) = ''
 	    
-	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	    FROM #matchList
-	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM #matchList
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 	    
-		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
-					@matchidList = @matchidList
-					,@Sporttype = @Sporttype   
-    END
-    ELSE
-    BEGIN
-		SELECT	MatchId
-				, ResourceId
-				, HomeValue
-				, AwayValue
-				, ResultStatusID
-				, SettlementStatusID
-		FROM	DBPRO.bodb02.dbo.[ResultDetail] WITH (NOLOCK) 
-		WHERE	@Sporttype IN (0,2,5)
-				AND (ResourceId LIKE '0[0-5]' -- Tennis
-					OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-				)
-				AND MatchID IN (SELECT MatchID FROM #matchList)
-	END
+	EXEC [dbo].[NAP_Set_ResultDetailSel]
+		@matchidList = @matchidList
+  
 	DROP TABLE #matchList
 	
 	SET @EndTime = GETDATE()
