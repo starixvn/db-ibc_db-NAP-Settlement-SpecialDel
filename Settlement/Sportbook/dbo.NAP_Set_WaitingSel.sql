@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
+CREATE PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
 	, @LeagueId 	INT = 0 -- 0 for ALL Leagues
@@ -38,6 +38,7 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
+		- 20200827@Louisa: Get external score [Redmine:#139979]
 	
 	Param's explanation:  
 		
@@ -443,40 +444,16 @@ BEGIN
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
 		
-	-- Get TENNIS, BASKETBALL RESULT  
-	IF @isSettingByProfile = 1
-    BEGIN
-	    DECLARE @matchidList VARCHAR(MAX) = ''
+
+	DECLARE @matchidList VARCHAR(MAX) = ''
 	    
-	    SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	    FROM @TempMatch
-	    SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM @TempMatch
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 	    
-		EXEC DBPRO.bodb02.dbo.NAP_Set_MatchSel_ResultDetail 
-					@matchidList = @matchidList
-					,@Sporttype = @Sporttype  
-    END
-    ELSE IF @SportType IN (0,1,2,5)
-		SELECT MatchId
-			, ResourceId
-			, HomeValue
-			, AwayValue
-			, ResultStatusID
-			, SettlementStatusID
-		FROM #tblResultDetail rs
-		WHERE rs.MatchId IN (SELECT t.MatchId FROM @TempMatch t)
-			AND (ResourceId LIKE '0[0-5]' -- Tennis
-					OR ResourceId LIKE 'Q[1-4]' OR ResourceId = 'OT' -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-				)
-	ELSE
-		SELECT MatchId
-			, ResourceId
-			, HomeValue
-			, AwayValue
-			, ResultStatusID
-			, SettlementStatusID
-		FROM #tblResultDetail rs
-		WHERE 1 = 0
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+
 
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
