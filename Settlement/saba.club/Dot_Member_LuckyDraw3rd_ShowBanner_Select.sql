@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[Dot_Member_LuckyDraw3rd_ShowBanner_Select]
 (
 	@sporttype TINYINT = 150
-	, @ErrCode	INT				= 0		OUTPUT	
-	, @ErrMsg	VARCHAR(300)	= ''	OUTPUT
+	--, @ErrCode	INT			= 0		OUTPUT	
+	--, @ErrMsg	VARCHAR(300)	= ''	OUTPUT
 )
 AS
 /*
@@ -26,15 +26,19 @@ BEGIN
 					WHERE statusid = 1 AND Sporttype = @sporttype
 					)
 	
-	SELECT RoundID, CustID, ShowBannerEndDate 	
+	SELECT RoundID
+		, CustID
+		, ShowBannerEndDate AS ShowBannerEndDate
 	FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 	WHERE Sporttype = @sporttype AND statusid = 1 AND RoundID = @RoundID AND ShowBannerEndDate > GETDATE()
-		
+	
+	/*	
 	IF @@ROWCOUNT = 0
 	BEGIN
 		SELECT	 @ErrCode = 100
 				,@ErrMsg = 'No data found'
 	END
+	*/
 		
 END
 GO
