@@ -20,6 +20,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 		
 	Param's explanation:	
 		
@@ -87,7 +88,6 @@ BEGIN
 	SELECT	TransId, Refno
 	FROM	@tmpInputTransId
 	WHERE	MainTransId IS NOT NULL 	
-			AND MainStatusId NOT IN (101, 102)
 			AND SubStatusId NOT IN (101, 102)
 
 	SET @RowCount = @@ROWCOUNT
@@ -95,7 +95,6 @@ BEGIN
 	SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
 	FROM	@tmpInputTransId
 	WHERE	MainTransId IS NULL
-			OR MainStatusId IN (101, 102)
 			OR SubStatusId IN (101, 102)
 
 	IF @RowCount = 0
