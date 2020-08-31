@@ -37,6 +37,7 @@ BEGIN
 			ON m.matchid = f.val
 	OPTION (maxrecursion 0)
 	
+	---- Settled score: ESport
     IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
     BEGIN
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
@@ -54,6 +55,7 @@ BEGIN
     					WHERE rs.ResourceID = f.ResourceID)
 	END
 	
+	---- Settled score: Tennis
 	ELSE IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType = 9 )
     BEGIN
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
@@ -73,6 +75,7 @@ BEGIN
 	
 	DELETE FROM #tblMatchID WHERE SportType in (43,9)
 	
+	---- Settled score: Exclude Tennis and ESports
 	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
     	SELECT    rs.MatchId
 				, 0
@@ -88,6 +91,7 @@ BEGIN
 						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
     					WHERE rs.ResourceID = f.ResourceID)
 
+		---- Reference Score (LSports): Tennis
 		IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType = 5 )
 		BEGIN		
 			;WITH  cteLatestId
@@ -112,6 +116,35 @@ BEGIN
 			FROM	cteLatestId
 			WHERE	rn = 1
 
+		END
+
+		---- Reference Score (SBO): Soccer
+		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 1 )
+		BEGIN
+			;WITH  cteLatestSBO
+			AS(
+				SELECT	ROW_NUMBER() OVER (PARTITION BY r.MatchId, r.SourceId, r.TypeId ORDER BY r.CreatedDate DESC) AS rn
+						,r.matchid
+						,r.TypeId
+						,r.HomeValue
+						,r.AwayValue
+				FROM bodb02.dbo.ProviderResultDetail r WITH(NOLOCK)
+				WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 1 )
+					AND  r.SourceId  = 1
+					AND r.TypeId IN (1,2)
+			)
+
+			INSERT INTO @tmpResultDetail (Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue)
+			SELECT l.MatchId
+				,1
+				,'SBO'
+				,CASE l.TypeId 
+					WHEN 1 THEN '01'
+					WHEN 2 THEN '00'
+				END
+				,l.HomeValue
+				,l.AwayValue
+			FROM cteLatestSBO l
 		END
 	
 	DROP TABLE #tblMatchID
