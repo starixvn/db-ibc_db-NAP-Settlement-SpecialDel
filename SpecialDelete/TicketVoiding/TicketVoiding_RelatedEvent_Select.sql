@@ -24,24 +24,14 @@ BEGIN
 	
 	IF @IsMainMatch = 1
 	BEGIN
-		CREATE TABLE #Match (matchid INT, eventdate DATETIME, homeid INT, awayid INT)
-
-		INSERT INTO #Match(matchid, eventdate, homeid, awayid)
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.ParentID = @MatchId
-
-		INSERT INTO #Match(matchid, eventdate, homeid, awayid)
-		SELECT lm.MainMatchID, m.eventdate, m.homeid, m.awayid
+		UNION
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
 		FROM dbo.Dot_Admin_LinkedMatch lm WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.MainMatchID = m.matchid
 		WHERE lm.MainMatchID = @MatchId
-
-		SELECT matchid, eventdate, homeid, awayid
-		FROM #Match
-		GROUP BY matchid, eventdate, homeid, awayid
-
-		DROP TABLE #Match
 	END
 	ELSE
 	BEGIN
