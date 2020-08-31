@@ -1,12 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 (
-	@RequestId		INT			= NULL
-	,@MatchId		INT			= NULL
-	,@FromDate		DATETIME	= NULL
-	,@ToDate		DATETIME	= NULL
-	,@IsExcludeTest BIT			= 1
-	,@Status		INT			= 0
+	@RequestId		INT				= NULL
+	,@MatchId		INT				= NULL
+	,@FromDate		DATETIME		= NULL
+	,@ToDate		DATETIME		= NULL
+	,@IsExcludeTest BIT				= 1
+	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
 	,@SubIssueType  VARCHAR(100)	= NULL
 )
@@ -28,6 +28,7 @@ AS
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
+		- 20200820@Zane: Change filter of manage request by the created date of request. [Redmine: #140000]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 
@@ -110,14 +111,14 @@ BEGIN
 								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
 								ELSE
 									CASE 
-										WHEN @MatchId IS NOT NULL THEN 2 -- MatchId & Fromdate, Todate
+										WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
 										ELSE 3 -- Fromdate, Todate
 									END
 							END
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -132,6 +133,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -139,6 +141,14 @@ BEGIN
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN (
+				SELECT	m.matchid, m.eventdate
+				FROM	dbo.match m WITH(NOLOCK)
+				UNION ALL
+				SELECT	m14.MatchId, m14.eventdate
+				FROM	dbo.match14 m14 WITH(NOLOCK)
+				) m
+				ON rd.MatchId = m.matchid
 		WHERE	r.RequestId = @RequestId
 					   		
 	END
@@ -149,7 +159,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -164,6 +174,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -173,16 +184,23 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN (
+				SELECT	m.matchid, m.eventdate
+				FROM	dbo.match m WITH(NOLOCK)
+				UNION ALL
+				SELECT	m14.MatchId, m14.eventdate
+				FROM	dbo.match14 m14 WITH(NOLOCK)
+				) m
+				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
-		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
-				AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
+		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds,IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds,IssueTypeId, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -197,6 +215,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -204,11 +223,19 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN (
+				SELECT	m.matchid, m.eventdate
+				FROM	dbo.match m WITH(NOLOCK)
+				UNION ALL
+				SELECT	m14.MatchId, m14.eventdate
+				FROM	dbo.match14 m14 WITH(NOLOCK)
+				) m
+				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
-		WHERE	r.CreatedDate BETWEEN @FromDate AND @ToDate
+		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
@@ -286,18 +313,6 @@ BEGIN
 					AND vh.MatchId = t.MatchId
 		) vh
 	
-	UPDATE t 
-		SET EventDate = m.eventdate
-	FROM	#tmpResult t
-		INNER JOIN (
-			SELECT m.matchid, m.eventdate
-			FROM	dbo.match m WITH(NOLOCK)
-			UNION ALL
-			SELECT	m14.MatchId, m14.eventdate
-			FROM	dbo.match14 m14 WITH(NOLOCK)
-		) m
-			ON t.MatchId = m.matchid
-
 	--Incompleted Request	
 	IF @Status IN (0,3)
 	BEGIN
