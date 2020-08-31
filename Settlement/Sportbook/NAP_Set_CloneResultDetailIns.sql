@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.NAP_Set_CloneResultDetailIns
+ALTER PROCEDURE dbo.NAP_Set_CloneResultDetailIns
 	@MatchId INT
 	,@SportType SMALLINT
 	,@ResultDetail VARCHAR(MAX) = ''
@@ -28,7 +28,7 @@ AS
 
 		@ResultDetail = 
 			'<Results>
-				<Result ResourceID= "M1" HomeValue="4" AwayValue="2" ResultStatusID="5" SettlementStatusID="4" CreateBy="8" CreateDate="2020-08-19 06:12:00.000" LastModifyBy="8" LastModifyDate="2020-08-19 06:12:00.000" OtherInfo="test"/>
+				<Result ResourceId= "M1" HomeValue="4" AwayValue="2" ResultStatusID="5" SettlementStatusID="4" CreateBy="8" CreateDate="2020-08-19 06:12:00.000" LastModifyBy="8" LastModifyDate="2020-08-19 06:12:00.000" OtherInfo="test"/>
 			</Results>'
 		
 */
@@ -37,33 +37,6 @@ BEGIN
 SET NOCOUNT ON
 
 	DECLARE @xmlResultDetail XML, @xmlExternalResult XML
-
-	DECLARE @tblResultDetail TABLE
-	(
-		 ResourceId	varchar(20)
-		,HomeValue	varchar(50)
-		,AwayValue	varchar(50)
-		,ResultStatusID	tinyint
-		,SettlementStatusID	tinyint
-		,CreateDate	datetime
-		,LastModifyDate	datetime
-		,CreateBy	int
-		,LastModifyBy	int
-		,OtherInfo	varchar(50)
-	)
-	DECLARE @tblExternalResult TABLE
-	(
-		MatchId3rd	int
-		,SourceId	smallint
-		,ResourceId	varchar(20)
-		,HomeValue	varchar(50)
-		,AwayValue	varchar(50)
-		,OtherInfo	varchar(50)
-		,CreateDate	datetime
-		,LastModifyDate	datetime
-		,CreateBy	int
-		,LastModifyBy	int
-	)
 
 BEGIN TRY
 
@@ -98,10 +71,7 @@ BEGIN TRY
 				,T.C.value('@CreateBy' , 'int' )
 				,T.C.value('@LastModifyBy' ,'int' )
 				,T.C.value('@OtherInfo' , 'varchar(50)' )
-		FROM	@xmlResultDetail.nodes('/Results/Result') AS T(C)
-
-
-
+			FROM	@xmlResultDetail.nodes('/Results/Result') AS T(C)
 		END
 	END
 
