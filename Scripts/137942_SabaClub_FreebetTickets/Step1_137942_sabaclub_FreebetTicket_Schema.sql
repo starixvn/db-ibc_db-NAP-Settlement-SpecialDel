@@ -37,8 +37,8 @@ CREATE TABLE [dbo].[LuckyDraw3rd](
 CREATE CLUSTERED INDEX [CIX_SportType_CustID_RoundID] ON [dbo].[LuckyDraw3rd] 
 (
 	[Sporttype] ASC,
-	[custid] ASC,
-	[RoundID] ASC
+	[RoundID] ASC,
+	[custid] ASC
 )
 GO
 
