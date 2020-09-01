@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_CloneResultDetailIns
-	@MatchId INT
-	,@SportType SMALLINT
-	,@ResultDetail VARCHAR(MAX) = ''
+	@MatchId		INT
+	,@SportType		SMALLINT
+	,@ResultDetail	VARCHAR(MAX) = ''
 	,@ExternalResult VARCHAR(MAX) = ''
-	,@ErrCode INT  = 0OUTPUT	 
-	,@ErrMsg NVARCHAR(200) = '' OUTPUT	
+	,@ErrCode		INT  = 0 OUTPUT	 
+	,@ErrMsg		NVARCHAR(200) = '' OUTPUT	
 AS
 /*
     Created by: 20200831@Louisa
@@ -43,11 +43,17 @@ BEGIN TRY
 	IF @ResultDetail <> ''
 	BEGIN
 		SELECT @xmlResultDetail = CAST(@ResultDetail AS XML)
+		
 		IF @SportType = 43
 		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailES r WITH(NOLOCK) WHERE r.MatchID = @MatchId)
+			BEGIN
+				DELETE FROM dbo.ResultDetailES WHERE MatchID =  @MatchId
+			END
+			
 			INSERT INTO dbo.ResultDetailES
 			(
-				MatchId
+				MatchID
 				,ResourceId
 				,HomeValue
 				,AwayValue
@@ -60,7 +66,7 @@ BEGIN TRY
 				,OtherInfo
 			)
 			SELECT	
-				1234567
+				@MatchId
 				,T.C.value('@ResourceId','varchar(20)'	)
 				,T.C.value('@HomeValue'	,'varchar(50)'	)
 				,T.C.value('@AwayValue'	,'varchar(50)'	)
@@ -81,6 +87,11 @@ BEGIN TRY
 		
 		IF @SportType = 43
 		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.ProviderExternalResultDetailES er WITH(NOLOCK) WHERE er.MatchID = @MatchId)
+			BEGIN
+				DELETE FROM dbo.ProviderExternalResultDetailES WHERE MatchID =  @MatchId
+			END
+
 			INSERT INTO dbo.ProviderExternalResultDetailES
 			(
 				MatchId3rd
@@ -97,7 +108,7 @@ BEGIN TRY
 			)
 			SELECT
 				T.C.value('@MatchId3rd' , 'int' )
-				,1234567
+				,@MatchId
 				,T.C.value('@SourceId'	 , 'smallint' )
 				,T.C.value('@ResourceId' , 'varchar(20)' )
 				,T.C.value('@HomeValue'	 , 'varchar(50)' )
