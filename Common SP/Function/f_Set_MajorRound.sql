@@ -62,6 +62,13 @@ RETURN
 		UNION ALL SELECT 2, '804' , 'Q4', 'Q4', 'SP', 0, 5		
 		UNION ALL SELECT 2, '00' , 'OT', 'OT', 'FT', 0, 6
 		UNION ALL SELECT 2, '00' , 'FT', '00', 'FT', 1, 99
+
+		
+		UNION ALL SELECT 1, '01' , 'HT', '01', 'HT', 0, 1
+		UNION ALL SELECT 1, '09' , 'HT', '09', 'HT', 0, 2
+		UNION ALL SELECT 1, '08' , 'FT', '08', 'FT', 0, 3
+		UNION ALL SELECT 1, '00' , 'FT', '00', 'FT', 1, 99
+
 		
     ) AS tbl
     WHERE Sporttype = @Sporttype 
