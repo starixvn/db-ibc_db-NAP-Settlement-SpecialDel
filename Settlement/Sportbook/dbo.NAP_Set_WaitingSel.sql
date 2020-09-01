@@ -426,11 +426,11 @@ BEGIN
 		,tm.IsExistMarkedTicket
 		,tm.IsExistRunningTicket
 		,tm.IsExistMarkedTicketParlay
-		,exSource.SourceId
-		,exSource.ExHTHomeScore
-		,exSource.ExHTAwayScore
-		,exSource.ExFTHomeScore
-		,exSource.ExFTAwayScore
+		--,exSource.SourceId
+		--,exSource.ExHTHomeScore
+		--,exSource.ExHTAwayScore
+		--,exSource.ExFTHomeScore
+		--,exSource.ExFTAwayScore
 		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
 		,ISNULL(ciFT.username,'') AS suspenderFullTime
 	FROM dbo.match m WITH(NOLOCK)
