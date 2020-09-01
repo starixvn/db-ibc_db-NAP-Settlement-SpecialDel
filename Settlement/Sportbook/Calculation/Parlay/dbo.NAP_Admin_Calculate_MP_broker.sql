@@ -23,6 +23,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@strBettypes   VARCHAR(MAX) = NULL
     ,@strTransIds   VARCHAR(MAX) = NULL
     ,@betstatus     NVARCHAR(50) = NULL
+	,@Sporttype SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
 AS
 /*
@@ -52,6 +53,7 @@ AS
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		
 
     Param's Explanation:
@@ -103,6 +105,7 @@ BEGIN
                 + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + @strBettypes + '''' END
                 + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
                 + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
+				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
                 + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -147,6 +150,7 @@ BEGIN
             , @strBettypes = @strBettypes
             , @betstatus = @betstatus
             , @SelectedQuarter = @SelectedQuarter
+			, @Sporttype = @Sporttype
     END
 
     IF @mode = 'PRECAL-29'

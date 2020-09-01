@@ -38,6 +38,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 
 	Param's Explanation:
 */
@@ -287,7 +288,8 @@ BEGIN
 				@resultDetail = @resultDetail,
 				@strBettypes = @strBettypes,
 				@betstatus	= @betstatus,
-				@SelectedQuarter = @SelectedQuarter
+				@SelectedQuarter = @SelectedQuarter,
+				@SportType = @SportType
 		END
 	END --END: handle bettransM ------------------------------------------
 

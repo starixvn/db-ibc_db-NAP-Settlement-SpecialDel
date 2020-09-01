@@ -129,6 +129,7 @@ AS
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 
     Param's Explanation:
         @action             @mode
@@ -300,6 +301,7 @@ BEGIN
                         ,@fta = @fta
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
+						,@SportType = @Sporttype
 
                  -- bettype 16 : HT/FT
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 16)
@@ -1658,6 +1660,7 @@ BEGIN
                         ,@hta = @hta
                         ,@betcount = 1
 						,@IsReSettledTickets = @IsReSettledTickets
+						,@Sporttype = @Sporttype
 
                 -- bettype 21: 1st moneyline
                 -- IF @betcount_21 > 0
