@@ -1,7 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE dbo.NAP_Set_CloneResultDetailSel
 	@MatchId INT
-	,@SportType SMALLINT
 AS
 /*
     Created by: 20200831@Louisa
@@ -17,9 +16,52 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	DECLARE @SportType SMALLINT
+
+	SELECT  @SportType = m.Sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchID = @MatchId
+	
+	DECLARE @tblResultDetail TABLE
+	(
+		ResourceId	VARCHAR(20)
+		,HomeValue	VARCHAR(50)
+		,AwayValue	VARCHAR(50)
+		,ResultStatusID	TINYINT
+		,SettlementStatusID	TINYINT
+		,CreateDate		DATETIME
+		,LastModifyDate	DATETIME
+		,CreateBy		INT
+		,LastModifyBy	INT
+		,OtherInfo		VARCHAR(50)
+	)
+	DECLARE @tblExternalResult TABLE
+	(
+		MatchId3rd	INT
+		,SourceId	SMALLINT
+		,ResourceId	VARCHAR(20)
+		,HomeValue	VARCHAR(50)
+		,AwayValue	VARCHAR(50)
+		,OtherInfo	VARCHAR(50)
+		,CreateDate	DATETIME
+		,LastModifyDate	DATETIME
+		,CreateBy		INT
+		,LastModifyBy	INT
+	)
 
 	IF @SportType =  43
 	BEGIN
+		INSERT INTO @tblResultDetail
+		(
+			ResourceId
+			,HomeValue
+			,AwayValue
+			,ResultStatusID
+			,SettlementStatusID
+			,CreateDate
+			,LastModifyDate
+			,CreateBy
+			,LastModifyBy
+			,OtherInfo
+		)
 		SELECT 
 			r.ResourceId
 			,r.HomeValue
@@ -31,10 +73,23 @@ BEGIN
 			,r.CreateBy
 			,r.LastModifyBy
 			,r.OtherInfo
-		FROM ResultDetailES r
+		FROM ResultDetailES r  WITH(NOLOCK)
 		WHERE r.MatchID  = @MatchId
 
 		---ExternalResult
+		INSERT INTO @tblExternalResult
+		(
+			MatchId3rd
+			,SourceId
+			,ResourceId
+			,HomeValue
+			,AwayValue
+			,OtherInfo
+			,CreateDate
+			,LastModifyDate
+			,CreateBy
+			,LastModifyBy
+		)
 		SELECT	
 			er.MatchId3rd
 			,er.SourceId
@@ -46,8 +101,13 @@ BEGIN
 			,er.LastModifyDate
 			,er.CreateBy
 			,er.LastModifyBy	
-		FROM	ProviderExternalResultDetailES er
+		FROM	ProviderExternalResultDetailES er WITH(NOLOCK)
 		WHERE er.MatchID = @MatchId
 	END
+
+	SELECT * FROM @tblResultDetail
+
+	SELECT * FROM @tblExternalResult
+
 END
 GO

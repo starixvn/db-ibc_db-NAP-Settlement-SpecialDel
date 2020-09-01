@@ -1,7 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_CloneResultDetailIns
+CREATE PROCEDURE dbo.NAP_Set_CloneResultDetailIns
 	@MatchId		INT
-	,@SportType		SMALLINT
 	,@ResultDetail	VARCHAR(MAX) = ''
 	,@ExternalResult VARCHAR(MAX) = ''
 	,@ErrCode		INT  = 0 OUTPUT	 
@@ -37,6 +36,9 @@ BEGIN
 SET NOCOUNT ON
 
 	DECLARE @xmlResultDetail XML, @xmlExternalResult XML
+	DECLARE @SportType SMALLINT
+
+	SELECT  @SportType = m.Sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchID = @MatchId
 
 BEGIN TRY
 
