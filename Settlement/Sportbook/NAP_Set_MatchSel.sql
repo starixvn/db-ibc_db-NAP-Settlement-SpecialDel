@@ -728,11 +728,11 @@ BEGIN
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
-			,exSource.SourceId
-			,exSource.ExHTHomeScore
-			,exSource.ExHTAwayScore
-			,exSource.ExFTHomeScore
-			,exSource.ExFTAwayScore
+			--,exSource.SourceId
+			--,exSource.ExHTHomeScore
+			--,exSource.ExHTAwayScore
+			--,exSource.ExFTHomeScore
+			--,exSource.ExFTAwayScore
 	FROM	#matchList m
 			LEFT JOIN @tmp_ExternalSourceResult exSource
 				ON m.matchid = exSource.Matchid

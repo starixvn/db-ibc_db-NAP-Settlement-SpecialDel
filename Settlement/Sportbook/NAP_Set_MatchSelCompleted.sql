@@ -260,11 +260,11 @@ BEGIN
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
-		, exSource.SourceId
-		, exSource.ExHTHomeScore
-		, exSource.ExHTAwayScore
-		, exSource.ExFTHomeScore
-		, exSource.ExFTAwayScore
+		--, exSource.SourceId
+		--, exSource.ExHTHomeScore
+		--, exSource.ExHTAwayScore
+		--, exSource.ExFTHomeScore
+		--, exSource.ExFTAwayScore
 	FROM @DataTmp m
 		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.custinfo ht WITH (NOLOCK) ON m.ConfirmHT > 0 AND m.ConfirmHT = ht.custid
