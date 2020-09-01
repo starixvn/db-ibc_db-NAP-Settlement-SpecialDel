@@ -582,11 +582,11 @@ BEGIN
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
 		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
-		,exSource.SourceId
-		,exSource.ExHTHomeScore
-		,exSource.ExHTAwayScore
-		,exSource.ExFTHomeScore
-		,exSource.ExFTAwayScore
+		--,exSource.SourceId
+		--,exSource.ExHTHomeScore
+		--,exSource.ExHTAwayScore
+		--,exSource.ExFTHomeScore
+		--,exSource.ExFTAwayScore
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON match.matchid = exSource.Matchid
