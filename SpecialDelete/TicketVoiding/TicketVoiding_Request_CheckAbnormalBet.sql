@@ -172,15 +172,6 @@ BEGIN
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId
 
-	IF @ActionId <>2
-	BEGIN
-		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #transIdTemp t 
-											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')
-								), 1, 1, ''), '')
-	END
-
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
 		transid
@@ -208,6 +199,12 @@ BEGIN
 
 	IF @ActionId <>2
 	BEGIN
+		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #transIdTemp t 
+											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+
 		-- get unsuppored transid
 		INSERT #UnsupportedTransids (transid)
 		SELECT t.transid
@@ -225,7 +222,9 @@ BEGIN
 	DELETE t
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE StatusId IN (101, 102, 103)
+	WHERE (1 = CASE WHEN @ActionId <>2 AND StatusId IN (101, 102, 103) THEN 1
+				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
+					ELSE 0 END)
 		OR bt.bettype IS NULL
 		
 	-- invalid transId
@@ -305,7 +304,6 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
-	
 	IF @ActionId = 4 -- Auto Void All (Instant)
 	BEGIN
 		-- get non-live and different score transids

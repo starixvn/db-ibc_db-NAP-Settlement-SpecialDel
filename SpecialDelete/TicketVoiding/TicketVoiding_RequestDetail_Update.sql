@@ -184,12 +184,11 @@ BEGIN
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 		END
 
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+				SET @IsTransidProcessed = 1
 		--======================================================================
 		IF @ActionId <>2
 		BEGIN
-			IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
-				SET @IsTransidProcessed = 1
-		
 			-- mark ticket
 			SELECT @MarkedTransIds = STUFF(
 				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
@@ -204,7 +203,6 @@ BEGIN
 															, @MarkType = 1, @LogActionId = 90508
 			END
 		END
-		--======================================================================
 		ELSE --update take note
 		BEGIN
 			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
