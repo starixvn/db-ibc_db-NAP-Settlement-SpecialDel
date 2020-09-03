@@ -30,6 +30,7 @@ AS
 		- 20200512@Charles: Auto Void Immediately [Redmine:#133705]
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200907@Raymond: Disable LiveScore of Football sport [Redmine: #141058] 
 
 	Param's Explanation:
@@ -40,18 +41,22 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE @InvalidTransIds VARCHAR(MAX) = ''
-	,@MovedTransIds VARCHAR(MAX) = ''
-	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
-	,@InvalidMatchId VARCHAR(200) = ''
-	,@SettledTransIds VARCHAR(MAX) = ''
-	,@UnsupportedTransids VARCHAR(MAX) = ''
-	,@ExistingReqTransIds VARCHAR(MAX) = ''
-	,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
-	,@CN88TransIds VARCHAR(MAX) = ''
-	,@NonLiveTransIds VARCHAR(MAX) = ''
-	,@DifferentLiveScoreTransIds VARCHAR(MAX) = ''
-	,@query NVARCHAR(MAX) = ''
-	,@ExecuteSQL NVARCHAR(MAX) = ''
+			,@MovedTransIds VARCHAR(MAX) = ''
+			,@DifferentMatchTransIds VARCHAR(MAX) = '' 
+			,@InvalidMatchId VARCHAR(200) = ''
+			,@SettledTransIds VARCHAR(MAX) = ''
+			,@UnsupportedTransids VARCHAR(MAX) = ''
+			,@ExistingReqTransIds VARCHAR(MAX) = ''
+			,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
+			,@CN88TransIds VARCHAR(MAX) = ''
+			,@NonLiveTransIds VARCHAR(MAX) = ''
+			,@DifferentLiveScoreTransIds VARCHAR(MAX) = ''
+			,@query NVARCHAR(MAX) = ''
+			,@ExecuteSQL NVARCHAR(MAX) = ''
+			,@IsCalQueue	BIT = 0
+			,@ResettleTransids VARCHAR(MAX) = ''
+			,@IsCheckAutoCal BIT=0
+			,@OldAction TINYINT
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -97,6 +102,7 @@ BEGIN
 	END
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	CREATE TABLE #validTransId (
 		transid BIGINT PRIMARY KEY
@@ -125,6 +131,35 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
+	-- Check auto cal
+    SELECT @OldAction = r.ActionId 
+	FROM dbo.TicketVoiding_Request r WITH(NOLOCK) 
+	WHERE r.RequestId = @RequestId
+
+	IF (@ActionId <> @OldAction AND @ActionId =2 AND @OldAction IS NOT NULL)
+	BEGIN
+		INSERT INTO #transid_tmp (transid, StatusId,statuswinlost)
+		SELECT t.transid, b.statusID, b.statuswinlost
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+		WHERE b.statusID IN (0, 1) --if status of ticket is running
+	
+		SET @IsCalQueue = ( SELECT TOP (1) 1
+								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+								WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
+							)
+		SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM #transid_tmp
+												WHERE --IsMixParlay = 0 AND 
+													statuswinlost IS NOT NULL
+												FOR XML PATH('')
+									), 1,1,'')
+		IF (@ResettleTransids <>'' AND @IsCalQueue =1 )
+		BEGIN
+			SELECT @IsCheckAutoCal = 1 	-- auto calculator
+		END
+	END
+
 
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT tmp.transid
@@ -137,12 +172,14 @@ BEGIN
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId
 
-	
-	SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #transIdTemp t 
-										INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-									FOR XML PATH('')
-							), 1, 1, ''), '')
+	IF @ActionId <>2
+	BEGIN
+		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #transIdTemp t 
+											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+	END
 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
@@ -169,17 +206,20 @@ BEGIN
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
-	-- get unsuppored transid
-	INSERT #UnsupportedTransids (transid)
-	SELECT t.transid
-	FROM #validTransId t
-		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL 
+	IF @ActionId <>2
+	BEGIN
+		-- get unsuppored transid
+		INSERT #UnsupportedTransids (transid)
+		SELECT t.transid
+		FROM #validTransId t
+			OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
+		WHERE bt.bettype IS NULL 
 		
-	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #UnsupportedTransids t
-									FOR XML PATH('')
-							), 1, 1, ''), '')
+		select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #UnsupportedTransids t
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+	END
 
 	--final valid transid
 	DELETE t
@@ -242,26 +282,28 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
+	IF @ActionId <>2
+	BEGIN
+		--get list VIP Account
+		SELECT  @query = N''		
+		SELECT	@query = @query + N'SELECT Custid 
+									FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+									'
+		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+		INSERT INTO @VIPAccount_tmp(CustID)
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	--get list VIP Account
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-								'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-	INSERT INTO @VIPAccount_tmp(CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-
-	SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((
-				SELECT ', ' + CAST(v.transid AS VARCHAR(50))
-				FROM #validTransId AS v				
-				WHERE EXISTS (
-					SELECT TOP 1 1
-					FROM @VIPAccount_tmp as vip
-					WHERE vip.CustID = v.custId
-				)
-				FOR XML PATH('')
-				), 1, 1, ''), '')
+		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((
+					SELECT ', ' + CAST(v.transid AS VARCHAR(50))
+					FROM #validTransId AS v				
+					WHERE EXISTS (
+						SELECT TOP 1 1
+						FROM @VIPAccount_tmp as vip
+						WHERE vip.CustID = v.custId
+					)
+					FOR XML PATH('')
+					), 1, 1, ''), '')
+	END
 
 	
 	IF @ActionId = 4 -- Auto Void All (Instant)
@@ -316,8 +358,10 @@ BEGIN
 			,@CN88TransIds AS CN88TransIds
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
+			,@IsCheckAutoCal AS IsCheckAutoCal
 
 	DROP TABLE #transIdTemp
+	DROP TABLE #transid_tmp
 	DROP TABLE #validTransId
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids

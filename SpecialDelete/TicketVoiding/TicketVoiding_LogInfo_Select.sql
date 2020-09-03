@@ -22,6 +22,7 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+		- 20200901@July: [TVS] Unmark/Rekey when update request to take note [Redmine: #140786]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:	
@@ -310,7 +311,9 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.matchid = @matchid
-				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							 ELSE 0 END
 				AND b.betfrom <> 'P'
 				AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
@@ -323,7 +326,9 @@ BEGIN
 				SELECT 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
-					AND bm.statusID NOT IN (101, 102, 103)
+					AND 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+								 WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								 ELSE 0 END
 					AND bm.betfrom <> 'P'
 				)
 		BEGIN		
@@ -406,7 +411,9 @@ BEGIN
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
-			WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+						   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+						   ELSE 0 END
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
@@ -545,7 +552,9 @@ BEGIN
 								AND b.matchid = @MatchId
 								AND b.custid = t.custid
 								AND b.bettype = t.bettype 
-				WHERE b.statusID NOT IN (101,102, 103 ) -- reject, void, refund	
+				WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							   ELSE 0 END
 			END  			    				    					    				    					    	
 		END
 				
@@ -642,7 +651,9 @@ BEGIN
 						AND charindex ('p25',main.extrainfo)> 0			
 						AND sub911.bettype = 911
 						AND sub911.matchid = @matchid
-		WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund					
+		WHERE 1 = CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
+					   ELSE 0 END							
 		
 		-- get cash-out member bet tickets	
 		INSERT INTO #SpecialDeleteBets(
@@ -742,7 +753,9 @@ BEGIN
 								WHERE b.refno = sub911.transid
 									AND b.matchid = sub911.matchid					
 									AND b.bettype = sub911.OriginalBetType
-									AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
+									AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+												 ELSE 0 END	
 							) AS b
 		WHERE sub911.bettype = 911
 			

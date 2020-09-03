@@ -6,6 +6,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 	,@MatchId		INT				= NULL
 	,@TransIds		VARCHAR(MAX)	= NULL
 	,@IsUpdRequest	BIT = 0
+	,@ActionId		TINYINT
 )
 AS
 /*	Created by: Kathy
@@ -17,6 +18,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200826@Zane: TVS - Enhance for Danger Accept [#140339]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
 		
 	Param's explanation:		
@@ -48,7 +50,10 @@ BEGIN
 		SET @tmpMatchId = (SELECT TOP 1 b.matchid
 						FROM dbo.bettrans AS b WITH (NOLOCK)
 							INNER JOIN @transIdTemp tmp ON b.transid = tmp.transid
-						WHERE ((b.statusID NOT IN (101, 102) AND @IsUpdRequest = 0) OR @IsUpdRequest = 1)
+						WHERE ( (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
+										 WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
+										 ELSE 0 END
+								AND @IsUpdRequest = 0) OR @IsUpdRequest = 1)
 								AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
 		
 		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
