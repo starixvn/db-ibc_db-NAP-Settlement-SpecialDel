@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.NAP_Set_CloneResultDetailSel
+CREATE PROCEDURE dbo.NAP_CloneResultDetailSel
 	@MatchId INT
 AS
 /*
@@ -11,6 +11,9 @@ AS
 		- 20200831@Louisa: Copy Result from DBPRO to SIT [Redmine:#140407]
 
 	Param's explanation:
+		STEP 1: web run this SP to get data from PRO
+		STEP 2: on SIT, web insert data
+
 		@MatchId: MatchId on PRODUCTION
 		
 */
