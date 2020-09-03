@@ -4,16 +4,14 @@ CREATE PROCEDURE dbo.NAP_CloneResultDetailSel
 AS
 /*
     Created by: 20200831@Louisa
-    Task: Copy Result from DBPRO to SIT [Redmine:#140407]
+    Task: Get Result data from DBPRO [Redmine:#140407]
     DB: DBPRO/BODB02  
     
     Revisions:            
-		- 20200831@Louisa: Copy Result from DBPRO to SIT [Redmine:#140407]
+		- 20200831@Louisa: Get Result data from DBPRO [Redmine:#140407]
 
 	Param's explanation:
-		STEP 1: web run this SP to get data from PRO
-		STEP 2: on SIT, web insert data
-
+		Web run this SP to get data from PRODUCTION
 		@MatchId: MatchId on PRODUCTION
 		
 */
