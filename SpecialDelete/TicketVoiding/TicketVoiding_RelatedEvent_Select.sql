@@ -16,7 +16,9 @@ AS
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200828@Charles: Get linked matches of main match [Redmine: #140339]
 	
-	Param's explanation:	
+	Param's explanation:
+		- @IsMainMatch: 1: Get child match and linked match
+						0: Get normal match
 		
 */
 BEGIN
@@ -30,7 +32,7 @@ BEGIN
 		UNION
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
 		FROM dbo.Dot_Admin_LinkedMatch lm WITH(NOLOCK)
-		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.MainMatchID = m.matchid
+		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		WHERE lm.MainMatchID = @MatchId
 	END
 	ELSE
