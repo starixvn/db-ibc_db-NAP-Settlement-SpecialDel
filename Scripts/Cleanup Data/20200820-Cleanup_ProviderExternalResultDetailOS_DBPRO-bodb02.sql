@@ -31,7 +31,7 @@ INNER JOIN
 		FROM dbo.match14 m14 WITH(NOLOCK)
 		UNION ALL
 		SELECT mbk.matchid, mbk.eventdate, mbk.Sporttype
-		FROM DB06.BODB_ARCHIVE.dbo.match_bk mbk
+		FROM DB06.BODB_ARCHIVE.dbo.match_bk mbk WITH(NOLOCK)
 	)m
 	ON o.matchid = m.matchid
 WHERE m.eventdate < '2020-08-31 00:00:00.000'
@@ -43,7 +43,7 @@ WHILE (1=1)
 BEGIN
 
 	DELETE TOP(@batch) FROM r
-	FROM dbo.ProviderExternalResultDetailOS r
+	FROM dbo.ProviderExternalResultDetailOS r 
 	INNER JOIN #OldResult om 
 		ON r.MatchID = om.MatchID
 
