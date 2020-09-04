@@ -12,7 +12,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
 	,@SubTypeId INT = 1 
-	,@IsExcludeHomeTeam  TINYINT 
+	,@IsExcludeHomeTeam  BIT = 0
+	,@IsExcludeAwayTeam  BIT = 0
 )
 AS
 /*	
@@ -28,8 +29,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:
-		+ Subtype in (1,2) will show IsExcludeHomeTeam
-		+ IsExcludeHomeTeam - NULL: no check - 1: exclude home team - 0: exclude away team
+		+ Subtype in (1,2) will show IsExcludeHomeTeam, IsExcludeAwayTeam
 		
 */
 BEGIN
@@ -325,9 +325,9 @@ BEGIN
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
 				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 									  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+									  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
 									  ELSE 0 END
 							END)
 		
@@ -433,9 +433,9 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 									  WHEN @IsExcludeHomeTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeHomeTeam = 0 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
+									  WHEN @IsExcludeAwayTeam = 1 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
 		
 									  ELSE 0 END
 							END)
@@ -573,9 +573,9 @@ BEGIN
 							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							   ELSE 0 END
 					AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
-								ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+								ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1)THEN 1
 										  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-										  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
 										  ELSE 0 END
 								END)
 			END  			    				    					    				    					    	
@@ -678,9 +678,9 @@ BEGIN
 					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END							
 			AND (1 = CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
-						 ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+						 ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 								   WHEN @IsExcludeHomeTeam = 1 AND sub911.bettype NOT IN (401,403,407,482,484) THEN 1 
-								   WHEN @IsExcludeHomeTeam = 0 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
+								   WHEN @IsExcludeAwayTeam = 1 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
 								   ELSE 0 END
 						 END) 		
 		-- get cash-out member bet tickets	
@@ -785,9 +785,9 @@ BEGIN
 												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												 ELSE 0 END
 									AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
-												ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+												ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 														  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-														  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+														  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
 														  ELSE 0 END
 												END)
 							) AS b
