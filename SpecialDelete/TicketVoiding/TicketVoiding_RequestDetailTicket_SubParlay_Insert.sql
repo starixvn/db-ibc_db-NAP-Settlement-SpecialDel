@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 (	 
 	@RequestId				INT
 	,@MatchId				INT
@@ -351,3 +351,4 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #DangerAccept_SubParlayTickets
 END
+GO

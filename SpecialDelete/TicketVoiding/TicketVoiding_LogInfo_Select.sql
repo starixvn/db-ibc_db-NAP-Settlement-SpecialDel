@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
 	@MatchId INT
 	,@RequestId	INT = 0
