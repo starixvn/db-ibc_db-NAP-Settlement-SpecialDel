@@ -55,7 +55,7 @@ BEGIN
     					WHERE rs.ResourceID = f.ResourceID)
 	END
 	
-	---- Settled score: Tennis
+	---- Settled score: Badminton AIO
 	ELSE IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType = 9 )
     BEGIN
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )

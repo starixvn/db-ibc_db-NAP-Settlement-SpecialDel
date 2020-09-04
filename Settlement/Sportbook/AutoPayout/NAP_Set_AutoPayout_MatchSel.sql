@@ -853,7 +853,7 @@ BEGIN
 		, m.betstatus
 		, m.matchcode
 	
-	DECLARE @matchidList varchar(MAX)
+	DECLARE @matchidList varchar(MAX) = ''
 
 	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
 	FROM #matchList
