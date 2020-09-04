@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailESLatestInfoSel
 	@MatchId INT
+	,@SettleType	VARCHAR(10) = 'MNL'
 AS
 /*
     Created by: 20200721@Kathy
@@ -10,10 +11,13 @@ AS
     Revisions:            
 		- 20200721@Kathy: get provider result [Redmine:#136931]
 		- 20200810@Louisa: get OutsideSource result [Redmine:#138656]
+		- 20200904@Louisa: Implement for EARLY [Redmine:#140407]
 
 	Param's Explanation:
 		If not exists SourceId = 1001 ==> Add dummy values
 		If not exist score for Top 4 OutsideSource: HomeValue=AwayValue=''
+
+		@SettleType: 'MNL'- Manual, 'EAR'- Early
 		
 */
 BEGIN
@@ -26,11 +30,18 @@ BEGIN
 	DECLARE @tmpLatestResult AS TABLE (ProviderExternalId INT,SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
+	DECLARE @tmpResourceID AS TABLE (ResourceID varchar(20) )
 
 	SET @SportType = 43
 
 	SELECT @LeagueId = m.LeagueId FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchId = @MatchId
 	SELECT @GameType = l.OverTimeSession FROM dbo.League l WITH(NOLOCK) WHERE l.leagueid = @LeagueId
+
+	INSERT INTO @tmpResourceID 
+	SELECT sp.ResourceID 
+	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+	WHERE sp.SportType  = @SportType AND sp.SettleType = @SettleType
+
 	
 	;WITH cteLatestId
 	AS(
@@ -91,7 +102,5 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
-		INNER JOIN dbo.f_Set_MajorRound(@SportType) fsmr
-			ON t.ResourceId = fsmr.ResourceId
 END
 GO
