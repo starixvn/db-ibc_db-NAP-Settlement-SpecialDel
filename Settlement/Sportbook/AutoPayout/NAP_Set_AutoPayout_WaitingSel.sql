@@ -437,11 +437,6 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicketParlay
-			,exSource.SourceId
-			,exSource.ExHTHomeScore
-			,exSource.ExHTAwayScore
-			,exSource.ExFTHomeScore
-			,exSource.ExFTAwayScore
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
