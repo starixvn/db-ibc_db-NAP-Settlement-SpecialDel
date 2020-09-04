@@ -11,6 +11,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
+	,@SubTypeId INT = 1 
+	,@IsExcludeHomeTeam  TINYINT 
 )
 AS
 /*	
@@ -22,10 +24,12 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
-		- 20200901@July: [TVS] Unmark/Rekey when update request to take note [Redmine: #140786]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
-	Param's explanation:	
+	Param's explanation:
+		+ Subtype in (1,2) will show IsExcludeHomeTeam
+		+ IsExcludeHomeTeam - NULL: no check - 1: exclude home team - 0: exclude away team
 		
 */
 BEGIN
@@ -320,6 +324,12 @@ BEGIN
 							WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
+				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+									  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+									  ELSE 0 END
+							END)
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
@@ -422,6 +432,13 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
+				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+									  WHEN @IsExcludeHomeTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsExcludeHomeTeam = 0 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
+		
+									  ELSE 0 END
+							END)
 		END 
 
 		-- delete cash-out member bet tickets
@@ -555,6 +572,12 @@ BEGIN
 				WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							   ELSE 0 END
+					AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+								ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+										  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+										  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										  ELSE 0 END
+								END)
 			END  			    				    					    				    					    	
 		END
 				
@@ -654,7 +677,12 @@ BEGIN
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END							
-		
+			AND (1 = CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+						 ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+								   WHEN @IsExcludeHomeTeam = 1 AND sub911.bettype NOT IN (401,403,407,482,484) THEN 1 
+								   WHEN @IsExcludeHomeTeam = 0 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
+								   ELSE 0 END
+						 END) 		
 		-- get cash-out member bet tickets	
 		INSERT INTO #SpecialDeleteBets(
 					GroupID			
@@ -755,7 +783,13 @@ BEGIN
 									AND b.bettype = sub911.OriginalBetType
 									AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-												 ELSE 0 END	
+												 ELSE 0 END
+									AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+												ELSE CASE WHEN @IsExcludeHomeTeam = NULL THEN 1
+														  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+														  WHEN @IsExcludeHomeTeam = 0 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+														  ELSE 0 END
+												END)
 							) AS b
 		WHERE sub911.bettype = 911
 			
