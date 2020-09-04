@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchDelSettled]   
 	@date datetime  
 AS  
@@ -14,6 +14,7 @@ AS
 		- 20170906@Bobby: #82738 - VS Betradar - clean up command
 		- 20180913@Kathy: Delete TempVariableNumberHistory data
 		- 20181115@Kathy: backup data for 2 tables: Single_Calculate_Queue & Parlay_Calculate_Queue [Redmine:#104631]
+		- 20200903@Kathy: backup data of single_calculate_queue & parlay_calculate_queue to DBLOG [Redmine:#138281]
 	    
 	 Param's Explanation:  
     
@@ -22,76 +23,82 @@ AS
 BEGIN  
 	SET NOCOUNT ON  
 
-	 -- Single match  
+	DECLARE @SingleKeyIds VARCHAR(MAX)
+			,@ParlayKeyIds VARCHAR(MAX)
 
-	DELETE s
-		OUTPUT DELETED.matchid
-		,m.eventdate
-		,DELETED.IsCalculating
-		,DELETED.AdminId
-		,DELETED.IP
-		,DELETED.Starttime
-		,DELETED.Action
-		,DELETED.sqlCommand
-		,DELETED.TryCount
-		,DELETED.execTime
-		,DELETED.duration
-	INTO dbo.Single_Calculate_Queue_bk (
-		matchid
-		,eventdate
-		,IsCalculating
-		,AdminId
-		,IP
-		,Starttime
-		,Action
-		,sqlCommand
-		,TryCount
-		,execTime
-		,duration
-	)
-	FROM	dbo.Single_Calculate_Queue s WITH(UPDLOCK,ROWLOCK)  
-		CROSS APPLY (
-			SELECT m.eventdate
-			FROM dbo.match m WITH(NOLOCK)
-			WHERE	s.matchid = m.matchid
-		)m
-	WHERE	Starttime < @Date 
-		AND IsCalculating NOT IN (0, 1)  
-	  
-	-- Parlay  
-	DELETE	p
-		OUTPUT DELETED.matchid
-		,m.eventdate
-		,DELETED.IsCalculating
-		,DELETED.Creator
-		,DELETED.IP
-		,DELETED.Starttime
-		,DELETED.Action
-		,DELETED.TryCount
-		,DELETED.execTime
-		,DELETED.duration
-		INTO dbo.Parlay_Calculate_Queue_bk (
-			matchid
-			,eventdate
-			,IsCalculating
-			,Creator
-			,IP
-			,Starttime
-			,Action
-			,TryCount
-			,execTime
-			,duration
-		)
-	FROM	dbo.Parlay_Calculate_Queue p WITH (UPDLOCK,ROWLOCK)  
-		CROSS APPLY (
-			SELECT	m.eventdate
-			FROM	dbo.match m WITH(NOLOCK)
-			WHERE	p.matchid = m.matchid
-		)m
-	WHERE	Starttime < @Date 
-		AND IsCalculating NOT IN (0, 1)  
+	DECLARE @tmpKeyId TABLE (KeyId INT)
+	DECLARE @tmpSingleKeyId TABLE (KeyId INT)
+	DECLARE @tmpParlayKeyId TABLE (KeyId INT)
 
-	-- VS Betradar - Single match  
+	SELECT	@SingleKeyIds = ''
+			,@ParlayKeyIds = ''
+
+	 -- Single commands   
+	INSERT INTO @tmpSingleKeyId (KeyId)
+	SELECT	KeyId
+	FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)  
+	WHERE	Starttime < @Date 
+			AND IsCalculating NOT IN (0, 1)  
+
+	IF @@ROWCOUNT > 0
+		SELECT @SingleKeyIds = @SingleKeyIds + CAST(KeyId AS VARCHAR(20)) + ','
+		FROM	@tmpSingleKeyId
+
+	-- Parlay commands
+	INSERT INTO @tmpParlayKeyId(KeyId)
+	SELECT	KeyId
+	FROM	dbo.Parlay_Calculate_Queue p WITH (NOLOCK)  
+	WHERE	Starttime < @Date 
+			AND IsCalculating NOT IN (0, 1)  
+
+	IF @@ROWCOUNT > 0
+		SELECT @ParlayKeyIds = @ParlayKeyIds + CAST(KeyId AS VARCHAR(20)) + ','
+		FROM	@tmpParlayKeyId
+
+	 -- backup data on DBLOG
+	 EXEC DBLOG.bodb_CustomerLog.dbo.NAP_Set_QueueSBBackup
+		  @SingleKeyIds = @SingleKeyIds
+		  ,@ParlayKeyIds = @ParlayKeyIds
+
+	-- delete data on DBTXN
+	-- single commands
+	WHILE (1 = 1)
+	BEGIN
+		DELETE FROM @tmpKeyId
+
+		DELETE  TOP (2000)
+		FROM	@tmpSingleKeyId 
+		OUTPUT DELETED.KeyId
+		INTO @tmpKeyId(KeyId)
+			
+		DELETE	s
+		FROM	dbo.Single_calculate_queue s WITH(ROWLOCK, UPDLOCK) 
+			INNER JOIN @tmpKeyId t
+				ON	s.KeyId = t.KeyId
+
+		IF @@ROWCOUNT < 2000
+			BREAK
+	END
+
+	-- parlay commands
+	WHILE (1 = 1)
+	BEGIN
+		DELETE FROM @tmpKeyId
+
+		DELETE  TOP (2000)
+		FROM	@tmpParlayKeyId 
+		OUTPUT DELETED.KeyId
+		INTO @tmpKeyId(KeyId)
+			
+		DELETE	p
+		FROM	dbo.Parlay_Calculate_Queue p WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpKeyId t
+				ON	p.KeyId = t.KeyId
+
+		IF @@ROWCOUNT < 2000
+			BREAK
+	END
+
 	DELETE 
 	FROM	dbo.Single_Calculate_Queue_VS WITH(UPDLOCK,ROWLOCK)  
 	WHERE	Starttime < @Date 

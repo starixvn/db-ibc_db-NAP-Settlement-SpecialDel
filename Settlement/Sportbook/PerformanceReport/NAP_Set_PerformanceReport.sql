@@ -1,15 +1,16 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_Customerlog" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_PerformanceReport
 AS
 BEGIN
 /*
 	Created: 20190506@Kathy
 	Task : Write User Action Logs to Prepare Keyscore Performance Report [Redmine:#104631]
-	DB: DBTXN/bodb02
+	DB: DBLOG/bodb_Customerlog
 	
 	Revision:
 		- 20190710@Helen: Settlement Performance Report -  Batch by batch - [Redmine: 100002]
 		- 20200818@Kathy: Support for other sports [Redmine:#138281]
+		- 20200903@Kathy: Move SP from DBTXN to DBLOG [Redmine:#138281]
 */
 
 DECLARE @maxdate DATETIME
@@ -107,25 +108,25 @@ FROM	#tmpDATA d
 				AND matchcode not like '%hedge%'  			
 		UNION ALL
 		SELECT  matchid, sporttype, leagueid, homeid, awayid, kickofftime, globalshowtime
-		FROM	dbo.match14 m WITH (NOLOCK)
+		FROM	bodb02.dbo.match14 m WITH (NOLOCK)
 		WHERE	matchid = d.matchid
 				AND matchcode not like '%hedge%'	
 		UNION ALL
 		SELECT  matchid, sporttype, leagueid, homeid, awayid, kickofftime, globalshowtime
-		FROM	dbo.match m WITH (NOLOCK)
+		FROM	bodb02.dbo.match m WITH (NOLOCK)
 		WHERE	matchid = d.matchid	
 				AND matchcode not like '%hedge%'	
 	) m
-	INNER JOIN dbo.League l WITH (NOLOCK)
+	INNER JOIN bodb02.dbo.League l WITH (NOLOCK)
 		ON m.leagueid = l.leagueid
 	OUTER APPLY(
 		SELECT fss.val
-		FROM dbo.f_SplitString(sqlcommand,',') fss 
+		FROM dbo.f_StringSplit(sqlcommand,',') fss 
 		WHERE fss.val LIKE '%@fth %'
 	) h
 	OUTER APPLY(
 		SELECT fss.val
-		FROM dbo.f_SplitString(sqlcommand,',') fss 
+		FROM dbo.f_StringSplit(sqlcommand,',') fss 
 		WHERE fss.val LIKE '%@fta %'
 	) a
 WHERE l.isTest = 0
@@ -139,20 +140,21 @@ WHERE l.isTest = 0
 					) THEN 1
 				ELSE 0
 			END
-		
+OPTION (maxrecursion 0)
+
 -- get auto setting 
 UPDATE	r
 	SET ishold = 1
 FROM	#tmpRESULT r
 	CROSS APPLY (
 		SELECT	us.MatchID
-		FROM	DBLOG.bodb_CustomerLog.dbo.UserLog_Settle us WITH (NOLOCK)
+		FROM	dbo.UserLog_Settle us WITH (NOLOCK)
 		WHERE	r.matchid = us.MatchID 
 				AND us.ActionID IN (81002,81003,81005)
 		GROUP BY us.MatchID
 		UNION ALL 
 		SELECT	us.MatchID
-		FROM	DBLOG.bodb_CustomerLog_Archive.dbo.UserLog_Settle us WITH (NOLOCK)
+		FROM	bodb_CustomerLog_Archive.dbo.UserLog_Settle us WITH (NOLOCK)
 		WHERE	r.matchid = us.MatchID 
 				AND us.ActionID IN (81002,81003,81005)
 		GROUP BY us.MatchID
@@ -165,12 +167,12 @@ UPDATE	r
 FROM	#tmpRESULT r
 	OUTER APPLY (
 		SELECT	LEFT(SUBSTRING(f.val,charindex('''', f.val) + 1, LEN(f.val)),1) as homescore
-		FROM	dbo.f_SplitString(sqlcommand, ',') f
+		FROM	dbo.f_StringSplit(sqlcommand, ',') f
 		WHERE	f.val LIKE '%@homescore%'
 	)fh
 	OUTER APPLY (
 		SELECT	LEFT(SUBSTRING(f.val,charindex('''', f.val) + 1, LEN(f.val)),1) as awayscore
-		FROM	dbo.f_SplitString(sqlcommand, ',') f
+		FROM	dbo.f_StringSplit(sqlcommand, ',') f
 		WHERE	f.val LIKE '%@awayscore%'
 	)fa
 WHERE	Action LIKE 'INST%'
@@ -184,7 +186,7 @@ SELECT	p.matchid
 		,p.awayvalue AS awayscore
 		,p.createddate AS confirmdate
 FROM	DBPRO.bodb02.dbo.ProviderResultDetail p with (nolock)
-	INNER JOIN match m with (nolock)
+	INNER JOIN bodb02.dbo.match m with (nolock)
 		ON p.matchid = m.matchid
 WHERE	SourceId = 100
 		AND typeid in (101, 102)
