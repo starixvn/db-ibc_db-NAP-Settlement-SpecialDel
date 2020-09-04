@@ -29,18 +29,11 @@ DECLARE @RoundID INT = 1
 
 -- Input param value here
 SELECT  @Sporttype = 150
-		, @winlostdate = '2020-09-08'
 		
-CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, NetWinLoss MONEY)
-
-DELETE FROM dbo.LuckyDraw3rd
-
-/*		
 SET @RoundID = 1 + ISNULL((SELECT MAX(roundID) 
 					FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 					WHERE sporttype = @Sporttype
 					),0) 
-*/				
 
 CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
 INSERT INTO #testAccount (username,FreeSpinCount)
@@ -61,7 +54,7 @@ FROM #testAccount s
 	INNER JOIN custdb.dbo.Customer c WITH (NOLOCK) ON s.username = c.username
 
 SELECT * FROM LuckyDraw3rd WITH (NOLOCK)
-
+WHERE RoundID = @RoundID  AND Sporttype = @Sporttype
 SELECT @RoundID AS RoundID
---DROP TABLE #temp_result
+
 
