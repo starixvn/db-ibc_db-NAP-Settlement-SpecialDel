@@ -55,8 +55,8 @@ BEGIN
 		AND b.bettype < 19999
 		AND b.bettype NOT IN (29)
 		AND l.LeagueGroupID IN (42,74)
-		--AND l.isTest = 0
-		--AND b.currency <> 20
+		AND l.isTest = 0
+		AND b.currency <> 20
 		AND b.winlostdate = @winlostdate
 		AND 1 = CASE WHEN m.sporttype = 1 AND l.leaguegroupid in (42, 74) THEN 1
 					 WHEN m.sporttype = 2 AND l.leaguegroupid = 42 THEN 1
@@ -82,8 +82,8 @@ BEGIN
 		AND b.bettype < 19999
 		AND b.bettype NOT IN (29)
 		AND l.LeagueGroupID IN (42,74)
-		--AND l.isTest = 0
-		--AND b.currency <> 20
+		AND l.isTest = 0
+		AND b.currency <> 20
 		AND b.winlostdate = @winlostdate
 		AND 1 = CASE WHEN m.sporttype = 1 AND l.leaguegroupid in (42, 74) THEN 1
 					 WHEN m.sporttype = 2 AND l.leaguegroupid = 42 THEN 1
