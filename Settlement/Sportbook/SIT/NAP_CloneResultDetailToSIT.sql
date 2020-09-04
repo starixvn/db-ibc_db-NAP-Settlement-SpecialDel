@@ -9,14 +9,14 @@ AS
 /*
     Created by: 20200831@Louisa
     Task: Copy Result from DBPRO to SIT [Redmine:#140407]
-    DB: DBPRO/BODB02  
-	NOTE: This SP get data for QC Test, only deployed on SIT
+    DB:   DBPRO (SIT)/bodb02
+	NOTE: This SP only deployed on SIT
     
     Revisions:            
 		- 20200831@Louisa: Copy Result from DBPRO to SIT [Redmine:#140407]
 
 	Param's explanation:
-		@MatchId: MatchId on SIT (this match follow results from a PRODUCTION match)
+		@MatchId: MatchId on SIT
 		@ExternalResult = 
 		'<Results>
 			<Result MatchId3rd="6166" SourceId="201" ResourceId="M1" HomeValue="1" AwayValue="1" OtherInfo="test" CreateDate="2020-08-17 03:24:12.970" CreateBy="148" LastModifyDate="2020-08-17 03:24:12.970" LastModifyBy="148"/>
