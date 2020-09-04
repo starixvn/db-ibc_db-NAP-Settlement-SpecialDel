@@ -131,7 +131,7 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	-- Check auto cal
+	-- Check auto calculator
     SELECT @OldAction = r.ActionId 
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK) 
 	WHERE r.RequestId = @RequestId
@@ -159,7 +159,6 @@ BEGIN
 			SELECT @IsCheckAutoCal = 1 	-- auto calculator
 		END
 	END
-
 
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT tmp.transid
@@ -197,27 +196,17 @@ BEGIN
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
-	IF @ActionId <>2
-	BEGIN
-		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #transIdTemp t 
-											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')
-								), 1, 1, ''), '')
-
-		-- get unsuppored transid
-		INSERT #UnsupportedTransids (transid)
-		SELECT t.transid
-		FROM #validTransId t
-			OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-		WHERE bt.bettype IS NULL 
+	-- get unsuppored transid
+	INSERT #UnsupportedTransids (transid)
+	SELECT t.transid
+	FROM #validTransId t
+		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
+	WHERE bt.bettype IS NULL 
 		
-		select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #UnsupportedTransids t
-										FOR XML PATH('')
-								), 1, 1, ''), '')
-	END
-
+	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #UnsupportedTransids t
+									FOR XML PATH('')
+							), 1, 1, ''), '')
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
@@ -274,15 +263,21 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
-	SELECT @SettledTransIds = ISNULL(STUFF((
-				SELECT ',' + CAST(v.transid AS VARCHAR(50))
-				FROM #validTransId AS v
-				WHERE v.StatusId NOT IN (0,1)
-				FOR XML PATH('')
-				), 1, 1, ''), '')
-
 	IF @ActionId <>2
 	BEGIN
+		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #transIdTemp t 
+											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+
+		SELECT @SettledTransIds = ISNULL(STUFF((
+					SELECT ',' + CAST(v.transid AS VARCHAR(50))
+					FROM #validTransId AS v
+					WHERE v.StatusId NOT IN (0,1)
+					FOR XML PATH('')
+					), 1, 1, ''), '')
+
 		--get list VIP Account
 		SELECT  @query = N''		
 		SELECT	@query = @query + N'SELECT Custid 
