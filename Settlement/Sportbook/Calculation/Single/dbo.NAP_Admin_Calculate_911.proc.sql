@@ -15,6 +15,7 @@ AS
 	Revisions:
 		- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
+		- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
 		
 	Parameter's Explanation:
 		- @Action: CAL, Refund
@@ -28,6 +29,8 @@ BEGIN
 	
 	--SELECT distinct matchid FROM dbo.bettrans WITH(NOLOCK) WHERE  bettype BETWEEN 911 AND 920 AND statusID = 103
 	DECLARE @xml XML	
+			,@ServerAlias VARCHAR(50) = ''
+			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT PRIMARY KEY)
 			
 	CREATE TABLE #tempCashOutTrans (
@@ -108,6 +111,8 @@ BEGIN
 	from #tempCashOutTrans
 	ORDER BY transid*/
 
+	EXEC dbo.NAP_Set_ServerInfo @ServerAlias = @ServerAlias OUTPUT
+
 	IF(@Action IN ('CAL', 'UNDO') )
 	BEGIN
 		--Recover selling data
@@ -173,7 +178,11 @@ BEGIN
 			ON b.transid = t.transid
 			
 		--RECOVER BetTradeSellingCancelled
-		IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DB061', 'DB062')
+		IF @@SERVERNAME IN ('DB230' -- local dev
+			,'DB206' -- local test
+			,'SITDBTRANS' -- SIT
+			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
+		) OR @ServerAlias = 'DBACC'
 		BEGIN		
 			WITH CTE_BetSelling AS (
 				SELECT bs.TradeID
@@ -208,9 +217,13 @@ BEGIN
 		FROM dbo.bettrans b WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN #tempCashOutTrans t 
 			ON b.transid = t.transid
-			
+
 		--REFUND CashOut transaction
-		IF @@SERVERNAME IN ('DBTRANS','DB06','DBTP','DB230','DB232','DB206','DB234', 'SITDBTRANS', 'SITDB06', 'DB061', 'DB062')
+		IF @@SERVERNAME IN ('DB230' -- local dev
+			,'DB206' -- local test
+			,'SITDBTRANS' -- SIT
+			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
+		) OR @ServerAlias = 'DBACC'
 		BEGIN	
 			WITH CTE_BetSelling AS (
 				SELECT bs.TradeID

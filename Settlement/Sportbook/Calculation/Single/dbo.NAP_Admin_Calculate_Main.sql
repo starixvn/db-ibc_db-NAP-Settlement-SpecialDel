@@ -128,6 +128,7 @@ AS
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 
     Param's Explanation:
         @action             @mode
@@ -143,6 +144,7 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @isUndo BIT
+		,@IsEnableServiceBroker BIT 
 
     SET @isUndo = CASE
                     WHEN @mode LIKE '%UNDO%' THEN 1
@@ -150,14 +152,15 @@ BEGIN
                     ELSE 0
                 END
 
+	SET @IsEnableServiceBroker = 0
+
     IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
         RETURN
 
-    IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
-            , 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
-            , 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
-            , 'SITDB052', 'SITDB053','SITDB06', 'SITDB055'
-            , 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02', 'DB055')
+	EXEC dbo.NAP_Set_ServerInfo 
+		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+
+    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP','DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
         AND @CalledByBrokerService = 0
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.

@@ -20,6 +20,7 @@ AS
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200212@Helen: update if <> void status [Redmine:#127398]
 		- 20200820@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
+		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 	
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
@@ -47,19 +48,19 @@ BEGIN
 			,@Sporttype SMALLINT = 1
 			,@transid BIGINT
 			,@matchid INT
+			,@IsEnableServiceBroker BIT -- server is using service broker or not
 
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
 	SET @xml = CONVERT(XML, @TransIds)
 
-	IF @IsUseServiceBroker = 1
+	EXEC dbo.NAP_Set_ServerInfo 
+		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+
+	IF @IsUseServiceBroker = 1 
 	BEGIN
-		 IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB06', 'DBTP', 'DB042', 'DB061', 'DB062'
-					, 'DB231', 'DB231\SQLSERVER2008R2', 'DB232', 'DB232\SQLSERVER2008R2'
-					, 'DB215', 'DB215\SQLSERVER2008R2', 'DB234', 'DB233\SQLSERVER2008R2'
-					, 'SITDB052', 'SITDB053','SITDB06', 'SITDB055'
-					, 'DBLicAPI', 'SITDBLicAPI', 'DBLicAPI02', 'DB055')
+		 IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054','DBTP', 'DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
 				AND @CalledByBrokerService = 0
 		BEGIN
 			-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
