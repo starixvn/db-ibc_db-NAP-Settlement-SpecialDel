@@ -9,6 +9,8 @@
 		- 20200819@Louisa: Insert new LogAction for ESports [Redmine:#138656]
 
 */
+USE bodb_CustomerLog
+GO
 
 BEGIN
 
