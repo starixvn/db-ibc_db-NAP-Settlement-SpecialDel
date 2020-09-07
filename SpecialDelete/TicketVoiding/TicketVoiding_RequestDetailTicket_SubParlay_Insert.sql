@@ -12,6 +12,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT
+	,@IsExcludeHomeTeam		BIT = 0
+	,@IsExcludeAwayTeam		BIT = 0
 )
 AS
 /*	
@@ -122,7 +124,14 @@ BEGIN
 			AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
-		
+			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
+									  WHEN @IsExcludeHomeTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsExcludeAwayTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
+									  ELSE 0 END
+							END)
+
+		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -134,7 +143,6 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 		END
 
@@ -189,7 +197,6 @@ BEGIN
 		
 				IF @UnMarkedTransIds IS NOT NULL
 				BEGIN
-					SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
 																	, @MarkType = 1, @LogActionId = 90508
 				END	
@@ -211,7 +218,6 @@ BEGIN
 			
 			IF @MarkedTransIds IS NOT NULL
 				BEGIN
-					SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 					EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 				END												
 

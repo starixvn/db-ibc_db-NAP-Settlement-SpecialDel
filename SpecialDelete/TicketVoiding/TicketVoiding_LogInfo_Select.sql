@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
-	,@SubTypeId INT = 1 
+	,@SubIssueTypeId INT = 1 
 	,@IsExcludeHomeTeam  BIT = 0
 	,@IsExcludeAwayTeam  BIT = 0
 )
@@ -324,7 +324,7 @@ BEGIN
 							WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
-				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+				AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 									  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
 									  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
@@ -432,7 +432,7 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+				        AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
 							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 									  WHEN @IsExcludeHomeTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
 									  WHEN @IsExcludeAwayTeam = 1 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
@@ -572,7 +572,7 @@ BEGIN
 				WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							   ELSE 0 END
-					AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+					AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 								ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1)THEN 1
 										  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
 										  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
@@ -677,7 +677,7 @@ BEGIN
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END							
-			AND (1 = CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+			AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 						 ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 								   WHEN @IsExcludeHomeTeam = 1 AND sub911.bettype NOT IN (401,403,407,482,484) THEN 1 
 								   WHEN @IsExcludeAwayTeam = 1 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
@@ -784,7 +784,7 @@ BEGIN
 									AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												 ELSE 0 END
-									AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
+									AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 												ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
 														  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
 														  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1

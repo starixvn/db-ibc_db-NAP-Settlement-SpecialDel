@@ -165,6 +165,7 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		WHERE b.statusID IN (0, 1) --if status of ticket is running
 
+		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
@@ -180,7 +181,6 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 		END
 
@@ -198,7 +198,6 @@ BEGIN
 				)
 			IF @MarkedTransIds IS NOT NULL
 			BEGIN
-				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
 															, @MarkType = 1, @LogActionId = 90508
 			END
@@ -213,7 +212,6 @@ BEGIN
 			--unmark ticket
 			IF @UnmarkTransids IS NOT NULL
 			BEGIN
-				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 				EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @UnmarkTransids, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 			END
 
