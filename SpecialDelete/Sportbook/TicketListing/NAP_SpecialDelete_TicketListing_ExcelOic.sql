@@ -40,6 +40,7 @@ AS
 		- 20191216@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
+		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -224,7 +225,7 @@ BEGIN
 				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 					OUTER APPLY (SELECT BallSequence 
 								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-								WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+								WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 								) AS BS_tmp
 				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')

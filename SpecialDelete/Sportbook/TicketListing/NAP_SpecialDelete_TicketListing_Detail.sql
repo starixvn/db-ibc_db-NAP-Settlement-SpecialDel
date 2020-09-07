@@ -59,6 +59,7 @@ AS;
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
+		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -400,7 +401,7 @@ BEGIN
 							
 						OUTER APPLY (SELECT BallSequence 
 									FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-									WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+									WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 									) AS BS_tmp
 					WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper WITH(NOLOCK) where site = @LicenseeName)
 						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
@@ -651,7 +652,7 @@ BEGIN
 						INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
 						OUTER APPLY (SELECT BallSequence 
 									FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-									WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+									WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 									) AS BS_tmp								
 					WHERE	b.srecommend NOT IN ( SELECT custid
 							   FROM dbo.Dep_CustSuper WITH (NOLOCK)
@@ -910,7 +911,7 @@ BEGIN
 						INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 	
 						OUTER APPLY (SELECT BallSequence 
 									FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-									WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+									WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 									) AS BS_tmp								
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
@@ -1159,7 +1160,7 @@ BEGIN
 						INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid 		
 						OUTER APPLY (SELECT BallSequence 
 									FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-									WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+									WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 									) AS BS_tmp
 					WHERE		b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy') 
 								AND b.matchid = @MatchId 

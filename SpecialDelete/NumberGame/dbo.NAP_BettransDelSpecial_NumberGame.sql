@@ -38,6 +38,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
+		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		
 		
 	Param's Explanation: 
@@ -333,7 +334,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 			OUTER APPLY (SELECT BallSequence 
 							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
-							WHERE b.bettype IN (85, 86, 87, 88, 89, 90)
+							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp
 		WHERE	(
 					(
@@ -458,7 +459,6 @@ BEGIN
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
 		SET winlost = actual_stake
 			,ruben = 1
-			,statuswinlost = 6
 			,STATUS = 'Void'
 			,creator = @UserID
 			,awinlost = 0

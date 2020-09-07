@@ -20,6 +20,7 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20180528@Alan: Return MatchCode Column [Redmine:#95949 ]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
+		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 
 	Param's Explanation:
 			- @Opition: 
@@ -160,7 +161,7 @@ BEGIN
 	INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON t.custid = c.custid
 	OUTER APPLY (SELECT BallSequence 
 				FROM dbo.f_NG_GetBallSequence (t.bettype, t.betteam , t.betid , t.IsLiveIndicator, t.livehomescore, t.liveawayscore)
-				WHERE t.bettype IN (85, 86, 87, 88, 89, 90)
+				WHERE t.bettype IN (85, 86, 87, 88, 89, 90, 91)
 				) AS BS_tmp	
 	ORDER BY ag.SITE, t.transid
 
