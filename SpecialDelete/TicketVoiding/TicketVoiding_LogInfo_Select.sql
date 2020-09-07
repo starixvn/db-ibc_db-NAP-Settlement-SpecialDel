@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
-	,@SubIssueTypeId INT = 1 
+	,@SubIssueTypeId INT = 0
 	,@IsExcludeHomeTeam  BIT = 0
 	,@IsExcludeAwayTeam  BIT = 0
 )
