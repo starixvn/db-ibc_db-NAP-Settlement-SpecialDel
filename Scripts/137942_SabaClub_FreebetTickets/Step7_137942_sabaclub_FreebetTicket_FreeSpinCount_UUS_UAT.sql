@@ -39,7 +39,25 @@ SET @RoundID = 1 + ISNULL((SELECT MAX(roundID)
 CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
 INSERT INTO #testAccount (username,FreeSpinCount)
 VALUES ('viettest789UAT',10),('kiwitest789',10),('IT01Test789',5),('IT02Test789',5),('IT03Test789',5),('IT04Test789',5),('IT05Test789',5),('IT06Test789',5),('IT07Test789',5),('IT09Test789',5),('IT08Test790',5),('IT10Test789',5),('IT11Test789',10),('IT12Test789',10),('IT13Test789',10),('IT14Test789',10),('IT15Test789',10),('IT16Test789',10),('IT17Test789',10),('IT19Test789',10),('IT20Test789',10),('IT21Test789',10),('IT22Test789',20),('IT23Test789',20),('IT24Test789',20),('IT25Test789',20),('IT27Test789',20),('IT28Test789',20),('IT29Test789',20),('IT30Test789',20),('IT31Test789',20),('IT32Test789',20),('IT33Test789',30),('IT34Test789',30),('IT35Test789',30),('IT36Test789',30),('IT37Test789',30),('IT38Test789',30),('IT39Test789',30),('IT40Test789',30),('IT41Test789',30),('IT42Test789',30),('IT43Test789',30),('IT44Test789',30),('IT45Test789',30),('IT46Test789',30),('IT47Test789',30),('IT48Test789',30),('IT49Test789',30),('IT50Test789',30),('IT51Test789',30),('IT52Test789',30),('IT53Test789',30),('IT54Test789',30),('IT55Test789',30),('IT56Test789',30),('IT57Test789',30),('IT58Test789',30),('IT59Test789',30),('IT60Test789',30),('IT61Test789',30),('SUPERTESTTE10010000E',5),('SUPERTESTTE10010000F',5),('SUPERTESTTE10010000G',5),('SUPERTESTTE10010000H',10),('SUPERTESTTE10010100J',10),('SUPERTESTTE10010100I',10),('SUPERTESTTE10010000L',20),('SUPERTESTTE10010000M',20),('SUPERTESTTE10010000N',20),('SUPERTESTTE10010000O',20)
-
+-- tw accounts
+,('twpgmenid.lin',10),
+('twpgmsteveliao',10),
+('twpgmyikhunchiu01',10),
+('twpgmyikhunchiu02',10),
+('twpgmjessica.chen',10),
+('twpgmbert.chang',10),
+('twpgmleolee',10),
+('twpgmkennychiang01',10),
+('twpgmeric.hsu',10),
+('twpgmnabifan',10),
+('twpgmandrewlan',10),
+('twpgmjaye.chen',10),
+('twpgmtroychen',10),
+('twpgmtroychen01',10),
+('twpgmtroychen02',10),
+('twpgmwinnielin01',10),
+('twpgmrita.chang2',10),
+('twpgmrita.chang2789',10)
 INSERT INTO LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 SELECT @Sporttype Sporttype
 	, @RoundID AS RoundID
