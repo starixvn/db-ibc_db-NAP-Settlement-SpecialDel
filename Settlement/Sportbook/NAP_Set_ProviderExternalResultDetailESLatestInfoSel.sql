@@ -47,11 +47,13 @@ BEGIN
 	AS(
 		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
 				,p.SourceId
-				,ResourceId
+				,p.ResourceId
 				,p.ProviderExternalId
 				, HomeValue
 				, AwayValue
 		FROM	dbo.ProviderExternalResultDetailES p WITH(NOLOCK)
+			INNER JOIN @tmpResourceID rs
+				ON p.ResourceId = rs.ResourceID
 		WHERE	p.MatchId = @MatchId
 	)
 	INSERT INTO @tmpLatestResult (ProviderExternalId, SourceId,ResourceId, HomeValue, AwayValue)
