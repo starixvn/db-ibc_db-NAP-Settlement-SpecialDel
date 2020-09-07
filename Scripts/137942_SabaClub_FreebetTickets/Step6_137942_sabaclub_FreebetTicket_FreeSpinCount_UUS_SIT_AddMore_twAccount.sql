@@ -47,11 +47,7 @@ VALUES
 ('twpgmandrewlan',10),
 ('twpgmjaye.chen',10),
 ('twpgmtroychen',10),
-('twpgmtroychen01',10),
-('twpgmtroychen02',10),
-('twpgmwinnielin01',10),
-('twpgmrita.chang2',10),
-('twpgmrita.chang2789',10)
+('twpgmrita.chang2',10)
 
 INSERT INTO LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 SELECT @Sporttype Sporttype
