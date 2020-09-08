@@ -30,7 +30,11 @@ DECLARE @RoundID INT = 1
 -- Input param value here
 SELECT  @Sporttype = 150
 		
-SET @RoundID = 1 
+SET @RoundID = ISNULL((SELECT MAX(roundID) 
+					FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
+					WHERE sporttype = @Sporttype
+					),1) 
+
 CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
 INSERT INTO #testAccount (username,FreeSpinCount)
 VALUES 
