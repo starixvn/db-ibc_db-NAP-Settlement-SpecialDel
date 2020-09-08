@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
-	,@SubIssueTypeId INT = 0
+	,@SubIssueTypeId INT = NULL
 	,@IsExcludeHomeTeam  BIT = 0
 	,@IsExcludeAwayTeam  BIT = 0
 )
@@ -29,7 +29,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:
-		+ Subtype in (1,2) will show IsExcludeHomeTeam, IsExcludeAwayTeam
+		+ SubIssueTypeId in (1,2) will show IsExcludeHomeTeam, IsExcludeAwayTeam
 		
 */
 BEGIN
@@ -434,8 +434,8 @@ BEGIN
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				        AND (1= CASE WHEN @SubTypeId NOT IN (1,2) THEN 1
 							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-									  WHEN @IsExcludeHomeTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeAwayTeam = 1 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
+									  WHEN @IsExcludeHomeTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsExcludeAwayTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
 		
 									  ELSE 0 END
 							END)
