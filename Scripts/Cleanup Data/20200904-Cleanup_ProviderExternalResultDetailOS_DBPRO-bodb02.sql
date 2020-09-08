@@ -14,30 +14,22 @@
 USE [bodb02]
 GO
 
-DECLARE @batch INT = 1000
+	DECLARE @maxProviderExternalId INT 
 
 
-CREATE TABLE #ActiveMatch( MatchID INT)
+	CREATE TABLE #Active( ProviderExternalId INT)
 
-INSERT INTO #ActiveMatch
-SELECT  m.MatchId
-FROM dbo.match m WITH(NOLOCK)
-WHERE m.eventdate >= '2020-08-31 00:00:00.000'
-AND m.sporttype = 5 --TENNIS
+	INSERT INTO #Active (ProviderExternalId)
+	SELECT  t.ProviderExternalId
+	FROM ProviderExternalResultDetailOS t WITH(NOLOCK)
+		INNER JOIN dbo.match m WITH(NOLOCK)
+			ON t.MatchId = m.matchid
 
-WHILE (1=1)
+	SET @maxProviderExternalId  = (SELECT  MAX(ProviderExternalId) FROM #Active )
 
-BEGIN
+	DELETE
+	FROM ProviderExternalResultDetailOS WITH(ROWLOCK, UPDLOCK)
+	WHERE ProviderExternalId NOT IN (SELECT a.ProviderExternalId FROM #Active a)
+	AND  ProviderExternalId <  @maxProviderExternalId
 
-	DELETE TOP(@batch) FROM r
-	FROM dbo.ProviderExternalResultDetailOS r WITH(ROWLOCK, UPDLOCK)
-	WHERE r.MatchId NOT IN ( SELECT am.MatchID FROM #ActiveMatch am )
-
-
-	IF @@ROWCOUNT = 0
-		BREAK			
-
-	WAITFOR DELAY '00:00:00:280'
-
-END
 GO
