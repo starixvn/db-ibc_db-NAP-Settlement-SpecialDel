@@ -57,7 +57,8 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		- 20200701@Kathy: get all ticket instead of exclude status Refund in Refund popup [Redmine:#134840]
-		- 20200901@Louisa: get calculated score in the second dataset [Redmine:#139979]	
+		- 20200901@Louisa: get calculated score in the second dataset [Redmine:#139979]
+		- 20200908@Louisa: get ResultDetail at DBPRO
 */
 BEGIN
     SET NOCOUNT ON
@@ -691,7 +692,7 @@ BEGIN
 	ELSE
 	BEGIN
 		DECLARE @matchidList  VARCHAR(MAX) = CAST(@MatchId AS VARCHAR )
-		EXEC dbo.NAP_Set_ResultDetailSel @matchidList = @matchidList
+		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel @matchidList = @matchidList
 	END
 
 	-- Get number of ticket
