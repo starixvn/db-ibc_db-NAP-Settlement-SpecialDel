@@ -12,8 +12,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT
-	,@IsExcludeHomeTeam		BIT = 0
-	,@IsExcludeAwayTeam		BIT = 0
+	,@IsCheckedHomeTeam		BIT = 0
+	,@IsCheckedAwayTeam		BIT = 0
 )
 AS
 /*	
@@ -125,9 +125,9 @@ BEGIN
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
 			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-									  WHEN @IsExcludeHomeTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeAwayTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									  WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
 									  ELSE 0 END
 							END)
 

@@ -12,8 +12,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
 	,@SubIssueTypeId INT = NULL
-	,@IsExcludeHomeTeam  BIT = 0
-	,@IsExcludeAwayTeam  BIT = 0
+	,@IsCheckedHomeTeam  BIT = 0
+	,@IsCheckedAwayTeam  BIT = 0
 )
 AS
 /*	
@@ -29,7 +29,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:
-		+ SubIssueTypeId in (1,2) will show IsExcludeHomeTeam, IsExcludeAwayTeam
+		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
 		
 */
 BEGIN
@@ -325,9 +325,9 @@ BEGIN
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
 				AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-									  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									  WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
 									  ELSE 0 END
 							END)
 		
@@ -573,10 +573,10 @@ BEGIN
 							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							   ELSE 0 END
 					AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-								ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1)THEN 1
-										  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-										  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
-										  ELSE 0 END
+								 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+										   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+										   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										   ELSE 0 END
 								END)
 			END  			    				    					    				    					    	
 		END
@@ -678,10 +678,10 @@ BEGIN
 					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END							
 			AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-						 ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-								   WHEN @IsExcludeHomeTeam = 1 AND sub911.bettype NOT IN (401,403,407,482,484) THEN 1 
-								   WHEN @IsExcludeAwayTeam = 1 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
-								   ELSE 0 END
+						  ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									WHEN @IsCheckedAwayTeam = 1 AND sub911.bettype NOT IN (401,403,407,482,484) THEN 1 
+									WHEN @IsCheckedHomeTeam = 1 AND sub911.bettype NOT IN (402,404,409,483,485) THEN 1
+									ELSE 0 END
 						 END) 		
 		-- get cash-out member bet tickets	
 		INSERT INTO #SpecialDeleteBets(
@@ -785,10 +785,10 @@ BEGIN
 												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												 ELSE 0 END
 									AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-												ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-														  WHEN @IsExcludeHomeTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-														  WHEN @IsExcludeAwayTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
-														  ELSE 0 END
+												 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+														   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+														   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+														   ELSE 0 END
 												END)
 							) AS b
 		WHERE sub911.bettype = 911
