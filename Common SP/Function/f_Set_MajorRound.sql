@@ -12,7 +12,8 @@ AS
         - 20180728@Vicky: ESPort [Redmine #95874]
         - 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
         - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
-		- 20200528@Kathy: add resourceid of basketball [Redmine:#134843] 
+		- 20200528@Kathy: add resourceid of basketball [Redmine:#134843]
+		- 20200908@Louisa: add FT and HT for Soccer [Redmine:#139979]
    
     Parameters Explanation:        
     
