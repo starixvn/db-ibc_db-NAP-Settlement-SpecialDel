@@ -33,6 +33,6 @@ BEGIN
 					WHERE sporttype = @Sporttype)
 END		
 
-SELECT CustID, FreeSpinCount, CONVERT(VARCHAR(10), DATEADD(DD, 1, '2020-09-10'),101) + ' 23:59:59.000' ShowBannerEndDate 
+SELECT RoundID,CustID, FreeSpinCount, CONVERT(VARCHAR(10), DATEADD(DD, 1, '2020-09-10'),101) + ' 23:59:59.000' ShowBannerEndDate 
 FROM dbo.LuckyDraw3rd WITH (NOLOCK)
 WHERE Sporttype = @Sporttype AND RoundID = @RoundID

@@ -37,7 +37,7 @@ END
 SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 6, '2020-09-20'),101) + ' 23:59:59.000'
 SET @ShowBannerEndDate_UUS = CONVERT(VARCHAR(10), DATEADD(DD, 1, '2020-09-20'),101) + ' 23:59:59.000'
 
-SELECT d.CustID, d.FreeSpinCount
+SELECT RoundID,d.CustID, d.FreeSpinCount
 	,  CASE WHEN c.currency = 20 THEN @ShowBannerEndDate_UUS ELSE @ShowBannerEndDate END AS ShowBannerEndDate 
 FROM dbo.LuckyDraw3rd d WITH (NOLOCK)
 	INNER JOIN dbo.CUSTDB.dbo.customer c WITH (NOLOCK) ON d.CustID = c.custid
