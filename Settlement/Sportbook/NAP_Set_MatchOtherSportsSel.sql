@@ -536,6 +536,37 @@ BEGIN
 				ON	m.matchid = t.MatchId
 	END
 
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43)
+	BEGIN
+		SELECT @strMatchIds = ''
+				,@strEarlyBettypes = ''
+				,@remoteQuery = ''
+				,@strResourceIds = ''
+		
+		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
+		FROM	dbo.f_Set_GetEarlyBettypes()
+
+		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
+		FROM	#tmpMatchIds
+		WHERE	sporttype = 43
+
+		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+		FROM	dbo.f_Set_MajorRound (43) f
+		
+		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
+				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
+				,@strResourceIds = LEFT(@strResourceIds, LEN(@strResourceIds) - 1)
+				
+		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
+							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
+							WHERE	o.matchid IN (' + @strMatchIds + ')
+									AND bettype IN (' + @strEarlyBettypes + ')
+									AND o.sporttype = 43'
+
+		INSERT INTO @tmpMatchEsport (MatchId)
+		EXECUTE sys.sp_executesql @remoteQuery
+	END
+
 	SELECT	m.matchid
 			,m.matchcode
 			,m.leagueid
