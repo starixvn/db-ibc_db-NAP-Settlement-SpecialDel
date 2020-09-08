@@ -30,7 +30,7 @@ SELECT b.transid, b.Matchid, 1, 0
 FROM #tmp_recommend r
 	INNER JOIN bettrans b WITH (NOLOCK) ON r.custid = b.recommend
 	INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
-WHERE m.sporttype < 99 AND eventstatus <> 'completed'
+WHERE m.sporttype <= 99 AND eventstatus <> 'completed'
 	AND b.statusID IN (0,1,102)
 	AND b.playerdiscount + b.discount + b.adiscount + b.sdiscount  > 0
 	AND b.bettype < 19999
