@@ -138,14 +138,12 @@ BEGIN
 			SELECT	zm.transid
 					,zm.matchid
 					,zm.refno 
-					,zb.status
+					,b.status
 					,zm.transdate AS VoidedTime
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-				INNER JOIN dbo.zzzbettrans zb WITH(NOLOCK)
-					ON zm.refno = zb.refno
+				LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON zm.refno = b.refno AND b.matchid = 29
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-			AND		zb.matchid = 29
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
 
