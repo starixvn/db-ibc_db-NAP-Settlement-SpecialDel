@@ -26,7 +26,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@LiveAwayScore TINYINT = NULL
 	,@IsCheckedHomeTeam BIT = NULL
 	,@IsCheckedAwayTeam BIT = NULL
-	,@SubIssueTypeId	TINYINT
+	,@SubIssueTypeId	TINYINT = NULL
 	,@IsConfirmCalculator  BIT = 0 
 	,@ErrMsg          NVARCHAR(200) = '' OUTPUT
     ,@ErrCode         INT           = 0 OUTPUT
