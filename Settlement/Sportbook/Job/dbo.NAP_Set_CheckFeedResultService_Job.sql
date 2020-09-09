@@ -35,9 +35,9 @@ BEGIN
 			ON r.MatchID = m.MatchID
 	WHERE r.SourceId IN (1,5)
 		AND CreatedDate >= @Check
-		AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 1 AND 180
-		AND 1 = CASE WHEN r.SourceId = 1 AND m.AutoSetting & 2  = 2 THEN 1 
-					 WHEN r.SourceId = 5 AND m.AutoSetting & 1  = 1 THEN 1 
+		AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+		AND 1 = CASE WHEN r.SourceId = 1 AND m.AutoSetting & 1  = 1 THEN 1 
+					 WHEN r.SourceId = 5 AND m.AutoSetting & 2  = 2 THEN 1 
 				END
 
 
