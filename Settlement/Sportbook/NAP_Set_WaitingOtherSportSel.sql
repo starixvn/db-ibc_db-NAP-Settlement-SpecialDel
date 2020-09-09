@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
+CREATE PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @LeagueIds	VARCHAR(MAX)
 AS
@@ -10,6 +10,7 @@ AS
 	
 	Revision:
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
+		- 20200827@Louisa: Get external score [Redmine:#139979]
 
 	Param's explanation:  
 		
@@ -41,14 +42,6 @@ BEGIN
 		,isWaitingSingle	BIT DEFAULT(0)
 		,isRunningParlay	BIT DEFAULT(0)
 		,isWaitingParlay	BIT DEFAULT(0)
-	)
-	DECLARE @tmpResultDetail TABLE (
-		MatchId				INT
-		,ResourceId			VARCHAR(20)
-		,HomeValue			VARCHAR(50)
-		,AwayValue			VARCHAR(50)
-		,ResultStatusId		TINYINT
-		,SettlementStatusId TINYINT
 	)
 
 	DECLARE @tmpMatchIds TABLE (
@@ -356,70 +349,6 @@ BEGIN
 		INSERT INTO @tmpMatchEsport (MatchId)
 		EXECUTE sys.sp_executesql @remoteQuery
 
-		SET @remoteQuery = 'SELECT	MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId
-							FROM	DBPRO.bodb02.dbo.ResultDetailES e WITH(NOLOCK)		
-							WHERE	e.matchid IN (' + @strMatchIds + ')
-									AND e.ResourceId IN ('+ @strResourceIds +')'
-		
-		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-		EXECUTE sys.sp_executesql @remoteQuery
-	END
-	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchIds WHERE sporttype = 9)
-	BEGIN
-		SELECT @strMatchIds = ''
-				,@remoteQuery = ''
-				,@strResourceIds = ''
-				
-		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
-		FROM	@tmpMatchIds
-		WHERE	sporttype = 9
-
-		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-		FROM	dbo.f_Set_MajorRound (9) f
-
-		SELECT	@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-				,@strResourceIds = LEFT(@strResourceIds, LEN(@strResourceIds) - 1)
-
-		SET @remoteQuery = 'SELECT	MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId
-							FROM	DBPRO.bodb02.dbo.ResultDetailOS o WITH(NOLOCK)		
-							WHERE	o.matchid IN (' + @strMatchIds + ')
-									AND o.ResourceId IN ('+ @strResourceIds +')
-							'
-		
-		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-		EXECUTE sys.sp_executesql @remoteQuery
-	END
-	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchIds WHERE sporttype NOT IN (9,43))
-	BEGIN
-		SELECT @strMatchIds = ''
-				,@remoteQuery = ''
-				,@strResourceIds = ''
-				
-		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
-		FROM	@tmpMatchIds
-		WHERE	sporttype NOT IN (9, 43)
-
-		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-		FROM(
-			SELECT	DISTINCT f.ResourceID
-			FROM	@tmpMatchIds m
-				CROSS APPLY dbo.f_Set_MajorRound(m.sporttype) f
-			WHERE	m.Sporttype NOT IN (9, 43)
-		)f
-			
-		SELECT	@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-				,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END
-				
-		SET @remoteQuery = 'SELECT	MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId
-							FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)		
-							WHERE	r.matchid IN (' + @strMatchIds + ')
-									' + CASE WHEN @strResourceIds <> '' THEN 
-									' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
-		
-		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-		EXECUTE sys.sp_executesql @remoteQuery
 	END
 
 	SELECT	tmp.MatchId
@@ -458,12 +387,16 @@ BEGIN
 		LEFT JOIN @tmpMatchEsport me
 			ON tmp.MatchId = me.MatchId
 
-	SELECT	MatchId
-			,ResourceId
-			,HomeValue
-			,AwayValue
-			,ResultStatusId
-			,SettlementStatusId
-	FROM	@tmpResultDetail
+
+	DECLARE @matchidList VARCHAR(MAX) = ''
+	    
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM @tmpMatchIds
+
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+
 END
 GO

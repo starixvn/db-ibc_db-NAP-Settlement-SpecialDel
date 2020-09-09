@@ -57,7 +57,8 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
 		- 20200701@Kathy: get all ticket instead of exclude status Refund in Refund popup [Redmine:#134840]
-		
+		- 20200901@Louisa: get calculated score in the second dataset [Redmine:#139979]
+		- 20200908@Louisa: get ResultDetail at DBPRO [Redmine:#139979]
 */
 BEGIN
     SET NOCOUNT ON
@@ -582,11 +583,11 @@ BEGIN
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
 		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
-		,exSource.SourceId
-		,exSource.ExHTHomeScore
-		,exSource.ExHTAwayScore
-		,exSource.ExFTHomeScore
-		,exSource.ExFTAwayScore
+		--,exSource.SourceId
+		--,exSource.ExHTHomeScore
+		--,exSource.ExHTAwayScore
+		--,exSource.ExFTHomeScore
+		--,exSource.ExFTAwayScore
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON match.matchid = exSource.Matchid
@@ -642,6 +643,8 @@ BEGIN
 		;WITH cteResultDetail
 		AS (
 			SELECT	matchid
+					, 0 AS SourceId
+					, '' AS SourceName
 					, ResourceId
 					, HomeValue
 					, AwayValue
@@ -688,19 +691,8 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT    MatchId
-				, ResourceId
-				, HomeValue
-				, AwayValue
-				, ResultStatusID
-				, SettlementStatusID
-		FROM    DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK) 
-		WHERE    MatchID = @MatchID 
-				AND (@Sporttype = 5 
-						OR(    @Sporttype = 1 
-							AND ResourceID IN ('00','01')
-						)
-				)
+		DECLARE @matchidList  VARCHAR(MAX) = CAST(@MatchId AS VARCHAR )
+		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel @matchidList = @matchidList
 	END
 
 	-- Get number of ticket

@@ -53,6 +53,7 @@ AS
 					  - Not display matches that have been calculate/refund mix parlay when check Un-Calculated Parlay Only filter [Redmine:#133518]
 	- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 	- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
+	- 20200904@Louisa: Get external score [Redmine:#139979]
 
 	
  Param explanation:  
@@ -820,11 +821,6 @@ BEGIN
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
 		, m.IsExistMarkedTicketParlay
-		, exSource.SourceId
-		, exSource.ExHTHomeScore
-		, exSource.ExHTAwayScore
-		, exSource.ExFTHomeScore
-		, exSource.ExFTAwayScore
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
 	FROM #matchList m
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
@@ -857,6 +853,16 @@ BEGIN
 		, m.betstatus
 		, m.matchcode
 	
+	DECLARE @matchidList varchar(MAX) = ''
+
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM #matchList
+
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+
 	
 	DROP TABLE #tempmatch
 	DROP TABLE #matchList

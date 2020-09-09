@@ -42,6 +42,7 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200505@Kathy: Add New Filter Option allowing user to exclude/include test matches [Redmine:#133518]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
+		- 20200904@Louisa: Get external score [Redmine:#139979]
 		
 */
 BEGIN
@@ -49,7 +50,7 @@ BEGIN
 
 	IF @sporttype NOT IN (1, 2, 3, 32, 47, 49, 56) RETURN
 
-	DECLARE @HTOverStartMins INT, @HTOverEndMins INT
+	DECLARE @HTOverStartMins INT, @HTOverEndMins INT, @matchidList varchar(MAX) = ''
 
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
 	
@@ -271,19 +272,14 @@ BEGIN
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 	ORDER BY eventstatus, matchcode
 	
-	-- Get BASKETBALL RESULT 
-	SELECT	MatchId
-			, ResourceId
-			, HomeValue
-			, AwayValue
-			, ResultStatusID
-			, SettlementStatusID
-	FROM	DBPRO.BODB02.dbo.ResultDetail rs WITH (NOLOCK) 
-	WHERE	@Sporttype IN (0, 2)
-			AND EXISTS (SELECT TOP 1 1 FROM @DataTmp m WHERE rs.MatchId = m.MatchId)
-			AND (ResourceId LIKE 'Q[1-4]' 
-				OR ResourceId IN ('00','01','OT') -- Basketball: 00, 01, Q1, Q2, Q3, Q4, OT
-			)
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM @DataTmp
+
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+
 	
 END
 GO

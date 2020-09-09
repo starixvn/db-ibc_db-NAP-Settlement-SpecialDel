@@ -32,7 +32,8 @@ AS
 		- 20200227@Sol: Show Result of SBO on Main Calculate & Main Popup for Soccer - [Redmine:#129780]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
-		
+		- 20200827@Louisa: Get external score [Redmine:#139979]
+
 	Param's explanation: 
 		
 */
@@ -436,16 +437,20 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicketParlay
-			,exSource.SourceId
-			,exSource.ExHTHomeScore
-			,exSource.ExHTAwayScore
-			,exSource.ExFTHomeScore
-			,exSource.ExFTAwayScore
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
 		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
 	
+	DECLARE @matchidList VARCHAR(MAX) = ''
+	    
+	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	FROM #tblMatchInQueue
+	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	    
+	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
+		@matchidList = @matchidList
+
 	DROP TABLE #tblMatchInQueue
 	DROP TABLE #tblBetStatus
 
