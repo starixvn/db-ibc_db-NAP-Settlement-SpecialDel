@@ -12,8 +12,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT
-	,@IsCheckedHomeTeam		BIT = 0
-	,@IsCheckedAwayTeam		BIT = 0
 )
 AS
 /*	
@@ -36,7 +34,9 @@ BEGIN
 			,@UserName		VARCHAR(100) = NULL
 			,@MarkedTransIds	VARCHAR(MAX) = NULL
 			,@RemoveTransIds	VARCHAR(MAX) = ''
-	
+			,@IsCheckedHomeTeam		BIT = 0
+			,@IsCheckedAwayTeam		BIT = 0
+
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
 			transid               BIGINT,
@@ -108,6 +108,11 @@ BEGIN
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
+
+	SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
+		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
+	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
+	WHERE RequestId= @RequestId
 
 	IF @IssueTypeId = 1 AND @MinMainParlayTransId IS NOT NULL
 	BEGIN

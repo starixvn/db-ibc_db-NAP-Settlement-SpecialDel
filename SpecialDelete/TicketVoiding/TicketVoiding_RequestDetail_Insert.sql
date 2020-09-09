@@ -24,6 +24,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@VoidToTime DATETIME = NULL
 	,@LiveHomeScore TINYINT = NULL
 	,@LiveAwayScore TINYINT = NULL
+	,@IsCheckedHomeTeam		BIT = NULL
+	,@IsCheckedAwayTeam		BIT = NULL
+	,@SubIssueTypeId		TINYINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -129,6 +132,8 @@ BEGIN
 		, VoidToTime
 		, LiveHomeScore
 		, LiveAwayScore
+		, IsCheckedHomeTeam
+		, IsCheckedAwayTeam
 		)
 	SELECT @RequestId
 		, @MatchId
@@ -137,21 +142,23 @@ BEGIN
 		, @AwayId
 		, @KickOffTime
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-		,@FilterFromTransTime
-		,@FilterToTransTime
-		,@FilterFromBetId
-		,@FilterToBetId
+		, @FilterFromTransTime
+		, @FilterToTransTime
+		, @FilterFromBetId
+		, @FilterToBetId
 		,@FilterBy
-		,@SingleCount
-		,@MainParlayCount
-		,@MinSingleTransId
-		,@MaxSingleTransId
-		,@MinMainParlayTransId
-		,@MaxMainParlayTransId
-		,@VoidFromTime
-		,@VoidToTime
-		,@LiveHomeScore
-		,@LiveAwayScore
+		, @SingleCount
+		, @MainParlayCount
+		, @MinSingleTransId
+		, @MaxSingleTransId
+		, @MinMainParlayTransId
+		, @MaxMainParlayTransId
+		, @VoidFromTime
+		, @VoidToTime
+		, @LiveHomeScore
+		, @LiveAwayScore
+		, @IsCheckedHomeTeam
+		, @IsCheckedAwayTeam
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
@@ -189,11 +196,17 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ (CASE
+								+  (CASE
 									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
 									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
 									WHEN @FilterBy <> 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
 									WHEN @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @IsFilterByTransTime = 1 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @IsFilterByTransTime = 1 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @IsFilterByTransTime = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @IsFilterByTransTime = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 									ELSE ''
 								END)
 								AS '@LogData'

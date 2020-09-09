@@ -20,8 +20,9 @@ AS
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
-	
+
 	Param's explanation:	
 	
 */
@@ -92,6 +93,8 @@ BEGIN
 			,rd.VoidToTime
 			,rd.LiveHomeScore
 			,rd.LiveAwayScore
+			,rd.IsCheckedHomeTeam
+			,rd.IsCheckedAwayTeam
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime

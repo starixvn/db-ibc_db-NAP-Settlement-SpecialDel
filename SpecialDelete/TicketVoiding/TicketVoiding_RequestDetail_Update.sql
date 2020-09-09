@@ -24,11 +24,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@VoidToTime DATETIME = NULL
 	,@LiveHomeScore TINYINT = NULL
 	,@LiveAwayScore TINYINT = NULL
-	,@IsConfirmCalculator  BIT = 0  
+	,@IsCheckedHomeTeam BIT = NULL
+	,@IsCheckedAwayTeam BIT = NULL
+	,@SubIssueTypeId	TINYINT
+	,@IsConfirmCalculator  BIT = 0 
 	,@ErrMsg          NVARCHAR(200) = '' OUTPUT
     ,@ErrCode         INT           = 0 OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+	
 )
 AS
 /*	Created by: Kathy
@@ -136,6 +140,8 @@ BEGIN
 			, VoidToTime = @VoidToTime
 			, LiveHomeScore = @LiveHomeScore
 			, LiveAwayScore = @LiveAwayScore
+			, IsCheckedHomeTeam = @IsCheckedHomeTeam
+			, IsCheckedAwayTeam = @IsCheckedAwayTeam
 
 		WHERE	RequestId = @RequestId
 	END
@@ -293,6 +299,10 @@ BEGIN
 		BEGIN
 			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
 									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))
+		END
+		IF @IssueTypeId =1 AND @SubIssueTypeId IN(1,2)
+		BEGIN
+			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 		END
 	END
 	ELSE
