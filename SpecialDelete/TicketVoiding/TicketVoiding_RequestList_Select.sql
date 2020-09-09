@@ -29,6 +29,7 @@ AS
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
+		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 
 	Param's explanation:	
 		@Status: 
@@ -217,7 +218,7 @@ BEGIN
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 			FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-			WHERE	vh.RequestId = t.requestId AND vh.StatusId = 2
+			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 		) vh
 		
 	UPDATE	t 
