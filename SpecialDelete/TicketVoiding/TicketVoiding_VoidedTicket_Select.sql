@@ -14,6 +14,7 @@ AS;
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20191118@Max: AdnormalBet TVS + Hotfix #124160 [Redmine:#123691]
+		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		
 	Param's explanation:	
 		
@@ -95,7 +96,7 @@ BEGIN
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) 
 	SELECT	vh.VoidingHistoryId
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-	WHERE	vh.RequestId = @RequestId AND vh.StatusId = 2
+	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
 
 	-- single ticket
 	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds)
