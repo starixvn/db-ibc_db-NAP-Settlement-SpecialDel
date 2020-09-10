@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@FilterToTransTime DATETIME = NULL
 	,@FilterFromBetId BIGINT = NULL
 	,@FilterToBetId BIGINT = NULL
-	,@IsFilterByTransTime BIT = NULL
+	,@FilterBy TINYINT = 1
 	,@SingleCount INT = NULL
 	,@MainParlayCount INT = NULL
 	,@MinSingleTransId BIGINT = NULL
@@ -47,6 +47,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's explanation:	
 	
@@ -116,7 +117,7 @@ BEGIN
 		, FilterToTransTime
 		, FilterFromBetId
 		, FilterToBetId
-		, IsFilterByTransTime
+		, FilterBy
 		, SingleCount
 		, MainParlayCount
 		, MinSingleTransId
@@ -139,7 +140,7 @@ BEGIN
 		,@FilterToTransTime
 		,@FilterFromBetId
 		,@FilterToBetId
-		,@IsFilterByTransTime
+		,@FilterBy
 		,@SingleCount
 		,@MainParlayCount
 		,@MinSingleTransId
@@ -186,8 +187,8 @@ BEGIN
 								+ (CASE
 									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
 									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
-									WHEN @IsFilterByTransTime = 1 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
-									WHEN @IsFilterByTransTime = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @FilterBy <> 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+									WHEN @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
 									ELSE ''
 								END)
 								AS '@LogData'

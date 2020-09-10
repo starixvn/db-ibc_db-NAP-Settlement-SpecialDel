@@ -31,6 +31,7 @@ AS
 		- 20200820@Zane: TVS - Enhance for Danger Accept [#140339]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
+		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's explanation:	
 		@Status: 
@@ -83,6 +84,7 @@ BEGIN
 		,TotalSingle	INT
 		,TotalParlay	INT
 		,TotalCashOut	INT
+		,FilterBy		TINYINT
 		,VoidFromTime	DATETIME
 		,VoidToTime		DATETIME
 	)
@@ -118,7 +120,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -136,6 +138,7 @@ BEGIN
 				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.FilterBy
 				,rd.VoidFromTime
 				,rd.VoidToTime
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
@@ -159,7 +162,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -177,6 +180,7 @@ BEGIN
 				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.FilterBy
 				,rd.VoidFromTime
 				,rd.VoidToTime
 		FROM	@tmpRequest t
@@ -200,7 +204,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds,IssueTypeId, VoidFromTime, VoidToTime)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds,IssueTypeId, FilterBy, VoidFromTime, VoidToTime)
 		SELECT	r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -218,6 +222,7 @@ BEGIN
 				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
+				,rd.FilterBy
 				,rd.VoidFromTime
 				,rd.VoidToTime
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
@@ -383,6 +388,7 @@ BEGIN
 				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
 				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
 				ELSE NULL END AS IncompletedReason
+			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
 	FROM	#tmpResult t
