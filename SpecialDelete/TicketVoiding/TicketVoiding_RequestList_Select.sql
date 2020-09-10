@@ -28,7 +28,7 @@ AS
 		- 20200602@Charles: Show bettype on manage request [Redmine:#135041]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
-		- 20200820@Zane: Change filter of manage request by the created date of request. [Redmine: #140000]
+		- 20200820@Zane: TVS - Enhance for Danger Accept [#140339]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 

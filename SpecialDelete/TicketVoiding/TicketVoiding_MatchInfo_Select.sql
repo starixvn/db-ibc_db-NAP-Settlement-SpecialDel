@@ -16,7 +16,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
-		- 20200826@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
+		- 20200826@Zane: TVS - Enhance for Danger Accept [#140339]
 		
 	Param's explanation:		
 */
