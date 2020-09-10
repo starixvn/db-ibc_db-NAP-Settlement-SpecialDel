@@ -18,6 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@strBettypes VARCHAR(MAX) = NULL
 	,@betstatus	NVARCHAR(50) = NULL
 	,@IsRefundHT BIT = NULL
+	,@Sporttype SMALLINT = NULL
 AS
 /*
     Creator: Viet
@@ -48,6 +49,7 @@ AS
 		- 20191112@Helen: Basketball calculation - sub parlay ticket is refunded then calculated in a tick [Redmine:123511]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		
     Param's Explanation:
        
@@ -735,13 +737,17 @@ BEGIN
 					,CASE bm.bettype
                         WHEN 1 THEN -- Handicap
                             CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
+                                --WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
+                                --WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
+								WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
                                 END
                         WHEN 7 THEN -- 1st Handicap
                             CASE betteam
-                                WHEN N'h' THEN (hdp2 - hdp1) + (@hth - livehomescore) - (@hta - liveawayscore)
-                                WHEN N'a' THEN (hdp1 - hdp2) - (@hth - livehomescore) + (@hta - liveawayscore)
+                                --WHEN N'h' THEN (hdp2 - hdp1) + (@hth - livehomescore) - (@hta - liveawayscore)
+                                --WHEN N'a' THEN (hdp1 - hdp2) - (@hth - livehomescore) + (@hta - liveawayscore)
+								WHEN N'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
                                 END
                         WHEN 3 THEN -- Over/Under
                             CASE betteam

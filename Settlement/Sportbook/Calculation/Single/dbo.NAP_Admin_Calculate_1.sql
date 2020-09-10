@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_1]
     ,@TotalGameAwaySet5		SMALLMONEY		= NULL 
     ,@betcount              INT				= 0
 	,@IsReSettledTickets	BIT				= 1
+	,@Sporttype				SMALLINT		= NULL
     -- add any params, please modify script in 'special section'
 AS
 /*
@@ -43,6 +44,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190408@Sol: Settlement Time [Redmine:#99638] 
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		
 */
 BEGIN
@@ -142,8 +144,10 @@ BEGIN
 							WHEN bettype IN (154,155,1311, 1316) AND BetID = 805 AND @SelectedSet LIKE '%5%' THEN @TotalGameAwaySet5
 							ELSE @fta END        
 			,@modds = CASE betteam
-				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
-				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
+				--WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
+				--WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
+				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
 				END
 			,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END	
 			,modds = @modds

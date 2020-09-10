@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_7] @matchid INT
     ,@hta SMALLMONEY
     ,@betcount INT = 0
 	,@IsReSettledTickets BIT	= 1
+	,@Sporttype SMALLINT = NULL
     -- add any params, please modify script in 'special section'
 AS
 /*
@@ -28,7 +29,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-		
+		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 
 */
 BEGIN
@@ -113,8 +114,8 @@ BEGIN
 
 		UPDATE b
 		SET @modds = CASE betteam
-				WHEN 'h' THEN (hdp2 - hdp1) + (@hth - livehomescore) - (@hta - liveawayscore)
-				WHEN 'a' THEN (hdp1 - hdp2) - (@hth - livehomescore) + (@hta - liveawayscore)
+				WHEN 'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+				WHEN 'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEn @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
 				END
 			,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END
 			,modds = @modds
