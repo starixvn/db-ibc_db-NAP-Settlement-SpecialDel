@@ -43,6 +43,7 @@ AS
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
+		- 20200911@Max: Tuning SP [Redmine: 141476]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -110,19 +111,27 @@ BEGIN
 		OPTION (maxrecursion 0) 
 	END
 	--===========================--
-	DECLARE @tmpSelectionType TABLE (Selectiontype INT)
-	INSERT INTO @tmpSelectionType (Selectiontype)
-	SELECT val
-	FROM dbo.f_SplitString(@SelectionType, ',')
-	OPTION (maxrecursion 0) 
-
+	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
 	DECLARE @tmpTransid TABLE (Transid BIGINT)
-	INSERT INTO @tmpTransid (Transid)
-	SELECT DISTINCT b.transid
-	FROM dbo.bettrans b WITH(NOLOCK) 
-		INNER JOIN  dbo.SMP_MarketSelection ms WITH(NOLOCK) ON b.betcheck =ms.MarketId
-		INNER JOIN  @tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-	WHERE ms.matchid = @MatchId	
+
+	IF @SelectionType <> ''
+	BEGIN
+		INSERT INTO #tmpSelectionType (Selectiontype)
+		SELECT val
+		FROM dbo.f_SplitString(@SelectionType, ',')
+		OPTION (maxrecursion 0) 
+	
+		INSERT INTO @tmpTransid (Transid)
+		SELECT DISTINCT b.transid
+		FROM dbo.bettrans b WITH(NOLOCK) 
+			CROSS APPLY (
+				SELECT SelectionType
+				FROM dbo.SMP_MarketSelection ms WITH(NOLOCK) 
+				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
+				)ms
+			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
+		WHERE b.matchid = @MatchId	
+	END
 	--===========================--
 
 	DECLARE @SportType SMALLINT = NULL
@@ -462,4 +471,5 @@ BEGIN
 	DROP TABLE #TmpBallSequence	
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
+	DROP TABLE #tmpSelectionType
 END
