@@ -26,14 +26,26 @@ BEGIN
 	
 	IF @IsMainMatch = 1
 	BEGIN
+		DECLARE @query NVARCHAR(MAX) = ''
+		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
+		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
+		
+		SET @query = '	SELECT MainMatchID, LinkedMatchID
+						FROM	dbo.Dot_Admin_LinkedMatch WITH(NOLOCK) '
+		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query'
+		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.ParentID = @MatchId
 		UNION
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
-		FROM dbo.Dot_Admin_LinkedMatch lm WITH(NOLOCK)
+		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		WHERE lm.MainMatchID = @MatchId
+
+		DROP TABLE #LinkedMatch_tmp
 	END
 	ELSE
 	BEGIN
