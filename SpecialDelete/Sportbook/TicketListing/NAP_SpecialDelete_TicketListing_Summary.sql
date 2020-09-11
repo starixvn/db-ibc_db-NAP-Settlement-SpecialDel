@@ -18,6 +18,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@Quarter			VARCHAR(200)	= 'All'
 	,@BetTeams			XML				= NULL
 	,@SingleOrSubParlay VARCHAR(20)	    = 'All'
+	,@SelectionType     VARCHAR(200)    = ''
+	
 WITH RECOMPILE
 AS
 /*	Created by: Elodie
@@ -61,6 +63,7 @@ AS
 		- 20191226@Max: Phase 5 on Special Delete Site [Redmine: #126084]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -180,7 +183,23 @@ BEGIN
 		parentid	INT
 		,typeid		INT
 		)
+		
+	--===========================--
+	DECLARE @tmpSelectionType TABLE (Selectiontype INT)
+	INSERT INTO @tmpSelectionType (Selectiontype)
+	SELECT val
+	FROM dbo.f_SplitString(@SelectionType, ',')
+	OPTION (maxrecursion 0) 
 
+	DECLARE @tmpTransid TABLE (Transid BIGINT)
+	INSERT INTO @tmpTransid (Transid)
+	SELECT DISTINCT b.transid
+	FROM dbo.bettrans b WITH(NOLOCK) 
+		INNER JOIN  dbo.SMP_MarketSelection ms WITH(NOLOCK) ON b.betcheck =ms.MarketId
+		INNER JOIN  @tmpSelectionType s ON ms.SelectionType=s.Selectiontype
+	WHERE ms.matchid = @MatchId	
+	--===========================--
+	
 	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, val)
 	FROM	dbo.f_SplitString(@BetTypes, ',')
@@ -254,6 +273,7 @@ BEGIN
 				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 	) cte
+	OPTION(MAXRECURSION 0)
 
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
@@ -400,6 +420,15 @@ BEGIN
 					WHEN @LiveType <> 2 THEN @LiveType
 					ELSE 0 
 				END	
+		--=============================================--
+		IF (@BetTypes = '38' AND @SelectionType <>'')
+		BEGIN
+			DELETE b
+			FROM  @TmpBettransList b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
+		END
+		--=============================================--
+		
 
 		IF @SportType = 43 -- E-Sports
 		BEGIN
