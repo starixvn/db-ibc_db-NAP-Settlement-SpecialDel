@@ -211,6 +211,7 @@ BEGIN
 			CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 			CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 	) cte
+	OPTION(MAXRECURSION 0)
 
 	BEGIN
 		IF @Type = 1 -- Number Game

@@ -273,6 +273,7 @@ BEGIN
 				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 	) cte
+	OPTION(MAXRECURSION 0)
 
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
