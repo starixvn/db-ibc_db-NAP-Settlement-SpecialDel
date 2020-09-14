@@ -410,9 +410,10 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND CASE @FilterBy WHEN 0 THEN sub.transdate
-									WHEN 1 THEN sub.transdate
-									WHEN 2 THEN sub.checktime
+					AND CASE WHEN @FilterBy = 0 THEN sub.transdate
+							WHEN @FilterBy = 1 THEN sub.transdate
+							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		END 
 
