@@ -18,6 +18,7 @@ AS
 		- 20200601@Kathy: Wrong ticket count for eSports [Redmine:#132401]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200914@Louisa: Order ResourceID for ESports [Redmine:#140407]
 		
 */
 BEGIN
@@ -189,7 +190,7 @@ BEGIN
 		  		LEFT JOIN DBPRO.bodb02.dbo.ResultDetailES rs WITH (NOLOCK)  
 					ON COALESCE(bt.ResourceID,p.ResourceID) = rs.ResourceID
 		  				AND rs.matchid = @matchid
-	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
+	  	ORDER BY CASE bt.ResourceID WHEN '00' THEN 'Z' ELSE COALESCE(bt.ResourceID, p.ResourceID) END
 	END
 	
 	---Badminton AIO - get data from dbo.ResultDetailOS
