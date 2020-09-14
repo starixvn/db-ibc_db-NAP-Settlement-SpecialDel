@@ -9,9 +9,6 @@
 USE bodb02
 GO
 --- define temporary tables 
-DECLARE @winlostdate DATETIME 
-
-SET @winlostdate = '2020-09-14 00:00:00'
 
 CREATE TABLE #tmp_recommend (custid INT)
 CREATE TABLE #Match_Final (Matchid INT, ID INT IDENTITY(1,1))
@@ -24,8 +21,6 @@ CREATE TABLE #Ticket_OldValue_BackupForCompare ( transid BIGINT
 												, [sdiscount] [decimal](9, 8) NULL
 												)
 
-DECLARE @ClearcommByBatch_tmp AS TABLE (transid BIGINT, IsBettrans BIT, IsTranslog BIT)
-
 -------------------------- DATA PREPARATION  ------------------------
 ------ GET list of recommend to utilize index IX_recommend on bettrans
 
@@ -37,7 +32,8 @@ WHERE roleid = 2
 	AND site IN ('611111')
 	
 ---- GET affected transid
-	
+DECLARE @winlostdate DATETIME 
+SET @winlostdate = '2020-09-14 00:00:00'	
 INSERT INTO #tickets_tmp(transid, Matchid, IsBettrans, IsTranslog)
 -- bettrans
 SELECT b.transid, b.Matchid, 1, 0
@@ -103,6 +99,7 @@ DECLARE @msg_total nvarchar(200) = 'Total of Match: %d.'
 RAISERROR (@msg_total, 0, 1, @Match_cnt) WITH NOWAIT
 
 -- LOOP BY matchid
+DECLARE @ClearcommByBatch_tmp AS TABLE (transid BIGINT, IsBettrans BIT, IsTranslog BIT)
 WHILE @start <= @end
 BEGIN
 	
