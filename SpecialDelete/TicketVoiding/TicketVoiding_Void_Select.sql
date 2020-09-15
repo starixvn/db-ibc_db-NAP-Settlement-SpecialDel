@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
     ,@RequestId		INT = NULL
     ,@IssueTypeId	INT = NULL
 	,@BetTypes		XML = NULL
-	,@ActionId		TINYINT
+	,@ActionId		TINYINT = 0
 
 )
 AS
