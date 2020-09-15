@@ -103,7 +103,7 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT)
-	CREATE TABLE #TransidInRequest (TransId BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT,ActionId TINYINT)
 	CREATE TABLE #validTransId (
 		transid BIGINT PRIMARY KEY
 		,isInMatch BIT
@@ -160,8 +160,8 @@ BEGIN
 		END
 	END
 
-	INSERT INTO #TransidInRequest (TransId)
-	SELECT tmp.transid
+	INSERT INTO #TransidInRequest (TransId,ActionId)
+	SELECT tmp.transid,req.ActionId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 		CROSS APPLY (
@@ -265,12 +265,14 @@ BEGIN
 
 	IF @ActionId <>2
 	BEGIN
-		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #transIdTemp t 
-											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')
-								), 1, 1, ''), '')
-
+		IF EXISTS (SELECT 1 FROM #TransidInRequest tr WHERE tr.ActionId <>2)
+		BEGIN
+			SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+											FROM #transIdTemp t 
+												INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
+											FOR XML PATH('')
+									), 1, 1, ''), '')
+		END
 		SELECT @SettledTransIds = ISNULL(STUFF((
 					SELECT ',' + CAST(v.transid AS VARCHAR(50))
 					FROM #validTransId AS v
