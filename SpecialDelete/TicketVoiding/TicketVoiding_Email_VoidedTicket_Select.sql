@@ -14,7 +14,7 @@ AS
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200825@July: Change datatype [Redmine: #139914]
-
+		- 20200831@Zane: TVS - Enhance for Danger Accept [#140339]
 	
 	Param's explanation:	
 		
@@ -138,10 +138,11 @@ BEGIN
 			SELECT	zm.transid
 					,zm.matchid
 					,zm.refno 
-					,zm.status
+					,b.status
 					,zm.transdate AS VoidedTime
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
+				LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON zm.refno = b.refno AND b.matchid = 29
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
@@ -363,5 +364,7 @@ BEGIN
 	WHERE	t.Bettype IN (805,806)  
 	ORDER BY t.refno  
 	
+	DROP TABLE #tmpTicket;
+
 END
 GO

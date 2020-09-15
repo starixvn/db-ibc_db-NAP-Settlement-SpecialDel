@@ -1,5 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
+(
+	@MarkedBy	INT	= 0
+)
 AS
 /*
     Created by: Alan
@@ -11,8 +14,9 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20200207@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
-        - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
+              - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+              - 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
 	Explanation's Param:
 */
 BEGIN
@@ -54,6 +58,8 @@ BEGIN
                    WHEN bt.matchid = 29 AND bm.isParlay = 1 THEN 1
                    ELSE 0
               END
+		AND ((m.UserId = @MarkedBy) OR @MarkedBy = 0)
+
     GROUP BY m.MatchId,
              m.UserId,
              c.Username,
@@ -93,5 +99,3 @@ BEGIN
      SET NOCOUNT OFF;
 END
 GO
-
-
