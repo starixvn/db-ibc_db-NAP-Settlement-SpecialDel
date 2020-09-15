@@ -265,7 +265,7 @@ BEGIN
 
 	IF @ActionId <>2
 	BEGIN
-		IF EXISTS (SELECT 1 FROM #TransidInRequest tr WHERE tr.ActionId <>2)
+		IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.ActionId <>2)
 		BEGIN
 			SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #transIdTemp t 
