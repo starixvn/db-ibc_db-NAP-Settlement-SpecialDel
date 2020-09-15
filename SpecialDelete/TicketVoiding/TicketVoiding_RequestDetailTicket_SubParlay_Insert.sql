@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@IsEditRequest			BIT = 0
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
-	,@ActionId				TINYINT
+	,@ActionId				TINYINT = 0
 )
 AS
 /*	

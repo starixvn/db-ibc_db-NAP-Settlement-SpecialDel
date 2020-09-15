@@ -6,7 +6,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 	,@MatchId		INT				= NULL
 	,@TransIds		VARCHAR(MAX)	= NULL
 	,@IsUpdRequest	BIT = 0
-	,@ActionId		TINYINT
+	,@ActionId		TINYINT = 0
 )
 AS
 /*	Created by: Kathy
