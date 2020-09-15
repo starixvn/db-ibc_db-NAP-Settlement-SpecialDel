@@ -37,7 +37,8 @@ BEGIN
 	(
 	SELECT TOP 1 1
 	FROM dbo.Match m WITH(NOLOCK)
-	WHERE m.AutoSetting & 1 = 1 
+	WHERE m.sporttype =1
+		AND m.AutoSetting & 1 = 1 
 		AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
 		AND EXISTS (SELECT SourceID FROM @tblCheckProvider WHERE SourceId =1 )
 	)
@@ -71,7 +72,8 @@ BEGIN
 	(
 	SELECT TOP 1 1
 	FROM dbo.Match m WITH(NOLOCK)
-	WHERE m.AutoSetting & 2 = 2
+	WHERE m.sporttype =1
+		AND m.AutoSetting & 2 = 2
 		AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
 		AND EXISTS (SELECT SourceID FROM @tblCheckProvider WHERE SourceId = 5 )
 	)
