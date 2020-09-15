@@ -15,6 +15,7 @@ AS
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200412@Sol: Allow User to Set Timeout for Direct Settlement - [Redmine:#132138]
 		- 20200723@Kathy: Exclude ET and PEN matches [Redmine:#136350]
+		- 20200915@Kathy: Exclude HT score of SABA Soccer match from the Auto Payout's Direct Settlement flow [Redmine:#141340]
 
 	Param's Explanation:
  
@@ -66,6 +67,10 @@ BEGIN
 			CROSS APPLY @typeIds f
 		WHERE m.eventstatus = 'running' and m.sporttype = 1
 			AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203
+			AND 1 = CASE
+						WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74) AND f.TypeId = 1 THEN 0
+						ELSE 1 
+					END
 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
 			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 			AND NOT EXISTS (SELECT TOP 1 1 
