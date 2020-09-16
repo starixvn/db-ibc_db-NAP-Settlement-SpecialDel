@@ -212,22 +212,24 @@ BEGIN
 		END
 		ELSE --other action to take note
 		BEGIN
-			--Unmark ticket
-			SELECT @MarkedTransIds = STUFF(
-					(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
-					FROM #DangerAccept_SubParlayTickets tp
-					WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
-						AND  tp.StatusId IN (0, 1) 
-					GROUP BY TransId for XML PATH('')), 1, 1, ''
-					)
+			IF @IsEditRequest = 1
+			BEGIN
+				--Unmark ticket
+				SELECT @MarkedTransIds = STUFF(
+						(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+						FROM #DangerAccept_SubParlayTickets tp
+						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+							AND  tp.StatusId IN (0, 1) 
+						GROUP BY TransId for XML PATH('')), 1, 1, ''
+						)
 			
-			IF @MarkedTransIds IS NOT NULL
-				BEGIN
-					EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
-				END												
+				IF @MarkedTransIds IS NOT NULL
+					BEGIN
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+					END												
 
-				SET @MarkedTransIds = ''
-
+					SET @MarkedTransIds = ''
+			END
 		END
 
 	END
