@@ -170,7 +170,7 @@ BEGIN
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2,3)
+									AND r.ActionId NOT IN (2)
 							)tmp
 		WHERE tmp.TransId IS NULL
 		
@@ -334,7 +334,7 @@ BEGIN
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = sub.transid
 									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2,3)
+									AND r.ActionId NOT IN (2)
 							)tmp
 				WHERE	sub.transdate >= @KickOffTime
 						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund

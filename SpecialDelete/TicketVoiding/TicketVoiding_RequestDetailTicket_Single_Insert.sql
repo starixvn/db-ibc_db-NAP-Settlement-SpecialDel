@@ -169,7 +169,7 @@ BEGIN
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2,3)
+									AND r.ActionId NOT IN (2)
 						)tmp
 		WHERE tmp.TransId IS NULL
 
@@ -343,7 +343,7 @@ BEGIN
 								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
 							WHERE rs.TransId = b.transid
 								AND rs.MatchId = @MatchId
-								AND r.ActionId NOT IN (2,3)
+								AND r.ActionId NOT IN (2)
 					)tmp
 		WHERE	b.matchid = @matchid
 				AND b.transdate >= @KickOffTime

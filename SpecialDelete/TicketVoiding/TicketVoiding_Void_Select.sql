@@ -914,7 +914,7 @@ BEGIN
 							INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
 						WHERE rs.TransId = b.transid
 							AND rs.MatchId = @MatchId
-							AND r.ActionId NOT IN (2,3)
+							AND r.ActionId NOT IN (2)
 							AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
 										ELSE 1 END
 				)tmp
@@ -1111,7 +1111,7 @@ BEGIN
 								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 							WHERE rs.TransId = sub.transid
 								AND rs.MatchId = @MatchId
-								AND r.ActionId NOT IN (2,3)
+								AND r.ActionId NOT IN (2)
 								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
 										ELSE 1 END
 						)tmp

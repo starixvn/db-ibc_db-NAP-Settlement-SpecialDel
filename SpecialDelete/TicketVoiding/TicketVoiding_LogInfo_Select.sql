@@ -836,7 +836,7 @@ BEGIN
 	END
 
 	/*Get Transid in Request of range Transid*/
-	IF @ActionId NOT IN (2,3)
+	IF @ActionId NOT IN (2)
 	BEGIN
 		IF @IssueTypeId IN (8,9)
 		BEGIN
@@ -859,7 +859,7 @@ BEGIN
 					)tmp
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2,3)
+				AND r.ActionId NOT IN (2)
 		END
 		ELSE
 		BEGIN
@@ -883,7 +883,7 @@ BEGIN
 				INNER JOIN #SpecialDeleteBets t ON t.SubTransid = tmp.transid
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2,3)
+				AND r.ActionId NOT IN (2)
 		END
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
