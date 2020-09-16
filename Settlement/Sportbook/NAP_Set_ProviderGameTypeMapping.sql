@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="2"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite,bodbAdminNet" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderGameTypeMapping]
 	@SourceId		SMALLINT		= 0
 	,@SourceName	VARCHAR(50)		= NULL 
