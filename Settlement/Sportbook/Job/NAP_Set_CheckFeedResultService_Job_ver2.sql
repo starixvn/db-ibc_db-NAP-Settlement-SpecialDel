@@ -45,47 +45,45 @@ BEGIN
 					m.AutoSetting & 1 = 1
 					OR m.AutoSetting & 2 = 2
 				)
-	END
-
-	IF @@ROWCOUNT >= 1 --exist match need to feed result
-	BEGIN
-		IF NOT EXISTS (SELECT SourceID FROM @tblCheckProvider WHERE SourceID = 1 AND isExist = 0)
+		IF @@ROWCOUNT >= 1 --exist match need to feed result
 		BEGIN
-			SET @ProviderName = 'SBO'
-			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + @CheckDate
-			SET @Email_body  =  
-				'<html>
-					<body>
-						<br>Dear All,<br>
-						<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
-						<br>Thanks and best regards,<br>
-						<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
-						</body>
-				</html>'
+			IF NOT EXISTS (SELECT SourceID FROM @tblCheckProvider WHERE SourceID = 1 AND isExist = 0)
+			BEGIN
+				SET @ProviderName = 'SBO'
+				SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + @CheckDate
+				SET @Email_body  =  
+					'<html>
+						<body>
+							<br>Dear All,<br>
+							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
+							<br>Thanks and best regards,<br>
+							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
+							</body>
+					</html>'
 
-			EXECUTE msdb.dbo.sp_send_dbmail
-				@profile_name		= DEFAULT
-				, @recipients		= @Email_recipients
-				, @importance		='Normal'
-				, @subject			= @Email_subject
-				, @body				= @Email_body
-				, @body_format		= 'HTML';
-		END
+				EXECUTE msdb.dbo.sp_send_dbmail
+					@profile_name		= DEFAULT
+					, @recipients		= @Email_recipients
+					, @importance		='Normal'
+					, @subject			= @Email_subject
+					, @body				= @Email_body
+					, @body_format		= 'HTML';
+			END
 
 
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tblCheckProvider WHERE SourceID = 5 AND isExist = 0)
-		BEGIN
-			SET @ProviderName = 'Soccerway'
-			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + @CheckDate
-			SET @Email_body  =  
-				'<html>
-					<body>
-						<br>Dear All,<br>
-						<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
-						<br>Thanks and best regards,<br>
-						<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
-						</body>
-				</html>'
+			IF NOT EXISTS (SELECT TOP 1 1 FROM @tblCheckProvider WHERE SourceID = 5 AND isExist = 0)
+			BEGIN
+				SET @ProviderName = 'Soccerway'
+				SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + @CheckDate
+				SET @Email_body  =  
+					'<html>
+						<body>
+							<br>Dear All,<br>
+							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
+							<br>Thanks and best regards,<br>
+							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
+							</body>
+					</html>'
 
 			EXECUTE msdb.dbo.sp_send_dbmail
 					@profile_name		= DEFAULT
@@ -95,8 +93,11 @@ BEGIN
 				, @body				= @Email_body
 				, @body_format		= 'HTML';
 
-		END 
+			END 
+		END
 	END
+
+	
 END
 GO
 
