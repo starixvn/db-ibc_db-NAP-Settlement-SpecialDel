@@ -18,7 +18,6 @@ AS
 		- 20200601@Kathy: Wrong ticket count for eSports [Redmine:#132401]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
-		- 20200914@Louisa: Order ResourceID for ESports [Redmine:#140407]
 		
 */
 BEGIN
