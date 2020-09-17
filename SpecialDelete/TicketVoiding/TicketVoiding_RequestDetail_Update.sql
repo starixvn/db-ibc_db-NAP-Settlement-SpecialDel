@@ -14,7 +14,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@FilterToTransTime DATETIME = NULL
 	,@FilterFromBetId BIGINT = NULL
 	,@FilterToBetId BIGINT = NULL
-	,@IsFilterByTransTime BIT = NULL
+	,@FilterBy TINYINT = 1
 	,@SingleCount INT = NULL
 	,@MainParlayCount INT = NULL
 	,@MinSingleTransId BIGINT = NULL
@@ -45,6 +45,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's explanation:	
 	
@@ -75,7 +76,7 @@ BEGIN
 			,@OldFilterToTransTime DATETIME = NULL
 			,@OldFilterFromBetId BIGINT = NULL
 			,@OldFilterToBetId BIGINT = NULL
-			,@OldIsFilterByTransTime BIT = NULL
+			,@OldFilterBy TINYINT = 0
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -113,12 +114,12 @@ BEGIN
 			, @OldFilterToTransTime = FilterToTransTime
 			, @OldFilterFromBetId = FilterFromBetId
 			, @OldFilterToBetId = FilterToBetId
-			, @OldIsFilterByTransTime = IsFilterByTransTime
+			, @OldFilterBy = FilterBy
 			, FilterFromTransTime = @FilterFromTransTime
 			, FilterToTransTime = @FilterToTransTime
 			, FilterFromBetId = @FilterFromBetId
 			, FilterToBetId = @FilterToBetId
-			, IsFilterByTransTime = @IsFilterByTransTime
+			, FilterBy = @FilterBy
 			, SingleCount = @SingleCount
 			, MainParlayCount = @MainParlayCount
 			, MinSingleTransId = @MinSingleTransId
@@ -204,11 +205,11 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 1
 	BEGIN
-		IF @OldIsFilterByTransTime <> @IsFilterByTransTime
+		IF @OldFilterBy <> @FilterBy
 		BEGIN
-			SET @LogDataContent += ' Old IsFilterByTransTime: ' + CAST(@OldIsFilterByTransTime AS VARCHAR(10))
-								+ ' New IsFilterByTransTime: ' + CAST(@IsFilterByTransTime AS VARCHAR(10))
-			IF @IsFilterByTransTime = 1 
+			SET @LogDataContent += ' Old FilterBy: ' + CAST(@OldFilterBy AS VARCHAR(10))
+								+ ' New FilterBy: ' + CAST(@FilterBy AS VARCHAR(10))
+			IF @FilterBy <> 0 
 			BEGIN
 				SET @LogDataContent += ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
 			END
@@ -218,22 +219,22 @@ BEGIN
 			END
 
 		END
-		IF @IsFilterByTransTime = 1 AND @OldFilterFromTransTime <> @FilterFromTransTime
+		IF @FilterBy <> 0 AND @OldFilterFromTransTime <> @FilterFromTransTime
 		BEGIN
 			SET @LogDataContent += ' Old From Transdate: ' + CONVERT(VARCHAR(30), @OldFilterFromTransTime, 21)
 								+ ' New From Transdate: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21)
 		END
-		ELSE IF @IsFilterByTransTime = 1 AND @OldFilterToTransTime <> @FilterToTransTime
+		ELSE IF @FilterBy <> 0 AND @OldFilterToTransTime <> @FilterToTransTime
 		BEGIN
 			SET @LogDataContent += ' Old To Transdate: ' + CONVERT(VARCHAR(30), @OldFilterToTransTime, 21)
 								+ ' New To Transdate: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
 		END
-		ELSE IF @IsFilterByTransTime = 0 AND @OldFilterFromBetId <> @FilterFromBetId
+		ELSE IF @FilterBy = 0 AND @OldFilterFromBetId <> @FilterFromBetId
 		BEGIN
 			SET @LogDataContent += ' Old From BetID: ' + CAST(@OldFilterFromBetId AS VARCHAR(20))
 									+ ' New From BetID: ' + CAST(@FilterFromBetId AS VARCHAR(20))
 		END
-		ELSE IF @IsFilterByTransTime = 0 AND @OldFilterToBetId <> @FilterToBetId
+		ELSE IF @FilterBy = 0 AND @OldFilterToBetId <> @FilterToBetId
 		BEGIN
 			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
 									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))

@@ -7,7 +7,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@FilterToTransTime DATETIME = NULL
 	,@FilterFromBetId BIGINT = NULL
 	,@FilterToBetId BIGINT = NULL
-	,@IsFilterByTransTime BIT = 1
+	,@FilterBy TINYINT = 1
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
@@ -22,6 +22,7 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:	
 		
@@ -161,7 +162,7 @@ BEGIN
 	BEGIN
 		/*Generate LogInfo*/
 		/*Check valid transid*/
-		IF @IsFilterByTransTime = 0
+		IF @FilterBy = 0
 		BEGIN
 			INSERT INTO #transIdTemp (transid, transdate)
 			SELECT b.transid, b.transdate
@@ -311,8 +312,10 @@ BEGIN
 		WHERE	b.matchid = @matchid
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.betfrom <> 'P'
-				AND 1 = CASE WHEN @IsFilterByTransTime = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-							WHEN @IsFilterByTransTime = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
+				AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+							WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+							WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
 		
 		---get sub ticket of a mix parlay	
@@ -407,7 +410,11 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
+					AND CASE WHEN @FilterBy = 0 THEN sub.transdate
+							WHEN @FilterBy = 1 THEN sub.transdate
+							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		END 
 
 		-- delete cash-out member bet tickets
@@ -842,8 +849,8 @@ BEGIN
 	INSERT INTO #logInfo (LiveHomeScore, LiveAwayScore, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 	SELECT b.livehomescore
 		,b.liveawayscore
-		,CASE WHEN @IsFilterByTransTime = 1 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
-		,CASE WHEN @IsFilterByTransTime = 1 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
+		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
+		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
 		,MIN(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS MaxSingleTransId

@@ -74,6 +74,7 @@ AS;
 		- 20191011@Charles: Support filter ticket by Checktime in Void Single Bet [121868]
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20200723@Zane: Basketball AIO Phase 2 [137189]
+		- 20200911@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -564,7 +565,11 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 		WHERE
 			b.matchid = @MatchId
-			AND CASE @TimeType WHEN 0 THEN b.transdate WHEN 1 THEN b.checktime END BETWEEN @FromTransdate AND @ToTransdate
+			AND CASE
+					WHEN @TimeType = 0 THEN b.transdate
+					WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
+					WHEN @TimeType = 1 AND b.checktime IS NULL THEN b.transdate
+				END BETWEEN @FromTransdate AND @ToTransdate
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
@@ -622,7 +627,11 @@ BEGIN
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 			WHERE
 				bm.matchid=@MatchId
-				AND CASE @TimeType WHEN 0 THEN bm.transdate WHEN 1 THEN bm.checktime END BETWEEN @FromTransdate AND @ToTransdate
+				AND	CASE
+						WHEN @TimeType = 0 THEN bm.transdate
+						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
+						WHEN @TimeType = 1 AND bm.checktime IS NULL THEN bm.transdate
+					END BETWEEN @FromTransdate AND @ToTransdate
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			

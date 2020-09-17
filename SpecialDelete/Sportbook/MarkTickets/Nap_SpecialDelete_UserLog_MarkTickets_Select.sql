@@ -1,5 +1,6 @@
 ﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select @LogDateFrom DATE
+ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select
+	@LogDateFrom DATE
 	,@LogDateTo DATE
 	,@MatchId INT = NULL
 	,@LogActionIds VARCHAR(MAX)
@@ -16,6 +17,7 @@ AS
 		- 20191101@Charles: Get score and ko time for userlogs [122187]
 		- 20191126@Charles: Show DoneBy column when return results [124451]
 		- 20200414@Charles: Separate single tickets with parlay tickets on LogData [131670]
+		- 20200914@Zane: Return logdata [Redmine: #141235]
 
 	Param's explanation:
 */
@@ -43,11 +45,10 @@ BEGIN
 		MatchId 	INT,
 		homeid		INT,
 		awayid		INT,
+		LogData		VARCHAR(MAX),
 		kickofftime	DATETIME,
 		HTScore		VARCHAR(10),
 		FTSCore		VARCHAR(10),
-		singleTransIds VARCHAR(MAX),
-		parlayTransIds VARCHAR(MAX),
 		username	VARCHAR(30)
 	);
 
@@ -59,11 +60,10 @@ BEGIN
 			,MatchId
 			,homeid
 			,awayid
+			,LogData
 			,kickofftime
 			,HTScore
 			,FTSCore
-			,singleTransIds
-			,parlayTransIds
 			,username)
 	SELECT l.SessionId
 			,l.CreatedDate
@@ -71,21 +71,10 @@ BEGIN
 			,l.MatchId
 			,m.homeid
 			,m.awayid
+			,l.LogData
 			,m.kickofftime
 			,ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore'
 			,ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTSCore'
-			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
-									FROM dbo.f_StringSplit(l.LogData, ',') 
-									INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
-									WHERE val <> '' AND bt.bettype NOT IN (9,29)
-									FOR XML PATH('')
-							), 1, 1, ''), '') AS singleTransIds
-			,ISNULL(STUFF((SELECT ',' + CAST(val AS VARCHAR(50))
-									FROM dbo.f_StringSplit(l.LogData, ',') 
-									INNER JOIN bodb02.dbo.bettrans AS bt WITH(NOLOCK) ON CAST(val AS BIGINT) = bt.transid
-									WHERE val <> '' AND bt.bettype IN (9,29)
-									FOR XML PATH('')
-							), 1, 1, ''), '') AS parlayTransIds
 			,c.username 
 		FROM dbo.TicketVoiding_Log AS l WITH (NOLOCK)
 			LEFT JOIN bodb02.dbo.match AS m WITH (NOLOCK) ON l.MatchId = m.matchid
@@ -123,11 +112,10 @@ BEGIN
 			MatchId,
 			homeid,
 			awayid,
+			LogData,
 			kickofftime,
 			HTScore,
 			FTSCore,
-			singleTransIds,
-			parlayTransIds,
 			username AS 'DoneBy'
 	FROM #LogResult
 

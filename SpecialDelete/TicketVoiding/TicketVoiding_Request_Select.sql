@@ -20,6 +20,7 @@ AS
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200819@Max: Issue for Abnormal Bet Request not show bettype [Redmine: #135947]
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
+		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
 	Param's explanation:	
 	
@@ -80,7 +81,7 @@ BEGIN
 			,rd.FilterToTransTime
 			,rd.FilterFromBetId
 			,rd.FilterToBetId
-			,rd.IsFilterByTransTime
+			,rd.FilterBy
 			,rd.SingleCount
 			,rd.MainParlayCount
 			,rd.MinSingleTransId

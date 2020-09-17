@@ -102,6 +102,7 @@ AS
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
+		- 20200911@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -631,7 +632,11 @@ BEGIN
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
-			AND CASE @TimeType WHEN 0 THEN b.transdate WHEN 1 THEN b.checktime END BETWEEN @FromTransdate AND @ToTransdate
+			AND CASE
+					WHEN @TimeType = 0 THEN b.transdate
+					WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
+					WHEN @TimeType = 1 AND b.checktime IS NULL THEN b.transdate
+				END BETWEEN @FromTransdate AND @ToTransdate
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveindicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END 
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END 			
@@ -689,7 +694,11 @@ BEGIN
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE
 				bm.matchid=@MatchId 
-				AND CASE @TimeType WHEN 0 THEN bm.transdate WHEN 1 THEN bm.checktime END BETWEEN @FromTransdate AND @ToTransdate
+				AND	CASE
+						WHEN @TimeType = 0 THEN bm.transdate
+						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
+						WHEN @TimeType = 1 AND bm.checktime IS NULL THEN bm.transdate
+					END BETWEEN @FromTransdate AND @ToTransdate
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
