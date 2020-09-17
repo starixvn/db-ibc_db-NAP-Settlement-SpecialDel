@@ -190,7 +190,7 @@ BEGIN
 		  		LEFT JOIN DBPRO.bodb02.dbo.ResultDetailES rs WITH (NOLOCK)  
 					ON COALESCE(bt.ResourceID,p.ResourceID) = rs.ResourceID
 		  				AND rs.matchid = @matchid
-	  	ORDER BY CASE bt.ResourceID WHEN '00' THEN 'Z' ELSE COALESCE(bt.ResourceID, p.ResourceID) END
+	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 	END
 	
 	---Badminton AIO - get data from dbo.ResultDetailOS
