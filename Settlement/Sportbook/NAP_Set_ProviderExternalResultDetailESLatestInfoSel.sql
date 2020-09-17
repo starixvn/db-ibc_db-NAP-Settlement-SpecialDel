@@ -38,7 +38,7 @@ BEGIN
 	SELECT @GameType = l.OverTimeSession FROM dbo.League l WITH(NOLOCK) WHERE l.leagueid = @LeagueId
 
 	INSERT INTO @tmpResourceID 
-	SELECT sp.ResourceID 
+	SELECT DISTINCT sp.ResourceID 
 	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 	WHERE sp.SportType  = @SportType AND sp.SettleType = @SettleType
 
