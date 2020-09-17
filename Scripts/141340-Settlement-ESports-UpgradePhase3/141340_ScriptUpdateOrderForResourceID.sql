@@ -1,3 +1,15 @@
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*
+    Created by: 20200917@Louisa
+    Task: Update OrdNo for ESport (dbo.SettlementSpecialBettypeProfile)  [Redmine:#141340]
+    DB: DBPRO/BODB02  
+    
+    Revisions:            
+		- 20200917@Louisa: Update OrdNo for ESport (dbo.SettlementSpecialBettypeProfile)  [Redmine:#141340]
+
+	Param's Explanation:
+		
+*/
 
 
 ----********* STEP1: DEFINE NEW ARRANGEMENT **********
@@ -107,7 +119,7 @@ GO
 	--9075[0][1-5]	Map X Final Round Bomb Plant: Range 10000~10099
 	--9087X[0][1-5]	Map X Overtime: Range : Range 10100
 
-	--Map and Round not used: Update OrderNo = 0
+	--Map and Round not used: Update dbo.SettlementSpecialBettypeProfile.OrdNo = 0
 
 IF OBJECT_ID ('tempdb..#New_Ordered' ) IS NOT NULL
 BEGIN DROP TABLE #New_Ordered END
