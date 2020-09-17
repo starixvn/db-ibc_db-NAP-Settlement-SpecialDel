@@ -434,8 +434,8 @@ BEGIN
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				        AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-										   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
-										   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										   WHEN @IsCheckedAwayTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
+										   WHEN @IsCheckedHomeTeam = 1 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
 										   ELSE 0 END
 							END)
 		END 
