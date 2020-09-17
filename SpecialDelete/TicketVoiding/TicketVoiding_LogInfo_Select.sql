@@ -433,11 +433,10 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				        AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsExcludeHomeTeam = 0 AND @IsExcludeAwayTeam = 0) OR (@IsExcludeHomeTeam = 1 AND @IsExcludeAwayTeam = 1) THEN 1
-									  WHEN @IsExcludeHomeTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsExcludeAwayTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
-		
-									  ELSE 0 END
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+										   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+										   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										   ELSE 0 END
 							END)
 		END 
 
