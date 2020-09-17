@@ -142,7 +142,6 @@ BEGIN
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #DangerAccept_SubParlayTickets t WHERE rdt.TransId=t.transid)
-												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
 												  AND rdt.RequestId=@RequestId
 											FOR XML PATH('')
 										), 1,1,'')
@@ -218,7 +217,7 @@ BEGIN
 				SELECT @MarkedTransIds = STUFF(
 						(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 						FROM #DangerAccept_SubParlayTickets tp
-						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.MainTransId)
 							AND  tp.StatusId IN (0, 1) 
 						GROUP BY TransId for XML PATH('')), 1, 1, ''
 						)
