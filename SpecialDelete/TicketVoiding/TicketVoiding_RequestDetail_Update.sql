@@ -90,6 +90,7 @@ BEGIN
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -155,6 +156,17 @@ BEGIN
 				AND MatchId = @MatchId
 	END
 
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT tmp.transid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		CROSS APPLY (
+					SELECT TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE RequestId = req.RequestId
+				) AS tmp
+	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+
 	-- Auto mark ticket running for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
@@ -181,6 +193,7 @@ BEGIN
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #inputTransid it WHERE rdt.TransId=it.transid) -- exist vs input
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
 												  AND rdt.RequestId=@RequestId
 											FOR XML PATH('')

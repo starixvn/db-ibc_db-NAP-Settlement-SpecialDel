@@ -104,6 +104,8 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT)
+
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
@@ -113,6 +115,17 @@ BEGIN
 		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
 	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
 	WHERE RequestId= @RequestId
+
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT tmp.transid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		CROSS APPLY (
+					SELECT TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+					WHERE RequestId = req.RequestId
+				) AS tmp
+	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 	IF @IssueTypeId = 1 AND @MinMainParlayTransId IS NOT NULL
 	BEGIN
@@ -142,6 +155,7 @@ BEGIN
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #DangerAccept_SubParlayTickets t WHERE rdt.TransId=t.transid)
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 												  AND rdt.RequestId=@RequestId
 											FOR XML PATH('')
 										), 1,1,'')
