@@ -97,12 +97,12 @@ union all select 9076	,'9066__'	, 80
 union all select 9065	,'9065__'	, 81
 union all select 9062	,'9062____'	, 82
 union all select 9068	,'9068____'	, 84
-union all select 9069	,'9069____'	, 85
-union all select 9070	,'9069____'	, 86
-union all select 9071	,'9069____'	, 87
-union all select 9077	,'9069____'	, 88
-union all select 9072	,'9072____'	, 89
-union all select 9073	,'9073____'	, 90
+union all select 9069	,'9069____'	, 84
+union all select 9070	,'9069____'	, 84
+union all select 9071	,'9069____'	, 84
+union all select 9077	,'9069____'	, 84
+union all select 9072	,'9072____'	, 84
+union all select 9073	,'9073____'	, 84
 union all select 9075	, '9075__'	, 91
 union all select 9087	, '9087__'	, 92
 
@@ -134,7 +134,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 ----MAP 1
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -143,7 +143,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 1999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 1999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -152,7 +152,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 2999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup,substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 2999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -161,7 +161,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 3999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 3999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -170,7 +170,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 4999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 4999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -179,7 +179,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 5999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 5999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -188,7 +188,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 6999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 6999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -197,7 +197,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 7999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 7999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -206,7 +206,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	UNION ALL
 	SELECT l.BetType
 		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, RIGHT(p.ResourceId,2), l.Bettype) + 8999 AS NewOrderNo
+		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY l.OrderGroup, substring(p.ResourceId,5,2), RIGHT(p.ResourceId,2), l.Bettype) + 8999 AS NewOrderNo
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
@@ -230,3 +230,4 @@ FROM dbo.SettlementSpecialBettypeProfile p
 WHERE p.SportType  =43
 	AND p.SettleType ='EAR'
 	AND n.BetType IS NULL
+
