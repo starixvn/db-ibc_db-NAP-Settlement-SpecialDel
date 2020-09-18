@@ -107,6 +107,11 @@ UNION ALL SELECT 9068		,'9068[0][1-5]__'	,84
 UNION ALL SELECT 9069		,'9069[0][1-5]__'	,84	
 UNION ALL SELECT 9072		,'9072[0][1-5]__'	,84	
 UNION ALL SELECT 9073		,'9073[0][1-5]__'	,84
+----Map X Final Round Bomb Plant
+UNION ALL SELECT 9075       ,'9075[0][1-5]'		,84
+-----Map X Overtime
+UNION ALL SELECT 9087       ,'9087[0][1-5]'		,84
+
 
 GO
 
@@ -163,7 +168,7 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 	FROM #tmpProfile p
 	INNER JOIN  #Order_ResourceESports l
 		ON p.ResourceID LIKE l.ResourceID AND p.bettype = l.bettype
-	WHERE p.ResourceID LIKE '____[0][3]%'
+	WHERE  p.ResourceID LIKE '____[0][3]%' 
 		AND RIGHT(p.ResourceID,2) < '43'
 ----MAP 4
 	UNION ALL
@@ -199,23 +204,6 @@ INSERT INTO #New_Ordered (BetType,ResourceID, NewOrderNo) ---1287
 		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY p.Bettype) + 6999 AS NewOrderNo
 	FROM #tmpProfile p
 	WHERE  p.ResourceID IN( '904607','905207','905507','905607','905707')
-
----- Map X Final Round Bomb Plant: Range 10000~10099
-	UNION ALL
-	SELECT p.BetType
-		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY p.ResourceId) + 9999 AS NewOrderNo
-	FROM #tmpProfile p
-	WHERE  p.ResourceID LIKE '9075[0][1-5]'
-
-----Map X Overtime: Range : Range 10100
-	UNION ALL
-	SELECT p.BetType
-		, p.ResourceID
-		, ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY p.ResourceId) + 10099 AS NewOrderNo
-	FROM #tmpProfile p
-	WHERE p.ResourceID LIKE '9087[0][1-5]'
-
 
 ----********* STEP3: UPDATE Column OrdNo for dbo.SettlementSpecialBettypeProfile **********
 UPDATE dbo.SettlementSpecialBettypeProfile WITH (ROWLOCK)
