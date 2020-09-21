@@ -30,18 +30,11 @@ BEGIN
 	DECLARE @tmpLatestResult AS TABLE (ProviderExternalId INT,SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
-	DECLARE @tmpResourceID AS TABLE (ResourceID varchar(20) )
 
 	SET @SportType = 43
 
 	SELECT @LeagueId = m.LeagueId FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchId = @MatchId
 	SELECT @GameType = l.OverTimeSession FROM dbo.League l WITH(NOLOCK) WHERE l.leagueid = @LeagueId
-
-	INSERT INTO @tmpResourceID 
-	SELECT DISTINCT sp.ResourceID 
-	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-	WHERE sp.SportType  = @SportType AND sp.SettleType = @SettleType
-
 	
 	;WITH cteLatestId
 	AS(
@@ -52,8 +45,6 @@ BEGIN
 				, HomeValue
 				, AwayValue
 		FROM	dbo.ProviderExternalResultDetailES p WITH(NOLOCK)
-			INNER JOIN @tmpResourceID rs
-				ON p.ResourceId = rs.ResourceID
 		WHERE	p.MatchId = @MatchId
 	)
 	INSERT INTO @tmpLatestResult (ProviderExternalId, SourceId,ResourceId, HomeValue, AwayValue)
@@ -93,7 +84,7 @@ BEGIN
 	FROM	@tmpLatestResult l
 		RIGHT JOIN @tmpSourceId s 
 			ON s.SourceId = l.SourceId
-	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL) 
+	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL)
 		OR s.SourceId >= 1001
 				
 	SELECT	t.SourceId
@@ -104,5 +95,12 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
+	LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+			ON t.ResourceId = fsmr.ResourceId
+	WHERE 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
+				   ELSE 0
+				   END
+
 END
 GO
