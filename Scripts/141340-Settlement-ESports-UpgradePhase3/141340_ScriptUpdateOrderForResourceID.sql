@@ -1,8 +1,8 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
     Created by: 20200917@Louisa
     Task: Update OrdNo for ESport (dbo.SettlementSpecialBettypeProfile)  [Redmine:#141340]
-    DB: DBPRO/BODB02  
+    DB: DBTXN/bodb02 
     
     Revisions:            
 		- 20200917@Louisa: Update OrdNo for ESport (dbo.SettlementSpecialBettypeProfile)  [Redmine:#141340]
