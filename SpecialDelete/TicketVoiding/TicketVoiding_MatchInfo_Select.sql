@@ -17,6 +17,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200826@Zane: TVS - Enhance for Danger Accept [#140339]
+		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
 		
 	Param's explanation:		
 */
@@ -60,7 +61,7 @@ BEGIN
 	END
 	ELSE IF (@MatchId IS NULL AND @TransIds IS NULL)
 	BEGIN
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 						FROM	dbo.match m WITH(NOLOCK)
 						WHERE	m.eventdate = @EventDate
 								AND m.sporttype = @Sporttype
@@ -71,7 +72,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.eventdate = @EventDate
 							AND m.sporttype = @Sporttype
