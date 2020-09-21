@@ -10,6 +10,7 @@ AS
 	
 	Revisions: 
 		- 20200713@Helen: Create new SP [Redmine:#136460]
+		- 20200921@July: CTS - Cannot categorize for new PA member [Redmine:#142051]
 	
 	Param's explanation:
 		+ @CustIds = 0: the first run then get all data
@@ -25,13 +26,19 @@ BEGIN
 		FROM ProblemAccount pa WITH (NOLOCK)
 		WHERE pa.ReasonId IS NOT NULL
 		UNION ALL
-		SELECT pa.custid, tmp.reasonID
+		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM ProblemAccount pa WITH (NOLOCK)
-			CROSS APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
+			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
+			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
 						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
 						ORDER BY ID DESC
 						) AS tmp
+			OUTER APPLY (SELECT TOP 1 pma.ReasonId
+						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+						ORDER BY CreatedDate DESC
+						) AS upline
 		WHERE pa.ReasonId IS NULL	
 	
 	END
@@ -42,13 +49,19 @@ BEGIN
 		WHERE pa.CreatedDate >= @datetime 
 			AND pa.ReasonId IS NOT NULL
 		UNION ALL
-		SELECT pa.custid, tmp.reasonID
+		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM ProblemAccount pa WITH (NOLOCK)
-			CROSS APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
+			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
+			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
 						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
 						ORDER BY ID DESC
 						) AS tmp
+			OUTER APPLY (SELECT TOP 1 pma.ReasonId
+						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+						ORDER BY CreatedDate DESC
+						) AS upline
 		WHERE pa.ReasonId IS NULL	
 			AND pa.CreatedDate >= @datetime
 	END
@@ -69,12 +82,18 @@ BEGIN
 		
 		SELECT pa.custid, tmp.reasonID
 		FROM ProblemAccount pa WITH (NOLOCK)
-			INNER JOIN @custid_tbl c ON c.custID = pa.custid
-			CROSS APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
+			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid
+			INNER JOIN customer c (NOLOCK) ON c.custid = ct.CustId
+			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
 							FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 							WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
 							ORDER BY ID DESC
 							) AS tmp
+			OUTER APPLY (SELECT TOP 1 pma.ReasonId
+						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+						ORDER BY CreatedDate DESC
+						) AS upline
 		WHERE pa.ReasonId IS NULL	
 		
 	END
