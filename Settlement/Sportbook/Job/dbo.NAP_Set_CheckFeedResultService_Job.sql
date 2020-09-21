@@ -54,19 +54,23 @@ BEGIN
 				)
 		
 		IF @@ROWCOUNT > 0
-		BEGIN		
-			DECLARE Provider CURSOR FOR  
-				SELECT CASE r.SourceID  WHEN 1 THEN 'SBO' ELSE 'Soccerway'	END 
-				FROM @tblCheckResult r
-					INNER JOIN @tblCheckMatch m
-						ON   m.SourceID = r.SourceID
+		BEGIN	
+			
+			DECLARE  @SourceID TINYINT	= 1
 
-			OPEN Provider               
+			WHILE (@SourceID <=5)
+			BEGIN
 
-			FETCH NEXT FROM Provider  
-			INTO @ProviderName
-			WHILE @@FETCH_STATUS = 0       
+				IF (SELECT r.SourceID	FROM @tblCheckResult r, @tblCheckMatch m 	WHERE r.SourceID = @SourceID and m.SourceID  = @SourceID) IS  NULL
 				BEGIN
+					SET @SourceID = @SourceID + 4
+					CONTINUE;
+				END
+
+				ELSE
+				BEGIN
+					SELECT @ProviderName = CASE  @SourceID WHEN 1 THEN 'SBO' ELSE 'Soccerway'END
+		
 					SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
 					SET @Email_body  =  
 						'<html>
@@ -86,12 +90,10 @@ BEGIN
 						, @body				= @Email_body
 						, @body_format		= 'HTML';
 
-					FETCH NEXT FROM Provider 
-						  INTO @ProviderName
+					SET @SourceID = @SourceID + 4
+				END
 
-				END 
-			CLOSE Provider
-			DEALLOCATE Provider
+			END
 
 		END
 	END
