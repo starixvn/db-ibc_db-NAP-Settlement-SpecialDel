@@ -28,6 +28,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
+		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -117,8 +118,7 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	CREATE TABLE #logInfo (
-		LiveHomeScore INT
-		,LiveAwayScore INT
+		LiveScores NVARCHAR(300)
 		,VoidFromTime DATETIME
 		,VoidToTime DATETIME
 		,SingleCount INT
@@ -148,8 +148,7 @@ BEGIN
 
 		/*Get log info for Void Page*/
 		SELECT rd.MatchId
-			,rd.LiveHomeScore
-			,rd.LiveAwayScore
+			,rd.IssueDetail AS LiveScores
 			,rd.VoidFromTime
 			,rd.VoidToTime
 			,rd.SingleCount
@@ -196,8 +195,7 @@ BEGIN
 			
 				--Loginfo Table
 				SELECT @MatchId AS MatchId 
-					,l.LiveHomeScore
-					,l.LiveAwayScore
+					,l.LiveScores
 					,l.VoidFromTime
 					,l.VoidToTime
 					,l.SingleCount
@@ -792,47 +790,6 @@ BEGIN
 												END)
 							) AS b
 		WHERE sub911.bettype = 911
-			
-		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets)
-		BEGIN
-			/*Check Live Score*/
-			SELECT @totalLiveHomeScore = COUNT(DISTINCT b.livehomescore),
-				@totalAwayLiveScore = COUNT(DISTINCT b.liveawayscore)
-			FROM #SpecialDeleteBets b WITH (NOLOCK)
-
-			IF @totalLiveHomeScore <> 1 OR @totalAwayLiveScore <> 1
-			BEGIN
-				SELECT @IsInvalidLiveScore = 1
-
-				--Error table
-				SELECT @IsInvalidTransId AS IsInvalidTransId
-					,@IsInvalidLiveScore AS IsInvalidLiveScore
-					,@IsInValidTotalTickets AS IsInValidTotalTickets
-					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
-				--TransId in request table
-				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-					,r.RequestId
-				FROM #TransidInRequest r
-			
-				--Loginfo Table
-				SELECT @MatchId AS MatchId 
-					,l.LiveHomeScore
-					,l.LiveAwayScore
-					,l.VoidFromTime
-					,l.VoidToTime
-					,l.SingleCount
-					,l.MainParlayCount
-					,l.MinSingleTransId
-					,l.MaxSingleTransId
-					,l.MinMainParlayTransId
-					,l.MaxMainParlayTransId
-				FROM #logInfo l
-
-				RETURN;
-			END
-		END
-
 	END
 
 	/*Get Transid in Request of range Transid*/
@@ -893,9 +850,8 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (LiveHomeScore, LiveAwayScore, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
-	SELECT b.livehomescore
-		,b.liveawayscore
+	INSERT INTO #logInfo (LiveScores, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
+	SELECT CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
 		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
@@ -906,8 +862,7 @@ BEGIN
 		,MAX(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
-	GROUP BY b.livehomescore
-		,b.liveawayscore
+	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IssueTypeId = 1
 	BEGIN
@@ -947,8 +902,7 @@ BEGIN
 			
 			--Loginfo Table
 			SELECT @MatchId AS MatchId 
-				,l.LiveHomeScore
-				,l.LiveAwayScore
+				,l.LiveScores
 				,l.VoidFromTime
 				,l.VoidToTime
 				,l.SingleCount
@@ -992,9 +946,12 @@ BEGIN
 	END
 
 	--Loginfo table
-	SELECT @MatchId AS MatchId 
-		,l.LiveHomeScore
-		,l.LiveAwayScore
+	SELECT TOP 1 @MatchId AS MatchId
+		,STUFF((
+		SELECT '|' + LiveScores 
+		FROM #logInfo
+		FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+		,1,2,'') AS LiveScores
 		,l.VoidFromTime
 		,l.VoidToTime
 		,l.SingleCount

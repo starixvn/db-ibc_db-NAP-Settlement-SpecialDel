@@ -22,6 +22,7 @@ AS
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
+		- 20200922@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 
 	Param's explanation:	
 	
@@ -91,8 +92,7 @@ BEGIN
 			,rd.MaxMainParlayTransId
 			,rd.VoidFromTime
 			,rd.VoidToTime
-			,rd.LiveHomeScore
-			,rd.LiveAwayScore
+			,rd.IssueDetail AS LiveScores
 			,rd.IsCheckedHomeTeam
 			,rd.IsCheckedAwayTeam
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)

@@ -6,8 +6,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
     ,@RequestId		INT = NULL
     ,@IssueTypeId	INT = NULL
 	,@BetTypes		XML = NULL
-	,@ActionId		TINYINT = 0
-
+	,@LiveHomeScore    SMALLINT     = NULL
+	,@LiveAwayScore    SMALLINT     = NULL
 )
 AS
 /*	Created by: Kathy
@@ -25,6 +25,7 @@ AS
 		- 20200819@Max: HotFix - [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 	    - 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785] 
+		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		 
 	Param's explanation:	
 		
@@ -422,7 +423,9 @@ BEGIN
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
-					AND b.betfrom <> 'P'	
+					AND b.betfrom <> 'P'
+					AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE b.livehomescore END
+					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
 		
 			---get sub ticket of a mix parlay	
 			IF EXISTS (
@@ -538,6 +541,8 @@ BEGIN
 						AND sub.betfrom <> 'P'
 						AND main.matchid = 29
 						AND main.bettype = 29
+						AND sub.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE sub.livehomescore END
+						AND sub.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE sub.liveawayscore END
 			END 
 
 			/*
