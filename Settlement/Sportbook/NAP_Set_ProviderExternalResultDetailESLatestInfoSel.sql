@@ -48,9 +48,15 @@ BEGIN
 		WHERE	p.MatchId = @MatchId
 	)
 	INSERT INTO @tmpLatestResult (ProviderExternalId, SourceId,ResourceId, HomeValue, AwayValue)
-	SELECT ProviderExternalId, SourceId ,ResourceId, HomeValue, AwayValue
-	FROM cteLatestId
-	WHERE rn = 1 
+	SELECT l.ProviderExternalId, l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
+	FROM cteLatestId l	
+		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+			ON l.ResourceId = fsmr.ResourceId
+	WHERE rn = 1
+		 AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
+				   ELSE 0
+				   END
 
 	INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 	SELECT  pgm.SourceId, pi.SourceName, pi.Remark, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
@@ -95,12 +101,6 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
-	LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
-			ON t.ResourceId = fsmr.ResourceId
-	WHERE 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
-				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
-				   ELSE 0
-				   END
 
 END
 GO
