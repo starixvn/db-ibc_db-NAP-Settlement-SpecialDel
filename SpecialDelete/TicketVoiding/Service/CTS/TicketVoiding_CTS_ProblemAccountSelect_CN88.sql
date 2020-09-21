@@ -84,7 +84,7 @@ BEGIN
 		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM CS_ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid
-			INNER JOIN customer c (NOLOCK) ON c.custid = ct.CustId
+			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
 			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
 							FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 							WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
