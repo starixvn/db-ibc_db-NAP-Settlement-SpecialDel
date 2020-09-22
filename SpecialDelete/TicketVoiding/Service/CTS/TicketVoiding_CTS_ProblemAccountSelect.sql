@@ -35,9 +35,10 @@ BEGIN
 						ORDER BY ID DESC
 						) AS tmp
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
-						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+						FROM dbo.ProblemAccount pma WITH (NOLOCK)
+							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC, pma.ReasonId DESC
+						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 	
@@ -58,9 +59,10 @@ BEGIN
 						ORDER BY ID DESC
 						) AS tmp
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
-						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+						FROM dbo.ProblemAccount pma WITH (NOLOCK)
+							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC, pma.ReasonId DESC
+						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 			AND pa.CreatedDate >= @datetime
@@ -91,8 +93,9 @@ BEGIN
 							) AS tmp
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
+							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC, pma.ReasonId DESC
+						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 		
