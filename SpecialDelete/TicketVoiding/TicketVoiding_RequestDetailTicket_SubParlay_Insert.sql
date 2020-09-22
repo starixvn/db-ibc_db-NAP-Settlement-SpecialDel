@@ -12,6 +12,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT = 0
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterBy				TINYINT = 1 
 )
 AS
 /*	
@@ -138,7 +141,10 @@ BEGIN
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
-		WHERE main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId
+		WHERE 1 = CASE WHEN @FilterBy IN (0,1) AND main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId THEN 1
+						WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						WHEN @FilterBy = 2 AND sub.checktime IS NULL AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						ELSE 0 END
 			AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END

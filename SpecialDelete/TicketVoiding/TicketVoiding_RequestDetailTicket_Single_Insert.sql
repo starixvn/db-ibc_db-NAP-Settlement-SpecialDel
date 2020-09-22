@@ -1,18 +1,21 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 (	 
-	@RequestId			INT
-	,@MatchId			INT
-	,@KickOffTime		DATETIME = NULL
-	,@IssueTypeId		INT
-	,@SubIssueTypeId	INT
-	,@MinSingleTransId	BIGINT = NULL
-	,@MaxSingleTransId	BIGINT = NULL
-	,@TransIds			VARCHAR(MAX) = NULL
-	,@IsEditRequest		BIT = 0
-	,@UserId			INT = NULL
-	,@IP				VARCHAR(50) = NULL
-	,@ActionId			TINYINT = 0
+	@RequestId				INT
+	,@MatchId				INT
+	,@KickOffTime			DATETIME = NULL
+	,@IssueTypeId			INT
+	,@SubIssueTypeId		INT
+	,@MinSingleTransId		BIGINT = NULL
+	,@MaxSingleTransId		BIGINT = NULL
+	,@TransIds				VARCHAR(MAX) = NULL
+	,@IsEditRequest			BIT = 0
+	,@UserId				INT = NULL
+	,@IP					VARCHAR(50) = NULL
+	,@ActionId				TINYINT = 0
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterBy				TINYINT = 1 
 )
 AS
 /*	
@@ -137,7 +140,11 @@ BEGIN
 			, @MatchId
 		FROM dbo.bettrans b WITH (NOLOCK)
 		WHERE b.matchid = @MatchId
-			AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId
+			 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
+						  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						  WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						  ELSE 0 
+						  END
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
