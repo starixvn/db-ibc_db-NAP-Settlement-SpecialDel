@@ -118,7 +118,8 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	CREATE TABLE #logInfo (
-		LiveScores NVARCHAR(300)
+		MatchId INT
+		,LiveScores NVARCHAR(300)
 		,VoidFromTime DATETIME
 		,VoidToTime DATETIME
 		,SingleCount INT
@@ -850,8 +851,9 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (LiveScores, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
-	SELECT CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
+	SELECT @MatchId AS MatchId
+		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
 		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
@@ -862,13 +864,15 @@ BEGIN
 		,MAX(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
+	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
+	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IssueTypeId = 1
 	BEGIN
-		SELECT @SingleCount = SingleCount
-			,@MainParlayCount = MainParlayCount
+		SELECT @SingleCount = SUM(SingleCount)
+			,@MainParlayCount = SUM(MainParlayCount)
 		FROM #logInfo
+		GROUP BY MatchId
 
 		IF @SingleCount = 0 AND @MainParlayCount = 0
 		BEGIN
@@ -901,17 +905,21 @@ BEGIN
 			END
 			
 			--Loginfo Table
-			SELECT @MatchId AS MatchId 
-				,l.LiveScores
-				,l.VoidFromTime
-				,l.VoidToTime
-				,l.SingleCount
-				,l.MainParlayCount
-				,l.MinSingleTransId
-				,l.MaxSingleTransId
-				,l.MinMainParlayTransId
-				,l.MaxMainParlayTransId
-			FROM #logInfo l
+			SELECT MatchId
+				,STUFF((SELECT '|' + LiveScores
+						FROM #logInfo WITH (NOLOCK)
+						FOR XML PATH ('')
+						),1,1,'') AS LiveScores
+				,MIN(VoidFromTime) AS VoidFromTime
+				,MAX(VoidToTime) AS VoidToTime
+				,SUM(SingleCount) AS SingleCount
+				,SUM(MainParlayCount) AS MainParlayCount
+				,MIN(MinSingleTransId) AS MinSingleTransId
+				,MAX(MaxSingleTransId) AS MaxSingleTransId
+				,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+				,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+			FROM #logInfo
+			GROUP BY MatchId
 
 			RETURN;
 		END
@@ -946,21 +954,21 @@ BEGIN
 	END
 
 	--Loginfo table
-	SELECT TOP 1 @MatchId AS MatchId
-		,STUFF((
-		SELECT '|' + LiveScores 
-		FROM #logInfo
-		FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-		,1,2,'') AS LiveScores
-		,l.VoidFromTime
-		,l.VoidToTime
-		,l.SingleCount
-		,l.MainParlayCount
-		,l.MinSingleTransId
-		,l.MaxSingleTransId
-		,l.MinMainParlayTransId
-		,l.MaxMainParlayTransId
-	FROM #logInfo l
+	SELECT MatchId
+		,STUFF((SELECT '|' + LiveScores
+				FROM #logInfo WITH (NOLOCK)
+				FOR XML PATH ('')
+				),1,1,'') AS LiveScores
+		,MIN(VoidFromTime) AS VoidFromTime
+		,MAX(VoidToTime) AS VoidToTime
+		,SUM(SingleCount) AS SingleCount
+		,SUM(MainParlayCount) AS MainParlayCount
+		,MIN(MinSingleTransId) AS MinSingleTransId
+		,MAX(MaxSingleTransId) AS MaxSingleTransId
+		,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+		,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+	FROM #logInfo
+	GROUP BY MatchId
 
 
 	DROP TABLE #SpecialDeleteBets

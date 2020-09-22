@@ -36,7 +36,7 @@ BEGIN
 						WHERE MainMatchID = @MatchId '
 		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@MatchId INT'' , @MatchId'
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query, @MatchId
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode
 		FROM dbo.match m WITH (NOLOCK)
