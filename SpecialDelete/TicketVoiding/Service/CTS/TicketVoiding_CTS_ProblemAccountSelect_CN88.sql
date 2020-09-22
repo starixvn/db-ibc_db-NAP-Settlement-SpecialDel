@@ -38,7 +38,7 @@ BEGIN
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC
+						ORDER BY CreatedDate DESC, pma.ReasonId DESC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 	
@@ -61,7 +61,7 @@ BEGIN
 		   OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC
+						ORDER BY CreatedDate DESC, pma.ReasonId DESC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 			AND pa.CreatedDate >= @datetime
@@ -84,7 +84,7 @@ BEGIN
 		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM CS_ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid
-			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
+			INNER JOIN customer c (NOLOCK) ON c.custid = ct.CustId
 			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
 							FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 							WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
@@ -93,7 +93,7 @@ BEGIN
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
-						ORDER BY CreatedDate DESC
+						ORDER BY CreatedDate DESC, pma.ReasonId DESC
 						) AS upline
 		WHERE pa.ReasonId IS NULL	
 		
