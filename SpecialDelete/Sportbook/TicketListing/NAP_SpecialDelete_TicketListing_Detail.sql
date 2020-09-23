@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
 	@BetTeams				XML			  = NULL,
 	@SingleOrSubParlay		VARCHAR(20)   = 'All',
 	@SelectionType			VARCHAR(200)  = '',
-	@IsOnlyAffectedTickets	BIT			  = 0
+	@IsResettledAffectedTickets	BIT			  = 0
 
 WITH RECOMPILE
 AS;
@@ -66,7 +66,7 @@ AS;
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 		- 20200911@Max: Tuning SP [Redmine: 141476]
-		- 20200323@July: TVS - Resettled Affected Tickets [Redmine: #138552]
+		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -130,7 +130,7 @@ BEGIN
 	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
-	IF (@IsOnlyAffectedTickets = 1)
+	IF (@IsResettledAffectedTickets = 1)
 	BEGIN 
 		INSERT INTO @tmpBalanceRecord (Transid,Bettype,RowID,IsReSettled)
 		SELECT transid,bettype,RowID,IsReSettled
@@ -1363,7 +1363,7 @@ BEGIN
 		END		
 		
 		--===============================================================================================================--
-		IF (@IsOnlyAffectedTickets =1 AND @SportType =1 )
+		IF (@IsResettledAffectedTickets =1 AND @SportType =1 )
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
