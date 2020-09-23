@@ -4,21 +4,22 @@ GO
 SET ANSI_NULLS ON
 GO
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary] 
-	@MatchId			INT
-	,@LicenseeId		INT
-	,@BetTypes			VARCHAR(1000)	= ''	
-	,@LiveType			SMALLINT 		= 2
-	,@LiveHomeScore		SMALLINT 		= NULL
-	,@LiveAwayScore		SMALLINT 		= NULL
-	,@FromTransdate		DATETIME 		= NULL
-	,@ToTransdate		DATETIME 		= NULL
-	,@Type				SMALLINT 		= 0
-	,@SecondAcceptFlag	TINYINT			= 0
-	,@BallSequence		VARCHAR(200)	= ''
-	,@Quarter			VARCHAR(200)	= 'All'
-	,@BetTeams			XML				= NULL
-	,@SingleOrSubParlay VARCHAR(20)	    = 'All'
-	,@SelectionType     VARCHAR(200)    = ''
+	@MatchId					INT
+	,@LicenseeId				INT
+	,@BetTypes					VARCHAR(1000)	= ''	
+	,@LiveType					SMALLINT 		= 2
+	,@LiveHomeScore				SMALLINT 		= NULL
+	,@LiveAwayScore				SMALLINT 		= NULL
+	,@FromTransdate				DATETIME 		= NULL
+	,@ToTransdate				DATETIME 		= NULL
+	,@Type						SMALLINT 		= 0
+	,@SecondAcceptFlag			TINYINT			= 0
+	,@BallSequence				VARCHAR(200)	= ''
+	,@Quarter					VARCHAR(200)	= 'All'
+	,@BetTeams					XML				= NULL
+	,@SingleOrSubParlay			VARCHAR(20)	    = 'All'
+	,@SelectionType				VARCHAR(200)    = ''
+	,@IsOnlyAffectedTickets	BIT				= 0
 	
 WITH RECOMPILE
 AS
@@ -65,6 +66,7 @@ AS
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 		- 20200911@Max: Tuning SP [Redmine: 141476]
+		- 20200323@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -138,7 +140,33 @@ BEGIN
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-			
+	
+	--====================================--
+	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
+	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
+
+	IF (@IsOnlyAffectedTickets = 1)
+	BEGIN 
+		INSERT INTO @tmpBalanceRecord (Transid,Bettype,RowID,IsReSettled)
+		SELECT transid,bettype,RowID,IsReSettled
+		FROM bodb02.dbo.BalanceRecord
+		WHERE Matchid = @MatchId
+		UNION ALL
+		SELECT transid,bettype,RowID,IsReSettled
+		FROM BalanceRecord.dbo.BalanceRecord_bk
+		WHERE Matchid = @MatchId
+
+
+		INSERT INTO @tmpAffectTickets(Transid)
+		SELECT transid
+		FROM @tmpBalanceRecord a
+		WHERE RowID = ( SELECT MAX(RowID)
+						FROM @tmpBalanceRecord b
+						WHERE a.transid=b.transid)
+			AND a.IsReSettled =1
+	END
+	--====================================--
+
 	DECLARE @tmpBettransList TABLE (
 		transid				BIGINT --PRIMARY KEY
 		,srecommend			INT
@@ -185,7 +213,6 @@ BEGIN
 		,typeid		INT
 		)
 		
-	--===========================--
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
 	DECLARE @tmpTransid TABLE (Transid BIGINT)
 
@@ -207,7 +234,6 @@ BEGIN
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
 		WHERE b.matchid = @MatchId	
 	END
-	--===========================--
 	
 	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, val)
@@ -429,16 +455,23 @@ BEGIN
 					WHEN @LiveType <> 2 THEN @LiveType
 					ELSE 0 
 				END	
-		--=============================================--
+
+		--===============================================================================================================--
+		IF (@IsOnlyAffectedTickets =1 AND @SportType =1 )
+		BEGIN
+			DELETE b
+			FROM @TmpBettransList b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
+		END
+		--===============================================================================================================--
+
 		IF (@BetTypes = '38' AND @SelectionType <>'')
 		BEGIN
 			DELETE b
 			FROM  @TmpBettransList b
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
-		--=============================================--
 		
-
 		IF @SportType = 43 -- E-Sports
 		BEGIN
 			DELETE b
