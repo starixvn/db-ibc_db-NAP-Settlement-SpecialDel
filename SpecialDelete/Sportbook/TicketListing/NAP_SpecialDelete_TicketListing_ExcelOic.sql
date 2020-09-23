@@ -19,7 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@BetTeams				XML				= NULL,
 	@SingleOrSubParlay		VARCHAR(20)	    = 'All',
 	@SelectionType			VARCHAR(200)	= '',
-	@IsCheckAffectedTickets	BIT				= 0
+	@IsOnlyAffectedTickets	BIT				= 0
 
 
 WITH RECOMPILE
@@ -105,7 +105,7 @@ BEGIN
 	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
-	IF (@IsCheckAffectedTickets = 1)
+	IF (@IsOnlyAffectedTickets = 1)
 	BEGIN 
 		INSERT INTO @tmpBalanceRecord (Transid,Bettype,RowID,IsReSettled)
 		SELECT transid,bettype,RowID,IsReSettled
@@ -343,7 +343,7 @@ BEGIN
 			OPTION (RECOMPILE)
 
 			--===============================================================================================================--
-			IF (@IsCheckAffectedTickets =1 AND @SportType =1 )
+			IF (@IsOnlyAffectedTickets =1 AND @SportType =1 )
 			BEGIN
 				DELETE b
 				FROM #SpecialDeleteBets b
