@@ -1,24 +1,24 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 SET QUOTED_IDENTIFIER ON
 GO
 SET ANSI_NULLS ON
 GO
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
-	@MatchId				INT,
-	@LicenseeName			VARCHAR(1000)	= 'ALL',
-	@BetTypes				VARCHAR(1000)	= '',	
-	@LiveType				SMALLINT		= 2,	
-	@LiveHomeScore			SMALLINT		= NULL,
-    @LiveAwayScore			SMALLINT		= NULL,
-    @FromTransdate			Datetime		= NULL,
-	@ToTransdate			Datetime		= NULL,
-	@Type					SMALLINT		= 0,
-    @SecondAcceptFlag		tinyint			= 0,
-    @BallSequence			VARCHAR(200)	= '',
-	@Quarter				VARCHAR(200)	= 'All',
-	@BetTeams				XML				= NULL,
-	@SingleOrSubParlay		VARCHAR(20)	    = 'All',
-	@SelectionType			VARCHAR(200)	= '',
+	@MatchId					INT,
+	@LicenseeName				VARCHAR(1000)	= 'ALL',
+	@BetTypes					VARCHAR(1000)	= '',	
+	@LiveType					SMALLINT		= 2,	
+	@LiveHomeScore				SMALLINT		= NULL,
+    @LiveAwayScore				SMALLINT		= NULL,
+    @FromTransdate				Datetime		= NULL,
+	@ToTransdate				Datetime		= NULL,
+	@Type						SMALLINT		= 0,
+    @SecondAcceptFlag			tinyint			= 0,
+    @BallSequence				VARCHAR(200)	= '',
+	@Quarter					VARCHAR(200)	= 'All',
+	@BetTeams					XML				= NULL,
+	@SingleOrSubParlay			VARCHAR(20)	    = 'All',
+	@SelectionType				VARCHAR(200)	= '',
 	@IsResettledAffectedTickets	BIT				= 0
 
 
@@ -27,7 +27,7 @@ AS
 /*	Created by: Kent
 	Date: 20171106
 	Task: Show Tickets Listing Detail and Export to excel for NAP system
-	DB: DBACC/bodb02
+	DB: DBBAH/bodb02
 	Original: 
 
 	Revisions:			
@@ -101,7 +101,6 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
-	--====================================--
 	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
@@ -126,7 +125,6 @@ BEGIN
 						)bt
 		WHERE bt.RowID IS NULL AND t1.IsReSettled=1
 	END
-	--====================================--
 
 	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, val)

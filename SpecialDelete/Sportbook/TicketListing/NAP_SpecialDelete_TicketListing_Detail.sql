@@ -1,20 +1,20 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
-	@MatchId				INT,
-    @LicenseeName			VARCHAR(1000) = 'ALL',
-    @BetTypes				VARCHAR(1000) = '',
-    @LiveType				SMALLINT      = 2,
-    @LiveHomeScore			SMALLINT      = NULL,
-    @LiveAwayScore			SMALLINT      = NULL,
-    @FromTransdate			DATETIME      = NULL,
-    @ToTransdate			DATETIME      = NULL,
-    @Type					SMALLINT      = 0,
-    @SecondAcceptFlag		TINYINT       = 0,
-    @BallSequence			VARCHAR(200)  = '',
-    @Quarter				VARCHAR(200)  = 'All',
-	@BetTeams				XML			  = NULL,
-	@SingleOrSubParlay		VARCHAR(20)   = 'All',
-	@SelectionType			VARCHAR(200)  = '',
+	@MatchId					INT,
+    @LicenseeName				VARCHAR(1000) = 'ALL',
+    @BetTypes					VARCHAR(1000) = '',
+    @LiveType					SMALLINT      = 2,
+    @LiveHomeScore				SMALLINT      = NULL,
+    @LiveAwayScore				SMALLINT      = NULL,
+    @FromTransdate				DATETIME      = NULL,
+    @ToTransdate				DATETIME      = NULL,
+    @Type						SMALLINT      = 0,
+    @SecondAcceptFlag			TINYINT       = 0,
+    @BallSequence				VARCHAR(200)  = '',
+    @Quarter					VARCHAR(200)  = 'All',
+	@BetTeams					XML			  = NULL,
+	@SingleOrSubParlay			VARCHAR(20)   = 'All',
+	@SelectionType				VARCHAR(200)  = '',
 	@IsResettledAffectedTickets	BIT			  = 0
 
 WITH RECOMPILE
@@ -22,7 +22,7 @@ AS;
 /*	Created by: Elodie
 	Date: 20130606
 	Task: Show Tickets Listing Detail and Export to excel for NAP system
-	DB: DBACC/bodb02
+	DB: DBBAH/bodb02
 	Original: Acc_Rpt_TicketsListingDetail
 
 	Revisions:	
@@ -126,7 +126,6 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
-	--====================================--
 	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
@@ -141,7 +140,6 @@ BEGIN
 		FROM BalanceRecord.dbo.BalanceRecord_bk
 		WHERE Matchid = @MatchId
 
-
 		INSERT INTO @tmpAffectTickets(Transid)
 		SELECT  t1.transid
 		FROM @tmpBalanceRecord t1
@@ -151,7 +149,7 @@ BEGIN
 						)bt
 		WHERE bt.RowID IS NULL AND t1.IsReSettled=1
 	END
-	--====================================--
+
 	SELECT 'match' AS [matchtype]
 	  , matchid
 	  , sporttype
@@ -919,7 +917,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					OPTION	(RECOMPILE)
 				END
@@ -973,7 +971,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 							AND EXISTS (SELECT TOP 1 1
 										FROM #TmpBallSequence WITH (NOLOCK)
