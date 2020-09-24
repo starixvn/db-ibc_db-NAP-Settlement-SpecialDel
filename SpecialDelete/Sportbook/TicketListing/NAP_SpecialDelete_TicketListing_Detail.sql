@@ -143,12 +143,13 @@ BEGIN
 
 
 		INSERT INTO @tmpAffectTickets(Transid)
-		SELECT transid
-		FROM @tmpBalanceRecord a
-		WHERE RowID = ( SELECT MAX(RowID)
-						FROM @tmpBalanceRecord b
-						WHERE a.transid=b.transid)
-			AND a.IsReSettled =1
+		SELECT  t1.transid
+		FROM @tmpBalanceRecord t1
+		  OUTER APPLY (SELECT t2.Transid,t2.RowID
+						FROM @tmpBalanceRecord t2
+						WHERE t1.transid= t2.transid AND t2.RowID > t1.RowID 
+						)bt
+		WHERE bt.RowID IS NULL AND t1.IsReSettled=1
 	END
 	--====================================--
 	SELECT 'match' AS [matchtype]
