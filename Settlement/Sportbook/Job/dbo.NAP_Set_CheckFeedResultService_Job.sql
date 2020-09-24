@@ -28,7 +28,7 @@ BEGIN
 
 	;WITH cte_SourceID (SourceID) AS ( SELECT 1 UNION ALL SELECT 5)
 	
-	INSERT INTO @tblCheckResult (SourceID) ---which Source do not send result
+	INSERT INTO @tblCheckResult (SourceID)
 	SELECT DISTINCT r1.SourceID
 	FROM cte_SourceID r1
 		OUTER APPLY 
@@ -67,7 +67,7 @@ BEGIN
 
 				SET @SourceID  = (SELECT TOP 1 SourceID from @tblSendMail)
 
-				IF @SourceID IS NULL BREAK;	
+				IF @SourceID IS NULL BREAK;
 
 				SELECT @ProviderName = CASE  @SourceID WHEN 1 THEN 'SBO' ELSE 'Soccerway'END
 		
