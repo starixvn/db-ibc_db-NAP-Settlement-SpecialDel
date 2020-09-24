@@ -238,7 +238,8 @@ BEGIN
 						(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 						FROM #DangerAccept_SubParlayTickets tp
 						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.MainTransId)
-							AND  tp.StatusId IN (0, 1) 
+							  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)
+							  AND  tp.StatusId IN (0, 1) 
 						GROUP BY TransId for XML PATH('')), 1, 1, ''
 						)
 			
