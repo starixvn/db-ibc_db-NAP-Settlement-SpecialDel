@@ -24,10 +24,11 @@ BEGIN
 
 	DECLARE @tblCheckResult TABLE	(SourceID TINYINT)
 	DECLARE @tblCheckMatch TABLE	(SourceID TINYINT)
+	DECLARE @tblSendMail   TABLE	(SourceID TINYINT)
 
 	;WITH cte_SourceID (SourceID) AS ( SELECT 1 UNION ALL SELECT 5)
 	
-	INSERT INTO @tblCheckResult (SourceID)
+	INSERT INTO @tblCheckResult (SourceID) ---which Source do not send result
 	SELECT DISTINCT r1.SourceID
 	FROM cte_SourceID r1
 		OUTER APPLY 
@@ -38,7 +39,7 @@ BEGIN
 			) r2
 	WHERE  r2.SourceId IS NULL
 	
-	IF @@ROWCOUNT > 0 --exist @@ROWCOUNT SourceId don't have result
+	IF @@ROWCOUNT > 0
 	BEGIN
 		---Check match
 		INSERT INTO @tblCheckMatch (SourceID)
@@ -52,49 +53,46 @@ BEGIN
 					m.AutoSetting & 1 = 1
 					OR m.AutoSetting & 2 = 2
 				)
+
+		INSERT INTO @tblSendMail (SourceID)
+		SELECT r.SourceID FROM @tblCheckResult r INNER JOIN @tblCheckMatch m ON r.SourceID = m.SourceID
 		
 		IF @@ROWCOUNT > 0
 		BEGIN	
 			
 			DECLARE  @SourceID TINYINT	= 1
 
-			WHILE (@SourceID <=5)
+			WHILE (1=1)
 			BEGIN
 
-				IF (SELECT r.SourceID	FROM @tblCheckResult r, @tblCheckMatch m 	WHERE r.SourceID = @SourceID and m.SourceID  = @SourceID) IS  NULL
-				BEGIN
-					SET @SourceID = @SourceID + 4
-					CONTINUE;
-				END
+				SET @SourceID  = (SELECT TOP 1 SourceID from @tblSendMail)
 
-				ELSE
-				BEGIN
-					SELECT @ProviderName = CASE  @SourceID WHEN 1 THEN 'SBO' ELSE 'Soccerway'END
+				IF @SourceID IS NULL BREAK;	
+
+				SELECT @ProviderName = CASE  @SourceID WHEN 1 THEN 'SBO' ELSE 'Soccerway'END
 		
-					SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
-					SET @Email_body  =  
-						'<html>
-							<body>
-								<br>Dear All,<br>
-								<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
-								<br>Thanks and best regards,<br>
-								<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
-								</body>
-						</html>'
+				SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
+				SET @Email_body  =  
+					'<html>
+						<body>
+							<br>Dear All,<br>
+							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
+							<br>Thanks and best regards,<br>
+							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
+							</body>
+					</html>'
 
-					EXECUTE msdb.dbo.sp_send_dbmail
-						@profile_name		= DEFAULT
-						, @recipients		= @Email_recipients
-						, @importance		='Normal'
-						, @subject			= @Email_subject
-						, @body				= @Email_body
-						, @body_format		= 'HTML';
+				EXECUTE msdb.dbo.sp_send_dbmail
+					@profile_name		= DEFAULT
+					, @recipients		= @Email_recipients
+					, @importance		='Normal'
+					, @subject			= @Email_subject
+					, @body				= @Email_body
+					, @body_format		= 'HTML';
 
-					SET @SourceID = @SourceID + 4
-				END
+				DELETE FROM @tblSendMail WHERE SourceID = @SourceID
 
 			END
-
 		END
 	END
 END
