@@ -141,29 +141,27 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 	
-	DECLARE @tmpBalanceRecord TABLE (Transid BIGINT,Bettype SMALLINT, RowID BIGINT, IsReSettled BIT)
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
 	IF (@IsResettledAffectedTickets = 1)
 	BEGIN 
-		INSERT INTO @tmpBalanceRecord (Transid,Bettype,RowID,IsReSettled)
-		SELECT transid,bettype,RowID,IsReSettled
-		FROM bodb02.dbo.BalanceRecord
-		WHERE Matchid = @MatchId
-		UNION ALL
-		SELECT transid,bettype,RowID,IsReSettled
-		FROM BalanceRecord.dbo.BalanceRecord_bk
-		WHERE Matchid = @MatchId
-
-
+		WITH CTEBalanceRecord AS (
+			SELECT transid,RowID,SettlementType
+			FROM bodb02.dbo.BalanceRecord
+			WHERE Matchid = @MatchId AND SettlementType = 2
+			UNION ALL
+			SELECT transid,RowID,SettlementType
+			FROM BalanceRecord.dbo.BalanceRecord_bk
+			WHERE Matchid = @MatchId AND SettlementType = 2
+		)
 		INSERT INTO @tmpAffectTickets(Transid)
-		SELECT  t1.transid
-		FROM @tmpBalanceRecord t1
-		  OUTER APPLY (SELECT t2.Transid,t2.RowID
-						FROM @tmpBalanceRecord t2
-						WHERE t1.transid= t2.transid AND t2.RowID > t1.RowID 
-						)bt
-		WHERE bt.RowID IS NULL AND t1.IsReSettled=1
+		SELECT Transid
+		FROM ( 
+			SELECT transid, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+			FROM CTEBalanceRecord
+		)bt
+		WHERE bt.Rownumber =1
+		  
 	END
 
 	DECLARE @tmpBettransList TABLE (
