@@ -48,6 +48,7 @@ BEGIN
 				END AS SourceID
 		FROM dbo.Match m WITH(NOLOCK)
 		WHERE m.sporttype =1
+			AND ISNULL(m.eventstatus,'') <> 'completed'
 			AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
 			AND (
 					m.AutoSetting & 1 = 1
