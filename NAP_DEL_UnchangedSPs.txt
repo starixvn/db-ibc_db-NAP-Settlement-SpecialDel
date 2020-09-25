@@ -1,1 +1,1 @@
-SpecialDelete\VirtualBetradar\VoidSubParlayBet\dbo.NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd.sql
+SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
