@@ -6,7 +6,7 @@ AS
     Created by: 20200831@Louisa
     Task: Get Result data from DBPRO [Redmine:#140407]
     DB: DBPRO/BODB02
-	NOTE: This SP only deployed on UAT with version is UAT4
+	NOTE: This SP only deployed on UAT with version is UAT3
     
     Revisions:            
 		- 20200831@Louisa: Get Result data from DBPRO [Redmine:#140407]
