@@ -19,7 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@BetTeams					XML				= NULL,
 	@SingleOrSubParlay			VARCHAR(20)	    = 'All',
 	@SelectionType				VARCHAR(200)	= '',
-	@IsResettledAffectedTickets	BIT				= 0
+	@IsReSettled				BIT				= 0
 
 
 WITH RECOMPILE
@@ -103,7 +103,7 @@ BEGIN
 
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
-	IF (@IsResettledAffectedTickets = 1)
+	IF (@IsReSettled = 1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
 			SELECT transid,RowID,SettlementType
@@ -339,7 +339,7 @@ BEGIN
 			OPTION (RECOMPILE)
 
 			--===============================================================================================================--
-			IF (@IsResettledAffectedTickets =1 AND @SportType =1 )
+			IF (@IsReSettled =1 AND @SportType =1 )
 			BEGIN
 				DELETE b
 				FROM #SpecialDeleteBets b
