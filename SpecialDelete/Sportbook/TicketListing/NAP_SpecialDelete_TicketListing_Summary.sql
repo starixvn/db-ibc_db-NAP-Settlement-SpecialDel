@@ -941,7 +941,7 @@ BEGIN
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN dbo.strSplit(@BetTypes, ',') t ON bm.bettype = t.val
+				INNER JOIN dbo.f_SplitString(@BetTypes, ',') t ON bm.bettype = t.val
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
