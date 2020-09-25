@@ -132,20 +132,21 @@ BEGIN
 	BEGIN 
 		WITH CTEBalanceRecord AS (
 			SELECT transid,RowID,SettlementType
-			FROM bodb02.dbo.BalanceRecord
-			WHERE Matchid = @MatchId AND SettlementType = 2
+			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
+			WHERE Matchid = @MatchId
 			UNION ALL
 			SELECT transid,RowID,SettlementType
-			FROM BalanceRecord.dbo.BalanceRecord_bk
-			WHERE Matchid = @MatchId AND SettlementType = 2
+			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
+			WHERE Matchid = @MatchId
 		)
 		INSERT INTO @tmpAffectTickets(Transid)
 		SELECT Transid
 		FROM ( 
-			SELECT transid, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+			SELECT transid,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
 			FROM CTEBalanceRecord
 		)bt
-		WHERE bt.Rownumber =1
+		WHERE bt.Rownumber = 1 AND bt.SettlementType = 2
+		  
 	END
 
 	SELECT 'match' AS [matchtype]
