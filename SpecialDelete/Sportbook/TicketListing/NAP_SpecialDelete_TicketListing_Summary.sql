@@ -143,7 +143,7 @@ BEGIN
 	
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
-	IF (@IsReSettled = 1)
+	IF (@IsReSettled = 1 AND @SportType =1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
 			SELECT transid,RowID,SettlementType

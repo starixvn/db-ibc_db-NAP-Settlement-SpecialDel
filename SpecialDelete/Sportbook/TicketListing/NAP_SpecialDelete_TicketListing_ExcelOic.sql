@@ -101,29 +101,6 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
-	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
-
-	IF (@IsReSettled = 1)
-	BEGIN 
-		WITH CTEBalanceRecord AS (
-			SELECT transid,RowID,SettlementType
-			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
-			WHERE Matchid = @MatchId
-			UNION ALL
-			SELECT transid,RowID,SettlementType
-			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
-			WHERE Matchid = @MatchId
-		)
-		INSERT INTO @tmpAffectTickets(Transid)
-		SELECT Transid
-		FROM ( 
-			SELECT transid,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
-			FROM CTEBalanceRecord
-		)bt
-		WHERE bt.Rownumber = 1 AND bt.SettlementType = 2
-		  
-	END
-
 	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, val)
 	FROM	dbo.f_SplitString(@p_bettypes, ',')
@@ -164,6 +141,28 @@ BEGIN
 	DECLARE @SportType SMALLINT = NULL
 	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
 
+	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
+
+	IF (@IsReSettled = 1 AND @SportType =1)
+	BEGIN 
+		WITH CTEBalanceRecord AS (
+			SELECT transid,RowID,SettlementType
+			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+			UNION ALL
+			SELECT transid,RowID,SettlementType
+			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+		)
+		INSERT INTO @tmpAffectTickets(Transid)
+		SELECT Transid
+		FROM ( 
+			SELECT transid,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+			FROM CTEBalanceRecord
+		)bt
+		WHERE bt.Rownumber = 1 AND bt.SettlementType = 2
+		  
+	END
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
 	IF @Type <> 0 SELECT @LiveType = 2
 
