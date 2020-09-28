@@ -1,16 +1,20 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 (	 
-	@RequestId INT
-	,@MatchId INT
-	,@KickOffTime	DATETIME = NULL
-	,@IssueTypeId INT
-	,@SubIssueTypeId INT
-	,@MinMainParlayTransId BIGINT = NULL
-	,@MaxMainParlayTransId BIGINT = NULL
-	,@IsEditRequest BIT = 0
-	,@UserId		INT = NULL
-	,@IP			VARCHAR(50) = NULL
+	@RequestId				INT
+	,@MatchId				INT
+	,@KickOffTime			DATETIME = NULL
+	,@IssueTypeId			INT
+	,@SubIssueTypeId		INT
+	,@MinMainParlayTransId	BIGINT = NULL
+	,@MaxMainParlayTransId	BIGINT = NULL
+	,@IsEditRequest			BIT = 0
+	,@UserId				INT = NULL
+	,@IP					VARCHAR(50) = NULL
+	,@ActionId				TINYINT = 0
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterBy				TINYINT = 1 
 )
 AS
 /*	
@@ -21,6 +25,7 @@ AS
 	
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 	
 	Param's explanation:	
 		
@@ -29,8 +34,12 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE @UnMarkedTransIds	VARCHAR(MAX) = NULL
-		,@UserName		VARCHAR(100) = NULL
-	
+			,@UserName		VARCHAR(100) = NULL
+			,@MarkedTransIds	VARCHAR(MAX) = NULL
+			,@RemoveTransIds	VARCHAR(MAX) = ''
+			,@IsCheckedHomeTeam		BIT = 0
+			,@IsCheckedAwayTeam		BIT = 0
+
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
 			transid               BIGINT,
@@ -98,16 +107,28 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT)
+
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
-	IF @IsEditRequest = 1
-	BEGIN
-		DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
-		WHERE RequestId = @RequestId
-	END
+	SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
+		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
+	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
+	WHERE RequestId= @RequestId
+
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT tmp.transid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		CROSS APPLY (
+					SELECT TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+					WHERE RequestId = req.RequestId
+				) AS tmp
+	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 	IF @IssueTypeId = 1 AND @MinMainParlayTransId IS NOT NULL
 	BEGIN
@@ -120,8 +141,40 @@ BEGIN
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
-		WHERE main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId
-			AND sub.statusID NOT IN (101, 102, 103)
+		WHERE 1 = CASE WHEN @FilterBy IN (0,1) AND main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId THEN 1
+						WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						WHEN @FilterBy = 2 AND sub.checktime IS NULL AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+						ELSE 0 END
+			AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
+						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
+						 ELSE 0 END
+			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									  WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
+									  ELSE 0 END
+							END)
+
+		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+		------------------------------------------------------------------------------------------------------------
+		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
+		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #DangerAccept_SubParlayTickets t WHERE rdt.TransId=t.transid)
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+		IF @RemoveTransIds IS NOT NULL
+		BEGIN
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+		END
+
+		IF @IsEditRequest = 1
+		BEGIN
+			DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
+			WHERE RequestId = @RequestId
+		END
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
 		SELECT @RequestId
@@ -136,47 +189,77 @@ BEGIN
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2,3)
+									AND r.ActionId NOT IN (2)
 							)tmp
 		WHERE tmp.TransId IS NULL
 		
 		--Mark Ticket
-		WHILE (1=1)
+		IF @ActionId <>2
 		BEGIN
-			DELETE @tmpTransIDBatch
-					
-			UPDATE TOP(2000) t
-				SET isFinish = 1
-			OUTPUT DELETED.TransId, DELETED.StatusId					
-			INTO @tmpTransIDBatch(TransId, StatusId)
-			FROM #DangerAccept_SubParlayTickets t 
-			WHERE isFinish IS NULL
-				AND t.Matchid = @matchid
-				
-			IF @@ROWCOUNT = 0 BREAK
-				
-			SELECT @UnMarkedTransIds = STUFF(
-				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
-				FROM @tmpTransIDBatch tp
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
-					AND  tp.StatusId IN (0, 1) 
-				GROUP BY TransId for XML PATH('')), 1, 1, ''
-				)
-		
-			IF @UnMarkedTransIds IS NOT NULL
+			--Mark Ticket
+			WHILE (1=1)
 			BEGIN
-				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
-				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-																, @MarkType = 1, @LogActionId = 90508
-			END	
-
-			SET @UnMarkedTransIds = ''
+				DELETE @tmpTransIDBatch
+					
+				UPDATE TOP(2000) t
+					SET isFinish = 1
+				OUTPUT DELETED.TransId, DELETED.StatusId					
+				INTO @tmpTransIDBatch(TransId, StatusId)
+				FROM #DangerAccept_SubParlayTickets t 
+				WHERE isFinish IS NULL
+					AND t.Matchid = @matchid
 				
+				IF @@ROWCOUNT = 0 BREAK
+				
+				SELECT @UnMarkedTransIds = STUFF(
+					(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+					FROM @tmpTransIDBatch tp
+					WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+						AND  tp.StatusId IN (0, 1) 
+					GROUP BY TransId for XML PATH('')), 1, 1, ''
+					)
+		
+				IF @UnMarkedTransIds IS NOT NULL
+				BEGIN
+					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
+																	, @MarkType = 1, @LogActionId = 90508
+				END	
+
+				SET @UnMarkedTransIds = ''
+				
+			END
+		END
+		ELSE --other action to take note
+		BEGIN
+			IF @IsEditRequest = 1
+			BEGIN
+				--Unmark ticket
+				SELECT @MarkedTransIds = STUFF(
+						(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+						FROM #DangerAccept_SubParlayTickets tp
+						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.MainTransId)
+							  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)
+							  AND  tp.StatusId IN (0, 1) 
+						GROUP BY TransId for XML PATH('')), 1, 1, ''
+						)
+			
+				IF @MarkedTransIds IS NOT NULL
+					BEGIN
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+					END												
+
+					SET @MarkedTransIds = ''
+			END
 		END
 
 	END
 	ELSE
 	BEGIN
+		IF @IsEditRequest = 1
+		BEGIN
+			DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
+			WHERE RequestId = @RequestId
+		END
 		---get sub ticket of a mix parlay	
 			IF EXISTS (
 					SELECT 1
@@ -273,7 +356,7 @@ BEGIN
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = sub.transid
 									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2,3)
+									AND r.ActionId NOT IN (2)
 							)tmp
 				WHERE	sub.transdate >= @KickOffTime
 						AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -301,3 +384,4 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #DangerAccept_SubParlayTickets
 END
+GO

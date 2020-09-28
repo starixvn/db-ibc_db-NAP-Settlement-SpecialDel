@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
 	@MatchId INT
 	,@RequestId	INT = 0
@@ -11,6 +11,9 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IssueTypeId INT = 1
 	,@ActionId INT = 5
 	,@IsShowLogOnly BIT = 0
+	,@SubIssueTypeId INT = NULL
+	,@IsCheckedHomeTeam  BIT = 0
+	,@IsCheckedAwayTeam  BIT = 0
 )
 AS
 /*	
@@ -22,9 +25,11 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 	
-	Param's explanation:	
+	Param's explanation:
+		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
 		
 */
 BEGIN
@@ -310,20 +315,30 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.matchid = @matchid
-				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							 ELSE 0 END
 				AND b.betfrom <> 'P'
 				AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
+				AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									  WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+									  WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+									  ELSE 0 END
+							END)
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
 				SELECT 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
-					AND bm.statusID NOT IN (101, 102, 103)
+					AND 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+								 WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								 ELSE 0 END
 					AND bm.betfrom <> 'P'
 				)
 		BEGIN		
@@ -406,7 +421,9 @@ BEGIN
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
-			WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+						   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+						   ELSE 0 END
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
@@ -415,6 +432,12 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
+				        AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+										   WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
+										   WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
+										   ELSE 0 END
+							END)
 		END 
 
 		-- delete cash-out member bet tickets
@@ -545,7 +568,15 @@ BEGIN
 								AND b.matchid = @MatchId
 								AND b.custid = t.custid
 								AND b.bettype = t.bettype 
-				WHERE b.statusID NOT IN (101,102, 103 ) -- reject, void, refund	
+				WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							   ELSE 0 END
+					AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+								 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+										   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+										   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+										   ELSE 0 END
+								END)
 			END  			    				    					    				    					    	
 		END
 				
@@ -642,8 +673,15 @@ BEGIN
 						AND charindex ('p25',main.extrainfo)> 0			
 						AND sub911.bettype = 911
 						AND sub911.matchid = @matchid
-		WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund					
-		
+		WHERE 1 = CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					   WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
+					   ELSE 0 END							
+			AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+						  ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+									WHEN @IsCheckedAwayTeam = 1 AND main.bettype NOT IN (401,403,407,482,484) THEN 1 
+									WHEN @IsCheckedHomeTeam = 1 AND main.bettype NOT IN (402,404,409,483,485) THEN 1
+									ELSE 0 END
+						 END) 		
 		-- get cash-out member bet tickets	
 		INSERT INTO #SpecialDeleteBets(
 					GroupID			
@@ -742,7 +780,15 @@ BEGIN
 								WHERE b.refno = sub911.transid
 									AND b.matchid = sub911.matchid					
 									AND b.bettype = sub911.OriginalBetType
-									AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
+									AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+												 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+												 ELSE 0 END
+									AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
+												 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
+														   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484) THEN 1 
+														   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485) THEN 1
+														   ELSE 0 END
+												END)
 							) AS b
 		WHERE sub911.bettype = 911
 			
@@ -789,7 +835,7 @@ BEGIN
 	END
 
 	/*Get Transid in Request of range Transid*/
-	IF @ActionId NOT IN (2,3)
+	IF @ActionId NOT IN (2)
 	BEGIN
 		IF @IssueTypeId IN (8,9)
 		BEGIN
@@ -812,7 +858,7 @@ BEGIN
 					)tmp
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2,3)
+				AND r.ActionId NOT IN (2)
 		END
 		ELSE
 		BEGIN
@@ -836,7 +882,7 @@ BEGIN
 				INNER JOIN #SpecialDeleteBets t ON t.SubTransid = tmp.transid
 			WHERE rd.MatchId = @MatchId
 				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2,3)
+				AND r.ActionId NOT IN (2)
 		END
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)

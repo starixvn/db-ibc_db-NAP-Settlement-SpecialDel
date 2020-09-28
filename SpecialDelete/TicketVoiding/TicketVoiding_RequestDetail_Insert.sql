@@ -24,6 +24,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@VoidToTime DATETIME = NULL
 	,@LiveHomeScore TINYINT = NULL
 	,@LiveAwayScore TINYINT = NULL
+	,@IsCheckedHomeTeam		BIT = NULL
+	,@IsCheckedAwayTeam		BIT = NULL
+	,@SubIssueTypeId		TINYINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -47,6 +50,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's explanation:	
@@ -128,6 +132,8 @@ BEGIN
 		, VoidToTime
 		, LiveHomeScore
 		, LiveAwayScore
+		, IsCheckedHomeTeam
+		, IsCheckedAwayTeam
 		)
 	SELECT @RequestId
 		, @MatchId
@@ -136,40 +142,46 @@ BEGIN
 		, @AwayId
 		, @KickOffTime
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-		,@FilterFromTransTime
-		,@FilterToTransTime
-		,@FilterFromBetId
-		,@FilterToBetId
-		,@FilterBy
-		,@SingleCount
-		,@MainParlayCount
-		,@MinSingleTransId
-		,@MaxSingleTransId
-		,@MinMainParlayTransId
-		,@MaxMainParlayTransId
-		,@VoidFromTime
-		,@VoidToTime
-		,@LiveHomeScore
-		,@LiveAwayScore
+		, @FilterFromTransTime
+		, @FilterToTransTime
+		, @FilterFromBetId
+		, @FilterToBetId
+		, @FilterBy
+		, @SingleCount
+		, @MainParlayCount
+		, @MinSingleTransId
+		, @MaxSingleTransId
+		, @MinMainParlayTransId
+		, @MaxMainParlayTransId
+		, @VoidFromTime
+		, @VoidToTime
+		, @LiveHomeScore
+		, @LiveAwayScore
+		, @IsCheckedHomeTeam
+		, @IsCheckedAwayTeam
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
-		-- mark ticket
-		SELECT @MarkedTransIds = STUFF(
-			(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
-			FROM #transid_tmp tp
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
-				AND  tp.StatusId IN (0, 1) 
-			GROUP BY TransId for XML PATH('')), 1, 1, ''
-			)
-		
-		IF @MarkedTransIds IS NOT NULL
+		-- mark ticket and not take note
+		IF @ActionId <>2
 		BEGIN
-			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
-			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-															, @MarkType = 1, @LogActionId = 90508
-		END		
+			-- mark ticket
+			SELECT @MarkedTransIds = STUFF(
+				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+				FROM #transid_tmp tp
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+					AND  tp.StatusId IN (0, 1) 
+				GROUP BY TransId for XML PATH('')), 1, 1, ''
+				)
+		
+			IF @MarkedTransIds IS NOT NULL
+			BEGIN
+				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
+																, @MarkType = 1, @LogActionId = 90508
+			END		
+		END
 		
 		IF @ActionId = 4 OR (@ActionId = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
@@ -184,11 +196,15 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ (CASE
+								+  (CASE
 									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
 									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
-									WHEN @FilterBy <> 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
-									WHEN @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy IN(1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @FilterBy IN (1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 									ELSE ''
 								END)
 								AS '@LogData'

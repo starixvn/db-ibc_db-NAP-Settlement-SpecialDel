@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	@RequestId		INT
 	,@MatchId		INT
 	,@KickOffTime	DATETIME	 = NULL
-
 	,@UserId		INT
 	,@IP			VARCHAR(50)	 = NULL
 	,@TransIds 		VARCHAR(MAX) = NULL
@@ -25,6 +24,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@VoidToTime DATETIME = NULL
 	,@LiveHomeScore TINYINT = NULL
 	,@LiveAwayScore TINYINT = NULL
+	,@IsCheckedHomeTeam BIT = NULL
+	,@IsCheckedAwayTeam BIT = NULL
+	,@SubIssueTypeId	TINYINT = NULL
+	,@IsConfirmCalculator  BIT = 0 
+	,@ErrMsg          NVARCHAR(200) = '' OUTPUT
+    ,@ErrCode         INT           = 0 OUTPUT
+	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+	
 )
 AS
 /*	Created by: Kathy
@@ -45,6 +53,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 
 	Param's explanation:	
@@ -59,9 +68,7 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@LogDataContent	VARCHAR(MAX)
 			,@SB_Error			BIT
-
 			,@OldKickOffTime	DATETIME
-			
 			,@LeagueId			INT = NULL
 			,@HomeId			INT = NULL
 			,@AwayId			INT = NULL
@@ -77,9 +84,13 @@ BEGIN
 			,@OldFilterFromBetId BIGINT = NULL
 			,@OldFilterToBetId BIGINT = NULL
 			,@OldFilterBy TINYINT = 0
+			,@ResettleTransids VARCHAR(MAX) = '' 
+			,@UnmarkTransids VARCHAR(MAX) =''
+			,@RemoveTransIds VARCHAR(MAX) =''
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -130,6 +141,8 @@ BEGIN
 			, VoidToTime = @VoidToTime
 			, LiveHomeScore = @LiveHomeScore
 			, LiveAwayScore = @LiveAwayScore
+			, IsCheckedHomeTeam = @IsCheckedHomeTeam
+			, IsCheckedAwayTeam = @IsCheckedAwayTeam
 
 		WHERE	RequestId = @RequestId
 	END
@@ -143,6 +156,17 @@ BEGIN
 				AND MatchId = @MatchId
 	END
 
+	INSERT INTO #TransidInRequest (TransId)
+	SELECT tmp.transid
+	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		CROSS APPLY (
+					SELECT TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE RequestId = req.RequestId
+				) AS tmp
+	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+
 	-- Auto mark ticket running for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
@@ -152,41 +176,92 @@ BEGIN
 		FROM dbo.f_SplitString(@TransIds, ',')
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
-
+		
 		INSERT INTO #transid_tmp (transid, bettype, StatusId,statuswinlost)
 		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
-		WHERE b.statusID IN (0, 1)
+		WHERE b.statusID IN (0, 1) --if status of ticket is running
 
+		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		SET @IsCalQueue = ( SELECT TOP (1) 1
-							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-							WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
-							)
-		
-		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
-			SET @IsTransidProcessed = 1
-		
-		-- mark ticket
-		SELECT @MarkedTransIds = STUFF(
-			(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
-			FROM #transid_tmp tp
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
-			GROUP BY TransId for XML PATH('')), 1, 1, ''
-			)
-		IF @MarkedTransIds IS NOT NULL
+				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
+				)
+
+		--2.4 remove transid from request => unmark ticket
+		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #inputTransid it WHERE rdt.TransId=it.transid) -- exist vs input
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
-			EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-														, @MarkType = 1, @LogActionId = 90508
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
 		END
 
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+				SET @IsTransidProcessed = 1
+		--======================================================================
+		IF @ActionId <>2
+		BEGIN
+			-- mark ticket
+			SELECT @MarkedTransIds = STUFF(
+				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+				FROM #transid_tmp tp
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				GROUP BY TransId for XML PATH('')), 1, 1, ''
+				)
+			IF @MarkedTransIds IS NOT NULL
+			BEGIN
+				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
+															, @MarkType = 1, @LogActionId = 90508
+			END
+		END
+		ELSE --update take note
+		BEGIN
+			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM #transid_tmp tp
+											WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)
+											FOR XML PATH('')
+								), 1,1,'')
+			--unmark ticket
+			IF @UnmarkTransids IS NOT NULL
+			BEGIN
+				EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @UnmarkTransids, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+			END
+
+			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM #transid_tmp
+												WHERE --IsMixParlay = 0 AND 
+													statuswinlost IS NOT NULL
+												FOR XML PATH('')
+									), 1,1,'')
+			--resettle ticket
+			IF (@IsConfirmCalculator = 1)
+			BEGIN
+				EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
+							@Matchid = @Matchid	,
+							@TransIds = @ResettleTransids,
+							@UserId  = @UserId,
+							@IP = @IP,
+							@FailedTransIds = @FailedTransIds OUTPUT,
+							@ErrMsg = @ErrMsg OUTPUT,
+							@ErrCode = @ErrCode OUTPUT,
+							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			     
+			END
+		END
+		--======================================================================
 		IF @ActionId = 4 OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
-	
 	END
 
 	-- Get content of log data
@@ -238,6 +313,10 @@ BEGIN
 		BEGIN
 			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
 									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))
+		END
+		IF @IssueTypeId =1 AND @SubIssueTypeId IN(1,2)
+		BEGIN
+			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 		END
 	END
 	ELSE
