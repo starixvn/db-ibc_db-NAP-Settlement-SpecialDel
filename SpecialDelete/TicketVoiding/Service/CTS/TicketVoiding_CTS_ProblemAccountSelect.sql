@@ -40,7 +40,7 @@ BEGIN
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
-		WHERE pa.ReasonId IS NULL	
+		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
 	
 	END
 	ELSE IF ISNULL(@CustIds,'') = '' AND @datetime IS NOT NULL
@@ -64,7 +64,7 @@ BEGIN
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
-		WHERE pa.ReasonId IS NULL	
+		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL	
 			AND pa.CreatedDate >= @datetime
 	END
 	ELSE IF @CustIds <> ''
@@ -97,7 +97,7 @@ BEGIN
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
-		WHERE pa.ReasonId IS NULL	
+		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL	
 		
 	END
 END
