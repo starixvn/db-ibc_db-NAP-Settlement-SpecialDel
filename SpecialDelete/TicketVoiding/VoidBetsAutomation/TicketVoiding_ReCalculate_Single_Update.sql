@@ -10,7 +10,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20200212@Max: Create new SP [Redmine: #128359]	
+		- 20200212@Max: Create new SP [Redmine: #128359]
+		- 20200924@Louisa: Implement for Myanmar odds - bettype 1,3,7,8 [Redmine:#142220]	
 		
 	Param's explanation:	
 		
@@ -102,12 +103,16 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN actual_stake + stake * @odds
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN actual_stake + stake * odds * (oddsspread/100) -- oddsspread > 0: WON
+															ELSE actual_stake + stake * @odds
+															END
 								WHEN statuswinlost = 1 THEN actual_stake + stake * @odds * 0.5
 								WHEN statuswinlost IN (0,6) THEN actual_stake
 								WHEN statuswinlost = 3 THEN actual_stake * 0.5
-								WHEN statuswinlost = 4 THEN 0
-							END 
+								WHEN statuswinlost = 4 THEN  CASE WHEN b.oddstype = 6 THEN actual_stake * (1 - ABS(oddsspread/100))
+															 ELSE 0
+															 END
+							END
 						END		
 			-- check if bettype belongs to major comm group (CommBettypeGroupId = 1) and calc comm with new formula
 			,@stake = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN ABS(@winlost - actual_stake)
@@ -129,11 +134,15 @@ BEGIN
 															  END	
 							ELSE 
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -apositiontaking
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN stake * odds * (oddsspread/100) * -apositiontaking
+															ELSE stake * @odds * -apositiontaking
+															END
 								WHEN statuswinlost = 1 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * apositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * apositiontaking
+								WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN actual_stake * ABS(oddsspread/100) * apositiontaking
+															ELSE actual_stake * apositiontaking
+															END
 							END
 						END
 								
@@ -144,11 +153,15 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -mpositiontaking
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN  stake * odds * (oddsspread/100) * -mpositiontaking
+															ELSE stake * @odds * -mpositiontaking
+															END
 								WHEN statuswinlost = 1 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * mpositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * mpositiontaking
+								WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN actual_stake * ABS(oddsspread/100) * mpositiontaking
+															ELSE actual_stake * mpositiontaking
+															END
 							END
 						END
 						
@@ -159,11 +172,15 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -spositiontaking
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN stake * odds * (oddsspread/100) * -spositiontaking
+															ELSE stake * @odds * -spositiontaking
+															END
 								WHEN statuswinlost = 1 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * spositiontaking * 0.5
-								WHEN statuswinlost = 4 THEN actual_stake * spositiontaking
+								WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN actual_stake * ABS(oddsspread/100) * spositiontaking
+															ELSE actual_stake * spositiontaking
+															END
 							END
 						END
 
@@ -175,11 +192,15 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN @commWinRate * playerdiscount * stake * odds * (oddsspread/100)
+															ELSE @commWinRate * playerdiscount * @stake
+															END
 								WHEN statuswinlost = 1 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
-								WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
+								WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN @commLostRate * playerdiscount * stake * ABS(oddsspread/100)
+															ELSE @commLostRate * playerdiscount * @stake
+															END
 							END
 						END
 			,Comm = CASE 
@@ -190,11 +211,15 @@ BEGIN
 														  END	
 						ELSE
 						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1-apositiontaking)
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN  @commWinRate * discount * stake * odds * (oddsspread/100) * (1-apositiontaking)
+														ELSE @commWinRate * discount * @stake * (1-apositiontaking)
+														END
 							WHEN statuswinlost = 1 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
 							WHEN statuswinlost IN (0,6)	THEN 0
 							WHEN statuswinlost = 3 THEN @commLostRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1-apositiontaking)
+							WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN @commLostRate * discount * stake * ABS(oddsspread/100) * (1-apositiontaking)
+														ELSE @commLostRate * discount * @stake * (1-apositiontaking)
+														END
 						END
 					END	
 			,aComm = CASE 
@@ -205,11 +230,15 @@ BEGIN
 														  END	
 						ELSE 
 						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN @commWinRate * adiscount * stake * odds * (oddsspread/100) * (1-(mpositiontaking+apositiontaking))
+														ELSE @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+														END
 							WHEN statuswinlost = 1 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
 							WHEN statuswinlost IN (0,6)	THEN 0
 							WHEN statuswinlost = 3 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype = 6 THEN @commLostRate * adiscount * stake * ABS(oddsspread/100) * (1-(mpositiontaking+apositiontaking))
+														ELSE @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
+														END
 						END
 					END		
 			,sComm = CASE 
@@ -220,11 +249,15 @@ BEGIN
 														  END	
 						ELSE 
 						CASE
-							WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 THEN @commWinRate * sdiscount * stake * odds * (oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
+														ELSE @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+														END
 							WHEN statuswinlost = 1 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
 							WHEN statuswinlost IN (0,6)	THEN 0
 							WHEN statuswinlost = 3 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
-							WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 4 THEN CASE WHEN b.oddstype =6 THEN @commLostRate * sdiscount * stake * ABS(oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
+														ELSE @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
+														END
 						END
 					END	
 			,Status = CASE
