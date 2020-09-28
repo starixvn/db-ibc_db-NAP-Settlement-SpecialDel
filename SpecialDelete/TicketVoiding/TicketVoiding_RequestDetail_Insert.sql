@@ -22,7 +22,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@MaxMainParlayTransId BIGINT = NULL
 	,@VoidFromTime DATETIME = NULL
 	,@VoidToTime DATETIME = NULL
-	,@LiveScores NVARCHAR(300)
+	,@LiveScores NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT = NULL
 	,@IsCheckedAwayTeam		BIT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
