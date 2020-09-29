@@ -24,6 +24,7 @@ AS
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181207@Alan: Support Chinese Email [105976]
+		- 20200929@Zane: Show Operator ID into void email notification - Fix bug cannot show bettype and deposit name [#141126]
 		
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -451,9 +452,9 @@ BEGIN
 		SELECT  r.Stake,
 				r.AwayId,
 				r.BetCheck,
-				r.BetId AS BetTypeId,
+				r.BetId,
 				r.BetTeam,
-				r.BetType,				
+				r.BetType AS BetTypeId,				
 				r.CurrencyName,
 				r.Hdp1 AS Handicap1,
 				r.Hdp2 AS Handicap2,
@@ -469,7 +470,8 @@ BEGIN
 				r.TransDate,
 				r.TransDesc,
 				r.TransId,
-				r.UserName,
+				c.username,
+				c.username2,
 				r.WinLost,				
 				r.IsNeutral,
 				r.showtime,
@@ -501,6 +503,8 @@ BEGIN
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
 		FROM #tmpBetDelete r
+				LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
+						ON r.custid = c.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 						ON r.recommend = ag.custid
 				LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK)
@@ -518,6 +522,6 @@ BEGIN
 				  , @IsReleased	= 1	
 	END CATCH			
 						
-	SET NOCOUNT OFF		
+	SET NOCOUNT OFF
 END
 GO
