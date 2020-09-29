@@ -19,7 +19,7 @@ BEGIN
 	CREATE TABLE #tblAgentIds (AgentId INT);
 	
 	INSERT INTO #tblAgentIds (AgentId)
-	SELECT T.C.value('@AgentId', 'INT') AS transid
+	SELECT T.C.value('@AgentId', 'INT')
 	FROM @AgentIdsXml.nodes('/Operators/Operator') AS T(C)
 	OPTION ( OPTIMIZE FOR ( @AgentIdsXml = NULL ) )
 
