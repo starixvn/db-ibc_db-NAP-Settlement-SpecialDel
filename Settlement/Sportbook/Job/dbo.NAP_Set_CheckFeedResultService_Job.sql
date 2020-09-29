@@ -16,8 +16,7 @@ BEGIN
 			, @Email_body VARCHAR(MAX)
 
 	DECLARE  @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) =	N'louisa.vo@starixsoft.com;liz.nguyen@starixsoft.com'
-			--- 'michael.nguyen@starixsoft.com; IT@starixsoft.com; dbaadmin@starixsoft.com'
+			, @Email_recipients VARCHAR(250) ='michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
 
 
 	SET @Check =  DATEADD( HOUR, -2, GETDATE() )
