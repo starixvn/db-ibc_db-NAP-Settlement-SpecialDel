@@ -128,7 +128,7 @@ BEGIN
 
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
-	IF (@IsReSettled = 1 AND @SportType =1)
+	IF (@IsReSettled = 1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
 			SELECT transid,RowID,SettlementType
@@ -1360,22 +1360,12 @@ BEGIN
 			END	
 		END		
 		
-		--===============================================================================================================--
-		IF (@IsReSettled = 1)
+		IF (@IsReSettled = 1 AND @SportType = 1)
 		BEGIN
-			IF @SportType =1
-			BEGIN 
-				DELETE b
-				FROM #SpecialDeleteBets b
-				WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
-			END
-			ELSE
-			BEGIN
-				DELETE b
-				FROM #SpecialDeleteBets b
-			END
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
 		END
-		--===============================================================================================================--
 
 		IF (@BetTypes ='38' AND @Selectiontype <>'')
 		BEGIN
