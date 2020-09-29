@@ -43,8 +43,9 @@ BEGIN
 	BEGIN
 		---Check match
 		INSERT INTO @tblCheckMatch (SourceID)
-		SELECT DISTINCT CASE WHEN m.AutoSetting & 1 = 1 THEN 1
-							WHEN m.AutoSetting & 2 = 2 THEN 5
+		SELECT DISTINCT CASE WHEN m.AutoSetting & 1 = 1 AND m.AutoSetting & 2 = 2 THEN 0
+							 ELSE CASE WHEN m.AutoSetting & 1 = 1 THEN 1
+									ELSE 5 END
 				END AS SourceID
 		FROM dbo.Match m WITH(NOLOCK)
 		WHERE m.sporttype =1
@@ -56,7 +57,7 @@ BEGIN
 				)
 
 		INSERT INTO @tblSendMail (SourceID)
-		SELECT r.SourceID FROM @tblCheckResult r INNER JOIN @tblCheckMatch m ON r.SourceID = m.SourceID
+		SELECT r.SourceID FROM @tblCheckResult r INNER JOIN @tblCheckMatch m ON r.SourceID = m.SourceID OR m.SourceID = 0
 		
 		IF @@ROWCOUNT > 0
 		BEGIN	
