@@ -1,13 +1,13 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBTP-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 CREATE PROCEDURE NAP_Set_CheckFeedResultService_Job
 AS
 /* 
 	Created:20200907@Louisa
-    Task: Check SBO & Soccerway Results [Redmine:#111576]
-    DB: DBPRO/bodb02
+    Task:  Check SBO & Soccerway Services [Redmine:#111576]
+    DB: DBTP/bodb02
 	
 	Revisions:
-		- 20200907@Louisa: Check SBO & Soccerway Results [Redmine:#111576]
+		- 20200907@Louisa:  Check SBO & Soccerway Services [Redmine:#111576]
 */
 BEGIN
 
