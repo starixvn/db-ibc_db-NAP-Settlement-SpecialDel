@@ -169,3 +169,40 @@ UPDATE ms
 		ms.MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于賽事提前開始, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 之后只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 FROM dbo.TicketVoiding_MessageTemplate ms WITH (ROWLOCK, UPDLOCK)
 WHERE ms.TemplateId = 18
+
+/*---------------------------------------*/
+--Template 19
+UPDATE ms
+	SET ms.MsgEnglish = N'Attn:[{{Sport type}}] Due to wrong kick off time displayed, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], bet ID: "@@" placed after {{KO time}} which affected are considered VOID. Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!',
+		ms.MsgChineseTraditional = N'請注意:[{{Sport type}}] 由於開賽時間顯示有誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注單: "@@" 投注於 {{KO time}} 只作廢受影響的注單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!',
+		ms.MsgChineseSimplified = N'请注意:[{{Sport type}}] 由于开赛时间显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!',
+		ms.MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于开赛时间显示有误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+FROM dbo.TicketVoiding_MessageTemplate ms WITH (ROWLOCK, UPDLOCK)
+WHERE ms.TemplateId = 19
+
+--Template 20
+UPDATE ms
+	SET ms.MsgEnglish = N'Attn:[{{Sport type}}] Due to wrong tip off time displayed, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], bet ID: "@@" placed after {{KO time}} which affected are considered VOID. Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!',
+		ms.MsgChineseTraditional = N'請注意:[{{Sport type}}] 由于開賽時間顯示有誤 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注單: "@@" 投注於 {{KO time}} 只作廢受影響的注單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!',
+		ms.MsgChineseSimplified = N'请注意:[{{Sport type}}] 由于开赛时间错误 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!',
+		ms.MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于开赛时间错误 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+FROM dbo.TicketVoiding_MessageTemplate ms WITH (ROWLOCK, UPDLOCK)
+WHERE ms.TemplateId = 20
+
+--Template 21
+UPDATE ms
+	SET ms.MsgEnglish = N'Attn:[{{Sport type}}] Due to wrong event start time displayed, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], bet ID: "@@" placed after {{KO time}} which affected are considered VOID. Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!',
+		ms.MsgChineseTraditional = N'請注意:[{{Sport type}}] 由于開賽時間顯示有誤 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注單: "@@" 投注於 {{KO time}} 只作廢受影響的注單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!',
+		ms.MsgChineseSimplified = N'请注意:[{{Sport type}}] 由于赛事时间显示错误 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!',
+		ms.MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于赛事时间显示错误 , "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}], 注单: "@@" 投注于 {{KO time}} 只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+FROM dbo.TicketVoiding_MessageTemplate ms WITH (ROWLOCK, UPDLOCK)
+WHERE ms.TemplateId = 21
+
+--Template 35
+UPDATE ms
+	SET ms.MsgEnglish = N'Attn:[{{Sport type}}] Due to wrong market offered on Live betting for match between "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" {{PlacedFromTimeRange}}{{Score}}which affected are considered VOID. Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!',
+		ms.MsgChineseTraditional = N'請注意:[{{Sport type}}] 由於滾球賽事盤口錯誤, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}] , 注單: "@@" {{PlacedFromTimeRange}}{{Score}} 只作廢受影響的注單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!',
+		ms.MsgChineseSimplified = N'请注意:[{{Sport type}}] 由于滚球赛事盘口错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!',
+		ms.MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于滚球赛事盘口错误, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+FROM dbo.TicketVoiding_MessageTemplate ms WITH (ROWLOCK, UPDLOCK)
+WHERE ms.TemplateId = 35
