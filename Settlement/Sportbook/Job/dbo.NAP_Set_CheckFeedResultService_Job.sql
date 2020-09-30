@@ -7,16 +7,19 @@ AS
     DB: DBTP/bodb02
 	
 	Revisions:
-		- 20200907@Louisa:  Check SBO & Soccerway Services [Redmine:#111576]
+		- 20200907@Louisa: Check SBO & Soccerway Services [Redmine:#111576]
+		- 20200930@Louisa: Enhance: Output top 100 MatchId
 */
 BEGIN
 
 	DECLARE   @Check DATETIME
 			, @ProviderName VARCHAR(10)
 			, @Email_body VARCHAR(MAX)
+			, @MatchIDs VARCHAR(MAX)
 
 	DECLARE  @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) ='michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
+			, @Email_recipients VARCHAR(250) = N'louisa.vo@starixsoft.com;liz.nguyen@starixsoft.com'
+			----'michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
 
 
 	SET @Check =  DATEADD( HOUR, -2, GETDATE() )
@@ -38,63 +41,66 @@ BEGIN
 			) r2
 	WHERE  r2.SourceId IS NULL
 	
-	IF @@ROWCOUNT > 0
+	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 1 )
 	BEGIN
-		---Check match
-		INSERT INTO @tblCheckMatch (SourceID)
-		SELECT DISTINCT CASE WHEN m.AutoSetting & 1 = 1 AND m.AutoSetting & 2 = 2 THEN 0
-							 ELSE CASE WHEN m.AutoSetting & 1 = 1 THEN 1
-									ELSE 5 END
-				END AS SourceID
-		FROM dbo.Match m WITH(NOLOCK)
-		WHERE m.sporttype =1
-			AND ISNULL(m.eventstatus,'') <> 'completed'
-			AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
-			AND (
-					m.AutoSetting & 1 = 1
-					OR m.AutoSetting & 2 = 2
-				)
-
-		INSERT INTO @tblSendMail (SourceID)
-		SELECT r.SourceID FROM @tblCheckResult r INNER JOIN @tblCheckMatch m ON r.SourceID = m.SourceID OR m.SourceID = 0
-		
-		IF @@ROWCOUNT > 0
-		BEGIN	
-			
-			DECLARE  @SourceID TINYINT	= 1
-
-			WHILE (1=1)
-			BEGIN
-
-				SET @SourceID  = (SELECT TOP 1 SourceID from @tblSendMail)
-
-				IF @SourceID IS NULL BREAK;
-
-				SELECT @ProviderName = CASE  @SourceID WHEN 1 THEN 'SBO' ELSE 'Soccerway'END
-		
-				SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
+		SET @MatchIDs = STUFF((SELECT TOP 100 ',' + CONVERT(VARCHAR(10), m.matchid)	FROM dbo.Match m WITH(NOLOCK) 
+									WHERE m.sporttype =1
+										 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+										 AND m.AutoSetting & 1 = 1 FOR XML PATH ('')) ,1,1,'') 
+		IF ISNULL(@MatchIDs,'') <> ''
+		BEGIN
+			SET @ProviderName = 'SBO'
+			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
 				SET @Email_body  =  
 					'<html>
 						<body>
 							<br>Dear All,<br>
-							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br><br>					
+							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br>
+							<br>TOP MatchId: '+ @MatchIDs +'<br><br>					
 							<br>Thanks and best regards,<br>
 							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
 							</body>
 					</html>'
 
-				EXECUTE msdb.dbo.sp_send_dbmail
-					@profile_name		= DEFAULT
-					, @recipients		= @Email_recipients
-					, @importance		='Normal'
-					, @subject			= @Email_subject
-					, @body				= @Email_body
-					, @body_format		= 'HTML';
+			EXECUTE msdb.dbo.sp_send_dbmail
+				@profile_name		= DEFAULT
+				, @recipients		= @Email_recipients
+				, @importance		='Normal'
+				, @subject			= @Email_subject
+				, @body				= @Email_body
+				, @body_format		= 'HTML';
+		END	
+	END
 
-				DELETE FROM @tblSendMail WHERE SourceID = @SourceID
+	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 5 )
+	BEGIN
+		SET @MatchIDs = STUFF((SELECT TOP 100 ',' + CONVERT(VARCHAR(10), m.matchid)	FROM dbo.Match m WITH(NOLOCK) 
+									WHERE m.sporttype =1
+										 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+										 AND m.AutoSetting & 2 = 2 FOR XML PATH ('')) ,1,1,'')
+		IF ISNULL(@MatchIDs,'') <> ''
+		BEGIN
+			SET @ProviderName = 'Soccerway'
+			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
+				SET @Email_body  =  
+					'<html>
+						<body>
+							<br>Dear All,<br>
+							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br>
+							<br>TOP MatchId: '+ @MatchIDs +'<br><br>					
+							<br>Thanks and best regards,<br>
+							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
+							</body>
+					</html>'
 
-			END
-		END
+			EXECUTE msdb.dbo.sp_send_dbmail
+				@profile_name		= DEFAULT
+				, @recipients		= @Email_recipients
+				, @importance		='Normal'
+				, @subject			= @Email_subject
+				, @body				= @Email_body
+				, @body_format		= 'HTML';
+		END 
 	END
 END
 GO
