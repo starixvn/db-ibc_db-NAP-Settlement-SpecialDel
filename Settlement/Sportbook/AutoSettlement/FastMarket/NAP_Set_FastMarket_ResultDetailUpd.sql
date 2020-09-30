@@ -15,7 +15,8 @@ AS
 	Revisions:
 		- 20170113@Kathy: Enhancement for Fast Market [Redmine:#69951]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
-
+		- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
+		
 	Param's Explanation:
 		- @Results: 
 				'<r>
@@ -66,6 +67,12 @@ BEGIN
 		,strPosAway VARCHAR(1000)
 	)
 
+	DECLARE @tblPosition_228 TABLE(
+		ResourceId	VARCHAR(20)
+		,strPosHome	VARCHAR(1000)
+		,strPosAway VARCHAR(1000)
+	)
+	
 	SELECT	@xmlData = CONVERT(XML, @Results)
 			,@xmlEventCounter = CONVERT(XML, @EventCounters)
 
@@ -114,13 +121,13 @@ BEGIN
 				,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
 							FROM	@tblData	
 							WHERE	ResourceId = t.ResourceId 
-									AND position <=44
+									AND position <= CASE WHEN t.ResourceId = '22800' THEN 45 ELSE 44 END
 							FOR XML PATH ('')
 					),1,1,'') strPosHome
-				,STUFF ((SELECT	',' + CAST(position - 45 AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+				,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
 							FROM	@tblData	
 							WHERE	ResourceId = t.ResourceId
-									AND position >=45
+									AND position >= CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END
 							FOR XML PATH ('')
 					),1,1,'') strPosAway
 		FROM	dbo.ResultDetail t WITH(ROWLOCK)
@@ -208,13 +215,13 @@ BEGIN
 					,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
 								FROM	@tblData	
 								WHERE	ResourceId_BetOption = t.ResourceId
-										AND position <=44
+										AND position <= CASE WHEN t.ResourceId = '22801' THEN 45 ELSE 44 END
 								FOR XML PATH ('')
 						),1,1,'') strBetOptionHome
-					,STUFF ((SELECT	',' + CAST(position - 45 AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
+					,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
 								FROM	@tblData	
 								WHERE	ResourceId_BetOption = t.ResourceId
-										AND position >=45
+										AND position >= CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END
 								FOR XML PATH ('')
 						),1,1,'') strBetOptionAway
 			FROM	dbo.ResultDetail t WITH(ROWLOCK)
@@ -235,7 +242,19 @@ BEGIN
 				INNER JOIN @tblPosition p 
 					ON	r.MatchId = @matchid
 						AND r.ResourceId = p.ResourceId
-			WHERE	r.ResourceId LIKE '22_01'	
+			WHERE	r.ResourceId LIKE '22_01' AND r.ResourceId NOT IN ('22801')
+			
+			-- update 228
+			UPDATE r 
+				SET HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(r.HomeValue, p.strPosHome) ELSE r.HomeValue END
+					,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(r.AwayValue, p.strPosAway) ELSE r.AwayValue END
+					,LastModifyBy = @AdminId
+					,LastModifyDate = GETDATE()
+			FROM	dbo.ResultDetail r WITH(ROWLOCK, UPDLOCK)
+				INNER JOIN @tblPosition p 
+					ON	r.MatchId = @matchid
+						AND r.ResourceId = p.ResourceId
+			WHERE r.ResourceId = '22801'
 		END
 	END	
 END

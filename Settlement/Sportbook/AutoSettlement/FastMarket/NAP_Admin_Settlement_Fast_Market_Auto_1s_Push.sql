@@ -26,6 +26,7 @@ AS
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20190813@Helen: Remove vnteam in metadata
 			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
 			
 	Param's Explanation:
 		- @Result: 
@@ -69,6 +70,8 @@ BEGIN
 			,@subErrMsg		VARCHAR(MAX) = ''
 			,@AutoSetting	TINYINT
 			,@xmlEventCounter	XML
+			,@ResouceResult_22801 VARCHAR(20) = '22801'
+			,@ResouceResultStatus_22800 VARCHAR(20) = '22800'
 			
 	DECLARE @tblData TABLE (
 		bettype					SMALLINT
@@ -84,7 +87,11 @@ BEGIN
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
 	)
-	 
+	
+	-- new bettype 228
+	DECLARE @tblResultDetail_228 TABLE (ResourceId VARCHAR(20),ResourceId_BetOption VARCHAR(20),Position TINYINT ,Value TINYINT)
+	DECLARE @BetOption1st VARCHAR(50), @ResultStatus1st VARCHAR(50),@BetOption2nd VARCHAR(50),@ResultStatus2nd VARCHAR(50)
+	
 	SELECT	@matchcode = m.matchcode
 			,@sporttype = m.sporttype
 			,@leagueid = m.leagueid
@@ -183,30 +190,74 @@ BEGIN
 					,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
 			
 			RETURN
-		END	
-		
+		END
+		-- For bettype between 221 and 227	
 		UPDATE t
-		SET	BetOption = (SELECT TOP 1 byte 
-						 FROM dbo.f_Set_GetByte(CASE 
-													WHEN t.Position <=44 THEN r.HomeValue 
-													ELSE AwayValue 
-												END, t.Position)
-											)
-		FROM	@tblData t
-			INNER JOIN @tblResultDetail r
-				ON r.ResourceId = t.ResourceId_BetOption
-				
-		UPDATE t
-		SET	ResultStatus = (SELECT TOP 1 [char] 
-							 FROM dbo.f_Set_GetChar(CASE 
+			SET	BetOption = (SELECT TOP 1 byte 
+							 FROM dbo.f_Set_GetByte(CASE 
 														WHEN t.Position <=44 THEN r.HomeValue 
-														ELSE r.AwayValue 
-													END, CASE WHEN t.Position <=44 THEN t.Position ELSE t.Position - 45 END)
+														ELSE AwayValue 
+													END, t.Position)
 												)
 		FROM	@tblData t
 			INNER JOIN @tblResultDetail r
+				ON r.ResourceId = t.ResourceId_BetOption
+		WHERE r.ResourceId NOT IN (@ResouceResult_22801)		
+				
+		UPDATE t
+			SET	ResultStatus = (SELECT TOP 1 [char] 
+								 FROM dbo.f_Set_GetChar(CASE 
+															WHEN t.Position <=44 THEN r.HomeValue 
+															ELSE r.AwayValue 
+														END, CASE WHEN t.Position <=44 THEN t.Position ELSE t.Position - 45 END)
+													)
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId
+		WHERE r.ResourceId NOT IN (@ResouceResultStatus_22800)						
 		
+		-- For bettype 228
+		SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
+		FROM @tblResultDetail
+		WHERE ResourceId = @ResouceResult_22801
+		
+		SELECT @ResultStatus1st = HomeValue, @ResultStatus2nd = AwayValue
+		FROM @tblResultDetail
+		WHERE ResourceId = @ResouceResultStatus_22800
+		
+		IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL OR @ResultStatus1st IS NOT NULL OR @ResultStatus2nd IS NOT NULL
+		BEGIN
+			INSERT INTO @tblResultDetail_228 (ResourceId, Position, Value)
+			SELECT	@ResouceResultStatus_22800, f.pos AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+			WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+			UNION ALL
+			SELECT	@ResouceResultStatus_22800, f.pos + 46 AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+			WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+			UNION ALL
+			SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@BetOption1st) f
+			WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+			UNION ALL
+			SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+			WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+			
+		END	
+		
+		-- Update BetOption and ResultStatus for bettype 228
+		UPDATE t
+			SET BetOption = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_228 r
+				ON r.ResourceId = t.ResourceId_BetOption AND t.Position = r.Position
+
+		UPDATE t
+			SET ResultStatus = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_228 r ON r.ResourceId = t.ResourceId AND t.Position = r.Position
+			
 		-- No Result, UNDO, CAL (manually), REFUND
 		SELECT @subErrMsg = @subErrMsg + 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
 			+ ', Interval: ' + STUFF((SELECT ',' + CAST(Position AS VARCHAR) + '-'

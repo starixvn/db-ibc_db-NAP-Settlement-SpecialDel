@@ -27,6 +27,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -68,6 +69,7 @@ BEGIN
 				,@hth 		INT
 				,@hta 		INT
 				,@ActionID	INT
+				,@ResouceResult_22801 VARCHAR(20) = '22801'
 				,@Remark	VARCHAR(MAX)
 				,@LogData	NVARCHAR(300)						
 				,@LogResult VARCHAR(MAX) = ''	
@@ -79,7 +81,9 @@ BEGIN
 				,@xmlEventCounter	XML
 				,@LogEventCounter	VARCHAR(MAX) = ''
 
-	
+	DECLARE @tblResultDetail_final TABLE (Bettype SMALLINT,Position TINYINT ,value TINYINT)
+	DECLARE @tblResultDetail_228_tmp TABLE (ResourceId VARCHAR(20),Position TINYINT ,value TINYINT)
+	DECLARE @BetOption1st VARCHAR(50), @ResultStatus1st VARCHAR(50),@BetOption2nd VARCHAR(50),@ResultStatus2nd VARCHAR(50)
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -169,7 +173,7 @@ BEGIN
 			,ISNULL(BetOption,0)
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
-
+	
 	;WITH TmpEventCounter AS (
 		SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
 				,X.C.value('@p','TINYINT') as Position
@@ -215,8 +219,53 @@ BEGIN
 			,@IsAuto = @IsAuto
 			,@AdminId = @AdminId			
 		
+		
 		IF @rowcount > 0
 		BEGIN
+			-- Get Result bettype 228
+			SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
+			FROM DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+			WHERE MatchId = @MatchId AND ResourceId = @ResouceResult_22801
+			
+			IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL
+			BEGIN
+				
+				INSERT INTO @tblResultDetail_228_tmp (ResourceId, Position, value)
+				SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
+				FROM	dbo.f_Set_GetChars(@BetOption1st) f
+				WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+				UNION ALL
+				SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
+				FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+				WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+				
+			END
+			
+			-- final result for settlement
+			INSERT INTO @tblResultDetail_final (BetType, Position, value)
+			SELECT t.BetType, t.Position, Goals.totalGoals AS value
+			FROM #tblResultDetail t
+				CROSS APPLY (SELECT SUM(Value) AS totalGoals
+							 FROM @tblResultDetail_228_tmp t1
+							 WHERE t1.Position <= t.Position) AS Goals
+			WHERE t.ResourceId = @ResouceResult_22801
+				
+			UNION ALL
+			SELECT t.BetType, t.Position, t.BetOption
+			FROM #tblResultDetail t
+			WHERE t.ResourceId NOT IN (@ResouceResult_22801)
+			
+			SET @Results = CAST((
+					SELECT bettype '@Id'
+						,(SELECT Position '@p'
+								,value '@r'
+							FROM @tblResultDetail_final WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
+					FROM @tblResultDetail_final r
+					GROUP BY r.bettype
+					FOR XML PATH('b'), ROOT ('r'), TYPE
+				) AS VARCHAR(MAX))	
+					
+			-- settlement 
 			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 				,@action = 'CAL-FM'
 				,@mode = @Action
@@ -296,6 +345,7 @@ BEGIN
 	SET @LogResult = CONVERT(VARCHAR(MAX),(SELECT BetType '@Id'
 		, STUFF((SELECT ',' + CAST(Position AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') AS 'Item/@Position'
 		, CASE WHEN @Action = 'CAL' THEN STUFF((SELECT ',' + CAST(BetOption AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') END AS 'Item/@Result'
+		
 	FROM #tblResultDetail r
 	GROUP BY BetType
 	FOR XML PATH('BetType'), ROOT ('BetTypes'), TYPE))
@@ -336,12 +386,15 @@ BEGIN
 												) ,'')
 		
 	SELECT @Remark = 'NAP: IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
+			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>'
 			+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
 			
 	BEGIN TRY
 		SELECT @Remark = @Remark + '|'  -- signal for web
 						+ @LogResult + '|'
+						+ CASE WHEN ISNULL(@BetOption1st,'')<> '' THEN '1H_value:'+ @BetOption1st ELSE '' END
+						+ CASE WHEN ISNULL(@BetOption2nd,'')<> '' THEN '2H_value:'+ @BetOption2nd ELSE '' END
+						+'|'
 						+ @LogEventCounter 
 	
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
@@ -360,6 +413,9 @@ BEGIN
 	BEGIN CATCH
 		SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250) + '|' -- signal for web
 							+ @LogResult + '|'
+							+ CASE WHEN ISNULL(@BetOption1st,'')<> '' THEN '1H_value:'+ @BetOption1st ELSE '' END
+							+ CASE WHEN ISNULL(@BetOption2nd,'')<> '' THEN '2H_value:'+ @BetOption2nd ELSE '' END
+							+ '|'
 							+ @LogEventCounter 
 							
 

@@ -10,6 +10,7 @@ AS
 	Revisions:
 			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
+			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
 
 	Param's Explanation:
 		
@@ -47,6 +48,19 @@ BEGIN
 		) t
 			ON r.ResourceId LIKE t.ResourceId
 	WHERE	matchid = @matchid			
+	
+	-- Always shows 228
+	IF NOT EXISTS (SELECT TOP (1) 1 FROM @tblResultDetail WHERE ResourceId IN ('22800'))
+	BEGIN
+		INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
+		SELECT '22800', 228, REPLICATE('0', 50),REPLICATE('0', 50)
+	END
+	
+	IF NOT EXISTS (SELECT TOP (1) 1 FROM @tblResultDetail WHERE ResourceId IN ('22801'))
+	BEGIN
+		INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
+		SELECT '22801', 228, REPLICATE('0', 50),REPLICATE('0', 50)
+	END
 	
 	INSERT INTO #tblBettrans(TransId, bettype, hdp1, statusId)
 	SELECT	b.transid, bettype, hdp1, statusID
@@ -186,7 +200,7 @@ BEGIN
 		FROM	dbo.f_Set_GetBytes(BetOption1st) f
 			INNER JOIN dbo.f_Set_GetChars(ResultStatus1st) ff 
 				ON	f.pos = ff.pos
-		WHERE	f.pos < 45
+		WHERE	f.pos < 45 AND t.BetType <> 228
 
 		UNION ALL
 		
@@ -194,7 +208,24 @@ BEGIN
 		FROM	dbo.f_Set_GetBytes(BetOption2nd) f
 			INNER JOIN dbo.f_Set_GetChars(ResultStatus2nd) ff 
 				ON	f.pos = ff.pos
-		WHERE	f.pos < 45
+		WHERE	f.pos < 45 AND t.BetType <> 228
+		
+		UNION ALL
+		
+		SELECT	f.pos AS Position, f.ResultStatus AS Result, ff.ResultStatus AS ResultStatus
+		FROM	dbo.f_Set_GetChars(BetOption1st) f
+			INNER JOIN dbo.f_Set_GetChars(ResultStatus1st) ff 
+				ON	f.pos = ff.pos
+		WHERE	f.pos < 46 AND t.BetType = 228
+
+		UNION ALL
+		
+		SELECT	f.pos + 46 AS Position, f.ResultStatus AS Result, ff.ResultStatus AS ResultStatus
+		FROM	dbo.f_Set_GetChars(BetOption2nd) f
+			INNER JOIN dbo.f_Set_GetChars(ResultStatus2nd) ff 
+				ON	f.pos = ff.pos
+		WHERE	f.pos < 45 AND t.BetType = 228
+		
 	) rs
 	LEFT JOIN betstatus b 
 		ON	t.bettype = b.bettype 
