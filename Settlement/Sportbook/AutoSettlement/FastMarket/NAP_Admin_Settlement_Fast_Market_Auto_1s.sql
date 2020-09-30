@@ -27,7 +27,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
-		- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
+		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -223,48 +223,50 @@ BEGIN
 		IF @rowcount > 0
 		BEGIN
 			-- Get Result bettype 228
-			SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
-			FROM DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
-			WHERE MatchId = @MatchId AND ResourceId = @ResouceResult_22801
-			
-			IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL
+			IF @Action = 'CAL'
 			BEGIN
+				SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
+				FROM DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+				WHERE MatchId = @MatchId AND ResourceId = @ResouceResult_22801
 				
-				INSERT INTO @tblResultDetail_228_tmp (ResourceId, Position, value)
-				SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
-				FROM	dbo.f_Set_GetChars(@BetOption1st) f
-				WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
-				UNION ALL
-				SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
-				FROM	dbo.f_Set_GetChars(@BetOption2nd) f
-				WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
-				
-			END
-			
-			-- final result for settlement
-			INSERT INTO @tblResultDetail_final (BetType, Position, value)
-			SELECT t.BetType, t.Position, Goals.totalGoals AS value
-			FROM #tblResultDetail t
-				CROSS APPLY (SELECT SUM(Value) AS totalGoals
-							 FROM @tblResultDetail_228_tmp t1
-							 WHERE t1.Position <= t.Position) AS Goals
-			WHERE t.ResourceId = @ResouceResult_22801
-				
-			UNION ALL
-			SELECT t.BetType, t.Position, t.BetOption
-			FROM #tblResultDetail t
-			WHERE t.ResourceId NOT IN (@ResouceResult_22801)
-			
-			SET @Results = CAST((
-					SELECT bettype '@Id'
-						,(SELECT Position '@p'
-								,value '@r'
-							FROM @tblResultDetail_final WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
-					FROM @tblResultDetail_final r
-					GROUP BY r.bettype
-					FOR XML PATH('b'), ROOT ('r'), TYPE
-				) AS VARCHAR(MAX))	
+				IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL
+				BEGIN
+					INSERT INTO @tblResultDetail_228_tmp (ResourceId, Position, value)
+					SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
+					FROM	dbo.f_Set_GetChars(@BetOption1st) f
+					WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+					UNION ALL
+					SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
+					FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+					WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
 					
+				END
+				
+				-- final result for settlement
+				INSERT INTO @tblResultDetail_final (BetType, Position, value)
+				SELECT t.BetType, t.Position, Goals.totalGoals AS value
+				FROM #tblResultDetail t
+					CROSS APPLY (SELECT SUM(Value) AS totalGoals
+								 FROM @tblResultDetail_228_tmp t1
+								 WHERE t1.Position <= t.Position) AS Goals
+				WHERE t.ResourceId = @ResouceResult_22801
+					
+				UNION ALL
+				
+				SELECT t.BetType, t.Position, t.BetOption
+				FROM #tblResultDetail t
+				WHERE t.ResourceId NOT IN (@ResouceResult_22801)
+				
+				SET @Results = CAST((
+						SELECT bettype '@Id'
+							,(SELECT Position '@p'
+									,value '@r'
+								FROM @tblResultDetail_final WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
+						FROM @tblResultDetail_final r
+						GROUP BY r.bettype
+						FOR XML PATH('b'), ROOT ('r'), TYPE
+					) AS VARCHAR(MAX))	
+			END			
 			-- settlement 
 			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 				,@action = 'CAL-FM'

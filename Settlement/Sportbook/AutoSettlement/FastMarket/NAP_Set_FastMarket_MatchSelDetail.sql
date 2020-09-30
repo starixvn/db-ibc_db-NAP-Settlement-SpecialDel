@@ -49,6 +49,12 @@ BEGIN
 			ON r.ResourceId LIKE t.ResourceId
 	WHERE	matchid = @matchid			
 	
+	UPDATE d
+		SET HomeValue = CASE WHEN ISNULL(HomeValue,'') = '' THEN REPLICATE('0', 50) ELSE HomeValue END
+		, AwayValue = CASE WHEN ISNULL(AwayValue,'') = '' THEN REPLICATE('0', 50) ELSE AwayValue END
+	FROM @tblResultDetail d
+	WHERE bettype = 228 AND (ISNULL(HomeValue,'') = '' OR ISNULL(AwayValue,'') = '')
+	
 	-- Always shows 228
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM @tblResultDetail WHERE ResourceId IN ('22800'))
 	BEGIN

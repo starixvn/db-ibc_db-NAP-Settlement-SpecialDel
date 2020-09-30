@@ -26,7 +26,7 @@ AS
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20190813@Helen: Remove vnteam in metadata
 			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
-			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
+			- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 			
 	Param's Explanation:
 		- @Result: 
@@ -72,6 +72,7 @@ BEGIN
 			,@xmlEventCounter	XML
 			,@ResouceResult_22801 VARCHAR(20) = '22801'
 			,@ResouceResultStatus_22800 VARCHAR(20) = '22800'
+			,@isValidAction BIT = 1
 			
 	DECLARE @tblData TABLE (
 		bettype					SMALLINT
@@ -169,6 +170,64 @@ BEGIN
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 	
+	-- For bettype 228
+	SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
+	FROM @tblResultDetail
+	WHERE ResourceId = @ResouceResult_22801
+	
+	SELECT @ResultStatus1st = HomeValue, @ResultStatus2nd = AwayValue
+	FROM @tblResultDetail
+	WHERE ResourceId = @ResouceResultStatus_22800
+	
+	IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL OR @ResultStatus1st IS NOT NULL OR @ResultStatus2nd IS NOT NULL
+	BEGIN
+		INSERT INTO @tblResultDetail_228 (ResourceId, Position, Value)
+		SELECT	@ResouceResultStatus_22800, f.pos AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+		WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+		UNION ALL
+		SELECT	@ResouceResultStatus_22800, f.pos + 46 AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+		WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+		UNION ALL
+		SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@BetOption1st) f
+		WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+		UNION ALL
+		SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+		WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+		
+	END	
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 228)
+	BEGIN
+		SET @isValidAction = ISNULL((SELECT TOP (1) 0
+									FROM @tblData input
+										 CROSS APPLY (SELECT TOP 1 Value
+													  FROM @tblResultDetail_228 t
+													  WHERE ResourceId =  @ResouceResultStatus_22800 
+															AND t.Position NOT IN (44, 45, 90)
+															AND 1 = CASE WHEN @Action = 'CAL' AND input.Position > t.Position AND t.Value NOT IN (3,4) THEN 1
+																		WHEN @Action = 'REFUND' AND input.Position < t.Position AND t.Value IN (3,4) THEN 1
+																		ELSE 0
+																	END			
+														) AS tmp
+									 WHERE input.Position NOT IN (44, 45, 90) AND input.bettype = 228
+									 ),1)
+		IF @isValidAction = 0 AND @Action IN ('CAL', 'REFUND')
+		BEGIN
+			SELECT	 @ErrCode	= 1001015
+					,@ErrMsg	= CASE WHEN @Action = 'CAL' THEN 'WARNING! Cannot continue due to previous intervals are running or refunded. Please select them also and try again.' 
+										ELSE 'WARNING! Cannot continue due to subsequent intervals have been calculated. Please select them also and try again.'
+									END
+
+			RETURN
+					
+		END
+	END	
+	
+		
 	IF @IsAuto = 1
 	BEGIN		
 		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype NOT IN (SELECT bettype FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId = 9)) -- FM
@@ -215,37 +274,7 @@ BEGIN
 			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId
 		WHERE r.ResourceId NOT IN (@ResouceResultStatus_22800)						
-		
-		-- For bettype 228
-		SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
-		FROM @tblResultDetail
-		WHERE ResourceId = @ResouceResult_22801
-		
-		SELECT @ResultStatus1st = HomeValue, @ResultStatus2nd = AwayValue
-		FROM @tblResultDetail
-		WHERE ResourceId = @ResouceResultStatus_22800
-		
-		IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL OR @ResultStatus1st IS NOT NULL OR @ResultStatus2nd IS NOT NULL
-		BEGIN
-			INSERT INTO @tblResultDetail_228 (ResourceId, Position, Value)
-			SELECT	@ResouceResultStatus_22800, f.pos AS Position, f.ResultStatus AS Value
-			FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
-			WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
-			UNION ALL
-			SELECT	@ResouceResultStatus_22800, f.pos + 46 AS Position, f.ResultStatus AS Value
-			FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
-			WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
-			UNION ALL
-			SELECT	@ResouceResult_22801, f.pos AS Position, f.ResultStatus AS Value
-			FROM	dbo.f_Set_GetChars(@BetOption1st) f
-			WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
-			UNION ALL
-			SELECT	@ResouceResult_22801, f.pos + 46 AS Position, f.ResultStatus AS Value
-			FROM	dbo.f_Set_GetChars(@BetOption2nd) f
-			WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
-			
-		END	
-		
+						
 		-- Update BetOption and ResultStatus for bettype 228
 		UPDATE t
 			SET BetOption = r.Value
@@ -253,6 +282,7 @@ BEGIN
 			INNER JOIN @tblResultDetail_228 r
 				ON r.ResourceId = t.ResourceId_BetOption AND t.Position = r.Position
 
+		
 		UPDATE t
 			SET ResultStatus = r.Value
 		FROM	@tblData t

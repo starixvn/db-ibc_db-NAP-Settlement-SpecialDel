@@ -15,7 +15,7 @@ AS
 	Revisions:
 		- 20170113@Kathy: Enhancement for Fast Market [Redmine:#69951]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
-		- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
+		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		
 	Param's Explanation:
 		- @Results: 
