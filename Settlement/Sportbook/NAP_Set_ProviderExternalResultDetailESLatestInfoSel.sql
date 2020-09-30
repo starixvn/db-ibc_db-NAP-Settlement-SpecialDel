@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailESLatestInfoSel
 	@MatchId INT
+	,@SettleType	VARCHAR(10) = 'MNL'
 AS
 /*
     Created by: 20200721@Kathy
@@ -10,10 +11,13 @@ AS
     Revisions:            
 		- 20200721@Kathy: get provider result [Redmine:#136931]
 		- 20200810@Louisa: get OutsideSource result [Redmine:#138656]
+		- 20200904@Louisa: Implement for EARLY [Redmine:#140407]
 
 	Param's Explanation:
 		If not exists SourceId = 1001 ==> Add dummy values
 		If not exist score for Top 4 OutsideSource: HomeValue=AwayValue=''
+
+		@SettleType: 'MNL'- Manual, 'EAR'- Early
 		
 */
 BEGIN
@@ -36,7 +40,7 @@ BEGIN
 	AS(
 		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
 				,p.SourceId
-				,ResourceId
+				,p.ResourceId
 				,p.ProviderExternalId
 				, HomeValue
 				, AwayValue
@@ -44,9 +48,15 @@ BEGIN
 		WHERE	p.MatchId = @MatchId
 	)
 	INSERT INTO @tmpLatestResult (ProviderExternalId, SourceId,ResourceId, HomeValue, AwayValue)
-	SELECT ProviderExternalId, SourceId ,ResourceId, HomeValue, AwayValue
-	FROM cteLatestId
-	WHERE rn = 1 
+	SELECT l.ProviderExternalId, l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
+	FROM cteLatestId l	
+		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+			ON l.ResourceId = fsmr.ResourceId
+	WHERE rn = 1
+		 AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
+				   ELSE 0
+				   END
 
 	INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 	SELECT  pgm.SourceId, pi.SourceName, pi.Remark, ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
@@ -80,7 +90,7 @@ BEGIN
 	FROM	@tmpLatestResult l
 		RIGHT JOIN @tmpSourceId s 
 			ON s.SourceId = l.SourceId
-	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL) 
+	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL)
 		OR s.SourceId >= 1001
 				
 	SELECT	t.SourceId
@@ -91,7 +101,6 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
-		INNER JOIN dbo.f_Set_MajorRound(@SportType) fsmr
-			ON t.ResourceId = fsmr.ResourceId
+
 END
 GO
