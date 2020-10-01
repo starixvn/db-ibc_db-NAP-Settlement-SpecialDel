@@ -20,7 +20,8 @@ AS
 		- 20200601@Helen: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
-	
+		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
+
 	Param's explanation:	
 	
 	Sample execution:
@@ -121,7 +122,7 @@ BEGIN
 			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
 					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 					AND ISNULL(m_auto.[Enabled],1) = 1
-					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74)
+					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108)
 					
 			OPTION (MAXDOP 1)
 			
