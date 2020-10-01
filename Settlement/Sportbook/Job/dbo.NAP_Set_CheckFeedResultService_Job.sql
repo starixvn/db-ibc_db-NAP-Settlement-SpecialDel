@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTP-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE NAP_Set_CheckFeedResultService_Job
+ALTER PROCEDURE NAP_Set_CheckFeedResultService_Job
 AS
 /* 
 	Created:20200907@Louisa
@@ -12,21 +12,35 @@ AS
 */
 BEGIN
 
-	DECLARE   @Check DATETIME
-			, @ProviderName VARCHAR(10)
-			, @Email_body VARCHAR(MAX)
-			, @MatchIDs VARCHAR(MAX)
-
-	DECLARE  @Email_subject NVARCHAR(200)
+	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
+			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
 			, @Email_recipients VARCHAR(250) = N'louisa.vo@starixsoft.com;liz.nguyen@starixsoft.com'
 			----'michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
-
-
-	SET @Check =  DATEADD( HOUR, -2, GETDATE() )
+			, @LastTime VARCHAR(200)
+			, @Check DATETIME
+			, @ProviderName VARCHAR(10)			
+			, @MatchIDs VARCHAR(MAX)
 
 	DECLARE @tblCheckResult TABLE	(SourceID TINYINT)
-	DECLARE @tblCheckMatch TABLE	(SourceID TINYINT)
-	DECLARE @tblSendMail   TABLE	(SourceID TINYINT)
+
+	SET @Check =  DATEADD( HOUR, -2, GETDATE() )
+			
+	SET @SubjectTemplate = 'Third-party result checking - {<ProviderName>} - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
+
+	SET @BodyTemplate  =  
+					'<html>
+						<body>
+							<br>Dear All,<br>
+							<br>There is no result gotten from the {<ProviderName>} for the last 2 hours, please check.<br>
+							<p style="font-weight: bold;text-decoration: underline">List of matchID that does not have result:</p>
+								<table with="100%"> 
+									{<rowMatch>}
+								</table>
+							<p>{<LastTime>}</p>				
+							<br>Thanks and best regards,<br>
+							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
+							</body>
+					</html>'
 
 	;WITH cte_SourceID (SourceID) AS ( SELECT 1 UNION ALL SELECT 5)
 	
@@ -43,29 +57,24 @@ BEGIN
 	
 	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 1 )
 	BEGIN
-		SET @MatchIDs = STUFF((SELECT TOP 100 ',' + CONVERT(VARCHAR(10), m.matchid)	FROM dbo.Match m WITH(NOLOCK) 
+		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
 									WHERE m.sporttype =1
-										 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
-										 AND m.AutoSetting & 1 = 1 FOR XML PATH ('')) ,1,1,'') 
+									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+										 AND m.AutoSetting & 1 = 1 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''
 		BEGIN
 			SET @ProviderName = 'SBO'
-			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
-				SET @Email_body  =  
-					'<html>
-						<body>
-							<br>Dear All,<br>
-							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br>
-							<br>TOP MatchId: '+ @MatchIDs +'<br><br>					
-							<br>Thanks and best regards,<br>
-							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
-							</body>
-					</html>'
+			SET @LastTime = COALESCE ( 'The latest time that system receives the result from ' + @ProviderName + ': ' 
+									  + (SELECT CONVERT(VARCHAR(25), MAX(r.CreatedDate),120) FROM dbo.ProviderResultDetail r WITH(NOLOCK) WHERE r.SourceID = 1)
+									 ,'')
+			 	
+			SET @Email_body = REPLACE(REPLACE(REPLACE(@BodyTemplate, '{<rowMatch>}', @MatchIDs), '{<ProviderName>}',@ProviderName),'{<LastTime>}', @LastTime)
+
+			SET @Email_subject = REPLACE (@SubjectTemplate,  '{<ProviderName>}',@ProviderName)
 
 			EXECUTE msdb.dbo.sp_send_dbmail
 				@profile_name		= DEFAULT
-				, @recipients		= @Email_recipients
-				, @importance		='Normal'
+				, @recipients		= @Email_recipients 
 				, @subject			= @Email_subject
 				, @body				= @Email_body
 				, @body_format		= 'HTML';
@@ -74,29 +83,24 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 5 )
 	BEGIN
-		SET @MatchIDs = STUFF((SELECT TOP 100 ',' + CONVERT(VARCHAR(10), m.matchid)	FROM dbo.Match m WITH(NOLOCK) 
+		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
 									WHERE m.sporttype =1
-										 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
-										 AND m.AutoSetting & 2 = 2 FOR XML PATH ('')) ,1,1,'')
+									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+										 AND m.AutoSetting & 2 = 2 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''
 		BEGIN
 			SET @ProviderName = 'Soccerway'
-			SET @Email_subject = 'Third-party result checking - ' + @ProviderName + ' - ' + CONVERT(VARCHAR(20), GETDATE(), 100) 
-				SET @Email_body  =  
-					'<html>
-						<body>
-							<br>Dear All,<br>
-							<br>There is no result gotten from the '+ @ProviderName +' for the last 2 hours, please check.<br>
-							<br>TOP MatchId: '+ @MatchIDs +'<br><br>					
-							<br>Thanks and best regards,<br>
-							<br>This is an auto-mail from Auto Checking Third Party Result service. Please do not reply.
-							</body>
-					</html>'
+			SET @LastTime = COALESCE ( 'The latest time that system receives the result from ' + @ProviderName + ': ' 
+									  + (SELECT CONVERT(VARCHAR(25), MAX(r.CreatedDate),120) FROM dbo.ProviderResultDetail r WITH(NOLOCK) WHERE r.SourceID = 5)
+									 ,'')
+									 	
+			SET @Email_body = REPLACE(REPLACE(REPLACE(@BodyTemplate, '{<rowMatch>}', @MatchIDs), '{<ProviderName>}',@ProviderName),'{<LastTime>}', @LastTime)
+
+			SET @Email_subject = REPLACE (@SubjectTemplate,  '{<ProviderName>}',@ProviderName)
 
 			EXECUTE msdb.dbo.sp_send_dbmail
 				@profile_name		= DEFAULT
-				, @recipients		= @Email_recipients
-				, @importance		='Normal'
+				, @recipients		= @Email_recipients 
 				, @subject			= @Email_subject
 				, @body				= @Email_body
 				, @body_format		= 'HTML';
