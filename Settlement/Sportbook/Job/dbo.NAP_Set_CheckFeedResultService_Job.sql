@@ -14,8 +14,7 @@ BEGIN
 
 	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
 			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) = N'louisa.vo@starixsoft.com;liz.nguyen@starixsoft.com'
-			----'michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
+			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
 			, @LastTime VARCHAR(200)
 			, @Check DATETIME
 			, @ProviderName VARCHAR(10)			
