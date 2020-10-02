@@ -48,6 +48,7 @@ AS
 		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
 		- 20200422@Charles: Void settled for sub parlay bet [132661]
 		- 20200609@Charles: Remove notify when void tickets [131865]
+		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		
 	Param's Explanation:
 */
@@ -157,7 +158,8 @@ BEGIN
 			SubBetType			SMALLINT,
 			SubHdp1				SMALLMONEY,
 			SubHdp2				SMALLMONEY,
-			SubOdds				MONEY
+			SubOdds				MONEY,
+			SubStatus			NVARCHAR(10)
 	)	
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -386,7 +388,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds		
+						SubOdds,
+						SubStatus		
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
@@ -440,7 +443,8 @@ BEGIN
 					NULL AS SubBetType,
 					NULL AS SubHdp1,
 					NULL AS SubHdp2,
-					NULL AS SubOdds
+					NULL AS SubOdds,
+					NULL AS SubStatus
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -532,7 +536,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds
+							SubOdds,
+							SubStatus
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
@@ -590,7 +595,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						NULL AS SubStatus
 				FROM #tmpRefCodeSummary r
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = r.RefCode
@@ -780,7 +786,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds
+							SubOdds,
+							SubStatus
 						)
 				SELECT  tmpmain.TransId AS GroupID,
 						tmpmain.Stake,
@@ -834,7 +841,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						NULL AS SubStatus
 				FROM #SpecialDeleteBets_Single tmpmain										
 					 INNER JOIN #BTTransActive sub
 							 ON tmpmain.transid = sub.refno															
@@ -909,7 +917,8 @@ BEGIN
 							SubBetType,
 							SubHdp1,
 							SubHdp2,
-							SubOdds
+							SubOdds,
+							SubStatus
 						)
 				OUTPUT inserted.transid
 					 , inserted.bettype 
@@ -977,7 +986,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						NULL AS SubStatus
 				FROM dbo.bettrans sub WITH(NOLOCK)
 					 INNER JOIN #SpecialDeleteBets_Single tmpmain
 							 ON	sub.refno = tmpmain.transid	
@@ -1045,7 +1055,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds	
+						SubOdds,
+						SubStatus	
 					)
 				SELECT  sub911.TransId AS GroupID,
 						b.Stake,
@@ -1101,7 +1112,8 @@ BEGIN
 						NULL AS SubBetType,
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
-						NULL AS SubOdds
+						NULL AS SubOdds,
+						NULL AS SubStatus
 				FROM #SpecialDeleteBets_Single sub911
 			 		CROSS APPLY (
 							  SELECT b.Stake,
@@ -1231,7 +1243,8 @@ BEGIN
 						SubBetType,
 						SubHdp1,
 						SubHdp2,
-						SubOdds	
+						SubOdds,
+						SubStatus
 					)
 			SELECT  main.Stake,
 					m.AwayId,
@@ -1277,7 +1290,8 @@ BEGIN
 					sub.bettype AS SubBetType,
 					sub.hdp1 AS SubHdp1,
 					sub.hdp2 AS SubHdp2,
-					sub.odds AS SubOdds
+					sub.odds AS SubOdds,
+					sub.status AS SubStatus
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
@@ -2145,6 +2159,7 @@ BEGIN
 				s.SubHdp1,
 				s.SubHdp2,
 				s.SubOdds,
+				s.SubStatus,
 				s.SubBetTeam,
 				s.SubBetCheck,
 				@SettlementStatus AS SettlementStatus,

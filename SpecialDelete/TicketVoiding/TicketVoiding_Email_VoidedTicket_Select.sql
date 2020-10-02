@@ -15,6 +15,7 @@ AS
 		- 20200216@Max: Abnormal Void Bets Automation [Redmine: #128359]
 		- 20200825@July: Change datatype [Redmine: #139914]
 		- 20200831@Zane: TVS - Enhance for Danger Accept [#140339]
+		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 	
 	Param's explanation:	
 		
@@ -68,6 +69,7 @@ BEGIN
 		,subhdp1		SMALLMONEY
 		,subhdp2		SMALLMONEY
 		,subtransdesc	NVARCHAR(1000)
+		,SubStatus		NVARCHAR(10)
 		
 		,Refno			BIGINT
 		,subTransId		BIGINT	
@@ -126,11 +128,12 @@ BEGIN
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, SubStatus, VoidedTime, custid)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
 			,zm.status
+			,zm.SubStatus
 			,zm.VoidedTime
 			,zm.custid
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
@@ -139,6 +142,7 @@ BEGIN
 					,zm.matchid
 					,zm.refno 
 					,b.status
+					,zm.status AS SubStatus
 					,zm.transdate AS VoidedTime
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
@@ -309,6 +313,7 @@ BEGIN
 			,t.subhdp1
 			,t.subhdp2
 			,t.subtransdesc
+			,t.SubStatus
 			
 			,t.custId
 			,t.recommend
