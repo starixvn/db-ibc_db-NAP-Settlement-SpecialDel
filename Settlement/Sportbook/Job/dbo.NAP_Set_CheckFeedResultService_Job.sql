@@ -10,12 +10,13 @@ AS
 		- 20200907@Louisa: Check SBO & Soccerway Services [Redmine:#111576]
 						   Job name: bodb02 : Task_CheckSBOSoccerwayServices
 		- 20200930@Louisa: Enhance: Output top 100 MatchId
+		- 20201002@Louisa: Exclude dbaadmin@starixsoft.com
 */
 BEGIN
 
 	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
 			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixsoft.com;IT@starixsoft.com;dbaadmin@starixsoft.com'
+			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixsoft.com;IT@starixsoft.com'
 			, @LastTime VARCHAR(200)
 			, @Check DATETIME
 			, @ProviderName VARCHAR(10)			
