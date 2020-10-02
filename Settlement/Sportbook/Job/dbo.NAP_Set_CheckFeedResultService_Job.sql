@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20200907@Louisa: Check SBO & Soccerway Services [Redmine:#111576]
+						   Job name: bodb02 : Task_CheckSBOSoccerwayServices
 		- 20200930@Louisa: Enhance: Output top 100 MatchId
 */
 BEGIN
