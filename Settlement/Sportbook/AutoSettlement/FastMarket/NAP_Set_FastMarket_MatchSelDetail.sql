@@ -235,7 +235,10 @@ BEGIN
 	) rs
 	LEFT JOIN betstatus b 
 		ON	t.bettype = b.bettype 
-			AND rs.Position = b.Position
+			AND rs.Position = CASE 
+								WHEN b.BetType <> 228 OR (b.BetType = 228 AND rs.Position <=44) THEN b.Position 
+								ELSE b.Position + 1 -- for bettype 228, the position 45 is HT injury, 2nd starts at postion 46
+							END
 	WHERE	1 = CASE 
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
 					ELSE 1

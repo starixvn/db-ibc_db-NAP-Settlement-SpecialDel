@@ -67,12 +67,6 @@ BEGIN
 		,strPosAway VARCHAR(1000)
 	)
 
-	DECLARE @tblPosition_228 TABLE(
-		ResourceId	VARCHAR(20)
-		,strPosHome	VARCHAR(1000)
-		,strPosAway VARCHAR(1000)
-	)
-	
 	SELECT	@xmlData = CONVERT(XML, @Results)
 			,@xmlEventCounter = CONVERT(XML, @EventCounters)
 
@@ -205,7 +199,10 @@ BEGIN
 		BEGIN
 			-- betoption
 			INSERT INTO dbo.ResultDetail (MatchId, ResourceId, HomeValue, AwayValue, CreateBy, CreateDate, LastModifyBy, LastModifyDate)
-			SELECT	@matchId, t.ResourceId_BetOption, REPLICATE(CHAR('0'), 50), REPLICATE(CHAR('0'), 50), @AdminId, GETDATE(), @AdminId, GETDATE()
+			SELECT	@matchId, t.ResourceId_BetOption
+					,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+					,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+					,@AdminId, GETDATE(), @AdminId, GETDATE()
 			FROM	@tblData t
 			WHERE	NOT EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetail WITH(NOLOCK) WHERE MatchId = @matchid AND t.ResourceId_BetOption = ResourceId)
 			GROUP BY t.ResourceId_BetOption
