@@ -131,29 +131,29 @@ BEGIN
 	IF (@IsReSettled = 1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
-			SELECT transid,winlost,RowID,SettlementType
+			SELECT transid,winlost,StatusId,RowID,SettlementType
 			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
 			WHERE Matchid = @MatchId
 			UNION ALL
-			SELECT transid,winlost,RowID,SettlementType
+			SELECT transid,winlost,StatusId,RowID,SettlementType
 			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
 			WHERE Matchid = @MatchId
 		)
 		INSERT INTO @tmpAffectTickets(Transid)
 		SELECT bt.transid
 		FROM ( 
-			SELECT transid,winlost,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+			SELECT transid,winlost,StatusId,SettlementType,RowID, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
 			FROM CTEBalanceRecord
 		)bt
 		CROSS APPLY ( 
-			SELECT TOP 1 winlost,SettlementType,RowID -- get re-settle before
+			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
 			FROM CTEBalanceRecord br
-			where  bt.transid = br.transid AND br.SettlementType <> 0 AND bt.SettlementType <> br.SettlementType
+			where  bt.transid = br.transid AND br.SettlementType <> 0 AND br.RowID <bt.RowID
 			order by rowid desc
 		)bt1 
 		WHERE bt.Rownumber = 1 
 		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
-					  WHEN bt.SettlementType = 2 AND  bt.winlost <> bt1.winlost THEN 1
+					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
 					  ELSE 0 END
 		  
 	END
