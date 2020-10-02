@@ -146,21 +146,30 @@ BEGIN
 	IF (@IsReSettled = 1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
-			SELECT transid,RowID,SettlementType
+			SELECT transid,winlost,RowID,SettlementType
 			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
 			WHERE Matchid = @MatchId
 			UNION ALL
-			SELECT transid,RowID,SettlementType
+			SELECT transid,winlost,RowID,SettlementType
 			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
 			WHERE Matchid = @MatchId
 		)
 		INSERT INTO @tmpAffectTickets(Transid)
-		SELECT Transid
+		SELECT bt.transid
 		FROM ( 
-			SELECT transid,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+			SELECT transid,winlost,SettlementType, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
 			FROM CTEBalanceRecord
 		)bt
-		WHERE bt.Rownumber = 1 AND bt.SettlementType = 2
+		CROSS APPLY ( 
+			SELECT TOP 1 winlost,SettlementType,RowID -- get re-settle before
+			FROM CTEBalanceRecord br
+			where  bt.transid = br.transid AND br.SettlementType <> 0 AND bt.SettlementType <> br.SettlementType
+			order by rowid desc
+		)bt1 
+		WHERE bt.Rownumber = 1 
+		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+					  WHEN bt.SettlementType = 2 AND  bt.winlost <> bt1.winlost THEN 1
+					  ELSE 0 END
 		  
 	END
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
