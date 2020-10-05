@@ -26,6 +26,7 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
+		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 	
 	Param's explanation:	
 		
@@ -150,8 +151,8 @@ BEGIN
 						 ELSE 0 END
 			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-									  WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484) THEN 1 
-									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485) THEN 1
+									  WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
+									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 									  ELSE 0 END
 							END)
 
