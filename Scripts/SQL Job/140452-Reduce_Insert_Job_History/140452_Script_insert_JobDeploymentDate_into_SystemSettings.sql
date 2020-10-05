@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 /* 
 	Created by:20201005@Louisa
-    Task: Reduce insert job history into disk [Redmine:#140452]
+    Task: Reduce UM Count & Write Job History Log Into Disk on NAP Settlement [Redmine:#140452]
     DB: DBTXN/bodb02
 
 	Revision:
