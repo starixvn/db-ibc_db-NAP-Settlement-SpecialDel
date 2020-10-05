@@ -1,9 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            INT          = NULL,
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            VARCHAR(MAX)          = NULL,
                                                             @TransIds          VARCHAR(MAX) = NULL,
                                                             @FromDate          DATETIME     = NULL,
                                                             @ToDate            DATETIME     = NULL,
                                                             @IncludeMainParlay BIT          = 0,
+															@Products			VARCHAR(50) = NULL,
+															@Status				VARCHAR(50) = NULL,
                                                             @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
                                                             @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
 AS;
@@ -50,17 +52,33 @@ AS;
 		- 20191106@Charles: Implement NPM Promotion [122187]
 		- 20200618@Max: Hotfix Change Primary key on MarkedTransaction [Redmine: #136064]
 		- 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
+		- 20201005@Max: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
+		+ @@Products : 1 - Sportbook
+					2 - Parlay
+					3 - Bet Builder
+					4 - Outright
+					5 - Saba
+					6 - NonSport
 
 	*/
 BEGIN
 	SET NOCOUNT ON
 	
-	IF(@custid IS NULL AND @TransIds IS NULL) RETURN
+	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay 	SMALLDATETIME	
+	DECLARE @moveBetDay 	SMALLDATETIME,
+		@IsSB BIT = 0,
+		@IsParlay BIT = 0,
+		@IsBB BIT = 0,
+		@IsOutright BIT = 0,
+		@IsSaba BIT = 0,
+		@IsNonSport BIT = 0
+
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	
 	SELECT @moveBetDay = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
@@ -69,8 +87,7 @@ BEGIN
 		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay THEN DATEADD(d, 1, @moveBetDay) ELSE @FromDate END
 		, @ToDate 		= ISNULL(@ToDate, DATEADD(d, 90, @moveBetDay))
 	
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
-	
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
 	CREATE TABLE #tempMatch (matchid INT)
 	
 	CREATE TABLE #Data
@@ -137,7 +154,9 @@ BEGIN
              );
 
 	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
+	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
+	
+	CREATE TABLE #CustId (CustId INT)
 	
 	IF(LEN(@TransIds) > 0)
 	BEGIN
@@ -148,21 +167,56 @@ BEGIN
 		OPTION (maxrecursion 0)
 	END
 	
-	IF(@custid > 0)
+	IF(@CustID <> '')
 	BEGIN
+		SELECT @IsSB = CASE WHEN CHARINDEX('1',@Products) > 0 THEN 1 ELSE 0 END
+			, @IsParlay = CASE WHEN CHARINDEX('2',@Products) > 0 THEN 1 ELSE 0 END
+			, @IsBB = CASE WHEN CHARINDEX('3',@Products) > 0 THEN 1 ELSE 0 END
+			, @IsOutright = CASE WHEN CHARINDEX('4',@Products) > 0 THEN 1 ELSE 0 END
+			, @IsSaba = CASE WHEN CHARINDEX('5',@Products) > 0 THEN 1 ELSE 0 END
+			, @IsNonSport = CASE WHEN CHARINDEX('6',@Products) > 0 THEN 1 ELSE 0 END
+
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE 1 = CASE 
+					WHEN @IsSB = 1 AND pt.ProductID = 1 THEN 1-- Sportsbook
+					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
+					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay
+					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
+					WHEN @IsSaba = 1 AND pt.ProductID = 37 THEN 1
+					WHEN @IsNonSport = 1 AND (ProductID = 3 OR pt.bettype IN (1231,1232,1233,1237,1238)) THEN 1
+				ELSE 0 END
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+
+		INSERT INTO #CustId (CustId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@CustID, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@Status, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+		
 		INSERT INTO #transIdTemp (transid)
 		SELECT	b.translogid AS transid
 		FROM	dbo.translog AS b WITH (NOLOCK)
-		WHERE	b.custid = @Custid 
-				AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+			INNER JOIN #CustId c ON c.CustId = b.custid
+		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
 				AND b.statusID = 0
+				AND @IsSB = 1
 				
 		UNION ALL
 		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
 		FROM dbo.bettrans AS b WITH (NOLOCK)
-		WHERE	b.custid = @Custid 
-			AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+			INNER JOIN #CustId c ON c.CustId = b.custid
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
 				WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102)) THEN 1 
 				WHEN (b.bettype < 19001
@@ -173,7 +227,8 @@ BEGIN
 						AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 						AND b.statusID NOT IN (101, 102)						
 					) THEN 1
-				ELSE 0 END			
+				ELSE 0 END	
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 	END
 	
 	--Search by TransIds
