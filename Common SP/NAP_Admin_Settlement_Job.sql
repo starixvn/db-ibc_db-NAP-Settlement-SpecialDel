@@ -52,7 +52,7 @@ SET  @interval  = @startDate
 
 WHILE (1=1)
 BEGIN
-	IF DATEDIFF(SECOND, @interval, GETDATE() ) >=  15
+	IF DATEDIFF(SECOND, @interval, GETDATE() ) >=  60
 	BEGIN
 		WHILE (1=1)
 		BEGIN
