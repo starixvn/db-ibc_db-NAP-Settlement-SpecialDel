@@ -45,7 +45,7 @@ BEGIN
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
-		ORDER BY matchcode desc
+		ORDER BY matchcode
 
 		DROP TABLE #LinkedMatch_tmp
 	END
