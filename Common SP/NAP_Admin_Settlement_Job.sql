@@ -64,7 +64,7 @@ BEGIN
 			IF @IsWaiting = 1
 			BEGIN
 				UPDATE SystemSettings WITH(ROWLOCK)
-					SET VValue = LEFT(CONVERT(VARCHAR(50),GETDATE()) +'-'+ @Jobname, 200)
+					SET VValue = @Jobname + '-' + CONVERT(VARCHAR(50),GETDATE())
 				WHERE VName = 'JobDeploymentDate'
 			
 				WAITFOR DELAY @WaitingTime
