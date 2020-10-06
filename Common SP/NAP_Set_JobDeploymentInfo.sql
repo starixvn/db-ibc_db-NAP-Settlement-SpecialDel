@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_JobDeploymentInfo
 	@JobName		VARCHAR(100)
-	,@WaitingTime	VARCHAR(10) = '00:01:00'	OUTPUT
-	,@IsWaiting		BIT = 0		OUTPUT
+	,@WaitingTime	VARCHAR(10) 	OUTPUT
+	,@IsWaiting		BIT		OUTPUT
 AS
 /*
 	Created by: 20201001@Kathy
@@ -18,7 +18,7 @@ BEGIN
 
 	DECLARE @tmpJobInfo TABLE (JobName VARCHAR(100), WaitingTime VARCHAR(10), IsWaiting BIT DEFAULT (0))
 
-	SET @WaitingTime = 60
+	SET @WaitingTime = '00:01:00'
 	SET @IsWaiting = 0
 
 	---1.Single Settlement
