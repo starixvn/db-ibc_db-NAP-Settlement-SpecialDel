@@ -125,9 +125,9 @@ BEGIN
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-
 	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
 
+	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
 	IF (@IsReSettled = 1)
 	BEGIN 
 		WITH CTEBalanceRecord AS (
@@ -139,23 +139,25 @@ BEGIN
 			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
 			WHERE Matchid = @MatchId
 		)
+		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
+		SELECT transid,winlost,StatusId,SettlementType,RowID 
+				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+		FROM CTEBalanceRecord
+
 		INSERT INTO @tmpAffectTickets(Transid)
 		SELECT bt.transid
-		FROM ( 
-			SELECT transid,winlost,StatusId,SettlementType,RowID, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
-			FROM CTEBalanceRecord
-		)bt
+		FROM #BalanceRecord_tmp bt
 		CROSS APPLY ( 
 			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
-			FROM CTEBalanceRecord br
-			where  bt.transid = br.transid AND br.SettlementType <> 0 AND br.RowID <bt.RowID
-			order by rowid desc
+			FROM #BalanceRecord_tmp br
+			WHERE  bt.transid = br.transid 
+					AND br.SettlementType <> 0 
+					AND br.RowID <bt.RowID
 		)bt1 
 		WHERE bt.Rownumber = 1 
 		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
 					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
 					  ELSE 0 END
-		  
 	END
 
 	SELECT 'match' AS [matchtype]
