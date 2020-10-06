@@ -11,8 +11,6 @@
 USE [msdb]
 GO
 
-
-----1. Single Settlement
 EXEC sp_update_jobstep @job_name=N'bodb02 : NAP Single Settlement', 
                        @step_id=1, ---- @step_name=N'Call NAP_Admin_Settlement_SB_Job'
                        @command=N'EXEC dbo.NAP_Admin_Settlement_Job  @Jobname = ''bodb02 : NAP Single Settlement''
