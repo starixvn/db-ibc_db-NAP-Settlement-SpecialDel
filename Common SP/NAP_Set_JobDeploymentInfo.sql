@@ -10,7 +10,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20201001@Kathy: Set waiting time for deployment [Redmine:#140452]	
+		- 20201001@Kathy: Set waiting time for deployment [Redmine:#140452]
+		- 20201006@Louisa: Hardcode for JobName [Redmine:#140452]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -20,10 +21,54 @@ BEGIN
 	SET @WaitingTime = 60
 	SET @IsWaiting = 0
 
+	---1.Single Settlement
 	INSERT INTO @tmpJobInfo (JobName, WaitingTime, IsWaiting)
-	SELECT 'SingleSettlement', '00:01:00', 0
+	SELECT 'bodb02 : NAP Single Settlement'		, '00:01:00', 0
+
+	--2.Parlay Settlement
 	UNION ALL
-	SELECT 'ParlaySettlement', '00:01:00', 0
+	SELECT 'bodb02 : NAP Parlay Settlement'		, '00:01:00', 0
+
+	--3.Single Settlement 3rd
+	UNION ALL
+	SELECT 'bodb02 : NAP Single Settlement 3rd'	, '00:01:00', 0
+
+	--4.NG2 Settlement
+	UNION ALL
+	SELECT 'bodb02: NAP NG2 Settlement'			, '00:01:00', 0
+
+	--5.BalanceUpdBonusCredit
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdBonusCredit', '00:01:00', 0
+
+	--6.BalanceUpdCreditCasino
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdCreditCasino', '00:01:00', 0
+
+	--7.BalanceUpdCreditOthers
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdCreditOthers', '00:01:00', 0
+
+	--8.BalanceUpdCreditSports
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdCreditSports', '00:01:00', 0
+
+	--9.BalanceUpdDebitCasino
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdDebitCasino', '00:01:00', 0
+
+	--10.BalanceUpdDebitOthers
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdDebitOthers', '00:01:00', 0
+
+	--11.BalanceUpdDebitSports
+	UNION ALL
+	SELECT 'bodb02 : Task_BalanceUpdDebitSports', '00:01:00', 0
+
+	--12.Ticket Voiding
+	UNION ALL
+	SELECT 'bodb02: Ticket Voiding'				, '00:01:00', 0
+
 
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
