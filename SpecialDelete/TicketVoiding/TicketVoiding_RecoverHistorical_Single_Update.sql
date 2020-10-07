@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20190823@Kathy: recover single ticket [Redmine:#115376]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
 	Param's explanation:	
 		
@@ -123,7 +124,7 @@ BEGIN
 			,b14.custid
 			,b14.bettype
 			,CASE 
-				WHEN b14.bettype BETWEEN 221 AND 227 THEN 6
+				WHEN f.GroupId = 1 THEN 6
 				ELSE 1
 			END AS KeyId
 			,CASE 
@@ -137,6 +138,11 @@ BEGIN
 			ON	t.TransId = b14.transid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
 			ON	b14.srecommend = cs.custid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b14.Bettype
+			)f
 	WHERE	b14.statusID = 102
 			AND b14.betfrom <> 'p'
 			AND b14.bettype NOT IN (10, 38, 29)

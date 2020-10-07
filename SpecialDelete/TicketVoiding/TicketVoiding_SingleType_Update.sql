@@ -26,6 +26,7 @@ AS
 		- 20200210@Helen: Hotfix - cashout - not insert 914 [Redmine:#128190]
 		- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 		- 20200609@Charles: Remove notify when void tickets [131865]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
 	Param's explanation:	
 		
@@ -111,7 +112,7 @@ BEGIN
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
-				WHEN b.bettype BETWEEN 221 AND 227 THEN 6 
+				WHEN f.GroupId = 1 THEN 6 
 				ELSE 1 				
 			END AS KeyId
 			,1 AS balanceType
@@ -122,6 +123,11 @@ BEGIN
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.bettype
+			)f
 	WHERE	b.statusID <> 102		
 
 	--IF @@ROWCOUNT <> 0

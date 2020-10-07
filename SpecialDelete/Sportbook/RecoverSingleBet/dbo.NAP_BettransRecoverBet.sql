@@ -61,6 +61,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191209@Charles: Add Column SportType to output tables [124675]
 		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	Param's Explanation:
 */
 BEGIN
@@ -1020,12 +1021,17 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
+				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND f.GroupId <> 1 THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
-				WHEN bettype BETWEEN 221 AND 227 THEN 6
+				WHEN f.GroupId = 1 THEN 6
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
 				ELSE 0 END AS KeyId
-		FROM #tblTransInfo
+		FROM #tblTransInfo b
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	)
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT matchid, KeyId

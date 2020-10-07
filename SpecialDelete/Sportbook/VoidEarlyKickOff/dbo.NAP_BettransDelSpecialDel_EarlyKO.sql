@@ -98,6 +98,7 @@ Revisions:
 	- 20200609@Charles: Remove notify when void tickets [131865]
 	- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 	- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+	- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -396,15 +397,20 @@ BEGIN
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
 										AND b.Bettype NOT BETWEEN 801 AND 806 
-										AND b.bettype NOT BETWEEN 221 AND 227
+										AND f.GroupId <> 1
 									THEN 1 ELSE 0 END)  
 			
-		,@isExistFM  = MAX (CASE WHEN b.Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
+		,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  
 			,@isExistBB		= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 	FROM dbo.bettrans b WITH (NOLOCK)  
 		INNER JOIN #tblTransIds t ON t.transid = b.transid  
-		INNER JOIN #tblBettype tp ON tp.Id = b.bettype  
-		WHERE b.matchid = @matchid  
+		INNER JOIN #tblBettype tp ON tp.Id = b.bettype
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
+	WHERE b.matchid = @matchid  
 
 	IF (ISNULL(@isExistMG, 0) = 0   
 		AND EXISTS (SELECT 1 FROM #tblBettype WHERE Id BETWEEN 801 AND 899 )  

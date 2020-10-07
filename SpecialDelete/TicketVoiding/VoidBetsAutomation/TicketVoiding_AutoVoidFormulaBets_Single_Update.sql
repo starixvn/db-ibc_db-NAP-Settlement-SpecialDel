@@ -19,6 +19,7 @@ AS
 	Revisions: 
 		- 20200308@Helen: Create new SP [Redmine:#129971]
 		- 20200811@Charles: Exclude Saba Promotion - [Redmine: #139255]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		
 	Param's explanation:	
 		
@@ -668,9 +669,9 @@ BEGIN
 		
 		RETURN
 	END
-	SELECT 	 @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND Bettype NOT BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+	SELECT 	 @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId <> 1 THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-			,@isExistFM 				= MAX (CASE WHEN Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			--,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 			--,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			--,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
@@ -681,7 +682,12 @@ BEGIN
 			--,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			--,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-	FROM	#BetDelete_AutoVoidFormula
+	FROM	#BetDelete_AutoVoidFormula b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	
 	--- CHECKING SETTLEMENT PROCESS IN PROGRESS OR NOT ?????  
 	DECLARE @avaiableProcess BIT
@@ -691,17 +697,22 @@ BEGIN
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
 					AND Bettype NOT BETWEEN 801 AND 899
-					AND Bettype NOT BETWEEN 221 AND 227
+					AND f.GroupId <> 1
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
-			WHEN Bettype BETWEEN 221 AND 227 THEN 6 -- FM
+			WHEN f.GroupId = 1 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			ELSE 0
 		END AS KeyID
-	FROM #BetDelete_AutoVoidFormula
+	FROM #BetDelete_AutoVoidFormula b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	
 	EXEC dbo.NAP_Admin_CheckingProcess
 		--@isExistParlay 				= @isExistParlay

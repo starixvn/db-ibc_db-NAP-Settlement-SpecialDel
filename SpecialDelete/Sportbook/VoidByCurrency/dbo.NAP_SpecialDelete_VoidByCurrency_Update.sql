@@ -49,6 +49,7 @@ AS
 		- 20200422@Charles: Void settled for sub parlay bet [132661]
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		
 	Param's Explanation:
 */
@@ -1341,10 +1342,16 @@ BEGIN
 			IF @CountSingle > 0
 			BEGIN
 
-				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND BetType NOT BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
-					,@isExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID <> 1 THEN 1 ELSE 0 END)  
+					,@isExistFM = MAX(CASE WHEN f.GroupID = 1 THEN 1 ELSE 0 END)
 					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
 				FROM #SpecialDeleteBets_Single b
+					OUTER APPLY (
+								SELECT GroupId
+								FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+								WHERE Bettype = b.Bettype
+						)f
+			
 					 			 
 
 				INSERT INTO #tblMatchProcess (matchid, KeyID)

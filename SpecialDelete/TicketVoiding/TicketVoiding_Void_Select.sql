@@ -27,6 +27,7 @@ AS
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 	    - 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785] 
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		 
 	Param's explanation:	
 		
@@ -281,9 +282,9 @@ BEGIN
 				 , cte.[Set]
 				 , cte.Game
 				 , cte.BetOption
-				 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 227) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
+				 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 228) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS [Value]
-				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 227) OR (cte.Id IN (479, 481)) THEN cte.[Value]
+				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 228) OR (cte.Id IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 				 , cte.Goal
 			FROM (
