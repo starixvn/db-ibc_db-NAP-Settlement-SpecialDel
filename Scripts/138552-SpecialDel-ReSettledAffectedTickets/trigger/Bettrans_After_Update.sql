@@ -9,6 +9,7 @@ AS
 	Task: 
 	Revision:
 		- 20200922@Kathy: Add column matchid, statusid, Settlement, smawinlost, smacomm [Redmine:#138552]
+		- 20201007@Sol: Add new action id due to code changed - [Redmine:#142346]
 */
 
 BEGIN
@@ -27,20 +28,30 @@ BEGIN
 		case when i.custid =0 then d.custid else i.custid end,
 		i.transid, i.bettype, i.actual_stake, i.winlost, i.playercomm, CURRENT_TIMESTAMP, 
 
-		CASE
-		WHEN i.statusid = 102 THEN 050 -- Void Bet
+		CASE 
+			WHEN (
+				i.actual_stake <> d.actual_stake 
+				OR i.winlost <> d.winlost 
+				OR i.playercomm <> d.playercomm
+				OR i.statusid <> d.statusid
+				OR i.custid <> d.custid
+			) THEN
+				CASE
+				WHEN i.statusid = 102 THEN 050 -- Void Bet
 
-		WHEN i.bettype < 19001 AND d.statusid = 1 THEN CASE i.statusid WHEN 101 THEN 020 WHEN 0 THEN 021 ELSE 0 END -- waiting -> Reject : running : something else
-		WHEN i.bettype < 19001 AND d.statusid = 0 AND i.statusid > 0 THEN 030 -- Settled : running -> Won/Lose/Draw/Refund
+				WHEN i.bettype < 19001 AND d.statusid = 1 THEN CASE i.statusid WHEN 101 THEN 020 WHEN 0 THEN 021 ELSE 0 END -- waiting -> Reject : running : something else
+				WHEN i.bettype < 19001 AND d.statusid = 0 AND i.statusid > 0 THEN 030 -- Settled : running -> Won/Lose/Draw/Refund
 
-		WHEN i.bettype < 19001 AND d.statusid = 102 AND i.statusid = 0 THEN 055 -- unvoid/recover : void -> running
-		WHEN i.bettype < 19001 AND d.statusid > 0 THEN CASE i.statusid WHEN 0 THEN 032 ELSE 031 END -- resettle or unsettle
+				WHEN i.bettype < 19001 AND d.statusid = 102 AND i.statusid = 0 THEN 055 -- unvoid/recover : void -> running
+				WHEN i.bettype < 19001 AND d.statusid > 0 THEN CASE i.statusid WHEN 0 THEN 032 ELSE 031 END -- resettle or unsettle
 
-		WHEN i.bettype > 20000 AND i.custid = 0 THEN 130 -- cancel transfer (custid set to zero)
-		WHEN i.bettype > 20000 THEN 120 -- update transfer
+				WHEN i.bettype > 20000 AND i.custid = 0 THEN 130 -- cancel transfer (custid set to zero)
+				WHEN i.bettype > 20000 THEN 120 -- update transfer
 
-		--WHEN i.bettype < 19001 AND d.custid = 0 AND i.custid > 0 THEN 055 -- recover bet
-		ELSE 0 END,
+				--WHEN i.bettype < 19001 AND d.custid = 0 AND i.custid > 0 THEN 055 -- recover bet
+				ELSE 0 END
+			ELSE 001
+		END,
 		
 		--CASE WHEN i.custid =0 THEN 'Delete ' ELSE 'Update ' END
 		--	+ CASE WHEN i.bettype < 19001 then 'Bet' ELSE 'Transfer' END + 
