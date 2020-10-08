@@ -45,6 +45,7 @@ AS
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20191106@Helen: SP Tuning -  [Redmine: 121209]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
+		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -100,7 +101,8 @@ BEGIN
 		  liveawayscore SMALLINT,   
 		  liveindicator BIT,   
 		  org_betteam	NVARCHAR(10),   
-		  statusID		INT,    
+		  statusID		INT,
+		  status		NVARCHAR(10),    
 		  betcheck		NVARCHAR(50),  
 		  transdesc		NVARCHAR(1000),  
 		  creator		INT,      
@@ -220,7 +222,7 @@ BEGIN
     
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
-	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, betcheck, transdesc, creator)  
+	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator)  
 	SELECT	b.refno  
 			,b.transid  
 			,c.custid  
@@ -237,7 +239,8 @@ BEGIN
 			,b.liveawayscore  
 			,b.liveindicator  
 			,b.betteam    
-			,b.statusID  
+			,b.statusID
+			,b.status 
 			,b.betcheck  
 			,b.transdesc  
 			,b.creator  			
@@ -673,6 +676,7 @@ BEGIN
 				,r.betteam AS SubBetteam
 				,r.betcheck AS SubBetCheck
 				,1 AS IsMixParlay
+				,r.status AS SubStatus
 				-----------------------------  
 				,b.recommend
 				,b.mrecommend
