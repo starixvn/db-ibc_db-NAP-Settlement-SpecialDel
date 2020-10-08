@@ -645,7 +645,7 @@ BEGIN
 					  FROM #tblBetType tp
 					  WHERE tp.Id = s.bettype
 					    AND CASE
-								WHEN tp.ValueHdp1 = 9999 THEN 1				
+								WHEN tp.ValueHdp2 = 9999 THEN 1				
 								ELSE CASE
 										WHEN s.hdp2 = tp.ValueHdp2 THEN 1
 										ELSE 0
