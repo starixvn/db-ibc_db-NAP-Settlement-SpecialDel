@@ -303,7 +303,7 @@ BEGIN
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				ELSE 0
 				END AS KeyID
-		FROM #Tickets
+		FROM #Tickets t
 			OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
