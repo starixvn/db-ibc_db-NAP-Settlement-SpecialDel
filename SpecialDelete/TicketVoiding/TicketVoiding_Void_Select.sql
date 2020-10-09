@@ -263,7 +263,7 @@ BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
 			-- Parse xml @BetTypes
-			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+			INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal, OddsSpread)
 			SELECT t.c.value('@Id','SMALLINT') AS Id
 					, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 					, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
