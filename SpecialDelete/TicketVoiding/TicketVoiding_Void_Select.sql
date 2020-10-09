@@ -122,7 +122,7 @@ BEGIN
 		BetOption		NVARCHAR(250),
 		[Value]			VARCHAR(500),
 		Goal			VARCHAR(10),
-		OddsSpread		MONEY
+		OddsSpread		VARCHAR(20)
 	)
 
 	CREATE TABLE #tblBetType_Detail

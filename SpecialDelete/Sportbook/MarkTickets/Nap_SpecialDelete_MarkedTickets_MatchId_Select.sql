@@ -88,7 +88,7 @@ BEGIN
 			  ValueHdp1	VARCHAR(500),
 			  ValueHdp2	VARCHAR(20),
               Goal      VARCHAR(10),
-			  OddsSpread			  
+			  OddsSpread		VARCHAR(20)
              );
     CREATE TABLE #tblBetType_Detail
              (Id           SMALLINT,
