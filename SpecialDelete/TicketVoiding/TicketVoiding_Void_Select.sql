@@ -624,7 +624,7 @@ BEGIN
 				DELETE b
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-					WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 100 OR b.FilterOddsSpread = tp.OddsSpread ))
+					WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 			END
 		END
 		ELSE
