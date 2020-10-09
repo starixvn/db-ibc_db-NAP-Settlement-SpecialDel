@@ -132,6 +132,7 @@ AS
 					 ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
+					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 			/>
 		 <BetTypes/>'
 	*/
@@ -159,7 +160,8 @@ BEGIN
 		[Value]			SMALLMONEY,	
 		ValueHdp1		SMALLMONEY,
 		ValueHdp2		SMALLMONEY,
-		Goal			BIGINT
+		Goal			BIGINT,
+		OddsSpread		MONEY
 	)					
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
@@ -233,6 +235,7 @@ BEGIN
 		FilterBetOption		NVARCHAR(50),
 		FilterHdp1		 	SMALLMONEY,
         FilterHdp2		 	SMALLMONEY,
+		FilterOddsSpread	 MONEY
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -253,7 +256,8 @@ BEGIN
 		SubBetType			SMALLINT DEFAULT (0),
 		SubHdp1				SMALLMONEY,
 		SubHdp2				SMALLMONEY,
-		SubOdds				MONEY
+		SubOdds				MONEY,
+		SubOddsSpread		MONEY
 	)
 	
 	CREATE TABLE #tmpRefCodeSummary (
@@ -343,6 +347,7 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1	 	 	 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -360,13 +365,15 @@ BEGIN
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
+			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
 		 , cte.BetTeam
 		 , cte.[Set]
@@ -376,6 +383,7 @@ BEGIN
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
 		 , cte.Goal
+		 , cte.OddsSpread
 	FROM CTE_ParsedBettypes cte		 		
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
 	
@@ -475,6 +483,7 @@ BEGIN
 			,FilterBetOption
 			,FilterHdp1
 			,FilterHdp2
+			,FilterOddsSpread
 		)
 		SELECT	
 			b.transid
@@ -524,6 +533,7 @@ BEGIN
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 			,b.hdp1 AS FilterHdp1
 			,b.hdp2 AS FilterHdp2
+			,b.oddsspread AS FilterOddsSpread
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -587,6 +597,7 @@ BEGIN
 			,FilterBetOption
 			,FilterHdp1
 			,FilterHdp2
+			,FilterOddsSpread
 		)
 		SELECT	
 			b.transid
@@ -636,6 +647,7 @@ BEGIN
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 			,b.hdp1 AS FilterHdp1
 			,b.hdp2 AS FilterHdp2
+			,b.oddsspread AS FilterOddsSpread
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -677,6 +689,7 @@ BEGIN
 				,SubHdp1
 				,SubHdp2
 				,SubOdds
+				,SubOddsSpread
 			)
 			SELECT
 				bm.custid, 
@@ -696,7 +709,8 @@ BEGIN
 				bm.bettype AS SubBetType,
 				bm.hdp1 AS SubHdp1,
 				bm.hdp2 AS SubHdp2,
-				bm.odds As SubOdds
+				bm.odds As SubOdds,
+				bm.oddsspread AS SubOddsSpread
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE
@@ -760,6 +774,7 @@ BEGIN
 				,FilterHdp1
 				,FilterHdp2
 				,FilterGoal
+				,FilterOddsSpread
 			)
 			SELECT
 				b.transid,
@@ -806,7 +821,8 @@ BEGIN
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
 				bm.SubHdp1 AS FilterHdp1,
 				bm.SubHdp2 AS FilterHdp2,
-				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
+				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
+				bm.SubOddsSpread AS FilterOddsSpread
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
@@ -880,6 +896,11 @@ BEGIN
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.Filterhdp2 = tp.ValueHdp2 ))
+
+		DELETE b
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------		

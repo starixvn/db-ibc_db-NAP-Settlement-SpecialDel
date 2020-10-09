@@ -57,6 +57,7 @@ AS;
 	- 20190812@Charles: Add new column IsMarked [118437]
 	- 20200723@Zane: Basketball AIO Phase 2 - [137189]
 	- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+	- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -160,7 +161,8 @@ BEGIN
 		[Value]			SMALLMONEY,	
 		ValueHdp1		SMALLMONEY,	
 		ValueHdp2		SMALLMONEY,
-		Goal			BIGINT
+		Goal			BIGINT,
+		OddsSpread		MONEY
 	)
 	
 	-- Parse xml @BetTypes
@@ -175,6 +177,7 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -198,13 +201,15 @@ BEGIN
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
+			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -219,6 +224,7 @@ BEGIN
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
 		 , cte.Goal
+		 , cte.OddsSpread
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -432,6 +438,19 @@ BEGIN
 								WHEN tp.Goal = 100 THEN 1
 								WHEN ISNULL(s.betID, 0) = tp.Goal THEN 1			
 								ELSE 0
+							END = 1)
+
+	DELETE s
+	FROM #SpecialDeleteBets s
+	WHERE NOT EXISTS (SELECT TOP 1 1
+					  FROM #tblBetType tp
+					  WHERE tp.Id = s.bettype
+					    AND CASE
+								WHEN tp.OddsSpread = 9999 THEN 1				
+								ELSE CASE
+										WHEN s.oddsspread = tp.OddsSpread THEN 1
+										ELSE 0
+									 END
 							END = 1)
 	END					
 		

@@ -98,7 +98,8 @@ BEGIN
         FilterGoal         BIGINT,
         FilterBetOption    NVARCHAR(50),
         FilterTimeInterval SMALLMONEY,
-		mainstatusid       TINYINT -- store statusid of normal ticket, or statusid of main ticket for bettrade 901
+		mainstatusid       TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
+		FilterOddsSpread	 MONEY
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -120,7 +121,8 @@ BEGIN
 		Game			VARCHAR(3),
 		BetOption		NVARCHAR(250),
 		[Value]			VARCHAR(500),
-		Goal			VARCHAR(10)
+		Goal			VARCHAR(10),
+		OddsSpread		MONEY
 	)
 
 	CREATE TABLE #tblBetType_Detail
@@ -132,7 +134,8 @@ BEGIN
 		BetOption		NVARCHAR(50),
 		[Value]			SMALLMONEY,	
 		TimeInterval	SMALLMONEY,	
-		Goal			BIGINT
+		Goal			BIGINT,
+		OddsSpread		MONEY
 	)
 
 	DECLARE @SportType	SMALLINT
@@ -268,10 +271,11 @@ BEGIN
 					, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 					, t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
 					, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+					, t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 			FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 			OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
-			INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal)
+			INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], TimeInterval, Goal, OddsSpread)
 			SELECT cte.Id
 				 , CASE
 						WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -287,6 +291,7 @@ BEGIN
 				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 228) OR (cte.Id IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 				 , cte.Goal
+				 , cte.OddsSpread
 			FROM (
 				SELECT cte.Id
 					 , bt.val AS BetTeam 
@@ -297,6 +302,8 @@ BEGIN
 								ELSE v.val END AS SMALLMONEY) AS [Value]			 
 					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 								ELSE cte.Goal END AS BIGINT) AS Goal
+					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 				FROM #tblBetType cte
 					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
@@ -355,6 +362,7 @@ BEGIN
 					,FilterBetOption
 					,FilterTimeInterval
 					,mainstatusid
+					,FilterOddsSpread
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -412,6 +420,7 @@ BEGIN
 					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 					,b.hdp1 AS FilterTimeInterval
 					,b.statusID AS mainstatusid
+					,b.oddsspread AS FilterOddsSpread
 			FROM	bettrans b WITH (NOLOCK)	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -482,6 +491,7 @@ BEGIN
 						,FilterValue
 						,FilterGoal
 						,mainstatusid
+						,FilterOddsSpread
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -527,6 +537,7 @@ BEGIN
 						,sub.hdp1 + sub.hdp2 AS FilterValue
 						,ISNULL(sub.betcheck, 0) AS FilterGoal
 						,main.statusID AS mainstatusid
+						,sub.oddsspread AS FilterOddsSpread
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -609,6 +620,11 @@ BEGIN
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 					WHERE tp.Id = b.FilterBettype AND (tp.TimeInterval = 9999 OR b.FilterTimeInterval = tp.TimeInterval ) OR b.bettype = 29) 
+
+				DELETE b
+				FROM  #SpecialDeleteBets b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+					WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 100 OR b.FilterOddsSpread = tp.OddsSpread ))
 			END
 		END
 		ELSE

@@ -1,15 +1,18 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select] @MatchId       INT,
-                                                                         @FromTransId   BIGINT       = 0,
-                                                                         @ToTransId     BIGINT       = 0,
-                                                                         @Duration      XML          = NULL,
-                                                                         @LiveIndicator INT          = 0,
-                                                                         @LiveHomeScore SMALLINT     = NULL,
-                                                                         @LiveAwayScore SMALLINT     = NULL,
-                                                                         @CurrencyIDs   VARCHAR(MAX) = NULL,
-                                                                         @LicenseeNames VARCHAR(MAX) = NULL,
-                                                                         @BetTypes      XML          = NULL,
-																		 @Bet 			VARCHAR(10)  = 'All'
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select] 
+(
+	@MatchId       INT,
+    @FromTransId   BIGINT       = 0,
+    @ToTransId     BIGINT       = 0,
+    @Duration      XML          = NULL,
+    @LiveIndicator INT          = 0,
+    @LiveHomeScore SMALLINT     = NULL,
+    @LiveAwayScore SMALLINT     = NULL,
+    @CurrencyIDs   VARCHAR(MAX) = NULL,
+    @LicenseeNames VARCHAR(MAX) = NULL,
+    @BetTypes      XML          = NULL,
+	@Bet 			VARCHAR(10)  = 'All'
+)
 AS;
 /*
     Created by: Alan
@@ -28,6 +31,7 @@ AS;
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+		- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -46,6 +50,7 @@ AS;
 					 ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
+					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 			/>
 		 <BetTypes/>'
 
@@ -54,7 +59,7 @@ AS;
 	    
 */
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
     DECLARE @SportType TINYINT= NULL;
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
@@ -81,7 +86,8 @@ SET NOCOUNT ON
               [Value]   VARCHAR(500),
 			  ValueHdp1	VARCHAR(500),
 			  ValueHdp2	VARCHAR(20),
-              Goal      VARCHAR(10)
+              Goal      VARCHAR(10),
+			  OddsSpread		MONEY
              );
     CREATE TABLE #tblBetType_Detail
              (Id           SMALLINT,
@@ -92,7 +98,8 @@ SET NOCOUNT ON
               [Value]      SMALLMONEY,
               ValueHdp1	   SMALLMONEY,
 			  ValueHdp2	   SMALLMONEY,
-              Goal         BIGINT
+              Goal         BIGINT,
+			  OddsSpread		MONEY
              );
 		
 	-- Parse xml @BetTypes
@@ -106,10 +113,11 @@ SET NOCOUNT ON
 			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
 			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 		 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			, t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -124,6 +132,7 @@ SET NOCOUNT ON
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
 		 , cte.Goal
+		 , cte.OddsSpread
 	FROM (
 		SELECT cte.Id
 			 , bt.val AS BetTeam 
@@ -134,6 +143,8 @@ SET NOCOUNT ON
 			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
 			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
+			 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
@@ -269,6 +280,7 @@ SET NOCOUNT ON
               FilterBetOption       NVARCHAR(50),
               FilterHdp1		 	SMALLMONEY,
         	  FilterHdp2		 	SMALLMONEY,
+			  FilterOddsSpread	 MONEY
              );
 
 	CREATE TABLE #ParlayTickets
@@ -289,7 +301,8 @@ SET NOCOUNT ON
               SubBetType    SMALLINT DEFAULT(0),
               SubHdp1       SMALLMONEY,
               SubHdp2       SMALLMONEY,
-              SubOdds       MONEY
+              SubOdds       MONEY,
+			  SubOddsSpread	 MONEY
              );
 
 	CREATE TABLE #tmpRefCodeSummary
@@ -349,6 +362,7 @@ SET NOCOUNT ON
 			,FilterBetOption
 			,FilterHdp1
 			,FilterHdp2
+			,FilterOddsSpread
 		)
 		SELECT
 			b.transid,
@@ -394,7 +408,8 @@ SET NOCOUNT ON
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 			b.hdp1 AS FilterHdp1,
-			b.hdp2 AS FilterHdp2
+			b.hdp2 AS FilterHdp2,
+			b.oddsspread AS FilterOddsSpread
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
@@ -459,6 +474,7 @@ SET NOCOUNT ON
 				,FilterBetOption
 				,FilterHdp1
 				,FilterHdp2
+				,FilterOddsSpread
 			)
 			SELECT 
 				b.transid,
@@ -504,7 +520,8 @@ SET NOCOUNT ON
 				ISNULL(b.betid, 0) AS FilterGoal,
 				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 				b.hdp1 AS FilterHdp1,
-				b.hdp2 AS FilterHdp2
+				b.hdp2 AS FilterHdp2,
+				b.oddsspread AS FilterOddsSpread
 			FROM 
 				dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
@@ -541,7 +558,8 @@ SET NOCOUNT ON
 				,SubBetType
 				,SubHdp1
 				,SubHdp2
-				,SubOdds			
+				,SubOdds
+				,SubOddsSpread
 			)
 			SELECT
 				bm.custid, 
@@ -561,7 +579,8 @@ SET NOCOUNT ON
 				bm.bettype AS SubBetType,
 				bm.hdp1 AS SubHdp1,
 				bm.hdp2 AS SubHdp2,
-				bm.odds As SubOdds				
+				bm.odds As SubOdds,
+				bm.oddsspread AS SubOddsSpread
 			FROM 
 				dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
@@ -620,6 +639,7 @@ SET NOCOUNT ON
 				,FilterHdp1
 				,FilterHdp2
 				,FilterGoal
+				,FilterOddsSpread
 			)
 			SELECT 
 				b.transid,
@@ -666,7 +686,8 @@ SET NOCOUNT ON
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
 				bm.SubHdp1 AS FilterHdp1,
 				bm.SubHdp2 AS FilterHdp2,
-				ISNULL(bm.SubBetCheck, 0) AS FilterGoal
+				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
+				bm.SubOddsSpread AS FilterOddsSpread
 			FROM #ParlayTickets AS bm
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
@@ -730,7 +751,12 @@ SET NOCOUNT ON
 		DELETE b
 		FROM  #Tickets b
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2))  
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2)) 
+
+		DELETE b
+		FROM  #Tickets b
+		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread))
 	END
 
 	-- delete marked tickets
