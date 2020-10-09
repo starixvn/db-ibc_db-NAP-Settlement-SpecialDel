@@ -64,19 +64,29 @@ RETURN (
 		
 	WHERE b.matchid	= @matchid	
 		AND b.statusID NOT IN (101)
-		AND ((EXISTS ( SELECT TOP 1 1 FROM CTE_FMResultDetail rsFM WHERE rsFM.Position = CASE
-								WHEN b.bettype <> 228 OR (b.bettype = 228 AND rsFM.Position <= 44) THEN b.hdp1
-								ELSE b.hdp1 + 1
-							END)
+		AND ((EXISTS ( SELECT TOP 1 1 FROM CTE_FMResultDetail rsFM 
+						WHERE 1 = CASE
+									WHEN b.bettype <> 228 
+										THEN CASE
+												WHEN b.hdp1 = rsFM.Position THEN 1
+												ELSE 0
+											END
+									ELSE CASE	
+											WHEN rsFM.Position < 45 AND b.hdp1 = rsFM.Position THEN 1
+											WHEN rsFM.Position > 45 AND b.hdp1 = rsFM.Position - 1 THEN 1
+											ELSE 0
+										END
+									END)
 				AND 1 = CASE
+							WHEN b.bettype <> 228 THEN 1
 							WHEN @Action = 'REFUND' AND (b.oddsspread + 0.25) < bt.maxSelectedTotalGoal THEN 0
 							WHEN @Action = 'UNDO' AND (b.oddsspread + 0.25) < bt.maxSelectedTotalGoal - bt.totalChangedScore THEN 0
 							ELSE 1
 						END)
 			OR (bt.BetType = 228 
 				AND 1 = CASE
-							WHEN bt.maxSelectedPosition <> 45 AND b.hdp1 > bt.maxSelectedPosition THEN 1  -- tickets belong to selected interval
-							WHEN bt.maxSelectedPosition = 45 AND b.hdp1 >= bt.maxSelectedPosition THEN 1
+							WHEN bt.maxSelectedPosition < 45 AND b.hdp1 > bt.maxSelectedPosition THEN 1  -- tickets belong to selected interval
+							WHEN bt.maxSelectedPosition >= 45 AND b.hdp1 >= bt.maxSelectedPosition THEN 1
 							ELSE 0 
 						END
 				AND 1 = CASE 

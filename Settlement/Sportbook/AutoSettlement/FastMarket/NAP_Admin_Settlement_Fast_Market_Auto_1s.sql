@@ -83,6 +83,8 @@ BEGIN
 				,@BetOption2nd VARCHAR(50)
 				,@ResultStatus1st VARCHAR(50)				
 				,@ResultStatus2nd VARCHAR(50)
+				,@isExistFM BIT = 1
+				,@isExistFM2 BIT = 0
 
 	DECLARE @tblAccumulatedScore TABLE (
 		Position TINYINT
@@ -142,21 +144,6 @@ BEGIN
 			RETURN
 	END
 
-	-- check and not allow attempt to settlement same game while it's still not finish
-	INSERT INTO #tblMatchProcess (matchid, KeyID)
-	SELECT @matchId AS matchid
-		, 6 AS KeyID
-		
-	--check settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= 1
-		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
-	
-	--CHECK avaiable process
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
-	
 	CREATE INDEX IX_ResultDetail_Bettype ON #tblResultDetail (BetType)
 	
 	;WITH TmpData AS (
@@ -179,6 +166,32 @@ BEGIN
 			,ISNULL(BetOption,0)
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
+
+	-- check and not allow attempt to settlement same game while it's still not finish
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType BETWEEN 221 AND 227)
+		SET @isExistFM = 1
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+		SET @isExistFM2 = 1
+
+	INSERT INTO #tblMatchProcess (matchid, KeyID)
+	SELECT DISTINCT @MatchId
+			,CASE 
+				WHEN BetType = 228 THEN 7
+				ELSE 6 -- 221-->227
+			END AS KeyId
+	FROM	#tblResultDetail
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistFM			= @isExistFM
+		,@isExistFM2		= @isExistFM2
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+	
+	--CHECK avaiable process
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
 	;WITH TmpEventCounter AS (
 		SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
@@ -217,15 +230,17 @@ BEGIN
 		-- Get Result bettype 228
 	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
 	BEGIN
-		SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
-				,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
-				,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
-				,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
-		FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
-		WHERE	MatchId = @MatchId 
-				AND ResourceId LIKE '2280_'
-		GROUP BY MatchId
-				
+		IF @Action = 'CAL'
+		BEGIN
+			SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
+					,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
+					,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
+					,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
+			FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+			WHERE	MatchId = @MatchId 
+					AND ResourceId LIKE '2280_'
+			GROUP BY MatchId
+		END		
 		IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL
 		BEGIN
 			;WITH cteBetOption
@@ -484,7 +499,8 @@ BEGIN
 	
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= 1
+		@isExistFM			= 1
+		,@isExistFM2		= 1
 		, @IsReleased		= 1
 	
 END

@@ -134,11 +134,14 @@ BEGIN
 				- the index of the char means the xx min resultStatus
 		*/
 		UPDATE	r 
-			SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(r.HomeValue, p.strPosHome) ELSE r.HomeValue END 
-				,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(r.AwayValue, p.strPosAway) ELSE r.AwayValue END
+			SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END 
+				,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
 				,LastModifyBy = @AdminId
 				,LastModifyDate = GETDATE()
 		FROM	dbo.ResultDetail r  WITH(ROWLOCK, UPDLOCK)
+			CROSS APPLY (SELECT CASE WHEN r.HomeValue IS NULL OR r.HomeValue = '' THEN REPLICATE('0', 50) ELSE r.HomeValue END AS HomeValue
+								,CASE WHEN r.AwayValue IS NULL OR r.AwayValue = '' THEN REPLICATE('0', 50) ELSE r.AwayValue END AS AwayValue
+						)v
 			INNER JOIN @tblPosition p 
 				ON	r.MatchId = @matchid
 					AND r.ResourceId = p.ResourceId
@@ -243,11 +246,14 @@ BEGIN
 			
 			-- update 228
 			UPDATE r 
-				SET HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(r.HomeValue, p.strPosHome) ELSE r.HomeValue END
-					,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(r.AwayValue, p.strPosAway) ELSE r.AwayValue END
+				SET HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END
+					,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
 					,LastModifyBy = @AdminId
 					,LastModifyDate = GETDATE()
 			FROM	dbo.ResultDetail r WITH(ROWLOCK, UPDLOCK)
+				CROSS APPLY (SELECT CASE WHEN r.HomeValue IS NULL OR r.HomeValue = '' THEN REPLICATE('0', 50) ELSE r.HomeValue END AS HomeValue
+								,CASE WHEN r.AwayValue IS NULL OR r.AwayValue = '' THEN REPLICATE('0', 50) ELSE r.AwayValue END AS AwayValue
+						)v
 				INNER JOIN @tblPosition p 
 					ON	r.MatchId = @matchid
 						AND r.ResourceId = p.ResourceId

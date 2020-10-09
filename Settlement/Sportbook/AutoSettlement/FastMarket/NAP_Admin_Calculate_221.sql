@@ -65,7 +65,7 @@ BEGIN
 			
 	SET @xmlData = CONVERT(XML, @result)
 	
-	CREATE TABLE #tblTransIds(transid BIGINT PRIMARY KEY, BetOption TINYINT)	
+	CREATE TABLE #tblTransIds(transid BIGINT, BetOption TINYINT)	
 	DECLARE @TmpData AS TABLE (bettype SMALLINT, Position TINYINT,BetOption TINYINT, AccumulatedScore INT )
 	
 	INSERT INTO @TmpData (bettype, Position, BetOption, AccumulatedScore)
@@ -98,17 +98,25 @@ BEGIN
 			ON	b.matchid = @matchid
 				AND b.bettype = t.Bettype
 	WHERE	b.statusID NOT IN (101)
-			AND t.Position = CASE 
-								WHEN b.BetType <> 228 OR (b.BetType = 228 AND t.Position <=44) THEN b.hdp1 
-								WHEN t.Position = 45 THEN -1 -- not exist. For bettype 228, the position 45 is HT injury,
-								ELSE b.hdp1 + 1 --   2nd starts at postion 46
-							END
 			AND 1 = CASE
+						WHEN b.bettype <> 228 
+							THEN CASE 
+									WHEN b.hdp1 = t.Position THEN 1
+									ELSE 0
+								END
+						ELSE CASE
+								WHEN t.Position < 45 AND b.hdp1 = t.Position THEN 1
+								WHEN t.Position > 45 AND b.hdp1 = t.Position - 1 THEN 1
+								ELSE 0
+							END
+					END
+			AND 1 = CASE
+						WHEN b.bettype <> 228 THEN 1
 						WHEN @action = 'REFUND' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
 						WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal - @totalChangedScore THEN 0
 						ELSE 1
 					END
-					
+				
 	IF @action IN ('CAL', 'UNDO') AND EXISTS (SELECT TOP 1 1 FROM @TmpData WHERE bettype = 228)  -- list tickets belong to selected interval
 	BEGIN
 		INSERT INTO #tblTransIds(transid, BetOption)
@@ -117,8 +125,8 @@ BEGIN
 		WHERE	b.matchid = @matchid
 				AND b.bettype = 228
 				AND 1 = CASE
-							WHEN @maxSelectedPosition <> 45 AND b.hdp1 > @maxSelectedPosition THEN 1
-							WHEN @maxSelectedPosition = 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
+							WHEN @maxSelectedPosition < 45 AND b.hdp1 > @maxSelectedPosition THEN 1
+							WHEN @maxSelectedPosition >= 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
 							ELSE 0
 						END
 				AND 1 = CASE 
@@ -127,6 +135,8 @@ BEGIN
 							ELSE 0
 						END
 	END
+	
+	DELETE FROM #tblTransIds WHERE BetOption IS NULL -- got error
 
 	IF @action = 'CAL'
 	BEGIN		
