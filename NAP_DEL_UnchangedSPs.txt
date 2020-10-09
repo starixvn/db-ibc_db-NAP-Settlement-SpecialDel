@@ -2,4 +2,5 @@ SpecialDelete\Sportbook\NAP_BetTypeSel.sql
 SpecialDelete\TicketVoiding\TicketVoiding_BettypesForRequest_Select.sql
 SpecialDelete\TicketVoiding\VoidBetsAutomation\TicketVoiding_AutoUnmark_Select.sql
 SpecialDelete\TicketVoiding\TicketVoiding_Ticket_Update.sql
+SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
 SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Update.sql
