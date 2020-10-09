@@ -1,19 +1,20 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] @MatchId          INT,
-                                                               @FromTransId      BIGINT       = 0,
-                                                               @ToTransId        BIGINT       = 0,
-                                                               @Bet              VARCHAR(10)  = NULL,
-															   @TimeType		 SMALLINT	  = 0,	
-                                                               @FromTransdate    DATETIME     = NULL,
-                                                               @ToTransdate      DATETIME     = NULL,
-                                                               @LiveIndicator    INT          = 0,
-                                                               @LiveHomeScore    SMALLINT     = NULL,
-                                                               @LiveAwayScore    SMALLINT     = NULL,
-                                                               @BetTypes         XML          = NULL,
-                                                               @SettledType      VARCHAR(100) = 'All',
-                                                               @SecondAcceptFlag TINYINT      = 0
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select] 
+(
+	@MatchId          INT,
+    @FromTransId      BIGINT       = 0,
+    @ToTransId        BIGINT       = 0,
+    @Bet              VARCHAR(10)  = NULL,
+	@TimeType		 SMALLINT	  = 0,	
+    @FromTransdate    DATETIME     = NULL,
+    @ToTransdate      DATETIME     = NULL,
+    @LiveIndicator    INT          = 0,
+    @LiveHomeScore    SMALLINT     = NULL,
+    @LiveAwayScore    SMALLINT     = NULL,
+    @BetTypes         XML          = NULL,
+    @SettledType      VARCHAR(100) = 'All',
+    @SecondAcceptFlag TINYINT      = 0
+)
 AS;
 /*
     Created by: Kathy
@@ -134,7 +135,7 @@ BEGIN
 		ValueHdp1		VARCHAR(500),
 		ValueHdp2		VARCHAR(20),
 		Goal			VARCHAR(10),
-		OddsSpread		MONEY
+		OddsSpread		VARCHAR(20)
 	)
 
 	CREATE TABLE #tblBetType_Detail
