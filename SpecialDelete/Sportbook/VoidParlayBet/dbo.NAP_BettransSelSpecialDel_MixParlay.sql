@@ -55,6 +55,7 @@ AS
 		- 20180821@Alan: Incorporate ESports 2.0 [99448]
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20200723@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
+		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -171,7 +172,7 @@ BEGIN
 			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			 , t.c.value('@ValueHdp1','VARCHAR(20)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(20)') AS Goal				-- check columns : betID		 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)

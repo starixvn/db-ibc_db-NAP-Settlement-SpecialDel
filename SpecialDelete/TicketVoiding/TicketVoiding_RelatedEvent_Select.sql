@@ -15,6 +15,7 @@ AS
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200828@Charles: Get linked matches of main match [Redmine: #140339]
+		- 20200921@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 	
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -31,19 +32,20 @@ BEGIN
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
 		
 		SET @query = '	SELECT MainMatchID, LinkedMatchID
-						FROM	dbo.Dot_Admin_LinkedMatch WITH(NOLOCK) '
-		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query'
+						FROM dbo.Dot_Admin_LinkedMatch WITH(NOLOCK)
+						WHERE MainMatchID = @MatchId '
+		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@MatchId INT'' , @MatchId'
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.ParentID = @MatchId
 		UNION
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
-		WHERE lm.MainMatchID = @MatchId
+		ORDER BY matchcode
 
 		DROP TABLE #LinkedMatch_tmp
 	END

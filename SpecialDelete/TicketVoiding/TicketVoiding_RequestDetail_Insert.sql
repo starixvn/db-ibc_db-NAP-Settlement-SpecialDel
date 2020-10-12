@@ -22,8 +22,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@MaxMainParlayTransId BIGINT = NULL
 	,@VoidFromTime DATETIME = NULL
 	,@VoidToTime DATETIME = NULL
-	,@LiveHomeScore TINYINT = NULL
-	,@LiveAwayScore TINYINT = NULL
+	,@LiveScores NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT = NULL
 	,@IsCheckedAwayTeam		BIT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
@@ -52,6 +51,7 @@ AS
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
+		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 
 	Param's explanation:	
 	
@@ -130,8 +130,7 @@ BEGIN
 		, MaxMainParlayTransId
 		, VoidFromTime
 		, VoidToTime
-		, LiveHomeScore
-		, LiveAwayScore
+		, IssueDetail
 		, IsCheckedHomeTeam
 		, IsCheckedAwayTeam
 		)
@@ -155,8 +154,7 @@ BEGIN
 		, @MaxMainParlayTransId
 		, @VoidFromTime
 		, @VoidToTime
-		, @LiveHomeScore
-		, @LiveAwayScore
+		,@LiveScores
 		, @IsCheckedHomeTeam
 		, @IsCheckedAwayTeam
 
