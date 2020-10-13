@@ -29,6 +29,7 @@ BEGIN
 
 			,@avaiableProcess	BIT
 			,@isExistFM			BIT
+			,@isExistFM2		BIT = 0
 			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
 			
@@ -125,6 +126,7 @@ BEGIN
 			,b14.bettype
 			,CASE 
 				WHEN f.GroupId = 1 THEN 6
+				WHEN f.GroupID = 2 THEN 7
 				ELSE 1
 			END AS KeyId
 			,CASE 
@@ -239,11 +241,13 @@ BEGIN
 	
 	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+			, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 
 	EXEC dbo.NAP_Admin_CheckingProcess
 		 @isExistFM = @isExistFM
 		, @isExistMatch	= @isExistMatch
+		, @isExistFM2 = @isExistFM2
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -361,6 +365,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= @isExistMatch
 			, @isExistFM 		= @isExistFM
+			, @isExistFM2		= @isExistFM2
 			, @IsReleased		= 1	
 	END
 	ELSE
@@ -377,6 +382,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= @isExistMatch
 			, @isExistFM 		= @isExistFM
+			, @isExistFM2		= @isExistFM2
 			, @IsReleased		= 1	
 
 		BEGIN TRY

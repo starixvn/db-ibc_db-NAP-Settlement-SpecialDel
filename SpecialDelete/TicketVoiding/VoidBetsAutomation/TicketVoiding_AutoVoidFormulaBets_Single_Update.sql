@@ -40,6 +40,7 @@ BEGIN
 			--,@isExistLC					BIT = 0
 			--,@isExistVS					BIT = 0
 			,@IsExistBB					BIT = 0
+			,@isExistFM2				BIT = 0
 			
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 	
@@ -669,7 +670,7 @@ BEGIN
 		
 		RETURN
 	END
-	SELECT 	 @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId <> 1 THEN 1 ELSE 0 END)
+	SELECT 	 @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId NOT IN (1,2) THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			--,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
@@ -682,6 +683,7 @@ BEGIN
 			--,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			--,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM	#BetDelete_AutoVoidFormula b
 		OUTER APPLY (
 					SELECT GroupId
@@ -697,7 +699,7 @@ BEGIN
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
 					AND Bettype NOT BETWEEN 801 AND 899
-					AND f.GroupId <> 1
+					AND f.GroupId NOT IN (1,2)
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
@@ -705,6 +707,7 @@ BEGIN
 			WHEN f.GroupId = 1 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
+			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 			ELSE 0
 		END AS KeyID
 	FROM #BetDelete_AutoVoidFormula b
@@ -724,6 +727,7 @@ BEGIN
 		--, @isExistVS				= @isExistVS
 		, @isExistBB				= @isExistBB
 		--, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT
@@ -1804,6 +1808,7 @@ BEGIN
 		--, @isExistVS				= @isExistVS
 		, @isExistBB				= @isExistBB
 		--, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
 		, @IsReleased				= 1
 		
 	-------> releasing cash-out process

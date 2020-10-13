@@ -43,6 +43,7 @@ BEGIN
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
 			,@isExistFM BIT
+			,@isExistFM2	BIT
 			,@IsExistBB	BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
@@ -113,6 +114,7 @@ BEGIN
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
 				WHEN f.GroupId = 1 THEN 6 
+				WHEN f.GroupId = 2 THEN 7
 				ELSE 1 				
 			END AS KeyId
 			,1 AS balanceType
@@ -149,6 +151,7 @@ BEGIN
 	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
 			,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
+			,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -156,6 +159,7 @@ BEGIN
 		, @isExistFM = @isExistFM
 		, @isExistBB = @isExistBB
 		, @isExistMatch	= @isExistMatch
+		, @isExistFM2	= @isExistFM2
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -193,6 +197,7 @@ BEGIN
 			,@isExistMG = @isExistMG 
 			,@isExistFM = @isExistFM
 			,@isExistBB = @isExistBB
+			,@isExistFM2 = @isExistFM2
 			,@IsReleased	= 1
 			
 		------ releasing cash-out process
@@ -767,6 +772,7 @@ BEGIN
 		,@isExistMG	= @isExistMG
 		,@isExistFM = @isExistFM
 		,@isExistBB = @isExistBB
+		,@isExistFM2 = @isExistFM2
 		,@IsReleased = 1
 
 	------ releasing cash-out process

@@ -317,10 +317,12 @@ BEGIN
 	DECLARE @avaiableProcess BIT
 		,@IsExistSingle BIT = 0
 		,@IsExistParlay BIT = 0
-		,@IsExistFM BIT = 0;
+		,@IsExistFM BIT = 0
+		,@IsExistFM2 BIT = 0;
 
 	SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId <> 1 THEN 1 ELSE 0	END)
 		,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+		,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM #Tickets AS t
 		OUTER APPLY (
 					SELECT GroupId
@@ -341,6 +343,7 @@ BEGIN
 		,CASE 
 			WHEN f.GroupId <> 1 THEN 1 --SB
 			WHEN f.GroupId = 1 THEN 6 -- Fast Market
+			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 			ELSE 0
 			END AS KeyID
 	FROM #Tickets t
@@ -353,6 +356,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
 		,@isExistParlay = @IsExistParlay
 		,@IsExistFM = @IsExistFM
+		,@IsExistFM2 = @IsExistFM2
 		,@avaiableProcess = @avaiableProcess OUTPUT
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT;
@@ -413,6 +417,7 @@ BEGIN
 		@isExistMatch = @IsExistSingle,
 		@isExistParlay = @IsExistParlay,
 		@IsExistFM = @IsExistFM,
+		@IsExistFM2 = @IsExistFM2,
 		@IsReleased = 1;
 
 	SELECT b.MatchId,

@@ -145,6 +145,7 @@ BEGIN
 			,@isExistCashOut	BIT = 0
 			,@isExistSingle		BIT = 0
 			,@isExistFM			BIT = 0
+			,@isExistFM2		BIT = 0
 			,@avaiableProcess	BIT = 0
 	DECLARE @session			NVARCHAR(50)
 	DECLARE @CustIds			VARCHAR(MAX) = ''
@@ -393,8 +394,9 @@ BEGIN
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
 	BEGIN 
-		SELECT @isExistSingle = MAX(CASE WHEN f.GroupId = 1 THEN 0 ELSE 1 END)
-				,@isExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)				
+		SELECT @isExistSingle = MAX(CASE WHEN f.GroupId IN (1,2) THEN 0 ELSE 1 END)
+				,@isExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+				,@isExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 		FROM dbo.bettrans b WITH (NOLOCK)  
 			INNER JOIN #tblTransIds t ON t.transid = b.transid  
 			INNER JOIN #tblBettype tp ON tp.Id = b.bettype 
@@ -418,12 +420,15 @@ BEGIN
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistSingle = 1 
 	UNION ALL
 	SELECT @MatchId AS matchid, 6 AS KeyId WHERE @isExistFM = 1
+	UNION ALL
+	SELECT @MatchId AS matchid, 7 AS KeyId WHERE @isExistFM2 = 1
 
 	-- checking SD proccess
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistParlay		= @isExistParlay  
 		,@isExistMatch		= @isExistSingle
 		,@isExistFM			= @isExistFM
+		,@isExistFM2		= @isExistFM2
 		,@avaiableProcess 	= @avaiableProcess OUTPUT
 		,@ErrCode			= @ErrCode OUTPUT
 		,@ErrMsg			= @ErrMsg OUTPUT
@@ -2037,6 +2042,7 @@ BEGIN
 			@isExistMatch	= @isExistSingle
 			,@isExistFM		= @isExistFM
 			,@isExistParlay = @isExistParlay 
+			,@isExistFM2	= @isExistFM2
 			,@IsReleased	= 1
 		
 		------ releasing cash-out process

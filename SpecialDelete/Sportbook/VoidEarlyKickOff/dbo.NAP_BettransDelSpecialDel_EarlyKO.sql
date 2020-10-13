@@ -132,6 +132,7 @@ BEGIN
 			,@isExistBT			BIT = 0 
 			,@isExistCashOut	BIT = 0
 			,@IsExistBB			BIT = 0
+			,@isExistFM2		BIT = 0
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 	
@@ -403,11 +404,12 @@ BEGIN
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
 										AND b.Bettype NOT BETWEEN 801 AND 806 
-										AND f.GroupId <> 1
+										AND f.GroupId NOT IN (1,2)
 									THEN 1 ELSE 0 END)  
 			
 		,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  
 			,@isExistBB		= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@isExistFM2 = MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM dbo.bettrans b WITH (NOLOCK)  
 		INNER JOIN #tblTransIds t ON t.transid = b.transid  
 		INNER JOIN #tblBettype tp ON tp.Id = b.bettype
@@ -452,7 +454,9 @@ BEGIN
 	UNION ALL  
 	SELECT @matchid AS matchid, 6 AS KeyID WHERE @isExistFM = 1  
 	UNION ALL
-	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1  
+	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
+	UNION ALL
+	SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
 
 	-- check and not allow attempt to void tickets of this match while it's being calculated  
 	EXEC dbo.NAP_Admin_CheckingProcess  
@@ -461,6 +465,7 @@ BEGIN
 		, @isExistFM  = @isExistFM  
 		, @isExistMatch		= @isExistMatch  
 		, @isExistBB		= @isExistBB
+		, @isExistFM2		= @isExistFM2
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode			= @ErrCode OUTPUT  
 		, @ErrMsg			= @ErrMsg OUTPUT  
@@ -2390,6 +2395,7 @@ BEGIN
 				, @isExistFM  = @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
 				, @IsReleased  	= 1
 		
 		------ releasing cash-out process

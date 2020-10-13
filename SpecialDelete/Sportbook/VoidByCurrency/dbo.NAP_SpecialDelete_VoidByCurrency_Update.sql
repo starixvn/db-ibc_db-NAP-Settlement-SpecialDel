@@ -86,6 +86,7 @@ BEGIN
 	DECLARE @IsExistParlay		BIT = 0		  
 		  , @isExistMatch		BIT = 0
 		  , @isExistFM					BIT = 0
+		  , @isExistFM2			BIT = 0
 		  , @IsExistBB			BIT = 0
 		  , @AvaiableProcess	BIT = 1	
 		  , @isExistBT			BIT = 0 
@@ -1342,9 +1343,10 @@ BEGIN
 			IF @CountSingle > 0
 			BEGIN
 
-				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID <> 1 THEN 1 ELSE 0 END)  
+				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID NOT IN (1,2) THEN 1 ELSE 0 END)  
 					,@isExistFM = MAX(CASE WHEN f.GroupID = 1 THEN 1 ELSE 0 END)
 					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
+					,@isExistFM2 = MAX(CASE WHEN f.GroupID = 2 THEN 1 ELSE 0 END)
 				FROM #SpecialDeleteBets_Single b
 					OUTER APPLY (
 								SELECT GroupId
@@ -1359,7 +1361,9 @@ BEGIN
 				UNION ALL
 				SELECT @matchid AS matchid ,6 AS KeyID WHERE @isExistFM = 1
 				UNION ALL
-				SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1  
+				SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
+				UNION ALL
+				SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
 			END
 			
 			IF @CountParlay > 0
@@ -1372,6 +1376,7 @@ BEGIN
 				, @isExistFM		= @isExistFM				
 				, @IsExistParlay	= @IsExistParlay
 				, @isExistBB		= @isExistBB
+				, @isExistFM2		= @isExistFM2
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
 				, @ErrMsg			= @ErrorMsg OUTPUT
@@ -2111,6 +2116,7 @@ BEGIN
 			, @isExistFM		= @isExistFM		
 			, @isExistBB		= @isExistBB		
 			, @isExistParlay	= @isExistParlay
+			, @isExistFM2		= @isExistFM2
 			
 		-------> releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 

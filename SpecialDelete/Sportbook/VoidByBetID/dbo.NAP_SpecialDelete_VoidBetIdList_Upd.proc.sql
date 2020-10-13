@@ -110,6 +110,7 @@ BEGIN
 			,@isExistLucky3		BIT = 0
 			,@Lucky3TransIDs	VARCHAR(MAX)
 			,@Lucky3Matches	VARCHAR(MAX) = ''
+			,@isExistFM2				BIT = 0
 			
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 	
@@ -839,7 +840,7 @@ BEGIN
 	END
 	
 	SELECT @winlostdate 				= MIN (winlostdate)
-			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId <> 1 THEN 1 ELSE 0 END)
+			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId NOT IN (1,2) THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
@@ -854,6 +855,7 @@ BEGIN
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 		OUTER APPLY (
 					SELECT GroupId
@@ -869,7 +871,7 @@ BEGIN
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
 					AND Bettype NOT BETWEEN 801 AND 899
-					AND f.GroupId <> 1
+					AND f.GroupId NOT IN (1,2)
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
@@ -877,6 +879,7 @@ BEGIN
 			WHEN f.GroupId = 1 THEN 6 -- FM
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
+			WHEN f.GroupId = 2 THEN 7 -- FM 228
 			ELSE 0
 		END AS KeyID
 	FROM #BetDelete b
@@ -896,6 +899,7 @@ BEGIN
 		, @isExistVS				= @isExistVS
 		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT
@@ -2624,6 +2628,7 @@ BEGIN
 		, @isExistVS				= @isExistVS
 		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
 		, @IsReleased				= 1
 		
 	-------> releasing cash-out process

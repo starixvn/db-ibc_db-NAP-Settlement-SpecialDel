@@ -14,6 +14,7 @@ AS
     Parameters Explanation: 
 		GroupId:
 			+ 1: Fast Market
+			+ 2: Fast Market 2 (bettype 228)
     
 */
 
@@ -28,7 +29,9 @@ RETURN (
 	UNION ALL SELECT 225,1
 	UNION ALL SELECT 226,1
 	UNION ALL SELECT 227,1
-	UNION ALL SELECT 228,1
+	
+	--Fast Market 2
+	UNION ALL SELECT 228,2
 	
 )
 GO
