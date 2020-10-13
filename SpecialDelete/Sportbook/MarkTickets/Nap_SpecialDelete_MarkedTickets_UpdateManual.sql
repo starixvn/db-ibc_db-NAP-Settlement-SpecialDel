@@ -280,7 +280,7 @@ BEGIN
 			,@IsExistFM BIT = 0
 			,@IsExistFM2 BIT = 0
 
-		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId <> 1 THEN 1 ELSE 0	END)
+		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId NOT IN (1,2) 1 THEN 1 ELSE 0	END)
 			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 		FROM #Tickets AS t
@@ -301,7 +301,7 @@ BEGIN
 			)
 		SELECT DISTINCT MatchId
 			,CASE 
-				WHEN f.GroupId <> 1 THEN 1 --SB
+				WHEN f.GroupId NOT IN (1,2) THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
