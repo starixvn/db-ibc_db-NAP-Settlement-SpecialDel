@@ -218,14 +218,14 @@ BEGIN
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
-				WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102)) THEN 1 
+				WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102, 103)) THEN 1 
 				WHEN (b.bettype < 19001
 						AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 						AND b.bettype NOT BETWEEN 801 AND 806-- MG
 						AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
 						AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 						AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-						AND b.statusID NOT IN (101, 102)						
+						AND b.statusID NOT IN (101, 102, 103)						
 					) THEN 1
 				ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
@@ -426,7 +426,7 @@ BEGIN
 					)m
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
-			AND b.statusID NOT IN (0, 101, 102)
+			AND b.statusID NOT IN (0, 101, 102, 103)
 			
 		UNION ALL
 		SELECT	
@@ -499,7 +499,7 @@ BEGIN
 			AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
 			AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-			AND b.statusID NOT IN (101, 102)				
+			AND b.statusID NOT IN (101, 102, 103)				
 	END		
 	
 	-- delete cash-out member bet tickets
@@ -643,7 +643,7 @@ BEGIN
 							AND b.custid = t.custid
 							AND b.matchid = t.matchid
 							AND b.bettype = t.bettype
-			WHERE b.statusID NOT IN (101,102 ) -- reject, void		
+			WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund	
 		END	    			    				    					    				    					    
 	END
 	-- UPDATE eventtype = 1
@@ -1159,7 +1159,7 @@ BEGIN
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								AND b.statusID NOT IN (101, 102, 103) --REJECT, VOID, REFUND
 						 ) AS b
 		WHERE sub911.bettype = 911
 	END				     
