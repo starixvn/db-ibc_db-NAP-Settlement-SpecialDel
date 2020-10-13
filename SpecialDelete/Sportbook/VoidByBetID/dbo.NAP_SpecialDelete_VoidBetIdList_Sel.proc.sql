@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            V
                                                             @ToDate            DATETIME     = NULL,
                                                             @IncludeMainParlay BIT          = 0,
 															@Products			VARCHAR(50) = NULL,
-															@Status				VARCHAR(50) = NULL,
+															@StatusIds			VARCHAR(50) = NULL,
                                                             @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
                                                             @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
 AS;
@@ -198,7 +198,7 @@ BEGIN
 
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@Status, ',')
+		FROM dbo.f_SplitString(@StatusIds, ',')
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 		
