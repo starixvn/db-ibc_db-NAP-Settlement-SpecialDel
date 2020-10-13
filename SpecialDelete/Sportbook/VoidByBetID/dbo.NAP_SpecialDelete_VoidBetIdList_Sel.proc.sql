@@ -157,7 +157,21 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	CREATE TABLE #CustId (CustId INT)
-	
+
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT pt.bettype
+	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+	WHERE 1 = CASE 
+				WHEN @IsSB = 1 AND pt.ProductID = 1 THEN 1-- Sportsbook
+				WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
+				WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay
+				WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
+				WHEN @IsSaba = 1 AND pt.ProductID = 37 THEN 1
+				WHEN @IsNonSport = 1 AND (ProductID = 3 OR pt.bettype IN (1231,1232,1233,1237,1238)) THEN 1
+			ELSE 0 END
+		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+
 	IF(LEN(@TransIds) > 0)
 	BEGIN
 		INSERT INTO #transIdTemp (transid)
@@ -175,20 +189,6 @@ BEGIN
 			, @IsOutright = CASE WHEN CHARINDEX('4',@Products) > 0 THEN 1 ELSE 0 END
 			, @IsSaba = CASE WHEN CHARINDEX('5',@Products) > 0 THEN 1 ELSE 0 END
 			, @IsNonSport = CASE WHEN CHARINDEX('6',@Products) > 0 THEN 1 ELSE 0 END
-
-		INSERT INTO @bettype_tmp (bettype)
-		SELECT DISTINCT pt.bettype
-		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE 1 = CASE 
-					WHEN @IsSB = 1 AND pt.ProductID = 1 THEN 1-- Sportsbook
-					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
-					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay
-					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-					WHEN @IsSaba = 1 AND pt.ProductID = 37 THEN 1
-					WHEN @IsNonSport = 1 AND (ProductID = 3 OR pt.bettype IN (1231,1232,1233,1237,1238)) THEN 1
-				ELSE 0 END
-			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 
 		INSERT INTO #CustId (CustId)
 		SELECT DISTINCT val 
@@ -313,7 +313,7 @@ BEGIN
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.translogid = TransId
-					)m		
+					)m
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -424,6 +424,7 @@ BEGIN
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.transid = TransId
 					)m
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102, 103)
@@ -491,7 +492,8 @@ BEGIN
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.transid = TransId
-					)m				
+					)m
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype				
 		WHERE	b.winlostdate >= @FromDate				
 			AND b.bettype < 19001
 			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
