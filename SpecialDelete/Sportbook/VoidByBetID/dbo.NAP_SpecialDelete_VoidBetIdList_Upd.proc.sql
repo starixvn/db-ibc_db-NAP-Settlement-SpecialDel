@@ -840,7 +840,7 @@ BEGIN
 	END
 	
 	SELECT @winlostdate 				= MIN (winlostdate)
-			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId NOT IN (1,2) THEN 1 ELSE 0 END)
+			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
@@ -871,7 +871,7 @@ BEGIN
 		, CASE 
 			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
 					AND Bettype NOT BETWEEN 801 AND 899
-					AND f.GroupId NOT IN (1,2)
+					AND f.GroupId IS NULL
 					AND Bettype NOT IN (1231,1232,1233)
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright

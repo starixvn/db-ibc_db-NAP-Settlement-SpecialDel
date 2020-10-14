@@ -404,7 +404,7 @@ BEGIN
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
 										AND b.Bettype NOT BETWEEN 801 AND 806 
-										AND f.GroupId NOT IN (1,2)
+										AND f.GroupId IS NULL
 									THEN 1 ELSE 0 END)  
 			
 		,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  

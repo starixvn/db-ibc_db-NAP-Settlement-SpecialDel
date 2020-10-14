@@ -1343,7 +1343,7 @@ BEGIN
 			IF @CountSingle > 0
 			BEGIN
 
-				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID NOT IN (1,2) THEN 1 ELSE 0 END)  
+				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID IS NULL THEN 1 ELSE 0 END)  
 					,@isExistFM = MAX(CASE WHEN f.GroupID = 1 THEN 1 ELSE 0 END)
 					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
 					,@isExistFM2 = MAX(CASE WHEN f.GroupID = 2 THEN 1 ELSE 0 END)

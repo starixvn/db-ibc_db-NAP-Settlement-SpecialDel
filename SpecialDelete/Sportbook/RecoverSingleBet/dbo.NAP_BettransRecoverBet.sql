@@ -1022,7 +1022,7 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND f.GroupId NOT IN (1,2) THEN 1 --SB
+				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND f.GroupId IS NULL THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
 				WHEN f.GroupId = 1 THEN 6
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
