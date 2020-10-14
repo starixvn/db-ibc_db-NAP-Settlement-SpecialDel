@@ -130,6 +130,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
+		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 
     Param's Explanation:
         @action             @mode
@@ -850,23 +851,6 @@ BEGIN
                     ,@action = @action
                     ,@mode = @mode
                     ,@isRefundHT = @isRefundHT
-
-                /* FT Myanmar odds*/
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 301)
-                    EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
-                        ,@bettype = 301
-                        ,@fth = @fth
-                        ,@fta = @fta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 302)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 302
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-            /*END FT Myanmar odds*/
 
                 --Home Team Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 401)
@@ -1839,24 +1823,6 @@ BEGIN
                     ,@action = @action
                     ,@mode = @mode
 
-                /*HT Myanmar Odds*/
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 303)
-                    EXEC dbo.NAP_Admin_Calculate_7 @matchid = @matchid
-                        ,@bettype = 303
-                        ,@hth = @hth
-                        ,@hta = @hta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 304)
-                                        EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
-                        ,@bettype = 304
-                        ,@totalht = @totalht
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-
-            /*END HT Myanmar Odds*/
-
                 --1H Home Team Over/Under
                 IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 403)
                                         EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
@@ -2715,16 +2681,6 @@ BEGIN
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
                         ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
                         ,@IsHTCal = @IsHTCal
-
-                /* Myanmar odds*/
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 302)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 302
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 
                 --Home Team Over/Under
                 IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 401)
@@ -3856,26 +3812,6 @@ BEGIN
                         ,@bettype = 188
                         ,@fth = @hth
                         ,@fta = @hta
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                /*Myanmar odds*/
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 302)
-                    EXEC dbo.NAP_Admin_Calculate_3
-                         @matchid = @matchid
-                        ,@bettype = 302
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-                        ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
-                        ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
-                        ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 304)
-                                        EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
-                        ,@bettype = 304
-                        ,@totalht = @totalht
                         ,@betcount = 1
                         ,@IsSettleAbandonedMatch = @IsSettleAbandonedMatch
                         ,@IsSettleAbandonedMatchBetFair = @IsSettleAbandonedMatchBetFair
