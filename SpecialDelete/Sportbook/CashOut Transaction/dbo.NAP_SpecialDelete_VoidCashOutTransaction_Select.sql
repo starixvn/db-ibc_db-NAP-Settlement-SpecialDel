@@ -1,14 +1,15 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
-	@Option			BIT				= 0
-	,@MatchId		INT
-	,@FromTransId	BIGINT			= 0
-	,@ToTransId		BIGINT			= 0
-	,@TransIds		VARCHAR(MAX)	= ''
-	,@Duration      XML          	= NULL
-	,@InvalidTransIds VARCHAR(MAX)  = '' OUTPUT
-	,@MovedTransIds	  VARCHAR(MAX)  = '' OUTPUT
+	@Option				BIT				= 0
+	,@MatchId			INT
+	,@FromTransId		BIGINT			= 0
+	,@ToTransId			BIGINT			= 0
+	,@TransIds			VARCHAR(MAX)	= ''
+	,@Duration      	XML          	= NULL
+	,@InvalidTransIds 	VARCHAR(MAX) 	= '' OUTPUT
+	,@MovedTransIds	  	VARCHAR(MAX)  	= '' OUTPUT
+	,@FilterBy			TINYINT 		= 0
 AS
 /*
     Created by: Kent
@@ -20,13 +21,13 @@ AS
 	Revisions:	
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
 		- 20170417@Kent: Tune performance [Redmine:#72059]
-		- 20190920@Charles: Add filter transdate when search by MatchId [120586]	
-		
+		- 20190920@Charles: Add filter transdate when search by MatchId [120586]		
+		- 20200930@Zane: TVS - Allow filter by Accept Time on Void Cash Out [Redmine:#142482]
 	Explanation's Param:
 		@Option: 0 - by MatchId
 				 1 - by BetId(s)
-
-
+		@FilterBy:	0 - by Trans time
+				 	1 - by Accepted time
 */
 BEGIN	
 	SET NOCOUNT ON
@@ -245,7 +246,12 @@ BEGIN
 					AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
 					AND main.betdaqid = 0
 					AND charindex ('p25',main.extrainfo)> 0
-					AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
+					AND EXISTS (SELECT TOP (1) 1 FROM #Durations d
+						WHERE 1 = CASE WHEN @FilterBy = 1 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
+									WHEN @FilterBy = 1 AND sub.checktime IS NULL AND sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
+									WHEN @FilterBy = 0 AND sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
+									ELSE 0 
+									END)					
 		END
 	ELSE IF (@Option = 1)
 	BEGIN
