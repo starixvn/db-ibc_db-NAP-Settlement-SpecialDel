@@ -1,25 +1,28 @@
-﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] @MatchId          INT,
-                                                               @LicenseeName     VARCHAR(1000) = 'ALL',
-                                                               @BetTypes         VARCHAR(1000) = '',
-                                                               @LiveType         SMALLINT      = 2,
-                                                               @LiveHomeScore    SMALLINT      = NULL,
-                                                               @LiveAwayScore    SMALLINT      = NULL,
-                                                               @FromTransdate    DATETIME      = NULL,
-                                                               @ToTransdate      DATETIME      = NULL,
-                                                               @Type             SMALLINT      = 0,
-                                                               @SecondAcceptFlag TINYINT       = 0,
-                                                               @BallSequence     VARCHAR(200)  = '',
-                                                               @Quarter          VARCHAR(200)  = 'All',
-															   @BetTeams		  XML		   = NULL,
-															   @SingleOrSubParlay VARCHAR(20)  = 'All',
-															   @SelectionType     VARCHAR(200) = ''
+﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
+	@MatchId					INT,
+    @LicenseeName				VARCHAR(1000) = 'ALL',
+    @BetTypes					VARCHAR(1000) = '',
+    @LiveType					SMALLINT      = 2,
+    @LiveHomeScore				SMALLINT      = NULL,
+    @LiveAwayScore				SMALLINT      = NULL,
+    @FromTransdate				DATETIME      = NULL,
+    @ToTransdate				DATETIME      = NULL,
+    @Type						SMALLINT      = 0,
+    @SecondAcceptFlag			TINYINT       = 0,
+    @BallSequence				VARCHAR(200)  = '',
+    @Quarter					VARCHAR(200)  = 'All',
+	@BetTeams					XML			  = NULL,
+	@SingleOrSubParlay			VARCHAR(20)   = 'All',
+	@SelectionType				VARCHAR(200)  = '',
+	@IsReSettled				BIT			  = 0
+
 WITH RECOMPILE
 AS;
 /*	Created by: Elodie
 	Date: 20130606
 	Task: Show Tickets Listing Detail and Export to excel for NAP system
-	DB: DBACC/bodb02
+	DB: DBBAH/bodb02
 	Original: Acc_Rpt_TicketsListingDetail
 
 	Revisions:	
@@ -63,6 +66,7 @@ AS;
 		- 20200812@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 		- 20200911@Max: Tuning SP [Redmine: 141476]
+		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -121,6 +125,40 @@ BEGIN
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
+	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
+
+	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
+	IF (@IsReSettled = 1)
+	BEGIN 
+		WITH CTEBalanceRecord AS (
+			SELECT transid,winlost,StatusId,RowID,SettlementType
+			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+			UNION ALL
+			SELECT transid,winlost,StatusId,RowID,SettlementType
+			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+		)
+		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
+		SELECT transid,winlost,StatusId,SettlementType,RowID 
+				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+		FROM CTEBalanceRecord
+
+		INSERT INTO @tmpAffectTickets(Transid)
+		SELECT bt.transid
+		FROM #BalanceRecord_tmp bt
+		CROSS APPLY ( 
+			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
+			FROM #BalanceRecord_tmp br
+			WHERE  bt.transid = br.transid 
+					AND br.SettlementType <> 0 
+					AND br.RowID <bt.RowID
+		)bt1 
+		WHERE bt.Rownumber = 1 
+		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
+					  ELSE 0 END
+	END
 
 	SELECT 'match' AS [matchtype]
 	  , matchid
@@ -143,6 +181,7 @@ BEGIN
 
 	DECLARE @SettlementStatus TINYINT = NULL
 	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
+
 
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
 
@@ -257,7 +296,6 @@ BEGIN
 		Goal			BIGINT
 	)
 	
-	--===========================--
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
 	DECLARE @tmpTransid TABLE (Transid BIGINT)
 
@@ -279,7 +317,6 @@ BEGIN
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
 		WHERE b.matchid = @MatchId	
 	END
-	--===========================--
 	
 	-- Parse xml @BetTeams
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
@@ -890,7 +927,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					OPTION	(RECOMPILE)
 				END
@@ -944,7 +981,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@p_bettypes,','))
+							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 							AND EXISTS (SELECT TOP 1 1
 										FROM #TmpBallSequence WITH (NOLOCK)
@@ -1334,14 +1371,19 @@ BEGIN
 			END	
 		END		
 		
-		--========================================================================--
+		IF (@IsReSettled = 1 AND @SportType = 1)
+		BEGIN
+			DELETE b
+			FROM #SpecialDeleteBets b
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
+		END
+
 		IF (@BetTypes ='38' AND @Selectiontype <>'')
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
-		--========================================================================--
 		
 		IF @SportType = 43 -- E-Sports
 		BEGIN
