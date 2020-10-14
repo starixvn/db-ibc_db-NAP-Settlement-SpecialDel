@@ -67,6 +67,7 @@ AS
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 		- 20200911@Max: Tuning SP [Redmine: 141476]
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
+		- 20201013@July: [TVS] - HotFix - TicketListing bettype > 100 items [Redmine: #143308]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -950,7 +951,7 @@ BEGIN
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN dbo.f_SplitString(@BetTypes, ',') t ON bm.bettype = t.val
+				INNER JOIN @tmpBettypes t ON bm.bettype=t.bettype
 			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')

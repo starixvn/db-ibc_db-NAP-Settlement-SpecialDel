@@ -67,6 +67,7 @@ AS;
 		- 20200817@July: Ticket Listing - Bet Builder Enhancement [Redmine: #138555]
 		- 20200911@Max: Tuning SP [Redmine: 141476]
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
+		- 20201013@July: [TVS] - HotFix - TicketListing bettype > 100 items [Redmine: #143308]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -927,7 +928,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
+							AND b.bettype IN (SELECT bettype FROM @tmpBettypes)	
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					OPTION	(RECOMPILE)
 				END
@@ -981,7 +982,7 @@ BEGIN
 					WHERE	b.srecommend IN (SELECT custid FROM dbo.CS_CustSuper WITH (NOLOCK))
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId 
-							AND b.bettype IN (SELECT CONVERT(INT,val) FROM dbo.f_SplitString(@p_bettypes,','))
+							AND b.bettype IN (SELECT bettype FROM @tmpBettypes)
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 							AND EXISTS (SELECT TOP 1 1
 										FROM #TmpBallSequence WITH (NOLOCK)
