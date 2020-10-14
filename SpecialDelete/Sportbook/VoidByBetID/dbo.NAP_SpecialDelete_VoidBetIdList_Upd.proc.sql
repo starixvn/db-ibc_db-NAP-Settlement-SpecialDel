@@ -2,15 +2,18 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]  
 	@TransIds			VARCHAR(MAX)
 	,@TransIdSolds		VARCHAR(MAX)	= '' -- just for BetTrade's subticket (transid of bettype 901)  
-	
-	,@UserName			VARCHAR(30)
+	,@UserName			VARCHAR(30) --login username
 	,@Password			VARCHAR(50)
 	,@UserId			INT = 0 -- custid of Admin
 	,@IP				VARCHAR(15)
 	,@Reason			NVARCHAR(500) = ''
 	,@ReasonSC			NVARCHAR(500) = ''
 	,@IsAbnormalBet		BIT = 0
-	
+	,@FilterUserName VARCHAR(30) = NULL -- input username
+	,@Products VARCHAR(50)	= NULL
+	,@StatusIds VARCHAR(50) = NULL
+	,@FromDate  DATETIME	= NULL	
+	,@ToDate    DATETIME	= NULL
 	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT -- invalid trans of BTrade
 	,@ReCalcMatches		VARCHAR(MAX) = '' OUTPUT --Lucky 3 matches need recalculation
 	,@ErrCode			INT = 0 OUTPUT
@@ -82,6 +85,7 @@ AS
 	  - 20200609@Charles: Remove notify when void tickets [131865]
 	  - 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 	  - 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+	  - 20201014@July: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 
 	 Param's Explanation:   
 	*/
@@ -2637,8 +2641,13 @@ BEGIN
 		  , @Action = 'Void' 
 		  , @IsReleased = 1				 
 
-	SELECT @LogData = 'Delete transaction transid:' + cast(@TransIds as varchar(8000))+ ' by_login:' + @username 
-		+ 'IP:' + cast(@IP as varchar(15)) + ' reason: ' + @reason  + ' - -' + @ReasonSC
+	SELECT @LogData = 'Username: '+ @FilterUserName
+					+ ' Products: '+ @Products
+					+ ' Ticket status: '+ @StatusIds
+					+ ' Date From: '+ @FromDate + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ @ToDate END
+					+ ' by_login:' + @username 
+					+ ' IP:' + cast(@IP as varchar(15)) 
+					+ ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
 	
 	-- CHECK IT GROUP or NOT ?   
