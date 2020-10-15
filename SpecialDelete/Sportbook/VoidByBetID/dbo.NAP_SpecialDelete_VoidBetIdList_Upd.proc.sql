@@ -9,11 +9,11 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@Reason			NVARCHAR(500) = ''
 	,@ReasonSC			NVARCHAR(500) = ''
 	,@IsAbnormalBet		BIT = 0
-	,@FilterUserName VARCHAR(30) = NULL -- input username
-	,@Products VARCHAR(50)	= NULL
-	,@StatusIds VARCHAR(50) = NULL
-	,@FromDate  DATETIME	= NULL	
-	,@ToDate    DATETIME	= NULL
+	,@FilterUserName	VARCHAR(30) = NULL -- input username
+	,@Products			VARCHAR(50)	= NULL
+	,@StatusIds			VARCHAR(50) = NULL
+	,@FromDate			DATETIME	= NULL	
+	,@ToDate			DATETIME	= NULL
 	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT -- invalid trans of BTrade
 	,@ReCalcMatches		VARCHAR(MAX) = '' OUTPUT --Lucky 3 matches need recalculation
 	,@ErrCode			INT = 0 OUTPUT
@@ -92,7 +92,7 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 	
-	DECLARE	@LogData					NVARCHAR(500)
+	DECLARE	@LogData					NVARCHAR(500) = ''
 			,@isITAdmin					BIT = 0
 			,@winlostdate				DATETIME
 			,@isExistMatch				BIT = 0
@@ -111,9 +111,9 @@ BEGIN
 			,@IsExistBB					BIT = 0
 			,@Remark					VARCHAR (500) = ''
 			,@startTime					DATETIME
-			,@isExistLucky3		BIT = 0
-			,@Lucky3TransIDs	VARCHAR(MAX)
-			,@Lucky3Matches	VARCHAR(MAX) = ''
+			,@isExistLucky3				BIT = 0
+			,@Lucky3TransIDs			VARCHAR(MAX)
+			,@Lucky3Matches				VARCHAR(MAX) = ''
 			,@isExistFM2				BIT = 0
 			
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
@@ -2641,12 +2641,16 @@ BEGIN
 		  , @Action = 'Void' 
 		  , @IsReleased = 1				 
 
-	SELECT @LogData = 'Username: '+ @FilterUserName
-					+ ' Products: '+ @Products
-					+ ' Ticket status: '+ @StatusIds
-					+ ' Date From: '+ @FromDate + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ @ToDate END
+	IF @FilterUserName IS NOT NULL
+	BEGIN
+		SELECT @LogData = 'Username: '+ @FilterUserName
+						+ ' Products: '+ @Products
+						+ ' Ticket status: '+ @StatusIds
+						+ ' Date From: '+ CAST(@FromDate AS VARCHAR(20)) + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ CAST(@ToDate AS VARCHAR(20)) END
+	END
+	SELECT @LogData = @LogData
 					+ ' by_login:' + @username 
-					+ ' IP:' + cast(@IP as varchar(15)) 
+					+ ' IP:' + CAST(@IP AS VARCHAR(15)) 
 					+ ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
 	
