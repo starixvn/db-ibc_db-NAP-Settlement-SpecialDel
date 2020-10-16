@@ -24,6 +24,7 @@ AS
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
 	Param's explanation:	
 		
@@ -61,6 +62,7 @@ BEGIN
 			,@CustBalance XML
 			,@IssueTypeId	TINYINT
 			,@CustIdsCashOut VARCHAR(MAX)
+			,@isExistFM2				BIT = 0
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX))
@@ -346,7 +348,10 @@ BEGIN
 	-------------DATA PREPARATION ------------
 	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid,RequestID)
 	SELECT	b.transid, b.custid, b.bettype
-			,1 KeyId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1
+				WHEN f.GroupID = 2 THEN 7 
+			END AS KeyId
 			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
@@ -357,10 +362,18 @@ BEGIN
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	
 	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
 	SELECT	b.transid, b.custid, b.bettype
-			,1 KeyId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1
+				WHEN f.GroupID = 2 THEN 7 
+			END AS KeyId
 			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
@@ -370,17 +383,31 @@ BEGIN
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
-			,1 AS KeyId
+			,v.KeyId
+	FROM #tmpTransId_VOID_RequestID v
+	GROUP BY v.KeyId
+	UNION ALL
+	SELECT	@matchid AS matchid
+			,r.KeyId
+	FROM #tmpTransId_Recalculate r
+	GROUP BY r.KeyId
 			
 	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+		, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess	
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= @isExistMatch
+		, @isExistFM2		= @isExistFM2
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -434,6 +461,7 @@ BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistMatch
+			,@isExistFM2	= @isExistFM2
 			,@IsReleased	= 1
 		
 		SELECT	@ErrCode = 0
@@ -518,7 +546,10 @@ BEGIN
 		
 		INSERT INTO #tmpTransId_Recalculate (TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
 		SELECT	DISTINCT cob.transid, cob.custid, cob.bettype
-			,1 KeyId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1
+				WHEN f.GroupID = 2 THEN 7 
+			END AS KeyId
 			,1 AS balanceType
 			,3 AS TicketType
 			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid
@@ -528,6 +559,11 @@ BEGIN
 				AND cob.custid = b.custid
 				AND cob.refno = b.refno 
 				AND cob.bettype NOT BETWEEN 912 AND 914 --normal bettype tickets
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.bettype
+			)f
 		WHERE b.bettype = 912
 			AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate r WHERE r.TransId = cob.transid)	
 		
@@ -551,7 +587,12 @@ BEGIN
 	IF @@ROWCOUNT > 0
 	BEGIN
 		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode,RequestID,betid)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode,r.RequestID,b.betid
+		SELECT b.TransId, b.custid, b.bettype
+		,CASE 
+				WHEN f.GroupId IS NULL THEN 1
+				WHEN f.GroupID = 2 THEN 7 
+			END AS KeyId
+		, 1, 1, b.refcode,r.RequestID,b.betid
 		FROM #tmpRefCodeSummary_VOID r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -559,6 +600,11 @@ BEGIN
 					AND b.matchid = @MatchId
 					AND b.custid = r.custid
 					AND b.bettype = r.bettype
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = r.bettype
+			)f
 		WHERE	b.statusID NOT IN (101,102 ) -- reject, void
 				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID WHERE b.transid = TransId)
 	END
@@ -571,7 +617,12 @@ BEGIN
 	IF @@ROWCOUNT > 0
 	BEGIN
 		INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode
+		SELECT b.TransId, b.custid, b.bettype
+		,CASE 
+				WHEN f.GroupId IS NULL THEN 1
+				WHEN f.GroupID = 2 THEN 7 
+			END AS KeyId
+		, 1, 1, b.refcode
 		FROM #tmpRefCodeSummary_Recalculate r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -579,6 +630,11 @@ BEGIN
 					AND b.matchid = @MatchId
 					AND b.custid = r.custid
 					AND b.bettype = r.bettype
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = r.bettype
+			)f
 		WHERE	b.statusID NOT IN (101,102 ) -- reject, void
 				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate WHERE b.transid = TransId)
 				
@@ -1029,6 +1085,7 @@ BEGIN
 
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch = @isExistMatch
+		,@isExistFM2 = @isExistFM2
 		,@IsReleased = 1
 
 	------ releasing cash-out process

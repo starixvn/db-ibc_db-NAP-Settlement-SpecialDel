@@ -21,6 +21,7 @@ AS
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 
 	Param's explanation:	
 	
@@ -138,7 +139,7 @@ BEGIN
 		INSERT INTO @Matchid_Final(Matchid)
 		SELECT DISTINCT m.Matchid
 		FROM @Transid_Mark m
-			LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue AND tv.KeyID = 1
+			LEFT JOIN dbo.TempVariableNumber tv WITH (NOLOCK) ON m.matchid = tv.KeyValue AND tv.KeyID IN (1,7)
 		WHERE tv.KeyValue IS NULL
 		
 		SET @end = (SELECT MAX(ID) FROM @Matchid_Final )

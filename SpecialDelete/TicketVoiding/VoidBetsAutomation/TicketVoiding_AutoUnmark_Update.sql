@@ -31,6 +31,7 @@ AS
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [Redmine: #131670]
 		- 20200615@Max: HotFix - Do not settle after confirm auto unmark - Remove check StatusId in Queue - [Redmine: #135864]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		
 	Param's explanation:	
 		
@@ -48,6 +49,8 @@ BEGIN
 			,@isExistMatch BIT
 			,@Sporttype    SMALLINT
 			,@IsCalQueue		BIT = 0
+			,@isExistFM2				BIT = 0
+			
 			
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
 
@@ -146,13 +149,18 @@ BEGIN
 	
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
-			,1 AS KeyId
+			,CASE 
+				WHEN @Bettype NOT IN (228) THEN 1
+				WHEN @Bettype = 228 THEN 7 
+			END AS KeyId
 	
 	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+		,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 			
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch = 1
+		,@isExistFM2 = @isExistFM2
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -227,7 +235,8 @@ BEGIN
 	END
 
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = 1
+		@isExistMatch = @isExistMatch
+		,@isExistFM2 = @isExistFM2
 		,@IsReleased = 1
 
 	DROP TABLE #ValidRequestTransId
