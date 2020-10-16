@@ -225,17 +225,23 @@ BEGIN
 		UNION ALL
 		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
 		FROM dbo.bettrans AS b WITH (NOLOCK)
-			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+			OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+			)ml
 			INNER JOIN #CustId c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
-						WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102, 103)) THEN 1 
-						WHEN @IsSaba = 1 AND ISNULL(l.LeagueGroupID,0) IN (42,74,108) THEN 1
+						WHEN b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN @IsSaba = 1 AND ml.LeagueGroupID IS NOT NULL THEN 1
 						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
 								AND b.bettype NOT BETWEEN 801 AND 806-- MG
-								AND  ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) THEN 1					
+								AND  ml.LeagueGroupID IS NULL THEN 1					
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
 	END
