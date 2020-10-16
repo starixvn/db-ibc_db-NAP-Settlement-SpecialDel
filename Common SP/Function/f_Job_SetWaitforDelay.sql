@@ -14,6 +14,7 @@ RETURNS VARCHAR(100)
 		- 20200707@Max: [TVS] Auto Void for remaining sports - [Redmine: #131865]
 		- 20200817@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201001@Max: TVS - Exclude Virtual Futsal from auto void bet [Redmine: #142512]
+		- 20201016@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
