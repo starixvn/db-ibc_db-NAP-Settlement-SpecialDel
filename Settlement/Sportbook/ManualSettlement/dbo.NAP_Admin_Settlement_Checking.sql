@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking]
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @SelectedQuarter 		VARCHAR(50) = NULL
+	, @IsAuto				BIT = 0
 	, @ErrCode 				INT = 0 OUTPUT
 	, @ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -36,6 +37,7 @@ AS
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -212,17 +214,209 @@ BEGIN
 
 	IF @Mode = 'CAL-FM'
 	BEGIN
-		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT)
+		DECLARE @maxSelectedTotalGoal	INT = 0
+				,@maxSelectedPosition	TINYINT = 0
+				,@totalChangedScore		INT = 0
+				,@ResultStatus			TINYINT 
+				,@BetOption1st			VARCHAR(50) = ''
+				,@BetOption2nd			VARCHAR(50) = ''
+				,@ResultStatus1st		VARCHAR(50)	= ''		
+				,@ResultStatus2nd		VARCHAR(50) = ''
+
+		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT, BetOption TINYINT, AccumulatedScore INT)
+
+		DECLARE @tblResultDetail TABLE (
+				ResourceId	VARCHAR(20)
+				,HomeValue	VARCHAR(50)
+				,AwayValue	VARCHAR(50)
+			)
+		DECLARE @tblPosition TABLE(
+				ResourceId	VARCHAR(20)
+				,strPosHome	VARCHAR(1000)
+				,strPosAway VARCHAR(1000)
+			)
+		DECLARE @tblAccumulatedScore TABLE (
+				Position TINYINT
+				,BetOption TINYINT
+				,AccumulatedScore INT
+			)
 		
 		SET @xml = CONVERT(XML,@xmlData)
 
-		INSERT INTO @tblBettype (bettype, position)
+		INSERT INTO @tblBettype (bettype, position, BetOption)
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@p','TINYINT') as Position
+			,X.C.value('@r','TINYINT') as BetOption
 		FROM @xml.nodes('/r/b') AS T(C)
 			CROSS APPLY
 				C.nodes('r') AS X(C)
 		OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tblBettype WHERE bettype = 228)
+		BEGIN
+			INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
+			SELECT	ResourceId, HomeValue, AwayValue		
+			FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+			WHERE	MatchId = @MatchId 
+					AND ResourceId LIKE '2280_'
+
+			IF (@Action = 'CAL' AND @IsAuto = 0)
+			BEGIN
+				SET @ResultStatus = 5
+
+				INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
+				SELECT	t.ResourceId
+						,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+									FROM	@tblBettype	
+									WHERE	ResourceId = t.ResourceId 
+											AND position <= 45
+									FOR XML PATH ('')
+							),1,1,'') strPosHome
+						,STUFF ((SELECT	',' + CAST((position - 46) AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+									FROM	@tblBettype	
+									WHERE	ResourceId = t.ResourceId
+											AND position >= 46
+									FOR XML PATH ('')
+							),1,1,'') strPosAway
+				FROM	@tblResultDetail t
+				WHERE	t.ResourceId = '22800'
+
+				INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
+				SELECT	t.ResourceId
+						,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
+									FROM	@tblBettype	
+									WHERE	ResourceId = t.ResourceId
+											AND position <= 45
+									FOR XML PATH ('')
+							),1,1,'') strBetOptionHome
+						,STUFF ((SELECT	',' + CAST((position - 46) AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
+									FROM	@tblBettype	
+									WHERE	ResourceId = t.ResourceId
+											AND position >= 46
+									FOR XML PATH ('')
+							),1,1,'') strBetOptionAway
+				FROM	@tblResultDetail t
+				WHERE	t.ResourceId = '22801'
+
+				UPDATE	r 
+					SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END 
+						,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
+				FROM	@tblResultDetail r
+					CROSS APPLY (SELECT CASE WHEN r.HomeValue IS NULL OR r.HomeValue = '' THEN REPLICATE('0', 50) ELSE r.HomeValue END AS HomeValue
+										,CASE WHEN r.AwayValue IS NULL OR r.AwayValue = '' THEN REPLICATE('0', 50) ELSE r.AwayValue END AS AwayValue
+								)v
+					INNER JOIN @tblPosition p 
+						ON	r.ResourceId = p.ResourceId
+			END
+
+			SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
+					,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
+					,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
+					,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
+			FROM	@tblResultDetail
+
+			;WITH cteBetOption
+			AS
+			(
+				SELECT	f.pos AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOption1st) f
+				WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+				WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+			)
+			,cteResutStatus
+			AS (
+				SELECT	f.pos AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+				WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+				WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+			)
+			,cteResult
+			AS (
+				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5) THEN bo.BetOption ELSE 0 END AS BetOption
+				FROM cteResutStatus rs
+					INNER JOIN cteBetOption bo
+						ON rs.Position = bo.Position
+			)
+			INSERT INTO @tblAccumulatedScore (Position, BetOption, AccumulatedScore)
+			SELECT c1.Position, c1.BetOption, c2.BetOption
+			FROM cteResult c1
+				INNER JOIN cteResutStatus crs
+					ON c1.Position = crs.Position
+				CROSS APPLY (
+					SELECT	ISNULL(SUM(c2.BetOption), 0) as BetOption
+					FROM	cteResult c2
+					WHERE	c2.Position <= c1.Position
+				) c2
+				
+			UPDATE r 
+				SET AccumulatedScore = a.AccumulatedScore
+					,BetOption = a.BetOption
+			FROM	@tblBettype r
+				INNER JOIN @tblAccumulatedScore a
+					ON	r.BetType = 228
+						AND r.Position = a.Position
+
+			SELECT TOP 1 @maxSelectedTotalGoal = AccumulatedScore
+						,@maxSelectedPosition = Position
+			FROM  @tblBettype 
+			WHERE bettype = 228
+			ORDER BY Position DESC
+
+			SELECT	@totalChangedScore = SUM(BetOption)
+			FROM	@tblBettype
+			WHERE	bettype = 228
+
+			IF EXISTS (	SELECT	TOP 1 1
+						FROM	@tblBettype t
+							INNER JOIN dbo.bettrans b WITH(NOLOCK)
+								ON	b.matchid = @matchid
+									AND b.bettype = t.Bettype
+						WHERE	b.statusID NOT IN (101)
+								AND b.bettype = 228
+								AND 1 = CASE
+											WHEN t.Position < 45 AND b.hdp1 = t.Position THEN 1
+											WHEN t.Position > 45 AND b.hdp1 = t.Position - 1 THEN 1
+											ELSE 0
+										END
+								AND 1 = CASE
+											WHEN @action = 'REFUND' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
+											WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal - @totalChangedScore THEN 0
+											ELSE 1
+										END
+								AND (b.statusID = 1
+										OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate))
+
+				)
+				SELECT @isExistWaitingTicket = 1
+
+			IF @isExistWaitingTicket = 0
+			BEGIN
+				IF EXISTS (	SELECT	TOP 1 1
+							FROM	dbo.bettrans b WITH(NOLOCK)
+							WHERE	b.matchid = @matchid
+									AND b.bettype = 228
+									AND 1 = CASE
+												WHEN @maxSelectedPosition < 45 AND b.hdp1 > @maxSelectedPosition THEN 1
+												WHEN @maxSelectedPosition >= 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
+												ELSE 0
+											END
+									AND 1 = CASE 
+												WHEN @action = 'CAL' AND @maxSelectedTotalGoal > (b.oddsspread + 0.25)  THEN 1
+												WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) <= @maxSelectedTotalGoal AND (b.oddsspread + 0.25) >= @maxSelectedTotalGoal - @totalChangedScore THEN 1
+												ELSE 0
+											END
+									AND (b.statusID = 1
+										OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate))
+					)
+				SET @isExistWaitingTicket = 1
+			END
+		END
 				
 		IF EXISTS (SELECT TOP 1 1 
 					FROM	dbo.bettrans b WITH(NOLOCK)
@@ -230,9 +424,10 @@ BEGIN
 							ON	b.bettype = t.bettype
 								AND b.hdp1 = t.position
 					WHERE	b.matchid = @matchid
+							AND b.bettype <> 228
 							AND (b.statusID = 1 -- waiting status
 							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-			)
+		)
 			SELECT @isExistWaitingTicket = 1
 	END
 	

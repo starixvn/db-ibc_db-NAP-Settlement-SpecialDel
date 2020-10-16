@@ -436,6 +436,7 @@ BEGIN
 		,@xmlData = @Results
 		,@Action = @Action
 		,@Mode = 'CAL-FM'
+		,@IsAuto = @IsAuto
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
 		
