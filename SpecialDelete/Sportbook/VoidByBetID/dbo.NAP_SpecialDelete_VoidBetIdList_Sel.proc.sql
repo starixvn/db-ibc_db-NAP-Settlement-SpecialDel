@@ -176,16 +176,19 @@ BEGIN
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE 1 = CASE WHEN @CustID IS NULL THEN 1
 			ELSE CASE
-					WHEN @IsSB = 1 AND pt.ProductID = 1 THEN 1-- Sportsbook
+					WHEN (@IsSB = 1 OR @IsSaba = 1) AND pt.ProductID = 1 THEN 1 -- Sportsbook
 					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay
 					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-					--WHEN @IsSaba = 1 AND pt.ProductID = 37 THEN 1
 					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
 				ELSE 0 END
 			END
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+		AND pt.bettype NOT IN (901, 902, 903, 904) -- BT subticket
+		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
+		AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 
 	IF(LEN(@TransIds) > 0)
 	BEGIN
@@ -228,18 +231,13 @@ BEGIN
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
-				WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102, 103)) THEN 1 
-				WHEN (b.bettype < 19001
-						AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-						AND b.bettype NOT BETWEEN 801 AND 806-- MG
-						AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-						AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-						AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-						AND b.statusID NOT IN (101, 102, 103)						
-					) THEN 1
-				ELSE 0 END	
+						WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102, 103)) THEN 1 
+						WHEN @IsSaba = 1 AND ISNULL(l.LeagueGroupID,0) IN (42,74,108) THEN 1
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+								AND b.bettype NOT BETWEEN 801 AND 806-- MG
+								AND  ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) THEN 1					
+					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
-			AND ((@IsSaba = 1 AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)) OR @IsSaba = 0)
 	END
 	
 	--Search by TransIds
@@ -506,12 +504,7 @@ BEGIN
 					)m
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype				
 		WHERE	b.winlostdate >= @FromDate				
-			AND b.bettype < 19001
-			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 			AND b.bettype NOT BETWEEN 801 AND 806-- MG
-			AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-			AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-			AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 			AND b.statusID NOT IN (101, 102, 103)				
 	END		
 	
