@@ -401,8 +401,8 @@ BEGIN
 	FROM #tmpTransId_Recalculate r
 	GROUP BY r.KeyId
 			
-	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-		, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
+	SELECT	@isExistMatch = MAX(CASE WHEN KeyID = 1 THEN 1 ELSE 0 END)
+		, @isExistFM2 = MAX(CASE WHEN KeyID = 7 THEN 1 ELSE 0 END)
 	FROM	#tblMatchProcess	
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
