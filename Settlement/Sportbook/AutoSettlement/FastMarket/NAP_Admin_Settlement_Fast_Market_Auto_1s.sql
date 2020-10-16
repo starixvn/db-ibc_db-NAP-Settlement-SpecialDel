@@ -27,6 +27,7 @@ AS
 		- 20190528@Kathy: Write log @IsReSettledTickets [Redmine:#113460]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -78,7 +79,18 @@ BEGIN
 				,@sportType INT
 				,@xmlEventCounter	XML
 				,@LogEventCounter	VARCHAR(MAX) = ''
+				,@BetOption1st VARCHAR(50)
+				,@BetOption2nd VARCHAR(50)
+				,@ResultStatus1st VARCHAR(50)				
+				,@ResultStatus2nd VARCHAR(50)
+				,@isExistFM BIT = 1
+				,@isExistFM2 BIT = 0
 
+	DECLARE @tblAccumulatedScore TABLE (
+		Position TINYINT
+		,BetOption TINYINT
+		,AccumulatedScore INT
+	)
 	
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -86,7 +98,20 @@ BEGIN
 	--END Balance tables
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-				
+	CREATE TABLE #tblResultDetail (
+		BetType			SMALLINT
+		,ResourceId		VARCHAR(20)
+		,Position		TINYINT
+		,BetOption		TINYINT
+		,AccumulatedScore INT
+	)
+
+	CREATE TABLE #tblEventCounter (
+		ResourceId	VARCHAR(20)
+		,Position	TINYINT
+		,Result		VARCHAR(8)
+	)
+
 	SET @XmlData =  CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML,@EventCounters)
 
@@ -119,34 +144,6 @@ BEGIN
 			RETURN
 	END
 
-	-- check and not allow attempt to settlement same game while it's still not finish
-	INSERT INTO #tblMatchProcess (matchid, KeyID)
-	SELECT @matchId AS matchid
-		, 6 AS KeyID
-		
-	--check settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= 1
-		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
-	
-	--CHECK avaiable process
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
-	
-	CREATE TABLE #tblResultDetail (
-		BetType			SMALLINT
-		,ResourceId		VARCHAR(20)
-		,Position		TINYINT
-		,BetOption		TINYINT
-	)
-
-	CREATE TABLE #tblEventCounter (
-		ResourceId	VARCHAR(20)
-		,Position	TINYINT
-		,Result		VARCHAR(8)
-	)
-
 	CREATE INDEX IX_ResultDetail_Bettype ON #tblResultDetail (BetType)
 	
 	;WITH TmpData AS (
@@ -170,6 +167,32 @@ BEGIN
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
 
+	-- check and not allow attempt to settlement same game while it's still not finish
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType BETWEEN 221 AND 227)
+		SET @isExistFM = 1
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+		SET @isExistFM2 = 1
+
+	INSERT INTO #tblMatchProcess (matchid, KeyID)
+	SELECT DISTINCT @MatchId
+			,CASE 
+				WHEN BetType = 228 THEN 7
+				ELSE 6 -- 221-->227
+			END AS KeyId
+	FROM	#tblResultDetail
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistFM			= @isExistFM
+		,@isExistFM2		= @isExistFM2
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+	
+	--CHECK avaiable process
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
+	
 	;WITH TmpEventCounter AS (
 		SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
 				,X.C.value('@p','TINYINT') as Position
@@ -184,10 +207,105 @@ BEGIN
 			,Result
 	FROM	TmpEventCounter
 	OPTION ( OPTIMIZE FOR ( @xmlEventCounter = NULL ) )
+	
+	-- get score before update for UNDO action
+	IF @Action IN ('UNDO', 'REFUND') AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+		SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
+				,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
+				,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
+				,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
+		FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+		WHERE	MatchId = @MatchId 
+				AND ResourceId LIKE '2280_'
+		GROUP BY MatchId
+
+	-- update resultstatus
+	EXEC DBPRO.bodb02.dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
+		,@Results = @Results
+		,@EventCounters = @EventCounters
+		,@Action = @Action
+		,@IsAuto = @IsAuto
+		,@AdminId = @AdminId					
+		
+		-- Get Result bettype 228
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+	BEGIN
+		IF @Action = 'CAL'
+		BEGIN
+			SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
+					,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
+					,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
+					,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
+			FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+			WHERE	MatchId = @MatchId 
+					AND ResourceId LIKE '2280_'
+			GROUP BY MatchId
+		END		
+		IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL
+		BEGIN
+			;WITH cteBetOption
+			AS
+			(
+				SELECT	f.pos AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOption1st) f
+				WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+				WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+			)
+			,cteResutStatus
+			AS (
+				SELECT	f.pos AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+				WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+				WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+			)
+			,cteResult
+			AS (
+				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5) THEN bo.BetOption ELSE 0 END AS BetOption
+				FROM cteResutStatus rs
+					INNER JOIN cteBetOption bo
+						ON rs.Position = bo.Position
+			)
+			INSERT INTO @tblAccumulatedScore (Position, BetOption, AccumulatedScore)
+			SELECT c1.Position, c1.BetOption, c2.BetOption
+			FROM cteResult c1
+				INNER JOIN cteResutStatus crs
+					ON c1.Position = crs.Position
+				CROSS APPLY (
+					SELECT	ISNULL(SUM(c2.BetOption), 0) as BetOption
+					FROM	cteResult c2
+					WHERE	c2.Position <= c1.Position
+				) c2
+				
+			UPDATE r 
+				SET AccumulatedScore = a.AccumulatedScore
+					,BetOption = a.BetOption
+			FROM	#tblResultDetail r
+				INNER JOIN @tblAccumulatedScore a
+					ON	r.BetType = 228
+						AND r.Position = a.Position
+
+			SET @Results = CAST((
+				SELECT bettype '@Id'
+					,(SELECT Position '@p'
+							,BetOption '@r'
+							,CASE WHEN BetType = 228 THEN AccumulatedScore ELSE NULL END '@a'
+						FROM #tblResultDetail WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
+				FROM #tblResultDetail r
+				GROUP BY r.bettype
+				FOR XML PATH('b'), ROOT ('r'), TYPE
+			) AS VARCHAR(MAX))	
+		END				
+	END		
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
-	
+
 	INSERT INTO @BalanceWalletBefore (
 		matchid
 		, custid
@@ -204,25 +322,15 @@ BEGIN
 		, @FMResults		= @Results
 	
 	SELECT @rowcount = COUNT(DISTINCT custid)
-	FROM @BalanceWalletBefore
-	
-	BEGIN TRY
-		-- update resultstatus
-		EXEC DBPRO.bodb02.dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
-			,@Results = @Results
-			,@EventCounters = @EventCounters
-			,@Action = @Action
-			,@IsAuto = @IsAuto
-			,@AdminId = @AdminId			
-		
-		IF @rowcount > 0
-		BEGIN
+	FROM @BalanceWalletBefore	
+
+	IF @rowcount > 0
+	BEGIN TRY	
 			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 				,@action = 'CAL-FM'
 				,@mode = @Action
 				,@XmlData = @Results
 				,@IsReSettledTickets = @IsReSettledTickets
-		END
 	END TRY
 	BEGIN CATCH
 		-- Capture Balance incase of failure
@@ -296,6 +404,7 @@ BEGIN
 	SET @LogResult = CONVERT(VARCHAR(MAX),(SELECT BetType '@Id'
 		, STUFF((SELECT ',' + CAST(Position AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') AS 'Item/@Position'
 		, CASE WHEN @Action = 'CAL' THEN STUFF((SELECT ',' + CAST(BetOption AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') END AS 'Item/@Result'
+		
 	FROM #tblResultDetail r
 	GROUP BY BetType
 	FOR XML PATH('BetType'), ROOT ('BetTypes'), TYPE))
@@ -336,13 +445,19 @@ BEGIN
 												) ,'')
 		
 	SELECT @Remark = 'NAP: IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
+			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>'
 			+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
 			
 	BEGIN TRY
 		SELECT @Remark = @Remark + '|'  -- signal for web
 						+ @LogResult + '|'
 						+ @LogEventCounter 
+						+ CASE 
+							WHEN @Action = 'CAL' THEN '|' 
+														+ CASE WHEN ISNULL(@BetOption1st,'')<> '' THEN '1H:'+ @BetOption1st ELSE '' END
+														+ CASE WHEN ISNULL(@BetOption2nd,'')<> '' THEN ', 2H:'+ @BetOption2nd ELSE '' END
+							ELSE ''
+						END
 	
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			, @matchid			= @MatchID
@@ -361,6 +476,12 @@ BEGIN
 		SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250) + '|' -- signal for web
 							+ @LogResult + '|'
 							+ @LogEventCounter 
+							+ CASE 
+								WHEN @Action = 'CAL' THEN '|' 
+															+ CASE WHEN ISNULL(@BetOption1st,'')<> '' THEN '1H:'+ @BetOption1st ELSE '' END
+															+ CASE WHEN ISNULL(@BetOption2nd,'')<> '' THEN ', 2H:'+ @BetOption2nd ELSE '' END
+								ELSE ''
+							END
 							
 
 		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
@@ -378,7 +499,8 @@ BEGIN
 	
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= 1
+		@isExistFM			= 1
+		,@isExistFM2		= 1
 		, @IsReleased		= 1
 	
 END

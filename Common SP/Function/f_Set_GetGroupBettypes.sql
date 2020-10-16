@@ -31,6 +31,8 @@ AS
 		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		
 	
     Parameters Explanation:    
     
@@ -295,6 +297,7 @@ RETURN (
 	UNION ALL SELECT 9,    225  ,  0, 0, 0, 1, 'Special', 0, 0,0
 	UNION ALL SELECT 9,    226  ,  0, 0, 0, 1, 'Special', 0, 0,0
 	UNION ALL SELECT 9,    227  ,  0, 0, 0, 1, 'Special', 0, 0,0
+	UNION ALL SELECT 9,    228  ,  0, 0, 0, 1, 'Special', 0, 0,0
 	
 	-- new bettypes of Basketball
 	UNION ALL SELECT 10,   609  ,  0, 0, 0, 0, 'Special', 0, 0,1

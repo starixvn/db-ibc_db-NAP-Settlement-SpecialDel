@@ -1,3 +1,3 @@
-Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Pregame.sql
-Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Refund.sql
-Settlement\NumberGame\dbo.NAP_UpdateTempVariableNumber.sql
+Settlement\Sportbook\NAP_Set_MatchSel.sql
+Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql

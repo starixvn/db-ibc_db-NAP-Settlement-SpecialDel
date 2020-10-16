@@ -26,6 +26,7 @@ AS
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20190813@Helen: Remove vnteam in metadata
 			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+			- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 			
 	Param's Explanation:
 		- @Result: 
@@ -69,6 +70,15 @@ BEGIN
 			,@subErrMsg		VARCHAR(MAX) = ''
 			,@AutoSetting	TINYINT
 			,@xmlEventCounter	XML
+
+			-- new bettype 228
+			,@BetOption1st	VARCHAR(50)
+			,@BetOption2nd	VARCHAR(50)
+			,@ResultStatus1st VARCHAR(50)			
+			,@ResultStatus2nd VARCHAR(50)
+			,@minSelectedPosition TINYINT
+			,@maxSelectedPosition TINYINT
+			,@IsFailed BIT = 0
 			
 	DECLARE @tblData TABLE (
 		bettype					SMALLINT
@@ -84,7 +94,14 @@ BEGIN
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
 	)
-	 
+	
+	
+	DECLARE @tblResultDetail_228 TABLE (
+		ResourceId				VARCHAR(20)
+		,Position				TINYINT 
+		,Value					TINYINT
+	)
+	
 	SELECT	@matchcode = m.matchcode
 			,@sporttype = m.sporttype
 			,@leagueid = m.leagueid
@@ -162,12 +179,109 @@ BEGIN
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 	
+	IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 228)
+	BEGIN
+		-- For bettype 228
+		SELECT @BetOption1st = HomeValue, @BetOption2nd = AwayValue
+		FROM @tblResultDetail
+		WHERE ResourceId = '22801'
+	
+		SELECT @ResultStatus1st = HomeValue, @ResultStatus2nd = AwayValue
+		FROM @tblResultDetail
+		WHERE ResourceId = '22800'
+
+		IF @BetOption1st IS NOT NULL OR @BetOption2nd IS NOT NULL OR @ResultStatus1st IS NOT NULL OR @ResultStatus2nd IS NOT NULL
+		BEGIN
+			INSERT INTO @tblResultDetail_228 (ResourceId, Position, Value)
+			SELECT	'22800', f.pos AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+			WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+			UNION ALL
+			SELECT	'22800', f.pos + 46 AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+			WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+			UNION ALL
+			SELECT	'22801', f.pos AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@BetOption1st) f
+			WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
+			UNION ALL
+			SELECT	'22801', f.pos + 46 AS Position, f.ResultStatus AS Value
+			FROM	dbo.f_Set_GetChars(@BetOption2nd) f
+			WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
+		END		
+
+		SELECT	@maxSelectedPosition = MAX(Position)
+				,@minSelectedPosition = MIN(Position)
+		FROM	@tblData
+		WHERE	bettype = 228
+
+		IF @Action = 'CAL'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 
+						FROM	@tblResultDetail_228 t
+						WHERE	t.ResourceId = '22800'
+								AND 1 = CASE
+											WHEN t.Value NOT IN (4,5) AND t.Position < @minSelectedPosition THEN 1 -- previous interval
+											WHEN t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition -- between selected intervals
+												AND NOT EXISTS (SELECT TOP 1 1 FROM @tblData d WHERE t.Position = d.Position) THEN 1
+											ELSE 0
+										END
+			)
+				SET @IsFailed = 1
+		END		
+		ELSE IF @Action = 'REFUND'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1
+						FROM	@tblResultDetail_228 t
+						WHERE	t.ResourceId = '22800'
+								AND 1 = CASE
+										WHEN t.Value NOT IN (4,5) AND t.Position < @minSelectedPosition THEN 1 
+										WHEN t.Value IN (4,5) AND t.Position > @maxSelectedPosition THEN 1 
+										WHEN t.Value IN (4,5) AND  t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition THEN 1 
+										ELSE 0
+									END
+			)
+				SET @IsFailed = 1
+												
+		END
+		ELSE IF @Action = 'UNDO'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1
+			FROM	@tblResultDetail_228 t
+			WHERE	t.ResourceId = '22800'
+					AND t.Value IN (4,5)
+					AND 1 = CASE 
+								WHEN t.Position > @maxSelectedPosition THEN 1
+								WHEN t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition 
+									AND NOT EXISTS (SELECT TOP 1 1 FROM @tblData d WHERE d.Position = t.Position) THEN 1
+								ELSE 0
+							END
+			)
+				SET @IsFailed = 1
+		END
+		
+		IF @IsFailed = 1
+		BEGIN
+			SELECT	 @ErrCode	= 1001015
+						,@ErrMsg	= 'WARNING! Cannot continue due to procedure violations. Please check selected intervals' + CASE WHEN @IsAuto = 0 THEN ' or reload the screen' ELSE '' END + ' and try again.'
+			RETURN
+		END
+	END	
+
 	IF @IsAuto = 1
 	BEGIN		
 		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype NOT IN (SELECT bettype FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId = 9)) -- FM
 		BEGIN
 			SELECT	 @ErrCode	= 1001016
 					,@ErrMsg	= 'There are some bettypes not belong to Fast Market' 
+
+			RETURN
+		END
+
+		IF @Action <> 'CAL'
+		BEGIN
+			SELECT	 @ErrCode	= 1001036
+					,@ErrMsg	= 'The auto-settlement failed due to wrong action.' 
 
 			RETURN
 		END
@@ -183,18 +297,23 @@ BEGIN
 					,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
 			
 			RETURN
-		END	
-		
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 228)
+			SET @IsReSettledTickets = 0
+
+		-- For bettype between 221 and 227	
 		UPDATE t
-		SET	BetOption = (SELECT TOP 1 byte 
-						 FROM dbo.f_Set_GetByte(CASE 
-													WHEN t.Position <=44 THEN r.HomeValue 
-													ELSE AwayValue 
-												END, t.Position)
-											)
+			SET	BetOption = (SELECT TOP 1 byte 
+							 FROM dbo.f_Set_GetByte(CASE 
+														WHEN t.Position <= 44 THEN r.HomeValue 
+														ELSE AwayValue 
+													END, t.Position)
+												)
 		FROM	@tblData t
 			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId_BetOption
+		WHERE	r.ResourceId NOT LIKE '228__'
 				
 		UPDATE t
 		SET	ResultStatus = (SELECT TOP 1 [char] 
@@ -206,7 +325,51 @@ BEGIN
 		FROM	@tblData t
 			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId
-		
+		WHERE	r.ResourceId NOT LIKE '228__'
+		-- end update for bettype between 221 and 227
+
+		--For bettype 228
+		UPDATE t
+			SET BetOption = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_228 r
+				ON	r.ResourceId = t.ResourceId_BetOption 
+					AND t.Position = r.Position
+		WHERE	r.ResourceId = '22801'
+
+		UPDATE t
+			SET ResultStatus = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_228 r 
+				ON	r.ResourceId = t.ResourceId 
+					AND t.Position = r.Position
+		WHERE	r.ResourceId = '22800'
+		-- end update for bettype 228
+			
+		-- No Result, UNDO, CAL (manually, auto), REFUND
+		SELECT @subErrMsg = @subErrMsg + 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
+			+ ', Interval: ' + STUFF((SELECT ',' + CAST(Position AS VARCHAR) + '-'
+						+ CASE
+							WHEN ResultStatus = 3 THEN 'Undo'
+							WHEN ResultStatus = 4 THEN 'Automatically Settled'
+							WHEN ResultStatus = 5 THEN 'Manually Settled'
+							WHEN ResultStatus = 6 THEN 'Refunded'
+							WHEN ResultStatus = 0 THEN 'No KeyedIn'
+							ELSE 'Unknown Err'
+						END
+				FROM @tblData
+				WHERE t.bettype = bettype	
+					 AND (ResultStatus IN (0,3,4,5,6)
+							OR ResultStatus IS NULL
+							OR BetOption IS NULL
+						)
+				FOR XML PATH ('')),1,1,'')
+			+ '</br>'
+		FROM @tblData t
+		WHERE	t.bettype = 228
+				AND (ResultStatus IN (0,3,4,5,6) OR t.ResultStatus IS NULL OR t.BetOption IS NULL)
+		GROUP BY t.bettype
+
 		-- No Result, UNDO, CAL (manually), REFUND
 		SELECT @subErrMsg = @subErrMsg + 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
 			+ ', Interval: ' + STUFF((SELECT ',' + CAST(Position AS VARCHAR) + '-'
@@ -225,13 +388,14 @@ BEGIN
 			+ '</br>'
 		FROM @tblData t
 		WHERE	t.ResultStatus IN (3,5,6) OR t.BetOption = 0
+				AND t.bettype <> 228
 		GROUP BY t.bettype
 		
 		DELETE 
 		FROM @tblData
-		WHERE	ResultStatus IN (3,5,6) OR BetOption = 0		
+		WHERE	(ResultStatus IN (3,5,6) OR BetOption = 0) AND bettype <> 228
 		
-		IF @@rowcount = @rowcount
+		IF ISNULL(@subErrMsg,'') <> ''
 		BEGIN
 			SELECT	 @ErrCode	= 1001012
 					,@ErrMsg	= 'Failed:' + @subErrMsg
@@ -272,6 +436,7 @@ BEGIN
 		,@xmlData = @Results
 		,@Action = @Action
 		,@Mode = 'CAL-FM'
+		,@IsAuto = @IsAuto
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
 		

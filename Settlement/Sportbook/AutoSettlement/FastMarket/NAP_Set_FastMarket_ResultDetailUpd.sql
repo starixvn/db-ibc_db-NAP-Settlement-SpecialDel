@@ -15,7 +15,8 @@ AS
 	Revisions:
 		- 20170113@Kathy: Enhancement for Fast Market [Redmine:#69951]
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
-
+		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		
 	Param's Explanation:
 		- @Results: 
 				'<r>
@@ -114,13 +115,13 @@ BEGIN
 				,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
 							FROM	@tblData	
 							WHERE	ResourceId = t.ResourceId 
-									AND position <=44
+									AND position <= CASE WHEN t.ResourceId = '22800' THEN 45 ELSE 44 END
 							FOR XML PATH ('')
 					),1,1,'') strPosHome
-				,STUFF ((SELECT	',' + CAST(position - 45 AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+				,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
 							FROM	@tblData	
 							WHERE	ResourceId = t.ResourceId
-									AND position >=45
+									AND position >= CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END
 							FOR XML PATH ('')
 					),1,1,'') strPosAway
 		FROM	dbo.ResultDetail t WITH(ROWLOCK)
@@ -133,11 +134,14 @@ BEGIN
 				- the index of the char means the xx min resultStatus
 		*/
 		UPDATE	r 
-			SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(r.HomeValue, p.strPosHome) ELSE r.HomeValue END 
-				,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(r.AwayValue, p.strPosAway) ELSE r.AwayValue END
+			SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END 
+				,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
 				,LastModifyBy = @AdminId
 				,LastModifyDate = GETDATE()
 		FROM	dbo.ResultDetail r  WITH(ROWLOCK, UPDLOCK)
+			CROSS APPLY (SELECT CASE WHEN r.HomeValue IS NULL OR r.HomeValue = '' THEN REPLICATE('0', 50) ELSE r.HomeValue END AS HomeValue
+								,CASE WHEN r.AwayValue IS NULL OR r.AwayValue = '' THEN REPLICATE('0', 50) ELSE r.AwayValue END AS AwayValue
+						)v
 			INNER JOIN @tblPosition p 
 				ON	r.MatchId = @matchid
 					AND r.ResourceId = p.ResourceId
@@ -198,7 +202,10 @@ BEGIN
 		BEGIN
 			-- betoption
 			INSERT INTO dbo.ResultDetail (MatchId, ResourceId, HomeValue, AwayValue, CreateBy, CreateDate, LastModifyBy, LastModifyDate)
-			SELECT	@matchId, t.ResourceId_BetOption, REPLICATE(CHAR('0'), 50), REPLICATE(CHAR('0'), 50), @AdminId, GETDATE(), @AdminId, GETDATE()
+			SELECT	@matchId, t.ResourceId_BetOption
+					,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+					,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+					,@AdminId, GETDATE(), @AdminId, GETDATE()
 			FROM	@tblData t
 			WHERE	NOT EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetail WITH(NOLOCK) WHERE MatchId = @matchid AND t.ResourceId_BetOption = ResourceId)
 			GROUP BY t.ResourceId_BetOption
@@ -208,13 +215,13 @@ BEGIN
 					,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
 								FROM	@tblData	
 								WHERE	ResourceId_BetOption = t.ResourceId
-										AND position <=44
+										AND position <= CASE WHEN t.ResourceId = '22801' THEN 45 ELSE 44 END
 								FOR XML PATH ('')
 						),1,1,'') strBetOptionHome
-					,STUFF ((SELECT	',' + CAST(position - 45 AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
+					,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
 								FROM	@tblData	
 								WHERE	ResourceId_BetOption = t.ResourceId
-										AND position >=45
+										AND position >= CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END
 								FOR XML PATH ('')
 						),1,1,'') strBetOptionAway
 			FROM	dbo.ResultDetail t WITH(ROWLOCK)
@@ -235,7 +242,22 @@ BEGIN
 				INNER JOIN @tblPosition p 
 					ON	r.MatchId = @matchid
 						AND r.ResourceId = p.ResourceId
-			WHERE	r.ResourceId LIKE '22_01'	
+			WHERE	r.ResourceId LIKE '22_01' AND r.ResourceId NOT IN ('22801')
+			
+			-- update 228
+			UPDATE r 
+				SET HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END
+					,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
+					,LastModifyBy = @AdminId
+					,LastModifyDate = GETDATE()
+			FROM	dbo.ResultDetail r WITH(ROWLOCK, UPDLOCK)
+				CROSS APPLY (SELECT CASE WHEN r.HomeValue IS NULL OR r.HomeValue = '' THEN REPLICATE('0', 50) ELSE r.HomeValue END AS HomeValue
+								,CASE WHEN r.AwayValue IS NULL OR r.AwayValue = '' THEN REPLICATE('0', 50) ELSE r.AwayValue END AS AwayValue
+						)v
+				INNER JOIN @tblPosition p 
+					ON	r.MatchId = @matchid
+						AND r.ResourceId = p.ResourceId
+			WHERE r.ResourceId = '22801'
 		END
 	END	
 END
