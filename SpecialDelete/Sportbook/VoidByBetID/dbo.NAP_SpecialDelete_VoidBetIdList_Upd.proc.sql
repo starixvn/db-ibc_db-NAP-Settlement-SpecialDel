@@ -229,6 +229,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
+		,IsFinish		BIT  
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -1930,10 +1931,52 @@ BEGIN
 		     END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
+
+
+	/**********************************************   *************************************************************/
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY, IsCashOutMember BIT  )
+	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
+	WHILE (1=1)
+	BEGIN
+		DELETE @tmpTransIDBatch
+
+		UPDATE TOP(2000) t
+			SET IsFinish = 1
+		OUTPUT  DELETED.transid
+			   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  DELETED.refno ELSE NULL END
+			   ,DELETED.betid
+			   ,DELETED.IsMetricGaming
+			   ,NULL
+			   ,DELETED.IsCashOutMemberTicket
+		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, IsCashOutMember)
+		FROM #BetDelete t
+		WHERE IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@id'
+											   ,m.TranslogId AS '@translogid'
+											   ,m.BetId AS '@betid'
+											   ,m.IsMG AS '@isMG'
+											   ,b.Actual_stake AS '@actual_stake'  
+											   ,m.IsCashOutMember AS '@IsCashOutMember'
+									FROM @tmpTransIDBatch m
+									INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.TransId = b.transid
+									FOR XML PATH('r')
+										,ROOT('root')
+								) AS VARCHAR(MAX));
+
+		EXEC dbo.TicketVoiding_Admin_VoidingTransId
+			@TransIds = @TransIds_tmp,
+			@UserId = @UserId
+
 	
+		SET @TransIds_tmp = ''
+
+	END
+	/**********************************************   *************************************************************/
 	-- STEP 2 : Update bettrans/translog
 	-- 2.1. Update bettrans	for normal, main bettrade, main cash-out, cash-out member bet ticket
-	UPDATE main
+	/*UPDATE main
 	SET 
 		winlost = main.actual_stake
 		,ruben = 1
@@ -1955,9 +1998,9 @@ BEGIN
 		INNER JOIN #BetDelete AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
 	WHERE tmpmain.Bettype NOT BETWEEN 901 AND 903
 	  AND tmpmain.Bettype NOT BETWEEN 911 AND 913
-	
+	*/
 	-- 2.2 - void MetricGaming
-	IF (@isExistMG = 1)
+	/*IF (@isExistMG = 1)
 	BEGIN
 		UPDATE main
 			SET betid = ISNULL(main.BetID, rs.ResultID)
@@ -2015,9 +2058,9 @@ BEGIN
 			
 		WHERE main.bettype BETWEEN 801 AND 806
 	END		
-	
+	*/
 	-- 2.3 void BetTrade and cash-cout vs subtickets	
-	IF (@isExistBT = 1 OR @isExistCashOut = 1)
+	/*IF (@isExistBT = 1 OR @isExistCashOut = 1)
 	BEGIN		
 		-- update status for sub bettrade ticket (901,902,903)
 		IF (@isExistBT = 1)
@@ -2286,7 +2329,7 @@ BEGIN
 			WHERE	b.TicketID IN (SELECT transid FROM cteMainTicket)
 				AND b.[Status] IN ('Accept', 'Confirm')
 	END		
-	
+	*/
 	--re-calculate Cricket - charge comm
 	IF(@isExistCricket = 1)
 	BEGIN
@@ -2641,18 +2684,22 @@ BEGIN
 		  , @Action = 'Void' 
 		  , @IsReleased = 1				 
 
-	IF @FilterUserName IS NOT NULL
+	 IF @FilterUserName IS NOT NULL
 	BEGIN
 		SELECT @LogData = 'Username: '+ @FilterUserName
 						+ ' Products: '+ @Products
 						+ ' Ticket status: '+ @StatusIds
 						+ ' Date From: '+ CAST(@FromDate AS VARCHAR(20)) + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ CAST(@ToDate AS VARCHAR(20)) END
 	END
+	ELSE 
+	BEGIN
+		SELECT @LogData = 'Delete transaction transid: ' + CAST(@TransIds AS VARCHAR(8000))
+	END 
 	SELECT @LogData = @LogData
-					+ ' by_login:' + @username 
-					+ ' IP:' + CAST(@IP AS VARCHAR(15)) 
+					+ ' by_login: ' + @username 
+					+ ' IP: ' + CAST(@IP AS VARCHAR(15)) 
 					+ ' reason: ' + @reason  + ' - -' + @ReasonSC
-	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData  
+	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData 
 	
 	-- CHECK IT GROUP or NOT ?   
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
