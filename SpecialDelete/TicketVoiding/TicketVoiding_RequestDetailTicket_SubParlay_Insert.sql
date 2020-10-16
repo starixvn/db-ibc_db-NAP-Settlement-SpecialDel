@@ -27,6 +27,7 @@ AS
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
+		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 	
 	Param's explanation:	
 		
@@ -155,6 +156,7 @@ BEGIN
 									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 									  ELSE 0 END
 							END)
+			AND sub.betfrom <> 'P'
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

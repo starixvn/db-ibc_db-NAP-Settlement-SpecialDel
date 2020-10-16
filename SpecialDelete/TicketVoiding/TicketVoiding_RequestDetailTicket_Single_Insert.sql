@@ -28,6 +28,7 @@ AS
 		- 20200701@Max: Create new SP [Redmine: #135947]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
+		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 	
 	Param's explanation:	
 		
@@ -112,6 +113,7 @@ BEGIN
 	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
@@ -132,6 +134,13 @@ BEGIN
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT pt.bettype
+	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+	WHERE pt.ProductID = 1 -- Sportsbook
+		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 	IF @IssueTypeId = 1 AND @MinSingleTransId IS NOT NULL
 	BEGIN
@@ -140,6 +149,7 @@ BEGIN
 			, b.statusID
 			, @MatchId
 		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.matchid = @MatchId
 			 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
 						  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
@@ -155,6 +165,7 @@ BEGIN
 									  WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 									  ELSE 0 END
 							END)
+			AND b.betfrom <> 'P'
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

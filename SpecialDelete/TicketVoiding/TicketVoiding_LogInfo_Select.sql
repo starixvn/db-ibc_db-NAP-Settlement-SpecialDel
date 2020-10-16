@@ -29,6 +29,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
+		- 20201015@Max: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -856,12 +857,12 @@ BEGIN
 		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
 		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
-		,MIN(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS MinSingleTransId
-		,MAX(CASE WHEN b.transid = b.SubTransid AND b.betdaqid NOT IN (1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
-		,COUNT(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MainParlayCount
-		,MIN(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MinSingleTransId
-		,MAX(CASE WHEN b.transid <> b.SubTransid AND (b.betdaqid NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
+		,MIN(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MinSingleTransId
+		,MAX(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
+		,COUNT(CASE WHEN b.transid <> b.SubTransid AND (ISNULL(b.betdaqid,-1) NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MainParlayCount
+		,MIN(CASE WHEN b.transid <> b.SubTransid AND (ISNULL(b.betdaqid,-1) NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MinSingleTransId
+		,MAX(CASE WHEN b.transid <> b.SubTransid AND (ISNULL(b.betdaqid,-1) NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
