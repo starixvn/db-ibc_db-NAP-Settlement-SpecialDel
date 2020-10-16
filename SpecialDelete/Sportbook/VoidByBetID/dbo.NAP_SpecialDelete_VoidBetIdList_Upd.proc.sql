@@ -229,7 +229,8 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
-		,IsFinish		BIT  
+		,IsFinish		BIT
+		,actual_stake   MONEY
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -322,6 +323,7 @@ BEGIN
 		,CurrencyName			
 		,IsMetricGaming
 		,modds
+		,actual_stake
 	)
 	-- MG tickets (running) in translog
 	SELECT	tl.translogid AS groupTransId
@@ -361,6 +363,7 @@ BEGIN
 			,tl.CurrencyName		
 			,1 AS IsMetricGaming
 			,NULL AS modds
+			,tl.actual_stake
 	FROM	dbo.translog tl WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON	tl.translogid = t.transid
@@ -1946,7 +1949,7 @@ BEGIN
 			   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  DELETED.refno ELSE NULL END
 			   ,DELETED.betid
 			   ,DELETED.IsMetricGaming
-			   ,NULL
+			   ,DELETED.actual_stake
 			   ,DELETED.IsCashOutMemberTicket
 		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, IsCashOutMember)
 		FROM #BetDelete t
@@ -1957,10 +1960,9 @@ BEGIN
 											   ,m.TranslogId AS '@translogid'
 											   ,m.BetId AS '@betid'
 											   ,m.IsMG AS '@isMG'
-											   ,b.Actual_stake AS '@actual_stake'  
+											   ,CASE WHEN m.IsMG = 1 THEN m.Actual_stake ELSE NULL END AS '@actual_stake'
 											   ,m.IsCashOutMember AS '@IsCashOutMember'
 									FROM @tmpTransIDBatch m
-									INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.TransId = b.transid
 									FOR XML PATH('r')
 										,ROOT('root')
 								) AS VARCHAR(MAX));
@@ -2060,10 +2062,10 @@ BEGIN
 	END		
 	*/
 	-- 2.3 void BetTrade and cash-cout vs subtickets	
-	/*IF (@isExistBT = 1 OR @isExistCashOut = 1)
+	IF (@isExistBT = 1 OR @isExistCashOut = 1)
 	BEGIN		
 		-- update status for sub bettrade ticket (901,902,903)
-		IF (@isExistBT = 1)
+		/*IF (@isExistBT = 1)
 			UPDATE sub
 			SET winlost = sub.actual_stake
 				,ruben = 1
@@ -2106,7 +2108,7 @@ BEGIN
 				ON sub.matchid 		= bt.matchid			
 					AND sub.bettype	= bt.bettype			
 					AND sub.transId = bt.transId
-		
+		*/
 		--Pre-CAL 904
 		IF (@isExistBT = 1)
 		BEGIN
@@ -2329,7 +2331,6 @@ BEGIN
 			WHERE	b.TicketID IN (SELECT transid FROM cteMainTicket)
 				AND b.[Status] IN ('Accept', 'Confirm')
 	END		
-	*/
 	--re-calculate Cricket - charge comm
 	IF(@isExistCricket = 1)
 	BEGIN
