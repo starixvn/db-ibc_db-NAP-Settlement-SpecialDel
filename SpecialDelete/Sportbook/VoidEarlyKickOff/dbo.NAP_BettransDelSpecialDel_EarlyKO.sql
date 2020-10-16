@@ -98,6 +98,7 @@ Revisions:
 	- 20200609@Charles: Remove notify when void tickets [131865]
 	- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 	- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+	- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -111,6 +112,7 @@ Param's Explanation: Special bet delete option
 					 ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
+					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 			/>
 		 <BetTypes/>'
 */  
@@ -130,6 +132,7 @@ BEGIN
 			,@isExistBT			BIT = 0 
 			,@isExistCashOut	BIT = 0
 			,@IsExistBB			BIT = 0
+			,@isExistFM2		BIT = 0
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 	
@@ -147,7 +150,8 @@ BEGIN
 		[Value]			SMALLMONEY,	
 		ValueHdp1		SMALLMONEY,	
 		ValueHdp2		SMALLMONEY,
-		Goal			BIGINT
+		Goal			BIGINT,
+		OddsSpread		MONEY
 	)   
 
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)  
@@ -341,6 +345,7 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -364,13 +369,15 @@ BEGIN
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
+			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -385,6 +392,7 @@ BEGIN
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
 		 , cte.Goal
+		 , cte.OddsSpread
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -396,15 +404,21 @@ BEGIN
 	BEGIN --SD checking process  
 	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
 										AND b.Bettype NOT BETWEEN 801 AND 806 
-										AND b.bettype NOT BETWEEN 221 AND 227
+										AND f.GroupId IS NULL
 									THEN 1 ELSE 0 END)  
 			
-		,@isExistFM  = MAX (CASE WHEN b.Bettype BETWEEN 221 AND 227 THEN 1 ELSE 0 END)  
+		,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  
 			,@isExistBB		= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@isExistFM2 = MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM dbo.bettrans b WITH (NOLOCK)  
 		INNER JOIN #tblTransIds t ON t.transid = b.transid  
-		INNER JOIN #tblBettype tp ON tp.Id = b.bettype  
-		WHERE b.matchid = @matchid  
+		INNER JOIN #tblBettype tp ON tp.Id = b.bettype
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
+	WHERE b.matchid = @matchid  
 
 	IF (ISNULL(@isExistMG, 0) = 0   
 		AND EXISTS (SELECT 1 FROM #tblBettype WHERE Id BETWEEN 801 AND 899 )  
@@ -440,7 +454,9 @@ BEGIN
 	UNION ALL  
 	SELECT @matchid AS matchid, 6 AS KeyID WHERE @isExistFM = 1  
 	UNION ALL
-	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1  
+	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
+	UNION ALL
+	SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
 
 	-- check and not allow attempt to void tickets of this match while it's being calculated  
 	EXEC dbo.NAP_Admin_CheckingProcess  
@@ -449,6 +465,7 @@ BEGIN
 		, @isExistFM  = @isExistFM  
 		, @isExistMatch		= @isExistMatch  
 		, @isExistBB		= @isExistBB
+		, @isExistFM2		= @isExistFM2
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode			= @ErrCode OUTPUT  
 		, @ErrMsg			= @ErrMsg OUTPUT  
@@ -639,7 +656,7 @@ BEGIN
 					  FROM #tblBetType tp
 					  WHERE tp.Id = s.bettype
 					    AND CASE
-								WHEN tp.ValueHdp1 = 9999 THEN 1				
+								WHEN tp.ValueHdp2 = 9999 THEN 1				
 								ELSE CASE
 										WHEN s.hdp2 = tp.ValueHdp2 THEN 1
 										ELSE 0
@@ -655,6 +672,19 @@ BEGIN
 								WHEN tp.Goal = 100 THEN 1
 								WHEN ISNULL(s.betID, 0) = tp.Goal THEN 1			
 								ELSE 0
+							END = 1)
+
+	DELETE s
+	FROM #BetDelete s
+	WHERE NOT EXISTS (SELECT TOP 1 1
+					  FROM #tblBetType tp
+					  WHERE tp.Id = s.bettype
+					    AND CASE
+								WHEN tp.OddsSpread = 9999 THEN 1				
+								ELSE CASE
+										WHEN s.oddsspread = tp.OddsSpread THEN 1
+										ELSE 0
+									 END
 							END = 1)
 	END	 		  
 
@@ -2365,6 +2395,7 @@ BEGIN
 				, @isExistFM  = @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
 				, @IsReleased  	= 1
 		
 		------ releasing cash-out process

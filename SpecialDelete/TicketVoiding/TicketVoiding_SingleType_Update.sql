@@ -26,6 +26,7 @@ AS
 		- 20200210@Helen: Hotfix - cashout - not insert 914 [Redmine:#128190]
 		- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 		- 20200609@Charles: Remove notify when void tickets [131865]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
 	Param's explanation:	
 		
@@ -42,6 +43,7 @@ BEGIN
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
 			,@isExistFM BIT
+			,@isExistFM2	BIT
 			,@IsExistBB	BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
@@ -111,7 +113,8 @@ BEGIN
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
-				WHEN b.bettype BETWEEN 221 AND 227 THEN 6 
+				WHEN f.GroupId = 1 THEN 6 
+				WHEN f.GroupId = 2 THEN 7
 				ELSE 1 				
 			END AS KeyId
 			,1 AS balanceType
@@ -122,6 +125,11 @@ BEGIN
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.bettype
+			)f
 	WHERE	b.statusID <> 102		
 
 	--IF @@ROWCOUNT <> 0
@@ -143,6 +151,7 @@ BEGIN
 	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
 			,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
+			,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -150,6 +159,7 @@ BEGIN
 		, @isExistFM = @isExistFM
 		, @isExistBB = @isExistBB
 		, @isExistMatch	= @isExistMatch
+		, @isExistFM2	= @isExistFM2
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -187,6 +197,7 @@ BEGIN
 			,@isExistMG = @isExistMG 
 			,@isExistFM = @isExistFM
 			,@isExistBB = @isExistBB
+			,@isExistFM2 = @isExistFM2
 			,@IsReleased	= 1
 			
 		------ releasing cash-out process
@@ -761,6 +772,7 @@ BEGIN
 		,@isExistMG	= @isExistMG
 		,@isExistFM = @isExistFM
 		,@isExistBB = @isExistBB
+		,@isExistFM2 = @isExistFM2
 		,@IsReleased = 1
 
 	------ releasing cash-out process

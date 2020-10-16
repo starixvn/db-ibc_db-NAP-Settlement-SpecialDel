@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @checkKeyValue2			BIT = 0
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
+	, @IsExistFM2				BIT = 0
 	, @AvaiableProcess			BIT = 0 OUTPUT
 	, @ErrCode					INT = 0 OUTPUT
 	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
@@ -27,6 +28,7 @@ AS
 	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 	- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 	- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+	 - 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
  Param's Explanation:   
  
@@ -52,6 +54,7 @@ BEGIN
 										OR @isExistVS = 1
 										OR @IsExistFM = 1
 										OR @isExistBB = 1
+										OR @IsExistFM2 = 1
 									) THEN 1 ELSE 0 
 								END
 	-- checking dependency				
@@ -200,6 +203,7 @@ BEGIN
 					WHEN @isExistVS = 1 		AND ck.KeyId = 4 THEN 4	-- VS Racing
 					WHEN @isExistFM = 1 		AND ck.KeyId = 6 THEN 6	-- Fast market
 					WHEN @IsExistBB = 1			AND ck.KeyId = 5 THEN 5 -- BetBuilder
+					WHEN @IsExistFM2 = 1		AND ck.KeyID = 7 THEN 7 -- Fast market 228
 					ELSE 0
 				END AS KeyId
 			FROM dbo.TempVariableNumber ck WITH(ROWLOCK)

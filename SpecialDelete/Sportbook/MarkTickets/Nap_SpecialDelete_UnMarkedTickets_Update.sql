@@ -26,6 +26,7 @@ AS
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20200817@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -316,11 +317,18 @@ BEGIN
 	DECLARE @avaiableProcess BIT
 		,@IsExistSingle BIT = 0
 		,@IsExistParlay BIT = 0
-		,@IsExistFM BIT = 0;
+		,@IsExistFM BIT = 0
+		,@IsExistFM2 BIT = 0;
 
-	SELECT @IsExistSingle = MAX(CASE WHEN BetType NOT BETWEEN 221 AND 227 THEN 1 ELSE 0	END)
-		,@IsExistFM = MAX(CASE WHEN BetType BETWEEN 221 AND 227 THEN 1 ELSE 0 END)
+	SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
+		,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+		,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM #Tickets AS t
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
 	WHERE t.IsParlay = 0;
 
 	SELECT TOP 1 @IsExistParlay = 1
@@ -333,17 +341,22 @@ BEGIN
 		)
 	SELECT DISTINCT MatchId
 		,CASE 
-			WHEN BetType NOT BETWEEN 221
-					AND 227 THEN 1 --SB
-			WHEN BetType BETWEEN 221
-					AND 227 THEN 6 -- Fast Market
+			WHEN f.GroupId IS NULL THEN 1 --SB
+			WHEN f.GroupId = 1 THEN 6 -- Fast Market
+			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 			ELSE 0
 			END AS KeyID
-	FROM #Tickets;
+	FROM #Tickets t
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
 
 	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
 		,@isExistParlay = @IsExistParlay
 		,@IsExistFM = @IsExistFM
+		,@IsExistFM2 = @IsExistFM2
 		,@avaiableProcess = @avaiableProcess OUTPUT
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT;
@@ -404,6 +417,7 @@ BEGIN
 		@isExistMatch = @IsExistSingle,
 		@isExistParlay = @IsExistParlay,
 		@IsExistFM = @IsExistFM,
+		@IsExistFM2 = @IsExistFM2,
 		@IsReleased = 1;
 
 	SELECT b.MatchId,

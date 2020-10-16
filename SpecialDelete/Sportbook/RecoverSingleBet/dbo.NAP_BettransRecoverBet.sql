@@ -61,6 +61,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20191209@Charles: Add Column SportType to output tables [124675]
 		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	Param's Explanation:
 */
 BEGIN
@@ -76,6 +77,7 @@ BEGIN
 			,@isExistCashOut	BIT = 0
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
+			,@isExistFM2		BIT = 0
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
@@ -1020,12 +1022,18 @@ BEGIN
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
-				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND bettype NOT BETWEEN 221 AND 227 THEN 1 --SB
+				WHEN Bettype <> 38 AND  bettype NOT BETWEEN 801 AND 806 AND f.GroupId IS NULL THEN 1 --SB
 				WHEN bettype BETWEEN 801 AND 806 THEN 3 --MG
-				WHEN bettype BETWEEN 221 AND 227 THEN 6
+				WHEN f.GroupId = 1 THEN 6
 				WHEN Bettype = 38 THEN 5 -- Bet Builder
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0 END AS KeyId
-		FROM #tblTransInfo
+		FROM #tblTransInfo b
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	)
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT matchid, KeyId
@@ -1036,6 +1044,7 @@ BEGIN
 		, @isExistMG 		= MAX(CASE WHEN KeyId = 3 THEN 1 ELSE 0 END )
 		, @isExistFM 		= MAX(CASE WHEN KeyId = 6 THEN 1 ELSE 0 END )
 		, @isExistBB		= MAX(CASE WHEN KeyId = 5 THEN 1 ELSE 0 END)
+		, @isExistFM2		= MAX(CASE WHEN KeyId = 7 THEN 1 ELSE 0 END)
 	FROM #tblMatchProcess
 	
 	-- checking SD proccess
@@ -1044,6 +1053,7 @@ BEGIN
 		, @isExistMG 		= @isExistMG
 		, @isExistFM 		= @isExistFM
 		, @isExistBB		= @isExistBB
+		, @isExistFM2		= @isExistFM2
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -1862,6 +1872,7 @@ BEGIN
 		, @isExistMatch		= @isExistMatch
 		, @isExistFM 		= @isExistFM
 		, @isExistBB		= @isExistBB
+		, @isExistFM2		= @isExistFM2
 		, @IsReleased		= 1	
 		
 	------ releasing cash-out process

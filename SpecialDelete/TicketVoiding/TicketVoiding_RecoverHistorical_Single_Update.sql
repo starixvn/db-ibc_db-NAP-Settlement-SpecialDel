@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20190823@Kathy: recover single ticket [Redmine:#115376]
+		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	
 	Param's explanation:	
 		
@@ -28,6 +29,7 @@ BEGIN
 
 			,@avaiableProcess	BIT
 			,@isExistFM			BIT
+			,@isExistFM2		BIT = 0
 			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
 			
@@ -123,7 +125,8 @@ BEGIN
 			,b14.custid
 			,b14.bettype
 			,CASE 
-				WHEN b14.bettype BETWEEN 221 AND 227 THEN 6
+				WHEN f.GroupId = 1 THEN 6
+				WHEN f.GroupID = 2 THEN 7
 				ELSE 1
 			END AS KeyId
 			,CASE 
@@ -137,6 +140,11 @@ BEGIN
 			ON	t.TransId = b14.transid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
 			ON	b14.srecommend = cs.custid
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b14.Bettype
+			)f
 	WHERE	b14.statusID = 102
 			AND b14.betfrom <> 'p'
 			AND b14.bettype NOT IN (10, 38, 29)
@@ -233,11 +241,13 @@ BEGIN
 	
 	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+			, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 
 	EXEC dbo.NAP_Admin_CheckingProcess
 		 @isExistFM = @isExistFM
 		, @isExistMatch	= @isExistMatch
+		, @isExistFM2 = @isExistFM2
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -355,6 +365,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= @isExistMatch
 			, @isExistFM 		= @isExistFM
+			, @isExistFM2		= @isExistFM2
 			, @IsReleased		= 1	
 	END
 	ELSE
@@ -371,6 +382,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= @isExistMatch
 			, @isExistFM 		= @isExistFM
+			, @isExistFM2		= @isExistFM2
 			, @IsReleased		= 1	
 
 		BEGIN TRY
