@@ -91,7 +91,6 @@ BEGIN
 		, @ToDate 		= ISNULL(@ToDate, DATEADD(d, 90, @moveBetDay))
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
-	CREATE TABLE #tempMatch (matchid INT)
 	
 	CREATE TABLE #Data
              (GroupID               BIGINT,
@@ -730,10 +729,13 @@ BEGIN
 			OR bettype = 500 /*charge comm*/
 		)	
 		
-	INSERT INTO #tempMatch(matchid)
-	SELECT DISTINCT matchid
-	FROM #Data		
-	
+	-- Delete main bettrade
+	IF(EXISTS (SELECT TOP 1 1 
+			   FROM #Data 
+			   WHERE betdaqid = 0 AND extrainfo IS NULL))
+	BEGIN
+		DELETE FROM #Data WHERE betdaqid = 0 AND extrainfo IS NULL
+	END
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP 1 1 
 			   FROM #Data 
