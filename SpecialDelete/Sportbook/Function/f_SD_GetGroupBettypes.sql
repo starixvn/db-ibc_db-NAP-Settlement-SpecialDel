@@ -7,7 +7,7 @@ AS
 /*
     Created: 20191004@Charles
     Task: Get group bettypes
-    DB: DBTXN/bodb02; DBPRO/bodb02
+    DB: DBTXN/bodb02; DBPRO/bodb02; DBARC-bodb_Archive
     Revisions:
 		- 20191004@Charles: Get group bettypes [120325]
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
