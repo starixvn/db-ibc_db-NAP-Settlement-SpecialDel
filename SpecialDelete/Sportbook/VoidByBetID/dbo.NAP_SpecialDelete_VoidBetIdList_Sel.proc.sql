@@ -177,7 +177,7 @@ BEGIN
 			ELSE CASE
 					WHEN (@IsSB = 1 OR @IsSaba = 1) AND pt.ProductID = 1 THEN 1 -- Sportsbook
 					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
-					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29, 2799) THEN 1 --parlay, mix-parlay
+					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
 					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
 				ELSE 0 END
