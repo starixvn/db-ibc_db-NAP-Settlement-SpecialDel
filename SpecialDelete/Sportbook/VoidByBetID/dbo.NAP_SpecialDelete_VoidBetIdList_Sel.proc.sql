@@ -522,7 +522,7 @@ BEGIN
 				    AND sub911.transid = t.refno)	
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0)
+	IF(@IncludeMainParlay = 0 AND (@IsParlay = 0 OR @Products IS NULL))
 	BEGIN
 		DELETE b
 		FROM #Data b
@@ -720,7 +720,9 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	--- Remove invalid sporttype	
+	--- Remove invalid sporttype
+	IF @Products <>'' AND  @IsParlay <> 1
+	BEGIN
 	DELETE 
 	FROM #Data
 	WHERE bettype NOT IN (9, 29, 2799)
@@ -728,6 +730,7 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		)	
+	END
 		
 	-- Delete main bettrade
 	IF(EXISTS (SELECT TOP 1 1 
@@ -1015,7 +1018,7 @@ BEGIN
 		WHERE sub911.bettype = 911
 	END				     
 		
-	-- UPDATE SiteName
+	-- UPDATE SiteNam
 	;WITH CustSiteName AS (
 		SELECT DISTINCT ag.custid, ci.site, ci.srecommend, ci.mrecommend
 		FROM CUSTDB.dbo.Customer ci WITH(NOLOCK)
