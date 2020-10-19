@@ -522,7 +522,7 @@ BEGIN
 				    AND sub911.transid = t.refno)	
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0 AND (@IsParlay = 0 OR @Products IS NULL))
+	IF(@IncludeMainParlay = 0 AND (@IsParlay = 0 OR @IsBB = 0 OR @Products IS NULL))
 	BEGIN
 		DELETE b
 		FROM #Data b
