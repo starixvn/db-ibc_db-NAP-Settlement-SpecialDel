@@ -522,11 +522,15 @@ BEGIN
 				    AND sub911.transid = t.refno)	
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0 AND (@IsParlay = 0 OR @IsBB = 0 OR @Products IS NULL))
+	IF(@IncludeMainParlay = 0)
 	BEGIN
-		DELETE b
-		FROM #Data b
-		WHERE b.bettype IN (9, 29, 2799, 38)
+		BEGIN
+			DELETE b FROM #Data b 
+			WHERE  1 = CASE WHEN @Products IS NULL AND b.bettype IN (9, 29, 2799, 38) THEN 1 
+							WHEN @IsParlay = 0 AND b.bettype IN (9, 29, 2799) THEN 1
+							WHEN @IsBB = 0 AND b.bettype = 38 THEN 1 
+					ELSE 0 END		
+		END	
 	END
 	
 	-- update MainTransId
