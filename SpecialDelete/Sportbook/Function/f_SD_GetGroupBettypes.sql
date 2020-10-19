@@ -15,6 +15,7 @@ AS
 		- 20200508@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20200717@Zane: Basketball AIO Phase 2 [137189]
 		- 20201006@Charles: Integrate for Time Machine OU bettype [143032]
+		- 20201019@Charles: Rearrange position of OU Time Machine [143744]
 
     Parameters Explanation:    
     
@@ -462,6 +463,6 @@ RETURN (
 	UNION ALL SELECT 376,'Special',1
 
 	--Integrate for Time Machine OU bettype [143032]
-	UNION ALL SELECT 228,'Special',0
+	UNION ALL SELECT 228,'FT',0
 	)
 GO
