@@ -177,7 +177,7 @@ BEGIN
 			ELSE CASE
 					WHEN (@IsSB = 1 OR @IsSaba = 1) AND pt.ProductID = 1 THEN 1 -- Sportsbook
 					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
-					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay
+					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29, 2799) THEN 1 --parlay, mix-parlay
 					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
 					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
 				ELSE 0 END
@@ -522,15 +522,10 @@ BEGIN
 				    AND sub911.transid = t.refno)	
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0)
+	IF(@IncludeMainParlay = 0 AND @Products IS NULL)
 	BEGIN
-		BEGIN
 			DELETE b FROM #Data b 
-			WHERE  1 = CASE WHEN @Products IS NULL AND b.bettype IN (9, 29, 2799, 38) THEN 1 
-							WHEN @IsParlay = 0 AND b.bettype IN (9, 29, 2799) THEN 1
-							WHEN @IsBB = 0 AND b.bettype = 38 THEN 1 
-					ELSE 0 END		
-		END	
+			WHERE  b.bettype IN (9, 29, 2799, 38)
 	END
 	
 	-- update MainTransId
@@ -725,8 +720,6 @@ BEGIN
 	END
 
 	--- Remove invalid sporttype
-	IF @Products <>'' AND  @IsParlay <> 1
-	BEGIN
 	DELETE 
 	FROM #Data
 	WHERE bettype NOT IN (9, 29, 2799)
@@ -734,8 +727,7 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		)	
-	END
-		
+
 	-- Delete main bettrade
 	IF(EXISTS (SELECT TOP 1 1 
 			   FROM #Data 
