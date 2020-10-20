@@ -1956,7 +1956,7 @@ BEGIN
 		WHERE IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
-		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@id'
+		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'
 											   ,m.TranslogId AS '@translogid'
 											   ,m.BetId AS '@betid'
 											   ,m.IsMG AS '@isMG'
