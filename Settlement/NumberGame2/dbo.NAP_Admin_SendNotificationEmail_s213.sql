@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20190109@Johnson: Add UNDO action [redmine:#107658]
 		- 20190130@Johnson: config email for different env. [redmine:#107658]
+		- 20201020@Johnson: change starixvn domain [redmine: #143834]
 	Parameter's Explanation:
 		@Action= "settlement" : send email to IT if skip updating tickets
 				= "Refund": send mail to CSD,IT,3rd Party
@@ -36,10 +37,10 @@ BEGIN
 		
 		--config email for local
 		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
-			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+			SELECT @recipients = 'gary.vu@starixvn.com; harris.tran@starixvn.com'
 		ELSE 	
 		--config for SIT,PRO
-			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; charlie.ma@onelab.tw; 
+			SELECT @recipients = N'IT@starixvn.com; kiwi.tran@starixvn.com; ada.truong@starixvn.com; charlie.ma@onelab.tw; 
 								jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 		
 		SELECT @body = 
@@ -80,15 +81,15 @@ BEGIN
 		
 		--config email for local
 		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
-			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+			SELECT @recipients = 'gary.vu@starixvn.com; harris.tran@starixvn.com'
 		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
 			--config for SIT
-			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+			SELECT @recipients = N'IT@starixvn.com; kiwi.tran@starixvn.com; ada.truong@starixvn.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 		ELSE 
 			--config PRO			
-			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixvn.com; kiwi.tran@starixvn.com; ada.truong@starixvn.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 			
@@ -146,15 +147,15 @@ This is an auto-mail. Please do not reply.
 
 		--config email for local
 		IF @@SERVERNAME IN ('DB206','DB230','DB230\DBSPU2')
-			SELECT @recipients = 'gary.vu@starixsoft.com; harris.tran@starixsoft.com'
+			SELECT @recipients = 'gary.vu@starixvn.com; harris.tran@starixvn.com'
 		ELSE IF	@@SERVERNAME IN ('SITDBTRANS')
 			--config for SIT
-			SELECT @recipients = N'IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+			SELECT @recipients = N'IT@starixvn.com; kiwi.tran@starixvn.com; ada.truong@starixvn.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 		ELSE 
 			--config PRO			
-			SELECT @recipients = N'csd.one1@enpine.com; IT@starixsoft.com; kiwi.tran@starixsoft.com; ada.truong@starixsoft.com; 
+			SELECT @recipients = N'csd.one1@enpine.com; IT@starixvn.com; kiwi.tran@starixvn.com; ada.truong@starixvn.com; 
 						kimmy@enpine.com; pinus@uuss.net; eddie@uuss.net; james@uuss.net; steve@uuss.net; charlie.ma@onelab.tw; 
 						jacky.wu@onelab.tw; allen.wu@onelab.tw; sobi.chen@onelab.tw; sylvia.chen@onelab.tw'
 			
