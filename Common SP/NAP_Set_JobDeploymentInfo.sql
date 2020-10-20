@@ -33,39 +33,35 @@ BEGIN
 	UNION ALL
 	SELECT 'bodb02 : NAP Single Settlement 3rd'	, '00:01:00', 0
 
-	--4.NG2 Settlement
-	UNION ALL
-	SELECT 'bodb02: NAP NG2 Settlement'			, '00:01:00', 0
-
-	--5.BalanceUpdBonusCredit
+	--4.BalanceUpdBonusCredit
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdBonusCredit', '00:01:00', 0
 
-	--6.BalanceUpdCreditCasino
+	--5.BalanceUpdCreditCasino
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdCreditCasino', '00:01:00', 0
 
-	--7.BalanceUpdCreditOthers
+	--6.BalanceUpdCreditOthers
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdCreditOthers', '00:01:00', 0
 
-	--8.BalanceUpdCreditSports
+	--7.BalanceUpdCreditSports
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdCreditSports', '00:01:00', 0
 
-	--9.BalanceUpdDebitCasino
+	--8.BalanceUpdDebitCasino
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdDebitCasino', '00:01:00', 0
 
-	--10.BalanceUpdDebitOthers
+	--9.BalanceUpdDebitOthers
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdDebitOthers', '00:01:00', 0
 
-	--11.BalanceUpdDebitSports
+	--10.BalanceUpdDebitSports
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdDebitSports', '00:01:00', 0
 
-	--12.Ticket Voiding
+	--11.Ticket Voiding
 	UNION ALL
 	SELECT 'bodb02: Ticket Voiding'				, '00:01:00', 0
 
