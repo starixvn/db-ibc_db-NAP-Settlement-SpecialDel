@@ -14,6 +14,7 @@ AS
 		- 20180817@Billy:	Add Letstalk notification - [Redmine: #00000]
 		- 20181219@Helen:	Apply service broker for othersports - [Redmine: 101611]
 		- 20190524@Billy:	Change Letstalk linked server - [Redmine: #113125]
+		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
 */
 BEGIN;
 	-- SEND warning email to DBA
@@ -29,7 +30,8 @@ BEGIN;
 
 	EXEC msdb.dbo.sp_send_dbmail
 	@recipients=N'dbaadmin@starixvn.com',  --20150820 add TWDBA
-	--@recipients=N'daniel.truong@starixsoft.com',
+	--LOCAL: N'dba_local@starixvn.com'
+	--PRODUCTION: N'dbaadmin@starixvn.com'
 	@body=@body,
 	@sensitivity ='Personal',
 	@importance ='Normal',
