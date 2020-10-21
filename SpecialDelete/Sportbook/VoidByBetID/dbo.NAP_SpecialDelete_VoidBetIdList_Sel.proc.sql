@@ -175,7 +175,9 @@ BEGIN
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE 1 = CASE WHEN @CustID IS NULL THEN 1
 			ELSE CASE
-					WHEN (@IsSB = 1 OR @IsSaba = 1) AND pt.ProductID = 1 THEN 1 -- Sportsbook
+					WHEN (@IsSB = 1 OR @IsSaba = 1) 
+						AND pt.ProductID = 1 
+						AND pt.BetType NOT IN (9,29,10) THEN 1 -- Sportsbook
 					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
@@ -237,10 +239,9 @@ BEGIN
 						WHEN b.bettype BETWEEN 801 AND 806 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN @IsSaba = 1 AND ml.LeagueGroupID IS NOT NULL THEN 1
-						WHEN (@IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
 								AND b.bettype NOT BETWEEN 801 AND 806-- MG
-								AND  ml.LeagueGroupID IS NULL THEN 1
-						WHEN @IsSB = 1 AND b.bettype <> 10 AND ml.LeagueGroupID IS NULL THEN 1					
+								AND  ml.LeagueGroupID IS NULL THEN 1				
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
 	END
