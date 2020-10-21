@@ -1947,12 +1947,25 @@ BEGIN
 			SET IsFinish = 1
 		OUTPUT  DELETED.transid
 			   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  DELETED.refno ELSE NULL END
-			   ,DELETED.betid
+			   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  ISNULL(DELETED.BetID, rs.ResultID) ELSE DELETED.BetID END
 			   ,DELETED.IsMetricGaming
 			   ,DELETED.actual_stake
 			   ,DELETED.IsCashOutMemberTicket
 		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, IsCashOutMember)
 		FROM #BetDelete t
+			OUTER APPLY (
+				SELECT rs.ResultID 
+				FROM DBPRO.bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK) 
+				WHERE (
+						(ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, t.transdesc,0) <> 0)
+						OR
+						t.bettype = 806
+					)
+					AND rs.GameID = t.bettype	
+					AND rs.VendorID = 5		
+					AND rs.MatchID = t.matchid
+					
+			) AS rs
 		WHERE IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
