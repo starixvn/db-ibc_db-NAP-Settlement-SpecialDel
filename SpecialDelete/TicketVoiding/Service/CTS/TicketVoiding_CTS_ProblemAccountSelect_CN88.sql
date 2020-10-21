@@ -12,7 +12,7 @@ AS
 	Revisions: 
 		- 20200819@Max: Create new SP [Redmine:#139869]
 		- 20200921@July: CTS - Cannot categorize for new PA member [Redmine:#142051]
-	
+		- 20200903@Max: Enhance Problem Account Category - Multiple Reason - [Redmine: #140211]
 	Param's explanation:
 		+ @CustIds = 0: the first run then get all data
 		+ @CustIds IS NULL OR '': get all changed data from @datetime
@@ -30,10 +30,9 @@ BEGIN
 		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM CS_ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
-			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
+			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
 						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-						ORDER BY ID DESC
 						) AS tmp
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
@@ -54,10 +53,9 @@ BEGIN
 		SELECT pa.custid,ISNULL (tmp.reasonID, upline.ReasonId)
 		FROM CS_ProblemAccount pa WITH (NOLOCK)
 		    INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
-			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
+			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
 						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-						ORDER BY ID DESC
 						) AS tmp
 		   OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
@@ -67,6 +65,7 @@ BEGIN
 						) AS upline
 		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
 			AND pa.CreatedDate >= @datetime
+		ORDER BY pa.CustId
 	END
 	ELSE IF @CustIds <> ''
 	BEGIN
@@ -87,11 +86,10 @@ BEGIN
 		FROM CS_ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid
 			INNER JOIN customer c (NOLOCK) ON c.custid = ct.CustId
-			OUTER APPLY (SELECT TOP 1 tv.SubIssueTypeId AS reasonID
-							FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
-							WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-							ORDER BY ID DESC
-							) AS tmp
+			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
+						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
+						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
+						) AS tmp
 			OUTER APPLY (SELECT TOP 1 pma.ReasonId
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 								INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
