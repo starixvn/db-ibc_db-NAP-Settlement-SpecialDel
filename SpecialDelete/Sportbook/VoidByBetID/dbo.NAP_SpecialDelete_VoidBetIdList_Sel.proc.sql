@@ -186,7 +186,6 @@ BEGIN
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-		AND pt.bettype NOT IN (901, 902, 903, 904) -- BT subticket
 		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 

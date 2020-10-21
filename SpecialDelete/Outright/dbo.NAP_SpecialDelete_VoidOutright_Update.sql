@@ -28,6 +28,7 @@ AS
 		- 20180508@Alan: Change result for new template email [Redmine:#93296]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
+		- 20201021@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
 		
 	Param's Explanation: Special bet delete option		
 	*/
@@ -251,7 +252,7 @@ BEGIN
 		UPDATE	main
 			SET winlost			= main.actual_stake
 				,ruben			= 1
-				,statuswinlost	= 6
+				--,statuswinlost	= 6
 				,creator		= @UserID
 				,awinlost		= 0
 				,mwinlost		= 0
