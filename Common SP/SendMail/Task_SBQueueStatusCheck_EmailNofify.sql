@@ -28,7 +28,7 @@ BEGIN;
 	--PRINT @body
 
 	EXEC msdb.dbo.sp_send_dbmail
-	@recipients=N'dbaadmin@starixsoft.com',  --20150820 add TWDBA
+	@recipients=N'dbaadmin@starixvn.com',  --20150820 add TWDBA
 	--@recipients=N'daniel.truong@starixsoft.com',
 	@body=@body,
 	@sensitivity ='Personal',
