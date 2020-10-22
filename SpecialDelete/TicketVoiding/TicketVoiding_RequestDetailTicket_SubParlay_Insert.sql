@@ -28,6 +28,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 	
 	Param's explanation:	
 		
@@ -132,7 +133,7 @@ BEGIN
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
-	IF @IssueTypeId = 1 AND @MinMainParlayTransId IS NOT NULL
+	IF @IssueTypeId IN (1, 10) AND @MinMainParlayTransId IS NOT NULL
 	BEGIN
 		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId)
 		SELECT sub.transid
@@ -386,5 +387,6 @@ BEGIN
 	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #DangerAccept_SubParlayTickets
+	DROP TABLE #TransidInRequest
 END
 GO

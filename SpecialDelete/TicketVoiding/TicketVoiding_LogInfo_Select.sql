@@ -843,6 +843,7 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
+	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		--Error Table
 				SELECT @IsInvalidTransId AS IsInvalidTransId
@@ -873,7 +874,6 @@ BEGIN
 
 		RETURN;
 	END
-	IF @IssueTypeId = 1
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
 			,@MainParlayCount = SUM(MainParlayCount)
@@ -985,5 +985,6 @@ BEGIN
 	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
+
 END
 GO

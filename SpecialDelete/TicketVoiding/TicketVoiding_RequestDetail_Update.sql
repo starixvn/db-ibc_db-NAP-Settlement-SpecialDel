@@ -1,37 +1,36 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 (
-	@RequestId		INT
-	,@MatchId		INT
-	,@KickOffTime	DATETIME	 = NULL
-
-	,@UserId		INT
-	,@IP			VARCHAR(50)	 = NULL
-	,@TransIds 		VARCHAR(MAX) = NULL
-	,@ActionId		TINYINT
-	,@IssueTypeId	TINYINT
-	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime DATETIME = NULL
-	,@FilterFromBetId BIGINT = NULL
-	,@FilterToBetId BIGINT = NULL
-	,@FilterBy TINYINT = 1
-	,@SingleCount INT = NULL
-	,@MainParlayCount INT = NULL
-	,@MinSingleTransId BIGINT = NULL
-	,@MaxSingleTransId BIGINT = NULL
-	,@MinMainParlayTransId BIGINT = NULL
-	,@MaxMainParlayTransId BIGINT = NULL
-	,@VoidFromTime DATETIME = NULL
-	,@VoidToTime DATETIME = NULL
-	,@LiveScores NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam BIT = NULL
-	,@IsCheckedAwayTeam BIT = NULL
-	,@SubIssueTypeId	TINYINT = NULL
-	,@IsConfirmCalculator  BIT = 0 
-	,@ErrMsg          NVARCHAR(200) = '' OUTPUT
-    ,@ErrCode         INT           = 0 OUTPUT
-	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
-	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+	@RequestId				INT
+	,@MatchId				INT
+	,@KickOffTime			DATETIME = NULL
+	,@UserId				INT
+	,@IP					VARCHAR(50) = NULL
+	,@TransIds 				VARCHAR(MAX) = NULL
+	,@ActionId				TINYINT
+	,@IssueTypeId			TINYINT
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterFromBetId		BIGINT = NULL
+	,@FilterToBetId			BIGINT = NULL
+	,@FilterBy				TINYINT = 1
+	,@SingleCount			INT = NULL
+	,@MainParlayCount		INT = NULL
+	,@MinSingleTransId		BIGINT = NULL
+	,@MaxSingleTransId		BIGINT = NULL
+	,@MinMainParlayTransId	BIGINT = NULL
+	,@MaxMainParlayTransId	BIGINT = NULL
+	,@VoidFromTime			DATETIME = NULL
+	,@VoidToTime			DATETIME = NULL
+	,@LiveScores			NVARCHAR(300) = NULL
+	,@IsCheckedHomeTeam		BIT = NULL
+	,@IsCheckedAwayTeam		BIT = NULL
+	,@SubIssueTypeId		TINYINT = NULL
+	,@IsConfirmCalculator   BIT = 0 
+	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
+    ,@ErrCode				INT           = 0  OUTPUT
+	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
+	,@NegativeBalanceUsers  VARCHAR(MAX) = ''	OUTPUT
 	
 )
 AS
@@ -56,6 +55,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 
 	Param's explanation:	
 	
@@ -63,31 +63,31 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@LogActionId		INT
-			,@LogData			VARCHAR(MAX)
-			,@LogDataContent	VARCHAR(MAX)
-			,@SB_Error			BIT
-			,@OldKickOffTime	DATETIME
-			,@LeagueId			INT = NULL
-			,@HomeId			INT = NULL
-			,@AwayId			INT = NULL
-			,@Sporttype			SMALLINT = NULL
-			,@OldMatchId			INT
-			,@OldTransIds 		VARCHAR(MAX) = NULL
-			,@MarkedTransIds	VARCHAR(MAX)
-			,@Username			NVARCHAR(200)
-			,@IsCalQueue	BIT = 0
-			,@IsTransidProcessed BIT = 0
+	DECLARE @StartTime				 DATETIME
+			,@EndTime				 DATETIME
+			,@LogActionId			 INT
+			,@LogData				 VARCHAR(MAX)
+			,@LogDataContent		 VARCHAR(MAX)
+			,@SB_Error				 BIT
+			,@OldKickOffTime		 DATETIME
+			,@LeagueId				 INT = NULL
+			,@HomeId				 INT = NULL
+			,@AwayId				 INT = NULL
+			,@Sporttype				 SMALLINT = NULL
+			,@OldMatchId			 INT
+			,@OldTransIds 			 VARCHAR(MAX) = NULL
+			,@MarkedTransIds		 VARCHAR(MAX)
+			,@Username				 NVARCHAR(200)
+			,@IsCalQueue			 BIT = 0
+			,@IsTransidProcessed	 BIT = 0
 			,@OldFilterFromTransTime DATETIME = NULL
-			,@OldFilterToTransTime DATETIME = NULL
-			,@OldFilterFromBetId BIGINT = NULL
-			,@OldFilterToBetId BIGINT = NULL
-			,@OldFilterBy TINYINT = 0
-			,@ResettleTransids VARCHAR(MAX) = '' 
-			,@UnmarkTransids VARCHAR(MAX) =''
-			,@RemoveTransIds VARCHAR(MAX) =''
+			,@OldFilterToTransTime	 DATETIME = NULL
+			,@OldFilterFromBetId	 BIGINT = NULL
+			,@OldFilterToBetId		 BIGINT = NULL
+			,@OldFilterBy			 TINYINT = 0
+			,@ResettleTransids       VARCHAR(MAX) = '' 
+			,@UnmarkTransids		 VARCHAR(MAX) =''
+			,@RemoveTransIds		 VARCHAR(MAX) =''
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -119,7 +119,7 @@ BEGIN
 
 		WHERE	RequestId = @RequestId
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1, 10)
 	BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET @OldFilterFromTransTime = FilterFromTransTime
@@ -205,7 +205,7 @@ BEGIN
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
 				SET @IsTransidProcessed = 1
-		--======================================================================
+
 		IF @ActionId <>2
 		BEGIN
 			-- mark ticket
@@ -256,7 +256,7 @@ BEGIN
 			     
 			END
 		END
-		--======================================================================
+		
 		IF @ActionId = 4 OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
@@ -278,7 +278,7 @@ BEGIN
 			SET @LogDataContent += ' Old TransIds: ' + @OldTransIds + ' New TransIds: ' + @TransIds
 		END
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1, 10)
 	BEGIN
 		IF @OldFilterBy <> @FilterBy
 		BEGIN
@@ -314,7 +314,7 @@ BEGIN
 			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
 									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))
 		END
-		IF @IssueTypeId =1 AND @SubIssueTypeId IN(1,2)
+		IF @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1, 2)
 		BEGIN
 			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 		END
@@ -343,5 +343,7 @@ BEGIN
 
 	DROP TABLE #inputTransid
 	DROP TABLE #transid_tmp
+	DROP TABLE #TransidInRequest
+
 END
 GO
