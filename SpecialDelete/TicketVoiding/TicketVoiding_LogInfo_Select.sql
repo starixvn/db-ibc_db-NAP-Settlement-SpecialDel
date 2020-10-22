@@ -30,7 +30,7 @@ AS
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201015@Max: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
-		- 20201019@July: TVS - Enhance for TVS - Phase 4 [Redmine: #143091]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -843,7 +843,7 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
-	IF @IssueTypeId IN (1, 10)
+
 	BEGIN
 		--Error Table
 				SELECT @IsInvalidTransId AS IsInvalidTransId
@@ -874,6 +874,8 @@ BEGIN
 
 		RETURN;
 	END
+
+	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
 			,@MainParlayCount = SUM(MainParlayCount)
