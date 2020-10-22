@@ -12,8 +12,8 @@ AS
     DB: DBTXN/bodb02
 
 	Revision:
-		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
-		- 20201019@Louisa: Implement for 11 Jobs
+		- 20201005@Louisa: Create SP for Job Step ( Job step will call to this SP)
+		- 20201019@Louisa: Implement for 10 Jobs
 
 */
 /*
