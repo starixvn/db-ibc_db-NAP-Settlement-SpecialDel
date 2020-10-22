@@ -314,8 +314,8 @@ BEGIN
 									WHEN @modds =  0 AND b.oddstype <> 6        THEN 0
 									WHEN @modds =  0 AND b.oddstype = 6        THEN CASE
 																					WHEN oddsspread = 0 THEN 0
-																					WHEN oddsspread > 0 THEN @commWinRate * playerdiscount * stake * odds * (oddsspread/100)
-																					ELSE @commLostRate * playerdiscount * stake * ABS(oddsspread/100)
+																					WHEN oddsspread > 0 THEN @commWinRate * playerdiscount * @stake * (oddsspread/100)
+																					ELSE @commLostRate * playerdiscount * @stake * ABS(oddsspread/100)
 																					END
 									WHEN @modds = - 0.25 THEN @commLostRate * playerdiscount * @stake * @commHalfWLRate
 									WHEN @modds < - 0.25 THEN @commLostRate * playerdiscount * @stake
@@ -330,8 +330,8 @@ BEGIN
 								WHEN @modds =  0 AND b.oddstype <> 6       THEN 0
 								WHEN @modds =  0 AND b.oddstype = 6       THEN CASE 
 																				WHEN oddsspread = 0 THEN 0
-																				WHEN oddsspread > 0 THEN @commWinRate * discount * stake * odds * (oddsspread/100) * (1-apositiontaking)
-																				ELSE @commLostRate * discount * stake * ABS(oddsspread/100) * (1-apositiontaking)
+																				WHEN oddsspread > 0 THEN @commWinRate * discount * @stake * (oddsspread/100) * (1-apositiontaking)
+																				ELSE @commLostRate * discount * @stake * ABS(oddsspread/100) * (1-apositiontaking)
 																				END
 								WHEN @modds = - 0.25 THEN @commLostRate * discount * @stake * (1 - apositiontaking) * @commHalfWLRate
 								WHEN @modds < - 0.25 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
@@ -346,8 +346,8 @@ BEGIN
 								WHEN @modds =  0 AND b.oddstype <> 6        THEN 0
 								WHEN @modds =  0 AND b.oddstype = 6        THEN CASE
 																				WHEN oddsspread = 0 THEN 0
-																				WHEN oddsspread > 0 THEN @commWinRate * adiscount * stake * odds * (oddsspread/100) * (1-(mpositiontaking+apositiontaking))
-																				ELSE @commLostRate * adiscount * stake * ABS(oddsspread/100) * (1-(mpositiontaking+apositiontaking))
+																				WHEN oddsspread > 0 THEN @commWinRate * adiscount * @stake * (oddsspread/100) * (1-(mpositiontaking+apositiontaking))
+																				ELSE @commLostRate * adiscount * @stake * ABS(oddsspread/100) * (1-(mpositiontaking+apositiontaking))
 																				END
 								WHEN @modds = - 0.25 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking)) * @commHalfWLRate
 								WHEN @modds < - 0.25 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
@@ -362,8 +362,8 @@ BEGIN
 								WHEN @modds =  0 AND b.oddstype <> 6        THEN 0
 								WHEN @modds =  0 AND b.oddstype = 6        THEN CASE
 																				WHEN oddsspread = 0 THEN 0
-																				WHEN oddsspread > 0 THEN @commWinRate * sdiscount * stake * odds * (oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
-																				ELSE @commLostRate * sdiscount * stake * ABS(oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
+																				WHEN oddsspread > 0 THEN @commWinRate * sdiscount * @stake * (oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
+																				ELSE @commLostRate * sdiscount * @stake * ABS(oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
 																				END
 								WHEN @modds = - 0.25 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking)) * @commHalfWLRate
 								WHEN @modds < - 0.25 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
