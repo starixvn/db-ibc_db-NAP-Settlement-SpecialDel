@@ -425,6 +425,7 @@ BEGIN
 		,WalletType
 		,RefCode
 		,BonusID
+		,actual_stake
 	)
 	SELECT	
 		b.refno AS groupTransId
@@ -477,6 +478,7 @@ BEGIN
 		,b.WalletType
 		,b.RefCode
 		,b.BonusID
+		,tl.actual_stake
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 	= tl.custid
@@ -542,6 +544,7 @@ BEGIN
 		,b.WalletType
 		,b.RefCode
 		,b.BonusID
+		,b.actual_stake
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON b.transid = t.transid
@@ -1974,7 +1977,7 @@ BEGIN
 											   ,m.TranslogId AS '@translogid'
 											   ,m.BetId AS '@betid'
 											   ,m.IsMG AS '@isMG'
-											   ,CASE WHEN m.IsMG = 1 THEN m.Actual_stake ELSE NULL END AS '@actual_stake'
+											   ,CASE WHEN m.IsMG = 1 THEN ISNULL(m.Actual_stake,0) ELSE 0 END AS '@actual_stake'
 											   ,m.IsCashOutMember AS '@IsCashOutMember'
 									FROM @tmpTransIDBatch m
 									FOR XML PATH('r')
@@ -2028,7 +2031,7 @@ BEGIN
 												   ,m.TranslogId AS '@translogid'
 												   ,m.BetId AS '@betid'
 												   ,m.IsMG AS '@isMG'
-												   ,CASE WHEN m.IsMG = 1 THEN m.Actual_stake ELSE NULL END AS '@actual_stake'
+												   ,CASE WHEN m.IsMG = 1 THEN ISNULL(m.Actual_stake,0) ELSE 0 END AS '@actual_stake'
 												   ,m.IsCashOutMember AS '@IsCashOutMember'
 										FROM @tmpTransIDBatch m
 										FOR XML PATH('r')
@@ -2058,7 +2061,7 @@ BEGIN
 					,NULL 
 					,DELETED.BetID
 					,0
-					,NULL
+					,0
 					,0
 			INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, IsCashOutMember)
 			FROM  #CashOutTransActive t
