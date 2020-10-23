@@ -2663,10 +2663,10 @@ BEGIN
 
 	 IF @FilterUserName IS NOT NULL
 	BEGIN
-		SELECT @LogData = 'Username: '+ @FilterUserName
+		SELECT @LogData = 'Delete transaction by Username: '+ @FilterUserName
 						+ ' Products: '+ @Products
-						+ ' Ticket status: '+ @StatusIds
-						+ ' Date From: '+ CAST(@FromDate AS VARCHAR(20)) + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ CAST(@ToDate AS VARCHAR(20)) END
+						+ ' Ticket statusid: '+ @StatusIds
+						+ ' Winlostdate From: '+ CAST(@FromDate AS VARCHAR(20)) + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ CAST(@ToDate AS VARCHAR(20)) END
 	END
 	ELSE 
 	BEGIN
