@@ -50,6 +50,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
+		- 20201027@Kathy: Change Calculate Formula for HDP Bet Types of Baseball [Redmine:#144297]
 		
     Param's Explanation:
        
@@ -739,15 +740,15 @@ BEGIN
                             CASE betteam
                                 --WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
                                 --WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
-								WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
-								WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE WHEN @Sporttype IN (3, 8) THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE WHEN @Sporttype IN (3, 8) THEN 0 ELSE (livehomescore - liveawayscore) END
                                 END
                         WHEN 7 THEN -- 1st Handicap
                             CASE betteam
                                 --WHEN N'h' THEN (hdp2 - hdp1) + (@hth - livehomescore) - (@hta - liveawayscore)
                                 --WHEN N'a' THEN (hdp1 - hdp2) - (@hth - livehomescore) + (@hta - liveawayscore)
-								WHEN N'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
-								WHEN N'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype IN (3, 8) THEN 0 ELSE (livehomescore - liveawayscore) END
+								WHEN N'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEN @Sporttype IN (3, 8) THEN 0 ELSE (livehomescore - liveawayscore) END
                                 END
                         WHEN 3 THEN -- Over/Under
                             CASE betteam

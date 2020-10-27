@@ -31,6 +31,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
+		- 20201027@Kathy: Change Calculate Formula for HDP Bet Types of Baseball [Redmine:#144297]
 */
 BEGIN
     SET NOCOUNT ON
@@ -114,8 +115,8 @@ BEGIN
 
 		UPDATE b
 		SET @modds = CASE betteam
-				WHEN 'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
-				WHEN 'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEn @Sporttype = 3 THEN 0 ELSE (livehomescore - liveawayscore) END
+				WHEN 'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE WHEN @Sporttype IN (3,8) THEN 0 ELSE (livehomescore - liveawayscore) END
+				WHEN 'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE WHEn @Sporttype IN (3,8) THEN 0 ELSE (livehomescore - liveawayscore) END
 				END
 			,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END
 			,modds = @modds
