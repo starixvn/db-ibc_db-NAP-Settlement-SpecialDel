@@ -11,7 +11,8 @@ AS
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
-		- 20200924@Louisa: Implement for Myanmar odds - bettype 1,3,7,8 [Redmine:#142220]	
+		- 20200924@Louisa: Implement for Myanmar odds - bettype 1,3,7,8 [Redmine:#142220]
+		- 20201023@Louisa: Change commission formula of MMR odds [Redmine:#144046]
 		
 	Param's explanation:	
 		
@@ -192,7 +193,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * playerdiscount * stake * odds * (oddsspread/100)
+								WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * playerdiscount * stake * (oddsspread/100)
 															ELSE @commWinRate * playerdiscount * @stake
 															END
 								WHEN statuswinlost = 1 THEN @commWinRate * playerdiscount * @stake * @commHalfWLRate
@@ -211,7 +212,7 @@ BEGIN
 														  END	
 						ELSE
 						CASE
-							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN  @commWinRate * discount * stake * odds * (oddsspread/100) * (1-apositiontaking)
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN  @commWinRate * discount * stake * (oddsspread/100) * (1-apositiontaking)
 														ELSE @commWinRate * discount * @stake * (1-apositiontaking)
 														END
 							WHEN statuswinlost = 1 THEN @commWinRate * discount * @stake * (1-apositiontaking) * @commHalfWLRate
@@ -230,7 +231,7 @@ BEGIN
 														  END	
 						ELSE 
 						CASE
-							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * adiscount * stake * odds * (oddsspread/100) * (1-(mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * adiscount * stake * (oddsspread/100) * (1-(mpositiontaking+apositiontaking))
 														ELSE @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
 														END
 							WHEN statuswinlost = 1 THEN @commWinRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking)) * @commHalfWLRate
@@ -249,7 +250,7 @@ BEGIN
 														  END	
 						ELSE 
 						CASE
-							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * sdiscount * stake * odds * (oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
+							WHEN statuswinlost = 2 THEN CASE WHEN b.oddstype = 6 AND b.modds = 0 THEN @commWinRate * sdiscount * stake * (oddsspread/100) * (1-(spositiontaking+mpositiontaking+apositiontaking))
 														ELSE @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
 														END
 							WHEN statuswinlost = 1 THEN @commWinRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) * @commHalfWLRate
