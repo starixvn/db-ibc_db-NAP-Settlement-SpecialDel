@@ -72,7 +72,8 @@ BEGIN
 	
 	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay 	SMALLDATETIME,
+	DECLARE @moveBetDay14 	SMALLDATETIME,
+		@moveBetDay 	SMALLDATETIME,
 		@IsSB BIT = 0,
 		@IsParlay BIT = 0,
 		@IsBB BIT = 0,
@@ -83,12 +84,15 @@ BEGIN
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	
-	SELECT @moveBetDay = MAX(winlostdate) 
+	SELECT @moveBetDay14 = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
+
+	SELECT @moveBetDay = MAX(winlostdate) 
+	FROM dbo.bettrans WITH(NOLOCK)
 	
-	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay)
-		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay THEN DATEADD(d, 1, @moveBetDay) ELSE @FromDate END
-		, @ToDate 		= ISNULL(@ToDate, DATEADD(d, 90, @moveBetDay))
+	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
+		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+		, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
 	
