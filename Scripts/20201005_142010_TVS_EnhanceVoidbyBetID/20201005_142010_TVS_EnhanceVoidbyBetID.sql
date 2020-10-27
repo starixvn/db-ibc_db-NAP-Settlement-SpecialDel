@@ -1,4 +1,5 @@
-﻿/*
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*
 	Created by: July@20201005
 	Task: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 	DB: DBTXN/bodb02
