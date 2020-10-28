@@ -33,7 +33,7 @@ INSERT INTO [dbo].[TicketVoiding_MessageTemplateSetting]
 VALUES 
 	(
 	37
-	,1
+	,NULL
 	,27
 	)
 GO
