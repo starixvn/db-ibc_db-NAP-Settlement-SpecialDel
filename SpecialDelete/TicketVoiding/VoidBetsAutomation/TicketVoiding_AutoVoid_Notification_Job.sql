@@ -10,7 +10,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
-		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20201012@Louisa: Update new email domain starixvn.com + Use DBTP instead od DBNOTI [Redmine:#143284]
 	
 	Param's explanation:	
 		
@@ -54,7 +54,7 @@ BEGIN
 			' 
 			+ @MatchidList_Waiting_30minutes
 			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
+			EXECUTE	DBTP.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
 			
 			-- Send email
 			SET @Subject = 'TVS: Auto Void Notification!'	
@@ -115,7 +115,7 @@ BEGIN
 				+'Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
 							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
 				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
+			EXECUTE	DBTP.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
 			
 			-- Send email
 			SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
