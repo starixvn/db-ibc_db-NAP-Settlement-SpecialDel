@@ -5,7 +5,7 @@
     DB: DBTXN/msdb
 
 	Revision:
-		- 20201019@Louisa: Reduce UM Count for 11 Jobs [Redmine:#140452]
+		- 20201019@Louisa: Reduce UM Count for 10 Jobs [Redmine:#140452]
 
 */
    

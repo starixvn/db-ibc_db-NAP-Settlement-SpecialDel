@@ -17,31 +17,28 @@ GO
 --2
 EXEC dbo.sp_stop_job N'bodb02 : NAP Single Settlement 3rd';
 GO
-----3
---EXEC dbo.sp_stop_job N'bodb02: NAP NG2 Settlement';
---GO
---4
+--3
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdBonusCredit';
 GO
---5
+--4
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdCreditCasino';
 GO
---6
+--5
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdCreditOthers';
 GO
---7
+--6
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdCreditSports';
 GO
---8
+--7
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdDebitCasino';
 GO
---9
+--8
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdDebitOthers';
 GO
---10
+--09
 EXEC dbo.sp_stop_job N'bodb02 : Task_BalanceUpdDebitSports';
 GO
---11
+--10
 EXEC dbo.sp_stop_job N'bodb02: Ticket Voiding';
 GO
 ----12
