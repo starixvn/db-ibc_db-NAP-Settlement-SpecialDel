@@ -11,7 +11,7 @@ AS
 						   Job name: bodb02 : Task_CheckSBOSoccerwayServices
 		- 20200930@Louisa: Enhance: Output top 100 MatchId
 		- 20201002@Louisa: Exclude dbaadmin@starixsoft.com
-		- 20201009@Louisa: Change email domain from @starixsoft.com to @starixvn.com
+		- 20201009@Louisa: Change email domain to @starixvn.com [Redmine:#143284]
 */
 BEGIN
 
