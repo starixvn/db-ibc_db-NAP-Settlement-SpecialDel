@@ -54,7 +54,7 @@ BEGIN
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
 	SELECT req.RequestId, CAST(tr.val AS BIGINT)
 	FROM #tblRequestInfo req
-		CROSS APPLY dbo.strSplit(req.TransIds, ',') tr
+		CROSS APPLY dbo.f_SplitString(req.TransIds, ',') tr
 	OPTION (MAXRECURSION 0)
 	
 	INSERT INTO #tblResult(RequestId, Bettype, BetId)
@@ -65,7 +65,7 @@ BEGIN
 		INNER JOIN (
 			SELECT b.transid, b.bettype, b.betid
 			FROM dbo.bettrans b WITH(NOLOCK)
-			UNION ALL
+			UNION
 			SELECT b14.transid, b14.bettype, b14.betid
 			FROM dbo.bettrans14 b14 WITH(NOLOCK)
 		) bt on req.TransId = bt.transid

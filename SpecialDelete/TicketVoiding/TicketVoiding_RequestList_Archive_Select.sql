@@ -208,7 +208,7 @@ BEGIN
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 			FROM	dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK)
-			WHERE	vh.RequestId = t.requestId AND vh.StatusId = 2
+			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 		) vh
 		
 	UPDATE	t 
@@ -369,10 +369,10 @@ BEGIN
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
 								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-								FROM TicketVoiding_RequestDetailTicket_Single_bk
+								FROM TicketVoiding_RequestDetailTicket_Single_bk  WITH (NOLOCK)
 								WHERE (RequestId = s.RequestId) 
-								FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-								,1,2,''
+								FOR XML PATH(''))
+								,1,1,''
 							) AS TransIds
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId

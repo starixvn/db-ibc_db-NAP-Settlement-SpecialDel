@@ -53,7 +53,7 @@ BEGIN
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
 	SELECT req.RequestId, CAST(tr.val AS BIGINT)
 	FROM #tblRequestInfo req
-		CROSS APPLY dbo.strSplit(req.TransIds, ',') tr
+		CROSS APPLY bodb02.dbo.f_SplitString(req.TransIds, ',') tr
 	OPTION (MAXRECURSION 0)
 	
 	INSERT INTO #tblResult(RequestId, Bettype, BetId)
