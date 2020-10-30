@@ -15,8 +15,7 @@ AS
 		- 20181115@Helen: Add one email address into Settlement email notification - [Redmine:104840]
 		- 20200108@Max: Refund/resettle Betradar VS: Remove email address - [Redmine: #126807]
 		- 20200513@EricFu: remove jason.ni@onelab.tw,angela.chan@onelab.tw, add aaron.wang@onelab.tw,yikhun.chiu@onelab.tw,sobi.chen@onelab.tw
-		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
-
+		
 	Columns Explanation:    
     
     Notes: TW Team can change function and not notify VNTeam, please ALWAYS check Code Pro before modify function
@@ -34,31 +33,31 @@ RETURN (
 		-----------------------*/
 		SELECT 
 			CAST('NOTIFY' AS VARCHAR(10)) AS GroupName
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Recipients --general
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Credit_Recipients --credit model
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Deposit_Recipients --depsit model
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Recipients --general
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Credit_Recipients --credit model
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Deposit_Recipients --depsit model
 			, 'DB230' 	AS ServerName
 			, 'DEV' 	AS Environment
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'DB206'
 			, 'LOCAL'
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com;amy.vu@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com;amy.vu@starixvn.com;lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
 			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw' --credit
 			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBTRANS'
@@ -69,25 +68,25 @@ RETURN (
 		-----------------------*/
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;csoneonone@enpine.com', '', ''
+			, 'kathy.nguyen@starixsoft.com;csoneonone@enpine.com', '', ''
 			, 'DB230'
 			, 'DEV'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com;kathy.nguyen@starixvn.com', '', ''
+			, 'qa@starixsoft.com;kathy.nguyen@starixsoft.com', '', ''
 			, 'DB206'
 			, 'LOCAL'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com;kathy.nguyen@starixvn.com;amy.vu@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'qa@starixsoft.com;kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'SITDBTRANS'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;amy.vu@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'kathy.nguyen@starixsoft.com;amy.vu@starixsoft.com;lena.huynh@starixsoft.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixsoft.com;dbaadmin@starixsoft.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;yikhun.chiu@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 			
