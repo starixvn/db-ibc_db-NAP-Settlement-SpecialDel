@@ -31,6 +31,7 @@ AS
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201015@Max: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201102@Max: TVS - Enhance for Danger Accept - Phase 4 - Show LogInfo when voided [Redmine: #143091]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -135,6 +136,7 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
+	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	IF @IssueTypeId NOT IN (8,9)
@@ -843,13 +845,12 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
-
 	BEGIN
 		--Error Table
-				SELECT @IsInvalidTransId AS IsInvalidTransId
-					,@IsInvalidLiveScore AS IsInvalidLiveScore
-					,@IsInValidTotalTickets AS IsInValidTotalTickets
-					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+		SELECT @IsInvalidTransId AS IsInvalidTransId
+			,@IsInvalidLiveScore AS IsInvalidLiveScore
+			,@IsInValidTotalTickets AS IsInValidTotalTickets
+			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 
 		--TransId in request table
 		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
@@ -857,19 +858,60 @@ BEGIN
 		FROM #TransidInRequest r
 
 		/*Get log info for Void Page*/
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket)
+		SELECT @RequestId, @MatchId, s.TransId, b.bettype, 0
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
+		WHERE s.RequestId = @RequestId
+			AND s.MatchId = @MatchId
+			AND b.betdaqid = 0
+			AND charindex ('p25',b.extrainfo)> 0	
+
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		SELECT @RequestId, @MatchId 
+			,sub911.transid
+			,sub911.bettype
+			,main.bettype
+			,1
+		FROM dbo.bettrans sub911 WITH(NOLOCK)
+				INNER JOIN #CashOuts main 
+					ON	sub911.refno = main.transid	
+		WHERE sub911.matchid = @MatchId
+
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		SELECT @RequestId, @MatchId 
+			,b.transid
+			,b.bettype
+			,sub911.OriginalBetType
+			,1
+		FROM #CashOuts sub911
+				CROSS APPLY (
+								SELECT b.transid, b.bettype
+								FROM dbo.bettrans b WITH (NOLOCK)
+								WHERE b.refno = sub911.transid
+									AND b.matchid = @MatchId					
+									AND b.bettype = sub911.OriginalBetType
+							) AS b
+		WHERE sub911.bettype = 911
+
 		SELECT rd.MatchId
 			,rd.IssueDetail AS LiveScores
 			,rd.VoidFromTime
 			,rd.VoidToTime
 			,rd.SingleCount
-			,l.CashOutCount
+			,c.CashOutCount AS CashOutCount
 			,rd.MainParlayCount
 			,rd.MinSingleTransId
 			,rd.MaxSingleTransId
 			,rd.MinMainParlayTransId
 			,rd.MaxMainParlayTransId
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		  INNER JOIN #logInfo l ON rd.MatchId = l.matchid
+		  OUTER APPLY (
+					SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
+					FROM #CashOuts
+					WHERE RequestId = rd.RequestId	
+						AND MatchId = rd.MatchId
+			) c
 		WHERE rd.RequestId = @RequestId
 
 		RETURN;
@@ -987,6 +1029,7 @@ BEGIN
 	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
+	DROP TABLE #CashOuts
 
 END
 GO
