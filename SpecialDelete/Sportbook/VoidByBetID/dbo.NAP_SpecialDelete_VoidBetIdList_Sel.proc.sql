@@ -1,11 +1,16 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] @CustID            INT          = NULL,
-                                                            @TransIds          VARCHAR(MAX) = NULL,
-                                                            @FromDate          DATETIME     = NULL,
-                                                            @ToDate            DATETIME     = NULL,
-                                                            @IncludeMainParlay BIT          = 0,
-                                                            @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
-                                                            @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel] 
+(
+	@CustID            VARCHAR(MAX)          = NULL,
+    @TransIds          VARCHAR(MAX) = NULL,
+    @FromDate          DATETIME     = NULL,
+    @ToDate            DATETIME     = NULL,
+    @IncludeMainParlay BIT          = 0,
+	@Products			VARCHAR(50) = NULL,
+	@StatusIds			VARCHAR(50) = NULL,
+    @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
+    @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
+)
 AS;
 /*  
 	Created by: Bobby  
@@ -50,28 +55,46 @@ AS;
 		- 20191106@Charles: Implement NPM Promotion [122187]
 		- 20200618@Max: Hotfix Change Primary key on MarkedTransaction [Redmine: #136064]
 		- 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
+		- 20201005@Max: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
+		+ @@Products : 1 - Sportbook
+					2 - Parlay
+					3 - Bet Builder
+					4 - Outright
+					5 - Saba
+					6 - NonSport
 
 	*/
 BEGIN
 	SET NOCOUNT ON
 	
-	IF(@custid IS NULL AND @TransIds IS NULL) RETURN
+	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay 	SMALLDATETIME	
+	DECLARE @moveBetDay14 	SMALLDATETIME,
+		@moveBetDay 	SMALLDATETIME,
+		@IsSB BIT = 0,
+		@IsParlay BIT = 0,
+		@IsBB BIT = 0,
+		@IsOutright BIT = 0,
+		@IsSaba BIT = 0,
+		@IsNonSport BIT = 0
+
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	
-	SELECT @moveBetDay = MAX(winlostdate) 
+	SELECT @moveBetDay14 = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
+
+	SELECT @moveBetDay = MAX(winlostdate) 
+	FROM dbo.bettrans WITH(NOLOCK)
 	
-	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay)
-		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay THEN DATEADD(d, 1, @moveBetDay) ELSE @FromDate END
-		, @ToDate 		= ISNULL(@ToDate, DATEADD(d, 90, @moveBetDay))
+	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
+		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+		, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
 	
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
-	
-	CREATE TABLE #tempMatch (matchid INT)
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
 	
 	CREATE TABLE #Data
              (GroupID               BIGINT,
@@ -137,8 +160,40 @@ BEGIN
              );
 
 	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
+	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
+	CREATE TABLE #CustId (CustId INT)
+	
+	IF @CustID IS NOT NULL
+	BEGIN
+		SELECT @IsSB = CASE WHEN CHARINDEX('1',@Products) > 0 THEN 1 ELSE 0 END
+				, @IsParlay = CASE WHEN CHARINDEX('2',@Products) > 0 THEN 1 ELSE 0 END
+				, @IsBB = CASE WHEN CHARINDEX('3',@Products) > 0 THEN 1 ELSE 0 END
+				, @IsOutright = CASE WHEN CHARINDEX('4',@Products) > 0 THEN 1 ELSE 0 END
+				, @IsSaba = CASE WHEN CHARINDEX('5',@Products) > 0 THEN 1 ELSE 0 END
+				, @IsNonSport = CASE WHEN CHARINDEX('6',@Products) > 0 THEN 1 ELSE 0 END
+	END
+
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT pt.bettype
+	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+	WHERE 1 = CASE WHEN @CustID IS NULL THEN 1
+			ELSE CASE
+					WHEN (@IsSB = 1 OR @IsSaba = 1) 
+						AND pt.ProductID = 1 
+						AND pt.BetType NOT IN (9,29,10)
+						AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
+					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
+					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
+					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
+					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
+				ELSE 0 END
+			END
+		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
+		AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
+
 	IF(LEN(@TransIds) > 0)
 	BEGIN
 		INSERT INTO #transIdTemp (transid)
@@ -148,32 +203,53 @@ BEGIN
 		OPTION (maxrecursion 0)
 	END
 	
-	IF(@custid > 0)
+	IF(@CustID <> '')
 	BEGIN
+		INSERT INTO #CustId (CustId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@CustID, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@StatusIds, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+		
 		INSERT INTO #transIdTemp (transid)
 		SELECT	b.translogid AS transid
 		FROM	dbo.translog AS b WITH (NOLOCK)
-		WHERE	b.custid = @Custid 
-				AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+			INNER JOIN #CustId c ON c.CustId = b.custid
+		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
 				AND b.statusID = 0
+				AND @IsSB = 1
 				
 		UNION ALL
 		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
 		FROM dbo.bettrans AS b WITH (NOLOCK)
-		WHERE	b.custid = @Custid 
-			AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+			OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+			)ml
+			INNER JOIN #CustId c ON c.CustId = b.custid
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
-				WHEN (b.bettype BETWEEN 801 AND 806 AND b.statusID NOT IN (0, 101, 102)) THEN 1 
-				WHEN (b.bettype < 19001
-						AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-						AND b.bettype NOT BETWEEN 801 AND 806-- MG
-						AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-						AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-						AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-						AND b.statusID NOT IN (101, 102)						
-					) THEN 1
-				ELSE 0 END			
+						WHEN @IsSB = 1 
+							AND b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+							AND b.bettype NOT BETWEEN 801 AND 806-- MG
+							AND  ml.LeagueGroupID IS NULL THEN 1
+						WHEN @IsSaba = 1 
+							AND ml.LeagueGroupID IS NOT NULL THEN 1								
+					ELSE 0 END	
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 	END
 	
 	--Search by TransIds
@@ -258,7 +334,7 @@ BEGIN
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.translogid = TransId
-					)m		
+					)m
 		WHERE b.winlostdate >=@FromDate
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -369,9 +445,10 @@ BEGIN
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.transid = TransId
 					)m
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE	b.winlostdate >=@FromDate				
 			AND b.bettype BETWEEN 801 AND 806 
-			AND b.statusID NOT IN (0, 101, 102)
+			AND b.statusID NOT IN (0, 101, 102, 103)
 			
 		UNION ALL
 		SELECT	
@@ -436,15 +513,11 @@ BEGIN
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
 						WHERE b.transid = TransId
-					)m				
+					)m
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype				
 		WHERE	b.winlostdate >= @FromDate				
-			AND b.bettype < 19001
-			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 			AND b.bettype NOT BETWEEN 801 AND 806-- MG
-			AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-			AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-			AND b.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
-			AND b.statusID NOT IN (101, 102)				
+			AND b.statusID NOT IN (101, 102, 103)				
 	END		
 	
 	-- delete cash-out member bet tickets
@@ -456,11 +529,10 @@ BEGIN
 				    AND sub911.transid = t.refno)	
 
 	-- delete main parlay tickets
-	IF(@IncludeMainParlay = 0)
+	IF(@IncludeMainParlay = 0 AND @Products IS NULL)
 	BEGIN
-		DELETE b
-		FROM #Data b
-		WHERE b.bettype IN (9, 29, 2799, 38)
+			DELETE b FROM #Data b 
+			WHERE  b.bettype IN (9, 29, 2799, 38)
 	END
 	
 	-- update MainTransId
@@ -588,7 +660,7 @@ BEGIN
 							AND b.custid = t.custid
 							AND b.matchid = t.matchid
 							AND b.bettype = t.bettype
-			WHERE b.statusID NOT IN (101,102 ) -- reject, void		
+			WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund	
 		END	    			    				    					    				    					    
 	END
 	-- UPDATE eventtype = 1
@@ -654,7 +726,7 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	--- Remove invalid sporttype	
+	--- Remove invalid sporttype
 	DELETE 
 	FROM #Data
 	WHERE bettype NOT IN (9, 29, 2799)
@@ -662,174 +734,14 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		)	
-		
-	INSERT INTO #tempMatch(matchid)
-	SELECT DISTINCT matchid
-	FROM #Data
-	
-	-- get sub ticket of BetTrade (901)
+
+	-- Delete main bettrade
 	IF(EXISTS (SELECT TOP 1 1 
 			   FROM #Data 
-			   WHERE betdaqid = 0 
-			     AND extrainfo is null))
+			   WHERE betdaqid = 0 AND extrainfo IS NULL))
 	BEGIN
-		WITH CTE_LastTransBT AS (
-			SELECT 
-				sub.refno
-				, sub.transId
-				, sub.betid
-				, sub.transdate
-				, sub.custid
-				, sub.winlost 
-				, sub.actual_stake
-				, sub.username
-				, sub.recommend
-				, sub.matchid
-				, sub.bettype
-				, sub.betdaqid
-				, sub.ExtraInfo
-				, sub.WalletType
-				, sub.RefCode
-				, sub.BonusID
-				, main.transid AS MainTransId
-				, ROW_NUMBER() OVER (PARTITION  BY sub.refno ORDER BY sub.transId DESC ) AS BTNo 
-				
-			FROM dbo.bettrans sub WITH(NOLOCK)
-				INNER JOIN #tempMatch tm 
-					ON sub.matchid 	= tm.matchid
-				INNER JOIN #Data main
-					ON	sub.refno 	= main.transid 
-					AND sub.matchid = main.matchid
-				
-			WHERE sub.bettype 		= 901
-				AND sub.statusID 	IN (111,112,113,103) --WON/LOSE/DRAW/REFUND
-				AND main.betdaqid	= 0
-				AND main.extrainfo is null
-		)
-		INSERT INTO #Data(
-			GroupID			
-			,bettype
-			,OriginalBetType		
-			,transid		
-			,betid			
-			,refno		
-			,hdp1			
-			,hdp2			
-			,odds	
-			,oddsspread			
-			,finalodds		
-			,finalodds2		
-			,OddsType		
-			,STATUS			
-			,comstatus		
-			,stake								
-			,transdate		
-			,betteam		
-			,betcheck		
-			,liveindicator	
-			,modds			
-			,custid						
-			,livehomescore	
-			,liveawayscore					
-			,betfrom		
-			,matchid					
-			,winlost		
-			,commission					
-			,winlostdate	
-			,TransDesc		
-			,betdaqid
-			,username
-			,recommend
-			,matchcode
-			,homeid
-			,awayid
-			,leagueid
-			,sporttype
-			,IsNeutral
-			,showtime
-			,ExtraInfo			
-			,IsHideComm
-			,CurrencyName
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,IsMarked
-		)
-		SELECT	
-			main.transid
-			,sub.bettype
-			,main.bettype AS OriginalBetType
-			,sub.transid
-			,main.bettype AS betid
-			,sub.refno
-			,main.hdp1
-			,main.hdp2
-			,main.odds
-			,main.oddsspread
-			,main.finalodds
-			,main.finalodds2
-			,main.OddsType
-			,'SOLD'
-			,main.comstatus
-			,main.stake			
-			,sub.transdate
-			,main.betteam
-			,main.betcheck
-			,main.liveindicator
-			,main.modds
-			,sub.custid
-			,main.livehomescore
-			,main.liveawayscore
-			,main.betfrom
-			,main.matchid
-			,sub.winlost - sub.actual_stake
-			,main.commission
-			,main.winlostdate
-			,main.TransDesc
-			,sub.betdaqid
-			,sub.username
-			,sub.recommend
-			,main.matchcode
-			,main.homeid
-			,main.awayid
-			,main.leagueid
-			,main.sporttype
-			,main.IsNeutral
-			,main.showtime
-			,sub.ExtraInfo						
-			,1 AS IsHideComm
-			,main.CurrencyName
-			,sub.WalletType
-			,sub.RefCode
-			,sub.BonusID
-			,sub.MainTransId
-			,main.IsMarked
-		FROM CTE_LastTransBT sub WITH(NOLOCK)
-			INNER JOIN #Data main
-			ON	sub.refno 	= main.transid 
-			AND sub.matchid = main.matchid
-		WHERE sub.BTNo = 1
-		
-		-- update SoldId column: if main ticket is BT, update SoldId = transid of subticket(901)
-		;WITH CTE_BetTradeSold AS (
-			SELECT transid
-				, refno
-				, matchid
-			FROM #Data
-			WHERE STATUS = 'SOLD'
-		)
-		UPDATE	main
-		SET main.SoldId = bt.transid
-		FROM #Data main 
-			INNER JOIN CTE_BetTradeSold bt
-			ON main.transId 	= bt.refno
-			AND main.matchid 	= bt.matchid
-					
-		WHERE main.betdaqid = 0 -- main ticket is BTrade
-		  AND main.extrainfo is null
-	END				
-	
+		DELETE FROM #Data WHERE betdaqid = 0 AND extrainfo IS NULL
+	END
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP 1 1 
 			   FROM #Data 
@@ -1104,12 +1016,12 @@ BEGIN
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								AND b.statusID NOT IN (101, 102, 103) --REJECT, VOID, REFUND
 						 ) AS b
 		WHERE sub911.bettype = 911
 	END				     
 		
-	-- UPDATE SiteName
+	-- UPDATE SiteNam
 	;WITH CustSiteName AS (
 		SELECT DISTINCT ag.custid, ci.site, ci.srecommend, ci.mrecommend
 		FROM CUSTDB.dbo.Customer ci WITH(NOLOCK)

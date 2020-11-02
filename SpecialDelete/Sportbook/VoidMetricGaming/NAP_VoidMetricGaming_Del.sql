@@ -41,6 +41,7 @@ AS
 			  - 20181017@Alan: Write log new reason chinese simplified [102918]
 			  - 20181004@Alan: Add new column SettlementStatus [102423]
 			  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
+			  - 20201022@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
 			  
 	Param's Explanation:
 
@@ -594,7 +595,7 @@ BEGIN
 			SET actual_stake = tl.actual_stake 
 				,winlost = tl.actual_stake 			
 				,ruben = 1
-				,statuswinlost = 6
+				--,statuswinlost = 6
 				,creator = @UserID
 				,awinlost = 0
 				,mwinlost = 0
