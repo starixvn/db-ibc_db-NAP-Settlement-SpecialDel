@@ -133,7 +133,7 @@ BEGIN
 				) AS tmp
 	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
-	IF @IssueTypeId IN (1, 10) AND @MinMainParlayTransId IS NOT NULL
+	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId)
 		SELECT sub.transid

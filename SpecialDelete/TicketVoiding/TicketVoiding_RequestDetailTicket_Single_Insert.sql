@@ -143,7 +143,7 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
-	IF @IssueTypeId IN (1, 10) AND @MinSingleTransId IS NOT NULL
+	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId)
 		SELECT b.transid
