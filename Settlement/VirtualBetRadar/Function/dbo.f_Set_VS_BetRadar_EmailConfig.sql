@@ -15,7 +15,7 @@ AS
 		- 20181115@Helen: Add one email address into Settlement email notification - [Redmine:104840]
 		- 20200108@Max: Refund/resettle Betradar VS: Remove email address - [Redmine: #126807]
 		- 20200513@EricFu: remove jason.ni@onelab.tw,angela.chan@onelab.tw, add aaron.wang@onelab.tw,yikhun.chiu@onelab.tw,sobi.chen@onelab.tw
-		 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
 		
 	Columns Explanation:    
     

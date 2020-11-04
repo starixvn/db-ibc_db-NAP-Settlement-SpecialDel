@@ -12,11 +12,11 @@ AS
 	Note:  open comment send mail when deploy on Production
 
 	EXEC msdb.dbo.sp_send_dbmail
-		@recipients=N'dbaadmin@starixsoft.com',
+		@recipients=N'dbaadmin@starixvn.com',
 		@body=@body,
 		@sensitivity ='Personal',
 		@importance ='High',
-		@copy_recipients ='dbaadmin@starixsoft.com',
+		@copy_recipients ='dbaadmin@starixvn.com',
 		@subject =@subject,
 		@profile_name =@profile_name;							
 */

@@ -153,7 +153,7 @@ BEGIN
 					@copy_recipients =N'dbaadmin@starixvn.com',
 					@subject =@subject,
 					--LOCAL: N'dba_local@starixvn.com'
-					--PRODUCTION: N'dbaadmin@starixvn.com'@subject =@subject,
+					--PRODUCTION: N'dbaadmin@starixvn.com'
 					@profile_name =@profile_name;
 												
 				COMMIT TRANSACTION sendMail		
