@@ -13,6 +13,7 @@ AS
 
 	Revision:
 		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
+		- 20201019@Louisa: Implement for 11 Jobs
 
 */
 /*
@@ -22,23 +23,21 @@ AS
 
 	--3.Single Settlement 3rd:	'bodb02 : NAP Single Settlement 3rd'
 
-	--4.NG2 Settlement:			'bodb02: NAP NG2 Settlement'
+	--4.BalanceUpdBonusCredit:	'bodb02 : Task_BalanceUpdBonusCredit'
 
-	--5.BalanceUpdBonusCredit:	'bodb02 : Task_BalanceUpdBonusCredit'
+	--5.BalanceUpdCreditCasino:	'bodb02 : Task_BalanceUpdCreditCasino'
 
-	--6.BalanceUpdCreditCasino:	'bodb02 : Task_BalanceUpdCreditCasino'
+	--6.BalanceUpdCreditOthers:	'bodb02 : Task_BalanceUpdCreditOthers'
 
-	--7.BalanceUpdCreditOthers:	'bodb02 : Task_BalanceUpdCreditOthers'
+	--7.BalanceUpdCreditSports:	'bodb02 : Task_BalanceUpdCreditSports'
 
-	--8.BalanceUpdCreditSports:	'bodb02 : Task_BalanceUpdCreditSports'
+	--8.BalanceUpdDebitCasino:	'bodb02 : Task_BalanceUpdDebitCasino'
 
-	--9.BalanceUpdDebitCasino:	'bodb02 : Task_BalanceUpdDebitCasino'
+	--9.BalanceUpdDebitOthers:	'bodb02 : Task_BalanceUpdDebitOthers'
 
-	--10.BalanceUpdDebitOthers:	'bodb02 : Task_BalanceUpdDebitOthers'
+	--10.BalanceUpdDebitSports:	'bodb02 : Task_BalanceUpdDebitSports'
 
-	--11.BalanceUpdDebitSports:	'bodb02 : Task_BalanceUpdDebitSports'
-
-	--12.Ticket Voiding:		'bodb02: Ticket Voiding'
+	--11.Ticket Voiding:		'bodb02: Ticket Voiding'
 */
 BEGIN
 
@@ -77,6 +76,36 @@ BEGIN
 	
 		IF(@Jobname = 'bodb02 : NAP Single Settlement')
 			EXEC NAP_Admin_Settlement_SB_Job
+
+		ELSE IF (@Jobname = 'bodb02 : NAP Parlay Settlement')
+			EXEC [dbo].[NAP_Admin_Settlement_MP_Job]
+
+		ELSE IF(@Jobname = 'bodb02 : NAP Single Settlement 3rd')
+			EXEC [dbo].[NAP_Admin_Settlement_3rd_Job]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdBonusCredit')
+			EXEC dbo.[Task_BalanceUpdBonusCredit]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdCreditCasino')
+			EXEC dbo.[Task_BalanceUpdCreditCasino]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdCreditOthers')
+			EXEC dbo.[Task_BalanceUpdCreditOthers]
+		
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdCreditSports')
+			EXEC dbo.[Task_BalanceUpdCreditSports]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdDebitCasino')
+			EXEC dbo.[Task_BalanceUpdDebitCasino]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdDebitOthers')
+			EXEC dbo.[Task_BalanceUpdDebitOthers]
+
+		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdDebitSports')
+			EXEC dbo.[Task_BalanceUpdDebitSports]
+
+		ELSE IF (@Jobname = 'bodb02: Ticket Voiding')
+			EXEC dbo.TicketVoiding_Queue_Job
 
 		IF DATEDIFF(SECOND, @startDate, GETDATE() ) >= 600 -- loop within 10 minutes
 			BREAK
