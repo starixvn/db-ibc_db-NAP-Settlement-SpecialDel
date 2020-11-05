@@ -31,7 +31,8 @@ AS
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200701@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
-		- 20200907@Raymond: Disable LiveScore of Football sport [Redmine: #141058] 
+		- 20200907@Raymond: Disable LiveScore of Football sport [Redmine: #141058]
+		- 20201103@Charles:  No need to check Live Score once add request for Baseball [Redmine: #144544]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -306,7 +307,7 @@ BEGIN
 		SELECT t.transid
 			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
-				WHEN m.sporttype IN (1,4,8,26,28,49,51) AND t.liveindicator = 1
+				WHEN m.sporttype IN (1,4,26,28,49,51) AND t.liveindicator = 1
 					AND (m.livehomescore <> t.livehomescore OR m.liveawayscore <> t.liveawayscore)
 				THEN 1 ELSE 0
 			END
