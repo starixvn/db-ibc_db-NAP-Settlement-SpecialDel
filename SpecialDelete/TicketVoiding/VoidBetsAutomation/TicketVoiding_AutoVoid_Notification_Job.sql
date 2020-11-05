@@ -10,6 +10,7 @@ AS
 		- 20200212@Helen:[TVS] Abnormal Void Bets Automation [Redmine:#127398]
 		- 20200225@Helen:[TVS] Auto Void winning bet [Redmine:#128836]
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
+		- 20201012@Louisa: Update new email domain starixvn.com + Use DBNOTI instead of DBTP [Redmine:#143284]
 	
 	Param's explanation:	
 		
@@ -58,10 +59,10 @@ BEGIN
 			-- Send email
 			SET @Subject = 'TVS: Auto Void Notification!'	
 			-- For testing------------
-			--SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
-			
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
+			*/
 			-- For Production -----------
-			SET @Recipients = 'dbaadmin@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
+			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
 						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
@@ -82,11 +83,12 @@ BEGIN
 			-- Send via email 
 			SET @Subject = 'TVS: Auto Void Notification!'	
 			-- For testing------------
-			SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
-			-- For Production -----------
-			/*
-			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
 			*/
+			-- For Production -----------
+			
+			SET @Recipients = 'it@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
+			
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
 						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
 				
@@ -119,10 +121,11 @@ BEGIN
 			-- Send email
 			SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
 			-- For testing------------
-			--SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
-			
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
+			*/		
 			-- For Production -----------
-			SET @Recipients = 'dbaadmin@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
+			
+			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
 							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
@@ -143,11 +146,12 @@ BEGIN
 			-- Send via email 
 			SET @Subject = 'Ticket Voiding System: Void Bets Automation Failed !'	
 			-- For testing------------
-			SET @Recipients = 'helen.do@starixsoft.com;max.tran@starixsoft.com;julien.le@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;jane.dinh@starixsoft.com;charles.nguyen@starixsoft.com;raymond.le@starixsoft.com'
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
+			*/			
 			-- For Production -----------
-			/*
-			SET @Recipients = 'it@starixsoft.com;julien.le@starixsoft.com;helen.do@starixsoft.com;raymond.le@starixsoft.com;jacob.phan@starixsoft.com;max.tran@starixsoft.com;kaka.huynh@starixsoft.com;tommy.nguyen@starixsoft.com;charles.nguyen@starixsoft.com;jane.dinh@starixsoft.com'
-			*/
+			
+			SET @Recipients = 'it@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
+			
 			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
 							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
 				
