@@ -160,13 +160,13 @@ BEGIN
 						set @body = 'The Service Broker queue on ' + @@SERVERNAME + ' is DISABLE now, pls ask DBA for checking & enable back!!!'
 
 					EXEC msdb.dbo.sp_send_dbmail
-					@recipients=N'dbaadmin@starixvn.com',
+					@recipients=N'kathy.nguyen@starixvn.com',
 					--LOCAL: N'kathy.nguyen@starixvn.com'
 					--PRODUCTION: N'dbaadmin@starixvn.com'
 					@body=@body,
 					@sensitivity ='Personal',
 					@importance ='High',
-					@copy_recipients ='dbaadmin@starixvn.com',
+					@copy_recipients ='kathy.nguyen@starixvn.com;sol.le@starixvn.com;helen.do@starixvn.com',
 					--LOCAL: 'kathy.nguyen@starixvn.com;sol.le@starixvn.com;helen.do@starixvn.com'
 					--PRODUCTION: 'dbaadmin@starixvn.com'
 					@subject =@subject,
