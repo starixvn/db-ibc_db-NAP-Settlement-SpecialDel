@@ -6,7 +6,7 @@
 */
 USE [bodb02]
 GO
---I.TicketVoiding_Reason
+--I.TicketVoiding_ReasonTemplate
 INSERT INTO TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonEnglish, ReasonChineseSimplified)
 VALUES (0, 15, 'No Indication Of Home Red Card',N'由于主队红牌遗漏显示导致盘口有误' )
 	,(0, 16, 'No Indication Of Away Red Card',N'由于 客队红牌遗漏显示导致盘口有误' )
