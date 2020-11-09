@@ -11,6 +11,7 @@ AS
 			- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
+			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 
 	Param's Explanation:
 		
@@ -45,6 +46,8 @@ BEGIN
 			FROM	@tblFMBettype t
 			UNION ALL
 			SELECT 221, '221CNT__'
+			UNION ALL
+			SELECT 0, '221WB__'
 		) t
 			ON r.ResourceId LIKE t.ResourceId
 	WHERE	matchid = @matchid			
@@ -250,5 +253,9 @@ BEGIN
 			,SUM(CASE WHEN statusId BETWEEN 0 AND 1 AND isMarked = 1 THEN 1 ELSE 0 END) AS betMarkedCount
 	FROM	#tblBettrans
 
+	-- Water break
+	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo
+	FROM	@tblResultDetail r
+	WHERE	r.ResourceId LIKE '221WB__'
 END
 GO

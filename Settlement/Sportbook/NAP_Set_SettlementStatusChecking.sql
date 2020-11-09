@@ -1,10 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Set_SettlementStatusChecking]
-	@MatchId	INT
-	,@Action	VARCHAR(20)
-	,@IsEarly	BIT = 0
-	,@ErrCode	INT = 0 OUTPUT
-	,@ErrMsg	VARCHAR(200) = '' OUTPUT
+	@MatchId				INT
+	,@Action				VARCHAR(20)
+	,@IsEarly				BIT = 0
+	,@IsSettleDetermined	BIT = 0
+	,@ErrCode				INT = 0 OUTPUT
+	,@ErrMsg				VARCHAR(200) = '' OUTPUT
 AS
 /*
 	Created: Kathy
@@ -15,6 +16,7 @@ AS
 	Revisions:
 		- 20200724@Kathy: Prevent Refund Wrong Match by Checking Settlement Status [Redmine:#136390]
 		- 20200819@Kathy: Allow to Refund a postponed match without checking Refund flag [Redmine:#139903]
+		- 20201123@Kathy: Not Allow to refund determined match (Fast market) [Redmine:#143573]
 
 		
 	Parameters Explanation:    
@@ -35,7 +37,8 @@ BEGIN
 	
 	IF @SettlementStatus & 32 > 0 OR (@Action = 'REFUND' AND @EventStatus = 'Postponed')
 	BEGIN
-		IF @Action LIKE 'CAL%'
+		IF @Action LIKE 'CAL%' 
+			OR (@Action = 'REFUND' AND @IsSettleDetermined = 1) -- fast market
 		BEGIN
     		SELECT	@ErrCode = 1001033
 					,@ErrMsg = 'WARNING! Cannot proceed due to this match is marked for Refund All.	'

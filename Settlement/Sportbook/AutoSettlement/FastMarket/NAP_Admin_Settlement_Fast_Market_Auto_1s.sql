@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@AdminId				INT				= 0
 	,@Ip					VARCHAR(20)		= ''
 	,@IsReSettledTickets	BIT				= 1
+	,@IsSettleDetermined	BIT				= 0
 
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				VARCHAR(200)	= ''	OUTPUT
@@ -28,12 +29,13 @@ AS
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
 			- @Results = <r>
 							<b Id="221">
-								<r p="0" r="36" />
+								<r p="0" r="36" sw="30" ew="32" sd="1" />
 								<r p="1" r="1" />
 								<r p="2" r="4" />
 							</b>
@@ -99,11 +101,11 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblResultDetail (
-		BetType			SMALLINT
-		,ResourceId		VARCHAR(20)
-		,Position		TINYINT
-		,BetOption		TINYINT
-		,AccumulatedScore INT
+		BetType				SMALLINT
+		,ResourceId			VARCHAR(20)
+		,Position			TINYINT
+		,BetOption			TINYINT
+		,AccumulatedScore	INT
 	)
 
 	CREATE TABLE #tblEventCounter (
@@ -137,6 +139,7 @@ BEGIN
 			@MatchId	= @matchid
 			,@Action	= @action
 			,@IsEarly 	= 1
+			,@IsSettleDetermined = @IsSettleDetermined
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT
 
@@ -446,7 +449,8 @@ BEGIN
 		
 	SELECT @Remark = 'NAP: IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
 			+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>'
-			+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
+			+  CASE WHEN @IsSettleDetermined = 1 THEN ' SDT: 1 <br/>' ELSE '' END
+			+ ' Duration: ' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
 			
 	BEGIN TRY
 		SELECT @Remark = @Remark + '|'  -- signal for web
