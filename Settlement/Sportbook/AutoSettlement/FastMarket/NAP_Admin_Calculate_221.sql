@@ -18,6 +18,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		- 20201109@Kathy: Exclude reject ticket of bettype 228 [Redmine:#145036]
 		
     Param's Explanation:
 
@@ -124,6 +125,7 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
 				AND b.bettype = 228
+				AND b.statusID NOT IN (101)
 				AND 1 = CASE
 							WHEN @maxSelectedPosition < 45 AND b.hdp1 > @maxSelectedPosition THEN 1
 							WHEN @maxSelectedPosition >= 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
