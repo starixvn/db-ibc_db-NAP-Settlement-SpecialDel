@@ -24,6 +24,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200922@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@Zane: TVS - Enhance for Danger Accept Phase 4 [Redmine: #143091]
+		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 
 	Param's explanation:	
 	
@@ -87,6 +88,11 @@ BEGIN
 			,rd.FilterBy
 			,rd.IsCheckedHomeTeam
 			,rd.IsCheckedAwayTeam
+			,rd.Usernames
+			,rd.ProductIds
+			,rd.TicketStatusIds
+			,rd.FromWinlostDate
+			,rd.ToWinlostDate
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime

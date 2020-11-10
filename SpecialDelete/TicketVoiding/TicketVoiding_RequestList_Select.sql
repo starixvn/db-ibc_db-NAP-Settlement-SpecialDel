@@ -32,7 +32,7 @@ AS
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
-		- 20201019@Zane: TVS - Enhance for Danger Accept - Phase 4 - Fix duplicate request id [Redmine: #143091]
+		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 
 	Param's explanation:	
 		@Status: 
@@ -148,7 +148,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION
+				UNION ALL
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
@@ -192,7 +192,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION
+				UNION ALL
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
@@ -232,7 +232,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION
+				UNION ALL
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
@@ -360,20 +360,20 @@ BEGIN
 	END
 
 	--Return Data
-	SELECT	t.RequestId
-			,t.SubIssueTypeId
-			,t.MatchId
-			,t.KickOffTime
-			,t.Sporttype
-			,t.LeagueId
-			,t.HomeId
-			,t.AwayId
-			,t.EventDate
+	SELECT	DISTINCT t.RequestId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.SubIssueTypeId ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.MatchId ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.KickOffTime ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.Sporttype ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.LeagueId ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.HomeId ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.AwayId ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.EventDate ELSE NULL END
 			,t.ActionId
 			,t.CreatedDate
 			,c.Username AS CreatedBy
-			,t.MistakenBy
-			,t.DecidedBy
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.MistakenBy ELSE NULL END 
+			,t.DecidedBy 
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
@@ -392,6 +392,7 @@ BEGIN
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
+			,CASE WHEN t.IssueTypeId = 13 THEN us.TotalUserName ELSE NULL END AS TotalUserName --no.of accounts
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -422,6 +423,12 @@ BEGIN
 					WHERE s.RequestId = t.RequestId
 					GROUP BY s.RequestId
 			)ts
+		OUTER APPLY (
+					SELECT (LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1) AS  TotalUserName
+					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+					WHERE rd.RequestId = t.RequestId
+					)us
+
 	WHERE 1 = CASE 
 				WHEN @Status = 0 THEN 1
 				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
