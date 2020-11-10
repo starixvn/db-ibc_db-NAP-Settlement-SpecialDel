@@ -1,28 +1,28 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 (
-	@RequestId		INT
-	,@MatchId		INT
-	,@IssueTypeId	TINYINT		= NULL
-	,@KickOffTime	DATETIME	= NULL
-	,@TransIds VARCHAR(MAX) = NULL
-	,@UserId		INT
-	,@IP			VARCHAR(50)	= NULL
-	,@ActionId		TINYINT
-	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime DATETIME = NULL
-	,@FilterFromBetId BIGINT = NULL
-	,@FilterToBetId BIGINT = NULL
-	,@FilterBy TINYINT = 1
-	,@SingleCount INT = NULL
-	,@MainParlayCount INT = NULL
-	,@MinSingleTransId BIGINT = NULL
-	,@MaxSingleTransId BIGINT = NULL
-	,@MinMainParlayTransId BIGINT = NULL
-	,@MaxMainParlayTransId BIGINT = NULL
-	,@VoidFromTime DATETIME = NULL
-	,@VoidToTime DATETIME = NULL
-	,@LiveScores NVARCHAR(300) = NULL
+	@RequestId				INT
+	,@MatchId				INT
+	,@IssueTypeId			TINYINT		= NULL
+	,@KickOffTime			DATETIME	= NULL
+	,@TransIds				VARCHAR(MAX) = NULL
+	,@UserId				INT
+	,@IP					VARCHAR(50)	= NULL
+	,@ActionId				TINYINT
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterFromBetId		BIGINT = NULL
+	,@FilterToBetId			BIGINT = NULL
+	,@FilterBy				TINYINT = 1
+	,@SingleCount			INT = NULL
+	,@MainParlayCount		INT = NULL
+	,@MinSingleTransId		BIGINT = NULL
+	,@MaxSingleTransId		BIGINT = NULL
+	,@MinMainParlayTransId	BIGINT = NULL
+	,@MaxMainParlayTransId	BIGINT = NULL
+	,@VoidFromTime			DATETIME = NULL
+	,@VoidToTime			DATETIME = NULL
+	,@LiveScores			NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT = NULL
 	,@IsCheckedAwayTeam		BIT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
@@ -52,6 +52,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 
 	Param's explanation:	
 	
@@ -59,20 +60,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@LogActionId		INT
-			,@LogData			VARCHAR(MAX)
-			,@SB_Error			BIT
-
-			,@LeagueId			INT
-			,@HomeId			INT
-			,@AwayId			INT
-			,@Sporttype 		SMALLINT
-
-			,@MarkedTransIds	VARCHAR(MAX)
-			,@Username			NVARCHAR(200)
-			,@IsCalQueue	BIT = 0
+	DECLARE @StartTime			 DATETIME
+			,@EndTime			 DATETIME
+			,@LogActionId		 INT
+			,@LogData			 VARCHAR(MAX)
+			,@SB_Error			 BIT
+			,@LeagueId			 INT
+			,@HomeId			 INT
+			,@AwayId			 INT
+			,@Sporttype 		 SMALLINT
+			,@MarkedTransIds	 VARCHAR(MAX)
+			,@Username			 NVARCHAR(200)
+			,@IsCalQueue		 BIT = 0
 			,@IsTransidProcessed BIT = 0			
 
 	-- get match info
@@ -154,7 +153,7 @@ BEGIN
 		, @MaxMainParlayTransId
 		, @VoidFromTime
 		, @VoidToTime
-		,@LiveScores
+		, @LiveScores
 		, @IsCheckedHomeTeam
 		, @IsCheckedAwayTeam
 
@@ -197,11 +196,11 @@ BEGIN
 								+  (CASE
 									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
 									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
-									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy IN(1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
-									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @FilterBy IN (1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy IN(1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
+									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy IN (1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
 										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
-									WHEN @IssueTypeId=1 AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
-									WHEN @IssueTypeId=1 AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
+									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
 										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 									ELSE ''
 								END)

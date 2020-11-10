@@ -1,14 +1,14 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
-	@MatchId		INT
-    ,@KickOffDate	DATETIME = NULL
-    ,@RequestId		INT = NULL
-    ,@IssueTypeId	INT = NULL
-	,@BetTypes		XML = NULL
-	,@ActionId		TINYINT = 0
-	,@LiveHomeScore    SMALLINT     = NULL
-	,@LiveAwayScore    SMALLINT     = NULL
+	@MatchId			INT
+    ,@KickOffDate		DATETIME = NULL
+    ,@RequestId			INT = NULL
+    ,@IssueTypeId		INT = NULL
+	,@BetTypes			XML = NULL
+	,@ActionId			TINYINT = 0
+	,@LiveHomeScore		SMALLINT = NULL
+	,@LiveAwayScore		SMALLINT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -28,6 +28,7 @@ AS
 	    - 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785] 
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		 
 	Param's explanation:	
 		
@@ -89,19 +90,19 @@ BEGIN
         MainTransId           BIGINT,
         WinLost               MONEY,
         IsMarked              BIT,
-        LiveIndicator			BIT,
-		FilterBettype      SMALLINT,
-        FilterBetTeam      NVARCHAR(10),
-        FilterSet          VARCHAR(50),
-        FilterGame         VARCHAR(50),
-        FilterValue        SMALLMONEY,
-		FilterHdp1		 SMALLMONEY,
-		FilterHdp2		 SMALLMONEY,
-        FilterGoal         BIGINT,
-        FilterBetOption    NVARCHAR(50),
-        FilterTimeInterval SMALLMONEY,
-		mainstatusid       TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
-		FilterOddsSpread	 MONEY
+        LiveIndicator		  BIT,
+		FilterBettype		  SMALLINT,
+        FilterBetTeam		  NVARCHAR(10),
+        FilterSet			  VARCHAR(50),
+        FilterGame			  VARCHAR(50),
+        FilterValue			  SMALLMONEY,
+		FilterHdp1		      SMALLMONEY,
+		FilterHdp2		      SMALLMONEY,
+        FilterGoal			  BIGINT,
+        FilterBetOption		  NVARCHAR(50),
+        FilterTimeInterval	  SMALLMONEY,
+		mainstatusid		  TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
+		FilterOddsSpread	  MONEY
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -264,7 +265,7 @@ BEGIN
 			  	
 					
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1, 10)
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN

@@ -16,6 +16,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
+		- 20201105@Charles: Fix show liveindicator for subparlay [143091]
 	Explanation's Param:
 */
 BEGIN
@@ -205,7 +206,7 @@ SET NOCOUNT ON
 			,bm.transdate
 			,b.betteam
 			,b.betcheck
-			,b.liveindicator
+			,bm.liveindicator
 			,bm.custid
 			,bm.livehomescore
 			,bm.liveawayscore

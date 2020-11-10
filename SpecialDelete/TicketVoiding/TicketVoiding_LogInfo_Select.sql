@@ -30,6 +30,8 @@ AS
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201015@Max: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
+		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201102@Max: TVS - Enhance for Danger Accept - Phase 4 - Show LogInfo when voided [Redmine: #143091]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -124,6 +126,7 @@ BEGIN
 		,VoidFromTime DATETIME
 		,VoidToTime DATETIME
 		,SingleCount INT
+		,CashOutCount INT
 		,MainParlayCount INT
 		,MinSingleTransId BIGINT
 		,MaxSingleTransId BIGINT
@@ -133,38 +136,9 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
+	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
-	IF @IsShowLogOnly = 1 AND @RequestId <> 0
-	BEGIN
-		--Error Table
-				SELECT @IsInvalidTransId AS IsInvalidTransId
-					,@IsInvalidLiveScore AS IsInvalidLiveScore
-					,@IsInValidTotalTickets AS IsInValidTotalTickets
-					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
-		--TransId in request table
-		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-			,r.RequestId
-		FROM #TransidInRequest r
-
-		/*Get log info for Void Page*/
-		SELECT rd.MatchId
-			,rd.IssueDetail AS LiveScores
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.SingleCount
-			,rd.MainParlayCount
-			,rd.MinSingleTransId
-			,rd.MaxSingleTransId
-			,rd.MinMainParlayTransId
-			,rd.MaxMainParlayTransId
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		WHERE rd.RequestId = @RequestId
-
-		RETURN;
-	END
-	
 	IF @IssueTypeId NOT IN (8,9)
 	BEGIN
 		/*Generate LogInfo*/
@@ -201,6 +175,7 @@ BEGIN
 					,l.VoidFromTime
 					,l.VoidToTime
 					,l.SingleCount
+					,l.CashOutCount
 					,l.MainParlayCount
 					,l.MinSingleTransId
 					,l.MaxSingleTransId
@@ -852,12 +827,13 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 	SELECT @MatchId AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
 		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = 1 THEN b.transid ELSE NULL END) AS CashOutCount
 		,MIN(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
 		,COUNT(CASE WHEN b.transid <> b.SubTransid AND (ISNULL(b.betdaqid,-1) NOT IN (1) OR b.IsMixParlay = 1) THEN b.transid ELSE NULL END) AS MainParlayCount
@@ -868,7 +844,80 @@ BEGIN
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
 
-	IF @IssueTypeId = 1
+	IF @IsShowLogOnly = 1 AND @RequestId <> 0
+	BEGIN
+		--Error Table
+		SELECT @IsInvalidTransId AS IsInvalidTransId
+			,@IsInvalidLiveScore AS IsInvalidLiveScore
+			,@IsInValidTotalTickets AS IsInValidTotalTickets
+			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+		--TransId in request table
+		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+			,r.RequestId
+		FROM #TransidInRequest r
+
+		/*Get log info for Void Page*/
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket)
+		SELECT @RequestId, @MatchId, s.TransId, b.bettype, 0
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
+		WHERE s.RequestId = @RequestId
+			AND s.MatchId = @MatchId
+			AND b.betdaqid = 0
+			AND charindex ('p25',b.extrainfo)> 0	
+
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		SELECT @RequestId, @MatchId 
+			,sub911.transid
+			,sub911.bettype
+			,main.bettype
+			,1
+		FROM dbo.bettrans sub911 WITH(NOLOCK)
+				INNER JOIN #CashOuts main 
+					ON	sub911.refno = main.transid	
+		WHERE sub911.matchid = @MatchId
+
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		SELECT @RequestId, @MatchId 
+			,b.transid
+			,b.bettype
+			,sub911.OriginalBetType
+			,1
+		FROM #CashOuts sub911
+				CROSS APPLY (
+								SELECT b.transid, b.bettype
+								FROM dbo.bettrans b WITH (NOLOCK)
+								WHERE b.refno = sub911.transid
+									AND b.matchid = @MatchId					
+									AND b.bettype = sub911.OriginalBetType
+							) AS b
+		WHERE sub911.bettype = 911
+
+		SELECT rd.MatchId
+			,rd.IssueDetail AS LiveScores
+			,rd.VoidFromTime
+			,rd.VoidToTime
+			,rd.SingleCount
+			,c.CashOutCount AS CashOutCount
+			,rd.MainParlayCount
+			,rd.MinSingleTransId
+			,rd.MaxSingleTransId
+			,rd.MinMainParlayTransId
+			,rd.MaxMainParlayTransId
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		  OUTER APPLY (
+					SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
+					FROM #CashOuts
+					WHERE RequestId = rd.RequestId	
+						AND MatchId = rd.MatchId
+			) c
+		WHERE rd.RequestId = @RequestId
+
+		RETURN;
+	END
+
+	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
 			,@MainParlayCount = SUM(MainParlayCount)
@@ -914,6 +963,7 @@ BEGIN
 				,MIN(VoidFromTime) AS VoidFromTime
 				,MAX(VoidToTime) AS VoidToTime
 				,SUM(SingleCount) AS SingleCount
+				,SUM(CashOutCount) AS CashOutCount
 				,SUM(MainParlayCount) AS MainParlayCount
 				,MIN(MinSingleTransId) AS MinSingleTransId
 				,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -963,6 +1013,7 @@ BEGIN
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
+		,SUM(CashOutCount) AS CashOutCount
 		,SUM(MainParlayCount) AS MainParlayCount
 		,MIN(MinSingleTransId) AS MinSingleTransId
 		,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -978,5 +1029,7 @@ BEGIN
 	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
+	DROP TABLE #CashOuts
+
 END
 GO

@@ -23,6 +23,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200922@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
+		- 20201021@Zane: TVS - Enhance for Danger Accept Phase 4 [Redmine: #143091]
 
 	Param's explanation:	
 	
@@ -84,15 +85,6 @@ BEGIN
 			,rd.FilterFromBetId
 			,rd.FilterToBetId
 			,rd.FilterBy
-			,rd.SingleCount
-			,rd.MainParlayCount
-			,rd.MinSingleTransId
-			,rd.MaxSingleTransId
-			,rd.MinMainParlayTransId
-			,rd.MaxMainParlayTransId
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.IssueDetail AS LiveScores
 			,rd.IsCheckedHomeTeam
 			,rd.IsCheckedAwayTeam
 	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
