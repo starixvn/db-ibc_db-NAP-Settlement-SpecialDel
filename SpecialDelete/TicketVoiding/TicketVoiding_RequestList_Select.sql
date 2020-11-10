@@ -32,6 +32,7 @@ AS
 		- 20200820@Max: Action in Manage Request did not show information in TVS system [Redmine: #139933]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
+		- 20201019@Zane: TVS - Enhance for Danger Accept - Phase 4 - Fix duplicate request id [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 
 	Param's explanation:	
@@ -148,7 +149,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION ALL
+				UNION
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
@@ -192,7 +193,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION ALL
+				UNION 
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
@@ -232,7 +233,7 @@ BEGIN
 			INNER JOIN (
 				SELECT	m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION ALL
+				UNION 
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 				) m
