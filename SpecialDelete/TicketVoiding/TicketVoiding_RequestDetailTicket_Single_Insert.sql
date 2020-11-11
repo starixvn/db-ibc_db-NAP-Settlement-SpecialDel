@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 (	 
 	@RequestId				INT
-	,@MatchId				INT
+	,@MatchId				INT		= 0
 	,@KickOffTime			DATETIME = NULL
 	,@IssueTypeId			INT
 	,@SubIssueTypeId		INT
@@ -122,7 +122,7 @@ BEGIN
 			MainTransId           BIGINT,
 			WinLost               MONEY,
 			IsMarked              BIT,
-			LiveIndicator			BIT
+			LiveIndicator		  BIT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -145,7 +145,7 @@ BEGIN
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
-		/************************************************   *********************************************/
+	/************************************************   *********************************************/
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, isFinish BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -241,7 +241,7 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 					WHERE RequestId = req.RequestId
 				) AS tmp
-	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+	WHERE (rd.MatchId = @MatchId OR @MatchId = 0)  AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
@@ -299,13 +299,15 @@ BEGIN
 			WHERE RequestId = @RequestId
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			, @IssueTypeId
 			, @SubIssueTypeId
 			, t.TransId
 			, t.MatchId
+			, rd.Id AS RequestDetailId
 		FROM #DangerAccept_SingleTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
 			OUTER APPLY (
 								SELECT TOP 1 rs.TransId
 								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
@@ -314,7 +316,7 @@ BEGIN
 									AND rs.MatchId = @MatchId
 									AND r.ActionId NOT IN (2)
 						)tmp
-		WHERE tmp.TransId IS NULL
+		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 
 		IF @ActionId <> 2
 		BEGIN
@@ -380,9 +382,10 @@ BEGIN
 			WHERE RequestId = @RequestId
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId
-		FROM dbo.f_SplitString(@TransIds, ',')
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, rd.Id AS RequestDetailId
+		FROM dbo.f_SplitString(@TransIds, ',') l
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = @MatchId --
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
 	END
@@ -463,10 +466,9 @@ BEGIN
 					SET isFinish = 1
 				OUTPUT DELETED.TransId, DELETED.StatusId					
 				INTO @tmpTransIDBatch(TransId, StatusId)
-				FROM #transIdTemp t 
+				FROM #transIdTemp t
 				WHERE isFinish IS NULL
-				
-				
+					  
 				IF @@ROWCOUNT = 0 BREAK
 				
 				SELECT @UnMarkedTransIds = STUFF(
@@ -760,7 +762,7 @@ BEGIN
 							AND main.bettype = sub.bettype											
 			WHERE main.WalletType = 1			
 	  
-			-- Insert more bonus or cash ticket in case only one ticket appears in #Data	
+			-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets	
 			INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, IsMarked, transid)
 			SELECT RefCode, custid, matchid, bettype,IsMarked
 				 , MAX(transid) AS transid
@@ -1098,13 +1100,16 @@ BEGIN
 
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			,@IssueTypeId
 			,@SubIssueTypeId
 			,s.transid
 			,s.matchid
+			,rd.Id AS RequestDetailId
 		FROM #SpecialDeleteBets s
+				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+					ON rd.RequestId = @RequestId AND s.MatchId = rd.MatchId
 
 	END
 	ELSE --EKO,WKO
@@ -1651,13 +1656,17 @@ BEGIN
 						 ) AS b
 		WHERE sub911.bettype = 911
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			,@IssueTypeId
 			,@SubIssueTypeId
 			,s.transid
 			,@MatchId
+			,rd.Id AS RequestDetailId
 		FROM #SpecialDeleteBets s
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+					ON rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+
 	END
 
 	DROP TABLE #SpecialDeleteBets
@@ -1665,4 +1674,8 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #DangerAccept_SingleTickets
 	DROP TABLE #TransidInRequest
+	DROP TABLE #InputUsernameList
+	DROP TABLE #InputValidCustid_2
+	DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #transIdTemp
 END

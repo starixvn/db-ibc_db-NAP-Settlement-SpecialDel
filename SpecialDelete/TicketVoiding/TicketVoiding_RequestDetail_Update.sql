@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 (
 	@RequestId				INT
-	,@MatchId				INT
+	,@MatchId				VARCHAR(MAX) = NULL
 	,@KickOffTime			DATETIME = NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50) = NULL
@@ -26,7 +26,12 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@IsCheckedHomeTeam		BIT = NULL
 	,@IsCheckedAwayTeam		BIT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
-	,@IsConfirmCalculator   BIT = 0 
+	,@IsConfirmCalculator   BIT = 0
+	,@UserNames				VARCHAR(MAX) = NULL
+	,@ProductIds			VARCHAR(50)  = NULL
+	,@StatusIds				VARCHAR(50)  = NULL
+	,@FromDate				DATETIME     = NULL
+    ,@ToDate				DATETIME     = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
 	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
@@ -56,6 +61,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 
 	Param's explanation:	
 	
@@ -88,17 +94,36 @@ BEGIN
 			,@ResettleTransids       VARCHAR(MAX) = '' 
 			,@UnmarkTransids		 VARCHAR(MAX) =''
 			,@RemoveTransIds		 VARCHAR(MAX) =''
+			,@OldUserNames			 VARCHAR(MAX) = NULL
+			,@OldFromDate			 DATETIME     = NULL
+			,@OldToDate				 DATETIME     = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
+
+	CREATE TABLE #TempEditMatchID ( MatchID INT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
+	CREATE TABLE #TempMatch (MatchID INT)
+	 
+	IF CHARINDEX (',', @MatchId) = 0
+	BEGIN
+		 SET @MatchId = CAST (@MatchId AS INT)
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #TempMatch (MatchId)
+		SELECT  DISTINCT l.val
+		FROM dbo.f_SplitString(@MatchId, ',') l
+		WHERE l.val <> ''
+		OPTION (maxrecursion 0)
+	END
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
 	SET @SB_Error = 0
 
 	
-	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL
+	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL -- Abnormal Bet
 	BEGIN
 	
 		SELECT	@LeagueId = leagueid
@@ -116,10 +141,9 @@ BEGIN
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
 				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-
 		WHERE	RequestId = @RequestId
 	END
-	ELSE IF @IssueTypeId IN (1, 10)
+	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept, Red Card
 	BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET @OldFilterFromTransTime = FilterFromTransTime
@@ -146,31 +170,91 @@ BEGIN
 
 		WHERE	RequestId = @RequestId
 	END
-	ELSE
+	ELSE IF @IssueTypeId = 13 -- Abnormal Account
+	BEGIN
+
+		SELECT   @OldUserNames	= UserNames
+				, @OldFromDate	= FromWinlostDate
+				, @OldToDate	= ToWinlostDate
+		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK)
+		WHERE RequestId = @RequestId 
+
+		INSERT INTO #TempEditMatchID (MatchID, IsFlag)
+		SELECT rd.MatchId, 0 -- remove match
+		FROM  dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+		WHERE  NOT EXISTS ( SELECT TOP 1 1 FROM #TempMatch m WHERE rd.MatchId = m.MatchID)
+			 AND rd.RequestId = @RequestId
+		UNION ALL
+		SELECT m.MatchId, 1  -- add match
+		FROM  #TempMatch m
+		OUTER APPLY  (
+					SELECT rd.MatchId
+					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+					WHERE m.MatchID = rd.MatchId AND rd.RequestId = @RequestId
+			)tmp
+		WHERE tmp.MatchId IS NULL
+
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 0 )
+		BEGIN
+				DELETE rd
+				FROM dbo.TicketVoiding_RequestDetail rd
+					INNER JOIN #TempEditMatchID e ON  rd.MatchId = e.MatchID
+				WHERE rd.RequestId = @RequestId AND IsFlag = 0
+		END
+		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1)
+		BEGIN
+				INSERT INTO dbo.TicketVoiding_RequestDetail
+				(
+					RequestId
+					, MatchId
+					, LeagueId
+					, HomeId
+					, AwayId
+					, RequestType
+				)
+				SELECT @RequestId
+					, e.MatchID
+					, m.leagueid
+					, m.homeid
+					, m.awayid
+					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				FROM #TempEditMatchID e 
+					INNER JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid AND e.IsFlag = 1		
+		END  
+		
+		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
+			SET   UserNames =  @UserNames
+				, ProductIds = @ProductIds
+				, TicketStatusIds = @StatusIds
+				, FromWinlostDate = @FromDate
+				, ToWinlostDate = @ToDate
+		WHERE	RequestId = @RequestId
+	END
+	ELSE --EKO, WKO
 	BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET	@OldKickOffTime = KickOffTime
 				,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
-
 		WHERE	RequestId = @RequestId
 				AND MatchId = @MatchId
 	END
-
-	INSERT INTO #TransidInRequest (TransId)
-	SELECT tmp.transid
-	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		CROSS APPLY (
-					SELECT TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = req.RequestId
-				) AS tmp
-	WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 	-- Auto mark ticket running for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN
 		
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT tmp.transid
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			CROSS APPLY (
+						SELECT TransId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE RequestId = req.RequestId
+					) AS tmp
+		WHERE rd.MatchId = @MatchId 
+			AND req.RequestId <> @RequestId AND req.ActionId <>2
+
 		INSERT INTO #inputTransid (transid)
 		SELECT DISTINCT val 
 		FROM dbo.f_SplitString(@TransIds, ',')
@@ -206,7 +290,7 @@ BEGIN
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
 				SET @IsTransidProcessed = 1
 
-		IF @ActionId <>2
+		IF @ActionId <> 2
 		BEGIN
 			-- mark ticket
 			SELECT @MarkedTransIds = STUFF(
@@ -319,6 +403,23 @@ BEGIN
 			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
 		END
 	END
+	ELSE IF @IssueTypeId = 13
+	BEGIN
+		IF @OldFromDate <> @FromDate
+		BEGIN
+			SET @LogDataContent += ' Old From Date: ' + CONVERT(VARCHAR(30), @OldFromDate, 21)
+								+ ' New From Date: ' + CONVERT(VARCHAR(30), @FromDate, 21)
+		END
+		IF @OldToDate <> @ToDate
+		BEGIN
+			SET @LogDataContent += ' Old To Date: ' + CONVERT(VARCHAR(30), @OldToDate, 21)
+								+ ' New To Date: ' + CONVERT(VARCHAR(30), @ToDate, 21)
+		END
+		IF @OldUserNames <> @UserNames
+		BEGIN
+			SET @LogDataContent += ' Old Usernames: ' + @OldUserNames + ' New Usernames: ' + @UserNames
+		END
+	END
 	ELSE
 	BEGIN
 		IF @OldKickOffTime <> @KickOffTime
@@ -344,6 +445,8 @@ BEGIN
 	DROP TABLE #inputTransid
 	DROP TABLE #transid_tmp
 	DROP TABLE #TransidInRequest
+	DROP TABLE #TempEditMatchID
+	DROP TABLE #TempMatch
 
 END
 GO

@@ -148,31 +148,27 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY
 	)
-
+	DECLARE @tmpMatchIDBatch TABLE (MatchID INT, bettype  SMALLINT)
 	DECLARE @SettledType VARCHAR(100) = 'All'
 
-	CREATE TABLE #TmpMatch ( matchid INT, Sporttype SMALLINT, leagueid INT, SettlementStatus TINYINT)
-	INSERT INTO #TmpMatch
-	SELECT DISTINCT rd.MatchId,m.sporttype,m.leagueid, m.SettlementStatus
+	CREATE TABLE #TmpMatch 
+	( 
+		MatchId		INT, 
+		Sporttype	SMALLINT, 
+		Leagueid	INT, 
+		SettlementStatus TINYINT, 
+		IsFinish	BIT
+	)
+
+	INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
+	SELECT DISTINCT rd.matchid
+					,m.sporttype
+					,m.leagueid
+					,m.SettlementStatus
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
-	WHERE rd.RequestId =@RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
+	WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
 
-	--DECLARE @SportType	SMALLINT
-	--		,@LeagueId	INT
-	
-	--SELECT	@SportType = Sporttype 
-	--		,@LeagueId = leagueid
-	--FROM	dbo.match WITH(NOLOCK) 
-	--WHERE	matchid = @matchid
-	
-
-	--DECLARE @SettlementStatus TINYINT = NULL, 
-	--@SettledType VARCHAR(100) = 'All'
-	--SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
-
-
-	
 	IF @IssueTypeId = 11 --11: AbnormalBet
 	BEGIN
 		DECLARE @transIdTemp TABLE (transid BIGINT NULL);
@@ -283,7 +279,7 @@ BEGIN
 			  	
 					
 	END
-	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept
+	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept, Red Card
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
@@ -949,53 +945,50 @@ BEGIN
 				,IsMarked
 				,matchid	
 			)
-			SELECT	
-				b.translogID AS GroupID
-				,b.GameID
-				,b.translogID as transid
-				,0 AS BetID
-				,b.translogID refno	
-				,0 hdp1
-				,0 hdp2
-				,b.odds
-				,0 AS oddsspread
-				,b.custom1 OddsType
-				,b.STATUS
-				,b.stake
-				,b.transdate
-				,NULL betteam
-				,NULL betcheck
-				,b.liveindicator liveindicator
-				,NULL modds
-				,b.custid
-				,NULL livehomescore
-				,NULL liveawayscore
-				,b.EventID
-				,- b.actual_stake as winlost
-				,b.transdesc
-				,-1 -- normal ticket
-				,username
-				,recommend
-				,b.CurrencyName
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,NULL matchid	
-			FROM dbo.translog AS b WITH (NOLOCK)
-				CROSS APPLY (
-								SELECT TOP 1 rs.TransId
-								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
-								WHERE rs.TransId = b.translogid
-									AND r.ActionId NOT IN (2)
-									AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-											ELSE 1 END
-							)tmp		
-				OUTER APPLY (
-							SELECT TOP (1) TransId
-							FROM dbo.MarkedTransaction WITH(NOLOCK) 
-							WHERE b.translogid = TransId
-						)m
-			WHERE b.GameID BETWEEN 801 AND 806
-				AND b.statusID = 0
+		SELECT	
+			b.translogID AS GroupID
+			,b.GameID
+			,b.translogID as transid
+			,0 AS BetID
+			,b.translogID refno	
+			,0 hdp1
+			,0 hdp2
+			,b.odds
+			,0 AS oddsspread
+			,b.custom1 OddsType
+			,b.STATUS
+			,b.stake
+			,b.transdate
+			,NULL betteam
+			,NULL betcheck
+			,b.liveindicator liveindicator
+			,NULL modds
+			,b.custid
+			,NULL livehomescore
+			,NULL liveawayscore
+			,b.EventID
+			,- b.actual_stake as winlost
+			,b.transdesc
+			,-1 -- normal ticket
+			,username
+			,recommend
+			,b.CurrencyName
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,NULL matchid	
+		FROM dbo.translog AS b WITH (NOLOCK)
+			CROSS APPLY (
+						SELECT TOP (1) transid
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE transid = b.transid
+							AND RequestId = @RequestId
+				) ts	
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.translogid = TransId
+					)m
+		WHERE b.GameID BETWEEN 801 AND 806
+			AND b.statusID = 0
 				
 		-- bettrans tickets	
 		INSERT INTO #SpecialDeleteBets (
@@ -1080,15 +1073,12 @@ BEGIN
 			ON b.custid 		= tl.custid
 				AND b.refno 	= tl.translogid
 				AND b.matchid 	= tl.eventid
-			OUTER APPLY (
-							SELECT TOP 1 rs.TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
-							WHERE rs.TransId = b.transid
-								AND r.ActionId NOT IN (2)
-								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-										ELSE 1 END
-						)tmp		
+			CROSS APPLY (
+							SELECT TOP (1) transid
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE transid = b.transid
+								AND RequestId = @RequestId
+					) ts
 			OUTER APPLY (
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
@@ -1096,9 +1086,7 @@ BEGIN
 					)m
 		WHERE			
 				b.bettype BETWEEN 801 AND 806 
-			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (0, 101, 102, 103) AND tmp.TransId IS NULL THEN 1
-						WHEN @ActionId = 2 AND b.statusID NOT IN (0, 101, 103) THEN 1
-						ELSE 0 END	
+			AND b.statusID NOT IN (0, 101, 102, 103)
 			
 		UNION ALL
 		SELECT	
@@ -1145,15 +1133,12 @@ BEGIN
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.matchid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
-			OUTER APPLY (
-							SELECT TOP 1 rs.TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
-							WHERE rs.TransId = b.transid
-								AND r.ActionId NOT IN (2)
-								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-										ELSE 1 END
-						)tmp
+			CROSS APPLY (
+							SELECT TOP (1) transid
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE transid = b.transid
+								AND RequestId = @RequestId
+					) ts
 			OUTER APPLY (
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
@@ -1161,9 +1146,7 @@ BEGIN
 					)m
 					
 		WHERE	 b.bettype NOT BETWEEN 801 AND 806-- MG
-			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
-						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						ELSE 0 END	
+			AND  b.statusID NOT IN (101, 102, 103)
 				
 	END
 	ELSE --EKO, WKO
@@ -1629,7 +1612,7 @@ BEGIN
 		END  			    				    					    				    					    	
 	END
 
-	IF @IssueTypeId <> 13
+	IF @IssueTypeId <> 13 --AB,DA,EKO,WKO,RC
 	BEGIN
 		UPDATE	main
 			SET main.SoldId = sub.transid
@@ -1960,7 +1943,7 @@ BEGIN
 	UPDATE al
 		SET username = ci.username
 			,creatorName = cr.username
-			,SubLeagueId = m.leagueid
+			,SubLeagueId = m.Leagueid
 			,sporttype = m.Sporttype
 	FROM	#SpecialDeleteBets al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
@@ -1982,32 +1965,75 @@ BEGIN
 		DECLARE @IsHTCal BIT = 0
 			  , @eventstatus NVARCHAR(50) = ''
 		  
-		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
+		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT, MatchID INT)	
 		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
 	
-		--> Get status of match
-		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
-		FROM match_remark (NOLOCK)
-		WHERE matchid = @MatchId
-	
-		SELECT @eventstatus = ISNULL(eventstatus, '')
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchId		
-	
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		IF @eventstatus <> @eventstatus_completed
+		WHILE (1=1)
 		BEGIN
-			IF @IsHTCal = 0
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
-				WHERE T.InstantType IN (1, 3) -- 01, 11
-			ELSE
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
-				WHERE T.InstantType IN (2, 3) -- 10, 11			
-		END	 	
+			IF @MatchId <> 0
+			BEGIN
+				--> Get status of match
+				SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+				FROM match_remark (NOLOCK)
+				WHERE matchid = @MatchID	
+	
+				SELECT @eventstatus = ISNULL(eventstatus, '')
+				FROM match (NOLOCK)
+				WHERE matchid = @MatchID		
+	
+				--> Build bettype list supported for instant settlement based on settlement status of match
+				IF @eventstatus <> @eventstatus_completed
+				BEGIN
+					IF @IsHTCal = 0
+						INSERT INTO #InstantSettlementBettypes(bettype)
+						SELECT T.bettype
+						FROM dbo.f_Set_Instant_GetBettypes() T
+						WHERE T.InstantType IN (1, 3) -- 01, 11
+					ELSE
+						INSERT INTO #InstantSettlementBettypes(bettype)
+						SELECT T.bettype
+						FROM dbo.f_Set_Instant_GetBettypes() T
+						WHERE T.InstantType IN (2, 3) -- 10, 11			
+				END	 
+			END
+			ELSE  -- multiple match
+			BEGIN
+				DELETE @tmpMatchIDBatch
+				UPDATE TOP (1) m
+					SET IsFinish = 1
+				OUTPUT DELETED.matchid
+						,s.bettype
+				INTO @tmpMatchIDBatch (MatchID, bettype)
+				FROM #TmpMatch m
+						INNER JOIN #SpecialDeleteBets s ON m.matchid = s.matchid
+
+				--> Get status of match
+				SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+				FROM match_remark (NOLOCK)
+				WHERE matchid IN (SELECT matchid FROM @tmpMatchIDBatch)
+	
+				SELECT @eventstatus = ISNULL(eventstatus, '')
+				FROM match (NOLOCK)
+				WHERE matchid IN (SELECT matchid FROM @tmpMatchIDBatch)	
+	
+				--> Build bettype list supported for instant settlement based on settlement status of match
+				IF @eventstatus <> @eventstatus_completed
+				BEGIN
+					IF @IsHTCal = 0
+						INSERT INTO #InstantSettlementBettypes(bettype, MatchID)
+						SELECT T.bettype, tmp.MatchID
+						FROM dbo.f_Set_Instant_GetBettypes() T
+							INNER JOIN @tmpMatchIDBatch tmp ON T.bettype = tmp.bettype
+						WHERE T.InstantType IN (1, 3) -- 01, 11
+					ELSE
+						INSERT INTO #InstantSettlementBettypes(bettype, MatchID)
+						SELECT T.bettype, tmp.MatchID
+						FROM dbo.f_Set_Instant_GetBettypes() T
+							INNER JOIN @tmpMatchIDBatch tmp ON T.bettype = tmp.bettype
+						WHERE T.InstantType IN (2, 3) -- 10, 11			
+				END	 
+			END
+		END	
 	END	
 
 	-- TICKET SECTION
@@ -2303,7 +2329,9 @@ BEGIN
 									WHEN s.mainstatusid IN (111, 112, 113)
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
-													 WHERE bettype = s.MainBettype)
+													 WHERE bettype = s.MainBettype
+															AND ( MatchID = s.matchid OR @MatchId <> 0)
+													 )
 											THEN s.OriginGroupName + ' (Instant Settlement)'
 									ELSE s.OriginGroupName
 								 END

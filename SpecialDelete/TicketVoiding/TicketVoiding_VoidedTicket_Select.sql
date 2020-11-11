@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 ( 
-	@RequestId INT
-	,@MatchId   INT
+	@RequestId	INT
+	,@MatchId   INT = 0
 )
 AS;
 /*	Created by: Kathy
@@ -16,6 +16,7 @@ AS;
 		- 20191118@Max: AdnormalBet TVS + Hotfix #124160 [Redmine:#123691]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
+		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
 		
 	Param's explanation:	
 		
@@ -23,18 +24,20 @@ AS;
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @SettlementStatus TINYINT
-			,@IsMovebet BIT
-
-	SET @SettlementStatus = NULL
+	DECLARE @IsMovebet BIT
 	SET @IsMovebet = 0
+	
+	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
+	INSERT INTO #TmpMatch
+	SELECT rd.MatchId, m.SettlementStatus
+	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		INNER JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
+	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
 
-	SELECT	@SettlementStatus = m.SettlementStatus 
-	FROM	dbo.match m WITH(NOLOCK) 
-	WHERE	m.matchid = @MatchId 
-
-	IF @@rowcount = 0
+	IF NOT EXISTS ( SELECT TOP 1 1 FROM #TmpMatch)
+	BEGIN
 		SET @IsMovebet = 1
+	END
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
@@ -125,8 +128,8 @@ BEGIN
 					,z.bettype
 					,z.odds
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
+					INNER JOIN #TmpMatch m ON z.matchid = m.Matchid
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND z.matchid = @MatchId
 					AND 1 = CASE
 								WHEN z.bettype = 911 THEN 1
 								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
@@ -152,8 +155,8 @@ BEGIN
 					,zm.transdate AS VoidedTime
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
+					INNER JOIN #TmpMatch m ON zm.matchid = m.Matchid
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-					AND zm.matchid = @MatchId
 		) zm
 		
 	IF @IsMovebet = 0
@@ -455,6 +458,7 @@ BEGIN
 			   ,s.subbettype
 			   ,s.subtransdesc
 			   ,s.ActualStake
+			   ,s.matchid
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -516,8 +520,10 @@ BEGIN
 			   ,s.subbettype
 			   ,s.subtransdesc
 			   ,s.ActualStake
+			   ,s.matchid
 		FROM	#tmpTicket s 
-			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
+			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid 
+			INNER JOIN #TmpMatch m ON b.matchid = m.Matchid
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -570,6 +576,7 @@ BEGIN
 			   ,s.subbettype
 			   ,s.subtransdesc
 			   ,s.ActualStake
+			   ,s.matchid
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -629,6 +636,7 @@ BEGIN
 		   ,s.subbettype
 		   ,s.subtransdesc
 		   ,s.ActualStake
+		   ,s.matchid
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -673,19 +681,21 @@ BEGIN
 		   ,s.WalletType
 		   ,s.RefCode
 		   ,s.IsCashOut
-		   ,@SettlementStatus AS SettlementStatus
-			,cr.username AS Creator
-			,s.IsCashOut
-			,s.winlost
-			,s.IsMarked
-			,c.site as LicenseeName
-			,s.LiveIndicator AS IsLiveIndicator
-			,s.subbettype AS SubBettype
-			,s.subtransdesc AS subTransdesc
+		   ,m.SettlementStatus AS SettlementStatus
+		   ,cr.username AS Creator
+		   ,s.IsCashOut
+		   ,s.winlost
+		   ,s.IsMarked
+		   ,c.site as LicenseeName
+		   ,s.LiveIndicator AS IsLiveIndicator
+		   ,s.subbettype AS SubBettype
+		   ,s.subtransdesc AS subTransdesc
 			,s.ActualStake
+		   ,s.matchid
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN #TmpMatch m ON s.matchid = m.Matchid
 
 	ORDER BY CASE
 				WHEN s.GroupName = 'CN88' THEN 1
@@ -705,6 +715,7 @@ BEGIN
 				ELSE s.transid
 			 END
 	DROP TABLE #tmpTicket
+	DROP TABLE #TmpMatch
 	
 END
 GO

@@ -50,7 +50,7 @@ BEGIN
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 	DECLARE @tmpMatchVoidingHistory TABLE (
-		RequestId			INT
+		 RequestId			INT
 		,MatchId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
@@ -64,7 +64,7 @@ BEGIN
 		, @ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpResult (
-		RequestId		INT
+		 RequestId		INT
 		,SubIssueTypeId SMALLINT
 		,ActionId		TINYINT
 		,UserId			INT
@@ -72,7 +72,6 @@ BEGIN
 		,MistakenBy		NVARCHAR(200)
 		,DecidedBy		NVARCHAR(200)
 		,CheckedBy		INT
-
 		,MatchId		INT
 		,Sporttype		SMALLINT
 		,LeagueId		INT
@@ -97,14 +96,17 @@ BEGIN
 
 	CREATE TABLE #Incompleted_tmp (RequestId INT, StatusId TINYINT)
 
-	IF @IssueTypeId IS NOT NULL AND @SubIssueType IS NOT NULL
+	IF @IssueTypeId IS NOT NULL 
 	BEGIN
 		INSERT INTO @tmpIssueType (IssueTypeId)
 		SELECT DISTINCT val
 		FROM dbo.f_SplitString(@IssueTypeId, ',')
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
+	END
 
+	IF  @SubIssueType IS NOT NULL -- except for Abnormal account
+	BEGIN
 		INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@SubIssueType, ',')
@@ -200,7 +202,7 @@ BEGIN
 				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
-			INNER JOIN @SubIssueType_tmp sub
+			LEFT JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
 	END
@@ -240,7 +242,7 @@ BEGIN
 				ON rd.MatchId = m.matchid
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
-			INNER JOIN @SubIssueType_tmp sub
+			LEFT JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 			AND ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)

@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 (
 	@RequestId				INT
-	,@MatchId				INT
+	,@MatchId				VARCHAR(MAX) = NULL
 	,@IssueTypeId			TINYINT		= NULL
 	,@KickOffTime			DATETIME	= NULL
 	,@TransIds				VARCHAR(MAX) = NULL
@@ -26,6 +26,11 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@IsCheckedHomeTeam		BIT = NULL
 	,@IsCheckedAwayTeam		BIT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
+	,@UserNames				NVARCHAR(MAX) = NULL
+	,@ProductIds			VARCHAR(50) = NULL
+	,@StatusIds				VARCHAR(50) = NULL
+	,@FromDate				DATETIME = NULL
+	,@ToDate				DATETIME = NULL
 )
 AS
 /*	Created by: Kathy
@@ -53,6 +58,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 
 	Param's explanation:	
 	
@@ -74,36 +80,50 @@ BEGIN
 			,@IsCalQueue		 BIT = 0
 			,@IsTransidProcessed BIT = 0			
 
-	-- get match info
-	SELECT	@LeagueId = leagueid
-			,@HomeId = homeid
-			,@AwayId = awayid
-			,@Sporttype = sporttype
-	FROM	dbo.match WITH(NOLOCK)
-	WHERE	matchid = @MatchId
-
-	--
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
-	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (maxrecursion 0)
-
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
-	INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
-	SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
-	FROM #transIdTemp t
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 	
-	SET @IsCalQueue = ( SELECT TOP (1) 1
-							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-							WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
-							)
+	IF CHARINDEX(',', @MatchId) = 0  -- EKO,WKO,AB,DA,RC
+	BEGIN
+		SET @MatchId = CAST (@MatchId AS INT)
+		-- get match info
+		SELECT	@LeagueId = leagueid
+				,@HomeId = homeid
+				,@AwayId = awayid
+				,@Sporttype = sporttype
+		FROM	dbo.match WITH(NOLOCK)
+		WHERE	matchid = @MatchId
+
+		CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+		INSERT INTO #transIdTemp (transid)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@TransIds, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
+		INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 	
-	IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
-		SET @IsTransidProcessed = 1
-				
+		SET @IsCalQueue = ( SELECT TOP (1) 1
+								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+								WHERE StatusId IN (1,2,4) AND matchid = @MatchId  AND RequestId = 0
+								)
+	
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+			SET @IsTransidProcessed = 1
+	END
+	ELSE -- Abnormal account
+	BEGIN	
+		CREATE TABLE #TempMatch (MatchId INT)
+		INSERT INTO #TempMatch (MatchId)
+		SELECT  DISTINCT l.val
+		FROM dbo.f_SplitString(@MatchId, ',') l
+		WHERE l.val <> ''
+		OPTION (maxrecursion 0)
+		
+	END
+		
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
@@ -132,12 +152,17 @@ BEGIN
 		, IssueDetail
 		, IsCheckedHomeTeam
 		, IsCheckedAwayTeam
+		, Usernames
+		, ProductIds
+		, TicketStatusIds
+		, FromWinlostDate
+		, ToWinlostDate
 		)
 	SELECT @RequestId
-		, @MatchId
-		, @LeagueId
-		, @HomeId
-		, @AwayId
+		, CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE t.MatchId END
+		, CASE WHEN @IssueTypeId <> 13 THEN @LeagueId ELSE m.leagueid END
+		, CASE WHEN @IssueTypeId <> 13 THEN @HomeId ELSE m.homeid END
+		, CASE WHEN @IssueTypeId <> 13 THEN @AwayId ELSE m.awayid END
 		, @KickOffTime
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 		, @FilterFromTransTime
@@ -156,6 +181,13 @@ BEGIN
 		, @LiveScores
 		, @IsCheckedHomeTeam
 		, @IsCheckedAwayTeam
+		, @UserNames
+		, @ProductIds
+		, @StatusIds
+		, @FromDate
+		, @ToDate
+	FROM #TempMatch t
+		INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
@@ -183,7 +215,7 @@ BEGIN
 		IF @ActionId = 4 OR (@ActionId = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+			VALUES(@RequestId, CAST (@MatchId AS INT), CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
 	-- Write Log
@@ -202,6 +234,13 @@ BEGIN
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
 										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
+									-- IssueTypeId = 13
+									WHEN @IssueTypeId = 13 THEN ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
+																+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
+																+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
+																+ ', From Winlost Date: '+ CAST(@FromDate AS VARCHAR(50))
+																+ ', To Winlost Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CAST(@ToDate AS VARCHAR(50)) ELSE 'NULL' END
+													
 									ELSE ''
 								END)
 								AS '@LogData'
@@ -212,6 +251,7 @@ BEGIN
 	
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp
+	DROP TABLE #TempMatch
 	
 END
 GO
