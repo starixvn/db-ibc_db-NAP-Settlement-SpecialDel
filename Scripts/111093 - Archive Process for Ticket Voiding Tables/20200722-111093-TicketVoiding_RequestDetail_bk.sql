@@ -34,6 +34,9 @@ CREATE TABLE [dbo].[TicketVoiding_RequestDetail_bk](
 	[MaxMainParlayTransId] [bigint] NULL,
 	[VoidFromTime] [datetime] NULL,
 	[VoidToTime] [datetime] NULL,
+	[IsCheckedHomeTeam] [bit] NULL,
+	[IsCheckedAwayTeam] [bit] NULL,
+	[FilterBy] [tinyint] NULL,
 
 ) ON [DATA] TEXTIMAGE_ON [DATA]
 GO
