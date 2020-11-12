@@ -28,7 +28,7 @@ BEGIN
 	SET @IsMovebet = 0
 	
 	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
-	INSERT INTO #TmpMatch
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
 	SELECT rd.MatchId, m.SettlementStatus
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid

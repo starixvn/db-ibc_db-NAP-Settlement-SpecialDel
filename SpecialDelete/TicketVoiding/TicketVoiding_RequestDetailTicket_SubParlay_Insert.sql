@@ -29,6 +29,7 @@ AS
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -138,8 +139,8 @@ BEGIN
 		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId)
 		SELECT sub.transid
 			, sub.statusID
-			,@MatchId
-			,main.transid
+			, @MatchId
+			, main.transid
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -180,22 +181,26 @@ BEGIN
 			WHERE RequestId = @RequestId
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
 		SELECT @RequestId
 			, @IssueTypeId
 			, @SubIssueTypeId
 			, t.TransId
 			, t.MatchId
+			, rd.Id
+			, t.MainTransId 
 		FROM #DangerAccept_SubParlayTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId
 			OUTER APPLY (
 								SELECT TOP 1 rs.TransId
 								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = t.transid
-									AND rs.MatchId = @MatchId
+									AND rs.MatchId = @MatchId AND rs.RequestId = @RequestId
 									AND r.ActionId NOT IN (2)
 							)tmp
-		WHERE tmp.TransId IS NULL
+		WHERE rd.RequestId = @RequestId 
+			AND tmp.TransId IS NULL
 		
 		--Mark Ticket
 		IF @ActionId <>2
@@ -347,7 +352,7 @@ BEGIN
 						,sub.bettype AS parlaytype
 						,1 AS IsMixParlay
 						,main.modds
-						,main.winlost -main.actual_stake AS WinLost
+						,main.winlost - main.actual_stake AS WinLost
 						,0
 						,sub.liveindicator
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
@@ -374,13 +379,22 @@ BEGIN
 						AND tmp.TransId IS NULL
 			END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
 		SELECT @RequestId
-			,@IssueTypeId
-			,@SubIssueTypeId
-			,s.SubTransid
-			,@MatchId
+			 , @IssueTypeId
+			 , @SubIssueTypeId
+			 , s.SubTransid
+			 , @MatchId
+			 , tmp.Id
+			 , s.MainTransId
 		FROM #SpecialDeleteBets s
+			CROSS APPLY (
+						SELECT rd.Id
+						FROM dbo.bettrans b WITH(NOLOCK) 
+							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
+						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
+							AND s.TransId = b.transid
+						)tmp
 	END
 
 	DROP TABLE #SpecialDeleteBets

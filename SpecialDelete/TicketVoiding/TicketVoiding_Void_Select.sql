@@ -943,7 +943,6 @@ BEGIN
 				,recommend
 				,CurrencyName
 				,IsMarked
-				,matchid	
 			)
 		SELECT	
 			b.translogID AS GroupID
@@ -973,13 +972,12 @@ BEGIN
 			,username
 			,recommend
 			,b.CurrencyName
-			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-			,NULL matchid	
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked	
 		FROM dbo.translog AS b WITH (NOLOCK)
 			CROSS APPLY (
 						SELECT TOP (1) transid
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-						WHERE transid = b.transid
+						WHERE transid = b.translogid
 							AND RequestId = @RequestId
 				) ts	
 			OUTER APPLY (
@@ -1025,7 +1023,6 @@ BEGIN
 			,RefCode
 			,BonusID
 			,IsMarked
-			,matchid
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1067,7 +1064,6 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-			,b.matchid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -1131,7 +1127,6 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-			,b.matchid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			CROSS APPLY (
 							SELECT TOP (1) transid
@@ -1193,6 +1188,7 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 			,ActualStake
+				,matchid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1243,6 +1239,7 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 			,b.actual_stake AS ActualStake
+				,b.matchid
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			OUTER APPLY (
@@ -1338,7 +1335,7 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
-				,NULL matchid
+				,b.eventID 
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
@@ -1548,6 +1545,7 @@ BEGIN
 						,LiveIndicator
 						,mainstatusid
 						,ActualStake
+						,matchid
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -1599,6 +1597,7 @@ BEGIN
 						,b.liveindicator
 						,b.statusID AS mainstatusid
 						,b.actual_stake AS ActualStake
+						,t.matchid
 			FROM #tmpRefCodeSummary t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							ON b.RefCode = t.RefCode
@@ -1669,6 +1668,7 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 			,ActualStake
+				,matchid
 			)
 		SELECT  main.transid AS GroupTransId
 				,sub.transid AS transId
@@ -1711,6 +1711,7 @@ BEGIN
 				,main.LiveIndicator
 				,main.mainstatusid
 			,main.ActualStake
+				,main.matchid
 		FROM	#SpecialDeleteBets main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	main.transid = sub.refno
@@ -1876,6 +1877,7 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 				,ActualStake
+				,matchid
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1924,11 +1926,12 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
+				,b.matchid
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
 								,b.hdp1, b.hdp2, b.livehomescore, b.liveawayscore, b.creator, b.stake, b.CurrencyName, b.SecAcceptFlag, b.checktime, b.odds
-								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator,statusID
+								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator,statusID,b.matchid
 							FROM dbo.bettrans b WITH (NOLOCK)
 							WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					

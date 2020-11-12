@@ -137,7 +137,7 @@ BEGIN
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
 	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT)
-	CREATE TABLE #TransidInRequest (TransId BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, MatchId INT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -232,8 +232,8 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
 	WHERE RequestId= @RequestId
 
-	INSERT INTO #TransidInRequest (TransId)
-	SELECT tmp.transid
+	INSERT INTO #TransidInRequest (TransId, MatchId)
+	SELECT tmp.transid, rd.MatchId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 		CROSS APPLY (
@@ -241,7 +241,7 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 					WHERE RequestId = req.RequestId
 				) AS tmp
-	WHERE (rd.MatchId = @MatchId OR @MatchId = 0)  AND req.RequestId <> @RequestId AND req.ActionId <>2
+	WHERE (rd.MatchId = @MatchId OR @MatchId = 0)  AND req.RequestId <> @RequestId AND req.ActionId <> 2
 
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
@@ -383,10 +383,16 @@ BEGIN
 		END
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, rd.Id AS RequestDetailId
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, tmp.Id AS RequestDetailId
 		FROM dbo.f_SplitString(@TransIds, ',') l
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = @MatchId --
-		WHERE val <> ''
+			CROSS APPLY (
+						SELECT rd.Id
+						FROM dbo.bettrans b WITH(NOLOCK) 
+							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
+						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
+							AND l.val = b.transid
+						)tmp
+		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)
 	END
 	ELSE IF @IssueTypeId = 13 --Abnormal Account
@@ -423,6 +429,7 @@ BEGIN
 				,b.statusID  -- add new
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
+			INNER JOIN #TransidInRequest t ON b.eventID = t.MatchId AND b.translogid = t.TransId
 		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
 				AND b.statusID = 0
@@ -441,6 +448,7 @@ BEGIN
 			)ml
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			INNER JOIN #TransidInRequest t ON b.matchid = t.MatchId AND t.TransId = (CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END)
 		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
@@ -542,8 +550,7 @@ BEGIN
 				,username
 				,recommend
 				,CurrencyName
-				,IsMarked
-				,matchid	
+				,IsMarked	
 			)
 			SELECT	
 				b.translogID AS GroupID
@@ -574,7 +581,6 @@ BEGIN
 				,recommend
 				,b.CurrencyName
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,NULL matchid	
 			FROM dbo.translog AS b WITH (NOLOCK)
 				INNER JOIN #transIdTemp temp
 				ON b.translogid = temp.transid
@@ -622,7 +628,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,IsMarked
-				,matchid
 			)
 			SELECT	
 				b.refno AS GroupId
@@ -664,7 +669,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,b.matchid
 			FROM dbo.bettrans AS b WITH (NOLOCK)
 				INNER JOIN dbo.translog tl WITH(NOLOCK)
 				ON b.custid 		= tl.custid
@@ -725,7 +729,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-				,b.matchid
 			FROM dbo.bettrans AS b WITH (NOLOCK)
 				INNER JOIN #transIdTemp temp
 					ON b.transid = temp.transid
@@ -806,7 +809,6 @@ BEGIN
 						,BonusID
 						,MainTransId
 						,IsMarked
-						,matchid
 					)
 					SELECT	
 						b.refno AS GroupId
@@ -849,7 +851,6 @@ BEGIN
 						,b.BonusID
 						,t.transid AS MainTransId
 						,t.IsMarked
-						,b.matchid
 				FROM #tmpRefCodeSummary t
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = t.RefCode

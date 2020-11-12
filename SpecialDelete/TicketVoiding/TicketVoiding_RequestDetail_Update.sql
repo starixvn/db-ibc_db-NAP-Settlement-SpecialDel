@@ -199,7 +199,7 @@ BEGIN
 				DELETE rd
 				FROM dbo.TicketVoiding_RequestDetail rd
 					INNER JOIN #TempEditMatchID e ON  rd.MatchId = e.MatchID
-				WHERE rd.RequestId = @RequestId AND IsFlag = 0
+				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
 		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1)
 		BEGIN

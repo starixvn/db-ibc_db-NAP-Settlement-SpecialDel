@@ -67,57 +67,69 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer cv WITH (NOLOCK) ON cv.custid = tblVoid.VoidBy			
 	WHERE	r.RequestId = @RequestId
 
-	SELECT	rd.MatchId
-			,m.eventdate
-			,m.ParentID
-			,rd.LeagueId
-			,rd.MatchId
-			,rd.HomeId
-			,rd.AwayId
-			,rd.KickOffTime
-			,ts.TransIds
-			,m.hthomescore
-			,m.htawayscore
-			,m.finalhomescore
-			,m.finalawayscore
-			,m.GlobalShowTime
-			,rd.FilterFromTransTime
-			,rd.FilterToTransTime
-			,rd.FilterFromBetId
-			,rd.FilterToBetId
-			,rd.FilterBy
-			,rd.IsCheckedHomeTeam
-			,rd.IsCheckedAwayTeam
-			,rd.Usernames
-			,rd.ProductIds
-			,rd.TicketStatusIds
-			,rd.FromWinlostDate
-			,rd.ToWinlostDate
-	FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
-			FROM	dbo.match m WITH(NOLOCK)
-			WHERE	m.matchid = rd.matchid
-			UNION
-			SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime
-			FROM	dbo.match14 m WITH(NOLOCK)
-			WHERE	m.matchid = rd.matchid
-		) m
-		OUTER APPLY (
-					SELECT COUNT(1) AS TotalSingle
-						,STUFF((
-							SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-							FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE (RequestId = s.RequestId) 
-							FOR XML PATH(''))
-							,1,1,''
-						) AS TransIds
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = @RequestId
-					GROUP BY s.RequestId
-			)ts
-	WHERE	rd.RequestId = @RequestId
-	
+	IF EXISTS (
+		SELECT TOP 1 1
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+		WHERE rd.RequestId = @RequestId AND req.IssueTypeId <> 13)
+	BEGIN
+		SELECT	rd.MatchId
+				,m.eventdate
+				,m.ParentID
+				,rd.LeagueId
+				,rd.HomeId
+				,rd.AwayId
+				,rd.KickOffTime
+				,ts.TransIds
+				,m.hthomescore
+				,m.htawayscore
+				,m.finalhomescore
+				,m.finalawayscore
+				,m.GlobalShowTime
+				,rd.FilterFromTransTime
+				,rd.FilterToTransTime
+				,rd.FilterFromBetId
+				,rd.FilterToBetId
+				,rd.FilterBy
+				,rd.IsCheckedHomeTeam
+				,rd.IsCheckedAwayTeam
+		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			CROSS APPLY (
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
+				FROM	dbo.match m WITH(NOLOCK)
+				WHERE	m.matchid = rd.matchid
+				UNION
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime
+				FROM	dbo.match14 m WITH(NOLOCK)
+				WHERE	m.matchid = rd.matchid
+			) m
+			OUTER APPLY (
+						SELECT COUNT(1) AS TotalSingle
+							,STUFF((
+								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+								FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+								WHERE (RequestId = s.RequestId) 
+								FOR XML PATH(''))
+								,1,1,''
+							) AS TransIds
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+						WHERE s.RequestId = @RequestId
+						GROUP BY s.RequestId
+				)ts
+		WHERE	rd.RequestId = @RequestId
+	END
+	ELSE -- apply for Abnormal Account
+	BEGIN
+		SELECT	TOP 1
+				 rd.Usernames
+				,rd.ProductIds
+				,rd.TicketStatusIds
+				,rd.FromWinlostDate 
+				,rd.ToWinlostDate
+		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		WHERE	rd.RequestId = @RequestId
+	END
+
 	SELECT TOP 1 tv.MessageId
 			,msg.Content_en AS ContentEnglish
 			,msg.Content_ch AS ContentChineseTraditional
