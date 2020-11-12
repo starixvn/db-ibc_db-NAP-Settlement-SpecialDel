@@ -920,7 +920,6 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,IsMarked
-				,matchid
 			)
 			SELECT  sub911.transid
 					,sub911.bettype
@@ -952,14 +951,12 @@ BEGIN
 					,main.sporttype
 					,sub911.ExtraInfo
 					,main.transid AS MainCashoutId
-					,1 AS IsHideComm
 					,sub911.CurrencyName
 					,sub911.WalletType
 					,sub911.RefCode
 					,sub911.BonusID
 					,main.transid AS MainTransId
 					,main.IsMarked
-					,main.matchid
 			FROM #SpecialDeleteBets main
 				 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 						 ON main.transid = sub911.refno
@@ -1009,7 +1006,6 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,IsMarked
-				,matchid
 			)
 			SELECT  sub911.transid AS GroupId
 					,b.bettype
@@ -1053,7 +1049,6 @@ BEGIN
 					,b.BonusID
 					,sub911.MainTransId
 					,sub911.IsMarked
-					,sub911.matchid
 			FROM #SpecialDeleteBets sub911
 				 CROSS APPLY (
 								  SELECT b.bettype
