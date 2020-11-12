@@ -26,24 +26,26 @@ BEGIN
 	DECLARE @SettlementStatus TINYINT
 			,@Sporrtype TINYINT
 			,@handle INT
-	
-	
-	DECLARE @tmpResourceID TABLE ( ResourceID VARCHAR(20) )
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-
-	INSERT INTO @tmpResourceID(ResourceID)
-	SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
-	EXEC sp_xml_removedocument @handle
 
 	SELECT @Sporrtype = m.Sporttype 
 			,@SettlementStatus = m.SettlementStatus
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.Matchid =  @MatchId
-
-	
+		
 	IF @SettlementStatus & 87 > 0
 	BEGIN
-		SELECT	@ErrCode = 1001038	,@ErrMsg = 'Cannot proceed due to this match is Holding.	'
+		SET	@ErrCode = 1001038	
+		SET @ErrMsg = 'WARNING! Cannot continue to the match is put on hold. Please unhold and try again.	'
+	END
+
+	IF ISNULL(@SelectedResources, '') <> ''
+	BEGIN	
+		DECLARE @tmpResourceID TABLE ( ResourceID VARCHAR(20) )
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+
+		INSERT INTO @tmpResourceID(ResourceID)
+		SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
+		EXEC sp_xml_removedocument @handle
 	END
 
 END
