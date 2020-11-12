@@ -33,6 +33,7 @@ AS
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Corect @HTDone value [Redmine:#115232]
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		
 	Param's Explanation:
 		 
@@ -73,6 +74,19 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 1001001, @ErrMsg = 'Match does not exist!'
 		RETURN
+	END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
 	END
 	
 	INSERT INTO #tblMatchProcess (matchid, KeyID)

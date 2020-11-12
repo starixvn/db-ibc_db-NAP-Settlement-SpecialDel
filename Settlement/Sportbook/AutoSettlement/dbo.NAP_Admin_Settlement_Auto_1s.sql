@@ -33,6 +33,7 @@ AS
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -134,6 +135,19 @@ BEGIN
             ,@sportType     = sportType
     FROM    DBPRO.BODB02.dbo.match WITH (NOLOCK)
     WHERE    matchid = @matchid
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
 
 	IF @Action IN ('CAL', 'REFUND')
 	BEGIN

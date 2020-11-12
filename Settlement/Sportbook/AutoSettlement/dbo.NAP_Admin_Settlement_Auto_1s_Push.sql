@@ -22,6 +22,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		
 	Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -53,6 +54,19 @@ BEGIN
 				,@ErrMsg	= 'Match does not exist!'
 
 		RETURN
+	END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
 	END
 
 	IF @Action IN ('CAL', 'REFUND')

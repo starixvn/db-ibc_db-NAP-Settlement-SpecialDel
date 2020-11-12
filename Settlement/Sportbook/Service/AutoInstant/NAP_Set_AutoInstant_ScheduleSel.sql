@@ -13,6 +13,7 @@ AS
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20190624@Helen: Unable to run Auto Instant HT if Auto Payout HT has already completed [Redmine:#116073]
 		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		
 */
 
@@ -38,7 +39,7 @@ BEGIN
 
     WHERE m.SportType	   = 1
 	 AND m.EventStatus	   = 'running' 
-	 AND m.SettlementStatus & 19 = 0 --Bit: 1: Pending, 2: Undecided, 5: MTDHold
+	 AND m.SettlementStatus & 87 = 0 --Bit: 1: Pending, 2: Undecided, 3: UnderSettlement, 5: MTDHold, 7: Hold Key
 	 AND 2 & ISNULL(m.AutoSetting, l.AutoSetting) = 2
 	 AND m.matchcode IS NOT NULL --exist match
 	 AND CHARINDEX('hedge', m.matchcode) = 0 -- hedge match	 

@@ -17,6 +17,7 @@ AS
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
 		- 20200821@Kathy: Add log for refund flag"  [Redmine:#140092]
+		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -26,6 +27,7 @@ AS
 			+ 4: IsSystemSettlement
 			+ 5: IsMTDHold
 			+ 6: IsRefund
+			+ 7: Hold Key
 	
 */
 BEGIN
@@ -46,6 +48,7 @@ BEGIN
 							WHEN @Type = 3 THEN 81004
 							WHEN @Type = 5 THEN 81005
 							WHEN @Type = 6 THEN 81018
+							WHEN @Type = 7 THEN 81019
 							ELSE NULL
 						END
 
@@ -71,7 +74,7 @@ BEGIN
 
 	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
-	IF @Type IN (1,2,3,5,6)
+	IF @Type IN (1,2,3,5,6,7)
 	BEGIN
 		SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END
 						 + CASE
@@ -80,6 +83,7 @@ BEGIN
 								WHEN @Type = 3 THEN 'Under Settlement '
 								WHEN @Type = 5 THEN 'MTD Hold '
 								WHEN @Type = 6 THEN 'Refund '
+								WHEN @Type = 7 THEN 'Hold Key '
 								ELSE ''
 							END
 						+ 'on match: ' + CAST(@MatchId AS VARCHAR) + '<br/> '

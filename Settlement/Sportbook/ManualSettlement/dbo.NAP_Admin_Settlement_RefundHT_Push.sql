@@ -30,6 +30,7 @@ AS
 		- 20170425@Bobby: 72789 - Implement bonus system into NAP Settlement
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190813@Helen: Remove vnteam in metadata
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -67,6 +68,19 @@ BEGIN
 
         RETURN
     END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
 
     IF EXISTS (
             SELECT 1

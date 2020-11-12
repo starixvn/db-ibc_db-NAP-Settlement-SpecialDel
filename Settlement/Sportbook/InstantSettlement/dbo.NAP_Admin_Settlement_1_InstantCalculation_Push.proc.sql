@@ -24,6 +24,7 @@ AS
 		- 20170815@Kathy: Using table ResultDetail to store FGLG result instead of betstatus [Redmine:#81308]
 		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter and @SourceINT variable for Determine Manual Instant/Auto Instant [Redmine:#86964]
 		- 20191213@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
@@ -59,6 +60,19 @@ BEGIN
 	FROM DBPRO.BODB02.dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
 	
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
+
 	-- checking for instant match validation
 	IF(@Action = 'CAL')
 	BEGIN

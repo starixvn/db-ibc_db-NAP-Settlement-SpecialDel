@@ -53,6 +53,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] + remove unused code - [Redmine:#143441]
 
       
  Param explanation:  
@@ -149,6 +150,7 @@ BEGIN
 				WHEN @StatusId = 8 THEN 2
 				WHEN @StatusId = 9 THEN 4
 				WHEN @StatusId = 10 THEN 16
+				WHEN @StatusId = 11 THEN 64
 				ELSE 0 
 				END
 
@@ -208,8 +210,7 @@ BEGIN
 		,@rowcount INT
 		,@max_matchid INT
 	DECLARE @tmp_ESportMatch TABLE (matchid INT)
-	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
-
+	
 	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore ,IsCalculated ,IsMultiCaled ,IsRefund ,IsCalRefund ,matchid ,leagueid ,homeid ,awayid ,matchcode ,kickofftime ,finalhomescore ,finalawayscore 
 		,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 		,SettlementStatus 
@@ -645,39 +646,6 @@ BEGIN
 
 	END
 
-	-- get score from external source and return to web for result comparing
-	DECLARE @queryMatch NVARCHAR(MAX) = '', @MatchIds VARCHAR(MAX) = ''
-	DECLARE @execSql NVARCHAR(MAX) = ''
-
-	SELECT @MatchIds = COALESCE(@MatchIds + ',' + CAST(MatchId AS VARCHAR(20)),CAST(MatchId AS VARCHAR(20)))
-	FROM #matchList
-
-	SET @queryMatch = '	
-						SELECT 
-							matchid, SourceId 
-							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
-							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
-							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
-							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
-						FROM 
-						(
-							SELECT 
-								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
-								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
-							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
-								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-														ON rd.matchid = tm.val
-							WHERE TypeId IN (1,2) AND SourceId = 1
-						) t
-						WHERE maxDate = 1
-						GROUP BY t.MatchId, SourceId
-						OPTION (MAXRECURSION 0)
-					'
-	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
-
-	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
-	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(MAX)', @queryMatch, @matchids
-
 	SELECT	m.HalfTimeHomeScore
 			,m.HalfTimeAwayScore
 			,m.IsCalculated
@@ -728,14 +696,7 @@ BEGIN
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
-			--,exSource.SourceId
-			--,exSource.ExHTHomeScore
-			--,exSource.ExHTAwayScore
-			--,exSource.ExFTHomeScore
-			--,exSource.ExFTAwayScore
 	FROM	#matchList m
-			LEFT JOIN @tmp_ExternalSourceResult exSource
-				ON m.matchid = exSource.Matchid
 			LEFT JOIN #tempmatch t 
 				ON	t.matchid = m.matchid
 			LEFT JOIN @tmp_ESportMatch te

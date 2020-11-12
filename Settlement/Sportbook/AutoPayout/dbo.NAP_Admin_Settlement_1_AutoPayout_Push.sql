@@ -33,6 +33,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Removed @IsExcludeCorner [Redmine:#115232]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
     Param's Explanation:
         
@@ -85,6 +86,19 @@ BEGIN
 
         RETURN
     END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM DBPRO.bodb02.dbo.ResultDetail with(NOLOCK)

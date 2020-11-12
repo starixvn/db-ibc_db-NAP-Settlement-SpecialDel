@@ -22,6 +22,7 @@ AS
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 
 		
 	Param's Explanation:
@@ -140,7 +141,7 @@ BEGIN
 	
 	IF (@matchcode 		IS NULL --does not exist match
 		OR CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
-		OR @SettlementStatus & 19 	> 0 -- does not allow doing Inst.C for Pending, Undecided, MTDHold
+		OR @SettlementStatus & 87 	> 0 -- does not allow doing Inst.C for Pending, Undecided, MTDHold, UnderSettlement, Hold Key
 		OR (@Mode = 'INST-FT' AND @isCalculatedHT = 0)
 		OR (@hScore > @livehomescore OR  @aScore > @liveawayscore)
 	)

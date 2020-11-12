@@ -22,6 +22,8 @@ AS
 		- 20181002@Kathy: Add New Status "Result Pending" and "Under Settlement" [Redmine:#102028]
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
+		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+
 		
 	Param's explanation: 
 */
@@ -94,7 +96,7 @@ BEGIN
 				AND m.sporttype = 1 
 				AND m.eventstatus = 'running' 
 				AND 2 & ISNULL(m.AutoSetting,l.AutoSetting) = 2
-				AND m.SettlementStatus & 19 = 0
+				AND m.SettlementStatus & 87 = 0 --bit 1,2,3,5,7
 		) AS t 
 		WHERE RowIdx IN (1, 2)
 	)
@@ -239,7 +241,7 @@ BEGIN
 				AND m.sporttype = 1
 				AND m.eventstatus = 'running' 				
 				AND 2 & ISNULL(m.AutoSetting,l.AutoSetting) = 2
-				AND m.SettlementStatus & 19 = 0
+				AND m.SettlementStatus & 87 = 0 ----bit 1,2,3,5,7
 		) AS t
 		WHERE RowIdx IN (1, 2)
 	)
