@@ -67,8 +67,8 @@ BEGIN
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
-	    SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = 'Cannot execute auto-instant-settle process due to match is on hold.'
+	    SELECT	@ErrCode
+				,@ErrMsg
 	    
 	    RETURN
 	END
