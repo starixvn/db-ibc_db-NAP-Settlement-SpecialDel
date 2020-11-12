@@ -90,12 +90,12 @@ BEGIN
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
 	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= 'Cannot execute auto-settle process due to match is on hold.'
+	,@ErrMsg	= @ErrMsg  OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
+	    SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = 'Cannot execute auto-settle process due to match is on hold.'
 	    
 	    RETURN
 	END
