@@ -105,7 +105,14 @@ BEGIN
         FilterTimeInterval	  SMALLMONEY,
 		mainstatusid		  TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
 		FilterOddsSpread	  MONEY,
-		ActualStake			  MONEY
+		ActualStake			  MONEY,
+		oddsid                INT,
+		homeid                INT,
+        awayid                INT,
+		leagueid              INT,
+		isNeutral             BIT,
+		matchcode             NVARCHAR(50),
+		showtime              NVARCHAR(50)
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -1023,6 +1030,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,IsMarked
+			,oddsid
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1064,6 +1072,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.oddsid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -1127,6 +1136,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.oddsid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			CROSS APPLY (
 							SELECT TOP (1) transid
@@ -1722,6 +1732,78 @@ BEGIN
 	END	
 	ELSE  -- Abnormal account
 	BEGIN
+		-- UPDATE eventtype = 1
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+		BEGIN
+			UPDATE d
+			SET matchcode 	= m.matchcode
+				,homeid 	= m.homeid
+				,awayid 	= m.awayid
+				,leagueid 	= m.leagueid
+				,sporttype 	= m.sporttype
+				,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+				,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.match m WITH (NOLOCK) 
+				ON	d.matchid = m.matchid
+			WHERE d.bettype NOT IN (9, 29, 2799)
+		END
+	
+		-- UPDATE eventtype = 2 [Outright bettype]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
+		BEGIN
+			UPDATE d
+			SET matchcode 	= odds.matchcode
+				,homeid		= odds.teamid
+				,awayid 	= 0
+				,leagueid 	= odds.leagueid
+				,sporttype 	= l.sporttype
+				,showtime	= ''
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
+				ON	d.matchid = odds.orid
+				INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	odds.leagueid = l.leagueid
+			WHERE d.bettype IN (10)
+		END
+		-- UPDATE eventtype = 3 [VS range  bettypes]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+		BEGIN
+			UPDATE d
+				SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+					,homeid 	= o.RacerID
+					,awayid 	= 0
+					,leagueid 	= r.leagueid
+					,sporttype 	= r.sporttype
+					,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+			
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+				ON d.oddsid = o.Orid
+				INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+				ON r.EventID = o.EventID
+			
+			WHERE d.bettype IN (1231,1232,1233,1237,1238)
+		END
+		-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+		BEGIN
+			UPDATE d
+			SET sporttype = sb.SportType
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+				ON d.bettype = sb.BetType
+			WHERE sb.ProductID = 37
+		END
+
+		--- Remove invalid sporttype
+		DELETE 
+		FROM #SpecialDeleteBets
+		WHERE bettype NOT IN (9, 29, 2799)
+			AND (
+				sporttype IS NULL
+				OR bettype = 500 /*charge comm*/
+			)	
+
 		-- Delete main bettrade
 		IF(EXISTS (SELECT TOP 1 1 
 				   FROM #SpecialDeleteBets 
@@ -1776,6 +1858,13 @@ BEGIN
 			,LiveIndicator
 			,mainstatusid
 			,ActualStake
+			,homeid    
+			,awayid    
+			,leagueid  
+			,isNeutral 
+			,matchcode 
+			,showtime
+			,sporttype
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1820,6 +1909,13 @@ BEGIN
 			,main.LiveIndicator
 			,main.mainstatusid
 			,main.ActualStake
+			,main.homeid
+			,main.awayid
+			,main.leagueid
+			,main.IsNeutral
+			,main.matchcode
+			,main.showtime
+			,main.sporttype
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -1878,6 +1974,13 @@ BEGIN
 				,mainstatusid
 				,ActualStake
 				,matchid
+				,homeid    
+				,awayid    
+				,leagueid  
+				,isNeutral 
+				,matchcode 
+				,showtime
+				,sporttype
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1927,6 +2030,13 @@ BEGIN
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
 				,b.matchid
+				,sub911.homeid
+				,sub911.awayid
+				,sub911.leagueid
+				,sub911.IsNeutral
+				,sub911.matchcode
+				,sub911.showtime
+				,sub911.sporttype
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -2097,6 +2207,11 @@ BEGIN
 			   ,s.mainstatusid
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2169,6 +2284,11 @@ BEGIN
 			   ,s.mainstatusid
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -2231,6 +2351,11 @@ BEGIN
 			   ,s.mainstatusid
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2301,6 +2426,11 @@ BEGIN
 		   ,s.mainstatusid
 		   ,s.ActualStake
 		   ,s.matchid
+		   ,s.homeid    
+		   ,s.awayid    
+		   ,s.leagueid  
+		   ,s.isNeutral 
+		   ,s.matchcode
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2415,6 +2545,11 @@ BEGIN
 		   ,s.LiveIndicator AS IsLiveIndicator
 		   ,s.ActualStake
 		   ,s.matchid
+		   ,s.homeid    
+		   ,s.awayid    
+		   ,s.leagueid  
+		   ,s.isNeutral 
+		   ,s.matchcode
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
