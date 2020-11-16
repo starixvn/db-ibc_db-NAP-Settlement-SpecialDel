@@ -80,7 +80,10 @@ BEGIN
 			,@IsCalQueue		 BIT = 0
 			,@IsTransidProcessed BIT = 0			
 
-	
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
+	CREATE TABLE #TempMatch (MatchId INT)
+
 	IF CHARINDEX(',', @MatchId) = 0  -- EKO,WKO,AB,DA,RC
 	BEGIN
 		SET @MatchId = CAST (@MatchId AS INT)
@@ -92,14 +95,12 @@ BEGIN
 		FROM	dbo.match WITH(NOLOCK)
 		WHERE	matchid = @MatchId
 
-		CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 		INSERT INTO #transIdTemp (transid)
 		SELECT DISTINCT val 
 		FROM dbo.f_SplitString(@TransIds, ',')
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
 		INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
 		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
 		FROM #transIdTemp t
@@ -115,7 +116,7 @@ BEGIN
 	END
 	ELSE -- Abnormal account
 	BEGIN	
-		CREATE TABLE #TempMatch (MatchId INT)
+		
 		INSERT INTO #TempMatch (MatchId)
 		SELECT  DISTINCT l.val
 		FROM dbo.f_SplitString(@MatchId, ',') l
@@ -160,9 +161,9 @@ BEGIN
 		)
 	SELECT @RequestId
 		, CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE t.MatchId END
-		, CASE WHEN @IssueTypeId <> 13 THEN @LeagueId ELSE m.leagueid END
-		, CASE WHEN @IssueTypeId <> 13 THEN @HomeId ELSE m.homeid END
-		, CASE WHEN @IssueTypeId <> 13 THEN @AwayId ELSE m.awayid END
+		, CASE WHEN @IssueTypeId <> 13 THEN @LeagueId ELSE ISNULL(m.leagueid, 0) END
+		, CASE WHEN @IssueTypeId <> 13 THEN @HomeId ELSE ISNULL(m.homeid, 0) END
+		, CASE WHEN @IssueTypeId <> 13 THEN @AwayId ELSE ISNULL(m.awayid, 0) END
 		, @KickOffTime
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 		, @FilterFromTransTime
@@ -187,7 +188,7 @@ BEGIN
 		, @FromDate
 		, @ToDate
 	FROM #TempMatch t
-		INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
