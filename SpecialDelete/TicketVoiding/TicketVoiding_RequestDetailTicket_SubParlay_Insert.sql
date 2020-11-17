@@ -317,6 +317,8 @@ BEGIN
 						,WinLost
 						,IsMarked
 						,LiveIndicator
+						,MainTransId
+						,matchid
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -355,6 +357,8 @@ BEGIN
 						,main.winlost - main.actual_stake AS WinLost
 						,0
 						,sub.liveindicator
+						,main.transid AS MainTransId
+						,sub.matchid AS matchid
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -384,17 +388,12 @@ BEGIN
 			 , @IssueTypeId
 			 , @SubIssueTypeId
 			 , s.SubTransid
-			 , @MatchId
-			 , tmp.Id
+			 , s.matchid
+			 , rd.Id
 			 , s.MainTransId
 		FROM #SpecialDeleteBets s
-			CROSS APPLY (
-						SELECT rd.Id
-						FROM dbo.bettrans b WITH(NOLOCK) 
-							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
-						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
-							AND s.TransId = b.transid
-						)tmp
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+					ON rd.RequestId = @RequestId AND s.MatchId = rd.MatchId
 	END
 
 	DROP TABLE #SpecialDeleteBets

@@ -97,6 +97,8 @@ BEGIN
 			,@OldUserNames			 VARCHAR(MAX) = NULL
 			,@OldFromDate			 DATETIME     = NULL
 			,@OldToDate				 DATETIME     = NULL
+			,@OldProductIds			 VARCHAR(50)  = NULL
+			,@OldStatusIds			 VARCHAR(50)  = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -172,9 +174,11 @@ BEGIN
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
 
-		SELECT   @OldUserNames	= UserNames
-				, @OldFromDate	= FromWinlostDate
-				, @OldToDate	= ToWinlostDate
+		SELECT   @OldUserNames	 = UserNames
+				, @OldFromDate	 = FromWinlostDate
+				, @OldToDate	 = ToWinlostDate
+				, @OldProductIds = ProductIds
+				, @OldStatusIds  = TicketStatusIds
 		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK)
 		WHERE RequestId = @RequestId 
 
@@ -404,20 +408,27 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13
 	BEGIN
-		IF @OldFromDate <> @FromDate
-		BEGIN
-			SET @LogDataContent += ' Old From Date: ' + CONVERT(VARCHAR(30), @OldFromDate, 21)
-								+ ' New From Date: ' + CONVERT(VARCHAR(30), @FromDate, 21)
-		END
-		IF @OldToDate <> @ToDate
-		BEGIN
-			SET @LogDataContent += ' Old To Date: ' + CONVERT(VARCHAR(30), @OldToDate, 21)
-								+ ' New To Date: ' + CONVERT(VARCHAR(30), @ToDate, 21)
-		END
 		IF @OldUserNames <> @UserNames
 		BEGIN
 			SET @LogDataContent += ' Old Usernames: ' + @OldUserNames + ' New Usernames: ' + @UserNames
 		END
+		IF @OldProductIds <> @ProductIds
+		BEGIN
+			SET @LogDataContent += ' Old ProductIds: ' + @OldProductIds + ' New ProductIds: ' + @ProductIds
+		END
+		IF @OldStatusIds <> @StatusIds
+		BEGIN
+			SET @LogDataContent += ' Old StatusIds: ' + @OldProductIds + ' New StatusIds: ' + @ProductIds
+		END
+		IF @OldFromDate <> @FromDate
+		BEGIN
+			SET @LogDataContent += ' Old From Winlost Date: ' + CONVERT(VARCHAR(30), @OldFromDate, 21) + ' New From Winlost Date: ' + CONVERT(VARCHAR(30), @FromDate, 21)
+		END
+		IF @OldToDate <> @ToDate
+		BEGIN
+			SET @LogDataContent += ' Old To Winlost Date: ' + CONVERT(VARCHAR(30), @OldToDate, 21) + ' New To Winlost Date: ' + CONVERT(VARCHAR(30), @ToDate, 21)
+		END
+		
 	END
 	ELSE
 	BEGIN
