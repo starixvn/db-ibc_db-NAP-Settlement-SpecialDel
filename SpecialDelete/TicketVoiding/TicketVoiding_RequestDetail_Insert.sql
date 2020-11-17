@@ -129,67 +129,86 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	INSERT INTO dbo.TicketVoiding_RequestDetail (
+	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, KickOffTime
+			, RequestType
+			, FilterFromTransTime
+			, FilterToTransTime
+			, FilterFromBetId
+			, FilterToBetId
+			, FilterBy
+			, SingleCount
+			, MainParlayCount
+			, MinSingleTransId
+			, MaxSingleTransId
+			, MinMainParlayTransId
+			, MaxMainParlayTransId
+			, VoidFromTime
+			, VoidToTime
+			, IssueDetail
+			, IsCheckedHomeTeam
+			, IsCheckedAwayTeam
+			)
+		SELECT @RequestId
+			, @MatchId
+			, @LeagueId
+			, @HomeId
+			, @AwayId
+			, @KickOffTime
+			, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+			, @FilterFromTransTime
+			, @FilterToTransTime
+			, @FilterFromBetId
+			, @FilterToBetId
+			, @FilterBy
+			, @SingleCount
+			, @MainParlayCount
+			, @MinSingleTransId
+			, @MaxSingleTransId
+			, @MinMainParlayTransId
+			, @MaxMainParlayTransId
+			, @VoidFromTime
+			, @VoidToTime
+			, @LiveScores
+			, @IsCheckedHomeTeam
+			, @IsCheckedAwayTeam
+	END
+	ELSE --AC
+	BEGIN 
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
 		RequestId
 		, MatchId
 		, LeagueId
 		, HomeId
 		, AwayId
-		, KickOffTime
 		, RequestType
-		, FilterFromTransTime
-		, FilterToTransTime
-		, FilterFromBetId
-		, FilterToBetId
-		, FilterBy
-		, SingleCount
-		, MainParlayCount
-		, MinSingleTransId
-		, MaxSingleTransId
-		, MinMainParlayTransId
-		, MaxMainParlayTransId
-		, VoidFromTime
-		, VoidToTime
-		, IssueDetail
-		, IsCheckedHomeTeam
-		, IsCheckedAwayTeam
 		, Usernames
 		, ProductIds
 		, TicketStatusIds
 		, FromWinlostDate
 		, ToWinlostDate
 		)
-	SELECT @RequestId
-		, CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE t.MatchId END
-		, CASE WHEN @IssueTypeId <> 13 THEN @LeagueId ELSE ISNULL(m.leagueid, 0) END
-		, CASE WHEN @IssueTypeId <> 13 THEN @HomeId ELSE ISNULL(m.homeid, 0) END
-		, CASE WHEN @IssueTypeId <> 13 THEN @AwayId ELSE ISNULL(m.awayid, 0) END
-		, @KickOffTime
-		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-		, @FilterFromTransTime
-		, @FilterToTransTime
-		, @FilterFromBetId
-		, @FilterToBetId
-		, @FilterBy
-		, @SingleCount
-		, @MainParlayCount
-		, @MinSingleTransId
-		, @MaxSingleTransId
-		, @MinMainParlayTransId
-		, @MaxMainParlayTransId
-		, @VoidFromTime
-		, @VoidToTime
-		, @LiveScores
-		, @IsCheckedHomeTeam
-		, @IsCheckedAwayTeam
-		, @UserNames
-		, @ProductIds
-		, @StatusIds
-		, @FromDate
-		, @ToDate
-	FROM #TempMatch t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
-
+		SELECT @RequestId
+			,  t.MatchId 
+			, ISNULL(m.leagueid, 0) 
+			, ISNULL(m.homeid, 0) 
+			, ISNULL(m.awayid, 0) 
+			, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+			, @UserNames
+			, @ProductIds
+			, @StatusIds
+			, @FromDate
+			, @ToDate
+		FROM #TempMatch t
+			LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+	END
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99
 	BEGIN

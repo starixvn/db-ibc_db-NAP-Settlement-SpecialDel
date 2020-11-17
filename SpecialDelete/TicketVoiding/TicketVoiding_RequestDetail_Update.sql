@@ -167,7 +167,6 @@ BEGIN
 			, IssueDetail = @LiveScores
 			, IsCheckedHomeTeam = @IsCheckedHomeTeam
 			, IsCheckedAwayTeam = @IsCheckedAwayTeam
-
 		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
@@ -197,13 +196,13 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 0 )
 		BEGIN
 				DELETE rd
-				FROM dbo.TicketVoiding_RequestDetail rd
+				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
 					INNER JOIN #TempEditMatchID e ON  rd.MatchId = e.MatchID
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1)
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1)
 		BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail
+				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(
 					RequestId
 					, MatchId
