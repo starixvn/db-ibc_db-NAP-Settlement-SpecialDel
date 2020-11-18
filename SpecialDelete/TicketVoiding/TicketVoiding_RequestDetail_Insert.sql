@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 (
 	@RequestId				INT
-	,@MatchId				VARCHAR(MAX) = NULL
+	,@MatchId				INT = 0
 	,@IssueTypeId			TINYINT		= NULL
 	,@KickOffTime			DATETIME	= NULL
 	,@TransIds				VARCHAR(MAX) = NULL
@@ -83,10 +83,17 @@ BEGIN
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TempMatch (MatchId INT)
+	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
+	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
 
-	IF CHARINDEX(',', @MatchId) = 0  -- EKO,WKO,AB,DA,RC
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90001
+	SET @SB_Error = 0	
+
+	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB
 	BEGIN
-		SET @MatchId = CAST (@MatchId AS INT)
 		-- get match info
 		SELECT	@LeagueId = leagueid
 				,@HomeId = homeid
@@ -113,24 +120,6 @@ BEGIN
 	
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
 			SET @IsTransidProcessed = 1
-	END
-	ELSE -- Abnormal account
-	BEGIN	
-		
-		INSERT INTO #TempMatch (MatchId)
-		SELECT  DISTINCT l.val
-		FROM dbo.f_SplitString(@MatchId, ',') l
-		WHERE l.val <> ''
-		OPTION (maxrecursion 0)
-		
-	END
-		
-	SET @StartTime = GETDATE()
-	SET @LogActionId = 90001
-	SET @SB_Error = 0	
-
-	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB
-	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
 			RequestId
 			, MatchId
@@ -182,30 +171,85 @@ BEGIN
 	END
 	ELSE --AC
 	BEGIN 
+		-- Get info match belong to username
+		INSERT INTO #InputUsernameList (Username, custid, roleid)
+		SELECT l.val
+			  ,ci.custid
+			  ,ci.roleid
+		FROM  dbo.f_SplitString(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
+		WHERE val <> '' AND ci.custid IS NOT NULL
+		OPTION (MAXRECURSION 0)
+	
+		INSERT INTO #InputValidCustid_2 (custid,Username)		
+		SELECT l.custid,l.Username
+		FROM #InputUsernameList l
+		WHERE l.roleid = 2
+
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid,Username)	
+			SELECT ci.custid,l.Username
+			FROM #InputUsernameList l
+				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			WHERE l.roleid = 3 AND ci.roleid = 2
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid,Username)
+			SELECT ci.custid,l.Username
+			FROM #InputUsernameList l
+				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
+			WHERE l.roleid = 4 AND ci.roleid = 2	
+		END
+
+		-- list of member to process
+		INSERT INTO #InputValidCustid_tmp (CustID, Username)
+		SELECT  CustID, l.Username
+		FROM #InputUsernameList l
+		WHERE l.roleid =1
+		UNION ALL
+		SELECT ci.CustID,lt.Username
+		FROM #InputValidCustid_2 lt
+			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
+			ON lt.custid = ci.recommend
+		WHERE ci.roleid = 1
+		;
+	
+		INSERT INTO #TempMatch(matchid)
+		SELECT  DISTINCT b.matchid 
+		FROM #InputValidCustid_tmp c 
+		CROSS APPLY (
+						SELECT b.matchid
+						FROM dbo.bettrans b WITH(NOLOCK)
+						WHERE c.custid = b.custid AND b.matchid <> 0 
+					)b
+
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
-		RequestId
-		, MatchId
-		, LeagueId
-		, HomeId
-		, AwayId
-		, RequestType
-		, Usernames
-		, ProductIds
-		, TicketStatusIds
-		, FromWinlostDate
-		, ToWinlostDate
+			   RequestId
+			 , MatchId
+			 , LeagueId
+			 , HomeId
+			 , AwayId
+			 , RequestType
+			 , Usernames
+			 , ProductIds
+			 , TicketStatusIds
+			 , FromWinlostDate
+			 , ToWinlostDate
 		)
 		SELECT @RequestId
-			,  t.MatchId 
-			, ISNULL(m.leagueid, 0) 
-			, ISNULL(m.homeid, 0) 
-			, ISNULL(m.awayid, 0) 
-			, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-			, @UserNames
-			, @ProductIds
-			, @StatusIds
-			, @FromDate
-			, @ToDate
+			 , t.MatchId 
+			 , ISNULL(m.leagueid, 0) 
+			 , ISNULL(m.homeid, 0) 
+			 , ISNULL(m.awayid, 0) 
+			 , CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+			 , @UserNames
+			 , @ProductIds
+			 , @StatusIds
+			 , @FromDate
+			 , @ToDate
 		FROM #TempMatch t
 			LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 	END
@@ -272,6 +316,9 @@ BEGIN
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp
 	DROP TABLE #TempMatch
+	DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #InputUsernameList
+	DROP TABLE #InputValidCustid_2
 	
 END
 GO

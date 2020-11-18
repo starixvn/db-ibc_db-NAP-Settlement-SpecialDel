@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 (
 	@RequestId				INT
-	,@MatchId				VARCHAR(MAX) = NULL
+	,@MatchId				INT = 0
 	,@KickOffTime			DATETIME = NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50) = NULL
@@ -106,19 +106,9 @@ BEGIN
 
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #TempMatch (MatchID INT)
-	 
-	IF CHARINDEX (',', @MatchId) = 0
-	BEGIN
-		 SET @MatchId = CAST (@MatchId AS INT)
-	END
-	ELSE
-	BEGIN
-		INSERT INTO #TempMatch (MatchId)
-		SELECT  DISTINCT l.val
-		FROM dbo.f_SplitString(@MatchId, ',') l
-		WHERE l.val <> ''
-		OPTION (maxrecursion 0)
-	END
+	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
+	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
@@ -173,7 +163,62 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
+		
+		-- Get info match belong to username
+		INSERT INTO #InputUsernameList (Username, custid, roleid)
+		SELECT l.val
+			  ,ci.custid
+			  ,ci.roleid
+		FROM  dbo.f_SplitString(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
+		WHERE val <> '' AND ci.custid IS NOT NULL
+		OPTION (MAXRECURSION 0)
+	
+		INSERT INTO #InputValidCustid_2 (custid,Username)		
+		SELECT l.custid,l.Username
+		FROM #InputUsernameList l
+		WHERE l.roleid = 2
 
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid,Username)	
+			SELECT ci.custid,l.Username
+			FROM #InputUsernameList l
+				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			WHERE l.roleid = 3 AND ci.roleid = 2
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid,Username)
+			SELECT ci.custid,l.Username
+			FROM #InputUsernameList l
+				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
+			WHERE l.roleid = 4 AND ci.roleid = 2	
+		END
+
+		-- list of member to process
+		INSERT INTO #InputValidCustid_tmp (CustID, Username)
+		SELECT  CustID, l.Username
+		FROM #InputUsernameList l
+		WHERE l.roleid =1
+		UNION ALL
+		SELECT ci.CustID,lt.Username
+		FROM #InputValidCustid_2 lt
+			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
+			ON lt.custid = ci.recommend
+		WHERE ci.roleid = 1
+		;
+	
+		INSERT INTO #TempMatch(matchid)
+		SELECT  DISTINCT b.matchid 
+		FROM #InputValidCustid_tmp c 
+		CROSS APPLY (
+						SELECT b.matchid
+						FROM dbo.bettrans b WITH(NOLOCK)
+						WHERE c.custid = b.custid AND b.matchid <> 0 
+					)b
+		
 		SELECT   @OldUserNames	 = UserNames
 				, @OldFromDate	 = FromWinlostDate
 				, @OldToDate	 = ToWinlostDate
@@ -457,6 +502,9 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #TempEditMatchID
 	DROP TABLE #TempMatch
+	DROP TABLE #InputUsernameList
+	DROP TABLE #InputValidCustid_2
+	DROP TABLE #InputValidCustid_tmp
 
 END
 GO
