@@ -481,7 +481,7 @@ BEGIN
 			-- Remove transid exists request
 			DELETE 
 			FROM #transIdTemp
-			WHERE transid NOT IN ( SELECT transid FROM #TransidInRequest) 
+			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 			
 			-- Mark Ticket
 			WHILE (1=1)
