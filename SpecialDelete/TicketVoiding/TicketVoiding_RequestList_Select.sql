@@ -143,8 +143,8 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,ISNULL(rd.VoidFromTime, rd.FromWinlostDate)
+				,ISNULL(rd.VoidToTime, rd.ToWinlostDate) 
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -185,8 +185,8 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,ISNULL(rd.VoidFromTime, rd.FromWinlostDate)
+				,ISNULL(rd.VoidToTime, rd.ToWinlostDate) 
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -227,8 +227,8 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,ISNULL(rd.VoidFromTime, rd.FromWinlostDate)
+				,ISNULL(rd.VoidToTime, rd.ToWinlostDate) 
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -275,7 +275,6 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,vh.MatchId
-					--,SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 AND ISNULL(z.comstatus,'') <> 'CO' THEN 1 ELSE 0 END) AS TotalVoidedSingle
 					,SUM(CASE 
 							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN z.bettype = 911 THEN 1
@@ -364,18 +363,18 @@ BEGIN
 
 	--Return Data
 	SELECT	DISTINCT t.RequestId
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.SubIssueTypeId ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.MatchId ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.KickOffTime ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.Sporttype ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.LeagueId ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.HomeId ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.AwayId ELSE NULL END
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.EventDate ELSE NULL END
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.SubIssueTypeId ELSE NULL END AS SubIssueTypeId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.MatchId ELSE NULL END AS MatchId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.KickOffTime ELSE NULL END AS KickOffTime
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.Sporttype ELSE NULL END AS Sporttype
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.LeagueId ELSE NULL END AS LeagueId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.HomeId ELSE NULL END AS HomeId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.AwayId ELSE NULL END AS AwayId
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.EventDate ELSE NULL END AS EventDate
 			,t.ActionId
 			,t.CreatedDate
 			,c.Username AS CreatedBy
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.MistakenBy ELSE NULL END 
+			,CASE WHEN t.IssueTypeId <> 13 THEN t.MistakenBy ELSE NULL END AS MistakenBy
 			,t.DecidedBy 
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
@@ -395,7 +394,7 @@ BEGIN
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
-			,CASE WHEN t.IssueTypeId = 13 THEN us.TotalUserName ELSE NULL END AS TotalUserName --no.of accounts
+			,CASE WHEN t.IssueTypeId = 13 THEN us.TotalUserName ELSE 0 END AS TotalUserName --no.of accounts
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
