@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 /*
 	Created: Max
 	Date: 20201118
