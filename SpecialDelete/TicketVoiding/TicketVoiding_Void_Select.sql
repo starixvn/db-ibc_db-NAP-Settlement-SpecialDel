@@ -2115,44 +2115,50 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			DECLARE @OldMatchID INT = 0
+
 			WHILE (1=1)
 			  -- multiple match = 0
 			BEGIN
 				DELETE @tmpMatchIDBatch
 				UPDATE TOP (1) m
 					SET IsFinish = 1
+					   ,@MatchId = m.MatchID
 				OUTPUT DELETED.matchid
 					  ,DELETED.bettype
 				INTO @tmpMatchIDBatch (MatchID, bettype)
 				FROM @TempMatchID m
 					WHERE IsFinish IS NULL
+				
+				IF @@ROWCOUNT = 0 BREAK
 
 				--> Get status of match
 				SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
 				FROM match_remark (NOLOCK)
-				WHERE matchid IN (SELECT matchid FROM @tmpMatchIDBatch)
+				WHERE matchid = @MatchId
 	
 				SELECT @eventstatus = ISNULL(eventstatus, '')
 				FROM match (NOLOCK)
-				WHERE matchid IN (SELECT matchid FROM @tmpMatchIDBatch)	
+				WHERE matchid = @MatchId
 	
 				--> Build bettype list supported for instant settlement based on settlement status of match
 				IF @eventstatus <> @eventstatus_completed
 				BEGIN
-					IF @IsHTCal = 0
+					IF @IsHTCal = 0 AND @MatchId <> @OldMatchID
 						INSERT INTO #InstantSettlementBettypes(bettype)
 						SELECT T.bettype
 						FROM dbo.f_Set_Instant_GetBettypes() T
 						WHERE T.InstantType IN (1, 3) -- 01, 11
-					ELSE
+
+					IF @IsHTCal = 1 AND @MatchId <> @OldMatchID
 						INSERT INTO #InstantSettlementBettypes(bettype)
 						SELECT T.bettype
 						FROM dbo.f_Set_Instant_GetBettypes() T
-						WHERE T.InstantType IN (2, 3) -- 10, 11			
+						WHERE T.InstantType IN (2, 3) -- 10, 11				
 				END	
-				DELETE @tmpMatchIDBatch
-				IF @@ROWCOUNT = 0 BREAK
-				
+
+				SET @OldMatchID = @MatchId
+
 			END
 		END	
 	END	
