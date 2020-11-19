@@ -340,14 +340,15 @@ BEGIN
 					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
 								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 				FROM #tblBetType cte
-					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-					 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
+					 CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
 			) cte	
 			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 					ELSE 1 END = 1
+			OPTION (MAXRECURSION 0)
 
 			-- search tickets : not metric gaming tickets, mix parlay tickets
 			INSERT INTO #SpecialDeleteBets(
@@ -2120,8 +2121,8 @@ BEGIN
 				DELETE @tmpMatchIDBatch
 				UPDATE TOP (1) m
 					SET IsFinish = 1
-				OUTPUT DELETED.matchid MatchID
-						,DELETED.bettype
+				OUTPUT DELETED.matchid
+					  ,DELETED.bettype
 				INTO @tmpMatchIDBatch (MatchID, bettype)
 				FROM @TempMatchID m
 					WHERE IsFinish IS NULL

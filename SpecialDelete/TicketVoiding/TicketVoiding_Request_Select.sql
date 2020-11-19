@@ -121,11 +121,11 @@ BEGIN
 	ELSE -- apply for Abnormal Account
 	BEGIN
 		SELECT	TOP 1
-				 rd.Usernames
-				,rd.ProductIds
-				,rd.TicketStatusIds
-				,rd.FromWinlostDate 
-				,rd.ToWinlostDate
+				 rd.Usernames AS UserNames
+				,rd.ProductIds AS ProductIds
+				,rd.TicketStatusIds AS StatusIds 
+				,rd.FromWinlostDate AS FromDate 
+				,rd.ToWinlostDate AS ToDate
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.RequestId = @RequestId
 	END
