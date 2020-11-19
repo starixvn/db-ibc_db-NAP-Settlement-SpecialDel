@@ -40,6 +40,7 @@ AS
 		- 20200318@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
 	Param's Explanation:		
 		
@@ -59,6 +60,7 @@ BEGIN
 			,@InvalidMatchIds VARCHAR(MAX) = ''
 			,@IsExistsResourceEarlyRunning BIT = 0
 			,@HaveMarkedTicket VARCHAR(200)
+			,@HoldSettingMatchIds VARCHAR(200) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -76,7 +78,8 @@ BEGIN
 						  ,fta SMALLINT
 						  ,hth SMALLINT
 						  ,hta SMALLINT
-						  ,sporttype SMALLINT)
+						  ,sporttype SMALLINT
+						  ,SettlementStatus	TINYINT )
 
 	CREATE TABLE #ResultDetail (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	CREATE TABLE #ResultDetailES (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
@@ -99,6 +102,7 @@ BEGIN
 								,hthomescore
 								,htawayscore
 								,sporttype
+								,ISNULL(SettlementStatus,0) SettlementStatus
 						FROM BODB02.dbo.Match m WITH (NOLOCK)
 								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 									ON m.matchid = tm.val
@@ -107,7 +111,7 @@ BEGIN
 
 	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(4000)'' , @matchids'
 
-	INSERT INTO #Match ( matchid, matchcode, fth, fta, hth, hta, sporttype)
+	INSERT INTO #Match ( matchid, matchcode, fth, fta, hth, hta, sporttype, SettlementStatus)
 	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
 	-- end
 
@@ -323,6 +327,13 @@ BEGIN
 
 	END
 	
+	SELECT @HoldSettingMatchIds = COALESCE(@HoldSettingMatchIds + ',' + m.matchcode, m.matchcode)
+	FROM	#Match m
+	WHERE m.SettlementStatus & 87 > 0
+
+	DELETE FROM #Match
+	WHERE	SettlementStatus & 87 > 0
+
 	IF EXISTS (SELECT 1
 				FROM #Match
 				WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL ) AND @action <> 'UNDO'
@@ -447,11 +458,15 @@ BEGIN
 	DELETE FROM #Match
 	WHERE	matchcode IN (SELECT val FROM dbo.f_SplitString(@HaveMarkedTicket, ','))
 	
-	IF (ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
+	IF (ISNULL(@HoldSettingMatchIds,'') <> '' OR ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
 		OR ISNULL(@HaveMarkedTicket,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'All matches are being calculated, except following matches ' 
+							+ CASE WHEN ISNULL(@HoldSettingMatchIds, '') <> ''
+									THEN '(on hold): ' + STUFF(@HoldSettingMatchIds, 1, 1, '')
+									ELSE ''
+								END
 							+ CASE WHEN ISNULL(@NotKeyScoreList, '') <> '' 
 									THEN  '(not keyed in score yet): ' + @NotKeyScoreList 
 									ELSE ''

@@ -21,6 +21,7 @@ AS
 		- 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - Added new param @Betstatus - [Redmine:#129316]
 		- 20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -52,6 +53,19 @@ BEGIN
 		SELECT	 @ErrCode	= 1001001
 				,@ErrMsg	= 'Match does not exist!'
 		RETURN
+	END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
 	END
 
 	IF EXISTS (

@@ -34,6 +34,7 @@ AS
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
 		
     Param's Explanation:
@@ -184,6 +185,19 @@ BEGIN
 		, @FGNG		= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
 		, @FGLGCheck	= 0
 	
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode 
+				,@ErrMsg 
+	    
+	    RETURN
+	END
+
 	IF @IsAutoInst = 0
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking

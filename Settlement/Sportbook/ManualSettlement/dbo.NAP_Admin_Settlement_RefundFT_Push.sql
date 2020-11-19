@@ -43,6 +43,7 @@ AS
 		- 20180926@Kathy: Add New Status "Result Pending" and "Under Settlement"  [Redmine:#102028]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200427@Kathy: Check HT ticket before refund FT [Redmine:#131765]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -84,6 +85,19 @@ BEGIN
 
         RETURN
     END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
 
 	-- Verify whether Instant Settlement has been executed with larger value than suspended score
 	SELECT	@Inst_HomeScore = HomeValue

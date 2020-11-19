@@ -76,6 +76,7 @@ AS
 		- 20200519@Kathy: Do not update match_remark if match is refund [Redmine:#134192]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 
 
     Param's Explanation:
@@ -157,6 +158,19 @@ BEGIN
 
         RETURN
     END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
 
     -- check result of horse racing fixodds
     IF @action = 'CAL' AND @sporttype = 154 AND (@fth = 0 OR @fth IS NULL OR @fta = 0 OR @fta IS NULL)

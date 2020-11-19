@@ -19,6 +19,7 @@ AS
 	 Revisions:  
 			- 20200528@Kathy: Match results for other sports [Redmine:#134843] 
 			- 20200827@Louisa: get external result to compare [Redmine:#139979]
+			- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -42,11 +43,12 @@ AS
 							8 - Internal )
 
 		@Remark:	Un-check all: 0
-					Check all: 23
+					Check all: 87
 					- MTD Hold: 16
 					- Undecided: 2
 					- Result Pending: 1
 					- Under Settlement: 4
+					- Hold Key : 64
 					
 
 					

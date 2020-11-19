@@ -77,6 +77,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20200820@Kathy: Do not check refund flag if refund FT [Redmine:#136390]
+		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -223,6 +224,19 @@ BEGIN
             ,@HomeValue = CAST(@fta AS VARCHAR(20))
             ,@IsHedgeMatch = CASE WHEN @matchcode LIKE '%hedge%' AND @IsSettleAbandonedMatchIBC = 1 THEN 1 ELSE 0 END
 			
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @Matchid
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg
+	    
+	    RETURN
+	END
+
 	IF @sporttype = 1 AND @IsSettleAbandonedMatchIBC = 0 AND @action = 'CAL' -- refund all
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
@@ -239,7 +253,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
 			,1 AS KeyId
-		
+			
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
