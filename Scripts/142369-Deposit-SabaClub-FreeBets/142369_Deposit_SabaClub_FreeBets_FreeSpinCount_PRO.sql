@@ -45,7 +45,7 @@ BEGIN
 	INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
 	SELECT b.custid
 		,b.srecommend,b.mrecommend,b.recommend
-		,ROUND(SUM (winlost - actual_stake),0) NetWinLoss
+		,SUM (winlost - actual_stake) NetWinLoss
 	FROM bettrans b WITH (NOLOCK) 
 		INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER  JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -73,7 +73,7 @@ BEGIN
 	INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
 	SELECT b.custid
 		,b.srecommend,b.mrecommend,b.recommend
-		,ROUND(SUM (winlost - actual_stake),0) NetWinLoss
+		,SUM (winlost - actual_stake) NetWinLoss
 	FROM dbo.bettrans14 b WITH (NOLOCK) 
 		INNER JOIN dbo.match14 m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -103,10 +103,10 @@ BEGIN
 		, @RoundID AS RoundID
 		,custid
 		,CASE 
-			WHEN ABS(NetWinLoss) BETWEEN 500 AND 999 THEN 2
-			WHEN ABS(NetWinLoss) BETWEEN 1000 AND 4999 THEN 4
-			WHEN ABS(NetWinLoss) BETWEEN 5000 AND 7999 THEN 6
-			WHEN ABS(NetWinLoss) BETWEEN 8000 AND 9999 THEN 8
+			WHEN ABS(NetWinLoss) >= 500 AND ABS(NetWinLoss) < 1000 THEN 2
+			WHEN ABS(NetWinLoss) >= 1000 AND ABS(NetWinLoss) < 5000 THEN 4
+			WHEN ABS(NetWinLoss) >= 5000 AND ABS(NetWinLoss) < 8000 THEN 6
+			WHEN ABS(NetWinLoss) >= 8000 AND ABS(NetWinLoss) < 10000 THEN 8
 			WHEN ABS(NetWinLoss) >= 10000 THEN 10
 		END AS FreeSpinCount
 		,GETDATE() CreatedDate
@@ -116,7 +116,7 @@ BEGIN
 		,srecommend,mrecommend,recommend
 		,NetWinLoss
 	FROM #temp_result 
-	WHERE NetWinLoss < 0 AND ABS(NetWinLoss) >= 50
+	WHERE NetWinLoss < 0 AND ABS(NetWinLoss) >= 500
 END
 
 SELECT * FROM LuckyDraw3rd WITH (NOLOCK)
