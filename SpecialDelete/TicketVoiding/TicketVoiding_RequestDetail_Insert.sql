@@ -252,6 +252,14 @@ BEGIN
 			 , @ToDate
 		FROM #TempMatch t
 			LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+		
+		-- Insert queue for auto void
+		IF @ActionId = 4 AND EXISTS (SELECT TOP 1 1 FROM #TempMatch)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			SELECT @RequestId, m.MatchId, 'VoidInstant', 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			FROM #TempMatch m
+		END
 	END
 	-- Insert queue for auto void
 	IF @IssueTypeId = 11 AND @Sporttype <= 99

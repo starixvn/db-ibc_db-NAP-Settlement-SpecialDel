@@ -277,6 +277,14 @@ BEGIN
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
 		WHERE	RequestId = @RequestId
+
+		-- Insert queue for auto void
+		IF @ActionId = 4 AND EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			SELECT @RequestId, m.MatchId, 'VoidInstant', 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			FROM #TempEditMatchID m
+		END
 	END
 	ELSE --EKO, WKO
 	BEGIN
