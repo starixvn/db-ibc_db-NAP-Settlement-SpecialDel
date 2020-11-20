@@ -11,7 +11,8 @@ AS
 	
 	Revisions: 
 		- 20200602@Charles: Create new SP [Redmine:#135041]
-		
+		- 20200812@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
+
 	Param's explanation:
 	- @RequestInfo : 
 		'<Requests>
@@ -53,7 +54,7 @@ BEGIN
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
 	SELECT req.RequestId, CAST(tr.val AS BIGINT)
 	FROM #tblRequestInfo req
-		CROSS APPLY dbo.strSplit(req.TransIds, ',') tr
+		CROSS APPLY dbo.f_SplitString(req.TransIds, ',') tr
 	OPTION (MAXRECURSION 0)
 	
 	INSERT INTO #tblResult(RequestId, Bettype, BetId)
@@ -61,8 +62,14 @@ BEGIN
 			,bt.bettype AS Bettype
 			,CASE WHEN f.IsNameXBettype = 1 THEN bt.betid ELSE NULL END AS BetId
 	FROM #tblRequestInfo_Detail req
-		INNER JOIN dbo.bettrans bt WITH(NOLOCK) on req.TransId = bt.transid
-		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
+		INNER JOIN (
+			SELECT b.transid, b.bettype, b.betid
+			FROM dbo.bettrans b WITH(NOLOCK)
+			UNION
+			SELECT b14.transid, b14.bettype, b14.betid
+			FROM dbo.bettrans14 b14 WITH(NOLOCK)
+		) bt on req.TransId = bt.transid
+		INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
 	
 	-- Return data
 	SELECT RequestId, Bettype, BetId

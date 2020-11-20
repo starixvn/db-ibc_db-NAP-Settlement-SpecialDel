@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02,DBARC-bodb_Archive" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_SD_GetGroupBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -7,7 +7,7 @@ AS
 /*
     Created: 20191004@Charles
     Task: Get group bettypes
-    DB: DBTXN/bodb02; DBPRO/bodb02
+    DB: DBTXN/bodb02; DBPRO/bodb02; DBARC-bodb_Archive
     Revisions:
 		- 20191004@Charles: Get group bettypes [120325]
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
@@ -16,6 +16,7 @@ AS
 		- 20200717@Zane: Basketball AIO Phase 2 [137189]
 		- 20201006@Charles: Integrate for Time Machine OU bettype [143032]
 		- 20201019@Charles: Rearrange position of OU Time Machine [143744]
+		- 20200813@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 
     Parameters Explanation:    
     
