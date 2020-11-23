@@ -10,7 +10,7 @@ GO
 
 ALTER TABLE [dbo].[Ticketvoiding_VoidBetAutomation_Service]
 ADD
-    [IsAutoVoid] [bit] NOT NULL,
+    [IsAutoVoid] [bit] NULL,
 	[VoidData] [xml] NULL,
 	[IsRunExternalService] [bit] NULL,
 	[MessageId] [int] NULL,
