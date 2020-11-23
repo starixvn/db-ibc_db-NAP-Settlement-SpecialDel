@@ -18,6 +18,7 @@ AS
 	
 	Revisions:		
 		- 20200811@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
+		- 20201120@Zane: HF - Manage Request [Redmine:#145756]
 
 	Param's explanation:	
 		@Status: 
@@ -349,11 +350,11 @@ BEGIN
 			,t.VoidFromTime
 			,t.VoidToTime
 	FROM	#tmpResult t
-		LEFT JOIN DBCUST.CustDB.dbo.Customer c WITH(NOLOCK)
+		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
-		LEFT JOIN DBCUST.CustDB.dbo.Customer v WITH(NOLOCK)
+		LEFT JOIN bodb02.dbo.Customer v WITH(NOLOCK)
 			ON t.LastVoidedBy = v.CustId
-		LEFT JOIN DBCUST.CustDB.dbo.Customer ch WITH(NOLOCK)
+		LEFT JOIN bodb02.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
 		OUTER APPLY (
 					SELECT RequestId, StatusId
