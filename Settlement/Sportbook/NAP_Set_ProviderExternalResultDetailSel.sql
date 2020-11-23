@@ -1,0 +1,51 @@
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0" isNested="1"></info>*/
+ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailSel
+	@MatchId3rd INT
+	,@SourceId SMALLINT	
+	,@MatchId	INT = 0
+	,@IsInhouse	BIT = 0
+AS
+/*
+    Created by: 20201110@Louisa
+    Task: get provider result - 10 Sports: 1,2,3,4,6,8,18,19,24,25 [Redmine:#144486]
+    DB: DBPRO/BODB02 
+    
+    Revisions:            
+		- 20201110@Louisa: get provider result - 10 Sports: 1,2,3,4,6,8,18,19,24,25 [Redmine:#144486]
+		- 20201118@Louisa: allow query by In-house MatchId
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	;WITH cteLatestId
+	AS(
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+				,p.MatchId
+				,p.ResourceId
+				,p.HomeValue
+				,p.AwayValue
+				,p.CreateDate
+				,p.CreateBy
+				,p.LastModifyDate
+				,p.LastModifyBy
+		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
+		WHERE	p.MatchId3rd = @MatchId3rd
+				AND p.SourceId = @SourceId
+			AND ( 
+					( p.MatchId3rd = @MatchId3rd AND @IsInhouse = 0 )
+					OR ( p.MatchId = @MatchId AND @IsInhouse = 1 )
+				)
+	)
+	SELECT MatchId
+		  ,ResourceId
+		  ,HomeValue
+		  ,AwayValue
+		  ,CreateDate
+		  ,CreateBy
+		  ,LastModifyDate
+		  ,LastModifyBy
+	FROM	cteLatestId
+	WHERE	rn = 1
+END
+GO
