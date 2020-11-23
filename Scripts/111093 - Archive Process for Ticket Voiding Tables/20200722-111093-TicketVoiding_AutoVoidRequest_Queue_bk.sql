@@ -25,6 +25,12 @@ CREATE TABLE [dbo].[TicketVoiding_AutoVoidRequest_Queue_bk](
 ) ON [DATA]
 GO
 
+ALTER TABLE [dbo].[TicketVoiding_AutoVoidRequest_Queue_bk] ADD  CONSTRAINT [TicketVoiding_AutoVoidRequest_Queue_bk_QueueId] PRIMARY KEY NONCLUSTERED 
+(
+	[QueueId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
+
 ALTER TABLE [dbo].[TicketVoiding_AutoVoidRequest_Queue_bk] ADD  CONSTRAINT [DF_TicketVoiding_AutoVoidRequest_Queue_bk_Starttime]  DEFAULT (getdate()) FOR [Starttime]
 GO
 

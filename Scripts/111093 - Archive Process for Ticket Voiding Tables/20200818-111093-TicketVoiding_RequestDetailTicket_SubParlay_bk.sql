@@ -19,6 +19,12 @@ CREATE TABLE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_bk](
 ) ON [DATA]
 GO
 
+ALTER TABLE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_bk] ADD  CONSTRAINT [PK_TicketVoiding_RequestDetailTicket_SubParlay_bk] PRIMARY KEY NONCLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
+
 CREATE CLUSTERED INDEX [CIX_TicketVoiding_RequestDetailTicket_SubParlay_bk_Request] ON [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_bk]
 (
 	[RequestId] ASC
