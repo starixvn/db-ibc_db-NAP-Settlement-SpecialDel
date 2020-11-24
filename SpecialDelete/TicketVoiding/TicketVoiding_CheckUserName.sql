@@ -224,7 +224,11 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
 					)tmp
-				INNER JOIN #transIdTemp t ON t.MatchId = rd.MatchId
+				CROSS APPLY (
+							SELECT TOP 1 MatchId
+							FROM #transIdTemp
+							WHERE MatchId= rd.MatchId
+					)m
 			WHERE r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
 
@@ -237,7 +241,7 @@ BEGIN
 	SELECT @NumberOfTickets = COUNT (transid) 
 	FROM #TransidInRequest
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = transid))
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp b WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.transid))
 	BEGIN
 		SET @IsInValidTotalTicket = 1
 	END
