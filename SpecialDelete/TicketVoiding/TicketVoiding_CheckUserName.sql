@@ -211,13 +211,6 @@ BEGIN
 				ELSE 0 END	
 		AND statusID IN (SELECT statusID FROM @Status_tmp)
 	
-
-	
-	IF (EXISTS(SELECT TOP 1 1 FROM #transIdTemp))
-	BEGIN
-		SELECT * FROM #transIdTemp
-	END
-	
 	----------End of data prepare-----------------
 	--3. TransId in request table
 	IF @ActionId NOT IN (2)
