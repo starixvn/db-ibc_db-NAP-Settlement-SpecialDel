@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ProviderExternalResultDetailSportsSel
-	@MatchId3rd INT
+	@MatchId3rd INT = 0
 	,@SourceId SMALLINT
 	,@Sporttype SMALLINT	
 	,@MatchId	INT = 0
