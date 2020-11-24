@@ -199,7 +199,8 @@ BEGIN
 		)ml
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-	WHERE 1 = CASE 
+	WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
+		AND 1 = CASE 
 					WHEN @IsSB = 1 
 						AND b.bettype BETWEEN 801 AND 806 
 						AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
