@@ -4,7 +4,6 @@ ALTER PROCEDURE NAP_Set_ProviderExternalResultDetailSportsIns
 @MatchId3rd	INT
 ,@MatchId	INT = 0
 ,@SourceId	SMALLINT
-,@Sporttype SMALLINT
 ,@Resources	VARCHAR(MAX)
 ,@UserId	INT = 148
 )
@@ -16,6 +15,7 @@ AS
     
     Revisions:   
 		- 20201109@Louisa: Insert SBO result for 13 sports: 1,2,3,4,5,6,8,9,18,19,24,25,43 [Redmine:#144486]
+		- 20201124@Louisa: Remove param @Sporttype
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -29,8 +29,9 @@ AS
 
 */
 BEGIN
-
-	SELECT @Sporttype = ISNULL( @Sporttype, 0)
+	
+	DECLARE @Sporttype SMALLINT
+	SELECT  @Sporttype = ISNULL(m.Sporttype,0) FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
 	IF @Sporttype IN ( 5,9) ---- Tennis, Badminton
 	BEGIN

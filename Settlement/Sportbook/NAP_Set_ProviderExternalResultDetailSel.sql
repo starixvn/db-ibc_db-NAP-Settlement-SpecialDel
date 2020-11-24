@@ -13,6 +13,7 @@ AS
     Revisions:            
 		- 20201110@Louisa: get provider result - 10 Sports: 1,2,3,4,6,8,18,19,24,25 [Redmine:#144486]
 		- 20201118@Louisa: allow query by In-house MatchId
+		- 20201124@Louisa: allow query by In-house MatchId or match 3rd (follow OS)
 		
 */
 BEGIN
@@ -30,8 +31,7 @@ BEGIN
 				,p.LastModifyDate
 				,p.LastModifyBy
 		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
-		WHERE	p.MatchId3rd = @MatchId3rd
-				AND p.SourceId = @SourceId
+		WHERE	p.SourceId = @SourceId
 			AND ( 
 					( p.MatchId3rd = @MatchId3rd AND @IsInhouse = 0 )
 					OR ( p.MatchId = @MatchId AND @IsInhouse = 1 )
