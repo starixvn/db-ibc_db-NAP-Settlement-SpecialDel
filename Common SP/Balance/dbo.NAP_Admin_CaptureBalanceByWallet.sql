@@ -25,6 +25,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -176,6 +177,10 @@ BEGIN
 								END
 							ELSE 0 
 						END
+			AND f.SettledByProfile = CASE
+										WHEN @Mode = 2 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') AND @sportType = 1 THEN 0
+										ELSE f.SettledByProfile
+									END
 				
 		SELECT	@minBettype = MIN(bettype)
 				,@maxBettype = MAX(bettype)
@@ -207,7 +212,13 @@ BEGIN
 			
 		END
 		
-		INSERT INTO @tmpBettypes (bettype) VALUES (904), (914)  -- summary of Bettrade (904) and CashOut (914)
+		INSERT INTO @tmpBettypes (bettype)  -- summary of Bettrade (904) and CashOut (914)
+		SELECT	bettype
+		FROM	(VALUES (904), (914)) AS t(bettype)
+		WHERE 	1 = CASE
+						WHEN @Mode = 2 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') AND @sportType = 1 THEN 0
+						ELSE 1
+					END
 		
 		SELECT @maxBettype = MAX(bettype)
 		FROM @tmpBettypes

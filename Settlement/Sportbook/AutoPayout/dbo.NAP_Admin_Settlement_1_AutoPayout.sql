@@ -36,6 +36,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		- 20210201@Louisa: Add NOLOCK [Redmine:#149787]
+		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		
 	Param's Explanation:
 		 
@@ -200,11 +201,17 @@ BEGIN
 			, @Action			= @Action
 			, @creator			= @creator
 			, @ResourceResult	= @ResourceResult
- 
-		EXEC dbo.NAP_Admin_Settlement_3 @matchid = @matchid
-			, @mode				= @action
-			, @IsReSettledTickets		= @IsReSettledTickets
- 
+		
+		EXEC dbo.NAP_Admin_Settlement_3_profile
+			@matchId = @matchid
+			,@action	= @action
+			,@IsReSettledTickets = @IsReSettledTickets
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+			RETURN
+			
 		IF @eventstatus = 'completed'
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid

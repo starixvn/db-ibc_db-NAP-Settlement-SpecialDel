@@ -12,6 +12,7 @@ AS
 
 	Revisions:
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 */
 
 BEGIN
@@ -305,6 +306,105 @@ BEGIN
 				)result
 			WHERE	r.resourceId = '00'
 		END
+	END
+	ELSE IF @Sporttype = 1
+	BEGIN
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	t.ResourceId, '', '', 0
+		FROM	(
+					VALUES ('00'), ('01'), ('08')
+			)	t(ResourceId)
+		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ResourceId = t.ResourceId)
+
+		SELECT	@FTHome = ISNULL(SUM(CASE WHEN ResourceId = '00' THEN HomeValue ELSE 0 END), 0)
+				,@FTAway = ISNULL(SUM(CASE WHEN ResourceId = '00' THEN AwayValue ELSE 0 END), 0)
+				,@HTHome = ISNULL(SUM(CASE WHEN ResourceId = '01' THEN HomeValue ELSE 0 END), 0)
+				,@HTAway = ISNULL(SUM(CASE WHEN ResourceId = '01' THEN AwayValue ELSE 0 END), 0)				
+		FROM	@tmpResultDetail
+		WHERE	ResourceId IN ('01', '00')
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '16')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+			SELECT	'16'
+					,CASE
+						WHEN @HTHome > @HTAway 
+							THEN '1:' + CASE
+											WHEN @FTHome > @FTAway THEN '1'
+											WHEN @FTHome = @FTAway THEN '0'
+											WHEN @FTHome < @FTAway THEN '2'
+											ELSE NULL
+										END
+						WHEN @HTHome = @HTAway 
+							THEN '0:' + CASE
+											WHEN @FTHome > @FTAway THEN '1'
+											WHEN @FTHome = @FTAway THEN '0'
+											WHEN @FTHome < @FTAway THEN '2'
+											ELSE NULL
+										END
+						WHEN @HTHome < @HTAway 
+							THEN '2:' + CASE
+											WHEN @FTHome > @FTAway THEN '1'
+											WHEN @FTHome = @FTAway THEN '0'
+											WHEN @FTHome < @FTAway THEN '2'
+											ELSE NULL
+										END
+						END
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '00'
+        END 
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+			SELECT	'22'
+					,REPLACE(ISNULL(HomeValue, ''),';','') 
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '08'
+        END 
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '405')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+			SELECT	'405'
+					,CAST((@FTHome -@HTHome) AS NVARCHAR(6)) + ':' + CAST((@FTAway - @HTAway) AS NVARCHAR(6))
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '00'
+        END 
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '413')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+			SELECT	'413'
+					,CAST(@FTHome AS NVARCHAR(6)) + ':' + CAST(@FTAway AS NVARCHAR(6))
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '00'
+        END 
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '414')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+			SELECT	'414'
+					,CAST(@HTHome AS NVARCHAR(6)) + ':' + CAST(@HTAway AS NVARCHAR(6))
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '01'
+        END 
+		
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '416')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	'416'
+					,CAST(@HTHome AS NVARCHAR(10)) + ':' + CAST(@HTAway AS NVARCHAR(10)) AS HomeValue
+					,CAST(@FTHome AS NVARCHAR(10)) + ':' + CAST(@FTAway AS NVARCHAR(10)) AS AwayValue
+					,ssId
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '00'
+        END 
 	END
 
 	SET @DummyResourceResults = CONVERT(VARCHAR(MAX),(

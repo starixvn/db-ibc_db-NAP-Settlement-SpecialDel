@@ -65,6 +65,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@CalledByBrokerService         BIT         = 0
     ,@IsSettingByProfile            BIT 		= NULL
 	,@IsReSettledTickets			BIT			= 1
+	,@oddstype						TINYINT		= NULL
+	,@isMarked						BIT			= NULL
+	,@modds							SMALLMONEY	= NULL
 
 AS
 /*
@@ -132,6 +135,7 @@ AS
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 
     Param's Explanation:
         @action             @mode
@@ -147,7 +151,7 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @isUndo BIT
-		,@IsEnableServiceBroker BIT 
+		,@IsEnableServiceBroker BIT
 
     SET @isUndo = CASE
                     WHEN @mode LIKE '%UNDO%' THEN 1
@@ -168,7 +172,7 @@ BEGIN
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)
-
+		
         SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_Main @matchid = ' + CONVERT(NVARCHAR(50), @matchid) + '
             ,@mode = ' + CASE
                 WHEN @mode IS NULL THEN 'NULL'
@@ -247,6 +251,9 @@ BEGIN
             + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ' + '''' + CONVERT(NVARCHAR(50), @SelectedQuarter) + '''' END
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
 			 + CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
+			  + CASE WHEN @oddstype IS NULL THEN '' ELSE ',@oddstype = ' + CONVERT(NVARCHAR(50), @oddstype) END
+			   + CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
+			    + CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -261,20 +268,31 @@ BEGIN
     BEGIN
         DECLARE @tblBettypes TABLE (bettype SMALLINT PRIMARY KEY)
         DECLARE @xml XML
-
+		
         IF @IsSettingByProfile IS NOT NULL
         BEGIN
-	        IF @action LIKE 'CAL%'
-	            EXEC dbo.NAP_Admin_Calculate_TransID
-	                  @transIds   		= @strTransIds
+			IF @mode = 'profile-major'
+			BEGIN
+				EXEC dbo.NAP_Admin_Calculate_Profile
+					@transIds   		= @strTransIds
+					,@modds				= @modds
+					,@Oddstype			= @Oddstype
+					,@IsMarked			= @IsMarked
+			END
+			ELSE
+			BEGIN
+				IF @action LIKE 'CAL%'
+					EXEC dbo.NAP_Admin_Calculate_TransID
+						  @transIds   		= @strTransIds
 
-            IF @action LIKE 'REFUND%'
-	            EXEC dbo.NAP_Admin_Calculate_Refund_TransID
-	                   @transIds   		= @strTransIds
+				IF @action LIKE 'REFUND%'
+					EXEC dbo.NAP_Admin_Calculate_Refund_TransID
+						   @transIds   		= @strTransIds
 	                  
-	        IF @action LIKE 'UNDO%'
-	            EXEC dbo.NAP_Admin_Calculate_Undo_TransID
-	                   @transIds   		= @strTransIds
+				IF @action LIKE 'UNDO%'
+					EXEC dbo.NAP_Admin_Calculate_Undo_TransID
+						   @transIds   		= @strTransIds
+			END
 	        RETURN
         END 
  
