@@ -14,10 +14,18 @@ AS
 
 	Revisions:
 		-  20201111@Louisa: Check Hold setting [Redmine:#143441]
+		-  20201113@Louisa: Check Hold Result [Redmine:#135097]
 
 		
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
+		@IsEarly = 1 : Check dbo.Match.SettlementStatus bit 1,2,3,5,7 and check ResultSetting dbo.ResultDetail/ES/OS 
+
+		@SelectedResources
+			<Resources>
+				<Resource Id="" Home="" Away="" />
+				<Resource Id="" Home="" Away="" />
+			</Resources>
 		
 */
 BEGIN
@@ -38,14 +46,49 @@ BEGIN
 		SET @ErrMsg = 'WARNING! Cannot continue to the match is put on hold. Please unhold and try again.	'
 	END
 
-	IF ISNULL(@SelectedResources, '') <> ''
+	-- Soccer, Basketball, Badminton, and E-Sports.
+	ELSE IF @IsEarly = 1 AND ISNULL(@SelectedResources,'') <> ''
 	BEGIN	
+	
 		DECLARE @tmpResourceID TABLE ( ResourceID VARCHAR(20) )
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
 		INSERT INTO @tmpResourceID(ResourceID)
 		SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
 		EXEC sp_xml_removedocument @handle
+
+		 ----Soccer, Basketball
+		IF @Sporrtype IN ( 1,2 )
+		BEGIN
+			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'	
+			FROM ResultDetail r WITH(NOLOCK)
+				INNER JOIN @tmpResourceID rs
+					ON r.ResourceId = rs.ResourceID
+			WHERE r.MatchId  = @MatchId
+				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+		END
+
+		---- Badminton
+		ELSE IF @Sporrtype = 9 
+		BEGIN
+			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
+			FROM ResultDetailOS r WITH(NOLOCK)
+				INNER JOIN @tmpResourceID rs
+					ON r.ResourceId = rs.ResourceID
+			WHERE r.MatchId  = @MatchId
+				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+		END
+
+		----E-Sports
+		ELSE IF @Sporrtype =  43
+		BEGIN
+			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
+			FROM ResultDetailES r WITH(NOLOCK)
+			INNER JOIN @tmpResourceID rs
+				ON r.ResourceId = rs.ResourceID
+			WHERE r.MatchId  = @MatchId
+				AND ISNULL(r.ResultSetting,0) & 1 = 1 
+		END
 	END
 
 END

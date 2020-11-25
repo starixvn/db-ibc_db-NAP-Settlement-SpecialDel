@@ -16,6 +16,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
+		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 
     Param's Explanation:
 */
@@ -108,6 +109,7 @@ BEGIN
 			,r.AwayValue
 			,r.ResultStatusID
 			,r.SettlementStatusID
+			, ISNULL( r.ResultSetting, 0) AS ResultSetting
 	FROM (
 		SELECT  COALESCE(t.ResourceID,p.ResourceID) AS ResourceID
 				,CASE 
@@ -128,7 +130,8 @@ BEGIN
 					,r.HomeValue
 					,r.AwayValue
 					,r.ResultStatusID
-					,r.SettlementStatusID                      
+					,r.SettlementStatusID
+					,ISNULL( r.ResultSetting, 0) AS ResultSetting                      
 			FROM    DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
 			WHERE	r.ResourceID = tp.ResourceID
 					AND r.MatchId =  @MatchID

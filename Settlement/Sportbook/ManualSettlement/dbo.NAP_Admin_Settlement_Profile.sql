@@ -27,6 +27,7 @@ AS
 		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -65,6 +66,7 @@ BEGIN
 			,@TotalPointAwayValue VARCHAR(50)		= NULL
 			,@DummyResourceIds		VARCHAR(MAX) = ''
 			,@DummyResourceResults VARCHAR(MAX) = ''
+			,@IsEarly				BIT
 
 
   	--START Balance tables
@@ -95,6 +97,10 @@ BEGIN
 						  ELSE 0
 					   END
 		   ,@SkipBalanceUpdate	 = 0
+		   ,@IsEarly =  CASE 
+						 WHEN @Action LIKE '%EAR' THEN 1 
+						 ELSE 0 
+						END
 
   	--get info of match
   	SELECT @fth			= finalhomescore
@@ -105,6 +111,7 @@ BEGIN
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
 
+
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
   	INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -113,6 +120,8 @@ BEGIN
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
+	,@SelectedResources = @SelectedResources
+	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 

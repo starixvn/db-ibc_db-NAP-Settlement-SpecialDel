@@ -23,6 +23,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		
 	Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -58,6 +59,8 @@ BEGIN
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
+	,@IsEarly	= 1
+	,@SelectedResources =  @SelectedResources
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 

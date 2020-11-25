@@ -22,6 +22,7 @@ AS
 		- 20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -39,9 +40,11 @@ BEGIN
 			,@procName				NVARCHAR(50)
 			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
+			,@IsEarly				BIT
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
-								  
 
+	SELECT @IsEarly =  CASE WHEN @Action LIKE 'EAR%' THEN 1 ELSE 0 END
+								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
@@ -57,6 +60,8 @@ BEGIN
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
+	,@SelectedResources = @SelectedResources
+	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 

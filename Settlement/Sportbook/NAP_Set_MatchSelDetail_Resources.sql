@@ -19,6 +19,7 @@ AS
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200910@Louisa: Separate Ticket status: Calculated, Parlay Running and Refunded for MNL [Redmine:#141340]
+		- 20201113@Louisa: Add Hold Result - [Redmine:#135097]
 		
 */
 BEGIN
@@ -27,7 +28,18 @@ BEGIN
 	DECLARE @BetTypeList VARCHAR(MAX) = ''
         	,@isShowAll BIT = 0
         	,@BestOfMap TINYINT = NULL
-    DECLARE @tmpTicketStatus TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype TINYINT) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
+
+    DECLARE @tmpTicketStatus TABLE	(
+		ResourceID VARCHAR(20)
+		, BetCount INT
+		, InRunning INT
+		, BetSettledCount INT
+		, BetRefundedCount INT
+		, BetMarkedCount INT
+		, OrdNo INT
+		, IsSpecialBettype TINYINT
+	) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
+
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, OrdNo INT)
     DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
     DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
@@ -194,6 +206,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusId
 				,SettlementStatusId
+				,ISNULL(rs.ResultSetting, 0) AS ResultSetting
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 					WHEN bt.InRunning > 0 THEN 'Running'
@@ -222,6 +235,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusId
 				,SettlementStatusId
+				,rs.ResultSetting
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 					WHEN bt.InRunning > 0 THEN 'Running'
@@ -241,7 +255,8 @@ BEGIN
 		  			SELECT HomeValue, 
 		    			AwayValue, 
 		    			ResultStatusID, 
-		    			SettlementStatusID
+		    			SettlementStatusID,
+						ISNULL(rd.ResultSetting, 0) AS ResultSetting
 		  			FROM DBPRO.bodb02.dbo.ResultDetailOS rd WITH (NOLOCK) 
 		  			WHERE COALESCE(bt.ResourceID,p.ResourceID) = rd.ResourceID
 		  				AND rd.matchid = @matchid
@@ -256,6 +271,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusId
 				,SettlementStatusId
+				,rs.ResultSetting
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
 					WHEN bt.InRunning > 0 THEN 'Running'
@@ -275,7 +291,8 @@ BEGIN
 		  			SELECT HomeValue, 
 		    			AwayValue, 
 		    			ResultStatusID, 
-		    			SettlementStatusID
+		    			SettlementStatusID,
+						ISNULL(rd.ResultSetting, 0) AS ResultSetting
 		  			FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 		  			WHERE COALESCE(bt.ResourceID,p.ResourceID) = rd.ResourceID
 		  				AND rd.matchid = @matchid
