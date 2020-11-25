@@ -43,7 +43,7 @@ BEGIN
 			,@IsEarly				BIT
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
-	SELECT @IsEarly =  CASE WHEN @Action LIKE 'EAR%' THEN 1 ELSE 0 END
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
