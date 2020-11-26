@@ -45,7 +45,7 @@ BEGIN
 	INSERT INTO @tmpResultDetail ( ResourceId)
 	SELECT DISTINCT
 	sp.ResourceID
-	FROM SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
+	FROM DBTRANS.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
 		INNER JOIN f_SplitString(@ResourceIds,',') fs ON sp.ResourceID = fs.val
 	WHERE sp.SettleType  = 'EAR'
 		AND sp.SportType  = @SportType
