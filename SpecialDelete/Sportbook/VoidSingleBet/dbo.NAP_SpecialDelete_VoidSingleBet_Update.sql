@@ -105,6 +105,7 @@ AS
 		- 20200911@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -236,7 +237,8 @@ BEGIN
 		FilterBetOption		NVARCHAR(50),
 		FilterHdp1		 	SMALLMONEY,
         FilterHdp2		 	SMALLMONEY,
-		FilterOddsSpread	 MONEY
+		FilterOddsSpread	MONEY,
+		ActualStake			MONEY
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -489,6 +491,7 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,ActualStake
 		)
 		SELECT	
 			b.transid
@@ -539,6 +542,7 @@ BEGIN
 			,b.hdp1 AS FilterHdp1
 			,b.hdp2 AS FilterHdp2
 			,b.oddsspread AS FilterOddsSpread
+			,b.actual_stake AS ActualStake
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -603,6 +607,7 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,ActualStake
 		)
 		SELECT	
 			b.transid
@@ -653,6 +658,7 @@ BEGIN
 			,b.hdp1 AS FilterHdp1
 			,b.hdp2 AS FilterHdp2
 			,b.oddsspread AS FilterOddsSpread
+			,b.actual_stake AS ActualStake
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -780,6 +786,8 @@ BEGIN
 				,FilterHdp2
 				,FilterGoal
 				,FilterOddsSpread
+				,ExtraInfo
+				,ActualStake
 			)
 			SELECT
 				b.transid,
@@ -827,7 +835,9 @@ BEGIN
 				bm.SubHdp1 AS FilterHdp1,
 				bm.SubHdp2 AS FilterHdp2,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
-				bm.SubOddsSpread AS FilterOddsSpread
+				bm.SubOddsSpread AS FilterOddsSpread,
+				b.ExtraInfo,
+				b.actual_stake AS ActualStake
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
@@ -957,6 +967,7 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,WinLost
+				,ActualStake
 		)
 		SELECT	b.transid
 				,b.transid
@@ -996,6 +1007,7 @@ BEGIN
 				,b.BonusID
 				,r.transid AS MainTransId
 				,b.WinLost - b.actual_stake AS WinLost
+				,b.actual_stake AS ActualStake
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -1127,6 +1139,7 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,WinLost
+				,ActualStake
 			)	
 			SELECT  
 				tmpmain.transid
@@ -1166,6 +1179,7 @@ BEGIN
 				,sub.BonusID
 				,tmpmain.transid AS MainTransId
 				,sub.WinLost - sub.actual_stake AS WinLost
+				,tmpmain.ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)
 				INNER JOIN #BetDelete tmpmain 
 					ON	sub.refno = tmpmain.transid						
@@ -1232,6 +1246,7 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,WinLost
+				,ActualStake
 			)
 			OUTPUT inserted.transid
 				 , inserted.bettype 
@@ -1284,6 +1299,7 @@ BEGIN
 					,sub.BonusID
 					,tmpmain.transid AS MainTransId
 					,sub.WinLost - sub.actual_stake AS WinLost
+					,tmpmain.ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)
 				INNER JOIN #BetDelete tmpmain 
 					ON	sub.refno = tmpmain.transid	
@@ -1335,6 +1351,7 @@ BEGIN
 					,BonusID
 					,MainTransId
 					,WinLost
+					,ActualStake
 			)
 			SELECT	b.transid
 					,b.transid
@@ -1375,6 +1392,7 @@ BEGIN
 					,b.BonusID
 					,sub911.MainTransId
 					,b.WinLost - b.actual_stake AS WinLost
+					,b.actual_stake AS ActualStake
 			FROM #BetDelete sub911
 			 CROSS APPLY (
 							  SELECT b.transid
@@ -2155,6 +2173,7 @@ BEGIN
 			,al.WalletType
 			,al.RefCode
 			,@SettlementStatus AS SettlementStatus
+			,al.ActualStake
 		FROM	#BetDelete al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	

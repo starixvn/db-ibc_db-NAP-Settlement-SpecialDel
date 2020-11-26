@@ -78,6 +78,7 @@ AS;
 		- 20200911@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -309,7 +310,8 @@ BEGIN
               FilterHdp1		 SMALLMONEY,
               FilterHdp2		 SMALLMONEY,
 			  FilterOddsSpread	 MONEY,
-              IsMarked           BIT
+              IsMarked           BIT,
+			  ActualStake		 MONEY
              );
 
 	CREATE TABLE #SpecialDeleteBetsm
@@ -407,6 +409,7 @@ BEGIN
 			,FilterHdp2
 			,FilterOddsSpread
 			,IsMarked
+			,ActualStake
 		)
 		SELECT
 			b.transid,
@@ -458,7 +461,8 @@ BEGIN
 			b.hdp1 AS FilterHdp1,
 			b.hdp2 AS FilterHdp2,
 			b.oddsspread AS FilterOddsSpread,
-			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
+			b.actual_stake AS ActualStake
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
@@ -523,6 +527,7 @@ BEGIN
 			,FilterHdp2
 			,FilterOddsSpread
 			,IsMarked
+			,ActualStake
 		)
 		SELECT
 			b.transid,
@@ -574,7 +579,8 @@ BEGIN
 			b.hdp1 AS FilterHdp1,
 			b.hdp2 AS FilterHdp2,
 			b.oddsspread AS FilterOddsSpread,
-			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
+			b.actual_stake AS ActualStake
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
@@ -706,6 +712,8 @@ BEGIN
 				,FilterHdp2
 				,FilterGoal
 				,FilterOddsSpread
+				,ExtraInfo
+				,ActualStake
 			)
 			SELECT
 				b.transid,
@@ -754,7 +762,9 @@ BEGIN
 				bm.SubHdp1 AS FilterHdp1,
 				bm.SubHdp2 AS FilterHdp2,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
-				bm.SubOddsSpread AS FilterOddsSpread
+				bm.SubOddsSpread AS FilterOddsSpread,
+				b.ExtraInfo,
+				b.actual_stake AS ActualStake
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 		END
@@ -904,7 +914,8 @@ BEGIN
 					,BonusID
 					,MainTransId
 					,WinLost
-					,IsMarked					
+					,IsMarked
+					,ActualStake					
 				)
 			SELECT  b.transid,
 					b.transid,
@@ -944,7 +955,8 @@ BEGIN
 					b.BonusID,
 					t.transid AS MainTransId,
 					b.WinLost - b.actual_stake AS WinLost,
-					t.IsMarked	
+					t.IsMarked,
+					b.actual_stake AS ActualStake	
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -1009,6 +1021,7 @@ BEGIN
 			,MainTransId
 			,WinLost
 			,IsMarked
+			,ActualStake
 		)
 	SELECT  main.transid
 			,sub.transid
@@ -1046,6 +1059,7 @@ BEGIN
 			,main.transid AS MainTransId
 			,sub.WinLost - sub.actual_stake AS WinLost
 			,IsMarked
+			,main.ActualStake
 	FROM	#SpecialDeleteBets main
 		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
 			ON	main.transid = sub.refno
@@ -1095,6 +1109,7 @@ BEGIN
 			,MainTransId
 			,WinLost
 			,IsMarked
+			,ActualStake
 		)
 	SELECT  sub911.transid
 			,sub911.transid
@@ -1134,6 +1149,7 @@ BEGIN
 			,main.transid AS MainTransId
 			,sub911.WinLost - sub911.actual_stake AS WinLost
 			,main.IsMarked
+			,main.ActualStake
 	FROM dbo.bettrans sub911 WITH (NOLOCK)
 		 INNER JOIN #SpecialDeleteBets main
 				ON	sub911.refno = main.transid	
@@ -1183,6 +1199,7 @@ BEGIN
 			,MainTransId
 			,WinLost
 			,IsMarked
+			,ActualStake
 		)
 	SELECT  sub911.transid,
 			b.transid,
@@ -1220,7 +1237,8 @@ BEGIN
 			b.BonusID,
 			sub911.MainTransId,
 			b.WinLost - b.actual_stake AS WinLost,
-			sub911.IsMarked
+			sub911.IsMarked,
+			b.actual_stake AS ActualStake
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (	SELECT 	b.transid,
 		 						b.custid,			
@@ -1339,6 +1357,7 @@ BEGIN
 			   ,s.SubHdp2
 			   ,s.SubOdds
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1405,6 +1424,7 @@ BEGIN
 			   ,s.SubHdp2
 			   ,s.SubOdds
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
 		WHERE	s.recommend IN (52466, 5707545)
@@ -1463,6 +1483,7 @@ BEGIN
 			   ,s.SubHdp2
 			   ,s.SubOdds
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1532,6 +1553,7 @@ BEGIN
 			   ,s.SubHdp2
 			   ,s.SubOdds
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1644,6 +1666,7 @@ BEGIN
 			,c.site AS LicenseeName
 			,@SettlementStatus AS SettlementStatus
 			,s.IsMarked
+			,s.ActualStake
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

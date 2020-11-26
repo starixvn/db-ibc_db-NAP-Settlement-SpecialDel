@@ -18,6 +18,7 @@ AS
 		- 20200115@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200417@Charles: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 	Explanation's Param:
 */
 BEGIN
@@ -70,7 +71,8 @@ SET NOCOUNT ON
               IsNeutral             BIT,
               SettlementStatus      TINYINT,
               ShowTime              NVARCHAR(50),
-              MatchCode             NVARCHAR(50)
+              MatchCode             NVARCHAR(50),
+			  ActualStake			MONEY
              );
 CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -122,6 +124,7 @@ CREATE TABLE #tmpRefCodeSummary
 			,WalletType
 			,RefCode
 			,BonusID
+			,ActualStake
 		)
 		SELECT
 			b.transid AS GroupId
@@ -155,6 +158,7 @@ CREATE TABLE #tmpRefCodeSummary
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
+			,b.actual_stake AS ActualStake
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
 		WHERE	b.bettype < 19001
@@ -223,6 +227,7 @@ CREATE TABLE #tmpRefCodeSummary
 					,RefCode
 					,BonusID
 					,MainTransId
+					,ActualStake
 				)
 				SELECT	
 					b.refno AS GroupId
@@ -254,7 +259,8 @@ CREATE TABLE #tmpRefCodeSummary
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
-					,t.transid AS MainTransId	
+					,t.transid AS MainTransId
+					,b.actual_stake AS ActualStake
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -355,6 +361,7 @@ CREATE TABLE #tmpRefCodeSummary
 			,RefCode
 			,BonusID
 			,MainTransId
+			,ActualStake
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -396,6 +403,7 @@ CREATE TABLE #tmpRefCodeSummary
 				,sub911.RefCode
 				,sub911.BonusID
 				,main.transid AS MainTransId
+				,main.ActualStake
 		FROM #Tickets main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -446,6 +454,7 @@ CREATE TABLE #tmpRefCodeSummary
 			,RefCode
 			,BonusID
 			,MainTransId
+			,ActualStake
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -486,6 +495,7 @@ CREATE TABLE #tmpRefCodeSummary
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,b.actual_stake AS ActualStake
 		FROM #Tickets sub911
 			 CROSS APPLY (
 							  SELECT b.bettype
@@ -521,6 +531,7 @@ CREATE TABLE #tmpRefCodeSummary
 								  ,b.RefCode
 								  ,b.BonusID
 								  ,b.currency
+								  ,b.actual_stake
 							  FROM dbo.bettrans b WITH (NOLOCK)
 							  WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
@@ -609,7 +620,8 @@ CREATE TABLE #tmpRefCodeSummary
 		m.sporttype,
 		m.SettlementStatus,
 		c.site AS LicenseeName,
-		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit
+		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit,
+		b.ActualStake
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

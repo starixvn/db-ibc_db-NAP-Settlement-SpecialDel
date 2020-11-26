@@ -13,6 +13,7 @@ AS
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Param's Explanation:			
 			- @BetType:
@@ -45,6 +46,8 @@ BEGIN
 		,hdp2					SMALLMONEY						
 		,betcheck				NVARCHAR(50)
 		,transdesc				NVARCHAR(1000)
+		,ExtraInfo				VARCHAR(1000)
+		,ActualStake			MONEY
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	
@@ -73,7 +76,9 @@ BEGIN
 			,hdp1
 			,hdp2			
 			,betcheck
-			,transdesc)
+			,transdesc
+			,ExtraInfo
+			,ActualStake)
 	SELECT  z.custid AS custid
 			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
 			,b.mrecommend AS mrecommend
@@ -95,6 +100,8 @@ BEGIN
 			,z.hdp2 AS hdp2		
 			,z.betcheck AS betcheck
 			,b.transdesc AS transdesc
+			,b.ExtraInfo
+			,b.actual_stake AS ActualStake
 	FROM @tblTransIds t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid	
@@ -130,7 +137,9 @@ BEGIN
 			 ,t.hdp1     
 			 ,t.hdp2			    
 			 ,t.betcheck    
-			 ,t.transdesc    
+			 ,t.transdesc
+			 ,t.ExtraInfo
+			 ,t.ActualStake   
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

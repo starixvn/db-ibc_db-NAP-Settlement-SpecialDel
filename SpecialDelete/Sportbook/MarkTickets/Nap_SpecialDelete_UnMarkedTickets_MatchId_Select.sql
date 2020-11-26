@@ -32,6 +32,7 @@ AS;
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode for new bettypes [137189]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -280,7 +281,8 @@ BEGIN
               FilterBetOption       NVARCHAR(50),
               FilterHdp1		 	SMALLMONEY,
         	  FilterHdp2		 	SMALLMONEY,
-			  FilterOddsSpread	 MONEY
+			  FilterOddsSpread	 	MONEY,
+			  ActualStake			MONEY
              );
 
 	CREATE TABLE #ParlayTickets
@@ -363,6 +365,7 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,ActualStake
 		)
 		SELECT
 			b.transid,
@@ -409,7 +412,8 @@ BEGIN
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 			b.hdp1 AS FilterHdp1,
 			b.hdp2 AS FilterHdp2,
-			b.oddsspread AS FilterOddsSpread
+			b.oddsspread AS FilterOddsSpread,
+			b.actual_stake AS ActualStake
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype		
@@ -475,6 +479,7 @@ BEGIN
 				,FilterHdp1
 				,FilterHdp2
 				,FilterOddsSpread
+				,ActualStake
 			)
 			SELECT 
 				b.transid,
@@ -521,7 +526,8 @@ BEGIN
 				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 				b.hdp1 AS FilterHdp1,
 				b.hdp2 AS FilterHdp2,
-				b.oddsspread AS FilterOddsSpread
+				b.oddsspread AS FilterOddsSpread,
+				b.actual_stake AS ActualStake
 			FROM 
 				dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
@@ -640,6 +646,8 @@ BEGIN
 				,FilterHdp2
 				,FilterGoal
 				,FilterOddsSpread
+				,ExtraInfo
+				,ActualStake
 			)
 			SELECT 
 				b.transid,
@@ -687,7 +695,9 @@ BEGIN
 				bm.SubHdp1 AS FilterHdp1,
 				bm.SubHdp2 AS FilterHdp2,
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
-				bm.SubOddsSpread AS FilterOddsSpread
+				bm.SubOddsSpread AS FilterOddsSpread,
+				b.ExtraInfo,
+				b.actual_stake AS ActualStake
 			FROM #ParlayTickets AS bm
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
@@ -831,6 +841,7 @@ BEGIN
 				,BonusID
 				,MainTransId
 				,WinLost
+				,ActualStake
 				)
 			SELECT  
 				b.transid,
@@ -867,7 +878,8 @@ BEGIN
 				b.RefCode,
 				b.BonusID,
 				t.transid AS MainTransId,
-				b.WinLost - b.actual_stake AS WinLost
+				b.WinLost - b.actual_stake AS WinLost,
+				b.actual_stake AS ActualStake
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -918,6 +930,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
+			,ActualStake
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -951,6 +964,7 @@ BEGIN
 				,sub911.RefCode
 				,sub911.BonusID
 				,main.transid AS MainTransId
+				,main.ActualStake
 		FROM #Tickets main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -994,6 +1008,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
+			,ActualStake
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -1027,6 +1042,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,sub911.ActualStake
 		FROM #Tickets sub911
 			 CROSS APPLY (
 							  SELECT b.bettype
@@ -1122,7 +1138,8 @@ BEGIN
 		b.SubBettype,
 		b.SubHdp1,
 		b.SubHdp2,
-		b.SubOdds
+		b.SubOdds,
+		b.ActualStake
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

@@ -13,6 +13,7 @@ AS
 		- 20161011@Kent: Select sub voided Parlay tickets [Redmine:#65531]
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Param's Explanation:			
 			- @BetType:
@@ -57,7 +58,9 @@ BEGIN
 		,Odds					MONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY		 
-		,betcheck				NVARCHAR(50)		
+		,betcheck				NVARCHAR(50)
+		,ExtraInfo				VARCHAR(1000)
+		,ActualStake			MONEY
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	
@@ -99,7 +102,9 @@ BEGIN
 			,Odds			
 			,hdp1
 			,hdp2			 
-			,betcheck)
+			,betcheck
+			,ExtraInfo
+			,ActualStake)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
 			,bm.odds AS SubOdds
@@ -133,7 +138,9 @@ BEGIN
 			,b.odds AS Odds			
 			,b.hdp1 AS hdp1
 			,b.hdp2 AS hdp2			 
-			,b.betcheck AS betcheck			
+			,b.betcheck AS betcheck
+			,b.ExtraInfo
+			,b.actual_stake AS ActualStake		
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid			   
@@ -182,7 +189,9 @@ BEGIN
 			 ,t.Odds     			     
 			 ,t.hdp1     
 			 ,t.hdp2     			 
-			 ,t.betcheck			   
+			 ,t.betcheck
+			 ,t.ExtraInfo
+			 ,t.ActualStake		   
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID

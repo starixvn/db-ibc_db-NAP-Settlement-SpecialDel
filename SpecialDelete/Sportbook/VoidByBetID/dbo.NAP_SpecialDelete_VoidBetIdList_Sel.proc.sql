@@ -56,6 +56,7 @@ AS;
 		- 20200618@Max: Hotfix Change Primary key on MarkedTransaction [Redmine: #136064]
 		- 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 		- 20201005@Max: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -148,7 +149,8 @@ BEGIN
               RefCode               BIGINT,
               BonusID               INT,
               MainTransId           BIGINT,
-			  IsMarked			 BIT
+			  IsMarked			 	BIT,
+			  ActualStake			MONEY
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -382,6 +384,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,IsMarked
+			,ActualStake
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -433,6 +436,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.actual_stake AS ActualStake
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -506,6 +510,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.actual_stake AS ActualStake
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN #transIdTemp temp
 				ON b.transid = temp.transid
@@ -601,6 +606,7 @@ BEGIN
 					,BonusID
 					,MainTransId
 					,IsMarked
+					,ActualStake
 				)
 				SELECT	
 					b.refno AS GroupId
@@ -652,7 +658,8 @@ BEGIN
 					,b.RefCode
 					,b.BonusID
 					,t.transid AS MainTransId
-					,t.IsMarked	
+					,t.IsMarked
+					,b.actual_stake AS ActualStake
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -799,6 +806,7 @@ BEGIN
 			,BonusID
 			,MainTransId
 			,IsMarked
+			,ActualStake
 		)
 		SELECT  sub911.transid
 				,sub911.bettype
@@ -849,6 +857,7 @@ BEGIN
 				,sub911.BonusID
 				,main.transid AS MainTransId
 				,main.IsMarked
+				,main.ActualStake
 		FROM #Data main
 			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
@@ -911,7 +920,8 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
-			,IsMarked	
+			,IsMarked
+			,ActualStake	
 		)
 		SELECT  sub911.transid AS GroupId
 				,b.bettype
@@ -972,6 +982,7 @@ BEGIN
 				,b.BonusID
 				,sub911.MainTransId
 				,sub911.IsMarked
+				,b.actual_stake AS ActualStake
 		FROM #Data sub911
 			 CROSS APPLY (
 							  SELECT b.bettype
@@ -1112,6 +1123,7 @@ BEGIN
 		,d.IsMarked
 		,m.GlobalShowTime
 		,c.custid
+		,d.ActualStake
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid

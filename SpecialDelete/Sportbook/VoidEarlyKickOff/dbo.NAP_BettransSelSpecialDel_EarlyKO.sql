@@ -58,6 +58,7 @@ AS;
 	- 20200723@Zane: Basketball AIO Phase 2 - [137189]
 	- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 	- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+	- 20201126@Charles: God of fortune [Redmine: #146053]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -122,7 +123,8 @@ BEGIN
               RefCode               BIGINT,
               BonusID               INT,
               MainTransId           BIGINT,
-			  IsMarked			 	BIT
+			  IsMarked			 	BIT,
+			  ActualStake			MONEY
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -272,7 +274,8 @@ BEGIN
 			,WalletType
 			,RefCode
 			,BonusID
-			,IsMarked	
+			,IsMarked
+			,ActualStake
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -319,6 +322,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.actual_stake AS ActualStake
 	FROM	bettrans b WITH (NOLOCK)	
 		  LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 	WHERE	b.matchid = @matchid
@@ -487,7 +491,7 @@ BEGIN
 				,betid			
 				,Transdesc		
 				,betdaqid
-				,IsMarked						
+				,IsMarked					
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -552,6 +556,8 @@ BEGIN
 		,creator		INT
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY
+		,ExtraInfo		VARCHAR(1000)
+		,ActualStake	MONEY
 		)
 
 	IF EXISTS (
@@ -585,7 +591,9 @@ BEGIN
 				,modds	
 				,creator		
 				,hdp1
-				,hdp2	
+				,hdp2
+				,ExtraInfo
+				,ActualStake	
 		)
 		SELECT	main.transid
 				,main.Refno
@@ -605,6 +613,8 @@ BEGIN
 				,main.creator
 				,main.hdp1
 				,main.hdp2
+				,main.ExtraInfo
+				,main.actual_stake	AS ActualStake
 		FROM	dbo.bettrans AS main WITH (NOLOCK)
 			INNER JOIN #tblBettype tp
 				ON	main.bettype = tp.Id
@@ -649,6 +659,8 @@ BEGIN
 				,ParlayType		
 				,IsMixParlay
 				,modds							
+				,ExtraInfo
+				,ActualStake
 			)
 		SELECT 
 				main.transid AS GroupID
@@ -683,7 +695,9 @@ BEGIN
 				,sub.Transdesc
 				,sub.bettype AS parlaytype
 				,1 AS IsMixParlay
-				,main.modds				
+				,main.modds
+				,main.ExtraInfo
+				,main.ActualStake			
 		FROM	dbo.bettransm sub WITH (NOLOCK)				
 				INNER JOIN #MainParlay AS main WITH (NOLOCK) 
 					ON	main.refno = sub.refno				
@@ -763,7 +777,8 @@ BEGIN
 						,RefCode
 						,BonusID
 						,MainTransId
-						,IsMarked		
+						,IsMarked
+						,ActualStake		
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -811,6 +826,7 @@ BEGIN
 						,b.BonusID
 						,t.transid AS MainTransId
 						,IsMarked
+						,b.actual_stake AS ActualStake
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -875,7 +891,8 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
-			,IsMarked						
+			,IsMarked
+			,ActualStake						
 		)
 	SELECT  main.transid AS GroupTransId
 			,sub.transid AS transId
@@ -913,7 +930,8 @@ BEGIN
 			,sub.RefCode
 			,sub.BonusID
 			,main.transid AS MainTransId
-			,main.IsMarked			
+			,main.IsMarked
+			,main.ActualStake			
 	FROM	#SpecialDeleteBets main
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			ON	main.transid = sub.refno
@@ -962,7 +980,8 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
-			,IsMarked		
+			,IsMarked
+			,ActualStake		
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1003,6 +1022,7 @@ BEGIN
 			,sub911.BonusID
 			,main.transid AS MainTransId
 			,main.IsMarked
+			,main.ActualStake
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 		 INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -1053,7 +1073,8 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
-				,IsMarked		
+				,IsMarked
+				,ActualStake		
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1098,6 +1119,7 @@ BEGIN
 				,b.BonusID
 				,sub911.MainTransId
 				,sub911.IsMarked
+				,b.actual_stake AS ActualStake
 	FROM #SpecialDeleteBets sub911
 		 CROSS APPLY (
 						  SELECT b.transid
@@ -1209,6 +1231,7 @@ BEGIN
 			   ,s.BonusID
 			   ,s.RefCode
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1274,6 +1297,7 @@ BEGIN
 			   ,s.BonusID
 			   ,s.RefCode
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -1330,6 +1354,7 @@ BEGIN
 			   ,s.BonusID
 			   ,s.RefCode
 			   ,s.IsMarked
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1394,6 +1419,7 @@ BEGIN
 		   ,s.BonusID
 		   ,s.RefCode
 		   ,s.IsMarked
+		   ,s.ActualStake
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1448,6 +1474,7 @@ BEGIN
 		   ,@SettlementStatus AS SettlementStatus
 		   ,s.IsMarked
 		   ,@GlobalShowTime AS GlobalShowTime
+		   ,s.ActualStake
 	FROM CTE_OriginResult s
 	ORDER BY CASE
 				WHEN s.GroupName = 'Credit' THEN 1
