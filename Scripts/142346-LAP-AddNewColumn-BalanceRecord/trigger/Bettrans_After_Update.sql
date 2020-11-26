@@ -6,8 +6,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-    
-ALTER TRIGGER [dbo].[Bettrans_After_Update]
+ ALTER TRIGGER [dbo].[Bettrans_After_Update]
    ON [dbo].[bettrans]
    AFTER UPDATE
 AS 
@@ -19,6 +18,7 @@ AS
 		- 20200922@Kathy: Add column matchid, statusid, Settlement, smawinlost, smacomm [Redmine:#138552]
 		- 20201007@Sol: Add new action id due to code changed - [Redmine:#142346]
 		- 20201119@Kathy: Add column modds [Redmine:#142346]
+		- 20201119@Sol: modified action text - [Redmine:#142346]
 */
 
 BEGIN
@@ -81,9 +81,10 @@ BEGIN
 				ELSE ' updated, ' + isnull(d.[status],'running') + ' to ' + isnull(i.[status],'running')
 				END
 			WHEN isnull(d.statusid,0) = 0 THEN
-				CASE isnull(i.statusid,0)
-				WHEN 102 THEN ' voided'
-				ELSE ' settled, ' + isnull(d.[status],'running') + ' to ' + isnull(i.[status],'running')
+				CASE 
+					WHEN isnull(i.statusid,0) = 102 THEN ' voided'
+					WHEN (isnull(i.statusid,0) BETWEEN 111 AND 113) OR isnull(i.statusid,0) = 103 THEN ' settled, ' + isnull(d.[status],'running') + ' to ' + isnull(i.[status],'running')
+					ELSE ' updated, ' + isnull(d.[status],'running') + ' to ' + isnull(i.[status],'running')
 				END
 			ELSE ' Updated, ' + isnull(d.[status],'running') + ' to ' + isnull(i.[status],'running')
 		END
@@ -120,6 +121,7 @@ BEGIN
 		d.custid <> d.mrecommend AND
 		d.custid <> d.srecommend		
 END
+
 
 
     
