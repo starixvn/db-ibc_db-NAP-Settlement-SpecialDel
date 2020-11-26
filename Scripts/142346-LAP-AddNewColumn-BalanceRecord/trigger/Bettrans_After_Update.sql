@@ -1,12 +1,5 @@
-USE [bodb02]
-GO
-/****** Object:  Trigger [dbo].[Bettrans_After_Update]    Script Date: 11/19/2020 12:17:20 AM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
- ALTER TRIGGER [dbo].[Bettrans_After_Update]
+/*<info serverAlias="DBBAH-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER TRIGGER [dbo].[Bettrans_After_Update]
    ON [dbo].[bettrans]
    AFTER UPDATE
 AS 
