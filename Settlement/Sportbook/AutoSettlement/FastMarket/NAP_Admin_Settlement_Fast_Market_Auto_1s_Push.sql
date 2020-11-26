@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId I
 	,@AdminId				INT			= 0
 	,@Ip					VARCHAR(20)	= ''
 	,@IsReSettledTickets	BIT			= 1
+	,@IsSettleDetermined	BIT			= 0
 
 	,@ErrCode				INT			= 0		OUTPUT
 	,@ErrMsg				VARCHAR(MAX)= ''	OUTPUT
@@ -27,6 +28,7 @@ AS
 			- 20190813@Helen: Remove vnteam in metadata
 			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 			- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 			
 	Param's Explanation:
 		- @Result: 
@@ -66,7 +68,6 @@ BEGIN
 			,@sqlCommand	NVARCHAR(MAX)
 			,@procName		NVARCHAR(128)
 			,@xmlData		XML
-			,@rowcount		INT = 0
 			,@subErrMsg		VARCHAR(MAX) = ''
 			,@AutoSetting	TINYINT
 			,@xmlEventCounter	XML
@@ -87,6 +88,7 @@ BEGIN
 		,Position				TINYINT
 		,BetOption				TINYINT
 		,ResultStatus			TINYINT
+		,IsSettleDetermined		BIT
 	)
 	
 	DECLARE @tblResultDetail TABLE (
@@ -125,6 +127,7 @@ BEGIN
 			@MatchId	= @matchid
 			,@Action	= @action
 			,@IsEarly 	= 1
+			,@IsSettleDetermined = @IsSettleDetermined
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @fixedErrMsg	OUTPUT
 
@@ -155,6 +158,11 @@ BEGIN
 	SET @xmlData = CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	
+	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
+	SELECT	ResourceId, HomeValue, AwayValue
+	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
+	WHERE	matchid = @matchid
+	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@Position','TINYINT') as Position
@@ -163,21 +171,15 @@ BEGIN
 			CROSS APPLY
 				C.nodes('Item') AS X(C)
 	)
-	INSERT INTO @tblData (bettype, ResourceId, ResourceId_BetOption, Position, BetOption)
+	INSERT INTO @tblData (bettype, ResourceId, ResourceId_BetOption, Position, BetOption, IsSettleDetermined)
 	SELECT	bettype
 			,CAST(BetType * 100 AS VARCHAR(20)) AS ResourceId
 			,CAST(BetType * 100 + 1 AS VARCHAR(20)) AS ResourceId_BetOption
 			,Position
 			,BetOption
-	FROM TmpData
+			,@IsSettleDetermined AS IsSettleDetermined
+	FROM TmpData t
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
-	
-	SET @rowcount = @@rowcount
-	
-	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
-	SELECT	ResourceId, HomeValue, AwayValue
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
-	WHERE	matchid = @matchid
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 228)
 	BEGIN
@@ -408,6 +410,7 @@ BEGIN
 					SELECT bettype '@Id'
 						,(SELECT Position '@p'
 								,BetOption '@r'
+								,CASE WHEN @IsSettleDetermined = 1 THEN 1 ELSE NULL END AS '@s'
 							FROM @tblData WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
 					FROM @tblData r
 					GROUP BY r.bettype
@@ -462,6 +465,7 @@ BEGIN
 															+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
+															+ ', @IsSettleDetermined = ' + CONVERT(NVARCHAR(50), @IsSettleDetermined) 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														
