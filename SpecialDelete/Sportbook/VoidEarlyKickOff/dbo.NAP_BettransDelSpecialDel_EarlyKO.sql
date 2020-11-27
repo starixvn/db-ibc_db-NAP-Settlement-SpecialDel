@@ -2609,7 +2609,7 @@ BEGIN
 			,bm.creator  
 			,bm.choicehdp1 AS choicehdp1  
 			,bm.choicehdp2 AS choicehdp2  
-			,NULL AS extrainfo
+			,bm.ExtraInfo
 			,CAST(0 AS BIT) AS IsCashOutMemberTicket
 			,NULL AS MainCashoutId 
 			,NULL AS WalletType

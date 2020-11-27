@@ -1151,7 +1151,8 @@ BEGIN
 								,b.ExtraInfo
 								,b.WalletType
 								,b.RefCode
-								,b.BonusID	
+								,b.BonusID
+								,b.actual_stake	
 						  FROM dbo.bettrans b WITH (NOLOCK)
 						  WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					
