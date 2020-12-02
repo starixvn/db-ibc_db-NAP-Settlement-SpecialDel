@@ -279,8 +279,8 @@ BEGIN
 			WHEN loseCnt > 0   THEN 0
 			WHEN @statusID = 0 THEN 0
 			WHEN  b.oddsspread = 1	THEN	CASE 
-											WHEN @modds > 1 THEN pr.odds * pr.stake + (b.actual_stake - pr.stake)
-											WHEN @modds < 1 THEN pr.odds * b.actual_stake
+											WHEN @modds > 1 THEN @modds * pr.stake + (b.actual_stake - pr.stake)
+											WHEN @modds < 1 THEN @modds * b.actual_stake
 											ELSE b.actual_stake
 											END
 			ELSE ISNULL(PR.stake * @modds,0)
