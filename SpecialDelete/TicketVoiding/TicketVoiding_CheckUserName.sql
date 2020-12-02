@@ -12,7 +12,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 AS
 /*
 	Created: 20201106@July
-	Task : [TVS] - Abnormal Account 
+	Task : [TVS] - Abnormal Account + Check lock match before add request
 	DB: DBTXN/BODB02
 
 	Revisions:
@@ -23,27 +23,35 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @InvalidUserName VARCHAR(MAX) = ''
+	DECLARE @InvalidUserName		  VARCHAR(MAX) = ''
 			,@IsExistedInOtherRequest BIT = 0
-			,@MatchIDs VARCHAR(MAX) = ''
-			,@NumberOfTickets INT = 0
-			,@IsInValidTotalTicket BIT = 0 -- 0 Exist valid ticket  -- 1: InValid
-			,@moveBetDay14 		  SMALLDATETIME
-			,@moveBetDay 		  SMALLDATETIME
-			,@IsSB				  BIT = 0
-			,@IsParlay			  BIT = 0
-			,@IsBB				  BIT = 0
-			,@IsOutright		  BIT = 0
-			,@IsSaba			  BIT = 0
-			,@IsNonSport		  BIT = 0
+			,@MatchIDs				  VARCHAR(MAX) = ''
+			,@NumberOfTickets		  INT = 0
+			,@IsInValidTotalTicket	  BIT = 0 -- 0 Exist valid ticket  -- 1: InValid
+			,@moveBetDay14 			  SMALLDATETIME
+			,@moveBetDay 			  SMALLDATETIME
+			,@IsSB					  BIT = 0
+			,@IsParlay				  BIT = 0
+			,@IsBB					  BIT = 0
+			,@IsOutright			  BIT = 0
+			,@IsSaba				  BIT = 0
+			,@IsNonSport			  BIT = 0
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30))
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
-	CREATE TABLE #TmpMatch( matchid INT, custid INT) 
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT)
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
+
+	CREATE TABLE #MatchCheckProcess_tmp(
+		matchid		  INT,
+		KeyID		  TINYINT,
+		IsExistSingle BIT,
+		IsExistParlay BIT,
+		IsExistFM	  BIT,
+		IsExistFM2	  BIT
+	);
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -53,6 +61,7 @@ BEGIN
 	FROM dbo.f_SplitString(@UserNames, ',')
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
+
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
 								  FROM #TmpInValidUserName l
@@ -138,21 +147,6 @@ BEGIN
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
 	
-	INSERT INTO #TmpMatch(matchid, custid)
-	SELECT  DISTINCT b.matchid ,c.custid
-	FROM #InputValidCustid_tmp c 
-	CROSS APPLY (
-					SELECT b.matchid
-					FROM dbo.bettrans b WITH(NOLOCK)
-					WHERE c.custid = b.custid AND b.matchid <> 0 
-				)b
-
-	--Get list match
-	SELECT @MatchIDs = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-								  FROM #TmpMatch m
-									FOR XML PATH ('')
-									),1,1,'')
-	
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -175,9 +169,10 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 
-	INSERT INTO #transIdTemp (transid,statusID, MatchId)
+	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
 	SELECT	b.translogid AS transid
 			,b.statusID  -- add new
+			,0
 			,0
 	FROM	dbo.translog AS b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
@@ -188,7 +183,7 @@ BEGIN
 				
 	UNION ALL
 	SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
-			,b.statusID, b.matchid
+			,b.statusID, b.matchid, b.bettype
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		OUTER APPLY (
 			SELECT TOP 1 1 LeagueGroupID 
@@ -212,6 +207,12 @@ BEGIN
 				ELSE 0 END	
 		AND statusID IN (SELECT statusID FROM @Status_tmp)
 	
+	--Get list match
+	SELECT @MatchIDs = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+							  FROM #transIdTemp m
+							  FOR XML PATH ('')
+							),1,1,'')
+
 	----------End of data prepare-----------------
 	--3. TransId in request table
 	IF @ActionId NOT IN (2)
@@ -248,6 +249,42 @@ BEGIN
 	END
 	ELSE SET @IsInValidTotalTicket = 0
 
+	---Prepare for lock match---
+	INSERT INTO #MatchCheckProcess_tmp (
+			MatchId
+			,KeyID
+			,IsExistSingle
+			,IsExistParlay
+			,IsExistFM
+			,IsExistFM2
+			)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS KeyID
+			,MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END) AS IsExistSingle
+			,0 AS IsExistParlay
+			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
+			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
+		FROM #transIdTemp t
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+		GROUP BY MatchId,f.GroupId
+
+	SELECT MatchId
+			,KeyID
+			,IsExistSingle
+			,IsExistParlay
+			,IsExistFM
+			,IsExistFM2
+	FROM #MatchCheckProcess_tmp
+
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
@@ -260,8 +297,8 @@ BEGIN
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransidInRequest
-	DROP TABLE #TmpMatch
 	DROP TABLE #transIdTemp
+	DROP TABLE #MatchCheckProcess_tmp
 
 END
 

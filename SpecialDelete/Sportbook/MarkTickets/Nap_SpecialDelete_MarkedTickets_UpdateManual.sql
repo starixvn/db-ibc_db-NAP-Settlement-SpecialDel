@@ -5,8 +5,9 @@ CREATE PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate
     @UserId						INT           = 0,
     @Username					NVARCHAR(100) = '',
     @IP							VARCHAR(15)   = NULL,
-	@RequestId					INT		   = NULL,
-	@LogActionId				INT			= 90501,
+	@RequestId					INT		      = NULL,
+	@LogActionId				INT			  = 90501,
+	@IsLockMatch				BIT           = 1,
     @ErrMsg						NVARCHAR(200) = '' OUTPUT,
     @ErrCode					INT           = 0 OUTPUT
 )
@@ -23,6 +24,7 @@ AS
 		- 20200730@Max: Create SP  [Redmine: #136734]
 		- 20200817@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -271,9 +273,10 @@ BEGIN
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno
 				AND b.matchid = 29
 	END
-
-	-- Check Lock Match
+	
+	IF @IsLockMatch = 1
 	BEGIN
+		-- Check Lock Match
 		DECLARE @avaiableProcess BIT
 			,@IsExistSingle BIT = 0
 			,@IsExistParlay BIT = 0
@@ -281,8 +284,8 @@ BEGIN
 			,@IsExistFM2 BIT = 0
 
 		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
-			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+				,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+				,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 		FROM #Tickets AS t
 			OUTER APPLY (
 					SELECT GroupId
@@ -326,7 +329,6 @@ BEGIN
 			RETURN;
 		END;
 	END;
-	
 	-- Delete Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX)
 	WHILE (0=0)
@@ -363,13 +365,16 @@ BEGIN
 		  
 	END 
 
-	-- Release Match
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @IsExistSingle,
-		@isExistParlay = @IsExistParlay,
-		@IsExistFM = @IsExistFM,
-		@IsExistFM2 = @IsExistFM2,
-		@IsReleased = 1;
+	IF @IsLockMatch = 1
+	BEGIN
+		-- Release Match
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = @IsExistSingle,
+			@isExistParlay = @IsExistParlay,
+			@IsExistFM = @IsExistFM,
+			@IsExistFM2 = @IsExistFM2,
+			@IsReleased = 1;
+	END
 
 	INSERT INTO #Match
 	SELECT DISTINCT
@@ -416,6 +421,9 @@ BEGIN
 	DROP TABLE #Match;
 	DROP TABLE #MarkedTransactionDeleted;
 	DROP TABLE #ParlayTransIds
-
+	DROP TABLE #Cashout911Tickets
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #Tickets
+	DROP TABLE #tmpRefCodeSummary
 	SET NOCOUNT OFF;
 END

@@ -1,20 +1,49 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
-	@RequestId			INT
-	,@SubIssueTypeId	SMALLINT		= NULL
-	,@ActionId			TINYINT			= NULL
-	,@MistakenBy		NVARCHAR(200)	= NULL
-	,@CheckedBy			INT				= NULL
-	,@DecidedBy			NVARCHAR(200)	= NULL
-	,@Operators			XML				= NULL
-	,@Provider			NVARCHAR(200)	= NULL
-	,@Source			NVARCHAR(200)	= NULL
-	,@Remark			NVARCHAR(MAX)	= NULL
-	
-	,@UserId			INT
-	,@IP				VARCHAR(50)		= NULL
-	,@IsTest			BIT				= NULL
-	,@SportType			INT				= NULL
+	@RequestId				INT
+	,@SubIssueTypeId		SMALLINT	  = NULL
+	,@ActionId				TINYINT		  = NULL
+	,@MistakenBy			NVARCHAR(200) = NULL
+	,@CheckedBy				INT			  = NULL
+	,@DecidedBy				NVARCHAR(200) = NULL
+	,@Operators				XML			  = NULL
+	,@Provider				NVARCHAR(200) = NULL
+	,@Source				NVARCHAR(200) = NULL
+	,@Remark				NVARCHAR(MAX) = NULL
+	,@UserId				INT			  
+	,@IP					VARCHAR(50)	  = NULL
+	,@IsTest				BIT			  = NULL
+	,@SportType				INT			  = NULL
+	,@IssueTypeId			TINYINT		  = NULL
+	,@MatchId				INT			  = 0
+	,@KickOffTime			DATETIME	  = NULL
+	,@TransIds				VARCHAR(MAX)  = NULL
+	,@FilterFromTransTime	DATETIME	  = NULL
+	,@FilterToTransTime		DATETIME	  = NULL
+	,@FilterFromBetId		BIGINT		  = NULL
+	,@FilterToBetId			BIGINT		  = NULL
+	,@FilterBy				TINYINT		  = 1
+	,@SingleCount			INT			  = NULL
+	,@MainParlayCount		INT			  = NULL
+	,@MinSingleTransId		BIGINT		  = NULL
+	,@MaxSingleTransId		BIGINT		  = NULL
+	,@MinMainParlayTransId	BIGINT		  = NULL
+	,@MaxMainParlayTransId	BIGINT		  = NULL
+	,@VoidFromTime			DATETIME	  = NULL
+	,@VoidToTime			DATETIME	  = NULL
+	,@LiveScores			NVARCHAR(300) = NULL
+	,@IsCheckedHomeTeam		BIT			  = NULL
+	,@IsCheckedAwayTeam		BIT			  = NULL
+	,@UserNames				NVARCHAR(MAX) = NULL
+	,@ProductIds			VARCHAR(50)	  = NULL
+	,@StatusIds				VARCHAR(50)	  = NULL
+	,@FromDate				DATETIME	  = NULL
+	,@ToDate				DATETIME	  = NULL
+	,@MatchProcess			XML           = NULL
+	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
+    ,@ErrCode				INT           = 0 OUTPUT
+	,@FailedTransIds		VARCHAR(MAX)  = NULL OUTPUT
+	,@NegativeBalanceUsers  VARCHAR(MAX)  = ''	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -27,11 +56,13 @@ AS
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20191218@Helen:  fix bug for TVS - [Redmine: 111541]
 		- 20191220@Charles:  Fix write log when data is null [125828]
+		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
-			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />	
+			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
+		@MatchProcess: <MatchProcess MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -41,7 +72,6 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-
 			,@OldSportType		INT
 			,@OldSubIssueTypeId SMALLINT
 			,@OldActionId		TINYINT
@@ -52,15 +82,70 @@ BEGIN
 			,@OldSource			NVARCHAR(200)
 			,@OldRemark			NVARCHAR(MAX)
 			,@OldIsTest			BIT
+			,@avaiableProcess	BIT
+			,@IsExistSingle		BIT	
+			,@IsExistParlay		BIT	
+			,@IsExistFM			BIT	
+			,@IsExistFM2		BIT
 	
 	CREATE TABLE #OperatorInfo(
 		[RequestId] [int] NOT NULL,
 		[OperatorId] [int] NOT NULL,
 		[OperatorTypeId] [tinyint] NOT NULL
 	)
+
+	CREATE TABLE #MatchCheckProcess_tmp(
+		Matchid		  INT,
+		KeyID		  TINYINT,
+		IsExistSingle BIT,
+		IsExistParlay BIT,
+		IsExistFM	  BIT,
+		IsExistFM2	  BIT
+	);
+
+	CREATE TABLE #tblMatchProcess(
+		Matchid		  INT,
+		KeyID		  TINYINT
+	);
+
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90002
 	SET @SB_Error = 0
+
+	-- Check Lock Match
+	INSERT INTO #MatchCheckProcess_tmp (Matchid, KeyID, IsExistSingle, IsExistParlay, IsExistFM, IsExistFM2)
+	SELECT   x.value('@MatchId', 'INT') AS MatchId
+			,x.value('@KeyID', 'INT') AS KeyID
+			,x.value('@IsExistSingle', 'BIT') AS IsExistSingle
+			,x.value('@IsExistParlay', 'BIT') AS IsExistParlay
+			,x.value('@IsExistFM', 'BIT') AS IsExistFM
+			,x.value('@IsExistFM2', 'BIT') AS IsExistFM2
+	FROM @MatchProcess.nodes('/MatchProcess') XmlData(x)
+	OPTION (OPTIMIZE FOR (@MatchProcess = NULL));
+
+	SELECT TOP 1 
+		   @IsExistSingle = IsExistSingle,
+		   @IsExistParlay = IsExistParlay,
+		   @IsExistFM = IsExistFM,
+		   @IsExistFM2 = IsExistFM2
+	FROM #MatchCheckProcess_tmp
+
+	INSERT INTO #tblMatchProcess (Matchid, KeyID)
+	SELECT MatchId, KeyID
+	FROM #MatchCheckProcess_tmp
+
+	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+			,@isExistParlay = @IsExistParlay
+			,@IsExistFM = @IsExistFM
+			,@IsExistFM2 = @IsExistFM2
+			,@avaiableProcess = @avaiableProcess OUTPUT
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT;
+
+	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+	BEGIN
+		RETURN;
+	END;
 
 	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 		SET @OldActionId = ActionId
@@ -73,7 +158,6 @@ BEGIN
 			,@OldSource = Source
 			,@OldRemark = Remark
 			,@OldIsTest = IsTest
-
 			,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 			,ActionId = ISNULL(@ActionId, ActionId)
 			,Provider = ISNULL(@Provider, Provider)
@@ -88,7 +172,84 @@ BEGIN
 			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
 	WHERE	RequestId = @RequestId
 
-	
+	EXEC dbo.TicketVoiding_RequestDetail_Update
+			@RequestId = @RequestId
+			,@MatchId = @MatchId				
+			,@KickOffTime = @KickOffTime			
+			,@UserId = @UserId				
+			,@IP = @IP					
+			,@TransIds = @TransIds 				
+			,@ActionId = @ActionId				
+			,@IssueTypeId = @IssueTypeId			
+			,@FilterFromTransTime = @FilterFromTransTime
+			,@FilterToTransTime	= @FilterToTransTime		
+			,@FilterFromBetId = @FilterFromBetId		
+			,@FilterToBetId	= @FilterToBetId			
+			,@FilterBy = @FilterBy				
+			,@SingleCount = @SingleCount			
+			,@MainParlayCount = @MainParlayCount		
+			,@MinSingleTransId = @MinSingleTransId		
+			,@MaxSingleTransId = @MaxSingleTransId		
+			,@MinMainParlayTransId = @MinMainParlayTransId
+			,@MaxMainParlayTransId = @MaxMainParlayTransId
+			,@VoidFromTime = @VoidFromTime			
+			,@VoidToTime = @VoidToTime			
+			,@LiveScores = @LiveScores			
+			,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
+			,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
+			,@SubIssueTypeId = @SubIssueTypeId		
+			,@IsConfirmCalculator = 0 
+			,@UserNames	= @UserNames				
+			,@ProductIds = @ProductIds			
+			,@StatusIds	= @StatusIds				
+			,@FromDate = @FromDate				
+			,@ToDate = @ToDate				
+			,@ErrMsg = @ErrMsg	OUTPUT
+			,@ErrCode = @ErrCode OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			;
+	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
+			@RequestId = @RequestId			
+			,@MatchId = @MatchId			
+			,@KickOffTime = @KickOffTime		
+			,@IssueTypeId = @IssueTypeId		
+			,@SubIssueTypeId = @SubIssueTypeId	
+			,@MinSingleTransId = @MinSingleTransId	
+			,@MaxSingleTransId = @MaxSingleTransId	
+			,@TransIds = @TransIds			
+			,@IsEditRequest	= 1		
+			,@UserId = @UserId			
+			,@IP = @IP				
+			,@ActionId = @ActionId			
+			,@FilterFromTransTime = @FilterFromTransTime
+			,@FilterToTransTime = @FilterToTransTime	
+			,@FilterBy = @FilterBy			
+			,@UserNames	= @UserNames			
+			,@ProductIds = @ProductIds		
+			,@StatusIds = @StatusIds			
+			,@FromDate = @FromDate			
+			,@ToDate = @ToDate
+
+	IF @IssueTypeId IN (1,8,9,10) -- DA,EKO,WKO,RC
+	BEGIN
+	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
+			@RequestId = @RequestId		
+			,@MatchId = @MatchId				
+			,@KickOffTime = @KickOffTime			
+			,@IssueTypeId = @IssueTypeId			
+			,@SubIssueTypeId = @SubIssueTypeId		
+			,@MinMainParlayTransId = @MinMainParlayTransId	
+			,@MaxMainParlayTransId = @MaxMainParlayTransId	
+			,@IsEditRequest	= 1		
+			,@UserId = @UserId				
+			,@IP = @IP					
+			,@ActionId = @ActionId				
+			,@FilterFromTransTime = @FilterFromTransTime	
+			,@FilterToTransTime	= @FilterToTransTime		
+			,@FilterBy = @FilterBy				
+	END
+
 	IF @Operators IS NOT NULL
 	BEGIN
 		INSERT INTO #OperatorInfo (RequestId, OperatorId,OperatorTypeId)

@@ -58,7 +58,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
-		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 
 	Param's explanation:	
 	
@@ -78,7 +78,14 @@ BEGIN
 			,@MarkedTransIds	 VARCHAR(MAX)
 			,@Username			 NVARCHAR(200)
 			,@IsCalQueue		 BIT = 0
-			,@IsTransidProcessed BIT = 0			
+			,@IsTransidProcessed BIT = 0
+			,@IsLockMatch		 BIT = 0
+			,@IsSB				 BIT = 0
+			,@IsParlay			 BIT = 0
+			,@IsBB				 BIT = 0
+			,@IsOutright		 BIT = 0
+			,@IsSaba			 BIT = 0
+			,@IsNonSport		 BIT = 0			
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
@@ -86,7 +93,8 @@ BEGIN
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
-
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90001
@@ -172,6 +180,29 @@ BEGIN
 	ELSE --AC
 	BEGIN 
 		-- Get info match belong to username
+			SELECT @moveBetDay14 = MAX(winlostdate) 
+		FROM dbo.bettrans14 WITH(NOLOCK)
+
+		SELECT @moveBetDay = MAX(winlostdate) 
+		FROM dbo.bettrans WITH(NOLOCK)
+	
+		SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
+				, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+				, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+	
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@StatusIds, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+
+		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsBB = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsOutright = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
+
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
 		SELECT l.val
 			  ,ci.custid
@@ -217,14 +248,69 @@ BEGIN
 		WHERE ci.roleid = 1
 		;
 	
+		------------Prepare Data------------------------
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE 1 = CASE WHEN @UserNames IS NULL THEN 1
+					ELSE CASE
+							WHEN (@IsSB = 1 OR @IsSaba = 1) 
+								AND pt.ProductID = 1 
+								AND pt.BetType NOT IN (9,29,10)
+								AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
+							WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
+							WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
+							WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
+							WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
+						ELSE 0 END
+				END
+			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
+			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
+
+
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		SELECT	b.translogid AS transid
+				,b.statusID  -- add new
+				,0
+				,0
+		FROM	dbo.translog AS b WITH (NOLOCK)
+			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
+		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
+				AND b.GameID BETWEEN 801 AND 806
+				AND b.statusID = 0
+				AND @IsSB = 1
+				
+		UNION ALL
+		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
+				,b.statusID, b.matchid, b.bettype
+		FROM dbo.bettrans AS b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+			)ml
+			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
+			AND 1 = CASE 
+						WHEN @IsSB = 1 
+							AND b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+							AND b.bettype NOT BETWEEN 801 AND 806-- MG
+							AND  ml.LeagueGroupID IS NULL THEN 1
+						WHEN @IsSaba = 1 
+							AND ml.LeagueGroupID IS NOT NULL THEN 1								
+					ELSE 0 END	
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
+
 		INSERT INTO #TempMatch(matchid)
-		SELECT  DISTINCT b.matchid 
-		FROM #InputValidCustid_tmp c 
-		CROSS APPLY (
-						SELECT b.matchid
-						FROM dbo.bettrans b WITH(NOLOCK)
-						WHERE c.custid = b.custid AND b.matchid <> 0 
-					)b
+		SELECT  DISTINCT matchid 
+		FROM #transIdTemp
 
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
 			   RequestId
@@ -280,7 +366,7 @@ BEGIN
 			BEGIN
 				SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 				EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-																, @MarkType = 1, @LogActionId = 90508
+																, @MarkType = 1, @LogActionId = 90508, @IsLockMatch = 0
 			END		
 		END
 		

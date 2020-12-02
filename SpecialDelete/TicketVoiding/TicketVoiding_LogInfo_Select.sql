@@ -1,19 +1,19 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
-	@MatchId INT
-	,@RequestId	INT = 0
+	@MatchId              INT
+	,@RequestId			  INT = 0
 	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime DATETIME = NULL
-	,@FilterFromBetId BIGINT = NULL
-	,@FilterToBetId BIGINT = NULL
-	,@FilterBy TINYINT = 1
-	,@IssueTypeId INT = 1
-	,@ActionId INT = 5
-	,@IsShowLogOnly BIT = 0
-	,@SubIssueTypeId INT = NULL
-	,@IsCheckedHomeTeam  BIT = 0
-	,@IsCheckedAwayTeam  BIT = 0
+	,@FilterToTransTime	  DATETIME = NULL
+	,@FilterFromBetId	  BIGINT = NULL
+	,@FilterToBetId		  BIGINT = NULL
+	,@FilterBy			  TINYINT = 1
+	,@IssueTypeId		  INT = 1
+	,@ActionId			  INT = 5
+	,@IsShowLogOnly		  BIT = 0
+	,@SubIssueTypeId	  INT = NULL
+	,@IsCheckedHomeTeam   BIT = 0
+	,@IsCheckedAwayTeam   BIT = 0
 )
 AS
 /*	
@@ -32,6 +32,7 @@ AS
 		- 20201015@Max: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201102@Max: TVS - Enhance for Danger Accept - Phase 4 - Show LogInfo when voided [Redmine: #143091]
+		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -40,15 +41,15 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @IsInvalidTransId BIT = 0
-		,@IsInValidTotalTickets BIT = 0
-		,@IsInvalidLiveScore BIT = 0
+	DECLARE @IsInvalidTransId     BIT = 0
+		,@IsInValidTotalTickets   BIT = 0
+		,@IsInvalidLiveScore	  BIT = 0
 		,@IsExistedInOtherRequest BIT = 0
-		,@totalLiveHomeScore INT = 0
-		,@totalAwayLiveScore INT = 0
-		,@totalRecord INT = 0
-		,@SingleCount INT = 0
-		,@MainParlayCount INT = 0
+		,@totalLiveHomeScore	  INT = 0
+		,@totalAwayLiveScore	  INT = 0
+		,@totalRecord			  INT = 0
+		,@SingleCount			  INT = 0
+		,@MainParlayCount		  INT = 0
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -104,7 +105,7 @@ BEGIN
 			MainTransId           BIGINT,
 			WinLost               MONEY,
 			IsMarked              BIT,
-			LiveIndicator			BIT
+			LiveIndicator		  BIT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -133,6 +134,15 @@ BEGIN
 		,MinMainParlayTransId BIGINT
 		,MaxMainParlayTransId BIGINT
 	)
+
+	CREATE TABLE #MatchCheckProcess_tmp(
+		matchid		  INT,
+		KeyID		  TINYINT,
+		IsExistSingle BIT,
+		IsExistParlay BIT,
+		IsExistFM	  BIT,
+		IsExistFM2	  BIT
+	);
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
@@ -976,11 +986,49 @@ BEGIN
 		END
 	END
 
+	---Prepare for lock match---
+	INSERT INTO #MatchCheckProcess_tmp (
+			MatchId
+			,KeyID
+			,IsExistSingle
+			,IsExistParlay
+			,IsExistFM
+			,IsExistFM2
+			)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS KeyID
+			,MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END) AS IsExistSingle
+			,CASE WHEN b.IsMixParlay = 1 THEN 1 ELSE 0 AS IsExistParlay
+			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
+			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
+		FROM #SpecialDeleteBets b
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
+		GROUP BY MatchId,f.GroupId
+	--Return table
+	SELECT MatchId
+			,KeyID
+			,IsExistSingle
+			,IsExistParlay
+			,IsExistFM
+			,IsExistFM2
+	FROM #MatchCheckProcess_tmp
+
 	--Error Table
 	SELECT @IsInvalidTransId AS IsInvalidTransId
 		,@IsInvalidLiveScore AS IsInvalidLiveScore
 		,@IsInValidTotalTickets AS IsInValidTotalTickets
 		,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
 
 	--TransId in request table
 	--For EKO check transid exists in request
@@ -1030,6 +1078,7 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
 	DROP TABLE #CashOuts
+	DROP TABLE #MatchCheckProcess_tmp
 
 END
 GO

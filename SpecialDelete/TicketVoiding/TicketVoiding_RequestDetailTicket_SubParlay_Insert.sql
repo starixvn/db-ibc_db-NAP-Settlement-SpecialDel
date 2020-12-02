@@ -29,7 +29,7 @@ AS
 		- 20201002@Max: [TVS] - Modify bet type list on Home/Away Team filter of Danger Accept [Redmine: #142883]
 		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
-		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -37,12 +37,13 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @UnMarkedTransIds	VARCHAR(MAX) = NULL
-			,@UserName		VARCHAR(100) = NULL
-			,@MarkedTransIds	VARCHAR(MAX) = NULL
-			,@RemoveTransIds	VARCHAR(MAX) = ''
-			,@IsCheckedHomeTeam		BIT = 0
-			,@IsCheckedAwayTeam		BIT = 0
+	DECLARE @UnMarkedTransIds	  VARCHAR(MAX) = NULL
+			,@UserName			  VARCHAR(100) = NULL
+			,@MarkedTransIds	  VARCHAR(MAX) = NULL
+			,@RemoveTransIds	  VARCHAR(MAX) = ''
+			,@IsCheckedHomeTeam	  BIT = 0
+			,@IsCheckedAwayTeam	  BIT = 0
+			,@IsLockMatch		  BIT = 0
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -172,7 +173,8 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 		END
 
 		IF @IsEditRequest = 1
@@ -231,7 +233,7 @@ BEGIN
 				IF @UnMarkedTransIds IS NOT NULL
 				BEGIN
 					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
-																	, @MarkType = 1, @LogActionId = 90508
+																	, @MarkType = 1, @LogActionId = 90508, @IsLockMatch = 0
 				END	
 
 				SET @UnMarkedTransIds = ''
@@ -254,7 +256,8 @@ BEGIN
 			
 				IF @MarkedTransIds IS NOT NULL
 					BEGIN
-						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId, @LogActionId = 90501
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+																			, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 					END												
 
 					SET @MarkedTransIds = ''
