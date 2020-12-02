@@ -42,14 +42,13 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 	SET @settlementTime = GETDATE();
 	
-	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY,totalActualStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
+	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
 								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT)
 	
-	INSERT INTO #temp_source (transid,winlostdate, totalStake, totalActualStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
+	INSERT INTO #temp_source (transid,winlostdate, totalStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
 	SELECT transid = b.transid
 		,winlostdate = MAX(pr.winlostdate)
 		,totalStake = SUM(pr.stake)
-		,totalActualStake  =  SUM(btr.actual_stake)
 		,winlost = SUM(pr.winlost) 
 		,awinlost = SUM(pr.awinlost) 
 		,mwinlost = SUM(pr.mwinlost) 
@@ -61,19 +60,23 @@ BEGIN
 		,ruben = CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK) ON pr.refno = b.refno
-		INNER JOIN dbo.bettrans btr WITH(NOLOCK)		ON b.transid = pr.transid
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid
 	
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusId = CASE 
-						WHEN s.ruben = 0 THEN 0 
-						WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW
-						WHEN s.winlost > s.totalStake THEN 112 -- winlost > stake, member WIN
-						WHEN s.winlost < s.totalStake THEN 
-													  CASE WHEN ISNULL(b.oddsspread,0) = 1 AND s.winlost = b.actual_stake THEN 111 ---GoF
-													  ELSE 113 END -- winlost < stake, member LOSE
-						ELSE b.statusID -- uncontrollale situation, hope it's not happen in real life
+						WHEN s.ruben = 0 THEN 0
+						WHEN ISNULL(b.oddsspread,0) = 1 THEN	CASE ---GoF
+																WHEN s.winlost = b.actual_stake THEN 111
+																WHEN s.winlost > b.actual_stake THEN 112
+																WHEN s.winlost < b.actual_stake THEN 113 
+															END 
+						ELSE CASE
+							WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW
+							WHEN s.winlost > s.totalStake THEN 112 -- winlost > stake, member WIN
+							WHEN s.winlost < s.totalStake THEN 113 -- winlost < stake, member LOSE
+							ELSE b.statusID -- uncontrollale situation, hope it's not happen in real life
+							END
 					END
 		,@winlost = s.winlost * s.ruben
 		,SettlementTime = CASE WHEN @statusId <> 0 AND (b.winlost <> @winlost OR statusID <> @statusId) THEN @settlementTime ELSE SettlementTime END
@@ -104,9 +107,9 @@ BEGIN
 		SET @statusId = CASE 
 						WHEN s.ruben = 0 THEN 0
 						WHEN ISNULL(b.oddsspread,0) = 1 THEN	CASE ---GoF
-																WHEN s.winlost = s.totalActualStake THEN 111
-																WHEN s.winlost > s.totalActualStake THEN 112
-																WHEN s.winlost < s.totalActualStake THEN 113 
+																WHEN s.winlost = b.actual_stake THEN 111
+																WHEN s.winlost > b.actual_stake THEN 112
+																WHEN s.winlost < b.actual_stake THEN 113 
 															END
 					ELSE	CASE
 							WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW

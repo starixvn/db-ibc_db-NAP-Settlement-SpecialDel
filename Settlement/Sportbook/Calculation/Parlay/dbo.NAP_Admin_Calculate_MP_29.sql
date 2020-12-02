@@ -46,7 +46,6 @@ BEGIN
 	SELECT transid = b.transid
 		,winlostdate = MAX(pr.winlostdate)
 		,totalStake = SUM(pr.stake)
-		,totalActualStake  =  SUM(btr.actual_stake)
 		--,modds = SUM(modds) 
 		,winlost = SUM(pr.winlost) 
 		,awinlost = SUM(pr.awinlost) 
@@ -60,8 +59,6 @@ BEGIN
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
 			ON pr.refno = b.refno
-		INNER JOIN dbo.bettrans btr WITH(NOLOCK)
-			ON b.transid = pr.transid
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid
 	)
@@ -69,9 +66,9 @@ BEGIN
 	SET @statusId = CASE
 					WHEN s.ruben = 0 THEN 0
 					WHEN ISNULL(b.oddsspread,0) = 1 THEN	CASE ---GoF
-															WHEN s.winlost = s.totalActualStake THEN 111
-															WHEN s.winlost > s.totalActualStake THEN 112
-															WHEN s.winlost < s.totalActualStake THEN 113 
+															WHEN s.winlost = b.actual_Stake THEN 111
+															WHEN s.winlost > b.actual_Stake THEN 112
+															WHEN s.winlost < b.actual_stake THEN 113 
 															END
 					ELSE	CASE				
 							WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW
