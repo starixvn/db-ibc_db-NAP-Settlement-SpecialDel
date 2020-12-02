@@ -17,7 +17,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
 	@SelectionType				VARCHAR(200)  = '',
 	@IsReSettled				BIT			  = 0
 
-WITH RECOMPILE
 AS;
 /*	Created by: Elodie
 	Date: 20130606
@@ -68,6 +67,7 @@ AS;
 		- 20200911@Max: Tuning SP [Redmine: 141476]
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 		- 20201013@July: [TVS] - HotFix - TicketListing bettype > 100 items [Redmine: #143308]
+		- 20201202@Max: Tuning SP [Redmine: #146485]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -131,19 +131,20 @@ BEGIN
 	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
 	IF (@IsReSettled = 1)
 	BEGIN 
-		WITH CTEBalanceRecord AS (
-			SELECT transid,winlost,StatusId,RowID,SettlementType
-			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
-			WHERE Matchid = @MatchId
-			UNION ALL
-			SELECT transid,winlost,StatusId,RowID,SettlementType
-			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
-			WHERE Matchid = @MatchId
-		)
+		SELECT transid,winlost,StatusId,CONVERT(BIGINT,RowID) AS RowID,SettlementType
+			INTO #temp_1
+		FROM dbo.BalanceRecord WITH(NOLOCK, INDEX = [IX_BalanceRecord_MatchId])
+		WHERE Matchid = @MatchId
+			
+		INSERT INTO #temp_1	(transid,winlost,StatusId,RowID,SettlementType)
+		SELECT transid,winlost,StatusId,RowID,SettlementType
+		FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK, INDEX = [IX_BalanceRecord_bk_MatchId])
+		WHERE Matchid = @MatchId
+
 		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
 		SELECT transid,winlost,StatusId,SettlementType,RowID 
 				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
-		FROM CTEBalanceRecord
+		FROM #temp_1
 
 		INSERT INTO @tmpAffectTickets(Transid)
 		SELECT bt.transid
