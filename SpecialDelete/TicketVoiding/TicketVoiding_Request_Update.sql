@@ -39,7 +39,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@StatusIds				VARCHAR(50)	  = NULL
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
-	,@MatchProcess			XML           = NULL
+	,@XMLMatchProcess		XML           = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 	,@FailedTransIds		VARCHAR(MAX)  = NULL OUTPUT
@@ -62,7 +62,7 @@ AS
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
-		@MatchProcess: <MatchProcess MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/>
+		@XMLMatchProcess: <MatchInfo><Item MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></MatchInfo>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -120,8 +120,8 @@ BEGIN
 			,x.value('@IsExistParlay', 'BIT') AS IsExistParlay
 			,x.value('@IsExistFM', 'BIT') AS IsExistFM
 			,x.value('@IsExistFM2', 'BIT') AS IsExistFM2
-	FROM @MatchProcess.nodes('/MatchProcess') XmlData(x)
-	OPTION (OPTIMIZE FOR (@MatchProcess = NULL));
+	FROM @XMLMatchProcess.nodes('MatchInfo/Item') XmlData(x)
+	OPTION (OPTIMIZE FOR (@XMLMatchProcess = NULL));
 
 	SELECT TOP 1 
 		   @IsExistSingle = IsExistSingle,
