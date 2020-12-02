@@ -42,10 +42,10 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 	SET @settlementTime = GETDATE();
 	
-	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY,winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
+	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY,totalActualStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
 								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT)
 	
-	INSERT INTO #temp_source (transid,winlostdate, totalStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
+	INSERT INTO #temp_source (transid,winlostdate, totalStake, totalActualStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
 	SELECT transid = b.transid
 		,winlostdate = MAX(pr.winlostdate)
 		,totalStake = SUM(pr.stake)
