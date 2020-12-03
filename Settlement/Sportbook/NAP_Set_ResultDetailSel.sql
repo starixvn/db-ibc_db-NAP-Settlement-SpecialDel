@@ -10,6 +10,7 @@ AS
     Revisions:            
 		- 20200827@Louisa: get Result [Redmine:#139979]
 		- 20200914@Louisa: Return result for multisports [Redmine:#139979]
+		- 20201202@Louisa: Integrate with SBO for 8 sports:3,4,6,8,9,18,24,25 [Redmine:#146239]
 
 	Param's explanation:
 		
@@ -37,10 +38,57 @@ BEGIN
 		INNER JOIN Match m 
 			ON m.matchid = f.val
 	OPTION (maxrecursion 0)
-	
-	---- Settled score: ESport
+
+	;WITH  cteLatestSports
+		AS(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
+					,ex.matchid
+					,ex.SourceId
+					,ex.ResourceId
+					,ex.HomeValue
+					,ex.AwayValue
+			FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
+			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (3, 4, 6, 8, 18, 24, 25) )
+				AND  ex.SourceId  = 1
+		)
+		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+		SELECT  matchid		
+				,1
+				,'SBO'
+				,ResourceId 
+				,HomeValue 
+				,AwayValue 
+		FROM	cteLatestSports
+		WHERE	rn = 1
+
+	DELETE FROM #tblMatchID WHERE SportType IN (3, 4, 6, 8, 18, 24, 25)
+
     IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
     BEGIN
+		---- Reference score: ESports
+		;WITH  cteLatestES	AS
+		(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
+					,ex.matchid
+					,ex.SourceId
+					,ex.ResourceId
+					,ex.HomeValue
+					,ex.AwayValue
+			FROM	dbo.ProviderExternalResultDetailES ex WITH(NOLOCK)
+			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 43 )
+				AND  ex.SourceId  = 1 ---SBO
+		)				
+		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+		SELECT matchid		
+				,1
+				,'SBO'
+				,ResourceId 
+				,HomeValue 
+				,AwayValue 
+		FROM	cteLatestES
+		WHERE	rn = 1
+
+		---- Settled score: ESport
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
         SELECT    rs.MatchId
 				, 0
@@ -56,9 +104,33 @@ BEGIN
     					WHERE rs.ResourceID = f.ResourceID)
 	END
 	
-	---- Settled score: Badminton AIO
+	
 	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType = 9 )
     BEGIN
+		---- Reference score: Badminton
+		;WITH  cteLatestOS
+		AS(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
+					,ex.matchid
+					,ex.SourceId
+					,ex.ResourceId
+					,ex.HomeValue
+					,ex.AwayValue
+			FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
+			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 9)
+				AND  ex.SourceId  = 1 ---SBO
+		)		
+		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+		SELECT matchid		
+				,1
+				,'SBO'
+				,ResourceId 
+				,HomeValue 
+				,AwayValue 
+		FROM	cteLatestOS
+		WHERE	rn = 1
+		
+		---- Settled score: Badminton
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
         SELECT    rs.MatchId
 				, 0
@@ -76,7 +148,7 @@ BEGIN
 	
 	DELETE FROM #tblMatchID WHERE SportType in (43,9)
 	
-	---- Settled score: Exclude Tennis and ESports
+	---- Settled score: Exclude Badminton and ESports
 	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
     	SELECT    rs.MatchId
 				, 0
@@ -146,8 +218,9 @@ BEGIN
 			,l.HomeValue
 			,l.AwayValue
 		FROM cteLatestSBO l
+		WHERE	rn = 1
 	END
-	
+
 	DROP TABLE #tblMatchID
 
 	SELECT 
