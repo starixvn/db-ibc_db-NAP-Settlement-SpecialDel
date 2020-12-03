@@ -8,6 +8,11 @@
 USE bodb02
 GO
 
+ALTER TABLE [dbo].[TicketVoiding_VoidingHistory]
+ADD
+	[VoidData] [xml] NULL
+GO
+
 ALTER TABLE [dbo].[TicketVoiding_RequestDetail]
 ADD
     Usernames		NVARCHAR(MAX)	NULL,
