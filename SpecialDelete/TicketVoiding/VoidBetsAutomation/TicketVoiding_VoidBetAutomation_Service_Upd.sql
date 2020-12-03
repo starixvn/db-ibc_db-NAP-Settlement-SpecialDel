@@ -1,7 +1,20 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 (
-	@SessionId INT
+	@SessionId 						INT = NULL,
+	@UpdateType						INT,
+	@StatusId						INT = NULL,
+	@RequestId						INT = NULL,
+	@VoidingHistoryId				INT = NULL,
+	@MessageId						INT = NULL,
+	@ReasonId						INT = NULL,
+	@IsSentBatchMessage				BIT = NULL,
+	@IsSentMessageToAdminSite 		BIT = NULL,
+	@IsInsertedVoidedTransaction	BIT = NULL,
+	@IsUpdatedVoidingHistory		BIT = NULL,
+	@IsSentEmail					BIT = NULL,
+	@IsRunExternalService			BIT = NULL,
+	@IsSentLetsTalk					BIT = NULL
 )
 AS
 /*	Created by: Max
@@ -10,17 +23,37 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20200215@Max: Create new SP [Redmine: #128359]	
+		- 20200215@Max: Create new SP [Redmine: #128359]
+		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 	
-	Param's explanation:	
+	Param's explanation:
+	- @UpdateType:
+			   1: Update status by VoidingHistory
+			   2: Update status by session
+			   3: Update MessageId by VoidingHistory
+			   4: Update MessageId by Session
+			   5: Update after void step
+			   6: Update all after void steps
 	
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET statusID = 2
-			, ModifiedDate = GETDATE()
-	WHERE SessionID = @SessionId
+		SET statusID = ISNULL(@StatusId, statusID)
+			,ModifiedDate = GETDATE()
+			,UpdateType = @UpdateType
+			,MessageId = ISNULL(@MessageId, MessageId)
+			,ReasonId = ISNULL(@ReasonId, ReasonId)
+			,IsSentBatchMessage = ISNULL(@IsSentBatchMessage, IsSentBatchMessage)
+			,IsSentMessageToAdminSite = ISNULL(@IsSentMessageToAdminSite, IsSentMessageToAdminSite)
+			,IsInsertedVoidedTransaction = ISNULL(@IsInsertedVoidedTransaction, IsInsertedVoidedTransaction)
+			,IsUpdatedVoidingHistory = ISNULL(@IsUpdatedVoidingHistory, IsUpdatedVoidingHistory)
+			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
+			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
+			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
+	WHERE SessionID = ISNULL(@SessionId, SessionID)
+		 AND RequestId = ISNULL(@RequestId, RequestId)
+		 AND VoidingHistoryId = ISNULL(@VoidingHistoryId, VoidingHistoryId)
 
 END
