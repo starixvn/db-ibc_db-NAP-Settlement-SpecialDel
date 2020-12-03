@@ -238,11 +238,9 @@ BEGIN
 						END
 				END
 				) AS MONEY) AS modds
-			, b.oddsspread
-			, b.actual_stake
 		FROM dbo.BetParlayDetail pd 
 			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
-		GROUP BY pd.refno, pd.serial, b.eventdate, b.oddsspread, b.actual_stake
+		GROUP BY pd.refno, pd.serial, b.eventdate
 	)
 	UPDATE pr			
 	SET @statusID = statusID = CASE
