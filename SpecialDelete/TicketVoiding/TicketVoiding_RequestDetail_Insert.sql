@@ -85,11 +85,14 @@ BEGIN
 			,@IsBB				 BIT = 0
 			,@IsOutright		 BIT = 0
 			,@IsSaba			 BIT = 0
-			,@IsNonSport		 BIT = 0			
+			,@IsNonSport		 BIT = 0
+			,@moveBetDay14 		 SMALLDATETIME
+			,@moveBetDay 		 SMALLDATETIME			
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TempMatch (MatchId INT)
+	CREATE TABLE #TempTransid (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
@@ -270,7 +273,7 @@ BEGIN
 			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		INSERT INTO #TempTransid (transid,statusID, MatchId, bettype)
 		SELECT	b.translogid AS transid
 				,b.statusID  -- add new
 				,0
@@ -310,7 +313,7 @@ BEGIN
 
 		INSERT INTO #TempMatch(matchid)
 		SELECT  DISTINCT matchid 
-		FROM #transIdTemp
+		FROM #TempTransid
 
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
 			   RequestId
@@ -413,6 +416,7 @@ BEGIN
 	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
+	DROP TABLE #TempTransid
 	
 END
 GO

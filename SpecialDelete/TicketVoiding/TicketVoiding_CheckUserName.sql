@@ -171,9 +171,9 @@ BEGIN
 
 	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
 	SELECT	b.translogid AS transid
-			,b.statusID  -- add new
-			,0
-			,0
+			,b.statusID 
+			,b.EventID
+			,b.GameID
 	FROM	dbo.translog AS b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 	WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 

@@ -300,6 +300,8 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
 	DROP TABLE #OperatorInfo
+	DROP TABLE #MatchCheckProcess_tmp
+	DROP TABLE #tblMatchProcess
 	
 END
 GO

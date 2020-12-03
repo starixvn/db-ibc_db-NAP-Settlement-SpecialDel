@@ -1299,7 +1299,6 @@ BEGIN
 				,WinLost
 				,IsMarked
 				,LiveIndicator
-				,matchid
 			)
 		SELECT  sub911.transid AS GroupTransId
 				,sub911.transid AS transId
@@ -1342,7 +1341,6 @@ BEGIN
 				,sub911.winlost - sub911.actual_stake AS WinLost
 				,main.IsMarked
 				,main.LiveIndicator
-				,sub911.matchid
 		FROM dbo.bettrans sub911 WITH(NOLOCK)
 			 INNER JOIN #SpecialDeleteBets main 
 					ON	sub911.refno = main.transid	

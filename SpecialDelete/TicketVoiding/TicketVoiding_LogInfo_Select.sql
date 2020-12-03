@@ -995,7 +995,7 @@ BEGIN
 			,IsExistFM
 			,IsExistFM2
 			)
-		SELECT DISTINCT MatchId
+		SELECT DISTINCT @MatchId
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
@@ -1003,17 +1003,18 @@ BEGIN
 				ELSE 0
 				END AS KeyID
 			,MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END) AS IsExistSingle
-			,CASE WHEN b.IsMixParlay = 1 THEN 1 ELSE 0 AS IsExistParlay
+			,MAX(CASE WHEN b.IsMixParlay = 1 THEN 1 ELSE 0 END) AS IsExistParlay
 			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
 			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
 		FROM #SpecialDeleteBets b
 			OUTER APPLY (
 						SELECT GroupId
 						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
+						WHERE Bettype = b.Bettype
 				)f
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
-		GROUP BY MatchId,f.GroupId
+		GROUP BY f.GroupId
+
 	--Return table
 	SELECT MatchId
 			,KeyID

@@ -106,6 +106,8 @@ BEGIN
 			,@IsOutright			 BIT = 0
 			,@IsSaba				 BIT = 0
 			,@IsNonSport			 BIT = 0
+			,@moveBetDay14 			 SMALLDATETIME
+			,@moveBetDay 			 SMALLDATETIME	
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -116,7 +118,7 @@ BEGIN
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
-
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -602,6 +604,7 @@ BEGIN
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #transIdTemp
 
 END
 GO
