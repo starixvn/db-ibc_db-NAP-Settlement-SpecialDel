@@ -38,11 +38,38 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET statusID = ISNULL(@StatusId, statusID)
+	IF @UpdateType = 1
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET statusID = @StatusId
 			,ModifiedDate = GETDATE()
-			,UpdateType = @UpdateType
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+	END
+	ELSE IF @UpdateType = 2
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET statusID = @StatusId
+			,ModifiedDate = GETDATE()
+		WHERE SessionID = @SessionId
+	END
+	ELSE IF @UpdateType = 3
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET MessageId = @MessageId
+			,ModifiedDate = GETDATE()
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+	END
+	ELSE IF @UpdateType = 4
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET MessageId = @MessageId
+			,ModifiedDate = GETDATE()
+		WHERE SessionID = @SessionId
+	END
+	ELSE IF @UpdateType = 5 OR @UpdateType = 6
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET ModifiedDate = GETDATE()
 			,MessageId = ISNULL(@MessageId, MessageId)
 			,ReasonId = ISNULL(@ReasonId, ReasonId)
 			,IsSentBatchMessage = ISNULL(@IsSentBatchMessage, IsSentBatchMessage)
@@ -52,8 +79,6 @@ BEGIN
 			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
-	WHERE SessionID = ISNULL(@SessionId, SessionID)
-		 AND RequestId = ISNULL(@RequestId, RequestId)
-		 AND VoidingHistoryId = ISNULL(@VoidingHistoryId, VoidingHistoryId)
-
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+	END
 END

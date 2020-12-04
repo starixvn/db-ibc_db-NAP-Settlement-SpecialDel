@@ -18,6 +18,7 @@ AS
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
+		- 20201204@Charles: Return matchid from result [Redmine: #145719]
 	
 	Param's explanation:	
 		
@@ -280,6 +281,7 @@ BEGIN
 			,m.matchcode
 			,m.showtime 
 			,m.isneutral
+			,m.matchid
 
 			,CASE WHEN t.Bettype BETWEEN 801 AND 806 THEN t.Refno ELSE t.TransId END AS TransId
 			,t.Refno
