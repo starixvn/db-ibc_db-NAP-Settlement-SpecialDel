@@ -39,11 +39,11 @@ INSERT [dbo].[TicketVoiding_MessageTemplate] ([TemplateId], [MsgEnglish], [MsgCh
 , [MsgChineseSimplified]
 , [MsgChineseNewSimplified]
 , [JsonValue]) 
-VALUES (41, N'Attn:[{{Sport type}}] Due to "{{Wicket No}} Wicket" has been completed "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" {{PlacedFromTimeRange_WK}}which affected are considered VOID . Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!'
-, N'請註意:[{{Sport type}}] 由於 "{{Wicket No}}三柱門" 已結束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 註單: "@@" {{PlacedFromTimeRange_WK}}只作廢受影響的註單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
-, N'请注意:[{{Sport type}}] 由于 "{{Wicket No}}三柱门" 已结束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_WK}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
-, N'请注意:[{{Sport type}}] 由于 "{{Wicket No}}三柱门" 已结束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_WK}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
-, N'[{"Name":"WicketNo","MsgEnglish":"Wicket No.","MsgChineseTraditional":"Wicket No. (TC)","MsgChineseSimplified":"Wicket No. (SC)","MsgChineseNewSimplified":"Wicket No. (New SC)","Pattern":"Ex: 2nd"}]')
+VALUES (41, N'Attn:[{{Sport type}}] Due to "{{Wicket No}} Wicket" has been completed "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" {{PlacedFromTimeRange_NC}}which affected are considered VOID. Parlay counted as (1). {{CheckStatement}}Sorry for the inconvenience caused!'
+, N'請註意:[{{Sport type}}] 由於 "{{Wicket No}}三柱門" 已結束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 註單: "@@" {{PlacedFromTimeRange_NC}}只作廢受影響的註單. 過關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
+, N'请注意:[{{Sport type}}] 由于 "{{Wicket No}}三柱门" 已结束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_NC}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+, N'请注意:[{{Sport type}}] 由于 "{{Wicket No}}三柱门" 已结束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_NC}}只作废受影响的注单. 过关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+, N'[{"Name":"Wicket No","MsgEnglish":"Wicket No.","MsgChineseTraditional":"Wicket No. (TC)","MsgChineseSimplified":"Wicket No. (SC)","MsgChineseNewSimplified":"Wicket No. (New SC)","Pattern":"Ex: 2nd"}]')
 
 INSERT INTO TicketVoiding_MessageTemplateSetting (TemplateId, SubIssueTypeId, Sporttype)
-VALUES (41,40,27)
+VALUES (41,40,50),(9999,40,NULL)
