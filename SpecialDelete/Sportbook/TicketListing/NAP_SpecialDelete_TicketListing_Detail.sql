@@ -126,38 +126,45 @@ BEGIN
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
+	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
+
+	CREATE TABLE #BalanceRecord_pre1 (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
+	CREATE TABLE #BalanceRecord_pre2 (transid BIGINT,RowID BIGINT PRIMARY KEY)
 
 	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
 	IF (@IsReSettled = 1)
 	BEGIN 
-		SELECT transid,winlost,StatusId,CONVERT(BIGINT,RowID) AS RowID,SettlementType
-			INTO #temp_1
-		FROM dbo.BalanceRecord WITH(NOLOCK, INDEX = [IX_BalanceRecord_MatchId])
-		WHERE Matchid = @MatchId
-			
-		INSERT INTO #temp_1	(transid,winlost,StatusId,RowID,SettlementType)
+		INSERT INTO #BalanceRecord_pre1	(transid,winlost,StatusId,RowID,SettlementType)
 		SELECT transid,winlost,StatusId,RowID,SettlementType
-		FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK, INDEX = [IX_BalanceRecord_bk_MatchId])
+		FROM dbo.BalanceRecord WITH(NOLOCK)
 		WHERE Matchid = @MatchId
 
-		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
-		SELECT transid,winlost,StatusId,SettlementType,RowID 
-				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
-		FROM #temp_1
+		INSERT INTO #BalanceRecord_pre1	(transid,winlost,StatusId,RowID,SettlementType)
+		SELECT transid,winlost,StatusId,RowID,SettlementType
+		FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
+		WHERE Matchid = @MatchId
 
-		INSERT INTO @tmpAffectTickets(Transid)
+		INSERT INTO #BalanceRecord_pre2	(transid,RowID)
+		SELECT transid, max(rowid) as rowid
+		FROM #BalanceRecord_pre1
+		GROUP BY transid
+
+		INSERT INTO #BalanceRecord_tmp	(transid,RowID,winlost,StatusId,SettlementType)
+		SELECT t.transid, t.rowid,t3.winlost , t3.StatusId , t3.SettlementType
+		FROM #BalanceRecord_pre2 t
+			CROSS APPLY (SELECT winlost , StatusId , SettlementType FROM #BalanceRecord_pre1 t1 WHERE t.RowID = t1.RowID) AS t3
+
+		INSERT INTO #tmpAffectTickets(Transid)
 		SELECT bt.transid
 		FROM #BalanceRecord_tmp bt
 		CROSS APPLY ( 
 			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
-			FROM #BalanceRecord_tmp br
+			FROM #BalanceRecord_pre1 br
 			WHERE  bt.transid = br.transid 
 					AND br.SettlementType <> 0 
 					AND br.RowID <bt.RowID
 		)bt1 
-		WHERE bt.Rownumber = 1 
-		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+		WHERE 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
 					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
 					  ELSE 0 END
 	END
@@ -1377,7 +1384,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM #SpecialDeleteBets b
-			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.transid=t.Transid)
 		END
 
 		IF (@BetTypes ='38' AND @Selectiontype <>'')
@@ -2358,4 +2365,8 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType
+	DROP TABLE #BalanceRecord_pre1
+	DROP TABLE #BalanceRecord_pre2
+	DROP TABLE #BalanceRecord_tmp
+	DROP TABLE #tmpAffectTickets
 END	 
