@@ -38,7 +38,7 @@ WHILE 1 = 1
 BEGIN
 	UPDATE TOP (2000) ld
 		SET statusid = 1
-			,sentdate = GETDATE()
+			,sentdate = '2020-12-08 03:42:11.543'
 			,ShowBannerEndDate = @ShowBannerEndDate
 	FROM LuckyDraw3rd ld WITH (ROWLOCK)
 		INNER JOIN CUSTDB.dbo.customer c WITH (NOLOCK) ON ld.custid = c.custid
