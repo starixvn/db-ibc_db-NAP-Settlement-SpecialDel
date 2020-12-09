@@ -10,6 +10,7 @@ GO
 
 ALTER TABLE [dbo].[Ticketvoiding_VoidBetAutomation_Service]
 ADD
+	[Emails] [varchar(max)] NULL,
     [IsAutoVoid] [bit] NULL,
 	[IsRunExternalService] [bit] NULL,
 	[MessageId] [int] NULL,

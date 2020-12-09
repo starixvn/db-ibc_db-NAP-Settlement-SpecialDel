@@ -38,6 +38,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
 	,@XMLMatchProcess		XML           = NULL
+	,@RequestId				INT			  = OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -67,7 +68,6 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-			,@RequestId			INT
 			,@avaiableProcess	BIT
 			,@IsExistSingle		BIT	
 			,@IsExistParlay		BIT	
