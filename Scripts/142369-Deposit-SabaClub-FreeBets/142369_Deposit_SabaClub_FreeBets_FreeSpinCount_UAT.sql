@@ -80,7 +80,7 @@ SELECT @Sporttype Sporttype
 	, @RoundID AS RoundID
 	,custid
 	,s.FreeSpinCount FreeSpinCount
-	,GETDATE() CreatedDate
+	,'2020-12-08 00:30:05.843' CreatedDate
 	,NULL SentDate
 	,NULL ShowBannerEndDate
 	,0 StatusId
