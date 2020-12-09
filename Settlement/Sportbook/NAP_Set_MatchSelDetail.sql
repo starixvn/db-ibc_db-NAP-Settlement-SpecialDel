@@ -59,6 +59,8 @@ AS
 		- 20200701@Kathy: get all ticket instead of exclude status Refund in Refund popup [Redmine:#134840]
 		- 20200901@Louisa: get calculated score in the second dataset [Redmine:#139979]
 		- 20200908@Louisa: get ResultDetail at DBPRO [Redmine:#139979]
+		- 20201209@Kathy: Add 10 Upcoming Sports for OS [Redmine:#145816]
+
 */
 BEGIN
     SET NOCOUNT ON
@@ -733,7 +735,7 @@ BEGIN
 				(
 					SELECT TOP 1 1
 					FROM Sports WITH (NOLOCK)
-					WHERE (SportType <= 99 AND SportType NOT IN (27,46,1,2,5,9,43,56,57,58,59,60,61,62,63,64,65,66)) 
+					WHERE (SportType <= 99 AND SportType NOT IN (27,46,1,2,5,9,43)) --,56,57,58,59,60,61,62,63,64,65,66)) 
 							AND SportType = @sporttype
 				)
 	BEGIN
