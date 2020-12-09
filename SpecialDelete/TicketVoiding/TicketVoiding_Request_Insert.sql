@@ -162,7 +162,9 @@ BEGIN
 				,@StatusIds	= @StatusIds				
 				,@FromDate = @FromDate				
 				,@ToDate = @ToDate
-			
+	
+	IF (@IssueTypeId NOT IN (1,10) OR (@IssueTypeId IN (1,10) AND @SingleCount > 0))
+	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
 				,@MatchId = @MatchId			
@@ -184,8 +186,9 @@ BEGIN
 				,@StatusIds = @StatusIds			
 				,@FromDate = @FromDate			
 				,@ToDate = @ToDate
+	END
 
-	IF @IssueTypeId IN (1,8,9,10) -- DA,EKO,WKO,RC
+	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10) AND @MainParlayCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
