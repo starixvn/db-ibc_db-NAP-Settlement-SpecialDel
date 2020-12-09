@@ -43,7 +43,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET statusID = @StatusId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 2
 	BEGIN
@@ -57,7 +57,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET MessageId = @MessageId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 4
 	BEGIN
@@ -79,6 +79,6 @@ BEGIN
 			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
-		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
 	END
 END
