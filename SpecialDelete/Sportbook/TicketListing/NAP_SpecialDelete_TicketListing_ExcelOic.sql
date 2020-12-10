@@ -97,10 +97,10 @@ BEGIN
 	DECLARE @p_bettypes VARCHAR(1000)
 	SET @p_bettypes = @BetTypes
 
-	CREATE TABLE #tmpBettypes ( bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
-	INSERT INTO #tmpBettypes (bettype)
+	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, val)
 	FROM	dbo.f_SplitString(@p_bettypes, ',')
 	GROUP BY val
@@ -140,43 +140,35 @@ BEGIN
 	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 
-	CREATE TABLE #BalanceRecord_pre1 (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT PRIMARY KEY, Rownumber INT)
-	CREATE TABLE #BalanceRecord_pre2 (transid BIGINT,RowID BIGINT PRIMARY KEY)
-
 	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
 	IF (@IsReSettled = 1)
 	BEGIN 
-		INSERT INTO #BalanceRecord_pre1	(transid,winlost,StatusId,RowID,SettlementType)
-		SELECT transid,winlost,StatusId,RowID,SettlementType
-		FROM dbo.BalanceRecord WITH(NOLOCK, INDEX = IX_BalanceRecord_MatchId)
-		WHERE Matchid = @MatchId
-
-		INSERT INTO #BalanceRecord_pre1	(transid,winlost,StatusId,RowID,SettlementType)
-		SELECT transid,winlost,StatusId,RowID,SettlementType
-		FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK, INDEX = IX_BalanceRecord_bk_MatchId)
-		WHERE Matchid = @MatchId
-
-		INSERT INTO #BalanceRecord_pre2	(transid,RowID)
-		SELECT transid, max(rowid) as rowid
-		FROM #BalanceRecord_pre1
-		GROUP BY transid
-
-		INSERT INTO #BalanceRecord_tmp	(transid,RowID,winlost,StatusId,SettlementType)
-		SELECT t.transid, t.rowid,t3.winlost , t3.StatusId , t3.SettlementType
-		FROM #BalanceRecord_pre2 t
-			CROSS APPLY (SELECT winlost , StatusId , SettlementType FROM #BalanceRecord_pre1 t1 WHERE t.RowID = t1.RowID) AS t3
+		WITH CTEBalanceRecord AS (
+			SELECT transid,winlost,StatusId,RowID,SettlementType
+			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+			UNION ALL
+			SELECT transid,winlost,StatusId,RowID,SettlementType
+			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
+			WHERE Matchid = @MatchId
+		)
+		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
+		SELECT transid,winlost,StatusId,SettlementType,RowID 
+				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
+		FROM CTEBalanceRecord
 
 		INSERT INTO #tmpAffectTickets(Transid)
 		SELECT bt.transid
 		FROM #BalanceRecord_tmp bt
 		CROSS APPLY ( 
 			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
-			FROM #BalanceRecord_pre1 br
+			FROM #BalanceRecord_tmp br
 			WHERE  bt.transid = br.transid 
 					AND br.SettlementType <> 0 
 					AND br.RowID <bt.RowID
 		)bt1 
-		WHERE 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+		WHERE bt.Rownumber = 1 
+		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
 					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
 					  ELSE 0 END
 	END
@@ -276,7 +268,7 @@ BEGIN
 						b.transid,
 						b.custid
 				FROM	dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN #tmpBettypes t ON b.bettype = t.bettype
+				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 						AND b.matchid = @MatchId 
@@ -292,7 +284,7 @@ BEGIN
 						b.transid,
 						b.custid
 				FROM	dbo.bettrans b WITH (NOLOCK)
-				     INNER JOIN #tmpBettypes t ON b.bettype = t.bettype
+				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 					OUTER APPLY (SELECT BallSequence 
 								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
@@ -319,7 +311,7 @@ BEGIN
 					,ISNULL(b.betid, 0) AS FilterGoal
 					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 			FROM	dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN #tmpBettypes t ON b.bettype = t.bettype
+				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 				AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 				AND b.matchid = @MatchId 
@@ -346,7 +338,7 @@ BEGIN
 					NULL AS FilterGoal,
 					NULL AS FilterBetOption
 			FROM	dbo.translog b WITH (NOLOCK)
-				INNER JOIN #tmpBettypes t ON b.gameID = t.bettype
+				INNER JOIN @tmpBettypes t ON b.gameID = t.bettype
 				LEFT JOIN dbo.bettrans bs WITH(NOLOCK) ON b.translogid = bs.refno AND b.gameid = bs.bettype		
 			WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 				AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
@@ -420,7 +412,7 @@ BEGIN
 				CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
 		FROM dbo.bettransm bm WITH (NOLOCK)	
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
-			INNER JOIN #tmpBettypes t ON bm.bettype = t.bettype
+			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
 			AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -481,7 +473,7 @@ BEGIN
 	END
 
     -- System parlay Virtual Sports 2799
-    IF EXISTS(SELECT 1 FROM #tmpBettypes WHERE bettype =2799)
+    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
 	BEGIN
 		INSERT INTO #SpecialDeleteBets (username, transid, CustId)	
 		SELECT	b.username,
@@ -520,8 +512,6 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType
-	DROP TABLE #BalanceRecord_pre1
-	DROP TABLE #BalanceRecord_pre2
 	DROP TABLE #BalanceRecord_tmp
 	DROP TABLE #tmpAffectTickets
 END
