@@ -21,7 +21,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@SelectionType					VARCHAR(200)    = ''
 	,@IsReSettled					BIT				= 0
 		
-WITH RECOMPILE
 AS
 /*	Created by: Elodie
 	Date: 20130606
@@ -68,6 +67,7 @@ AS
 		- 20200911@Max: Tuning SP [Redmine: 141476]
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 		- 20201013@July: [TVS] - HotFix - TicketListing bettype > 100 items [Redmine: #143308]
+		- 20201202@Max: Tuning SP [Redmine: #146485]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -141,7 +141,7 @@ BEGIN
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-	DECLARE @tmpAffectTickets TABLE (Transid BIGINT)
+	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 
 	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
 	IF (@IsReSettled = 1)
@@ -160,7 +160,7 @@ BEGIN
 				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
 		FROM CTEBalanceRecord
 
-		INSERT INTO @tmpAffectTickets(Transid)
+		INSERT INTO #tmpAffectTickets(Transid)
 		SELECT bt.transid
 		FROM #BalanceRecord_tmp bt
 		CROSS APPLY ( 
@@ -469,7 +469,7 @@ BEGIN
 		BEGIN
 			DELETE b
 			FROM @TmpBettransList b
-			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpAffectTickets t WHERE b.transid=t.Transid)
+			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #tmpAffectTickets t WHERE b.transid=t.Transid)
 		END
 
 		IF (@BetTypes = '38' AND @SelectionType <>'')
@@ -1255,4 +1255,6 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType
+	DROP TABLE #BalanceRecord_tmp
+	DROP TABLE #tmpAffectTickets
 END
