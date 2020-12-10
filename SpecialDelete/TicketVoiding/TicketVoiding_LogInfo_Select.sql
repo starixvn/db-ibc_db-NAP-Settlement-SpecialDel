@@ -14,7 +14,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@SubIssueTypeId	  INT = NULL
 	,@IsCheckedHomeTeam   BIT = 0
 	,@IsCheckedAwayTeam   BIT = 0
-	,@KickOffDate		  DATETIME = NULL
+	,@KickOffTime		  DATETIME = NULL
 )
 AS
 /*	
@@ -532,7 +532,7 @@ BEGIN
 											ELSE 1 END
 					)tmp
 		WHERE	b.matchid = @matchid
-				AND b.transdate >= @KickOffDate
+				AND b.transdate >= @KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
@@ -616,7 +616,7 @@ BEGIN
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
-				AND b.transdate >= @KickOffDate
+				AND b.transdate >= @KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
@@ -629,7 +629,7 @@ BEGIN
 				SELECT 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
 				WHERE bm.matchid = @matchid
-					AND bm.transdate >= @KickOffDate
+					AND bm.transdate >= @KickOffTime
 					AND 1= CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1
 								WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
@@ -728,7 +728,7 @@ BEGIN
 								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
 										ELSE 1 END
 						)tmp
-			WHERE	sub.transdate >= @KickOffDate
+			WHERE	sub.transdate >= @KickOffTime
 					AND 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
 								WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
@@ -737,7 +737,7 @@ BEGIN
 					AND main.matchid = 29
 					AND main.bettype = 29
 					AND main.liveindicator = 0
-					AND main.transdate >= @KickOffDate
+					AND main.transdate >= @KickOffTime
 					AND main.statusID NOT IN (101, 102, 103)
 		END 
 	END
