@@ -361,7 +361,7 @@ BEGIN
 		)f
 
 	SET @XMLMatchProcess = (
-		SELECT MatchId "@MatchId"
+		SELECT DISTINCT MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market

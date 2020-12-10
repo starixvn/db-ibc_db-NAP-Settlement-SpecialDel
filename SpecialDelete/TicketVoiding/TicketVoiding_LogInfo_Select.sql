@@ -246,6 +246,7 @@ BEGIN
 				,WinLost
 				,IsMarked
 				,LiveIndicator
+				,matchid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -294,6 +295,7 @@ BEGIN
 				,b.WinLost - b.actual_stake AS WinLost
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
+				,@MatchId
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -362,6 +364,7 @@ BEGIN
 					,WinLost
 					,IsMarked
 					,LiveIndicator
+					,matchid
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -400,6 +403,7 @@ BEGIN
 					,main.winlost -main.actual_stake AS WinLost
 					,0
 					,sub.liveindicator
+					,@MatchId
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -465,6 +469,7 @@ BEGIN
 				,WinLost
 				,IsMarked
 				,LiveIndicator
+				,matchid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -513,6 +518,7 @@ BEGIN
 				,b.WinLost - b.actual_stake AS WinLost
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
+				,@MatchId
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			OUTER APPLY (
@@ -570,6 +576,7 @@ BEGIN
 				,WinLost
 				,IsMarked
 				,LiveIndicator
+				,matchid
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -605,6 +612,7 @@ BEGIN
 				,- b.actual_stake as winlost
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
+				,@MatchId
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
@@ -666,6 +674,7 @@ BEGIN
 					,WinLost
 					,IsMarked
 					,LiveIndicator
+					,matchid
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -704,6 +713,7 @@ BEGIN
 					,main.winlost -main.actual_stake AS WinLost
 					,0
 					,sub.liveindicator
+					,@MatchId
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -804,6 +814,7 @@ BEGIN
 						,WinLost
 						,IsMarked
 						,LiveIndicator
+						,matchid
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -853,6 +864,7 @@ BEGIN
 						,b.winlost - b.actual_stake AS WinLost
 						,t.IsMarked
 						,b.liveindicator
+						,@MatchId
 			FROM #tmpRefCodeSummary t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							ON b.RefCode = t.RefCode
@@ -1022,6 +1034,7 @@ BEGIN
 				,WinLost
 				,IsMarked
 				,LiveIndicator
+				,matchid
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1068,6 +1081,7 @@ BEGIN
 				,b.winlost - b.actual_stake AS WinLost
 				,sub911.IsMarked
 				,b.liveindicator
+				,@MatchId
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -1311,7 +1325,7 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 
 	SET @XMLMatchProcess = (
-		SELECT @MatchId "@MatchId"
+		SELECT DISTINCT t.matchid "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
