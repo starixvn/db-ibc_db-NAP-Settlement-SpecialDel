@@ -38,6 +38,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
 	,@XMLMatchProcess		XML           = NULL
+	,@IsExistSingle			BIT			  = 0
+	,@IsExistParlay			BIT			  = 0
+	,@IsExistFM				BIT			  = 0
+	,@IsExistFM2			BIT			  = 0
 	,@RequestId				INT			  = OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -58,7 +62,7 @@ AS
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
-		@XMLMatchProcess: <MatchInfo><Item MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></MatchInfo>
+		@XMLMatchProcess: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -69,20 +73,7 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@avaiableProcess	BIT
-			,@IsExistSingle		BIT	
-			,@IsExistParlay		BIT	
-			,@IsExistFM			BIT	
-			,@IsExistFM2		BIT
 			
-	CREATE TABLE #MatchCheckProcess_tmp(
-		Matchid		  INT,
-		KeyID		  TINYINT,
-		IsExistSingle BIT,
-		IsExistParlay BIT,
-		IsExistFM	  BIT,
-		IsExistFM2	  BIT
-	);
-
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
 		KeyID		  TINYINT
@@ -91,26 +82,10 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	INSERT INTO #MatchCheckProcess_tmp (Matchid, KeyID, IsExistSingle, IsExistParlay, IsExistFM, IsExistFM2)
-	SELECT   x.value('@MatchId', 'INT') AS MatchId
-			,x.value('@KeyID', 'INT') AS KeyID
-			,x.value('@IsExistSingle', 'BIT') AS IsExistSingle
-			,x.value('@IsExistParlay', 'BIT') AS IsExistParlay
-			,x.value('@IsExistFM', 'BIT') AS IsExistFM
-			,x.value('@IsExistFM2', 'BIT') AS IsExistFM2
-	FROM @XMLMatchProcess.nodes('MatchInfo/Item') XmlData(x)
-	OPTION (OPTIMIZE FOR (@XMLMatchProcess = NULL));
-
-	SELECT TOP 1 
-		   @IsExistSingle = IsExistSingle,
-		   @IsExistParlay = IsExistParlay,
-		   @IsExistFM = IsExistFM,
-		   @IsExistFM2 = IsExistFM2
-	FROM #MatchCheckProcess_tmp
-
 	INSERT INTO #tblMatchProcess (Matchid, KeyID)
-	SELECT MatchId, KeyID
-	FROM #MatchCheckProcess_tmp
+	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+			,T.C.value('@KeyID', 'INT') AS KeyID
+	FROM @XMLMatchProcess.nodes('/root/r') as [T](C)
 
 	-- Check Lock Match
 	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
@@ -251,7 +226,6 @@ BEGIN
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
-	DROP TABLE #MatchCheckProcess_tmp
 	DROP TABLE #tblMatchProcess
 END
 GO

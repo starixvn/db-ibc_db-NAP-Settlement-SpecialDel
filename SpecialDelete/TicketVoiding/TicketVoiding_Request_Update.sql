@@ -40,10 +40,12 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
 	,@XMLMatchProcess		XML           = NULL
+	,@IsExistSingle			BIT			  = 0
+	,@IsExistParlay			BIT			  = 0
+	,@IsExistFM				BIT			  = 0
+	,@IsExistFM2			BIT			  = 0
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
-	,@FailedTransIds		VARCHAR(MAX)  = NULL OUTPUT
-	,@NegativeBalanceUsers  VARCHAR(MAX)  = ''	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -62,7 +64,7 @@ AS
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
-		@XMLMatchProcess: <MatchInfo><Item MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></MatchInfo>
+		@XMLMatchProcess: @XMLMatchProcess: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -83,25 +85,14 @@ BEGIN
 			,@OldRemark			NVARCHAR(MAX)
 			,@OldIsTest			BIT
 			,@avaiableProcess	BIT
-			,@IsExistSingle		BIT	
-			,@IsExistParlay		BIT	
-			,@IsExistFM			BIT	
-			,@IsExistFM2		BIT
+			,@FailedTransIds	VARCHAR(MAX)  = NULL
+			,@NegativeBalanceUsers  VARCHAR(MAX)  = ''
 	
 	CREATE TABLE #OperatorInfo(
 		[RequestId] [int] NOT NULL,
 		[OperatorId] [int] NOT NULL,
 		[OperatorTypeId] [tinyint] NOT NULL
 	)
-
-	CREATE TABLE #MatchCheckProcess_tmp(
-		Matchid		  INT,
-		KeyID		  TINYINT,
-		IsExistSingle BIT,
-		IsExistParlay BIT,
-		IsExistFM	  BIT,
-		IsExistFM2	  BIT
-	);
 
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
@@ -113,26 +104,10 @@ BEGIN
 	SET @SB_Error = 0
 
 	-- Check Lock Match
-	INSERT INTO #MatchCheckProcess_tmp (Matchid, KeyID, IsExistSingle, IsExistParlay, IsExistFM, IsExistFM2)
-	SELECT   x.value('@MatchId', 'INT') AS MatchId
-			,x.value('@KeyID', 'INT') AS KeyID
-			,x.value('@IsExistSingle', 'BIT') AS IsExistSingle
-			,x.value('@IsExistParlay', 'BIT') AS IsExistParlay
-			,x.value('@IsExistFM', 'BIT') AS IsExistFM
-			,x.value('@IsExistFM2', 'BIT') AS IsExistFM2
-	FROM @XMLMatchProcess.nodes('MatchInfo/Item') XmlData(x)
-	OPTION (OPTIMIZE FOR (@XMLMatchProcess = NULL));
-
-	SELECT TOP 1 
-		   @IsExistSingle = IsExistSingle,
-		   @IsExistParlay = IsExistParlay,
-		   @IsExistFM = IsExistFM,
-		   @IsExistFM2 = IsExistFM2
-	FROM #MatchCheckProcess_tmp
-
 	INSERT INTO #tblMatchProcess (Matchid, KeyID)
-	SELECT MatchId, KeyID
-	FROM #MatchCheckProcess_tmp
+	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+			,T.C.value('@KeyID', 'INT') AS KeyID
+	FROM @XMLMatchProcess.nodes('/root/r') as [T](C) --T: table, C: column
 
 	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
 			,@isExistParlay = @IsExistParlay
@@ -303,7 +278,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
 	DROP TABLE #OperatorInfo
-	DROP TABLE #MatchCheckProcess_tmp
 	DROP TABLE #tblMatchProcess
 	
 END

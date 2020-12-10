@@ -43,14 +43,19 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE @IsInvalidTransId     BIT = 0
-		,@IsInValidTotalTickets   BIT = 0
-		,@IsInvalidLiveScore	  BIT = 0
-		,@IsExistedInOtherRequest BIT = 0
-		,@totalLiveHomeScore	  INT = 0
-		,@totalAwayLiveScore	  INT = 0
-		,@totalRecord			  INT = 0
-		,@SingleCount			  INT = 0
-		,@MainParlayCount		  INT = 0
+			,@IsInValidTotalTickets   BIT = 0
+			,@IsInvalidLiveScore	  BIT = 0
+			,@IsExistedInOtherRequest BIT = 0
+			,@totalLiveHomeScore	  INT = 0
+			,@totalAwayLiveScore	  INT = 0
+			,@totalRecord			  INT = 0
+			,@SingleCount			  INT = 0
+			,@MainParlayCount		  INT = 0
+			,@IsExistSingle			  BIT = 0
+			,@IsExistParlay			  BIT = 0
+			,@IsExistFM				  BIT = 0
+			,@IsExistFM2			  BIT = 0
+			,@XMLMatchProcess		  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -135,15 +140,6 @@ BEGIN
 		,MinMainParlayTransId BIGINT
 		,MaxMainParlayTransId BIGINT
 	)
-
-	CREATE TABLE #MatchCheckProcess_tmp(
-		matchid		  INT,
-		KeyID		  TINYINT,
-		IsExistSingle BIT,
-		IsExistParlay BIT,
-		IsExistFM	  BIT,
-		IsExistFM2	  BIT
-	);
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
@@ -1302,47 +1298,46 @@ BEGIN
 	END
 
 	---Prepare for lock match---
-	INSERT INTO #MatchCheckProcess_tmp (
-			MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-			)
-		SELECT DISTINCT @MatchId
+	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@IsExistParlay = MAX (CASE WHEN t.Bettype IN (9, 29) THEN 1 ELSE 0 END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM #SpecialDeleteBets AS t
+		OUTER APPLY (
+				SELECT GroupId
+				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+				WHERE Bettype = t.Bettype
+		)f
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+
+	SET @XMLMatchProcess = (
+		SELECT @MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
-				END AS KeyID
-			,MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
-			,MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END) AS IsExistParlay
-			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
-			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
-		FROM #SpecialDeleteBets b
+				END AS "@KeyID"
+		FROM #SpecialDeleteBets t
 			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = b.Bettype
-				)f
-		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
-		GROUP BY f.GroupId
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+		FOR XML PATH('r'), ROOT('root')
+		)
 
-	--Return table
-	SELECT MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-			--Error Table
-			,@IsInvalidTransId AS IsInvalidTransId
+	--Error Table
+	SELECT @IsInvalidTransId AS IsInvalidTransId
 			,@IsInvalidLiveScore AS IsInvalidLiveScore
 			,@IsInValidTotalTickets AS IsInValidTotalTickets
 			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-	FROM #MatchCheckProcess_tmp
+			,@IsExistSingle AS IsExistSingle
+			,@IsExistParlay AS IsExistParlay
+			,@IsExistFM AS IsExistFM
+			,@IsExistFM2 AS IsExistFM2
+			,@XMLMatchProcess AS XMLMatchProcess
 
 	--TransId in request table
 	--For EKO check transid exists in request
@@ -1392,7 +1387,6 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
 	DROP TABLE #CashOuts
-	DROP TABLE #MatchCheckProcess_tmp
 
 END
 GO

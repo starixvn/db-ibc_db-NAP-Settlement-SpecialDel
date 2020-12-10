@@ -1,13 +1,13 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
-	 @UserNames	VARCHAR(MAX) = ''
-	,@RequestId	INT = 0
-	,@ActionId	INT = 0
-	,@ProductIds			VARCHAR(50)  = NULL
-	,@StatusIds				VARCHAR(50)  = NULL
-	,@FromDate				DATETIME     = NULL
-    ,@ToDate				DATETIME     = NULL
+	 @UserNames	 VARCHAR(MAX) = ''
+	,@RequestId	 INT = 0
+	,@ActionId	 INT = 0
+	,@ProductIds VARCHAR(50)  = NULL
+	,@StatusIds	 VARCHAR(50)  = NULL
+	,@FromDate	 DATETIME     = NULL
+    ,@ToDate	 DATETIME     = NULL
 )
 AS
 /*
@@ -36,6 +36,11 @@ BEGIN
 			,@IsOutright			  BIT = 0
 			,@IsSaba				  BIT = 0
 			,@IsNonSport			  BIT = 0
+			,@IsExistSingle			  BIT = 0
+			,@IsExistParlay			  BIT = 0
+			,@IsExistFM				  BIT = 0
+			,@IsExistFM2			  BIT = 0
+			,@XMLMatchProcess		  XML = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -43,15 +48,6 @@ BEGIN
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30))
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
-
-	CREATE TABLE #MatchCheckProcess_tmp(
-		matchid		  INT,
-		KeyID		  TINYINT,
-		IsExistSingle BIT,
-		IsExistParlay BIT,
-		IsExistFM	  BIT,
-		IsExistFM2	  BIT
-	);
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -250,40 +246,33 @@ BEGIN
 	ELSE SET @IsInValidTotalTicket = 0
 
 	---Prepare for lock match---
-	INSERT INTO #MatchCheckProcess_tmp (
-			MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-			)
-		SELECT DISTINCT MatchId
+	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+		FROM #transIdTemp AS t
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+
+	SET @XMLMatchProcess = (
+		SELECT DISTINCT t.MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
-				END AS KeyID
-			,MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
-			,0 AS IsExistParlay
-			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
-			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
+				END AS "@KeyID" 
 		FROM #transIdTemp t
 			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
-				)f
-		GROUP BY MatchId,f.GroupId
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+		FOR XML PATH('r'), ROOT('root')
+			)
 
-	SELECT MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-	FROM #MatchCheckProcess_tmp
 
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
@@ -291,6 +280,11 @@ BEGIN
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
+		  ,@IsExistSingle AS IsExistSingle
+		  ,@IsExistParlay AS IsExistParlay
+		  ,@IsExistFM AS IsExistFM
+		  ,@IsExistFM2 AS IsExistFM2
+		  ,@XMLMatchProcess AS XMLMatchProcess
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_tmp
@@ -298,7 +292,6 @@ BEGIN
 	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransidInRequest
 	DROP TABLE #transIdTemp
-	DROP TABLE #MatchCheckProcess_tmp
 
 END
 

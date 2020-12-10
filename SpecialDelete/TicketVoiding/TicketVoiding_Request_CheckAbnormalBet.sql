@@ -59,18 +59,14 @@ BEGIN
 			,@ResettleTransids			 VARCHAR(MAX) = ''
 			,@IsCheckAutoCal			 BIT=0
 			,@OldAction					 TINYINT
+			,@IsExistSingle				 BIT = 0
+			,@IsExistParlay				 BIT = 0
+			,@IsExistFM					 BIT = 0
+			,@IsExistFM2				 BIT = 0
+			,@XMLMatchProcess			 XML = NULL
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	
-	CREATE TABLE #MatchCheckProcess_tmp(
-		matchid		  INT,
-		KeyID		  TINYINT,
-		IsExistSingle BIT,
-		IsExistParlay BIT,
-		IsExistFM	  BIT,
-		IsExistFM2	  BIT
-	);
 					
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -354,40 +350,32 @@ BEGIN
 	END
 
 	---Prepare for lock match---
-	INSERT INTO #MatchCheckProcess_tmp (
-			MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-			)
-		SELECT DISTINCT MatchId
+	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM #validTransId AS t
+		OUTER APPLY (
+				SELECT GroupId
+				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+				WHERE Bettype = t.Bettype
+		)f
+
+	SET @XMLMatchProcess = (
+		SELECT MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
-				END AS KeyID
-			,MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
-			,0 AS IsExistParlay
-			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
-			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
+				END AS "@KeyID" 
 		FROM #validTransId t
 			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
-				)f
-		GROUP BY MatchId,f.GroupId
-
-	SELECT MatchId
-			,KeyID
-			,IsExistSingle
-			,IsExistParlay
-			,IsExistFM
-			,IsExistFM2
-	FROM #MatchCheckProcess_tmp
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+		FOR XML PATH('r'), ROOT('root')
+		)
 
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
@@ -402,6 +390,11 @@ BEGIN
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
+			,@IsExistSingle AS IsExistSingle
+			,@IsExistParlay AS IsExistParlay
+			,@IsExistFM AS IsExistFM
+			,@IsExistFM2 AS IsExistFM2
+			,@XMLMatchProcess AS XMLMatchProcess
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp
@@ -409,5 +402,4 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #LiveTransIds
-	DROP TABLE #MatchCheckProcess_tmp
 END
