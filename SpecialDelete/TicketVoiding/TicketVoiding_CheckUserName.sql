@@ -265,7 +265,7 @@ BEGIN
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
 				END AS KeyID
-			,MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END) AS IsExistSingle
+			,MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
 			,0 AS IsExistParlay
 			,MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS IsExistFM
 			,MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
