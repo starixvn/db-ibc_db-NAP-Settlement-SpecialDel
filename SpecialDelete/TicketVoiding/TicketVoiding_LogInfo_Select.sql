@@ -1022,14 +1022,12 @@ BEGIN
 			,IsExistParlay
 			,IsExistFM
 			,IsExistFM2
+			--Error Table
+			,@IsInvalidTransId AS IsInvalidTransId
+			,@IsInvalidLiveScore AS IsInvalidLiveScore
+			,@IsInValidTotalTickets AS IsInValidTotalTickets
+			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 	FROM #MatchCheckProcess_tmp
-
-	--Error Table
-	SELECT @IsInvalidTransId AS IsInvalidTransId
-		,@IsInvalidLiveScore AS IsInvalidLiveScore
-		,@IsInValidTotalTickets AS IsInValidTotalTickets
-		,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-
 
 	--TransId in request table
 	--For EKO check transid exists in request
