@@ -65,29 +65,6 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
     BEGIN
-		---- Reference score: ESports
-		;WITH  cteLatestES	AS
-		(
-			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
-					,ex.matchid
-					,ex.SourceId
-					,ex.ResourceId
-					,ex.HomeValue
-					,ex.AwayValue
-			FROM	dbo.ProviderExternalResultDetailES ex WITH(NOLOCK)
-			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 43 )
-				AND  ex.SourceId  = 1 ---SBO
-		)				
-		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
-		SELECT matchid		
-				,1
-				,'SBO'
-				,ResourceId 
-				,HomeValue 
-				,AwayValue 
-		FROM	cteLatestES
-		WHERE	rn = 1
-
 		---- Settled score: ESport
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
         SELECT    rs.MatchId

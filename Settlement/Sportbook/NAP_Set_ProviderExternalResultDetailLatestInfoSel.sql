@@ -21,27 +21,7 @@ BEGIN
 	SELECT @SportType = m.SportType FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchID = @MatchId
 	
     ---------------------------------------------------------------------------------------------
-
-	IF @SportType IN (3, 4, 6, 8, 18, 24, 25)
-	BEGIN
-		;WITH  cteLatestSports AS
-			(
-				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.CreateDate DESC) AS rn
-						,ex.ResourceId
-						,ex.HomeValue
-						,ex.AwayValue
-				FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
-				WHERE ex.MatchID = @MatchId
-					AND  ex.SourceId  = 1
-			)
-		SELECT	ResourceId 
-				,HomeValue 
-				,AwayValue 
-		FROM	cteLatestSports
-		WHERE	rn = 1
-	END
-
-    ELSE IF @SportType IN ( 5, 9 )
+	IF @SportType IN ( 5, 9 )
 	BEGIN
 		;WITH  cteLatestOS	AS
 		(
@@ -61,4 +41,24 @@ BEGIN
 		FROM	cteLatestOS
 		WHERE	rn = 1
 	END
+
+	ELSE  ---- Currently, just have data for SportType IN (3, 4, 6, 8, 18, 24, 25)
+	BEGIN
+		;WITH  cteLatestSports AS
+			(
+				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.CreateDate DESC) AS rn
+						,ex.ResourceId
+						,ex.HomeValue
+						,ex.AwayValue
+				FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
+				WHERE ex.MatchID = @MatchId
+					AND  ex.SourceId  = 1
+			)
+		SELECT	ResourceId 
+				,HomeValue 
+				,AwayValue 
+		FROM	cteLatestSports
+		WHERE	rn = 1
+	END
+
 END
