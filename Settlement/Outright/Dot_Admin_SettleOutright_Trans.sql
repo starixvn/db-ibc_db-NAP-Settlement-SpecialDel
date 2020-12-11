@@ -27,6 +27,7 @@ Revisions:
 	- 20140219@Elodie: Write settlement log for outright
 	- 20150910@Zake(TransDB): Change balance rule
 	- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
+	- 20201211@Louisa: Show Calculate Outright Log [Redmine:#146738]
 
 Param's Explanation:
 	- @deadheat = fraction of deadheat to divide (1,2,3  etc)
@@ -42,13 +43,18 @@ BEGIN
 		RETURN
 	END
 
-	DECLARE @Remark VARCHAR(500), @ActionID INT
+	DECLARE @Remark VARCHAR(500), @ActionID INT, @LeagueID	INT
 
 	SELECT @ActionID = CASE @status 
 		WHEN 'Refund' THEN 139 
 		WHEN 'Won' THEN 137
 		WHEN 'Lose' THEN 137
 	END
+
+	SELECT	@LeagueID	= LeagueID
+			,@EventDate	= Eventdate
+	FROM	Outright WITH (NOLOCK)
+	WHERE	ORID = @MatchID
 
 	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) VALUES (2, @matchid)
 	IF (@@Error = 0)
@@ -253,7 +259,7 @@ BEGIN
 			@UserID = 5838421
 			,@MatchID = @matchid
 			,@ActionID = @ActionID
-			,@LeagueID = 0
+			,@LeagueID = @LeagueID
 			,@EventDate = @winlostdate
 			,@Result = @status
 			,@Remark = @Remark
@@ -265,7 +271,7 @@ BEGIN
 			@UserID = 5838421
 			,@MatchID = @matchid
 			,@ActionID = @ActionID
-			,@LeagueID = 0
+			,@LeagueID = @LeagueID
 			,@EventDate = @winlostdate
 			,@Result = @status
 			,@Remark = @Remark
