@@ -26,16 +26,20 @@ BEGIN
 		;WITH  cteLatestOS	AS
 		(
 			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.CreateDate DESC) AS rn
+					,CASE ex.SourceId WHEN 1 THEN 'SBO'
+								   WHEN 25 THEN 'LSports'
+								   END AS SourceName
 					,ex.ResourceId
 					,ex.HomeValue
 					,ex.AwayValue
 			FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
 			WHERE ex.MatchID = @MatchId
 				AND  ex.SourceId  = CASE 
-									WHEN @SportType = 5 THEN 25 --LSport
+									WHEN @SportType = 5 THEN 25 --LSports
 									ELSE 1 END ---SBO
 		)		
-		SELECT  ResourceId 
+		SELECT  SourceName
+				, ResourceId 
 				,HomeValue 
 				,AwayValue 
 		FROM	cteLatestOS
@@ -47,6 +51,7 @@ BEGIN
 		;WITH  cteLatestSports AS
 			(
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.CreateDate DESC) AS rn
+						,'SBO' AS SourceName
 						,ex.ResourceId
 						,ex.HomeValue
 						,ex.AwayValue
@@ -54,7 +59,8 @@ BEGIN
 				WHERE ex.MatchID = @MatchId
 					AND  ex.SourceId  = 1
 			)
-		SELECT	ResourceId 
+		SELECT	SourceName
+				,ResourceId 
 				,HomeValue 
 				,AwayValue 
 		FROM	cteLatestSports
