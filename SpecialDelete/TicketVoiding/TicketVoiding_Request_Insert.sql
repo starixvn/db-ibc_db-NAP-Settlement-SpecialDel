@@ -37,7 +37,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@StatusIds				VARCHAR(50)	  = NULL
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
-	,@XMLMatchProcess		XML           = NULL
+	,@MatchProcessXML		XML           = NULL
 	,@IsExistSingle			BIT			  = 0
 	,@IsExistParlay			BIT			  = 0
 	,@IsExistFM				BIT			  = 0
@@ -62,7 +62,7 @@ AS
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
-		@XMLMatchProcess: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
+		@MatchProcessXML: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -85,7 +85,7 @@ BEGIN
 	INSERT INTO #tblMatchProcess (Matchid, KeyID)
 	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
 			,T.C.value('@KeyID', 'INT') AS KeyID
-	FROM @XMLMatchProcess.nodes('/root/r') as [T](C)
+	FROM @MatchProcessXML.nodes('/root/r') as [T](C)
 
 	-- Check Lock Match
 	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle

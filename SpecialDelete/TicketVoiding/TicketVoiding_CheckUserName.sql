@@ -40,7 +40,7 @@ BEGIN
 			,@IsExistParlay			  BIT = 0
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
-			,@XMLMatchProcess		  XML = NULL
+			,@MatchProcessXML		  XML = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -256,7 +256,7 @@ BEGIN
 					WHERE Bettype = t.Bettype
 			)f
 
-	SET @XMLMatchProcess = (
+	SET @MatchProcessXML = (
 		SELECT DISTINCT t.MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
@@ -284,7 +284,7 @@ BEGIN
 		  ,@IsExistParlay AS IsExistParlay
 		  ,@IsExistFM AS IsExistFM
 		  ,@IsExistFM2 AS IsExistFM2
-		  ,@XMLMatchProcess AS XMLMatchProcess
+		  ,@MatchProcessXML AS MatchProcessXML
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_tmp

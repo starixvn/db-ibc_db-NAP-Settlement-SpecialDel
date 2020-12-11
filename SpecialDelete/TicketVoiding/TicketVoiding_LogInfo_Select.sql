@@ -55,7 +55,7 @@ BEGIN
 			,@IsExistParlay			  BIT = 0
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
-			,@XMLMatchProcess		  XML = NULL
+			,@MatchProcessXML		  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -1324,7 +1324,7 @@ BEGIN
 		)f
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 
-	SET @XMLMatchProcess = (
+	SET @MatchProcessXML = (
 		SELECT DISTINCT t.matchid "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
@@ -1351,7 +1351,7 @@ BEGIN
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
-			,@XMLMatchProcess AS XMLMatchProcess
+			,@MatchProcessXML AS MatchProcessXML
 
 	--TransId in request table
 	--For EKO check transid exists in request

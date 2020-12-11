@@ -63,7 +63,7 @@ BEGIN
 			,@IsExistParlay				 BIT = 0
 			,@IsExistFM					 BIT = 0
 			,@IsExistFM2				 BIT = 0
-			,@XMLMatchProcess			 XML = NULL
+			,@MatchProcessXML			 XML = NULL
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -360,7 +360,7 @@ BEGIN
 				WHERE Bettype = t.Bettype
 		)f
 
-	SET @XMLMatchProcess = (
+	SET @MatchProcessXML = (
 		SELECT DISTINCT MatchId "@MatchId"
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1 --SB
@@ -394,7 +394,7 @@ BEGIN
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
-			,@XMLMatchProcess AS XMLMatchProcess
+			,@MatchProcessXML AS MatchProcessXML
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp
