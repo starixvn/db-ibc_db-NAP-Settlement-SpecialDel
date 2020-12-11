@@ -42,7 +42,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistParlay			BIT			  = 0
 	,@IsExistFM				BIT			  = 0
 	,@IsExistFM2			BIT			  = 0
-	,@RequestId				INT			  = OUTPUT
+	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
