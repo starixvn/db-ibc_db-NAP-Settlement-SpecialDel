@@ -166,14 +166,26 @@ BEGIN
 		SettlementStatus TINYINT
 	)
 
-	INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
-	SELECT DISTINCT rd.matchid
+	IF @RequestId = 0 -- case: search for EKO,WKO
+	BEGIN
+		INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
+		SELECT DISTINCT @MatchId
 					,ISNULL(m.sporttype, 0)
 					,ISNULL(m.leagueid, 0)
 					,ISNULL(m.SettlementStatus, 0)
-	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
-	WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
+		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	END
+	ELSE 
+	BEGIN 
+		INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
+		SELECT DISTINCT rd.matchid
+						,ISNULL(m.sporttype, 0)
+						,ISNULL(m.leagueid, 0)
+						,ISNULL(m.SettlementStatus, 0)
+		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
+		WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
+	END
 
 	IF @IssueTypeId = 11 --11: AbnormalBet
 	BEGIN
