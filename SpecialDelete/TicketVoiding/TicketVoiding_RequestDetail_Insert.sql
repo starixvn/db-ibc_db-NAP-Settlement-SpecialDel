@@ -95,7 +95,7 @@ BEGIN
 	CREATE TABLE #TempTransid (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
-	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
+	CREATE TABLE #InputValidCustid_tmp (custid INT) 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -239,12 +239,12 @@ BEGIN
 		END
 
 		-- list of member to process
-		INSERT INTO #InputValidCustid_tmp (CustID, Username)
+		INSERT INTO #InputValidCustid_tmp (CustID)
 		SELECT  CustID, l.Username
 		FROM #InputUsernameList l
 		WHERE l.roleid =1
-		UNION ALL
-		SELECT ci.CustID,lt.Username
+		UNION
+		SELECT ci.CustID
 		FROM #InputValidCustid_2 lt
 			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
 			ON lt.custid = ci.recommend
@@ -276,8 +276,8 @@ BEGIN
 		INSERT INTO #TempTransid (transid,statusID, MatchId, bettype)
 		SELECT	b.translogid AS transid
 				,b.statusID  -- add new
-				,0
-				,0
+				,b.eventID
+				,b.gameID
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
