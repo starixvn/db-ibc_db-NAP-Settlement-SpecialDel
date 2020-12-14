@@ -64,7 +64,7 @@ AS
 		@Operator: Type: 1 - Trader
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
-		@MatchProcessXML: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
+		@MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -103,24 +103,29 @@ BEGIN
 	SET @LogActionId = 90002
 	SET @SB_Error = 0
 
-	-- Check Lock Match
-	INSERT INTO #tblMatchProcess (Matchid, KeyID)
-	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
-			,T.C.value('@KeyID', 'INT') AS KeyID
-	FROM @MatchProcessXML.nodes('/root/r') as [T](C) --T: table, C: column
-
-	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-			,@isExistParlay = @IsExistParlay
-			,@IsExistFM = @IsExistFM
-			,@IsExistFM2 = @IsExistFM2
-			,@avaiableProcess = @avaiableProcess OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT;
-
-	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
+		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
 	BEGIN
-		RETURN;
-	END;
+
+		-- Check Lock Match
+		INSERT INTO #tblMatchProcess (Matchid, KeyID)
+		SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+				,T.C.value('@KeyID', 'INT') AS KeyID
+		FROM @MatchProcessXML.nodes('/root/r') as [T](C) --T: table, C: column
+
+		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+				,@isExistParlay = @IsExistParlay
+				,@IsExistFM = @IsExistFM
+				,@IsExistFM2 = @IsExistFM2
+				,@avaiableProcess = @avaiableProcess OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT;
+
+		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		BEGIN
+			RETURN;
+		END;
+	END
 
 	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 		SET @OldActionId = ActionId
@@ -227,6 +232,18 @@ BEGIN
 			,@FilterToTransTime	= @FilterToTransTime		
 			,@FilterBy = @FilterBy				
 	END
+
+	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
+		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	BEGIN
+		-- Release Match
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = @IsExistSingle,
+			@isExistParlay = @IsExistParlay,
+			@IsExistFM = @IsExistFM,
+			@IsExistFM2 = @IsExistFM2,
+			@IsReleased = 1;
+	END	
 
 	IF @Operators IS NOT NULL
 	BEGIN

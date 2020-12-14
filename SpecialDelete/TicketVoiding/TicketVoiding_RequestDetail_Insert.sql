@@ -327,6 +327,7 @@ BEGIN
 			 , TicketStatusIds
 			 , FromWinlostDate
 			 , ToWinlostDate
+			 , FilterBy 
 		)
 		SELECT @RequestId
 			 , t.MatchId 
@@ -339,6 +340,7 @@ BEGIN
 			 , @StatusIds
 			 , @FromDate
 			 , @ToDate
+			 , @FilterBy
 		FROM #TempMatch t
 			LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 		

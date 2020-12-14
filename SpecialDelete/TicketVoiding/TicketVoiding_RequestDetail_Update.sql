@@ -365,6 +365,7 @@ BEGIN
 				, TicketStatusIds = @StatusIds
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
+				, FilterBy = @FilterBy
 		WHERE	RequestId = @RequestId
 
 		-- Insert queue for auto void

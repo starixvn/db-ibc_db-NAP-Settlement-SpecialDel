@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	@Sporttype				SMALLINT	  = NULL
-	,@SubIssueTypeId		SMALLINT	  = NULL
+	,@SubIssueTypeId		SMALLINT	  = 0
 	,@ActionId				TINYINT		  
 	,@MistakenBy			NVARCHAR(200) = NULL
 	,@DecidedBy				NVARCHAR(200) = NULL
@@ -62,7 +62,7 @@ AS
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
-		@MatchProcessXML: <root><r MatchId="1" KeyID="1" IsExistSingle="1" IsExistParlay="0" IsExistFM="0" IsExistFM2="0"/></root>
+		@MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -82,24 +82,28 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	INSERT INTO #tblMatchProcess (Matchid, KeyID)
-	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
-			,T.C.value('@KeyID', 'INT') AS KeyID
-	FROM @MatchProcessXML.nodes('/root/r') as [T](C)
-
-	-- Check Lock Match
-	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-			,@isExistParlay = @IsExistParlay
-			,@IsExistFM = @IsExistFM
-			,@IsExistFM2 = @IsExistFM2
-			,@avaiableProcess = @avaiableProcess OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT;
-
-	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
+		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
 	BEGIN
-		RETURN;
-	END;
+		INSERT INTO #tblMatchProcess (Matchid, KeyID)
+		SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+				,T.C.value('@KeyID', 'INT') AS KeyID
+		FROM @MatchProcessXML.nodes('/root/r') as [T](C)
+
+		-- Check Lock Match
+		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+				,@isExistParlay = @IsExistParlay
+				,@IsExistFM = @IsExistFM
+				,@IsExistFM2 = @IsExistFM2
+				,@avaiableProcess = @avaiableProcess OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT;
+
+		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		BEGIN
+			RETURN;
+		END;
+	END
 
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
 	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
@@ -182,13 +186,17 @@ BEGIN
 				,@FilterBy = @FilterBy				
 	END
 
-	-- Release Match
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @IsExistSingle,
-		@isExistParlay = @IsExistParlay,
-		@IsExistFM = @IsExistFM,
-		@IsExistFM2 = @IsExistFM2,
-		@IsReleased = 1;		
+	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
+		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	BEGIN
+		-- Release Match
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = @IsExistSingle,
+			@isExistParlay = @IsExistParlay,
+			@IsExistFM = @IsExistFM,
+			@IsExistFM2 = @IsExistFM2,
+			@IsReleased = 1;
+	END	
 
 	IF @Operators IS NOT NULL
 	BEGIN
