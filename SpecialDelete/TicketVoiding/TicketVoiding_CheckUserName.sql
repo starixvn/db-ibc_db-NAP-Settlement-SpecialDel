@@ -244,8 +244,6 @@ BEGIN
 		SET @IsInValidTotalTicket = 1
 	END
 	ELSE SET @IsInValidTotalTicket = 0
-	
-	IF @RequestId <> 0 SET @IsInValidTotalTicket = 0
 
 	---Prepare for lock match---
 	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)

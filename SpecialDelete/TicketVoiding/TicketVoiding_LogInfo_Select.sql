@@ -170,6 +170,11 @@ BEGIN
 					,@IsInvalidLiveScore AS IsInvalidLiveScore
 					,@IsInValidTotalTickets AS IsInValidTotalTickets
 					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+					,@IsExistSingle AS IsExistSingle
+					,@IsExistParlay AS IsExistParlay
+					,@IsExistFM AS IsExistFM
+					,@IsExistFM2 AS IsExistFM2
+					,@MatchProcessXML AS MatchProcessXML
 
 				--TransId in request table
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
@@ -1186,6 +1191,11 @@ BEGIN
 			,@IsInvalidLiveScore AS IsInvalidLiveScore
 			,@IsInValidTotalTickets AS IsInValidTotalTickets
 			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+			,@IsExistSingle AS IsExistSingle
+			,@IsExistParlay AS IsExistParlay
+			,@IsExistFM AS IsExistFM
+			,@IsExistFM2 AS IsExistFM2
+			,@MatchProcessXML AS MatchProcessXML
 
 		--TransId in request table
 		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
@@ -1268,6 +1278,11 @@ BEGIN
 				,@IsInvalidLiveScore AS IsInvalidLiveScore
 				,@IsInValidTotalTickets AS IsInValidTotalTickets
 				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+				,@IsExistSingle AS IsExistSingle
+				,@IsExistParlay AS IsExistParlay
+				,@IsExistFM AS IsExistFM
+				,@IsExistFM2 AS IsExistFM2
+				,@MatchProcessXML AS MatchProcessXML
 
 			--TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
