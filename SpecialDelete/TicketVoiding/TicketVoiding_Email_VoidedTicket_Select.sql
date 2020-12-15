@@ -17,6 +17,7 @@ AS
 		- 20200831@Zane: TVS - Enhance for Danger Accept [#140339]
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
+		- 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 	
 	Param's explanation:	
 		
@@ -341,8 +342,26 @@ BEGIN
 			,m.SettlementStatus
 			,t.LiveIndicator AS IsLive
 			,t.ActualStake
+			,CASE 
+			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113)
+						THEN CASE
+								WHEN ISNULL(mr.IsHTCal, 0) = 0
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() T
+													WHERE T.InstantType IN (1, 3) AND T.bettype = b.bettype)
+										THEN CAST(1 AS BIT)
+								WHEN ISNULL(mr.IsHTCal, 0) = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() T
+													WHERE T.InstantType IN (2, 3) AND T.bettype = b.bettype)
+										THEN CAST(1 AS BIT)
+								ELSE CAST(0 AS BIT)
+							END
+				ELSE CAST(0 AS BIT)
+			END AS IsInstantSettlementTicket
 	FROM	#tmpTicket t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
+		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK) ON ag.custid = t.recommend 
 		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend

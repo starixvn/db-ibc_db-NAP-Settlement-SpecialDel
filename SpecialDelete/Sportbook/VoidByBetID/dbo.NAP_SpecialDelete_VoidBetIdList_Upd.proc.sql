@@ -87,6 +87,7 @@ AS
 	  - 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	  - 20201014@July: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 	  - 20201126@Charles: God of fortune [Redmine: #146053]
+	  - 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 
 	 Param's Explanation:   
 	*/
@@ -769,7 +770,6 @@ BEGIN
 	SELECT	matchid
 	FROM	#BetDelete
 	GROUP BY matchid
-	
 	
 	IF ISNULL(@TransIdSolds,'') <> ''
 	BEGIN
@@ -2780,8 +2780,26 @@ BEGIN
 		,b.IsBetTrade
 		,CASE WHEN b.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut
 		,b.matchid  -- send letstalk
+		,CASE 
+			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113)
+					THEN CASE
+							WHEN ISNULL(mr.IsHTCal, 0) = 0
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_Set_Instant_GetBettypes() T
+												WHERE T.InstantType IN (1, 3) AND T.bettype = b.bettype)
+									THEN CAST(1 AS BIT)
+							WHEN ISNULL(mr.IsHTCal, 0) = 1
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_Set_Instant_GetBettypes() T
+												WHERE T.InstantType IN (2, 3) AND T.bettype = b.bettype)
+									THEN CAST(1 AS BIT)
+							ELSE CAST(0 AS BIT)
+						END
+			ELSE CAST(0 AS BIT)
+		END AS IsInstantSettlementTicket
 	FROM	#BetDelete b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
+		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
 		LEFT JOIN #CTE_CustInfo cr WITH(NOLOCK) ON b.creator = cr.custid	
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON b.recommend = ag.custid

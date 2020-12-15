@@ -51,6 +51,7 @@ AS
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		
 	Param's Explanation:
 */
@@ -333,6 +334,40 @@ BEGIN
 		SELECT @ErrorCode = 99, @ErrorMsg = 'No ticket found.'						
 		
 		RETURN
+	END
+
+	BEGIN -- Instant Settlement declaration
+		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+	
+		DECLARE @IsHTCal BIT = 0
+			  , @eventstatus NVARCHAR(50) = ''
+		  
+		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
+		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
+	
+		--> Get status of match
+		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+		FROM match_remark (NOLOCK)
+		WHERE matchid = @MatchID
+	
+		SELECT @eventstatus = ISNULL(eventstatus, '')
+		FROM match (NOLOCK)
+		WHERE matchid = @MatchID		
+	
+		--> Build bettype list supported for instant settlement based on settlement status of match
+		IF @eventstatus <> @eventstatus_completed
+		BEGIN
+			IF @IsHTCal = 0
+				INSERT INTO #InstantSettlementBettypes(bettype)
+				SELECT T.bettype
+				FROM dbo.f_Set_Instant_GetBettypes() T
+				WHERE T.InstantType IN (1, 3) -- 01, 11
+			ELSE
+				INSERT INTO #InstantSettlementBettypes(bettype)
+				SELECT T.bettype
+				FROM dbo.f_Set_Instant_GetBettypes() T
+				WHERE T.InstantType IN (2, 3) -- 10, 11			
+		END	 	
 	END						 	  
 
 	BEGIN TRY	
@@ -2204,6 +2239,18 @@ BEGIN
 				ac.username AS AgUserName,
 				mc.username AS MagUserName,
 				sc.username AS SagUserName,
+				CASE 
+					WHEN @eventstatus <> @eventstatus_completed
+							THEN CASE
+									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw')
+											AND EXISTS (SELECT TOP 1 1
+														FROM #InstantSettlementBettypes
+														WHERE bettype = s.bettype)
+											THEN CAST(1 AS BIT)
+									ELSE CAST(0 AS BIT)
+								END
+					ELSE CAST(0 AS BIT)
+				END AS IsInstantSettlementTicket,
 				-----------------------
 				CASE
 					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
@@ -2280,6 +2327,7 @@ BEGIN
 	DROP TABLE #BeforeUpd  
 	DROP TABLE #AfterUpd 
 	DROP TABLE #NegativeBalance
+	DROP TABLE #InstantSettlementBettypes
 
 END
 GO
