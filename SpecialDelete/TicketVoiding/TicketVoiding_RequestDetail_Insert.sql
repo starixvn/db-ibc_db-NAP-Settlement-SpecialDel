@@ -240,7 +240,7 @@ BEGIN
 
 		-- list of member to process
 		INSERT INTO #InputValidCustid_tmp (CustID)
-		SELECT  CustID, l.Username
+		SELECT  CustID
 		FROM #InputUsernameList l
 		WHERE l.roleid =1
 		UNION
