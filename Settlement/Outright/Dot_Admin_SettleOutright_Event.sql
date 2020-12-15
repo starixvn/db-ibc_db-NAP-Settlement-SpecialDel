@@ -1,11 +1,12 @@
-/*<info serverAlias="DBTXN-bodb02" executers="Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Admin_SettleOutright_Event]
 	@matchid int,
 	@status nvarchar(10),
 	@isDeadheat bit=0,
 	@ErrCode int = 0 OUTPUT,
 	@ErrMsg nvarchar(200) = '' OUTPUT,
-	@eventdate date = null
+	@eventdate date = null,
+	@adminid int = 5838421
 AS
 /*
 Created:
@@ -25,6 +26,7 @@ Revisions:
 	- 20130719@Ava(db02):Add @eventdate when user re-settle
 	- 20140219@Elodie: Write settlement log for outright
 	- 20150625@Martin: request by Cooper, replace insert statement by sp NAP_UpdateTempVariableNumber
+	- 20201211@Louisa: Show Calculate Outright Log, add param @AdminId [Redmine:#146738]
 Param's Explanation:
 	- @deadheat = fraction of deadheat to divide (1,2,3  etc)
 */
@@ -48,7 +50,6 @@ SELECT @ActionID = CASE @status
 END
 
 SELECT	@LeagueID	= LeagueID
-		,@EventDate	= Eventdate
 FROM	Outright WITH (NOLOCK)
 WHERE	ORID = @MatchID
 
@@ -59,7 +60,7 @@ EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid,1,2,@SPErrCode OUTPU
 IF (@SPErrCode = 0)
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking
-			@UserID = 5838421, --dbaAdmin
+			@UserID = @adminid, --dbaAdmin
 			@Matchid = @matchid,
 			@KeyID = 2,
 			@ActionID = @ActionID,
@@ -67,7 +68,7 @@ IF (@SPErrCode = 0)
 	END TRY
 	BEGIN CATCH
 		SELECT @LogData = 'ADD SUCCESS SPName = Dot_Admin_SettleOutright_Event MatchID=' + @matchid + ' KeyID=2 ErrMsg='+ left(error_message(), 70)
-		EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+		EXEC WriteLog_UserLog @UserID = @adminid, --dbaAdmin
 							  @Doing = @LogData
 	END CATCH
 ELSE
@@ -138,7 +139,7 @@ IF (@SPErrCode = 0)
 BEGIN
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking
-			@UserID = 5838421, --dbaAdmin
+			@UserID = @adminid, --dbaAdmin
 			@Matchid = @matchid,
 			@KeyID = 2,
 			@ActionID = @ActionID,
@@ -146,7 +147,7 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 		SELECT @LogData = 'DEL SUCCESS SPName = Dot_Admin_SettleOutright_Event MatchID=' + @matchid + ' KeyID=2 ErrMsg='+ left(error_message(), 70)
-		EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+		EXEC WriteLog_UserLog @UserID = @adminid, --dbaAdmin
 							  @Doing = @LogData
 	END CATCH
 END
@@ -154,7 +155,7 @@ ELSE
 BEGIN
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking
-			@UserID = 5838421, --dbaAdmin
+			@UserID = @adminid, --dbaAdmin
 			@Matchid = @matchid,
 			@KeyID = 2,
 			@ActionID = @ActionID,
@@ -162,7 +163,7 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 		SELECT @LogData = 'DEL FAILED SPName = Dot_Admin_SettleOutright_Event MatchID=' + @matchid + ' KeyID=2 ErrMsg='+ left(error_message(), 70)
-		EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+		EXEC WriteLog_UserLog @UserID = @adminid, --dbaAdmin
 							  @Doing = @LogData
 	END CATCH
 END
@@ -171,7 +172,7 @@ END
 BEGIN TRY
 	SELECT @Remark = CAST(@isDeadheat AS VARCHAR(5))
 	EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright
-		@UserID = 5838421,
+		@UserID = @adminid,
 		@MatchID = @matchid,
 		@ActionID = @ActionID,
 		@LeagueID = @LeagueID,
@@ -183,7 +184,7 @@ END TRY
 BEGIN CATCH
 	SELECT @Remark = CAST(@isDeadheat AS VARCHAR(5)) + ' ErrMsg='+ left(error_message(), 400)
 	EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright
-		@UserID = 5838421,
+		@UserID = @adminid,
 		@MatchID = @matchid,
 		@ActionID = @ActionID,
 		@LeagueID = @LeagueID,
