@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Auto_1s_ReCal]
 (
-    @MatchID        INT = 33417590
+    @MatchID        INT
 )
 AS
 /*
