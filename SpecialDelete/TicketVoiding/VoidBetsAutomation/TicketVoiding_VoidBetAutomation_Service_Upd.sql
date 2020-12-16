@@ -14,7 +14,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@IsUpdatedVoidingHistory		BIT = NULL,
 	@IsSentEmail					BIT = NULL,
 	@IsRunExternalService			BIT = NULL,
-	@IsSentLetsTalk					BIT = NULL
+	@IsSentLetsTalk					BIT = NULL,
+	@VoidResults					XML = NULL
 )
 AS
 /*	Created by: Max
@@ -34,6 +35,7 @@ AS
 			   4: Update MessageId by Session
 			   5: Update after void step
 			   6: Update all after void steps
+			   7: Update Emails Result By VoidingHistory
 	
 */
 BEGIN
@@ -66,6 +68,13 @@ BEGIN
 			,ModifiedDate = GETDATE()
 		WHERE SessionID = @SessionId
 	END
+	ELSE IF @UpdateType = 7
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET VoidResults = @VoidResults
+			,ModifiedDate = GETDATE()
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+	END
 	ELSE IF @UpdateType = 5 OR @UpdateType = 6
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
@@ -79,6 +88,7 @@ BEGIN
 			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
+			,VoidResults = ISNULL(@VoidResults, VoidResults)
 		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
 	END
 END
