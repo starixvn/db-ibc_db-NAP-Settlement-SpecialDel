@@ -187,7 +187,6 @@ BEGIN
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
 	BEGIN
-	BEGIN
 		-- Release Match
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch = @IsExistSingle,
