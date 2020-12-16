@@ -36,12 +36,22 @@ BEGIN
 			RETURN
 		END
 	
-		SELECT tvs.matchID
-			, tvs.RequestID
-			, tvs.SessionID
-			, tvs.statusID
-			, tvs.NegativeBalanceUsers
+		SELECT tvs.RequestID
 			, tvs.VoidingHistory
+			, tvs.statusID
+			, tvs.matchID
+			, tvs.SessionID
+			, tvs.NegativeBalanceUsers
+			, tvs.IsAutoVoid
+			, tvs.IsRunExternalService
+			, tvs.MessageId
+			, tvs.ReasonId
+			, tvs.IsSentBatchMessage
+			, tvs.IsSentMessageToAdminSite
+			, tvs.IsInsertedVoidedTransaction
+			, tvs.IsUpdatedVoidingHistory
+			, tvs.IsSentEmail
+			, tvs.IsSentLetsTalk
 		FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH (NOLOCK)
 		WHERE tvs.SessionID = @Session 
 	END
