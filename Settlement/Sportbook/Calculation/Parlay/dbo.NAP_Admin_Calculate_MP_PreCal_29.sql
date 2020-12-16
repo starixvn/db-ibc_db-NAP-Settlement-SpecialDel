@@ -19,6 +19,7 @@ AS
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 [Redmine:115377]
+		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -85,6 +86,8 @@ BEGIN
 			,inserted bit -- row has been inserted into betParlayResult/betParlayDetail
 			,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
 			,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
+			,oddsspread	money
+			,actual_stake	money
 		)
 		
 	BEGIN
@@ -94,6 +97,7 @@ BEGIN
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 			,adiscount, sdiscount, comstatus, inserted
+			,oddsspread, actual_stake
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
@@ -106,6 +110,7 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus, 0
+				,ISNULL(oddsspread, 0), actual_stake
 		FROM	dbo.bettrans WITH(NOLOCK)		
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
@@ -233,7 +238,6 @@ BEGIN
 						END
 				END
 				) AS MONEY) AS modds
-			
 		FROM dbo.BetParlayDetail pd 
 			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
 		GROUP BY pd.refno, pd.serial, b.eventdate
@@ -272,21 +276,53 @@ BEGIN
 		,winlost = CASE 
 			WHEN loseCnt > 0   THEN 0
 			WHEN @statusID = 0 THEN 0
+			WHEN  b.oddsspread = 1	THEN	CASE 
+											WHEN @modds > 1 THEN @modds * pr.stake + (b.actual_stake - pr.stake)
+											WHEN @modds < 1 THEN @modds * b.actual_stake
+											ELSE b.actual_stake
+											END
 			ELSE ISNULL(PR.stake * @modds,0)
 			END
 		,awinlost = CASE 
-			WHEN @statusID = 113 AND loseCnt > 0 THEN   PR.stake * apositiontaking
-			WHEN @statusID IN (112, 113)         THEN - PR.stake * apositiontaking * (@modds - 1)
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* apositiontaking
+
+			WHEN @statusID = 112		         THEN - PR.stake * (@modds - 1) * apositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * apositiontaking
 			ELSE 0
 			END
 		,mwinlost = CASE 
-			WHEN @statusID = 113 AND loseCnt > 0 THEN   PR.stake * mpositiontaking
-			WHEN @statusID IN (112, 113)         THEN - PR.stake * mpositiontaking * (@modds - 1)
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* mpositiontaking
+
+			WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * mpositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * mpositiontaking
 			ELSE 0
 			END
 		,swinlost = CASE 
-			WHEN @statusID = 113 AND loseCnt > 0 THEN   PR.stake * spositiontaking
-			WHEN @statusID IN (112, 113)         THEN - PR.stake * spositiontaking * (@modds - 1)
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* spositiontaking
+
+			WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * spositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * spositiontaking
 			ELSE 0
 			END
 		,playercomm = CASE @statusID
