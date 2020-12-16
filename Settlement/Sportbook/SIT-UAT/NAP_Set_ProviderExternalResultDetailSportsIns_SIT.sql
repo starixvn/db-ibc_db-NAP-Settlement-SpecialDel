@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_ProviderExternalResultDetailSportsIns_SIT
 (
-@MatchId3rd	INT
+@MatchId3rd	INT = 0
 ,@MatchId	INT = 0
 ,@SourceId	SMALLINT
 ,@Resources	VARCHAR(MAX)
