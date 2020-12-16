@@ -13,6 +13,7 @@ AS
 		- 20200819@Max: Create new SP [Redmine:#139869]
 		- 20200921@July: CTS - Cannot categorize for new PA member [Redmine:#142051]
 		- 20200903@Max: Enhance Problem Account Category - Multiple Reason - [Redmine: #140211]
+		- 20201215@Max: CTS - Missing Category/Class [Redmine: #146822]
 	Param's explanation:
 		+ @CustIds = 0: the first run then get all data
 		+ @CustIds IS NULL OR '': get all changed data from @datetime
@@ -38,6 +39,7 @@ BEGIN
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
@@ -61,6 +63,7 @@ BEGIN
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 						    	INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
@@ -94,6 +97,7 @@ BEGIN
 						FROM CS_ProblemAccount pma WITH (NOLOCK) 
 								INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
+							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
 						) AS upline
 		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
