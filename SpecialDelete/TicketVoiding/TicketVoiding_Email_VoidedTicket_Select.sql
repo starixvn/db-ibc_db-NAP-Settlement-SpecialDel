@@ -16,6 +16,7 @@ AS
 		- 20200825@July: Change datatype [Redmine: #139914]
 		- 20200831@Zane: TVS - Enhance for Danger Accept [#140339]
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
+		- 20201127@Charles: God of fortune [Redmine: #146053]
 	
 	Param's explanation:	
 		
@@ -79,7 +80,8 @@ BEGIN
 		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 		,MainTransId 	BIGINT
 		,IsCashOut		BIT
-		,LiveIndicator   BIT
+		,LiveIndicator  BIT
+		,ActualStake	MONEY
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -182,6 +184,7 @@ BEGIN
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
 			,LiveIndicator = b.liveindicator
+			,ActualStake = b.actual_stake
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -228,6 +231,7 @@ BEGIN
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
 			,LiveIndicator = bm.liveindicator
+			,ActualStake = b.actual_stake
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -336,6 +340,7 @@ BEGIN
 			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
 			,m.SettlementStatus
 			,t.LiveIndicator AS IsLive
+			,t.ActualStake
 	FROM	#tmpTicket t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

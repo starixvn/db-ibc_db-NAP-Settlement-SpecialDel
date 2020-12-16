@@ -47,6 +47,7 @@ AS
 		- 20200727@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -678,6 +679,8 @@ BEGIN
 				,r.betcheck AS SubBetCheck
 				,1 AS IsMixParlay
 				,r.status AS SubStatus
+				,b.ExtraInfo
+				,b.actual_stake AS ActualStake
 				-----------------------------  
 				,b.recommend
 				,b.mrecommend

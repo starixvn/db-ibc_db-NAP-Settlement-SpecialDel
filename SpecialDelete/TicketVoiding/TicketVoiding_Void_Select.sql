@@ -29,6 +29,7 @@ AS
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
+		- 20201127@Charles: God of fortune [Redmine: #146053]
 		 
 	Param's explanation:	
 		
@@ -102,7 +103,8 @@ BEGIN
         FilterBetOption		  NVARCHAR(50),
         FilterTimeInterval	  SMALLMONEY,
 		mainstatusid		  TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
-		FilterOddsSpread	  MONEY
+		FilterOddsSpread	  MONEY,
+		ActualStake			  MONEY
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -209,6 +211,7 @@ BEGIN
 				,IsMarked
 				,LiveIndicator
 				,mainstatusid
+				,ActualStake
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -258,6 +261,7 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
+				,b.actual_stake AS ActualStake
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -381,6 +385,7 @@ BEGIN
 					,FilterTimeInterval
 					,mainstatusid
 					,FilterOddsSpread
+					,ActualStake
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -441,6 +446,7 @@ BEGIN
 					,b.hdp1 AS FilterTimeInterval
 					,b.statusID AS mainstatusid
 					,b.oddsspread AS FilterOddsSpread
+					,b.actual_stake AS ActualStake
 			FROM	bettrans b WITH (NOLOCK)	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -514,6 +520,8 @@ BEGIN
 						,FilterGoal
 						,mainstatusid
 						,FilterOddsSpread
+						,ExtraInfo
+						,ActualStake
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -562,6 +570,8 @@ BEGIN
 						,ISNULL(sub.betcheck, 0) AS FilterGoal
 						,main.statusID AS mainstatusid
 						,sub.oddsspread AS FilterOddsSpread
+						,main.ExtraInfo
+						,main.actual_stake AS ActualStake
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -706,6 +716,7 @@ BEGIN
 					,IsMarked
 					,LiveIndicator
 					,mainstatusid
+					,ActualStake
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -755,6 +766,7 @@ BEGIN
 					,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 					,b.liveindicator
 					,b.statusID AS mainstatusid
+					,b.actual_stake AS ActualStake
 			FROM	bettrans b WITH (NOLOCK)	
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -819,6 +831,8 @@ BEGIN
 						,IsMarked
 						,LiveIndicator
 						,mainstatusid
+						,ExtraInfo
+						,ActualStake
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -858,6 +872,8 @@ BEGIN
 						,0
 						,sub.liveindicator
 						,main.statusID AS mainstatusid
+						,main.ExtraInfo
+						,main.actual_stake AS ActualStake
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -920,6 +936,7 @@ BEGIN
 			,IsMarked
 			,LiveIndicator
 			,mainstatusid
+			,ActualStake
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -969,6 +986,7 @@ BEGIN
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.liveindicator
 			,b.statusID AS mainstatusid
+			,b.actual_stake AS ActualStake
 	FROM	bettrans b WITH (NOLOCK)	
 		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		OUTER APPLY (
@@ -1125,6 +1143,8 @@ BEGIN
 					,IsMarked
 					,LiveIndicator
 					,mainstatusid
+					,ExtraInfo
+					,ActualStake
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -1164,6 +1184,8 @@ BEGIN
 					,0
 					,sub.liveindicator
 					,main.statusID AS mainstatusid
+					,main.ExtraInfo
+					,main.actual_stake AS ActualStake
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -1265,6 +1287,7 @@ BEGIN
 						,IsMarked
 						,LiveIndicator
 						,mainstatusid
+						,ActualStake
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -1315,6 +1338,7 @@ BEGIN
 						,t.IsMarked
 						,b.liveindicator
 						,b.statusID AS mainstatusid
+						,b.actual_stake AS ActualStake
 			FROM #tmpRefCodeSummary t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							ON b.RefCode = t.RefCode
@@ -1382,6 +1406,7 @@ BEGIN
 			,IsMarked
 			,LiveIndicator
 			,mainstatusid
+			,ActualStake
 		)
 	SELECT  main.transid AS GroupTransId
 			,sub.transid AS transId
@@ -1423,6 +1448,7 @@ BEGIN
 			,main.IsMarked
 			,main.LiveIndicator
 			,main.mainstatusid
+			,main.ActualStake
 	FROM	#SpecialDeleteBets main
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			ON	main.transid = sub.refno
@@ -1475,6 +1501,7 @@ BEGIN
 			,IsMarked
 			,LiveIndicator
 			,mainstatusid
+			,ActualStake
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1518,6 +1545,7 @@ BEGIN
 			,main.IsMarked
 			,main.LiveIndicator
 			,main.mainstatusid
+			,main.ActualStake
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -1574,6 +1602,7 @@ BEGIN
 				,IsMarked
 				,LiveIndicator
 				,mainstatusid
+				,ActualStake
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1621,6 +1650,7 @@ BEGIN
 				,sub911.IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
+				,b.actual_stake AS ActualStake
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -1745,6 +1775,7 @@ BEGIN
 			   ,s.recommend
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1816,6 +1847,7 @@ BEGIN
 			   ,s.recommend
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -1876,6 +1908,7 @@ BEGIN
 			   ,s.recommend
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
+			   ,s.ActualStake
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1944,6 +1977,7 @@ BEGIN
 		   ,s.recommend
 		   ,s.LiveIndicator
 		   ,s.mainstatusid
+		   ,s.ActualStake
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2054,6 +2088,7 @@ BEGIN
 		   ,s.IsMarked
 		   ,c.site as LicenseeName
 		   ,s.LiveIndicator AS IsLiveIndicator
+		   ,s.ActualStake
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

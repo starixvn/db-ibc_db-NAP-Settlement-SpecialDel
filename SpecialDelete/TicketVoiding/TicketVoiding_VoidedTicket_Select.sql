@@ -15,6 +15,7 @@ AS;
 		- 20190426@Jacob: Mark Tickets - Enhancement [112480]
 		- 20191118@Max: AdnormalBet TVS + Hotfix #124160 [Redmine:#123691]
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
+		- 20201127@Charles: God of fortune [Redmine: #146053]
 		
 	Param's explanation:	
 		
@@ -88,7 +89,8 @@ BEGIN
               MainTransId     BIGINT,
               BonusId         INT,
               IsMarked        BIT,
-			  LiveIndicator   BIT
+			  LiveIndicator   BIT,
+			  ActualStake	  MONEY
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -184,6 +186,7 @@ BEGIN
 				,winlost = t.winlost - b.actual_stake
 				,BonusID = b.BonusId
 				,LiveIndicator = b.liveindicator
+				,ActualStake = b.actual_stake
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 
@@ -225,6 +228,7 @@ BEGIN
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
 				,LiveIndicator = bm.liveindicator
+				,ActualStake = b.actual_stake
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -259,6 +263,7 @@ BEGIN
 				,winlost = t.winlost - b.actual_stake
 				,BonusID = b.BonusId
 				,LiveIndicator = b.liveindicator
+				,ActualStake = b.actual_stake
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 		
@@ -299,6 +304,7 @@ BEGIN
 				,subhdp2 = bm.hdp2
 				,subtransdesc = bm.transdesc
 				,LiveIndicator = bm.liveindicator
+				,ActualStake = b.actual_stake
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
@@ -342,6 +348,7 @@ BEGIN
 					,subhdp2 = bm.hdp2
 					,subtransdesc = bm.transdesc
 					,LiveIndicator = bm.liveindicator
+					,ActualStake = b.actual_stake
 			FROM	#tmpTicket t
 				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
@@ -447,6 +454,7 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.subbettype
 			   ,s.subtransdesc
+			   ,s.ActualStake
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -507,6 +515,7 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.subbettype
 			   ,s.subtransdesc
+			   ,s.ActualStake
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid AND b.matchid = @matchid	
 		WHERE	s.recommend IN (52466, 5707545)
@@ -560,6 +569,7 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.subbettype
 			   ,s.subtransdesc
+			   ,s.ActualStake
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -618,6 +628,7 @@ BEGIN
 		   ,s.LiveIndicator
 		   ,s.subbettype
 		   ,s.subtransdesc
+		   ,s.ActualStake
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -671,6 +682,7 @@ BEGIN
 			,s.LiveIndicator AS IsLiveIndicator
 			,s.subbettype AS SubBettype
 			,s.subtransdesc AS subTransdesc
+			,s.ActualStake
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

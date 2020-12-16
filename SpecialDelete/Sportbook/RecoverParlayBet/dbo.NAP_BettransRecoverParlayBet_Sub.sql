@@ -23,6 +23,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Param's Explanation:			
 			- @BetType:
@@ -85,7 +86,9 @@ BEGIN
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY
 		,betfrom				NVARCHAR(1)		
-		,betcheck				NVARCHAR(50)		
+		,betcheck				NVARCHAR(50)
+		,ExtraInfo				VARCHAR(1000)
+		,ActualStake			MONEY		
 	)	
 	
 	CREATE TABLE #tblMainTicket 
@@ -179,7 +182,9 @@ BEGIN
 				,hdp1
 				,hdp2
 				,betfrom				
-				,betcheck)
+				,betcheck
+				,ExtraInfo
+				,ActualStake)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
 				,bm.odds AS SubOdds
@@ -218,7 +223,9 @@ BEGIN
 				,b.hdp1 AS hdp1
 				,b.hdp2 AS hdp2
 				,b.betfrom AS betfrom				 
-				,b.betcheck AS betcheck				
+				,b.betcheck AS betcheck
+				,b.ExtraInfo
+				,b.actual_stake AS ActualStake				
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid
@@ -445,7 +452,9 @@ BEGIN
 				 ,t.Odds     			   
 				 ,t.hdp1     
 				 ,t.hdp2			     
-				 ,t.betcheck    			   
+				 ,t.betcheck
+				 ,t.ExtraInfo
+				 ,t.ActualStake    			   
 				 ,CASE
 					WHEN T2.a IS NOT NULL 
 						 OR (T3.a IS NOT NULL 

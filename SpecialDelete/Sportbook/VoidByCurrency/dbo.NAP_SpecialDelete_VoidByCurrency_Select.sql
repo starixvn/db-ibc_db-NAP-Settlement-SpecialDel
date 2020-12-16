@@ -24,6 +24,7 @@ AS;
 		- 20190228@Alan: Implement Bet Builder - [106898]
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20200422@Charles: Not support refund status [132661]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 	Param's Explanation:			
 			- @TicketType:
 			'All': All
@@ -101,7 +102,8 @@ CREATE TABLE #SpecialDeleteBets
               SubHdp2               SMALLMONEY,
               SubOdds               MONEY,
               SubStatus             NVARCHAR(10),
-			  IsMarked			 	BIT
+			  IsMarked			 	BIT,
+			  ActualStake			MONEY
              );
    CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -223,7 +225,8 @@ CREATE TABLE #SpecialDeleteBets
 					SubHdp2,
 					SubOdds,
 					SubStatus,
-					IsMarked
+					IsMarked,
+					ActualStake
 				)
 		SELECT 	b.transid AS GroupID,
 				b.Stake,
@@ -277,7 +280,8 @@ CREATE TABLE #SpecialDeleteBets
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				b.status AS SubStatus,
-				CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked		
+				CASE WHEN mt.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
+				b.actual_stake AS ActualStake
 		FROM bettrans b WITH (NOLOCK)
 			 INNER JOIN #t_exchanges te WITH (NOLOCK)
 					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
@@ -385,7 +389,8 @@ CREATE TABLE #SpecialDeleteBets
 							SubHdp2,
 							SubOdds,
 							SubStatus,
-							IsMarked	
+							IsMarked,
+							ActualStake	
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
@@ -440,7 +445,8 @@ CREATE TABLE #SpecialDeleteBets
 						NULL AS SubHdp2,
 						NULL AS SubOdds,
 						b.status AS SubStatus,
-						IsMarked
+						IsMarked,
+						b.actual_stake AS ActualStake
 				FROM #tmpRefCodeSummary t
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = t.RefCode
@@ -541,7 +547,8 @@ CREATE TABLE #SpecialDeleteBets
 						SubHdp2,
 						SubOdds,
 						SubStatus,
-						IsMarked
+						IsMarked,
+						ActualStake
 					)
 			SELECT  main.transid AS GroupID,
 					main.Stake,
@@ -591,7 +598,8 @@ CREATE TABLE #SpecialDeleteBets
 					NULL AS SubHdp2,
 					NULL AS SubOdds,
 					sub.status AS SubStatus,
-					main.IsMarked
+					main.IsMarked,
+					main.ActualStake
 			FROM #SpecialDeleteBets main
 				 INNER JOIN CTE_LastTransBT sub WITH (NOLOCK)
 						 ON	main.TransId = sub.refno			 
@@ -664,7 +672,8 @@ CREATE TABLE #SpecialDeleteBets
 						SubHdp2,
 						SubOdds,
 						SubStatus,
-						IsMarked
+						IsMarked,
+						ActualStake
 					)
 			SELECT  sub911.transid AS GroupID,
 					sub911.Stake,
@@ -716,7 +725,8 @@ CREATE TABLE #SpecialDeleteBets
 					NULL AS SubHdp2,
 					NULL AS SubOdds,
 					sub911.status AS SubStatus,
-					main.IsMarked					
+					main.IsMarked,
+					main.ActualStake				
 			FROM dbo.bettrans sub911 WITH(NOLOCK)
 				 INNER JOIN #SpecialDeleteBets main 
 						ON	sub911.refno = main.transid	
@@ -779,7 +789,8 @@ CREATE TABLE #SpecialDeleteBets
 					SubHdp2,
 					SubOdds,
 					SubStatus,
-					IsMarked
+					IsMarked,
+					ActualStake
 				)
 		SELECT 	sub911.transid AS GroupID,
 				b.Stake,
@@ -835,7 +846,8 @@ CREATE TABLE #SpecialDeleteBets
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				b.status AS SubStatus,
-				sub911.IsMarked
+				sub911.IsMarked,
+				sub911.ActualStake
 			FROM #SpecialDeleteBets sub911
 				 CROSS APPLY (
 								  SELECT b.Stake,
@@ -928,7 +940,9 @@ CREATE TABLE #SpecialDeleteBets
 					SubHdp1,
 					SubHdp2,
 					SubOdds,
-					SubStatus		
+					SubStatus,
+					ExtraInfo,
+					ActualStake	
 				)
 		SELECT  main.Stake,
 				m.AwayId,
@@ -970,7 +984,9 @@ CREATE TABLE #SpecialDeleteBets
 				sub.hdp1 AS SubHdp1,
 				sub.hdp2 AS SubHdp2,
 				sub.odds AS SubOdds,
-				sub.status AS SubStatus
+				sub.status AS SubStatus,
+				main.ExtraInfo,
+				main.actual_stake AS ActualStake
 		FROM bettrans main WITH (NOLOCK)
 			 INNER JOIN #t_exchanges te WITH (NOLOCK)
 					 ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
@@ -1039,7 +1055,8 @@ CREATE TABLE #SpecialDeleteBets
 					RefCode,
 					BonusID,
 					SubTransId,
-					SubStatus
+					SubStatus,
+					ActualStake
 				)
 		SELECT 	b.transid AS GroupID,
 				b.Stake,
@@ -1083,7 +1100,8 @@ CREATE TABLE #SpecialDeleteBets
 				b.RefCode,
 				b.BonusID,
 				b.TransId AS SubTransId,
-				b.status AS SubStatus
+				b.status AS SubStatus,
+				b.actual_stake AS ActualStake
 		FROM bettrans b WITH (NOLOCK)
 			 INNER JOIN #t_exchanges te WITH (NOLOCK)
 					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
@@ -1155,7 +1173,8 @@ CREATE TABLE #SpecialDeleteBets
 		s.SubStatus,
 		@SettlementStatus AS SettlementStatus,
 		s.IsMarked,
-		@GlobalShowTime AS GlobalShowTime
+		@GlobalShowTime AS GlobalShowTime,
+		s.ActualStake
 	FROM #SpecialDeleteBets s					 
 		 CROSS APPLY (SELECT CASE
 									WHEN EXISTS (SELECT d.custid 

@@ -24,6 +24,7 @@ AS
 		- 20171106@Kent: Implement Notifications Center [Redmine:#84330]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 		
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -323,7 +324,9 @@ BEGIN
 				,betcheck    
 				,transdesc   
 				,'' AS BetFrom
-				,GETDATE() AS [DateTime] 
+				,GETDATE() AS [DateTime]
+				,b.ExtraInfo
+				,b.actual_stake AS ActualStake
 		FROM	#tblRecoverBet t
 				INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = t.transid
 				INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = b.srecommend

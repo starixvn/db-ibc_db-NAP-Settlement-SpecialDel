@@ -56,6 +56,7 @@ AS
 		- 20190531@Raymond.Le: PH AIO 4 - change filter advanced mode for bettype 479, 481 [112884]
 		- 20200723@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -143,6 +144,8 @@ BEGIN
         ,betcheck				NVARCHAR(50)
         ,modds					MONEY
         ,transdesc				NVARCHAR(1000)
+		,ExtraInfo				VARCHAR(1000)
+		,ActualStake			MONEY
        )
                   
 	CREATE TABLE #Ref (--id INT identity(1,1) primary key clustered   
@@ -409,6 +412,8 @@ BEGIN
    ,b.betcheck
 	,b.modds
 	,r.transdesc
+	,b.ExtraInfo
+	,b.actual_stake AS ActualStake
 	FROM #Bettypes_Parlay t
 	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
@@ -449,6 +454,8 @@ BEGIN
 			,T.modds				AS MasterOdds 
 			,T.transdesc			AS TransDesc 
 			,T.[Group]				AS GroupName
+			,T.ExtraInfo
+			,T.ActualStake
 	FROM
 	(	
 		--0. For Credit bets  

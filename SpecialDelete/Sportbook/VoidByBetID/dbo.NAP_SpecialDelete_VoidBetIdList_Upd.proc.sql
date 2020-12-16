@@ -86,6 +86,7 @@ AS
 	  - 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 	  - 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	  - 20201014@July: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
+	  - 20201126@Charles: God of fortune [Redmine: #146053]
 
 	 Param's Explanation:   
 	*/
@@ -612,6 +613,7 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
+			,actual_stake
 		)
 		SELECT	
 			b.transid AS groupTransId
@@ -663,6 +665,7 @@ BEGIN
 			,b.RefCode
 			,b.BonusID
 			,r.transid AS MainTransId
+			,b.actual_stake
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -1023,6 +1026,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
+				,actual_stake
 		)
 		SELECT	tmpmain.transid
 				,sub.transid
@@ -1075,6 +1079,7 @@ BEGIN
 				,bt.RefCode
 				,bt.BonusID
 				,bt.MainTransId
+				,tmpmain.actual_stake
 		FROM dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN #BTTransActive bt
 				ON sub.matchid 	= bt.matchid
@@ -1157,7 +1162,8 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
-				,MainTransId		
+				,MainTransId
+				,actual_stake		
 		)
 		OUTPUT inserted.transid
 			 , inserted.bettype
@@ -1241,6 +1247,7 @@ BEGIN
 				,sub.RefCode
 				,sub.BonusID
 				,tmpmain.transid AS MainTransId
+				,tmpmain.actual_stake
 		FROM dbo.bettrans sub WITH(NOLOCK)
 			 INNER JOIN #BetDelete tmpmain
 					 ON	sub.refno = tmpmain.transid
@@ -1307,6 +1314,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
+				,actual_stake
 			)
 		SELECT	
 				b.transid AS groupTransId
@@ -1363,6 +1371,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
+				,b.actual_stake
 		FROM #BetDelete sub911
 			 CROSS APPLY (
 							  SELECT b.transid
@@ -2750,6 +2759,7 @@ BEGIN
 		,b.Hdp2 AS Handicap2
 		,m.SettlementStatus
 		,m.GlobalShowTime
+		,b.actual_stake AS ActualStake
 		--------------------
 		,ci.username
 		,ci.username2

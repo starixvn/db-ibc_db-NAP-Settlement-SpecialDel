@@ -50,6 +50,7 @@ AS
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201126@Charles: God of fortune [Redmine: #146053]
 		
 	Param's Explanation:
 */
@@ -151,7 +152,8 @@ BEGIN
 			WalletType			TINYINT,
 			RefCode				BIGINT,
 			BonusID				INT,
-			MainTransId			BIGINT,	
+			MainTransId			BIGINT,
+			ActualStake			MONEY,
 					
 			SubTransDesc		NVARCHAR(1000),
 			SubTransId			BIGINT,
@@ -383,6 +385,7 @@ BEGIN
 						WalletType,
 						RefCode,
 						BonusID,
+						ActualStake,
 						
 						SubTransId,
 						SubBetCheck,
@@ -438,6 +441,7 @@ BEGIN
 					b.WalletType,
 					b.RefCode,
 					b.BonusID,
+					b.actual_stake AS ActualStake,
 					
 					b.TransId AS SubTransId,
 					NULL AS SubBetCheck,
@@ -531,6 +535,7 @@ BEGIN
 							RefCode,
 							BonusID,
 							MainTransId,
+							ActualStake,
 						
 							SubTransId,
 							SubBetCheck,
@@ -590,6 +595,7 @@ BEGIN
 						b.RefCode,
 						b.BonusID,
 						r.transid AS MainTransId,
+						b.actual_stake AS ActualStake,
 					
 						b.TransId AS SubTransId,
 						NULL AS SubBetCheck,
@@ -781,6 +787,7 @@ BEGIN
 							RefCode,
 							BonusID,
 							MainTransId,
+							ActualStake,
 							
 							SubTransId,
 							SubBetCheck,
@@ -836,6 +843,7 @@ BEGIN
 						sub.RefCode,
 						sub.BonusID,
 						sub.MainTransId,
+						tmpmain.ActualStake,
 						
 						sub.TransId AS SubTransId,
 						NULL AS SubBetCheck,
@@ -912,6 +920,7 @@ BEGIN
 							RefCode,
 							BonusID,
 							MainTransId,
+							ActualStake,
 							
 							SubTransId,
 							SubBetCheck,
@@ -981,6 +990,7 @@ BEGIN
 						sub.RefCode,
 						sub.BonusID,
 						tmpmain.TransId AS MainTransId,
+						tmpmain.ActualStake,
 						
 						sub.TransId AS SubTransId,
 						NULL AS SubBetCheck,
@@ -1051,6 +1061,7 @@ BEGIN
 						RefCode,
 						BonusID,
 						MainTransId,
+						ActualStake,
 						SubTransId,
 						SubBetCheck,
 						SubBetTeam,
@@ -1108,6 +1119,7 @@ BEGIN
 						b.RefCode,
 						b.BonusID,
 						sub911.MainTransId,
+						sub911.ActualStake,
 						b.TransId AS SubTransId,
 						NULL AS SubBetCheck,
 						NULL AS SubBetTeam,
@@ -1246,7 +1258,9 @@ BEGIN
 						SubHdp1,
 						SubHdp2,
 						SubOdds,
-						SubStatus
+						SubStatus,
+						ExtraInfo,
+						ActualStake
 					)
 			SELECT  main.Stake,
 					m.AwayId,
@@ -1293,7 +1307,9 @@ BEGIN
 					sub.hdp1 AS SubHdp1,
 					sub.hdp2 AS SubHdp2,
 					sub.odds AS SubOdds,
-					sub.status AS SubStatus
+					sub.status AS SubStatus,
+					main.ExtraInfo,
+					main.actual_stake AS ActualStake
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
@@ -2177,6 +2193,7 @@ BEGIN
 				s.SubBetCheck,
 				@SettlementStatus AS SettlementStatus,
 				@GlobalShowTime AS GlobalShowTime,
+				s.ActualStake,
 				-----------------------
 				s.custid,
 				s.UserName,
