@@ -214,11 +214,12 @@ BEGIN
 		,s.VoidedBy
 		,cm.ContentChineseSimplified
 		,cm.ContentEnglish
-		,p.Emails
+		,p.VoidResults
 		,p.NegativeBalanceUsers
 	FROM #tmpTicket s
 	INNER JOIN #TmpMatch m ON s.RequestId = m.RequestId
-	OUTER APPLY (	SELECT sv.NegativeBalanceUsers, sv.Emails
+	OUTER APPLY (	SELECT sv.NegativeBalanceUsers,
+							sv.VoidResults.value('(VoidResults/VoidResult/@EmailResult)[1]', 'varchar(max)') AS VoidResults
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
 					WHERE s.RequestId = sv.RequestID
 				)p

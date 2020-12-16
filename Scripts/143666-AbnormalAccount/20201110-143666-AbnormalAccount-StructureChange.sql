@@ -10,17 +10,17 @@ GO
 
 ALTER TABLE [dbo].[Ticketvoiding_VoidBetAutomation_Service]
 ADD
-	[Emails] [varchar(max)] NULL,
-    [IsAutoVoid] [bit] NULL,
-	[IsRunExternalService] [bit] NULL,
-	[MessageId] [int] NULL,
-	[ReasonId] [int] NULL,
-	[IsSentBatchMessage] [bit] NULL,
-	[IsSentMessageToAdminSite] [bit] NULL,
-	[IsInsertedVoidedTransaction] [bit] NULL,
-	[IsUpdatedVoidingHistory] [bit] NULL,
-	[IsSentEmail] [bit] NULL,
-	[IsSentLetsTalk] [bit] NULL
+	VoidResults XML NULL,
+    IsAutoVoid bit NULL,
+	IsRunExternalService bit NULL,
+	MessageId int NULL,
+	ReasonId int NULL,
+	IsSentBatchMessage bit NULL,
+	IsSentMessageToAdminSite bit NULL,
+	IsInsertedVoidedTransaction bit NULL,
+	IsUpdatedVoidingHistory bit NULL,
+	IsSentEmail bit NULL,
+	IsSentLetsTalk bit NULL
 GO
 
 

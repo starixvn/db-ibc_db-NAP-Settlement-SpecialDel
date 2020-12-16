@@ -103,8 +103,7 @@ BEGIN
 	SET @LogActionId = 90002
 	SET @SB_Error = 0
 
-	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
-		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
 	BEGIN
 
 		-- Check Lock Match
@@ -233,8 +232,7 @@ BEGIN
 			,@FilterBy = @FilterBy				
 	END
 
-	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
-		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
 	BEGIN
 		-- Release Match
 		EXEC dbo.NAP_Admin_CheckingProcess

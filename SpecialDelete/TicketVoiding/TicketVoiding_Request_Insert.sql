@@ -82,8 +82,7 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
-		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
 	BEGIN
 		INSERT INTO #tblMatchProcess (Matchid, KeyID)
 		SELECT   T.C.value('@MatchId', 'INT') AS MatchId
@@ -186,8 +185,8 @@ BEGIN
 				,@FilterBy = @FilterBy				
 	END
 
-	IF (@IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0) 
-		OR (@IssueTypeId NOT IN (8,9) AND @IsExistSingle = 0 AND @IsExistParlay = 0 AND @IsExistFM = 0 AND @IsExistFM2 = 0)
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
+	BEGIN
 	BEGIN
 		-- Release Match
 		EXEC dbo.NAP_Admin_CheckingProcess
