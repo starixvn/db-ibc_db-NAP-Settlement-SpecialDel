@@ -25,7 +25,7 @@ BEGIN
 
 		SELECT @Session = (SELECT MIN(SessionID) 
 							FROM dbo.Ticketvoiding_VoidBetAutomation_Service vbs WITH(NOLOCK) 
-							WHERE statusID = 0 AND NOT EXISTS (
+							WHERE statusID = 12 AND NOT EXISTS (
 								SELECT TOP 1 1
 								FROM dbo.Ticketvoiding_VoidBetAutomation_Service temp WITH(NOLOCK)
 								WHERE vbs.SessionID = temp.SessionID AND temp.statusID = 3
