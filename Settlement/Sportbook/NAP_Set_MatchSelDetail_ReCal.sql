@@ -147,7 +147,7 @@ BEGIN
     FROM (
 		SELECT ISNULL(SUM(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
 				,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
-				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(betSettledCount,0) AS betSettledCount
+				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(SUM(betSettledCount),0) AS betSettledCount
 		FROM @status
 		WHERE 1 = CASE WHEN GroupId IN (0,2) THEN 1 ELSE 0 END --include FT-FGLG
 					
@@ -165,7 +165,7 @@ BEGIN
     FROM (
 		SELECT ISNULL(MAX(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
 				,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
-				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(betSettledCount,0) AS betSettledCount
+				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(SUM(betSettledCount),0) AS betSettledCount
 		FROM @status
 		WHERE 1 = CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
 	) AS t
