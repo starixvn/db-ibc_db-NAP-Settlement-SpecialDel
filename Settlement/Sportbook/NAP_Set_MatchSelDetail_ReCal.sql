@@ -113,11 +113,11 @@ BEGIN
 		,SUM(b.betSettledCount) AS betSettledCount
 		,SUM(b.betMarkedCount) AS betMarkedCount
 		,MAX(b.InRunning) AS InRunning
-		,SUM(b.Waiting_cnt)	AS Waiting_cnt	
+		,SUM(b.Waiting_cnt)	AS Waiting_cnt
 			
 		,SUM(b.betcountParlay) AS betcountParlay
 		,MAX(b.InRunningParlay) AS InRunningParlay
-		,SUM(b.WaitingParlay_cnt)AS WaitingParlay_cnt	
+		,SUM(b.WaitingParlay_cnt)AS WaitingParlay_cnt
 	FROM	#Data b
 		INNER JOIN @tmpBettypes g
 			ON	b.bettype = g.BetType
@@ -131,14 +131,14 @@ BEGIN
 			END
 
 	INSERT INTO @status (GroupId, BetCount, InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt)
-	SELECT t.GroupId, 0, 0, 0, 0, 0, 0
+	SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0
 	FROM (VALUES (0),(1),(2),(3),(7),(9)) AS t (GroupId)
 	WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
     SELECT @FTStatus = CASE 
 							WHEN t.betcount = 0 AND t.betcountParlay = 0 THEN 'No Ticket'
-							WHEN t.InRunning > 0 THEN 'Running'
-							WHEN t.betMarkedCount > 0 THEN 'Marked'
+							WHEN t.InRunning > 0 AND t.betSettledCount = 0 THEN 'Running'
+							WHEN t.betMarkedCount > 0 AND t.betSettledCount = 0 THEN 'Marked'
 							WHEN t.Waiting_cnt > 0 AND t.Waiting_cnt = t.BetCount THEN 'Waiting'
 							WHEN ISNULL(t.BetCount,0) = 0 AND t.InRunningParlay > 0 THEN 'Parlay Running'
 							WHEN ISNULL(t.BetCount,0) = 0 AND t.WaitingParlay_cnt > 0 AND t.betcountParlay = t.WaitingParlay_cnt THEN 'Parlay Waiting'
@@ -147,7 +147,7 @@ BEGIN
     FROM (
 		SELECT ISNULL(SUM(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
 				,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
-				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
+				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(betSettledCount,0) AS betSettledCount
 		FROM @status
 		WHERE 1 = CASE WHEN GroupId IN (0,2) THEN 1 ELSE 0 END --include FT-FGLG
 					
@@ -155,8 +155,8 @@ BEGIN
 
     SELECT @HTStatus = CASE 
 							WHEN t.betcount = 0 AND t.betcountParlay = 0 THEN 'No Ticket'
-							WHEN t.InRunning > 0 THEN 'Running'
-							WHEN t.betMarkedCount > 0 THEN 'Marked'
+							WHEN t.InRunning > 0 AND t.betSettledCount = 0 THEN 'Running'
+							WHEN t.betMarkedCount > 0 AND t.betSettledCount = 0 THEN 'Marked'
 							WHEN t.Waiting_cnt > 0 AND t.Waiting_cnt = t.BetCount THEN 'Waiting'
 							WHEN ISNULL(t.BetCount,0) = 0 AND t.InRunningParlay > 0 THEN 'Parlay Running'
 							WHEN ISNULL(t.BetCount,0) = 0 AND t.WaitingParlay_cnt > 0 AND t.betcountParlay = t.WaitingParlay_cnt THEN 'Parlay Waiting'
@@ -165,7 +165,7 @@ BEGIN
     FROM (
 		SELECT ISNULL(MAX(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
 				,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
-				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
+				,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount, ISNULL(betSettledCount,0) AS betSettledCount
 		FROM @status
 		WHERE 1 = CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
 	) AS t

@@ -103,9 +103,9 @@ BEGIN
 	FROM (
 		SELECT  COALESCE(t.ResourceID,p.ResourceID) AS ResourceID
 				,CASE 
-					WHEN t.InRunning > 0 THEN 'Running'
-					WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
-					WHEN t.betMarkedCount > 0 THEN 'Marked'
+					WHEN t.InRunning > 0 AND t.betSettledCount = 0 THEN 'Running'
+					WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount AND t.betSettledCount = 0 THEN 'Waiting'
+					WHEN t.betMarkedCount > 0 AND t.betSettledCount = 0 THEN 'Marked'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
 					WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
 					WHEN t.BetCount IS NULL AND t.ResourceID LIKE '38[12]%' THEN 'No Ticket'

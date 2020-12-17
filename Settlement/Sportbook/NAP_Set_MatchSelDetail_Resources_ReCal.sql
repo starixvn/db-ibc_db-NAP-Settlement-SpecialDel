@@ -111,25 +111,27 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo)
 			SELECT  CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END,					
-					0 AS BetCount,
-					0 As InRunning,
-					0 AS betSettledCount,
-					0 AS betRefundedCount,
-					0 AS betMarkedCount,
+					COUNT(1) AS BetCount,
+					SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
+					SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount,
+					SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
+					SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 					MAX(sp.OrdNo)
-			FROM (	SELECT DISTINCT bt.bettype, bt.betid
+			FROM (	SELECT DISTINCT bt.bettype, bt.betid, statusID, transid
 					FROM	dbo.bettrans bt WITH (NOLOCK)
 					WHERE	bt.matchid = @matchid
 							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 627 AND 644)
 							AND bt.statusID NOT IN (101, 102) --void/reject
 					UNION ALL
-					SELECT DISTINCT btm.bettype, btm.betcheck
+					SELECT DISTINCT btm.bettype, btm.betcheck, statusID, transid
 					FROM	dbo.bettransm btm WITH (NOLOCK)
 					WHERE	btm.matchid = @matchid
 							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 627 AND 644)
 							AND btm.statusID	NOT IN (101, 102) --void/reject
 				)bt
 				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
+				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	bt.transid = mt.TransId
 			WHERE	(sp.Betid = 0 OR sp.BetID = bt.BetID)
 				AND sp.sporttype = @SportType
 				AND (sp.Settletype = @SettleType)	
@@ -172,7 +174,6 @@ BEGIN
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL 	
 	
-
     ---return
     IF @Sporttype = 43
     BEGIN
@@ -191,9 +192,9 @@ BEGIN
 				,rs.ResultStatusId
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
-					WHEN bt.InRunning > 0 THEN 'Running'
-					WHEN bt.betMarkedCount > 0 THEN 'Marked'
-					WHEN bt.BetSettledCount > 0 THEN 'Calculated'
+					WHEN bt.InRunning > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Running'
+					WHEN bt.betMarkedCount > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Marked'
+					WHEN bt.BetSettledCount > 0  THEN 'Calculated'
 					WHEN bt.BetRefundedCount > 0 THEN CASE WHEN @SettleType = 'EAR' THEN 'Calculated' ELSE 'Refunded' END
 					WHEN ISNULL(bt.BetCount, 0) = 0 THEN
 						CASE WHEN ISNULL(p.InRunning,0) > 0 THEN 'Parlay Running'
@@ -217,8 +218,8 @@ BEGIN
 				,rs.AwayValue
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
-					WHEN bt.InRunning > 0 THEN 'Running'
-					WHEN bt.betMarkedCount > 0 THEN 'Marked'
+					WHEN bt.InRunning > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Running'
+					WHEN bt.betMarkedCount > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Marked'
 					WHEN bt.BetSettledCount > 0 THEN 'Calculated'
 					WHEN bt.BetRefundedCount > 0 THEN CASE WHEN @SettleType = 'EAR' THEN 'Calculated' ELSE 'Refunded' END
 					WHEN ISNULL(bt.BetCount, 0) = 0  THEN
@@ -249,8 +250,8 @@ BEGIN
 				,rs.AwayValue
 	           ,CASE 
 					WHEN ISNULL(bt.BetCount, 0) = 0 AND ISNULL(p.BetCount, 0) = 0 THEN 'No Ticket'
-					WHEN bt.InRunning > 0 THEN 'Running'
-					WHEN bt.betMarkedCount > 0 THEN 'Marked'
+					WHEN bt.InRunning > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Running'
+					WHEN bt.betMarkedCount > 0 AND bt.BetSettledCount = 0 AND bt.BetRefundedCount = 0 THEN 'Marked'
 					WHEN bt.BetSettledCount > 0 THEN 'Calculated'
 					WHEN bt.BetRefundedCount > 0 THEN CASE WHEN @SettleType = 'EAR' THEN 'Calculated' ELSE 'Refunded' END
 					WHEN ISNULL(bt.BetCount, 0) = 0  THEN
