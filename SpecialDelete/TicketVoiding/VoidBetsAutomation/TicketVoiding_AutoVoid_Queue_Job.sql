@@ -82,7 +82,8 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
-	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0 AND q.QueueId <= @Max_QueueId
+	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 
+			AND q.RequestId = 0 AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 		
 	UPDATE q
 		SET StatusId = 4
@@ -114,7 +115,7 @@ BEGIN
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
 					WHEN q.RequestId > 0 THEN 1
 				ELSE 0 END
-		AND q.QueueId <= @Max_QueueId		
+		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
 	ORDER BY q.Action DESC, Starttime
 	
 	WHILE(1=1)
