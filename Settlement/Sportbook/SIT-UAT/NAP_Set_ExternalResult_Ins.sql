@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Set_ProviderExternalResultDetailSportsIns_SIT
+CREATE PROCEDURE NAP_Set_ExternalResult_Ins
 (
 @MatchId3rd	INT = 0
 ,@MatchId	INT = 0
