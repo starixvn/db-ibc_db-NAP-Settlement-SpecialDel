@@ -39,6 +39,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20201211@Louisa: remove unused code [Redmine:#146239]
 	
 	Param's explanation:  
 		
