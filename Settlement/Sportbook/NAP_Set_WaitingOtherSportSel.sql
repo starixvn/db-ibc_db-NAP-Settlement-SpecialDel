@@ -11,7 +11,6 @@ AS
 	Revision:
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
 		- 20200827@Louisa: Get external score [Redmine:#139979]
-		- 20201211@Louisa: remove unused code [Redmine:#146239]
 
 	Param's explanation:  
 		
