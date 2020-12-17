@@ -72,8 +72,10 @@ BEGIN
 	
 	-------------------STARTING OF Process invalid request -----------
 	-- update cancel: check abnormalbet and any mark ticket by auto
-	SELECT @Max_QueueId = (SELECT MAX(q.QueueId) FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK))
-		  ,@Min_QueueId = (SELECT MIN(q.QueueId) FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK) WHERE q.StatusId = 0)
+	SELECT @Max_QueueId = MAX(q.QueueId)
+		  ,@Min_QueueId = MIN(q.QueueId)
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
+	WHERE q.StatusId = 0
 
 	INSERT INTO @tblMatchid_abnormal (matchid)
 	SELECT DISTINCT rd.matchid
