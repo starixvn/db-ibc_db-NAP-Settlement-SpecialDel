@@ -60,7 +60,7 @@ AS
 		- 20200901@Louisa: get calculated score in the second dataset [Redmine:#139979]
 		- 20200908@Louisa: get ResultDetail at DBPRO [Redmine:#139979]
 		- 20201209@Kathy: Add 10 Upcoming Sports for OS [Redmine:#145816]
-
+		- 20201211@Louisa: remove unused code [Redmine:#146239]
 */
 BEGIN
     SET NOCOUNT ON
@@ -102,8 +102,6 @@ BEGIN
 		,@StatusQuarter4	NVARCHAR(20)
 		
 		,@isExistFTHighestQuarter BIT
-		
-	DECLARE @tmp_ExternalSourceResult TABLE (Matchid INT, SourceId TINYINT, ExHTHomeScore INT, ExHTAwayScore INT, ExFTHomeScore INT, ExFTAwayScore INT)
 
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, GroupId TINYINT, IsUsedGoalRecordValue BIT, IsDetermined BIT, GroupName VARCHAR(50), IsFGLG BIT)
 	INSERT INTO @tmpBettypes (bettype, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName, IsFGLG)
@@ -509,34 +507,6 @@ BEGIN
 		END
 
 	END 
-
-	-- get score from external source and return to web for result comparing
-	DECLARE @queryMatch NVARCHAR(MAX) = ''
-	DECLARE @execSql NVARCHAR(MAX) = ''
-
-	SET @queryMatch = '	
-						SELECT 
-							matchid, SourceId 
-							, MAX(CASE WHEN TypeId = 1 THEN HomeValue END) AS HTHomeScore
-							, MAX(CASE WHEN TypeId = 1 THEN AwayValue END) AS HTAwayScore
-							, MAX(CASE WHEN TypeId = 2 THEN HomeValue END) AS FTHomeScore
-							, MAX(CASE WHEN TypeId = 2 THEN AwayValue END) AS FTAwayScore
-						FROM 
-						(
-							SELECT 
-								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
-								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
-							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
-							WHERE matchid = @matchid AND TypeId IN (1,2) AND SourceId = 1
-						) t
-						WHERE maxDate = 1
-						GROUP BY t.MatchId, SourceId
-						OPTION (MAXRECURSION 0)
-					'
-	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchId int'', @matchid'
-
-	INSERT INTO @tmp_ExternalSourceResult(Matchid, SourceId, ExHTHomeScore, ExHTAwayScore, ExFTHomeScore, ExFTAwayScore)
-	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchId int', @queryMatch, @matchid
 	
     SELECT match.sporttype
         ,match.betstatus
@@ -585,14 +555,8 @@ BEGIN
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
 		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
-		--,exSource.SourceId
-		--,exSource.ExHTHomeScore
-		--,exSource.ExHTAwayScore
-		--,exSource.ExFTHomeScore
-		--,exSource.ExFTAwayScore
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
-		LEFT JOIN @tmp_ExternalSourceResult exSource ON match.matchid = exSource.Matchid
 		INNER JOIN DBPRO.bodb02.dbo.league l WITH (NOLOCK) ON match.leagueid = l.leagueid
 		OUTER APPLY (
 			SELECT TOP(1) CAST(1 AS BIT) AS HasInstantCompleted
