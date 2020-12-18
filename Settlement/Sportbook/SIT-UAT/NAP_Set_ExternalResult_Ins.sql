@@ -28,6 +28,8 @@ AS
 					<Resource Id = "00" Home="2" Away="1"/>
 				</Resources>
 
+	Note: This SP provide to Web with version UAT3 (LOCAL, SIT, UAT)
+
 */
 BEGIN
 	
