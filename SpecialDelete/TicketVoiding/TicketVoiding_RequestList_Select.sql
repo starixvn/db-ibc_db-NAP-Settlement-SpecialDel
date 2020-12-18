@@ -120,19 +120,23 @@ BEGIN
 							END
 	
 	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-	SELECT  rd.RequestId, MIN(m.eventdate)
+	SELECT  rd.RequestId, MIN(tab.eventdate)
 	FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-	INNER JOIN (
-				SELECT	m.matchid, m.eventdate
+	OUTER APPLY (
+			SELECT TOP 1 m.matchid, m.eventdate
+			FROM 
+			(
+				SELECT m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION
+				UNION ALL
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
-				) m
-	ON rd.MatchId = m.matchid
+			) m
+			WHERE rd.MatchId = m.matchid
+	)tab
 	WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-				   WHEN @FilteredBy = 3 AND m.eventdate BETWEEN @FromDate AND @ToDate THEN 1
+				   WHEN @FilteredBy = 3 AND tab.eventdate BETWEEN @FromDate AND @ToDate THEN 1
 				   ELSE 0 END
 	GROUP BY rd.RequestId
 

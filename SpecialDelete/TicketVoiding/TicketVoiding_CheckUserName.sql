@@ -45,9 +45,9 @@ BEGIN
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
-	CREATE TABLE #InputValidCustid_tmp (custid INT)
+	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30) )
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30) )
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -132,12 +132,12 @@ BEGIN
 	END
 
 	-- list of member to process
-	INSERT INTO #InputValidCustid_tmp (CustID)
-	SELECT  CustID
+	INSERT INTO #InputValidCustid_tmp (CustID, Username)
+	SELECT  CustID, Username
 	FROM #InputUsernameList l
 	WHERE l.roleid =1
 	UNION
-	SELECT ci.CustID
+	SELECT ci.CustID, ci.Username
 	FROM #InputValidCustid_2 lt
 		INNER JOIN dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
@@ -165,11 +165,12 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 
-	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype,Username)
 	SELECT	b.translogid AS transid
 			,b.statusID 
 			,b.EventID
 			,b.GameID
+			,c.Username
 	FROM	dbo.translog AS b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 	WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
@@ -179,7 +180,7 @@ BEGIN
 				
 	UNION ALL
 	SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
-			,b.statusID, b.matchid, b.bettype
+			,b.statusID, b.matchid, b.bettype,c.Username
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		OUTER APPLY (
 			SELECT TOP 1 1 LeagueGroupID 
@@ -224,8 +225,11 @@ BEGIN
 					)tmp
 				CROSS APPLY (
 							SELECT TOP 1 MatchId
-							FROM #transIdTemp
+							FROM #transIdTemp t
 							WHERE MatchId= rd.MatchId
+							AND t.Username IN (SELECT TOP 1 Usernames 
+												FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+												WHERE t.MatchId= rd.MatchId)
 					)m
 			WHERE r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
