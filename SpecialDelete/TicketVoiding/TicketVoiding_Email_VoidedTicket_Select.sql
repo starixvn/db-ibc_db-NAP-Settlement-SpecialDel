@@ -342,6 +342,7 @@ BEGIN
 			,m.SettlementStatus
 			,t.LiveIndicator AS IsLive
 			,t.ActualStake
+			,t.MainTransId
 			,CASE 
 			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND LOWER(t.Status) IN ('won', 'lose', 'draw')
 						THEN CASE

@@ -2229,6 +2229,7 @@ BEGIN
 				@SettlementStatus AS SettlementStatus,
 				@GlobalShowTime AS GlobalShowTime,
 				s.ActualStake,
+				s.MainTransId,
 				-----------------------
 				s.custid,
 				s.UserName,

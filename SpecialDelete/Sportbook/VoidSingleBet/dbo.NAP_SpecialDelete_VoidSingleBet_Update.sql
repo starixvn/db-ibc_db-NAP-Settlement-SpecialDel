@@ -2184,6 +2184,7 @@ BEGIN
 			,al.SubHdp1
 			,al.SubHdp2
 			,al.SubOdds
+			,al.MainTransId
 			-----------------------------	
 			,al.custid
 			,al.recommend

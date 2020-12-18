@@ -2760,6 +2760,7 @@ BEGIN
 		,m.SettlementStatus
 		,m.GlobalShowTime
 		,b.actual_stake AS ActualStake
+		,b.MainTransId
 		--------------------
 		,ci.username
 		,ci.username2
