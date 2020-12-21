@@ -348,13 +348,13 @@ BEGIN
 						THEN CASE
 								WHEN ISNULL(mr.IsHTCal, 0) = 0
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() T
-													WHERE T.InstantType IN (1, 3) AND T.bettype = t.bettype)
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (1, 3) AND ib.bettype = t.bettype)
 										THEN CAST(1 AS BIT)
 								WHEN ISNULL(mr.IsHTCal, 0) = 1
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() T
-													WHERE T.InstantType IN (2, 3) AND T.bettype = t.bettype)
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (2, 3) AND ib.bettype = t.bettype)
 										THEN CAST(1 AS BIT)
 								ELSE CAST(0 AS BIT)
 							END
