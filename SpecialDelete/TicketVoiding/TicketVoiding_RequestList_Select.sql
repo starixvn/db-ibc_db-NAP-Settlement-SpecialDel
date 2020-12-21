@@ -37,10 +37,11 @@ AS
 
 	Param's explanation:	
 		@Status: 
-			- 0: All
-			- 1: New
-			- 2: Voided
-			- 3: Incompleted
+			--1: All
+			- 0: New
+			- 1: Running
+			- 2: Completed
+			- 3: Failed
 		
 */
 BEGIN
@@ -128,7 +129,7 @@ BEGIN
 			(
 				SELECT m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
-				UNION ALL
+				UNION
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 			) m
@@ -388,10 +389,11 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN s.statusID IN (1,2) THEN 1 --Running
-				  WHEN s.statusID = 3 THEN 3 -- Failed
-				  WHEN s.statusID = 4 THEN 2 -- Completed
-				  ELSE NULL END AS Status
+			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 'New'
+				WHEN s.statusID IN (1,2) THEN 'Running'
+				WHEN s.statusID = 12 THEN 'Completed'
+				WHEN s.statusID IN (3,13) THEN 'Failed'
+				ELSE NULL END AS Status
 			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 1 THEN 'Settled Tickets'
 				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
 				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
@@ -440,10 +442,11 @@ BEGIN
 		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON s.RequestId = t.RequestID
 
 	WHERE 1 = CASE 
-				WHEN @Status = 0 THEN 1
-				WHEN @Status = 1 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
-				WHEN @Status = 2 AND (t.TotalSingle > 0 OR t.TotalCashOut > 0 OR t.TotalParlay > 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
-				WHEN @Status = 3 AND ((ic.RequestId IS NOT NULL AND ic.StatusId = 1) OR (m.MatchId IS NOT NULL AND ic.StatusId = 2) OR ic.StatusId = 3) THEN 1
+				WHEN @Status = -1 THEN 1
+				WHEN @Status = 0 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
+				WHEN @Status = 1 AND s.statusID IN (1,2) THEN 1 --Running
+				WHEN @Status = 2 AND s.statusID = 12 THEN 2 -- Completed
+				WHEN @Status = 3 AND s.statusID IN (3,13) THEN 3 -- Failed
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC

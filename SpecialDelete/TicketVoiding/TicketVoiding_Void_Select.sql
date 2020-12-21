@@ -937,6 +937,7 @@ BEGIN
 				GroupID
 				,bettype
 				,transid
+				,SubTransid
 				,betid
 				,refno	
 				,hdp1
@@ -969,6 +970,7 @@ BEGIN
 			b.translogID AS GroupID
 			,b.GameID
 			,b.translogID as transid
+			,b.translogID as SubTransid
 			,0 AS BetID
 			,b.translogID refno	
 			,0 hdp1
@@ -1011,7 +1013,8 @@ BEGIN
 		INSERT INTO #SpecialDeleteBets (
 			GroupID			
 			,bettype		
-			,transid		
+			,transid
+			,SubTransid		
 			,betid			
 			,refno		
 			,hdp1			
@@ -1050,6 +1053,7 @@ BEGIN
 			b.refno AS GroupId
 			,b.bettype
 			,b.transid
+			,b.transid AS SubTransid	
 			,isnull(b.BetID, 0) AS BetID
 			,b.refno			
 			,b.hdp1
@@ -1110,6 +1114,7 @@ BEGIN
 			b.transid AS GroupId
 			,b.bettype
 			,b.transid
+			,b.transid AS SubTransid	
 			,isnull(b.BetID, 0) AS BetID
 			,b.refno			
 			,b.hdp1

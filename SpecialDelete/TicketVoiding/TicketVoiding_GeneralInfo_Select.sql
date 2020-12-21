@@ -20,13 +20,14 @@ BEGIN
 
 	DECLARE @IsMovebet BIT = 0
 			,@VoidingHistoryId INT
-			,@xmlVoidData XML
+			,@xmlVoidData XML = NULL
+			,@xmlVoidResults XML = NULL
 
 	CREATE TABLE #TmpMatch (RequestId INT, Homeid INT, Awayid INT, leagueid INT, RequestedBy INT, DecidedBy NVARCHAR(200))
 	
-	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, IsFinish BIT)
+	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE (RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
-	DECLARE @tmpVoidBetAutomation_Service TABLE (matchid INT, NegativeBalanceUsers VARCHAR(MAX), Emails VARCHAR(MAX))
+	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult XML)
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy)
 	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy
@@ -59,12 +60,14 @@ BEGIN
 			Total			 INT,
     );
 
-	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy) 
+	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy, VoidResults) 
 	SELECT	 VoidingHistoryId
 			,VoidData
 			,UserId AS VoidedBy
+			,s.VoidResults
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-	WHERE	RequestId = @RequestId AND StatusId IN (2,3)
+	LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistory
+	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
 
 	-- single ticket
 	INSERT INTO #tmpTicket (RequestId,TransId, matchid, Status, VoidedTime, custid, Refno, Bettype, VoidedBy, VoidingHistoryId)
@@ -184,7 +187,10 @@ BEGIN
 	WHILE (1=1)
 	BEGIN
 		UPDATE TOP(1) t
-		SET IsFinish = 1, @xmlVoidData = T.VoidData, @VoidingHistoryId = T.VoidingHistoryId
+		SET IsFinish = 1
+			,@xmlVoidData = T.VoidData
+			,@VoidingHistoryId = T.VoidingHistoryId
+			,@xmlVoidResults = T.VoidResults
 		FROM @tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
@@ -196,10 +202,17 @@ BEGIN
 				, T.C.value('@ContentEnglish', 'NVARCHAR(4000)')
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
+
+		INSERT INTO @tmpVoidResults (VoidingHistoryId,VoidResult)
+		SELECT  @VoidingHistoryId
+				,T.C.value('@EmailResult', 'VARCHAR(MAX)') AS VoidResult
+		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
+		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END
 
 	SELECT DISTINCT
-		 s.VoidedTime
+		 s.VoidingHistoryId
+		,s.VoidedTime
 		,CAST (m.Homeid AS VARCHAR(10)) + ' - vs - '+ CAST (m.Awayid AS VARCHAR(10)) AS MatchEvent
 		,m.leagueid 
 		,STUFF((SELECT DISTINCT  ',' + CAST( m.LicenseeName AS VARCHAR(20))
@@ -214,17 +227,17 @@ BEGIN
 		,s.VoidedBy
 		,cm.ContentChineseSimplified
 		,cm.ContentEnglish
-		,p.VoidResults
-		,p.NegativeBalanceUsers
+		,sv.NegativeBalanceUsers
 	FROM #tmpTicket s
 	INNER JOIN #TmpMatch m ON s.RequestId = m.RequestId
-	OUTER APPLY (	SELECT sv.NegativeBalanceUsers,
-							sv.VoidResults.value('(VoidResults/VoidResult/@EmailResult)[1]', 'varchar(max)') AS VoidResults
-					FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
-					WHERE s.RequestId = sv.RequestID
-				)p
+	LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK)  
+				ON s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
-	
+
+	SELECT VoidingHistoryId
+		  ,VoidResult
+	FROM @tmpVoidResults
+
 	DROP TABLE #TmpMatch
 	DROP TABLE #tmpTicket
 
