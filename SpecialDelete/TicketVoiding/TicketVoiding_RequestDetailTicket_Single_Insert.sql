@@ -138,130 +138,38 @@ BEGIN
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
 	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT)
-	CREATE TABLE #TransidInRequest (TransId BIGINT, MatchId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
-	/************************************************   *********************************************/
-	DECLARE @Status_tmp TABLE (StatusId TINYINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, isFinish BIT)
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30), isFinish BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT) -- list custid roleid = 2 for SMA
-	CREATE TABLE #InputValidCustid_tmp (custid INT)
-	CREATE TABLE #TmpMatch( matchid INT) 
-
-	IF @UserNames IS NOT NULL
-	BEGIN
-
-		SELECT @moveBetDay14 = MAX(winlostdate) 
-		FROM dbo.bettrans14 WITH(NOLOCK)
-
-		SELECT @moveBetDay = MAX(winlostdate) 
-		FROM dbo.bettrans WITH(NOLOCK)
-	
-		SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-			 , @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-			 , @ToDate 		= ISNULL(@ToDate, @moveBetDay)
-	
-		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
-
-		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
-				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
-				, @IsBB = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
-				, @IsOutright = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
-				, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
-				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
-	
-		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.val
-			  ,ci.custid
-			  ,ci.roleid
-		FROM dbo.f_SplitString(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
-		WHERE ci.custid IS NOT NULL
-			AND val <> ''
-		OPTION (MAXRECURSION 0)
-
-		-- get SMA roleid = 2
-		INSERT INTO #InputValidCustid_2 (custid)		
-		SELECT l.custid
-		FROM #InputUsernameList l
-		WHERE l.roleid = 2
-
-		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
-		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid)	
-			SELECT ci.custid
-			FROM #InputUsernameList l
-				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
-			WHERE l.roleid = 3 AND ci.roleid = 2
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
-		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid)
-			SELECT ci.custid
-			FROM #InputUsernameList l
-				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-			WHERE l.roleid = 4 AND ci.roleid = 2	
-		END
-
-		-- list of member to process
-		INSERT INTO #InputValidCustid_tmp (custid)
-		SELECT  CustID
-		FROM #InputUsernameList l
-		WHERE l.roleid =1
-		UNION 
-		SELECT ci.custid
-		FROM #InputValidCustid_2 lt
-			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
-			ON lt.custid = ci.recommend
-		WHERE ci.roleid = 1
-
-		INSERT INTO #TmpMatch(matchid)
-		SELECT  DISTINCT b.matchid 
-		FROM #InputValidCustid_tmp c 
-		CROSS APPLY (
-						SELECT b.matchid
-						FROM dbo.bettrans b WITH(NOLOCK)
-						WHERE c.custid = b.custid AND b.matchid <> 0 
-					)b
-	END
-
-	/************************************************   *********************************************/
-
-	SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
-		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
-	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
-	WHERE RequestId= @RequestId
-
-	INSERT INTO #TransidInRequest (TransId, MatchId)
-	SELECT tmp.transid, rd.MatchId
-	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		CROSS APPLY (
-					SELECT TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = req.RequestId
-				) AS tmp
-	WHERE 1 = CASE WHEN @MatchId <> 0 AND rd.MatchId = @MatchId THEN 1
-				   WHEN @MatchId = 0  AND EXISTS  (SELECT TOP 1 1 FROM #TmpMatch m 
-												   WHERE rd.MatchId = m.matchid )
-				   THEN 1 -- abnormal account
-				   ELSE 0 END
-			  AND req.RequestId <> @RequestId AND req.ActionId <> 2
+	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30))
 
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
-		
+		SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
+				,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
+		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
+		WHERE RequestId= @RequestId
+
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT tmp.transid
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			CROSS APPLY (
+						SELECT TransId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE RequestId = req.RequestId
+					) AS tmp
+		WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
 		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -413,13 +321,82 @@ BEGIN
 		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)
 	END
-	ELSE IF @IssueTypeId = 13 --Abnormal Account
+	ELSE IF @IssueTypeId = 13  AND @UserNames IS NOT NULL --Abnormal Account
 	BEGIN
 		IF @IsEditRequest = 1
 		BEGIN
 			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
 			WHERE RequestId = @RequestId
 		END
+
+		SELECT @moveBetDay14 = MAX(winlostdate) 
+		FROM dbo.bettrans14 WITH(NOLOCK)
+
+		SELECT @moveBetDay = MAX(winlostdate) 
+		FROM dbo.bettrans WITH(NOLOCK)
+	
+		SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
+			 , @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			 , @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+	
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@StatusIds, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+
+		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsBB = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsOutright = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
+				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
+	
+		INSERT INTO #InputUsernameList (Username, custid, roleid)
+		SELECT l.val
+			  ,ci.custid
+			  ,ci.roleid
+		FROM dbo.f_SplitString(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
+		WHERE ci.custid IS NOT NULL
+			AND val <> ''
+		OPTION (MAXRECURSION 0)
+
+		-- get SMA roleid = 2
+		INSERT INTO #InputValidCustid_2 (custid)		
+		SELECT l.custid
+		FROM #InputUsernameList l
+		WHERE l.roleid = 2
+
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid)	
+			SELECT ci.custid
+			FROM #InputUsernameList l
+				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+			WHERE l.roleid = 3 AND ci.roleid = 2
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
+		BEGIN
+			INSERT INTO #InputValidCustid_2 (custid)
+			SELECT ci.custid
+			FROM #InputUsernameList l
+				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
+			WHERE l.roleid = 4 AND ci.roleid = 2	
+		END
+
+		-- list of member to process
+		INSERT INTO #InputValidCustid_tmp (custid, Username)
+		SELECT  l.CustID, l.Username
+		FROM #InputUsernameList l
+		WHERE l.roleid =1
+		UNION 
+		SELECT ci.custid, ci.username
+		FROM #InputValidCustid_2 lt
+			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
+			ON lt.custid = ci.recommend
+		WHERE ci.roleid = 1
 
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
@@ -442,9 +419,12 @@ BEGIN
 			AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 
 
-		INSERT INTO #transIdTemp (transid,statusID)
+		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype, Username)
 		SELECT	b.translogid AS transid
 				,b.statusID  -- add new
+				,b.eventID
+				,b.gameID
+				,c.Username
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
@@ -455,6 +435,9 @@ BEGIN
 		UNION ALL
 		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
 				,b.statusID
+				,b.matchid
+				,b.bettype
+				,c.Username
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -478,13 +461,38 @@ BEGIN
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
 
-		--If all data are valid, Mark all running tickets
-		IF @ActionId <> 2 -- store tickets of 'Manual Void', 'Waiting' & 'Void Instant' request
+		-- Check exists in the request
+		IF @ActionId NOT IN (2)
 		BEGIN
+			INSERT INTO #TransidInRequest (TransId)
+			SELECT tmp.transid
+				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+					INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+					CROSS APPLY (
+								SELECT rs.TransId, rs.TransId AS MainTransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+								WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
+						)tmp
+					CROSS APPLY (
+								SELECT TOP 1 MatchId
+								FROM #transIdTemp t
+								WHERE MatchId= rd.MatchId
+								AND t.Username IN (SELECT TOP 1 Usernames 
+													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+													WHERE t.MatchId = rd.MatchId)
+						)m
+				WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+				AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+			
 			-- Remove transid exists request
 			DELETE 
 			FROM #transIdTemp
 			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+		END
+
+		--If all data are valid, Mark all running tickets
+		IF @ActionId <> 2 -- store tickets of 'Manual Void', 'Waiting' & 'Void Instant' request
+		BEGIN
 			
 			-- Mark Ticket
 			WHILE (1=1)
@@ -599,7 +607,7 @@ BEGIN
 				,- b.actual_stake as winlost
 				,b.transdesc
 				,-1 -- normal ticket
-				,username
+				,b.username
 				,recommend
 				,b.CurrencyName
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
@@ -1477,5 +1485,4 @@ BEGIN
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #transIdTemp
-	DROP TABLE #TmpMatch
 END
