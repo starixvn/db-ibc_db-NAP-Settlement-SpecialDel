@@ -19,25 +19,8 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	IF (@RequestId = 0)
-	BEGIN		
-		DECLARE @Session INT = 0
-
-		SELECT @Session = (SELECT MIN(SessionID) 
-							FROM dbo.Ticketvoiding_VoidBetAutomation_Service vbs WITH(NOLOCK) 
-							WHERE statusID = 12 AND NOT EXISTS (
-								SELECT TOP 1 1
-								FROM dbo.Ticketvoiding_VoidBetAutomation_Service temp WITH(NOLOCK)
-								WHERE vbs.SessionID = temp.SessionID AND temp.statusID = 3
-							))
-	
-		IF @Session IS NULL
-		BEGIN
-			RETURN
-		END
-	
-		SELECT tvs.RequestID
-			, tvs.VoidingHistory
+	SELECT tvs.RequestID
+			, tvs.VoidingHistory AS VoidingHistoryId
 			, tvs.statusID
 			, tvs.matchID
 			, tvs.SessionID
@@ -52,15 +35,6 @@ BEGIN
 			, tvs.IsUpdatedVoidingHistory
 			, tvs.IsSentEmail
 			, tvs.IsSentLetsTalk
-		FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH (NOLOCK)
-		WHERE tvs.SessionID = @Session 
-	END
-	ELSE
-	BEGIN
-		SELECT RequestID
-			,VoidingHistory AS VoidingHistoryId
-			,statusID
-		FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH(NOLOCK) 
-		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryID
-	END
+	FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH(NOLOCK) 
+	WHERE tvs.RequestID = @RequestId AND tvs.VoidingHistory = @VoidingHistoryID
 END
