@@ -8,6 +8,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -30,6 +31,10 @@ BEGIN
 			,@FailedTransIds	VARCHAR(MAX)
 			,@NegativeBalanceUsers VARCHAR(MAX)
 
+	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
+	SET @RetryCnt = 0
+
+
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
 		,QueueId		INT
@@ -39,6 +44,10 @@ BEGIN
 		,UserId			INT
 		,IP				VARCHAR(50)
 		,IsFinished		BIT DEFAULT(0)
+	)
+
+	DECLARE @tmpVoidBetAutomation_Service TABLE (
+		RequestID	INT
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -73,6 +82,12 @@ BEGIN
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 			AND StatusId = 0
 
+	INSERT INTO @tmpVoidBetAutomation_Service (RequestID)
+	SELECT DISTINCT t.RequestId
+	FROM @tmpQueue t
+
+	TryAgain:
+
 	WHILE(1 = 1)
 	BEGIN
 		UPDATE	TOP (1) q 
@@ -100,6 +115,15 @@ BEGIN
 				,Exectime = GETDATE()
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	q.QueueId = @QueueId
+	
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = RequestID AND VoidingHistory = @VoidingHistoryId)
+		BEGIN
+			DECLARE @sessionID INT = 0
+			SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+
+			INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
+			SELECT @RequestId, @VoidingHistoryId,1,@MatchId,@sessionID,0
+		END
 
 		BEGIN TRY
 			EXEC dbo.TicketVoiding_Ticket_Update 
@@ -133,6 +157,12 @@ BEGIN
 				,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	QueueId = @QueueId
+
+		UPDATE s WITH (ROWLOCK, UPDLOCK)
+			SET s.statusID = @StatusId
+		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
+
 	END
 END
 GO

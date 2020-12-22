@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@IP			VARCHAR(50)		= '125.227.140.97'
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	,@VoidingHistoryId INT = 0 OUTPUT
 AS
 /*	Created by: Helen
 	Date 20200212
@@ -25,6 +26,7 @@ AS
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -725,7 +727,20 @@ BEGIN
 			,INSERTED.VoidingHistoryId
 	INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
 	SELECT RequestID,@UserId, 1, TransIds
-	FROM @AutoVoid_ValidRequest v  
+	FROM @AutoVoid_ValidRequest v
+	
+	SELECT @VoidingHistoryId = ISNULL((SELECT MAX(VoidingHistoryId) FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK)),0)
+
+	-- Insert for WEB Auto Service PROCESS
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = RequestID AND VoidingHistory = @VoidingHistoryId)
+	BEGIN
+		DECLARE @sessionID INT = 0
+		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+	
+		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID)
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,@MatchId,@sessionID
+		FROM @VoidingHistory_tmp vh
+	END
 	
 	BEGIN TRY
 			  
@@ -1127,13 +1142,7 @@ BEGIN
 		CROSS APPLY (SELECT COUNT(1) AS TotalTicket
 					FROM #tmpTransId_VOID_RequestID t
 					WHERE t.RequestID = vh.RequestID) AS tmp
-	-- Insert for WEB Auto Service PROCESS
-	DECLARE @sessionID INT = 0
-	SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 	
-	INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,NegativeBalanceUsers)
-	SELECT vh.RequestID, vh.VoidingHistoryId,0,@MatchId,@sessionID,@NegativeBalanceUsers
-	FROM @VoidingHistory_tmp vh
 		
 	-- Write Log
 	DECLARE @allTransId_Void VARCHAR(MAX) = ''

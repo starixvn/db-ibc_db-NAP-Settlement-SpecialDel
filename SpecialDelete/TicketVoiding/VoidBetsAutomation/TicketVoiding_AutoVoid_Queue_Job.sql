@@ -15,6 +15,7 @@ AS
 		- 20200513@Helen: TVS insert into Queue multi when edit request [Redmine:#134107]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		
 	Param's explanation:	
 	
@@ -56,6 +57,7 @@ BEGIN
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
+			,@VoidingHistoryId INT = 0
 
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
@@ -148,6 +150,7 @@ BEGIN
 				,@IP = @IP
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
+				,@VoidingHistoryId = @VoidingHistoryId OUTPUT
 			
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -172,7 +175,12 @@ BEGIN
 					,StatusId = 3
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-				WHERE	QueueId = @QueueId 					
+				WHERE	QueueId = @QueueId 	
+				
+				UPDATE s WITH (ROWLOCK, UPDLOCK)
+					SET s.statusID = 3
+				FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+				WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
 			END
 		END
 		ELSE
@@ -183,6 +191,11 @@ BEGIN
 					,ErrMsg = @ErrMsg
 			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
 			WHERE q.QueueId = @QueueId
+			
+			UPDATE s WITH (ROWLOCK, UPDLOCK)
+				SET s.statusID = 2
+			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+			WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
 		END
 			
 	END
