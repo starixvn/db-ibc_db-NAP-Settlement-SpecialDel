@@ -235,7 +235,7 @@ BEGIN
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 
 	SELECT VoidingHistoryId
-		  ,VoidResult
+		  ,VoidResult AS Emails
 	FROM @tmpVoidResults
 
 	DROP TABLE #TmpMatch
