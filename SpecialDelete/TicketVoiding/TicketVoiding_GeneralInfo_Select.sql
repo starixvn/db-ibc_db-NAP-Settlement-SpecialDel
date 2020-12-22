@@ -27,7 +27,7 @@ BEGIN
 	
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE (RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
-	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult XML)
+	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult VARCHAR(MAX))
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy)
 	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy

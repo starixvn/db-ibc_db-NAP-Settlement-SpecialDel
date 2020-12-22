@@ -253,8 +253,10 @@ BEGIN
 							  FOR XML PATH ('')
 							),1,1,'')
 
-	SELECT @NumberOfTickets = COUNT (transid) 
-	FROM #TransidInRequest
+	SELECT @NumberOfTickets = COUNT (t.transid) 
+	FROM #TransidInRequest t
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
+	WHERE b.winlostdate BETWEEN @FromDate AND @ToDate
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp b WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.transid))
 	BEGIN

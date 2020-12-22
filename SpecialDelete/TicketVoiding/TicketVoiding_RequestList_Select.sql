@@ -60,10 +60,6 @@ BEGIN
 		,TotalParlay		INT
 	)
 
-	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
-	DECLARE  @query NVARCHAR(MAX) = ''
-		, @ExecuteSQL NVARCHAR(MAX) = ''
-
 	CREATE TABLE #tmpResult (
 		 RequestId		INT
 		,SubIssueTypeId SMALLINT
@@ -98,7 +94,6 @@ BEGIN
 	DECLARE @MatchidList_Waiting_30minutes_tmp TABLE (MatchId INT)
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
-	CREATE TABLE #Incompleted_tmp (RequestId INT, StatusId TINYINT)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
 	SELECT DISTINCT val
@@ -119,13 +114,64 @@ BEGIN
 										ELSE 3 -- Fromdate, Todate
 									END
 							END
+	-- Get eventdate of match
+	IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+							   WHERE matchid = 29
+							   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+											WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+											WHEN @FilteredBy = 3 THEN 1
+											ELSE 0 END
+	)
+	BEGIN
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId,MIN(b.winlostdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
+		WHERE rd.matchid = 29
+		AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+				   WHEN @FilteredBy = 3 AND b.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
+				   ELSE 0 END
+		GROUP BY rd.RequestId
+	END
+	IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
+				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+				INNER JOIN 	(SELECT o.orid, o.eventdate
+							 FROM	dbo.outright o WITH(NOLOCK)
+							 UNION
+							 SELECT	o14.orid, o14.eventdate
+							 FROM	dbo.outright14 o14 WITH(NOLOCK)
+							)o ON rd.MatchId = o.orid
+				WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+											WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+											WHEN @FilteredBy = 3 THEN 1
+											ELSE 0 END
+						
+				)
+	BEGIN
+
+	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		SELECT  rd.RequestId, MIN(o.eventdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+		INNER JOIN
+				(SELECT o.orid, o.eventdate
+				FROM	dbo.outright o WITH(NOLOCK)
+				UNION
+				SELECT	o14.orid, o14.eventdate
+				FROM	dbo.outright14 o14 WITH(NOLOCK)
+				)o ON rd.MatchId = o.orid
+		WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+					   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					   WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
+					   ELSE 0 END
+		GROUP BY rd.RequestId
+	END
 	
 	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-	SELECT  rd.RequestId, MIN(tab.eventdate)
+	SELECT rd.RequestId, MIN(m.eventdate)
 	FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-	OUTER APPLY (
-			SELECT TOP 1 m.matchid, m.eventdate
-			FROM 
+	INNER JOIN
 			(
 				SELECT m.matchid, m.eventdate
 				FROM	dbo.match m WITH(NOLOCK)
@@ -133,12 +179,11 @@ BEGIN
 				SELECT	m14.MatchId, m14.eventdate
 				FROM	dbo.match14 m14 WITH(NOLOCK)
 			) m
-			WHERE rd.MatchId = m.matchid
-	)tab
+			ON rd.MatchId = m.matchid
 	WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-				   WHEN @FilteredBy = 3 AND tab.eventdate BETWEEN @FromDate AND @ToDate THEN 1
-				   ELSE 0 END
+					WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					WHEN @FilteredBy = 3 AND m.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
+					ELSE 0 END
 	GROUP BY rd.RequestId
 
 	IF @FilteredBy = 1
@@ -169,7 +214,11 @@ BEGIN
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			INNER JOIN @MinEventDate_tmp m 
+			INNER JOIN (
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						FROM @MinEventDate_tmp m
+						GROUP BY RequestID
+						)m
 				ON r.RequestId = m.RequestID
 		WHERE	r.RequestId = @RequestId
 					   		
@@ -209,7 +258,11 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			INNER JOIN @MinEventDate_tmp m 
+			INNER JOIN (
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						FROM @MinEventDate_tmp m
+						GROUP BY RequestID
+						)m
 				ON r.RequestId = m.RequestID
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
@@ -245,7 +298,11 @@ BEGIN
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			INNER JOIN @MinEventDate_tmp m 
+			INNER JOIN (
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						FROM @MinEventDate_tmp m
+						GROUP BY RequestID
+						)m
 				ON r.RequestId = m.RequestID
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
@@ -326,46 +383,6 @@ BEGIN
 			WHERE	vh.RequestId = t.RequestId
 					AND vh.MatchId = t.MatchId
 		) vh
-	
-	--Incompleted Request	
-	IF @Status IN (0,3)
-	BEGIN
-
-		INSERT INTO @MatchidList_Waiting_30minutes_tmp (MatchId)
-		SELECT DISTINCT matchid
-		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-		WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30
-
-		SELECT  @query = N''		
-		SELECT	@query = @query + N'SELECT Custid 
-									FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-									'
-		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-		INSERT INTO @VIPAccount_tmp(CustID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-	
-		INSERT INTO #Incompleted_tmp (RequestId, StatusId)
-		SELECT RequestId, statusID
-		FROM #tmpResult t
-			CROSS APPLY (
-						SELECT TOP 1 f.val AS transid
-							,b.statusID
-						FROM dbo.f_SplitString(t.TransIds, ',') f
-							CROSS APPLY (
-										SELECT TOP 1 CASE WHEN statusID = 112 THEN 1 --Settled Tickets
-											WHEN v.CustID IS NOT NULL AND statuswinlost IN (1,2) AND statusID IN (0,1) THEN 3 --VIP Customer Tickets.
-											WHEN statuswinlost IN (1,2) AND statusID IN (0,1) THEN 2 --Auto Void Failed
-											ELSE 0 END AS statusID
-										FROM bettrans b WITH (NOLOCK)
-											LEFT JOIN @VIPAccount_tmp v ON v.CustID = b.custid
-										WHERE transid = f.val
-											AND statusID IN (0,1,112)
-									) b
-						WHERE statusID IN (1,2,3)
-					) AS tmp
-		WHERE t.ActionId IN (1,4,5)
-		OPTION (maxrecursion 0)		
-	END
 
 	--Return Data
 	SELECT	DISTINCT t.RequestId
@@ -389,15 +406,11 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN ''
+			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND m.MatchId IS NULL THEN ''
 				WHEN s.statusID IN (1,2) THEN 'Running'
 				WHEN s.statusID = 12 THEN 'Completed'
 				WHEN s.statusID IN (3,13) THEN 'Failed'
 				ELSE NULL END AS Status
-			,CASE WHEN ic.RequestId IS NOT NULL AND ic.StatusId = 1 THEN 'Settled Tickets'
-				WHEN m.MatchId IS NOT NULL AND ic.StatusId = 2 THEN 'Auto Void Failed'
-				WHEN ic.StatusId = 3 THEN 'VIP Customer Tickets.'
-				ELSE NULL END AS IncompletedReason
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
@@ -411,11 +424,6 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
-		OUTER APPLY (
-					SELECT RequestId, StatusId
-					FROM #Incompleted_tmp
-					WHERE RequestId = t.RequestId
-			)ic
 		OUTER APPLY (
 					SELECT MatchId
 					FROM @MatchidList_Waiting_30minutes_tmp
@@ -443,15 +451,14 @@ BEGIN
 
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND ic.RequestId IS NULL AND m.MatchId IS NULL THEN 1
+				WHEN @Status = 0 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND m.MatchId IS NULL THEN 1
 				WHEN @Status = 1 AND s.statusID IN (1,2) THEN 1 --Running
-				WHEN @Status = 2 AND s.statusID = 12 THEN 2 -- Completed
-				WHEN @Status = 3 AND s.statusID IN (3,13) THEN 3 -- Failed
+				WHEN @Status = 2 AND s.statusID = 12 THEN 1 -- Completed
+				WHEN @Status = 3 AND s.statusID IN (3,13) THEN 1 -- Failed
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC
 	
 	DROP TABLE #tmpResult
-	DROP TABLE #Incompleted_tmp
 	
 END
