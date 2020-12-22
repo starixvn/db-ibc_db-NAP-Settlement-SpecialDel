@@ -213,23 +213,28 @@ BEGIN
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId)
 		SELECT tmp.transid, rd.RequestId, tmp.MainTransId
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
-				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
-					)tmp
-				CROSS APPLY (
-							SELECT TOP 1 MatchId
-							FROM #transIdTemp t
-							WHERE MatchId= rd.MatchId
-							AND t.Username IN (SELECT TOP 1 Usernames 
-												FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-												WHERE t.MatchId = rd.MatchId)
-					)m
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
+				)tmp
+			CROSS APPLY (
+						SELECT TOP 1 Username, MatchId
+						FROM #transIdTemp
+						WHERE MatchId = rd.MatchId
+				)t
+		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
+							WHEN r.IssueTypeId = 13 
+								AND t.Username IN (SELECT TOP 1 Usernames 
+													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+													WHERE t.MatchId = rd.MatchId
+													    AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+								) THEN 1
+							ELSE 0 END
+				
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN

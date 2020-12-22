@@ -141,7 +141,7 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
-	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT, ProductID TINYINT)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
@@ -323,12 +323,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13  AND @UserNames IS NOT NULL --Abnormal Account
 	BEGIN
-		IF @IsEditRequest = 1
-		BEGIN
-			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
-			WHERE RequestId = @RequestId
-		END
-
+		
 		SELECT @moveBetDay14 = MAX(winlostdate) 
 		FROM dbo.bettrans14 WITH(NOLOCK)
 
@@ -398,8 +393,8 @@ BEGIN
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
 
-		INSERT INTO @bettype_tmp (bettype)
-		SELECT DISTINCT pt.bettype
+		INSERT INTO @bettype_tmp (bettype, ProductID)
+		SELECT DISTINCT pt.bettype, pt.ProductID
 		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 		WHERE 1 = CASE WHEN @UserNames IS NULL THEN 1
 					ELSE CASE
@@ -472,20 +467,38 @@ BEGIN
 						WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
 				)tmp
 			CROSS APPLY (
-						SELECT TOP 1 MatchId
-						FROM #transIdTemp t
-						WHERE MatchId= rd.MatchId
-						AND t.Username IN (SELECT TOP 1 Usernames 
-											FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-											WHERE t.MatchId = rd.MatchId)
-				)m
+					SELECT TOP 1 Username, MatchId
+					FROM #transIdTemp
+					WHERE MatchId = rd.MatchId
+			)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-		AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
+							 WHEN r.IssueTypeId = 13 
+								AND t.Username IN (SELECT TOP 1 Usernames 
+													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+													WHERE t.MatchId = rd.MatchId
+														AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+								) THEN 1
+							ELSE 0 END
 			
+		--Edit from to time of Abnormal account issue -> unmark ticket change void time
+		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
+												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
+												  AND rdt.RequestId = @RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+		IF @RemoveTransIds IS NOT NULL
+		BEGIN
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
+		END
+
 		--If all data are valid, Mark all running tickets
 		IF @ActionId <> 2 -- store tickets of 'Manual Void', 'Waiting' & 'Void Instant' request
 		BEGIN
-			
 			-- Remove transid exists request
 			DELETE 
 			FROM #transIdTemp
@@ -501,7 +514,9 @@ BEGIN
 				OUTPUT DELETED.TransId, DELETED.StatusId					
 				INTO @tmpTransIDBatch(TransId, StatusId)
 				FROM #transIdTemp t
+					INNER JOIN @bettype_tmp pt ON t.bettype = pt.bettype
 				WHERE isFinish IS NULL
+					AND t.bettype NOT BETWEEN 801 AND 806 AND pt.ProductID NOT IN (3,5,27) -- Not mark ticket Metric Gaming, Number Game, Virtual Sport, Virtual Sports 2
 					  
 				IF @@ROWCOUNT = 0 BREAK
 				
@@ -896,6 +911,13 @@ BEGIN
 		BEGIN
 			DELETE FROM #SpecialDeleteBets WHERE betdaqid = 0 AND extrainfo IS NULL
 		END
+
+		IF @IsEditRequest = 1
+		BEGIN
+			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
+			WHERE RequestId = @RequestId
+		END
+
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			,@IssueTypeId

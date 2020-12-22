@@ -34,6 +34,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
     ,@ToDate				DATETIME     = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
+	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
+	,@NegativeBalanceUsers  VARCHAR(MAX) = ''	OUTPUT
 )
 AS
 /*	Created by: Kathy
@@ -105,15 +107,13 @@ BEGIN
 			,@IsNonSport			 BIT = 0
 			,@moveBetDay14 			 SMALLDATETIME
 			,@moveBetDay 			 SMALLDATETIME
-			,@FailedTransIds		VARCHAR(MAX) = NULL	
-			,@NegativeBalanceUsers  VARCHAR(MAX) = ''	
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
-	CREATE TABLE #TempEditMatchID ( MatchID INT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
-	CREATE TABLE #TempMatch (MatchID INT)
+	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
+	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
@@ -311,31 +311,38 @@ BEGIN
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT tmp.transid
-				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-					INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
-					CROSS APPLY (
-								SELECT rs.TransId, rs.TransId AS MainTransId
-								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-								WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
-						)tmp
-					CROSS APPLY (
-								SELECT TOP 1 MatchId
-								FROM #transIdTemp t
-								WHERE MatchId= rd.MatchId
-								AND t.Username IN (SELECT TOP 1 Usernames 
-													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-													WHERE t.MatchId = rd.MatchId)
-						)m
-				WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+				CROSS APPLY (
+							SELECT rs.TransId, rs.TransId AS MainTransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+							WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
+					)tmp
+				CROSS APPLY (
+				SELECT TOP 1 Username, MatchId
+				FROM #transIdTemp
+				WHERE MatchId = rd.MatchId
+			)t
+			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
+								WHEN r.IssueTypeId = 13 
+									AND t.Username IN (SELECT TOP 1 Usernames 
+														FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+														WHERE t.MatchId = rd.MatchId
+															AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+									) THEN 1
+								ELSE 0 END
 
 			DELETE 
 			FROM #transIdTemp
 			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		END
 
-		INSERT INTO #TempMatch(matchid)
-		SELECT  DISTINCT matchid 
+		INSERT INTO #TempMatch(MatchId, IsOutright)
+		SELECT  DISTINCT matchid,
+				CASE WHEN bettype <> 10 THEN 0 
+					 WHEN bettype = 10 THEN 1 
+					 ELSE NULL END
 		FROM #transIdTemp
 		
 		SELECT   @OldUserNames	 = UserNames
@@ -346,13 +353,13 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK)
 		WHERE RequestId = @RequestId 
 
-		INSERT INTO #TempEditMatchID (MatchID, IsFlag)
-		SELECT rd.MatchId, 0 -- remove match
+		INSERT INTO #TempEditMatchID (MatchID, IsOutright, IsFlag)
+		SELECT rd.MatchId,0, 0 -- remove match
 		FROM  dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 		WHERE  NOT EXISTS ( SELECT TOP 1 1 FROM #TempMatch m WHERE rd.MatchId = m.MatchID)
 			 AND rd.RequestId = @RequestId
 		UNION ALL
-		SELECT m.MatchId, 1  -- add match
+		SELECT m.MatchId,m.IsOutright, 1  -- add match
 		FROM  #TempMatch m
 		OUTER APPLY  (
 					SELECT rd.MatchId
@@ -368,7 +375,28 @@ BEGIN
 					INNER JOIN #TempEditMatchID e ON  rd.MatchId = e.MatchID
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
-		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1)
+			IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0)
+		BEGIN
+				INSERT INTO dbo.TicketVoiding_RequestDetail 
+				(
+					RequestId
+					, MatchId
+					, LeagueId
+					, HomeId
+					, AwayId
+					, RequestType
+				)
+				SELECT @RequestId
+					, e.MatchID
+					, ISNULL(m.leagueid, 0) 
+					, ISNULL(m.homeid, 0) 
+					, ISNULL(m.awayid, 0) 
+					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				FROM #TempEditMatchID e 
+					LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
+				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
+		END  
+		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
 		BEGIN
 				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(
@@ -382,11 +410,12 @@ BEGIN
 				SELECT @RequestId
 					, e.MatchID
 					, m.leagueid
-					, m.homeid
-					, m.awayid
+					, m.teamid
+					, 0
 					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 				FROM #TempEditMatchID e 
-					INNER JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid AND e.IsFlag = 1		
+					INNER JOIN dbo.outright m WITH(NOLOCK) ON e.MatchID = m.orid
+				WHERE e.IsFlag = 1	AND e.IsOutright = 1		
 		END  
 		
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
@@ -597,11 +626,11 @@ BEGIN
 		END
 		IF @OldFromDate <> @FromDate
 		BEGIN
-			SET @LogDataContent += ' Old From Winlost Date: ' + CONVERT(VARCHAR(30), @OldFromDate, 21) + ' New From Winlost Date: ' + CONVERT(VARCHAR(30), @FromDate, 21)
+			SET @LogDataContent += ' Old From Date: ' + CONVERT(VARCHAR(10), @OldFromDate) + ' New From Date: ' + CONVERT(VARCHAR(10), @FromDate)
 		END
 		IF @OldToDate <> @ToDate
 		BEGIN
-			SET @LogDataContent += ' Old To Winlost Date: ' + CONVERT(VARCHAR(30), @OldToDate, 21) + ' New To Winlost Date: ' + CONVERT(VARCHAR(30), @ToDate, 21)
+			SET @LogDataContent += ' Old To Date: ' + CONVERT(VARCHAR(10), @OldToDate) + ' New To Date: ' + CONVERT(VARCHAR(10), @ToDate)
 		END
 		
 	END

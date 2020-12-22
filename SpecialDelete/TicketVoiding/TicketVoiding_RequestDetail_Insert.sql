@@ -90,7 +90,7 @@ BEGIN
 			,@moveBetDay 		 SMALLDATETIME			
 
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
-	CREATE TABLE #TempMatch (MatchId INT)
+	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30) )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
@@ -320,61 +320,105 @@ BEGIN
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT tmp.transid
-				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-					INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
-					CROSS APPLY (
-								SELECT rs.TransId, rs.TransId AS MainTransId
-								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-								WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
-						)tmp
-					CROSS APPLY (
-								SELECT TOP 1 MatchId
-								FROM #transIdTemp t
-								WHERE MatchId= rd.MatchId
-								AND t.Username IN (SELECT TOP 1 Usernames 
-													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-													WHERE t.MatchId = rd.MatchId)
-						)m
-				WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+				CROSS APPLY (
+							SELECT rs.TransId, rs.TransId AS MainTransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+							WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
+					)tmp
+				CROSS APPLY (
+					SELECT TOP 1 Username, MatchId
+					FROM #transIdTemp
+					WHERE MatchId = rd.MatchId
+			)t
+			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
+								WHEN r.IssueTypeId = 13 
+									AND t.Username IN (SELECT TOP 1 Usernames 
+														FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+														WHERE t.MatchId = rd.MatchId
+															AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
+									) THEN 1
+								ELSE 0 END
 
 			DELETE 
 			FROM #transIdTemp
 			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		END
 
-		INSERT INTO #TempMatch(matchid)
-		SELECT  DISTINCT matchid 
+		INSERT INTO #TempMatch(MatchId, IsOutright)
+		SELECT  DISTINCT matchid,
+				CASE WHEN bettype <> 10 THEN 0 
+					 WHEN bettype = 10 THEN 1 
+					 ELSE NULL END
 		FROM #transIdTemp
 
-		INSERT INTO dbo.TicketVoiding_RequestDetail (
-			   RequestId
-			 , MatchId
-			 , LeagueId
-			 , HomeId
-			 , AwayId
-			 , RequestType
-			 , Usernames
-			 , ProductIds
-			 , TicketStatusIds
-			 , FromWinlostDate
-			 , ToWinlostDate
-			 , FilterBy 
-		)
-		SELECT @RequestId
-			 , t.MatchId 
-			 , ISNULL(m.leagueid, 0) 
-			 , ISNULL(m.homeid, 0) 
-			 , ISNULL(m.awayid, 0) 
-			 , CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-			 , @UserNames
-			 , @ProductIds
-			 , @StatusIds
-			 , @FromDate
-			 , @ToDate
-			 , @FilterBy
-		FROM #TempMatch t
-			LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+	IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (
+				   RequestId
+				 , MatchId
+				 , LeagueId
+				 , HomeId
+				 , AwayId
+				 , RequestType
+				 , Usernames
+				 , ProductIds
+				 , TicketStatusIds
+				 , FromWinlostDate
+				 , ToWinlostDate
+				 , FilterBy 
+			)
+			SELECT @RequestId
+				 , t.MatchId 
+				 , ISNULL(m.leagueid, 0) 
+				 , ISNULL(m.homeid, 0) 
+				 , ISNULL(m.awayid, 0) 
+				 , CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				 , @UserNames
+				 , @ProductIds
+				 , @StatusIds
+				 , @FromDate
+				 , @ToDate
+				 , @FilterBy
+			FROM #TempMatch t
+				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+			WHERE t.IsOutright = 0
+
+		END
+		ELSE -- outright
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (
+				   RequestId
+				 , MatchId
+				 , LeagueId
+				 , HomeId
+				 , AwayId
+				 , RequestType
+				 , Usernames
+				 , ProductIds
+				 , TicketStatusIds
+				 , FromWinlostDate
+				 , ToWinlostDate
+				 , FilterBy 
+			)
+			SELECT @RequestId
+				 , t.MatchId 
+				 , ISNULL(m.leagueid, 0) 
+				 , ISNULL(m.teamid, 0) 
+				 , 0
+				 , CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				 , @UserNames
+				 , @ProductIds
+				 , @StatusIds
+				 , @FromDate
+				 , @ToDate
+				 , @FilterBy
+			FROM #TempMatch t
+				INNER JOIN dbo.outright m WITH(NOLOCK) ON t.MatchId = m.orid
+			WHERE t.IsOutright = 1
+		END
 		
 		-- Insert queue for auto void
 		IF @ActionId = 4 AND EXISTS (SELECT TOP 1 1 FROM #TempMatch)
@@ -433,8 +477,8 @@ BEGIN
 									WHEN @IssueTypeId = 13 THEN ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
 																+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
 																+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
-																+ ', From Winlost Date: '+ CAST(@FromDate AS VARCHAR(50))
-																+ ', To Winlost Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CAST(@ToDate AS VARCHAR(50)) ELSE 'NULL' END
+																+ ', From Date: '+ CAST(@FromDate AS VARCHAR(10))
+																+ ', To Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CAST(@ToDate AS VARCHAR(10)) ELSE 'NULL' END
 													
 									ELSE ''
 								END)

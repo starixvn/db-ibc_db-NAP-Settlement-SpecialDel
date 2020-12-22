@@ -183,7 +183,7 @@ BEGIN
 						,ISNULL(m.leagueid, 0)
 						,ISNULL(m.SettlementStatus, 0)
 		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-			INNER JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
+			LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 		WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
 	END
 
