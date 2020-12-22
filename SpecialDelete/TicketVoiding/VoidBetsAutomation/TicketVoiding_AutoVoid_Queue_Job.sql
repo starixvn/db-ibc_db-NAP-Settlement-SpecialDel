@@ -14,6 +14,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200513@Helen: TVS insert into Queue multi when edit request [Redmine:#134107]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		
@@ -56,6 +57,7 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
+			,@VoidingHistoryId INT = 0
 			,@Min_QueueId		INT = 0
 			,@VoidingHistoryId INT = 0
 
