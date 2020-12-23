@@ -106,6 +106,7 @@ AS
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -391,7 +392,41 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
 	
 	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId		
+	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
+
+	BEGIN -- Instant Settlement declaration
+		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+	
+		DECLARE @IsHTCal BIT = 0
+			  , @eventstatus NVARCHAR(50) = ''
+		  
+		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
+		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
+	
+		--> Get status of match
+		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+		FROM match_remark (NOLOCK)
+		WHERE matchid = @MatchId
+	
+		SELECT @eventstatus = ISNULL(eventstatus, '')
+		FROM match (NOLOCK)
+		WHERE matchid = @MatchId		
+	
+		--> Build bettype list supported for instant settlement based on settlement status of match
+		IF @eventstatus <> @eventstatus_completed
+		BEGIN
+			IF @IsHTCal = 0
+				INSERT INTO #InstantSettlementBettypes(bettype)
+				SELECT T.bettype
+				FROM dbo.f_Set_Instant_GetBettypes() T
+				WHERE T.InstantType IN (1, 3) -- 01, 11
+			ELSE
+				INSERT INTO #InstantSettlementBettypes(bettype)
+				SELECT T.bettype
+				FROM dbo.f_Set_Instant_GetBettypes() T
+				WHERE T.InstantType IN (2, 3) -- 10, 11			
+		END	 	
+	END			
 	
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
@@ -2149,6 +2184,7 @@ BEGIN
 			,al.SubHdp1
 			,al.SubHdp2
 			,al.SubOdds
+			,al.MainTransId
 			-----------------------------	
 			,al.custid
 			,al.recommend
@@ -2174,6 +2210,18 @@ BEGIN
 			,al.RefCode
 			,@SettlementStatus AS SettlementStatus
 			,al.ActualStake
+			,CASE 
+				WHEN @eventstatus <> @eventstatus_completed
+						THEN CASE
+								WHEN al.statusID IN (111, 112, 113)
+										AND EXISTS (SELECT TOP 1 1
+													FROM #InstantSettlementBettypes
+													WHERE bettype = al.bettype)
+										THEN CAST(1 AS BIT)
+								ELSE CAST(0 AS BIT)
+							END
+				ELSE CAST(0 AS BIT)
+			END AS IsInstantSettlementTicket
 		FROM	#BetDelete al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	
@@ -2202,5 +2250,6 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #NegativeBalance
+	DROP TABLE #InstantSettlementBettypes
 	
 END

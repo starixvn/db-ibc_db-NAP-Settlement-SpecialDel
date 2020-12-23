@@ -1,4 +1,0 @@
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
-Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql
-Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_29.sql
-Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_PreCal_29.sql
