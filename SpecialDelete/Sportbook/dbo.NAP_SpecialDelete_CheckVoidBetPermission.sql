@@ -21,6 +21,7 @@ AS
 
 	Param's Explanation:
 		+ @CashOutTransIds: List id of cash out sub-ticket (911)
+		+ @MatchId: 0 - For TVS with issuetype is abnormal account
 
 */
 BEGIN
@@ -52,7 +53,7 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	IF @MatchId IS NOT NULL AND @MatchId <> 0
+	IF @MatchId IS NOT NULL
 	BEGIN
 		-- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -121,7 +122,8 @@ BEGIN
 				ELSE 0
 				END
 	END
-	ELSE
+	
+	IF @MatchId = 0
 	BEGIN
 	-- check Instant, normal settled of single ticket
 		;WITH CTE_TransId (
