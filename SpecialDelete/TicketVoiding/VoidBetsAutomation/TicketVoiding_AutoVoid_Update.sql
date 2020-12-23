@@ -737,8 +737,8 @@ BEGIN
 		DECLARE @sessionID INT = 0
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 	
-		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID)
-		SELECT vh.RequestID, vh.VoidingHistoryId,1,@MatchId,@sessionID
+		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,@MatchId,@sessionID,1
 		FROM @VoidingHistory_tmp vh
 	END
 	
