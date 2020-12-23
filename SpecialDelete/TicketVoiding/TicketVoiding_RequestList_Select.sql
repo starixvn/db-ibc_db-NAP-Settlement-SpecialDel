@@ -47,7 +47,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@FilteredBy	TINYINT
+	DECLARE	@FilteredBy	TINYINT,
+			@moveBetDay14 	SMALLDATETIME,
+		    @moveBetDay 	SMALLDATETIME
+
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 	DECLARE @tmpMatchVoidingHistory TABLE (
@@ -94,6 +97,11 @@ BEGIN
 	DECLARE @MatchidList_Waiting_30minutes_tmp TABLE (MatchId INT)
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
+	SELECT @moveBetDay14 = MIN(winlostdate) 
+	FROM dbo.bettrans14 WITH(NOLOCK)
+
+	SELECT @moveBetDay = MIN(winlostdate) 
+	FROM dbo.bettrans WITH(NOLOCK)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
 	SELECT DISTINCT val
@@ -114,7 +122,8 @@ BEGIN
 										ELSE 3 -- Fromdate, Todate
 									END
 							END
-	-- Get eventdate of match
+
+	-----------------------------GET eventdate of match---------------------------------------------
 	IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
 							   WHERE matchid = 29
 							   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
@@ -123,18 +132,50 @@ BEGIN
 											ELSE 0 END
 	)
 	BEGIN
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT  rd.RequestId,MIN(b.winlostdate)
-		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
-		WHERE rd.matchid = 29
-		AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-				   WHEN @FilteredBy = 3 AND b.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
-				   ELSE 0 END
-		GROUP BY rd.RequestId
+		IF (@FromDate >= @moveBetDay)
+		BEGIN
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  rd.RequestId,MIN(b.winlostdate)
+			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
+			WHERE rd.matchid = 29
+			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+					   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					   WHEN @FilteredBy = 3 AND b.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
+					   ELSE 0 END
+			GROUP BY rd.RequestId
+		END
+		ELSE IF ( @FromDate >= @moveBetDay14)
+		BEGIN
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  rd.RequestId, MIN(b14.winlostdate)
+			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+				INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON rd.MatchId = b14.matchid AND s.TransId = b14.transid
+			WHERE rd.matchid = 29
+			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+					     WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					     WHEN @FilteredBy = 3 AND b14.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
+					     ELSE 0 END
+			GROUP BY rd.RequestId
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  rd.RequestId, MIN(bk.winlostdate)
+			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+				INNER JOIN DBARC.bodb_Archive.dbo.bettrans_bk bk WITH(NOLOCK) ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
+			WHERE rd.matchid = 29
+			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+					     WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+					     WHEN @FilteredBy = 3 AND bk.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
+					     ELSE 0 END
+			GROUP BY rd.RequestId
+		END
 	END
+
 	IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
 				INNER JOIN 	(SELECT o.orid, o.eventdate
@@ -145,13 +186,12 @@ BEGIN
 							)o ON rd.MatchId = o.orid
 				WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 											WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-											WHEN @FilteredBy = 3 THEN 1
+											WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
 											ELSE 0 END
 						
 				)
 	BEGIN
-
-	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT  rd.RequestId, MIN(o.eventdate)
 		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN
@@ -447,7 +487,12 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 					WHERE rd.RequestId = t.RequestId
 					)us
-		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON s.RequestId = t.RequestID
+		OUTER APPLY (
+					SELECT TOP 1 RequestId, statusID
+					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					WHERE s.RequestId = t.RequestID
+					ORDER BY VoidingHistory DESC 
+					)s
 
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
