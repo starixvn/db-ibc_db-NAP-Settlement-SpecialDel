@@ -326,7 +326,7 @@ BEGIN
 			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
 								WHEN r.IssueTypeId = 13 
-									AND t.Username IN (SELECT TOP 1 Usernames 
+									AND t.Username NOT IN (SELECT TOP 1 Usernames 
 														FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 														WHERE t.MatchId = rd.MatchId
 															AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
