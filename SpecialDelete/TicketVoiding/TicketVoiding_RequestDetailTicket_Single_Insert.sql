@@ -517,6 +517,7 @@ BEGIN
 					INNER JOIN @bettype_tmp pt ON t.bettype = pt.bettype
 				WHERE isFinish IS NULL
 					AND t.bettype NOT BETWEEN 801 AND 806 AND pt.ProductID NOT IN (3,5,27) -- Not mark ticket Metric Gaming, Number Game, Virtual Sport, Virtual Sports 2
+					AND t.bettype NOT IN (38, 9, 29, 10) -- Bet Builder, Main Parlay, Outright
 					  
 				IF @@ROWCOUNT = 0 BREAK
 				

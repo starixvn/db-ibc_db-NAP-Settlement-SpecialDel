@@ -49,7 +49,8 @@ BEGIN
 
 	DECLARE	@FilteredBy	TINYINT,
 			@moveBetDay14 	SMALLDATETIME,
-		    @moveBetDay 	SMALLDATETIME
+		    @moveBetDay 	SMALLDATETIME,
+			@Winlostdate	DATETIME
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -132,7 +133,13 @@ BEGIN
 											ELSE 0 END
 	)
 	BEGIN
-		IF (@FromDate >= @moveBetDay)
+		SELECT @Winlostdate =  MIN(b.winlostdate)
+		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
+		WHERE rd.matchid = 29
+
+		IF (@Winlostdate >= @moveBetDay)
 		BEGIN
 			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 			SELECT  rd.RequestId,MIN(b.winlostdate)
@@ -146,7 +153,7 @@ BEGIN
 					   ELSE 0 END
 			GROUP BY rd.RequestId
 		END
-		ELSE IF ( @FromDate >= @moveBetDay14)
+		ELSE IF ( @Winlostdate >= @moveBetDay14)
 		BEGIN
 			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 			SELECT  rd.RequestId, MIN(b14.winlostdate)
@@ -157,20 +164,6 @@ BEGIN
 			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 					     WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 					     WHEN @FilteredBy = 3 AND b14.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
-					     ELSE 0 END
-			GROUP BY rd.RequestId
-		END
-		ELSE
-		BEGIN
-			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-			SELECT  rd.RequestId, MIN(bk.winlostdate)
-			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
-				INNER JOIN DBARC.bodb_Archive.dbo.bettrans_bk bk WITH(NOLOCK) ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
-			WHERE rd.matchid = 29
-			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-					     WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-					     WHEN @FilteredBy = 3 AND bk.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
 					     ELSE 0 END
 			GROUP BY rd.RequestId
 		END
