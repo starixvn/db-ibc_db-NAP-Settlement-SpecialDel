@@ -31,7 +31,7 @@ BEGIN
 	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult VARCHAR(MAX))
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy, KickOffTime)
-	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy, m.kickofftime
+	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy, rd.kickofftime
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
