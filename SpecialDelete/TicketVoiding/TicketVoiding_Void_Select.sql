@@ -1810,6 +1810,15 @@ BEGIN
 			WHERE sb.ProductID = 37
 		END
 
+		-- UPDATE IsMixParlay = 1 [MixParlay bettype]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9, 29, 2799)))
+		BEGIN
+			UPDATE d
+			SET IsMixParlay = 1
+			FROM #SpecialDeleteBets d
+			WHERE d.bettype IN (9, 29, 2799)
+		END
+
 		--- Remove invalid sporttype
 		DELETE 
 		FROM #SpecialDeleteBets
