@@ -21,20 +21,15 @@ INSERT INTO TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonEngli
 VALUES (0, 39, 'Abnormal bet',N'非正常投注' )
 GO
 
-INSERT [dbo].[TicketVoiding_MessageTemplate] ([TemplateId], [MsgEnglish], [MsgChineseTraditional]
-, [MsgChineseSimplified]
-, [MsgChineseNewSimplified]
-, [JsonValue]) 
-VALUES (39, N'Attn: Due to abnormal bets, bet ID: "@@" is considered VOID. Kindly double check your statement again. Sorry for the inconvenience caused!'
-, N'請注意: 由於非正常投注, 注單: "@@" 已被作廢. 不便之處 敬請見諒!'
-, N'请注意: 由于非正常投注, 注单: "@@" 已被作废. 不便之处 敬请见谅!'
-, N'请注意: 由于非正常投注, 注单: "@@" 已被作废. 不便之处 敬请见谅!'
-, N'')
-,(40, N'Attn: Due to abnormal bets, bet ID: "@@" is considered VOID. Kindly double check your statement again. Sorry for the inconvenience caused! '
-, N'請注意: 由於非正常投注, 注單: "@@" 已被作廢. 請重新檢查您的帳目. 不便之處 敬請見諒!'
-, N'请注意: 由于非正常投注, 注单: "@@" 已被作废. 请重新检查您的帐目. 不便之处 敬请见谅!'
-, N'请注意: 由于非正常投注, 注单: "@@" 已被作废. 请重新检查您的帐目. 不便之处 敬请见谅!'
-, N'')
+UPDATE  dbo.TicketVoiding_MessageTemplate
+SET  MsgEnglish = N'Attn: Due to abnormal bets, bet ID: "@@" is considered VOID. {{CheckStatement}}Sorry for the inconvenience caused!'
+	,MsgChineseTraditional = N'請注意: 由於非正常投注, 注單: "@@" 已被作廢. {{CheckStatement}}不便之處 敬請見諒!'
+	,MsgChineseSimplified = N'请注意: 由于非正常投注, 注单: "@@" 已被作废. {{CheckStatement}}不便之处 敬请见谅!'
+	,MsgChineseNewSimplified = N'请注意: 由于非正常投注, 注单: "@@" 已被作废. {{CheckStatement}}不便之处 敬请见谅!'
+WHERE TemplateId = 37
 
 INSERT INTO TicketVoiding_MessageTemplateSetting (TemplateId, SubIssueTypeId)
-VALUES (39,39), (40,39)
+VALUES (37,39)
+
+DELETE FROM TicketVoiding_MessageTemplate WHERE TemplateId = 38
+DELETE FROM TicketVoiding_MessageTemplateSetting WHERE TemplateId = 38

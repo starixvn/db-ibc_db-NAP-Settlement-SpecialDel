@@ -153,7 +153,7 @@ BEGIN
 					   ELSE 0 END
 			GROUP BY rd.RequestId
 		END
-		ELSE IF ( @Winlostdate >= @moveBetDay14)
+		ELSE IF ( @Winlostdate >= @moveBetDay14 AND @Winlostdate < @moveBetDay)
 		BEGIN
 			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 			SELECT  rd.RequestId, MIN(b14.winlostdate)
