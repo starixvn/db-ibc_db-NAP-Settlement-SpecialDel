@@ -14,6 +14,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis + hotfix [Redmine:#131516]
 		- 20200513@Helen: TVS insert into Queue multi when edit request [Redmine:#134107]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
 		
 	Param's explanation:	
 	
@@ -54,6 +55,7 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
+			,@Min_QueueId		INT = 0
 
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
@@ -70,14 +72,18 @@ BEGIN
 	
 	-------------------STARTING OF Process invalid request -----------
 	-- update cancel: check abnormalbet and any mark ticket by auto
-	SET @Max_QueueId = (SELECT MAX(q.QueueId) FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK))
+	SELECT @Max_QueueId = MAX(q.QueueId)
+		  ,@Min_QueueId = MIN(q.QueueId)
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
+	WHERE q.StatusId = 0
 
 	INSERT INTO @tblMatchid_abnormal (matchid)
 	SELECT DISTINCT rd.matchid
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
-	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 AND q.RequestId = 0 AND q.QueueId <= @Max_QueueId
+	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 
+			AND q.RequestId = 0 AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 		
 	UPDATE q
 		SET StatusId = 4
@@ -92,7 +98,7 @@ BEGIN
 	WHERE q.StatusId = 0 
 		AND q.RequestId = 0 
 		AND mt_tmp.TransId IS NULL AND m.matchid IS NULL	
-		AND q.QueueId <= @Max_QueueId
+		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
@@ -109,7 +115,7 @@ BEGIN
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
 					WHEN q.RequestId > 0 THEN 1
 				ELSE 0 END
-		AND q.QueueId <= @Max_QueueId		
+		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
 	ORDER BY q.Action DESC, Starttime
 	
 	WHILE(1=1)
