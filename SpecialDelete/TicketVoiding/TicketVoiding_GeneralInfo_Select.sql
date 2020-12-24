@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20201207@July: Create new SP [Redmine:#145719]
+		- 20201224@Zane: Return KO time [Redmine:#143666]
 	
 	Param's explanation:	
 		
@@ -23,14 +24,14 @@ BEGIN
 			,@xmlVoidData XML = NULL
 			,@xmlVoidResults XML = NULL
 
-	CREATE TABLE #TmpMatch (RequestId INT, Homeid INT, Awayid INT, leagueid INT, RequestedBy INT, DecidedBy NVARCHAR(200))
+	CREATE TABLE #TmpMatch (RequestId INT, Homeid INT, Awayid INT, leagueid INT, RequestedBy INT, DecidedBy NVARCHAR(200), KickOffTime DATETIME)
 	
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE (RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult VARCHAR(MAX))
 
-	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy)
-	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy
+	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy, KickOffTime)
+	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy, m.kickofftime
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
@@ -215,6 +216,7 @@ BEGIN
 		,s.VoidedTime
 		,CAST (m.Homeid AS VARCHAR(10)) + ' - vs - '+ CAST (m.Awayid AS VARCHAR(10)) AS MatchEvent
 		,m.leagueid 
+		,m.KickOffTime
 		,STUFF((SELECT DISTINCT  ',' + CAST( m.LicenseeName AS VARCHAR(20))
 							  FROM #tmpTicket m
 							  WHERE s.VoidingHistoryId = m.VoidingHistoryId
