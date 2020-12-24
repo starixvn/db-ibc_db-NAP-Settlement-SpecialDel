@@ -57,7 +57,6 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
-			,@VoidingHistoryId INT = 0
 			,@Min_QueueId		INT = 0
 			,@VoidingHistoryId INT = 0
 
