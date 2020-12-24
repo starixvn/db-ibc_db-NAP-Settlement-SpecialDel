@@ -23,9 +23,6 @@ BEGIN
 		,HomeValue			VARCHAR(50)
 		,AwayValue			VARCHAR(50)
 	)
-
-	CREATE TABLE #tblBettrans (TransId BIGINT, BetType SMALLINT, hdp1 SMALLMONEY, statusId TINYINT, isMarked BIT DEFAULT(0))
-	CREATE INDEX IX_tblBettrans_bettype ON #tblBettrans (BetType)
 	
 	INSERT INTO @tblFMBettype(bettype, ResourceId)
 	SELECT	BetType
@@ -66,18 +63,6 @@ BEGIN
 		SELECT '22801', 228, REPLICATE('0', 50),REPLICATE('0', 50)
 	END
 	
-	INSERT INTO #tblBettrans(TransId, bettype, hdp1, statusId)
-	SELECT	b.transid, bettype, hdp1, statusID
-	FROM	dbo.bettrans b WITH(NOLOCK)
-	WHERE	matchid = @matchid
-			AND EXISTS(SELECT TOP 1 1 FROM @tblFMBettype WHERE bettype = b.bettype)
-	
-	UPDATE b 
-		SET isMarked = 1
-	FROM	#tblBettrans b
-		INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-			ON b.TransId = mt.TransId
-
 	-- result detail of each bettype
 	;WITH cteBetOption AS (
 		SELECT	bettype
@@ -90,40 +75,17 @@ BEGIN
 		GROUP BY bettype
 		
 	), cteResultStatus AS (
-		SELECT CASE WHEN ResultStatus1st IS NULL AND TicketCount > 0 THEN REPLICATE('0', 50) ELSE ResultStatus1st END AS ResultStatus1st
-			, CASE WHEN BetOption1st IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOption1st END AS BetOption1st
-			, CASE WHEN ResultStatus2nd IS NULL AND TicketCount > 0 THEN REPLICATE('0', 50) ELSE ResultStatus2nd END AS ResultStatus2nd
-			, CASE WHEN BetOption2nd IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOption2nd END AS BetOption2nd
-			, ISNULL(t.BetType,tt.bettype) AS BetType
+		SELECT CASE WHEN ResultStatus1st IS NULL THEN REPLICATE('0', 50) ELSE ResultStatus1st END AS ResultStatus1st
+			, CASE WHEN BetOption1st IS NULL  THEN REPLICATE(CHAR(0), 50) ELSE BetOption1st END AS BetOption1st
+			, CASE WHEN ResultStatus2nd IS NULL  THEN REPLICATE('0', 50) ELSE ResultStatus2nd END AS ResultStatus2nd
+			, CASE WHEN BetOption2nd IS NULL THEN REPLICATE(CHAR(0), 50) ELSE BetOption2nd END AS BetOption2nd
+			, BetType
 		FROM	cteBetOption t
-			FULL OUTER JOIN (
-				SELECT	b.bettype
-						,SUM(CASE WHEN b.StatusID IN (101, 102) THEN 0 ELSE 1 END) AS TicketCount
-				FROM	#tblBettrans b
-				GROUP BY b.bettype
-		)tt 
-			ON	ISNULL(t.BetType,tt.bettype) = tt.bettype
-	), betstatus AS (
-		SELECT	bettype
-				, hdp1 AS Position
-				, SUM(CASE WHEN StatusID IN (101, 102) THEN 0 ELSE 1 END) AS TicketCount
-				, MAX(CASE WHEN StatusID = 0 AND isMarked = 0 THEN 1 ELSE 0 END) AS TicketRunning
-				, MAX(CASE WHEN statusId BETWEEN 0 AND 1 AND isMarked = 1 THEN 1 ELSE 0 END) AS TicketMarked
-		FROM	#tblBettrans
-		GROUP BY bettype, hdp1
 	)
 	SELECT	CAST(t.BetType AS SMALLINT) AS BetType
 			, CAST(rs.Position AS TINYINT) AS Position
 			, CAST(rs.Result AS TINYINT) AS Result
-			, CASE 
-				WHEN b.bettype IS NULL THEN 4 --N'No Ticket'
-				ELSE CASE 
-						WHEN TicketCount = 0 THEN 4 --N'No Ticket'
-						WHEN b.TicketRunning > 0 THEN 2 -- N'Running'
-						WHEN b.TicketMarked > 0 THEN 5 -- N'Marked'
-						ELSE 3 --N'Calculated'
-					 END  
-			END AS TicketStatus
+			,rs.ResultStatus
 	FROM	cteResultStatus t 
 	CROSS APPLY (
 		SELECT	f.pos AS Position, f.bitmap AS Result, ff.ResultStatus AS ResultStatus
@@ -157,17 +119,9 @@ BEGIN
 		WHERE	f.pos < 45 AND t.BetType = 228
 		
 	) rs
-	LEFT JOIN betstatus b 
-		ON	t.bettype = b.bettype 
-			AND rs.Position = CASE 
-								WHEN b.BetType <> 228 OR (b.BetType = 228 AND rs.Position <=44) THEN b.Position 
-								ELSE b.Position + 1 -- for bettype 228, the position 45 is HT injury, 2nd starts at postion 46
-							END
 	WHERE	1 = CASE 
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
 					ELSE 1
 				END
-
-	DROP TABLE #tblBettrans
 END
 GO
