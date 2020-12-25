@@ -13,7 +13,7 @@ AS
 		- 20201207@July: Create new SP [Redmine:#145719]
 		- 20201224@Zane: Return KO time [Redmine:#143666]
 	
-	Param's explanation:	
+	Param's explanation:
 		
 */
 BEGIN
@@ -28,7 +28,7 @@ BEGIN
 	
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE (RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
-	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, VoidResult VARCHAR(MAX))
+	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy, KickOffTime)
 	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy, rd.kickofftime
@@ -204,9 +204,10 @@ BEGIN
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 
-		INSERT INTO @tmpVoidResults (VoidingHistoryId,VoidResult)
+		INSERT INTO @tmpVoidResults (VoidingHistoryId, Message, Type)
 		SELECT  @VoidingHistoryId
-				,T.C.value('@EmailResult', 'VARCHAR(MAX)') AS VoidResult
+				,T.C.value('@Message', 'VARCHAR(MAX)') AS Message
+				,T.C.value('@Type', 'VARCHAR(50)') AS Type
 		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END
@@ -237,7 +238,8 @@ BEGIN
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 
 	SELECT VoidingHistoryId
-		  ,VoidResult AS Emails
+		  ,Message
+		  ,Type
 	FROM @tmpVoidResults
 
 	DROP TABLE #TmpMatch

@@ -95,7 +95,6 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
-	DECLARE @MatchidList_Waiting_30minutes_tmp TABLE (MatchId INT)
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
 	SELECT @moveBetDay14 = MIN(winlostdate) 
@@ -439,7 +438,7 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND m.MatchId IS NULL THEN ''
+			,CASE WHEN s.statusID NOT IN (1,2,3,12,13) THEN ''
 				WHEN s.statusID IN (1,2) THEN 'Running'
 				WHEN s.statusID = 12 THEN 'Completed'
 				WHEN s.statusID IN (3,13) THEN 'Failed'
@@ -457,11 +456,6 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN CustDB.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
-		OUTER APPLY (
-					SELECT MatchId
-					FROM @MatchidList_Waiting_30minutes_tmp
-					WHERE MatchId = t.MatchId
-			)m
 		OUTER APPLY (
 					SELECT COUNT(1) AS TotalSingle
 						,STUFF((
@@ -489,7 +483,7 @@ BEGIN
 
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND (t.TotalSingle = 0 AND t.TotalCashOut = 0 AND t.TotalParlay = 0) AND m.MatchId IS NULL THEN 1
+				WHEN @Status = 0 AND s.statusID NOT IN (1,2,3,12,13) THEN 1
 				WHEN @Status = 1 AND s.statusID IN (1,2) THEN 1 --Running
 				WHEN @Status = 2 AND s.statusID = 12 THEN 1 -- Completed
 				WHEN @Status = 3 AND s.statusID IN (3,13) THEN 1 -- Failed
