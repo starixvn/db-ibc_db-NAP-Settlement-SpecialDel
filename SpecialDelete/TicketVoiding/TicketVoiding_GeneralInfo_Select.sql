@@ -19,19 +19,53 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @IsMovebet BIT = 0
-			,@VoidingHistoryId INT
-			,@xmlVoidData XML = NULL
-			,@xmlVoidResults XML = NULL
+	DECLARE @IsMovebet			BIT = 0
+			,@VoidingHistoryId  INT
+			,@xmlVoidData		XML = NULL
+			,@xmlVoidResults	XML = NULL
 
-	CREATE TABLE #TmpMatch (RequestId INT, Homeid INT, Awayid INT, leagueid INT, RequestedBy INT, DecidedBy NVARCHAR(200), KickOffTime DATETIME)
+	CREATE TABLE #TmpMatch 
+	(
+		 RequestId INT
+		,Homeid INT
+		,Awayid INT
+		,Leagueid INT
+		,RequestedBy INT
+		,DecidedBy NVARCHAR(200)
+		,KickOffTime DATETIME
+	)
 	
-	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT, VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
-	DECLARE @tmpContentMessage TABLE (RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
-	DECLARE @tmpVoidResults TABLE (VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
+	CREATE TABLE #tmpTicket
+    (		
+		 RequestId		  INT
+		,TransId          BIGINT
+        ,matchid          INT
+        ,custid           INT
+        ,Status           NVARCHAR(10)
+		,VoidedTime       DATETIME
+        ,Bettype          SMALLINT
+        ,IsMixParlay      BIT DEFAULT(0)
+        ,Refno            BIGINT
+        ,subTransId       BIGINT
+        ,recommend        INT
+		,VoidedBy		  INT
+		,VoidingHistoryId INT
+		,LicenseeName	  NVARCHAR(100)
+		,Total			  INT
+    );
+	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
+	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
+	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
 
-	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, leagueid, RequestedBy, DecidedBy, KickOffTime)
-	SELECT TOP 1 rd.RequestId, m.homeid, m.awayid, m.leagueid, r.UserId AS RequestedBy, r.DecidedBy, rd.kickofftime
+	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime)
+	SELECT TOP 1 
+			 rd.RequestId
+			,m.homeid
+			,m.awayid
+			,m.leagueid
+			,r.UserId
+			,r.DecidedBy
+			,rd.kickofftime
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
@@ -41,25 +75,6 @@ BEGIN
 	BEGIN
 		SET @IsMovebet = 1
 	END
-
-	CREATE TABLE #tmpTicket
-    (		
-			RequestId		 INT,
-			TransId          BIGINT,
-            matchid          INT,
-            custid           INT,
-            Status           NVARCHAR(10),
-			VoidedTime       DATETIME,
-            Bettype          SMALLINT,
-            IsMixParlay      BIT DEFAULT(0),
-            Refno            BIGINT,
-            subTransId       BIGINT,
-            recommend        INT,
-			VoidedBy		 INT,
-			VoidingHistoryId INT,
-			LicenseeName	 NVARCHAR(100),
-			Total			 INT,
-    );
 
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy, VoidResults) 
 	SELECT	 VoidingHistoryId
@@ -93,7 +108,7 @@ BEGIN
 					,z.bettype
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND z.matchid = @MatchId
+					AND (z.matchid = @MatchId OR @MatchId = 0)
 					AND 1 = CASE
 								WHEN z.bettype = 911 THEN 1
 								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
@@ -123,7 +138,7 @@ BEGIN
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-					AND zm.matchid = @MatchId
+					AND (zm.matchid = @MatchId OR @MatchId = 0)
 		) zm
 
 	IF @IsMovebet = 0
@@ -196,6 +211,7 @@ BEGIN
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
+
 		INSERT INTO @tmpContentMessage (RequestId,VoidingHistoryId, ContentChineseSimplified,ContentEnglish)
 		SELECT  @RequestId
 				, @VoidingHistoryId
