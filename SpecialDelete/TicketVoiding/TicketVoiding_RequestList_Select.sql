@@ -379,7 +379,7 @@ BEGIN
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-						AND vh.MatchId = z.matchid
+						--AND vh.MatchId = z.matchid
 			GROUP BY vh.VoidingHistoryId, vh.MatchId
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
@@ -396,7 +396,7 @@ BEGIN
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-						AND zm.matchid = vh.MatchId
+						--AND zm.matchid = vh.MatchId
 			GROUP BY vh.VoidingHistoryId, vh.MatchId
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
