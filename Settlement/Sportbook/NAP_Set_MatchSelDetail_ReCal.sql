@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_MatchSelDetail_ReCal]
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_ReCal]
 (
 	@matchid	INT
 )
@@ -24,7 +24,7 @@ BEGIN
         ,match.finalawayscore
 		,match.GoalRecord
 		,CASE WHEN mr.IsHTCal = 1 THEN 'Calculated' ELSE NULL END AS HTStatus
-        ,CASE WHEN mr.calculate = 1 OR (mr.calculate = 0 AND mr.calrefund  = 1) THEN 'Calculated' ELSE NULL END AS FTStatus
+        ,CASE WHEN mr.calculate = 1 THEN 'Calculated' ELSE NULL END AS FTStatus
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
     WHERE match.matchid = @matchid
