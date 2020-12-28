@@ -335,7 +335,7 @@ BEGIN
 			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
 									 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
-											AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate THEN 1
+											AND rd.FromWinlostDate >= @FromDate AND rd.ToWinlostDate <= @ToDate THEN 1
 									ELSE 0 END
 
 			DELETE 
