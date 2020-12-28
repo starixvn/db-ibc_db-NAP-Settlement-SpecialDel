@@ -149,7 +149,7 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30), isFinish BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
-	CREATE TABLE #InputValidCustid_2 (custid INT) -- list custid roleid = 2 for SMA
+	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30))
 
 	IF @IssueTypeId IN (1, 10)
@@ -358,15 +358,15 @@ BEGIN
 		OPTION (MAXRECURSION 0)
 
 		-- get SMA roleid = 2
-		INSERT INTO #InputValidCustid_2 (custid)		
-		SELECT l.custid
+		INSERT INTO #InputValidCustid_2 (custid, Username)		
+		SELECT l.custid, l.Username
 		FROM #InputUsernameList l
 		WHERE l.roleid = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
 		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid)	
-			SELECT ci.custid
+			INSERT INTO #InputValidCustid_2 (custid, Username)	
+			SELECT ci.custid, l.Username
 			FROM #InputUsernameList l
 				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			WHERE l.roleid = 3 AND ci.roleid = 2
@@ -374,24 +374,25 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
 		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid)
-			SELECT ci.custid
+			INSERT INTO #InputValidCustid_2 (custid, Username)
+			SELECT ci.custid, l.Username
 			FROM #InputUsernameList l
 				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
 			WHERE l.roleid = 4 AND ci.roleid = 2	
 		END
 
 		-- list of member to process
-		INSERT INTO #InputValidCustid_tmp (custid, Username)
-		SELECT  l.CustID, l.Username
+		INSERT INTO #InputValidCustid_tmp (CustID, Username)
+		SELECT  CustID, Username
 		FROM #InputUsernameList l
 		WHERE l.roleid =1
-		UNION 
-		SELECT ci.custid, ci.username
+		UNION
+		SELECT ci.CustID, lt.Username
 		FROM #InputValidCustid_2 lt
 			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
+		;
 
 		INSERT INTO @bettype_tmp (bettype, ProductID)
 		SELECT DISTINCT pt.bettype, pt.ProductID
@@ -472,14 +473,10 @@ BEGIN
 					WHERE MatchId = rd.MatchId
 			)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
-							 WHEN r.IssueTypeId = 13 
-								AND t.Username NOT IN (SELECT TOP 1 Usernames 
-													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-													WHERE t.MatchId = rd.MatchId
-														AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
-								) THEN 1
-							ELSE 0 END
+				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
+							 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
+								AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate THEN 1
+						    ELSE 0 END
 			
 		--Edit from to time of Abnormal account issue -> unmark ticket change void time
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 

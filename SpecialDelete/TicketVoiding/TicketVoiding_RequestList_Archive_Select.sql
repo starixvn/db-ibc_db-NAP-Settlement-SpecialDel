@@ -103,45 +103,47 @@ BEGIN
 									END
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-							   WHERE matchid = 29
-							   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-											WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-											WHEN @FilteredBy = 3 THEN 1
-											ELSE 0 END
-	)
+	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
 	BEGIN
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT  rd.RequestId, MIN(bk.winlostdate)
-		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) ON rd.RequestId = s.RequestId
-			INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
-		WHERE rd.matchid = 29
-		AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-					    WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-					    WHEN @FilteredBy = 3 AND bk.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
-					    ELSE 0 END
-		GROUP BY rd.RequestId
-	END
-	IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
-				FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
-				INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-				WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-											WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-											WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
-											ELSE 0 END
-						
-				)
-	BEGIN
-		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
-		SELECT  rd.RequestId, MIN(o.eventdate)
-		FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-		INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-		WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-					   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-					   WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
-					   ELSE 0 END
-		GROUP BY rd.RequestId
+		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
+								   WHERE matchid = 29
+								   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+												WHEN @FilteredBy = 3 THEN 1
+												ELSE 0 END
+		)
+		BEGIN
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  rd.RequestId, MIN(bk.winlostdate)
+			FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+				INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
+			WHERE rd.matchid = 29
+			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+							WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+							WHEN @FilteredBy = 3 AND bk.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
+							ELSE 0 END
+			GROUP BY rd.RequestId
+		END
+		IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
+					FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
+					INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+					WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+												WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
+												ELSE 0 END
+					)
+		BEGIN
+			INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
+			SELECT  rd.RequestId, MIN(o.eventdate)
+			FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+			INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
+			WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+						   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+						   WHEN @FilteredBy = 3 AND o.eventdate  BETWEEN @FromDate AND @ToDate THEN 1
+						   ELSE 0 END
+			GROUP BY rd.RequestId
+		END
 	END
 	
 	INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)

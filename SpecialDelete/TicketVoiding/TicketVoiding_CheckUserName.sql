@@ -44,7 +44,7 @@ BEGIN
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
-	CREATE TABLE #InputValidCustid_2 (custid INT)
+	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30) )
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30) )
@@ -108,15 +108,15 @@ BEGIN
 		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
 	WHERE ci.custid IS NOT NULL
 	
-	INSERT INTO #InputValidCustid_2 (custid)		
-	SELECT l.custid
+	INSERT INTO #InputValidCustid_2 (custid, Username)		
+	SELECT l.custid, l.Username
 	FROM #InputUsernameList l
 	WHERE l.roleid = 2
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
 	BEGIN
-		INSERT INTO #InputValidCustid_2 (custid)	
-		SELECT ci.custid
+		INSERT INTO #InputValidCustid_2 (custid, Username)	
+		SELECT ci.custid, l.Username
 		FROM #InputUsernameList l
 			INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 		WHERE l.roleid = 3 AND ci.roleid = 2
@@ -124,8 +124,8 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
 	BEGIN
-		INSERT INTO #InputValidCustid_2 (custid)
-		SELECT ci.custid
+		INSERT INTO #InputValidCustid_2 (custid, Username)
+		SELECT ci.custid, l.Username
 		FROM #InputUsernameList l
 			INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
 		WHERE l.roleid = 4 AND ci.roleid = 2	
@@ -137,7 +137,7 @@ BEGIN
 	FROM #InputUsernameList l
 	WHERE l.roleid =1
 	UNION
-	SELECT ci.CustID, ci.Username
+	SELECT ci.CustID, lt.Username
 	FROM #InputValidCustid_2 lt
 		INNER JOIN dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
@@ -221,20 +221,16 @@ BEGIN
 						WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
 				)tmp
 			CROSS APPLY (
-						SELECT TOP 1 Username, MatchId
-						FROM #transIdTemp
-						WHERE MatchId = rd.MatchId
+						SELECT TOP 1 Username, t.MatchId
+						FROM #transIdTemp t
+						WHERE t.MatchId = rd.MatchId  
 				)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1 
-							WHEN r.IssueTypeId = 13 
-								AND t.Username NOT IN (SELECT TOP 1 Usernames 
-													FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-													WHERE t.MatchId = rd.MatchId
-													    AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate
-								) THEN 1
-							ELSE 0 END
-				
+					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
+								 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
+									AND rd.FromWinlostDate = @FromDate AND rd.ToWinlostDate = @ToDate THEN 1
+								 ELSE 0 END
+					
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
@@ -253,7 +249,7 @@ BEGIN
 							  FOR XML PATH ('')
 							),1,1,'')
 
-	SELECT @NumberOfTickets = COUNT (t.transid) 
+	SELECT @NumberOfTickets = COUNT (DISTINCT t.transid) 
 	FROM #TransidInRequest t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
 	WHERE b.winlostdate BETWEEN @FromDate AND @ToDate
