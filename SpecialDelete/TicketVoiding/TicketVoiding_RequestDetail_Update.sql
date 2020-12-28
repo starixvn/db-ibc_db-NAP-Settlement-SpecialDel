@@ -622,11 +622,11 @@ BEGIN
 		END
 		IF @OldFromDate <> @FromDate
 		BEGIN
-			SET @LogDataContent += ' Old From Date: ' + CONVERT(VARCHAR(10), @OldFromDate) + ' New From Date: ' + CONVERT(VARCHAR(10), @FromDate)
+			SET @LogDataContent += ' Old From Date: ' + CONVERT(VARCHAR(10), @OldFromDate, 23) + ' New From Date: ' + CONVERT(VARCHAR(10), @FromDate, 23)
 		END
 		IF @OldToDate <> @ToDate
 		BEGIN
-			SET @LogDataContent += ' Old To Date: ' + CONVERT(VARCHAR(10), @OldToDate) + ' New To Date: ' + CONVERT(VARCHAR(10), @ToDate)
+			SET @LogDataContent += ' Old To Date: ' + CONVERT(VARCHAR(10), @OldToDate, 23) + ' New To Date: ' + CONVERT(VARCHAR(10), @ToDate, 23)
 		END
 		
 	END

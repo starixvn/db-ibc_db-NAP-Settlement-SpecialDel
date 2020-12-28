@@ -121,7 +121,7 @@ BEGIN
 	ELSE -- apply for Abnormal Account
 	BEGIN
 		SELECT	TOP 1
-				 REPLACE(rd.Usernames ,',',', ') AS UserNames
+				 rd.Usernames AS UserNames
 				,rd.ProductIds AS ProductIds
 				,rd.TicketStatusIds AS StatusIds 
 				,rd.FromWinlostDate AS FromDate 

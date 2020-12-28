@@ -473,8 +473,8 @@ BEGIN
 									WHEN @IssueTypeId = 13 THEN ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
 																+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
 																+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
-																+ ', From Date: '+ CAST(@FromDate AS VARCHAR(10))
-																+ ', To Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CAST(@ToDate AS VARCHAR(10)) ELSE 'NULL' END
+																+ ', From Date: '+ CONVERT(VARCHAR(10), @FromDate, 23)
+																+ ', To Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CONVERT(VARCHAR(10), @ToDate, 23) ELSE 'NULL' END
 													
 									ELSE ''
 								END)
