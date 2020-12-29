@@ -43,6 +43,8 @@ BEGIN
 		,T.C.value('@DecidedBy', 'NVARCHAR(200)') AS DecidedBy
 		,T.C.value('@VoidFromTime', 'NVARCHAR(50)') AS VoidFromTime
 		,T.C.value('@VoidToTime', 'NVARCHAR(50)') AS VoidToTime
+		,T.C.value('@VoidFromDate', 'NVARCHAR(20)') AS VoidFromDate
+		,T.C.value('@VoidToDate', 'NVARCHAR(20)') AS VoidToDate
 		,T.C.value('@IsHasSettledTicket', 'BIT') AS IsHasSettledTicket
 	FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 	OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
