@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_CleanUpResult_Job]  
+ALTER PROCEDURE [dbo].[NAP_Set_CleanUpResult_Job]  
 AS
 /* 
 	Created:20200820@Louisa
@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20200820@Louisa: Cleanup data ES
 		- 20200903@Louisa: Cleanup data OS [Redmine:#139627]
+		- 20201223@Louisa: Cleanup data for Other Sports [Redmine:#145651]
 
 	Param's Explanation: 
 
@@ -18,10 +19,11 @@ BEGIN
 
 	DECLARE @batch INT = 1000
 	DECLARE @compareDate DATETIME
+	CREATE TABLE #tmpDataNotExits  ( ProviderExternalId INT)
 
 	SET @compareDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 102)
 	
-	--- ES 
+	----- ESports 
 	WHILE (1=1)
 	BEGIN
 		DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailES WITH(ROWLOCK, UPDLOCK)
@@ -35,18 +37,49 @@ BEGIN
 
 	END
 
-	--- OS
+	----Tennis, Badminton
+	INSERT INTO #tmpDataNotExits (ProviderExternalId)
+	SELECT ex.ProviderExternalId 
+	FROM dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
+		LEFT JOIN dbo.Match m WITH(NOLOCK)
+			ON ex.MatchId = m.MatchId
+	WHERE m.matchid IS NULL
+		AND ex.CreateDate < @compareDate
+
 	WHILE (1=1)
 	BEGIN
 
 		DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailOS WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchID = 0
-			AND CreateDate < @compareDate
+		WHERE ProviderExternalId IN ( SELECT ProviderExternalId FROM #tmpDataNotExits )
 	
 		IF @@ROWCOUNT = 0
 			BREAK			
 
 		WAITFOR DELAY '00:00:00:280'
 	END
+
+	---- Other Sports (currently, apply for Basketball,Football,IceHockey,Volleyball,Baseball,TableTennis,Weightlifting,Handball,Darts)
+	TRUNCATE TABLE #tmpDataNotExits
+	
+	INSERT INTO #tmpDataNotExits (ProviderExternalId)
+	SELECT ex.ProviderExternalId 
+	FROM dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
+		LEFT JOIN dbo.Match m WITH(NOLOCK)
+			ON ex.MatchId = m.MatchId
+	WHERE m.matchid IS NULL
+		AND ex.CreateDate < @compareDate
+
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetail WITH(ROWLOCK, UPDLOCK)
+		WHERE ProviderExternalId IN ( SELECT ProviderExternalId FROM #tmpDataNotExits )
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+	END
+
 END
 GO
