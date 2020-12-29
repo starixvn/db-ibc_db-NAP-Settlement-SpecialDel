@@ -23,10 +23,26 @@ BEGIN
         ,match.finalhomescore
         ,match.finalawayscore
 		,match.GoalRecord
-		,CASE WHEN mr.IsHTCal = 1 THEN 'Calculated' ELSE NULL END AS HTStatus
-        ,CASE WHEN mr.calculate = 1 THEN 'Calculated' ELSE NULL END AS FTStatus
+		,CASE WHEN mr.IsHTCal = 1 OR (rsHT.SettlementStatusID = 4 AND mr.calrefund = 1) THEN 'Calculated' ELSE NULL END AS HTStatus
+        ,CASE WHEN mr.calculate = 1 OR (rsFT.SettlementStatusID = 4 AND mr.calrefund = 1) THEN 'Calculated' ELSE NULL END AS FTStatus
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
+		OUTER  APPLY(
+		  		SELECT ResourceId 
+		    		ResultStatusID, 
+		    		SettlementStatusID
+		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+		  		WHERE  rd.matchid = @matchid
+					AND rd.ResourceId = 01
+		  	) AS rsHT
+		OUTER  APPLY(
+		  		SELECT ResourceId 
+		    		ResultStatusID, 
+		    		SettlementStatusID
+		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+		  		WHERE  rd.matchid = @matchid
+					AND rd.ResourceId = 00
+		  	) AS rsFT
     WHERE match.matchid = @matchid
 	
 END

@@ -3,7 +3,6 @@ CREATE PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_ReCal]
 (
 	@matchid		INT 
 	,@SportType		INT = 0
-	,@SettleType	VARCHAR(10) = 'MNL'
 )
 AS
 /*
