@@ -94,7 +94,8 @@ BEGIN
               BonusId         INT,
               IsMarked        BIT,
 			  LiveIndicator   BIT,
-			  ActualStake	  MONEY
+			  ActualStake	  MONEY,
+			  VoidingHistoryId INT
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -105,7 +106,7 @@ BEGIN
 	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds, VoidingHistoryId)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -116,6 +117,7 @@ BEGIN
 			,z.refno
 			,z.bettype
 			,z.odds
+			,vh.VoidingHistoryId
 	FROM	@tmpVoidingHistory vh 
 		CROSS APPLY (
 			SELECT	z.transid
@@ -139,7 +141,7 @@ BEGIN
 		) z
 		
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, VoidingHistoryId)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -147,6 +149,7 @@ BEGIN
 			,zm.VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
+			,vh.VoidingHistoryId
 	FROM	@tmpVoidingHistory vh
 		CROSS APPLY (
 			SELECT	zm.transid
@@ -460,6 +463,7 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.VoidingHistoryId
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -522,6 +526,7 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.VoidingHistoryId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON	s.betid = b.transid 
 			INNER JOIN #TmpMatch m ON b.matchid = m.Matchid
@@ -578,6 +583,7 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
+			   ,s.VoidingHistoryId
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -638,6 +644,7 @@ BEGIN
 		   ,s.subtransdesc
 		   ,s.ActualStake
 		   ,s.matchid
+		   ,s.VoidingHistoryId
 		FROM	#tmpTicket s WITH (NOLOCK)
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -691,8 +698,9 @@ BEGIN
 		   ,s.LiveIndicator AS IsLiveIndicator
 		   ,s.subbettype AS SubBettype
 		   ,s.subtransdesc AS subTransdesc
-			,s.ActualStake
+		   ,s.ActualStake
 		   ,s.matchid
+		   ,s.VoidingHistoryId
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

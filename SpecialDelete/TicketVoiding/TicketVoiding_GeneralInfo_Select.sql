@@ -23,6 +23,8 @@ BEGIN
 			,@VoidingHistoryId  INT
 			,@xmlVoidData		XML = NULL
 			,@xmlVoidResults	XML = NULL
+			,@IssuetypeId		INT
+			,@Reason			VARCHAR(100)
 
 	CREATE TABLE #TmpMatch 
 	(
@@ -56,6 +58,13 @@ BEGIN
 	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
+
+	SELECT @IssuetypeId = r.IssueTypeId
+		  ,@Reason = s.SubIssueTypeName
+	FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
+		INNER JOIN dbo.TicketVoiding_SubIssueType s WITH(NOLOCK) 
+		ON r.IssueTypeId = s.IssueTypeId AND r.SubIssueTypeId = s.SubIssueTypeId
+	WHERE r.RequestId = @RequestId
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime)
 	SELECT TOP 1 
@@ -241,6 +250,8 @@ BEGIN
 							),1,1,'')
 		 AS LicenseeName
 		,s.Total AS Total
+		,CASE WHEN @IssuetypeId = 11 THEN @Reason
+			  ELSE NULL END Reason
 		,m.DecidedBy
 		,m.RequestedBy
 		,s.VoidedBy
