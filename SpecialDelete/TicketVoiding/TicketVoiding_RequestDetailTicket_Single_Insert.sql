@@ -152,6 +152,12 @@ BEGIN
 	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
 	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30))
 
+	-- Check edit request after voided
+	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
+	BEGIN
+		RETURN;
+	END
+
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
 		SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)

@@ -125,7 +125,12 @@ BEGIN
 	SET @LogActionId = 90003
 	SET @SB_Error = 0
 
-	
+	-- Check edit request after voided
+	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
+	BEGIN
+		RETURN;
+	END
+
 	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL -- Abnormal Bet
 	BEGIN
 	

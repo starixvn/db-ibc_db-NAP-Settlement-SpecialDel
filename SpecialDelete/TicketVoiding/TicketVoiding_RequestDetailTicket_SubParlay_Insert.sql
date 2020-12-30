@@ -119,6 +119,12 @@ BEGIN
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
+	-- Check edit request after voided
+	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
+	BEGIN
+		RETURN;
+	END
+
 	SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
 		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
 	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
