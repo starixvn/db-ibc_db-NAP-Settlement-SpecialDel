@@ -16,28 +16,32 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    SELECT match.sporttype
+     SELECT match.sporttype
         ,match.betstatus
         ,hthomescore AS HalfTimeHomeScore
         ,htawayscore AS HalfTimeAwayScore
         ,match.finalhomescore
         ,match.finalawayscore
 		,match.GoalRecord
-		,CASE WHEN mr.IsHTCal = 1 OR (rsHT.SettlementStatusID = 4 AND mr.calrefund = 1) THEN 'Calculated' ELSE NULL END AS HTStatus
-        ,CASE WHEN mr.calculate = 1 OR (rsFT.SettlementStatusID = 4 AND mr.calrefund = 1) THEN 'Calculated' ELSE NULL END AS FTStatus
+		,CASE WHEN mr.IsHTCal = 1 THEN 'Calculated' 
+			WHEN match.sporttype = 1 AND rsHT.SettlementStatusID = 4 AND mr.calrefund = 1 THEN 'Calculated'
+			WHEN match.sporttype <> 1 AND mr.calrefund = 1 THEN 'Calculated'
+			ELSE NULL END AS HTStatus
+        ,CASE WHEN mr.calculate = 1 THEN 'Calculated' 
+			WHEN match.sporttype = 1 AND rsFT.SettlementStatusID = 4 AND mr.calrefund = 1 THEN 'Calculated' 
+			WHEN match.sporttype <> 1 AND mr.calrefund = 1 THEN 'Calculated' 
+			ELSE NULL END AS FTStatus
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		OUTER  APPLY(
-		  		SELECT ResourceId 
-		    		ResultStatusID, 
+		  		SELECT ResultStatusID, 
 		    		SettlementStatusID
 		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 		  		WHERE  rd.matchid = @matchid
 					AND rd.ResourceId = 01
 		  	) AS rsHT
 		OUTER  APPLY(
-		  		SELECT ResourceId 
-		    		ResultStatusID, 
+		  		SELECT ResultStatusID, 
 		    		SettlementStatusID
 		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 		  		WHERE  rd.matchid = @matchid
