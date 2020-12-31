@@ -56,7 +56,6 @@ BEGIN
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
 	DECLARE @tmpMatchVoidingHistory TABLE (
 		 RequestId			INT
-		,MatchId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
 		,TotalSingle		INT
@@ -91,6 +90,7 @@ BEGIN
 		,VoidToTime		DATETIME
 		,FromWinlostDate DATETIME
 		,ToWinlostDate	DATETIME
+		,TotalUserName	INT
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -223,8 +223,8 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate)
-		SELECT	r.RequestId
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
@@ -232,11 +232,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,rd.MatchId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,rd.LeagueId
-				,rd.HomeId
-				,rd.AwayId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,rd.TransIds
@@ -246,11 +246,12 @@ BEGIN
 				,rd.VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
+				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
@@ -265,8 +266,8 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate)
-		SELECT	r.RequestId
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
@@ -274,11 +275,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,rd.MatchId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,rd.LeagueId
-				,rd.HomeId
-				,rd.AwayId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,rd.TransIds
@@ -288,13 +289,14 @@ BEGIN
 				,rd.VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
+				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
@@ -307,8 +309,8 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds,IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate)
-		SELECT	r.RequestId
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
@@ -316,11 +318,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,rd.MatchId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,rd.LeagueId
-				,rd.HomeId
-				,rd.AwayId
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,rd.TransIds
@@ -330,11 +332,12 @@ BEGIN
 				,rd.VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
+				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
@@ -346,8 +349,8 @@ BEGIN
 		WHERE ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
-	SELECT	vh.RequestId, t.MatchId, vh.VoidingHistoryId, vh.UserId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
+	SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -372,7 +375,6 @@ BEGIN
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,vh.MatchId
 					,SUM(CASE 
 							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN z.bettype = 911 THEN 1
@@ -382,10 +384,9 @@ BEGIN
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, vh.MatchId
+			GROUP BY vh.VoidingHistoryId
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-			AND vh.MatchId = t.MatchId
 		
 	--parlay
 	UPDATE vh
@@ -393,15 +394,13 @@ BEGIN
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,vh.MatchId
 					,COUNT(1) AS TotalVoidedParlay
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, vh.MatchId
+			GROUP BY vh.VoidingHistoryId
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-			AND vh.MatchId = t.MatchId
 
 	UPDATE t 
 		SET TotalSingle = ISNULL(vh.TotalSingle,0)
@@ -414,18 +413,17 @@ BEGIN
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
-					AND vh.MatchId = t.MatchId
 		) vh
 
 	--Return Data
-	SELECT	DISTINCT t.RequestId
+	SELECT   t.RequestId
 			,t.SubIssueTypeId
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.MatchId ELSE NULL END AS MatchId
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.KickOffTime ELSE NULL END AS KickOffTime
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.Sporttype ELSE NULL END AS Sporttype
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.LeagueId ELSE NULL END AS LeagueId
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.HomeId ELSE NULL END AS HomeId
-			,CASE WHEN t.IssueTypeId <> 13 THEN t.AwayId ELSE NULL END AS AwayId
+			,t.MatchId
+			,t.KickOffTime
+			,t.Sporttype
+			,t.LeagueId
+			,t.HomeId
+			,t.AwayId
 			,t.EventDate
 			,t.ActionId
 			,t.CreatedDate
@@ -449,7 +447,7 @@ BEGIN
 			,t.VoidToTime
 			,t.FromWinlostDate
 			,t.ToWinlostDate
-			,CASE WHEN t.IssueTypeId = 13 THEN us.TotalUserName ELSE 0 END AS TotalUserName --no.of accounts
+			,t.TotalUserName --no.of accounts
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -470,11 +468,6 @@ BEGIN
 					WHERE s.RequestId = t.RequestId
 					GROUP BY s.RequestId
 			)ts
-		OUTER APPLY (
-					SELECT (LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1) AS  TotalUserName
-					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					WHERE rd.RequestId = t.RequestId
-					)us
 		OUTER APPLY (
 					SELECT TOP 1 RequestId, statusID
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 

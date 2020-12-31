@@ -20,7 +20,6 @@ BEGIN
 
 	DECLARE @tmpMatchVoidingHistory TABLE (
 		 RequestId			INT
-		,MatchId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
 		,TotalSingle		INT
@@ -29,23 +28,21 @@ BEGIN
 
 	CREATE TABLE #tmpResult (
 		 RequestId		INT
-		,MatchId		INT
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
 		,TotalSingle	INT
 		,TotalParlay	INT
 	)
-	INSERT INTO #tmpResult(RequestId, MatchId, IssueTypeId)
-		SELECT	r.RequestId
-				,rd.MatchId
+	INSERT INTO #tmpResult(RequestId, IssueTypeId)
+		SELECT DISTINCT r.RequestId
 				,r.IssueTypeId
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 		WHERE	r.RequestId = @RequestId
 		
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, MatchId, VoidingHistoryId, VoidedBy)
-	SELECT	vh.RequestId, t.MatchId, vh.VoidingHistoryId, vh.UserId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
+	SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -69,7 +66,6 @@ BEGIN
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,vh.MatchId
 					,SUM(CASE 
 							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN z.bettype = 911 THEN 1
@@ -78,10 +74,9 @@ BEGIN
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, vh.MatchId
+			GROUP BY vh.VoidingHistoryId
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-			AND vh.MatchId = t.MatchId
 		
 	--parlay
 	UPDATE vh
@@ -89,15 +84,13 @@ BEGIN
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,vh.MatchId
 					,COUNT(1) AS TotalVoidedParlay
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, vh.MatchId
+			GROUP BY vh.VoidingHistoryId
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-			AND vh.MatchId = t.MatchId
 
 	UPDATE t 
 		SET TotalSingle = ISNULL(vh.TotalSingle,0)
@@ -108,11 +101,10 @@ BEGIN
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId
-					AND vh.MatchId = t.MatchId
 		) vh
 	
 	--Return Data
-	SELECT	DISTINCT t.RequestId
+	SELECT	 t.RequestId
 			,v.Username AS LastPerformedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
