@@ -426,6 +426,7 @@ BEGIN
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
 				, FilterBy = @FilterBy
+				, RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 		WHERE	RequestId = @RequestId
 
 		-- Insert queue for auto void
