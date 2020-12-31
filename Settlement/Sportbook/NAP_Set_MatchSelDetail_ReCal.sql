@@ -38,14 +38,14 @@ BEGIN
 		    		SettlementStatusID
 		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 		  		WHERE  rd.matchid = @matchid
-					AND rd.ResourceId = 01
+					AND rd.ResourceId = '01'
 		  	) AS rsHT
 		OUTER  APPLY(
 		  		SELECT ResultStatusID, 
 		    		SettlementStatusID
 		  		FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
 		  		WHERE  rd.matchid = @matchid
-					AND rd.ResourceId = 00
+					AND rd.ResourceId = '00'
 		  	) AS rsFT
     WHERE match.matchid = @matchid
 	
