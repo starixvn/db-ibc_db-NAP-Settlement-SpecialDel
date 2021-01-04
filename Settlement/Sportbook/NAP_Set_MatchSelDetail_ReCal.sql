@@ -24,11 +24,11 @@ BEGIN
         ,match.finalawayscore
 		,match.GoalRecord
 		,CASE WHEN mr.IsHTCal = 1 THEN 'Calculated' 
-			WHEN match.sporttype = 1 AND rsHT.SettlementStatusID = 4 AND mr.calrefund = 1 THEN 'Calculated'
+			WHEN match.sporttype = 1 AND rsHT.SettlementStatusID <> 0 AND mr.calrefund = 1 THEN 'Calculated'
 			WHEN match.sporttype <> 1 AND mr.calrefund = 1 THEN 'Calculated'
 			ELSE NULL END AS HTStatus
         ,CASE WHEN mr.calculate = 1 THEN 'Calculated' 
-			WHEN match.sporttype = 1 AND rsFT.SettlementStatusID = 4 AND mr.calrefund = 1 THEN 'Calculated' 
+			WHEN match.sporttype = 1 AND rsFT.SettlementStatusID <> 0 AND mr.calrefund = 1 THEN 'Calculated' 
 			WHEN match.sporttype <> 1 AND mr.calrefund = 1 THEN 'Calculated' 
 			ELSE NULL END AS FTStatus
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
