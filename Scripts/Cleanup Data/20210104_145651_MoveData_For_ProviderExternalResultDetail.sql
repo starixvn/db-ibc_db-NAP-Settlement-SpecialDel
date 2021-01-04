@@ -11,7 +11,7 @@ GO
 
 BEGIN
 
-INSERT INTO DBACC.bodb_Archive.dbo.ProviderExternalResultDetail_bk 
+INSERT INTO dbo.ProviderExternalResultDetail_bk 
 			  (ProviderExternalId, MatchId3rd, MatchId, SourceId, ResourceId, HomeValue, AwayValue, OtherInfo, CreateDate, CreateBy, LastModifyDate, LastModifyBy	)
 		SELECT p.ProviderExternalId, p.MatchId3rd, p.MatchId, SourceId, ResourceId, p.HomeValue, p.AwayValue, p.OtherInfo, p.CreateDate, p.CreateBy, p.LastModifyDate, p.LastModifyBy 
 		FROM DBPRO.bodb02.dbo.ProviderExternalResultDetail p WITH(NOLOCK)
