@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_ReCal]
 (
 	@matchid		INT 
@@ -8,7 +8,7 @@ AS
 /*
     Created by: 20201211@Max
     Task: Support to Re-calculate Settled Tickets
-    DB: DBTXN/BODB02 
+    DB: DBPRO/BODB02 
     
     Revisions:            
 		- 20201211@Max: Support to Re-calculate Settled Tickets [Redmine: #145669]
@@ -27,7 +27,7 @@ BEGIN
 				,rs.ResultStatusId
 	           ,rs.ResultStatusID
 				,rs.SettlementStatusID 
-	  	FROM DBPRO.bodb02.dbo.ResultDetailES rs WITH (NOLOCK)  
+	  	FROM dbo.ResultDetailES rs WITH (NOLOCK)  
 		WHERE rs.matchid = @matchid
 	END
 	
@@ -39,7 +39,7 @@ BEGIN
 				,rs.AwayValue
 	           ,rs.ResultStatusID
 				,rs.SettlementStatusID
-	  	FROM DBPRO.bodb02.dbo.ResultDetailOS rs WITH (NOLOCK) 
+	  	FROM dbo.ResultDetailOS rs WITH (NOLOCK) 
 		WHERE rs.matchid = @matchid
 	END
 	ELSE
@@ -49,7 +49,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusID
 				,rs.SettlementStatusID
-	  	FROM  DBPRO.bodb02.dbo.ResultDetail rs WITH (NOLOCK) 
+	  	FROM  dbo.ResultDetail rs WITH (NOLOCK) 
 		WHERE rs.matchid = @matchid
 	END
 

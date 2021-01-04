@@ -1,4 +1,4 @@
- /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Set_FastMarket_MatchSelDetail_ReCal]
 (
 	@MatchId INT
@@ -7,7 +7,7 @@ AS
 /*
     Created by: 20201211@Max
     Task: Support to Re-calculate Settled Tickets
-    DB: DBTXN/BODB02 
+    DB: DBPRO/BODB02 
     
     Revisions:            
 		- 20201211@Max: Support to Re-calculate Settled Tickets [Redmine: #145669]
@@ -32,7 +32,7 @@ BEGIN
 	
 	INSERT INTO @tblResultDetail (ResourceId, BetType, HomeValue, AwayValue)
 	SELECT	r.ResourceId, t.BetType, r.HomeValue, r.AwayValue
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+	FROM	dbo.ResultDetail r WITH(NOLOCK)
 		INNER JOIN (
 			SELECT	BetType, ResourceId
 			FROM	@tblFMBettype t
