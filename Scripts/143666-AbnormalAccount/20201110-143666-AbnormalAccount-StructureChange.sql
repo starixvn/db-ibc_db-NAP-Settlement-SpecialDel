@@ -23,6 +23,12 @@ ADD
 	IsSentLetsTalk bit NULL
 GO
 
+CREATE NONCLUSTERED INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_RequestID_VoidingHistory] ON [dbo].[Ticketvoiding_VoidBetAutomation_Service]
+(
+	[RequestID] ASC,
+	[VoidingHistory] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
 
 
 

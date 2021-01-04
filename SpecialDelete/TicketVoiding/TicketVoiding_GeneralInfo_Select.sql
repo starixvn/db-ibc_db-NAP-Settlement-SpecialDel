@@ -33,6 +33,7 @@ BEGIN
 		,RequestedBy INT
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
+		,ActionId TINYINT
 	)
 	
 	CREATE TABLE #tmpTicket
@@ -57,7 +58,7 @@ BEGIN
 	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
 
-	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime)
+	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
 	SELECT TOP 1 
 			 rd.RequestId
 			,m.homeid
@@ -66,6 +67,7 @@ BEGIN
 			,r.UserId
 			,r.DecidedBy
 			,rd.kickofftime
+			,r.ActionId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
@@ -244,13 +246,17 @@ BEGIN
 		,m.DecidedBy
 		,m.RequestedBy
 		,s.VoidedBy
-		,cm.ContentChineseSimplified
-		,cm.ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4) THEN m.Content_cs ELSE cm.ContentChineseSimplified END
+		,CASE WHEN m.ActionId IN (1,4) THEN m.Content_en ELSE  cm.ContentEnglish END
 		,sv.NegativeBalanceUsers
 	FROM #tmpTicket s
 	INNER JOIN #TmpMatch m ON s.RequestId = m.RequestId
-	LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK)  
-				ON s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
+	OUTER APPLY( SELECT sv.NegativeBalanceUsers, m.Content_en, m.Content_cs
+				 FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
+					LEFT JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
+				  WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
+						AND sv.RequestID = @RequestId
+				)sv
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 
 	SELECT VoidingHistoryId

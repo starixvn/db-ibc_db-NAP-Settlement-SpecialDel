@@ -39,4 +39,22 @@ GO
 ALTER TABLE [dbo].[Ticketvoiding_VoidBetAutomation_Service] ADD  CONSTRAINT [DF_Ticketvoiding_VoidBetAutomation_Service_createdDate]  DEFAULT (getdate()) FOR [createdDate]
 GO
 
+CREATE NONCLUSTERED INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_matchID] ON [dbo].[Ticketvoiding_VoidBetAutomation_Service]
+(
+	[matchID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
+
+CREATE NONCLUSTERED INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_Session_StatusID] ON [dbo].[Ticketvoiding_VoidBetAutomation_Service]
+(
+	[SessionID] ASC,
+	[statusID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
+CREATE NONCLUSTERED INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_RequestID_VoidingHistory] ON [dbo].[Ticketvoiding_VoidBetAutomation_Service]
+(
+	[RequestID] ASC,
+	[VoidingHistory] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
 

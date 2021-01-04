@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 	@RequestId INT
 	,@UserId INT
-	,@TransIds VARCHAR(MAX) = ''
 	,@VoidingHistoryId INT = 0 OUTPUT
 	,@VoidData XML = NULL
 AS
@@ -26,13 +25,11 @@ BEGIN
 			RequestId
 			,UserId
 			,StatusId
-			,TransIds
 			,VoidData
 		)
 	SELECT	@RequestId
 			,@UserId
 			,1 -- running
-			,@TransIds
 			,@VoidData
 	SET @VoidingHistoryId = SCOPE_IDENTITY()
 

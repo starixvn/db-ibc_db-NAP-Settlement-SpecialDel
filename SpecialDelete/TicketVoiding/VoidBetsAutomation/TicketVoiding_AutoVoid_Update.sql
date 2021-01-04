@@ -74,8 +74,8 @@ BEGIN
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
-	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId INT, RequestType TINYINT, DecidedBy NVARCHAR(200),VoidFromDate DATETIME, VoidToDate DATETIME)
-	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT)
+	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId INT, RequestType TINYINT, DecidedBy NVARCHAR(200))
+	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId INT, DecidedBy NVARCHAR(200), Winlostdate DATETIME)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
@@ -193,8 +193,8 @@ BEGIN
 
 	IF @RequestID > 0
 	BEGIN
-		INSERT INTO #inputRequestTransId (TransId, RequestID, IssueTypeId, RequestType, DecidedBy, VoidFromDate, VoidToDate)
-		SELECT  rds.transid, rd.RequestID, req.IssueTypeId, rd.RequestType, req.DecidedBy, rd.FromWinlostDate, rd.ToWinlostDate
+		INSERT INTO #inputRequestTransId (TransId, RequestID, IssueTypeId, RequestType, DecidedBy)
+		SELECT  rds.transid, rd.RequestID, req.IssueTypeId, rd.RequestType, req.DecidedBy
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId AND rd.MatchId = rds.MatchId
@@ -301,8 +301,8 @@ BEGIN
 		RETURN
 	END
 	-- get transid to VOID
-	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID)
-	SELECT t.TransId, t.RequestID
+	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate)
+	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
 		OUTER APPLY (SELECT TOP (1) ac.CustID 
@@ -728,24 +728,23 @@ BEGIN
 		SET @VoidDataXML = ( SELECT DISTINCT 
 									'starixIT' AS "@CreatorName"
 									,a.DecidedBy AS "@DecidedBy"
-									,CONVERT(VARCHAR, a.VoidFromDate, 101) AS "@VoidFromDate"
-									,CONVERT(VARCHAR, a.VoidToDate, 101) AS "@VoidToDate"
+									,MIN(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidFromDate"
+									,MAX(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidToDate"
 									,MAX (CASE WHEN b.statusID IN (111, 112, 113) THEN 1 ELSE 0 END) AS "@IsHasSettledTicket"
-							FROM #inputRequestTransId a
+							FROM @tmpInputTransId_VOID a
 									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON a.TransId = b.transid
 							WHERE a.IssueTypeId = 13
-							GROUP BY a.DecidedBy, a.VoidFromDate, a.VoidToDate
+							GROUP BY a.DecidedBy
 							FOR XML PATH('VoidData')
 							)
 		-- Insert Voiding History first
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData)
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, VoidData)
 		OUTPUT INSERTED.RequestID
 				,INSERTED.VoidingHistoryId
 		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
 		SELECT  RequestID
 				,@UserId
 				, 1
-				,Transids
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
 	END

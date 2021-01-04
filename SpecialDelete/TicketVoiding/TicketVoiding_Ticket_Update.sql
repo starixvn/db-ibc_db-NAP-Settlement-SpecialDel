@@ -26,8 +26,10 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	IF @VoidingTypeId = 1 -- Single
+	DECLARE @IssueTypeId INT
+	SELECT @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
+
+	IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId = 13))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId
