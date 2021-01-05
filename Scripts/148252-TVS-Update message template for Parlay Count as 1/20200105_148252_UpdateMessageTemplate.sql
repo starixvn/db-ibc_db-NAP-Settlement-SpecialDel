@@ -6,6 +6,8 @@
 	DB: DBTXN/bodb02
 	
 */ 
+USE bodb02
+GO
 
 SELECT * INTO #temp
 FROM TicketVoiding_MessageTemplate m WITH (NOLOCK)
