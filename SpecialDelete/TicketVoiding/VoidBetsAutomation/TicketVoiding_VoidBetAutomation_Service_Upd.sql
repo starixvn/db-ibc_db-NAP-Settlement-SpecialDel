@@ -68,14 +68,7 @@ BEGIN
 			,ModifiedDate = GETDATE()
 		WHERE SessionID = @SessionId
 	END
-	ELSE IF @UpdateType = 7
-	BEGIN
-		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET VoidResults = @VoidResults
-			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
-	END
-	ELSE IF @UpdateType = 5 OR @UpdateType = 6
+	ELSE IF @UpdateType = 5
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
@@ -89,6 +82,29 @@ BEGIN
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+	END
+	ELSE IF @UpdateType = 6
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET ModifiedDate = GETDATE()
+			,MessageId = @MessageId
+			,ReasonId = @ReasonId
+			,IsSentBatchMessage = @IsSentBatchMessage
+			,IsSentMessageToAdminSite = @IsSentMessageToAdminSite
+			,IsInsertedVoidedTransaction = @IsInsertedVoidedTransaction
+			,IsUpdatedVoidingHistory = @IsUpdatedVoidingHistory
+			,IsSentEmail = @IsSentEmail
+			,IsRunExternalService = @IsRunExternalService
+			,IsSentLetsTalk = @IsSentLetsTalk
+			,VoidResults = ISNULL(@VoidResults, VoidResults)
+		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+	END
+	ELSE IF @UpdateType = 7
+	BEGIN
+		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
+		SET VoidResults = @VoidResults
+			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
 	END
 END
