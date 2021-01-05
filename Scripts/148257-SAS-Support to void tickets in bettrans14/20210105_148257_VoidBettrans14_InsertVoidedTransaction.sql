@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
 	Created by: Max
 	Date 20210105
@@ -13,7 +13,13 @@ SELECT	val AS TransId
 FROM	dbo.f_SplitString(@TransIds_bettrans14, ',')
 OPTION (maxrecursion 0)
 
---Insert into TicketVoiding_VoidedTransaction for bettrans14	
+--Insert into TicketVoiding_VoidedTransaction for bettrans14
+DECLARE @ReasonId INT = 0 
+INSERT INTO dbo.TicketVoiding_Reason (ReasonEnglish, ReasonChineseSimplified)
+SELECT 'Technical Issue',N'技术问题'
+	
+SET @ReasonId = SCOPE_IDENTITY()
+
 INSERT INTO dbo.TicketVoiding_VoidedTransaction (
 	TransId
 	,MessageId
@@ -25,7 +31,7 @@ INSERT INTO dbo.TicketVoiding_VoidedTransaction (
 	)
 SELECT t.TransId
 	, 0 AS MessageId
-	,0
+	,@ReasonId
 	,0
 	,NULL
 	,NULL
