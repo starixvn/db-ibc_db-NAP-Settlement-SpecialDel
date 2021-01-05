@@ -74,8 +74,8 @@ BEGIN
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
-	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId INT, RequestType TINYINT, DecidedBy NVARCHAR(200))
-	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId INT, DecidedBy NVARCHAR(200), Winlostdate DATETIME)
+	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId TINYINT, RequestType TINYINT, DecidedBy NVARCHAR(200))
+	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId TINYINT, DecidedBy NVARCHAR(200), Winlostdate DATETIME)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
@@ -737,6 +737,7 @@ BEGIN
 							GROUP BY a.DecidedBy
 							FOR XML PATH('VoidData')
 							)
+		
 		-- Insert Voiding History first
 		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, VoidData)
 		OUTPUT INSERTED.RequestID
@@ -756,9 +757,11 @@ BEGIN
 	BEGIN
 		DECLARE @sessionID INT = 0
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
-	
+
+		SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
+
 		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
-		SELECT vh.RequestID, vh.VoidingHistoryId,1,NULL,@sessionID,1
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
 		FROM @VoidingHistory_tmp vh
 	END
 	

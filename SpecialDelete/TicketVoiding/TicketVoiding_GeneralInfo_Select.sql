@@ -246,14 +246,14 @@ BEGIN
 		,m.DecidedBy
 		,m.RequestedBy
 		,s.VoidedBy
-		,CASE WHEN m.ActionId IN (1,4) THEN m.Content_cs ELSE cm.ContentChineseSimplified END
-		,CASE WHEN m.ActionId IN (1,4) THEN m.Content_en ELSE  cm.ContentEnglish END
+		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 		,sv.NegativeBalanceUsers
 	FROM #tmpTicket s
 	INNER JOIN #TmpMatch m ON s.RequestId = m.RequestId
 	OUTER APPLY( SELECT sv.NegativeBalanceUsers, m.Content_en, m.Content_cs
 				 FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
-					LEFT JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
+					INNER JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
 				  WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
 						AND sv.RequestID = @RequestId
 				)sv

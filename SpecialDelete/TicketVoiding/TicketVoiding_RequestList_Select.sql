@@ -251,7 +251,7 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
@@ -296,7 +296,7 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
@@ -337,7 +337,7 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
 			INNER JOIN (
-						SELECT TOP 1 RequestID, MIN(m.eventdate) eventdate
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
 						)m
