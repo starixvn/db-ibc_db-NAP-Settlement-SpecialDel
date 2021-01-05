@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*	
 	Created by: Max
 	Date 20210105
@@ -11,8 +11,8 @@ DECLARE @TransIds			VARCHAR(MAX) = '110736616844,110738987386,110739062865,11073
 	,@UserName			VARCHAR(30) = 'starixIT'
 	,@UserId			INT = 10278938 -- custid of Admin
 	,@IP				VARCHAR(15) ='125.227.140.97'
-	,@Reason			NVARCHAR(500) = '@@'
-	,@ReasonSC			NVARCHAR(500) = '@@'
+	,@Reason			NVARCHAR(500) = 'Technical Issue'
+	,@ReasonSC			NVARCHAR(500) = '技术问题'
 	,@IsAbnormalBet		BIT = 0
 
 DECLARE	@LogData					NVARCHAR(500)
@@ -22,7 +22,8 @@ DECLARE @BeforeUpd TVP_BalanceWalletChange
 DECLARE @AfterUpd  TVP_BalanceWalletChange
 
 DECLARE @BalanceInfoBeforeUpd TABLE (
-	CustId			INT
+	sporttype		INT
+	,CustId			INT
 	,MatchId		INT
 	,WinlostDate	DATETIME
 	,Winlost		MONEY
@@ -38,7 +39,8 @@ DECLARE @BalanceInfoBeforeUpd TABLE (
 	,balance		MONEY
 )
 DECLARE @BalanceInfoAfterUpd TABLE (
-	CustId			INT
+	sporttype		INT
+	,CustId			INT
 	,MatchId		INT
 	,WinlostDate	DATETIME
 	,Winlost		MONEY
@@ -234,18 +236,43 @@ FROM dbo.bettrans14 b WITH(NOLOCK)
 	INNER JOIN #tblTransIds t ON b.transid = t.transid
 
 -- UPDATE eventtype = 1
-UPDATE	b
-SET homeid 		= m.homeid
-	,awayid 	= m.awayid
-	,matchcode 	= m.matchcode
-	,eventdate 	= m.eventdate
-	,leagueid 	= m.leagueid
-	,isNeutral 	= ISNULL(m.IsNeutral,CAST(0 AS BIT))
-	,showtime 	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') 
-	,sporttype 	= m.sporttype
-FROM	#BetDelete b
-	INNER JOIN dbo.match14 m WITH(NOLOCK)
-		ON	b.matchid = m.matchid
+IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype = 38))
+BEGIN
+	UPDATE	b
+	SET homeid 		= m.homeid
+		,awayid 	= m.awayid
+		,matchcode 	= m.matchcode
+		,eventdate 	= m.eventdate
+		,leagueid 	= m.leagueid
+		,isNeutral 	= ISNULL(m.IsNeutral,CAST(0 AS BIT))
+		,showtime 	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') 
+		,sporttype 	= m.sporttype
+	FROM	#BetDelete b
+		INNER JOIN dbo.match14 m WITH(NOLOCK)
+			ON	b.matchid = m.matchid
+	WHERE b.Bettype = 38
+END
+
+-- -- UPDATE eventtype = 3 [VS range bettypes]
+IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238)))
+BEGIN
+	UPDATE b
+	SET homeid 		= o.RacerID
+		,awayid 	= 0
+		,matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+		,eventdate	= o.eventdate
+		,leagueid 	= r.leagueid
+		,IsNeutral  = 0
+		,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+		,sporttype 	= r.sporttype
+		
+	FROM	#BetDelete b
+		INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+		ON b.oddsid = o.Orid
+		INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+		ON r.EventID = o.EventID
+	WHERE b.bettype IN (1231,1232,1233,1237,1238)
+END
 
 -- gather match Ids
 INSERT INTO #tblMatch (matchid)
@@ -314,8 +341,9 @@ FROM dbo.bettrans14 AS main WITH (NOLOCK)
 	AND main.matchid = tmpmain.matchid		
 
 --capture balance before
-INSERT INTO @BalanceInfoBeforeUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
-SELECT	b14.custid
+INSERT INTO @BalanceInfoBeforeUpd (sporttype, CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
+SELECT	t.sporttype
+		,b14.custid
 		,b14.matchid
 		,b14.winlostdate
 		,SUM(b14.winlost)
@@ -336,11 +364,16 @@ FROM	dbo.bettrans14 b14 WITH(NOLOCK)
 GROUP BY b14.custid
 		,b14.matchid
 		,b14.winlostdate
+		,t.sporttype
 
 INSERT INTO @BeforeUpd (matchid, custid, balanceType, bonusId, walletType, balance)
 SELECT	b14.matchid
 		,b14.custid
-		,1 AS BalanceType
+		, CASE 
+				WHEN b14.sporttype BETWEEN 1 AND 99  THEN 1 -- Sports
+				WHEN b14.sporttype = 162 THEN 3 -- Casino
+				ELSE 4  -- Others
+		   END AS balanceType
 		,0 AS BonusID
 		,2 AS WalletType -- normal tickets are treated as cash tickets
 		,SUM(b14.balance) AS balance
@@ -368,8 +401,9 @@ FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
 	INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
 	INNER JOIN #BetDelete AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
 
-INSERT INTO @BalanceInfoAfterUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
-SELECT	b14.custid
+INSERT INTO @BalanceInfoAfterUpd (sporttype, CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
+SELECT	t.sporttype
+		,b14.custid
 		,b14.matchid
 		,b14.winlostdate
 		,SUM(b14.winlost)
@@ -390,11 +424,16 @@ FROM	dbo.bettrans14 b14 WITH(NOLOCK)
 GROUP BY b14.custid
 		,b14.matchid
 		,b14.winlostdate
+		,t.sporttype
 
 INSERT INTO @AfterUpd (matchid, custid, balanceType, bonusId, walletType, balance)
 SELECT	b14.matchid
 		,b14.custid
-		,1 AS BalanceType
+		, CASE 
+				WHEN b14.sporttype BETWEEN 1 AND 99  THEN 1 -- Sports
+				WHEN b14.sporttype = 162 THEN 3 -- Casino
+				ELSE 4  -- Others
+		   END AS balanceType
 		,0 BonusID
 		,2 AS WalletType -- normal tickets are treated as cash tickets
 		,SUM(b14.balance) AS balance
