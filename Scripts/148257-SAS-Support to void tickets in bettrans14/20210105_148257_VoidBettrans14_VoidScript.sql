@@ -401,7 +401,7 @@ UPDATE main
 		,scomm = 0
 		,statusID = 102
 		,status = 'VOID'
-		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
+		--,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
 FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
 	INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
 	INNER JOIN #BetDelete AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
