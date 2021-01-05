@@ -267,9 +267,9 @@ BEGIN
 		,sporttype 	= r.sporttype
 		
 	FROM	#BetDelete b
-		INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+		INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
 		ON b.oddsid = o.Orid
-		INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+		INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 		ON r.EventID = o.EventID
 	WHERE b.bettype IN (1231,1232,1233,1237,1238)
 END
