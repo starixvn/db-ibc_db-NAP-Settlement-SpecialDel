@@ -12,7 +12,7 @@ DECLARE @TransIds			VARCHAR(MAX) = '110736616844,110738987386,110739062865,11073
 	,@UserId			INT = 10278938 -- custid of Admin
 	,@IP				VARCHAR(15) ='125.227.140.97'
 	,@Reason			NVARCHAR(500) = 'Technical Issue'
-	,@ReasonSC			NVARCHAR(500) = '技术问题'
+	,@ReasonSC			NVARCHAR(500) = N'技术问题'
 	,@IsAbnormalBet		BIT = 0
 
 DECLARE	@LogData					NVARCHAR(500)
@@ -380,6 +380,11 @@ SELECT	b14.matchid
 FROM	@BalanceInfoBeforeUpd b14
 GROUP BY b14.custid
 		,b14.matchid
+		, CASE 
+				WHEN b14.sporttype BETWEEN 1 AND 99  THEN 1 -- Sports
+				WHEN b14.sporttype = 162 THEN 3 -- Casino
+				ELSE 4  -- Others
+		   END 
 
 UPDATE main
 	SET 
@@ -440,6 +445,11 @@ SELECT	b14.matchid
 FROM	@BalanceInfoAfterUpd b14
 GROUP BY b14.custid
 		,b14.matchid
+		, CASE 
+				WHEN b14.sporttype BETWEEN 1 AND 99  THEN 1 -- Sports
+				WHEN b14.sporttype = 162 THEN 3 -- Casino
+				ELSE 4  -- Others
+		   END
 
 ---INSERT data into pending balance table   
 EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
