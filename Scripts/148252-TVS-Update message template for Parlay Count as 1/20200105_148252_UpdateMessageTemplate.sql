@@ -11,7 +11,7 @@ GO
 
 SELECT * INTO #temp
 FROM TicketVoiding_MessageTemplate m WITH (NOLOCK)
-WHERE MsgEnglish like '%Parlay counted as (1)%'
+WHERE MsgEnglish LIKE '%Parlay counted as (1)%'
 
 UPDATE t WITH (ROWLOCK, UPDLOCK)
 	SET t.MsgEnglish = REPLACE(t.MsgEnglish, 'Parlay counted as (1)', 'Parlay counted as one (1)')
