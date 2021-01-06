@@ -127,7 +127,7 @@ BEGIN
 	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-								   WHERE matchid = 29
+								   WHERE matchid IN (9, 29, 2799)
 								   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 												WHEN @FilteredBy = 3 THEN 1
@@ -138,7 +138,7 @@ BEGIN
 			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
 				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
-			WHERE rd.matchid = 29
+			WHERE rd.matchid IN (9, 29, 2799)
 
 			IF (@Winlostdate >= @moveBetDay)
 			BEGIN
@@ -147,7 +147,7 @@ BEGIN
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
 					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
-				WHERE rd.matchid = 29
+				WHERE rd.matchid IN (9, 29, 2799)
 				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 						   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 						   WHEN @FilteredBy = 3 AND b.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1
@@ -161,7 +161,7 @@ BEGIN
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
 					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON rd.MatchId = b14.matchid AND s.TransId = b14.transid
-				WHERE rd.matchid = 29
+				WHERE rd.matchid IN (9, 29, 2799)
 				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 							 WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 							 WHEN @FilteredBy = 3 AND b14.winlostdate BETWEEN @FromDate AND @ToDate  THEN 1

@@ -440,12 +440,12 @@ BEGIN
 			WHERE t.bettype IN (1231,1232,1233,1237,1238)
 		END
 		-- UPDATE IsMixParlay
-		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 38)))
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799)))
 		BEGIN
 			UPDATE t
 				SET IsMixParlay = 1
 			FROM #tmpTicket t
-			WHERE t.bettype IN (9, 29, 2799, 38)
+			WHERE t.bettype IN (9, 29, 2799)
 		END
 		-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 		BEGIN
