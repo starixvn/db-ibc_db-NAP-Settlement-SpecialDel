@@ -211,6 +211,7 @@ BEGIN
 				,BonusID = b.BonusId
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
+				,subTransId = b.transid
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 
@@ -253,6 +254,7 @@ BEGIN
 				,subtransdesc = bm.transdesc
 				,LiveIndicator = bm.liveindicator
 				,ActualStake = b.actual_stake
+				,subTransId = bm.transid
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
@@ -288,6 +290,7 @@ BEGIN
 				,BonusID = b.BonusId
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
+				,subTransId = t.TransId
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 		
@@ -329,6 +332,7 @@ BEGIN
 				,subtransdesc = bm.transdesc
 				,LiveIndicator = bm.liveindicator
 				,ActualStake = b.actual_stake
+				,subTransId = bm.transid
 		FROM	#tmpTicket t
 			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
@@ -373,6 +377,7 @@ BEGIN
 					,subtransdesc = bm.transdesc
 					,LiveIndicator = bm.liveindicator
 					,ActualStake = b.actual_stake
+					,subTransId = t.subTransId
 			FROM	#tmpTicket t
 				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
@@ -433,6 +438,14 @@ BEGIN
 				INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 				ON r.EventID = o.EventID
 			WHERE t.bettype IN (1231,1232,1233,1237,1238)
+		END
+		-- UPDATE IsMixParlay
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799, 38)))
+		BEGIN
+			UPDATE t
+				SET IsMixParlay = 1
+			FROM #tmpTicket t
+			WHERE t.bettype IN (9, 29, 2799, 38)
 		END
 		-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 		BEGIN

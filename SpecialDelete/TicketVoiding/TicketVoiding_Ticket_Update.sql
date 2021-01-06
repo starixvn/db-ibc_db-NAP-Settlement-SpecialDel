@@ -20,6 +20,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20210501@July: [TVS] - Abnormal Account [Redmine: #143666]
 	
 	Param's explanation:	
 		

@@ -156,7 +156,7 @@ BEGIN
 						WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 						WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 						WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
+						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) AND pt.SportType NOT IN (168) THEN 1
 					ELSE 0 END
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
@@ -228,7 +228,7 @@ BEGIN
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 					AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
 								 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
-									AND rd.FromWinlostDate >= @FromDate AND rd.ToWinlostDate <= @ToDate THEN 1
+									AND ((rd.FromWinlostDate BETWEEN  @FromDate AND @ToDate) OR (rd.ToWinlostDate BETWEEN  @FromDate AND @ToDate)) THEN 1
 								 ELSE 0 END
 					
 
