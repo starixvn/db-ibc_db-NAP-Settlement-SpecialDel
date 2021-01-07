@@ -5,22 +5,31 @@
 	Task: Support to void tickets in bettransRnG14 - [Redmine: 148359]
 	DB: DBTXN/bodb02
 	
-	SELECT custId AS '@c'
-			,winlostDate AS '@w'
-			,-SUM(stake) AS '@st'
-			,-SUM(actual_stake) AS '@ast'
-			,-SUM(Winlost) AS '@w_dif'
-			,-SUM(aWinlost) AS '@aw_dif'
-			,-SUM(mWinlost) AS '@mw_dif'
-			,-SUM(sWinlost) AS '@sw_dif'
-			,-SUM(playerComm) AS '@pc_dif'
-			,-SUM(Comm) AS '@c_dif'
-			,-SUM(aComm) AS '@ac_dif'
-			,-SUM(sComm) AS '@sc_dif'
+	SELECT distinct refno
 	FROM  bettransRnG14 br WITH (NOLOCK)		
 	WHERE custid IN (47485411,47502469)		
 		AND transid IN (102754618756,102755264965,102758269772,102758315358,102758324906)		
 	GROUP BY custid, winlostdate	
+	
+	
+	SELECT b.custid, b.winlostdate
+				,b.stake 
+				,b.actual_stake 
+				,b.Winlost 
+				,b.aWinlost 
+				,b.mWinlost 
+				,b.sWinlost 
+				,b.playerComm 
+				,b.Comm 
+				,b.aComm 
+				,b.sComm 
+	FROM  bettrans14 b with (nolock) 
+	WHERE transid in (110783316475,110791291468)
+	GROUP BY b.custid, b.winlostdate 
+	
+	custid		winlostdate	stake		actual_stake		Winlost		aWinlost		mWinlost		sWinlost	playerComm	Comm	aComm	sComm
+	47485411	2021-01-01 00:00:00		300.00				300.00		720.00			-378.00	0.00	0.00		0.00		0.00	0.00	0.00
+	47502469	2021-01-02 00:00:00		4510.00	4510.00		10040.00	-4977.00		0.00			0.00		0.00		0.00	0.00	0.00
 	
 */ 
 USE bodb02
@@ -32,29 +41,29 @@ SET @AffectedList = CAST((
 	FROM 
 		(SELECT 47485411 AS '@c'
 				,'2021-01-01' AS '@w'
-				,0.00 AS '@st'
-				,0.00 AS '@ast'
-				,-400.00 AS '@w_dif'
-				,306.00 AS '@aw_dif'
-				,0.00 AS '@mw_dif'
-				,0.00 AS '@sw_dif'
-				,0.00 AS '@pc_dif'
-				,0.00 AS '@c_dif'
-				,0.00 AS '@ac_dif'
-				,0.00 AS '@sc_dif'
+				,XX AS '@st'
+				,XX AS '@ast'
+				,xx AS '@w_dif'
+				,xx AS '@aw_dif'
+				,xx AS '@mw_dif'
+				,xx AS '@sw_dif'
+				,xx AS '@pc_dif'
+				,xx AS '@c_dif'
+				,xx AS '@ac_dif'
+				,xx AS '@sc_dif'
 		UNION ALL
 		SELECT 47502469 AS '@c'
 				,'2021-01-02' AS '@w'
-				,0.00 AS '@st'
-				,0.00 AS '@ast'
-				,-5500.00 AS '@w_dif'
-				,4221.00 AS '@aw_dif'
-				,0.00 AS '@mw_dif'
-				,0.00 AS '@sw_dif'
-				,0.00 AS '@pc_dif'
-				,0.00 AS '@c_dif'
-				,0.00 AS '@ac_dif'
-				,0.00 AS '@sc_dif'
+				,XX AS '@st'
+				,XX AS '@ast'
+				,xx AS '@w_dif'
+				,xx AS '@aw_dif'
+				,xx AS '@mw_dif'
+				,xx AS '@sw_dif'
+				,xx AS '@pc_dif'
+				,xx AS '@c_dif'
+				,xx AS '@ac_dif'
+				,xx AS '@sc_dif'
 				) AS T
 	FOR XML PATH('r'), ROOT('root'), TYPE
 ) AS VARCHAR(MAX))
