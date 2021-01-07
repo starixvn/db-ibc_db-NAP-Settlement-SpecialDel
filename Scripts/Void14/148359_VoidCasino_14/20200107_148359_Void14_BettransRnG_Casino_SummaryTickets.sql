@@ -9,7 +9,6 @@
 	FROM  bettransRnG14 br WITH (NOLOCK)		
 	WHERE custid IN (47485411,47502469)		
 		AND transid IN (102754618756,102755264965,102758269772,102758315358,102758324906)		
-	GROUP BY custid, winlostdate	
 	
 	
 	SELECT b.custid, b.winlostdate
