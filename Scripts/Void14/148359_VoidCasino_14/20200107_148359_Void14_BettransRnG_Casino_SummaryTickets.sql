@@ -32,8 +32,8 @@ SET @AffectedList = CAST((
 	FROM 
 		(SELECT 47485411 AS '@c'
 				,'2021-01-01' AS '@w'
-				,-60.00 AS '@st'
-				,-60.00 AS '@ast'
+				,0.00 AS '@st'
+				,0.00 AS '@ast'
 				,-400.00 AS '@w_dif'
 				,306.00 AS '@aw_dif'
 				,0.00 AS '@mw_dif'
@@ -45,8 +45,8 @@ SET @AffectedList = CAST((
 		UNION ALL
 		SELECT 47502469 AS '@c'
 				,'2021-01-02' AS '@w'
-				,-810.00 AS '@st'
-				,-810.00 AS '@ast'
+				,0.00 AS '@st'
+				,0.00 AS '@ast'
 				,-5500.00 AS '@w_dif'
 				,4221.00 AS '@aw_dif'
 				,0.00 AS '@mw_dif'
