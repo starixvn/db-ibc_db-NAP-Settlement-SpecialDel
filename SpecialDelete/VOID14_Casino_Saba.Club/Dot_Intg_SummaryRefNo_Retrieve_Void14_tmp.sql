@@ -25,9 +25,9 @@ BEGIN
 Creator : Helen
 Date : 20200107
 Task : Settlement VendorRNG
-DB: TransDB/bodb02
+DB: DBTXN/bodb02
 
-History:
+Revisions:
 	--20200107@Helen: Support to void ticket in bettransRnG14 for Roulette - clone from Dot_Intg_SummaryRefNo_Retrieve - [148359]
 	
 */
