@@ -34,6 +34,3 @@ GROUP BY custid, winlostdate
 EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 	@AffectedList = @AffectedList
 
--- INSERT Routine tasks in queue tables for sum_winloss, statement ...: All will be handled by sql job afterwards.
-EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
-	@AffectedList = @AffectedList
