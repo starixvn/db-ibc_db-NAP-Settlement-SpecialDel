@@ -20,6 +20,7 @@ AS
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201109@Kathy: Exclude reject ticket of bettype 228 [Redmine:#145036]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
+		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		
     Param's Explanation:
 
@@ -63,7 +64,7 @@ BEGIN
 			,@maxSelectedTotalGoal INT = 0
 			,@maxSelectedPosition TINYINT = 0
 			,@totalChangedScore INT = 0
-			,@IsSettleDetermined BIT
+			,@IsSettleDetermined BIT = 0
 
 	DECLARE @settlementTime DATETIME
 			
@@ -121,6 +122,11 @@ BEGIN
 							WHEN b.bettype BETWEEN 221 AND 222 AND (CAST(hdp2 AS INT) & t.betoption = 0) THEN 1
 							ELSE 0 
 						END
+				WHEN b.bettype = 228 AND @IsSettleDetermined = 1
+					THEN CASE 
+							WHEN b.oddsspread + 0.25 <= @maxSelectedTotalGoal THEN 0
+							ELSE 1
+						END
 				ELSE 0
 			END AS IsRefund
 	FROM	@TmpData t
@@ -142,7 +148,7 @@ BEGIN
 					END
 			AND 1 = CASE
 						WHEN b.bettype <> 228 THEN 1
-						WHEN @action = 'REFUND' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
+						WHEN @action = 'REFUND' AND @IsSettleDetermined = 0 AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
 						WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal - @totalChangedScore THEN 0
 						ELSE 1
 					END

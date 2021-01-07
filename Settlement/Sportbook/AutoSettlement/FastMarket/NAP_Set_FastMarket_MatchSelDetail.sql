@@ -13,6 +13,7 @@ AS
 			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 			- 20210112@Kathy: Support Tickets on Intervals #45 & #90 [Redmine:#148603]
+			- 20210107@Kathy: Support settle determined [Readmine:#147141]
 
 	Param's Explanation:
 		
@@ -25,6 +26,7 @@ BEGIN
 		ResourceId			VARCHAR(20)
 		,BetType			SMALLINT
 		,SettlementStatusId TINYINT
+		,ResultStatusId		TINYINT
 		,HomeValue			VARCHAR(50)
 		,AwayValue			VARCHAR(50)
 		,OtherInfo			VARCHAR(50)
@@ -39,8 +41,8 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes()
 	WHERE	GroupId = 9
 	
-	INSERT INTO @tblResultDetail (ResourceId, BetType, SettlementStatusId, HomeValue, AwayValue, OtherInfo)
-	SELECT	r.ResourceId, t.BetType, r.SettlementStatusId, r.HomeValue, r.AwayValue, r.OtherInfo
+	INSERT INTO @tblResultDetail (ResourceId, BetType, SettlementStatusId, ResultStatusId, HomeValue, AwayValue, OtherInfo)
+	SELECT	r.ResourceId, t.BetType, r.SettlementStatusId, r.ResultStatusID,  r.HomeValue, r.AwayValue, r.OtherInfo
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 		INNER JOIN (
 			SELECT	BetType, ResourceId
@@ -49,6 +51,8 @@ BEGIN
 			SELECT 221, '221CNT__'
 			UNION ALL
 			SELECT 0, '221WB__'
+			UNION ALL
+			SELECT 0, '221SUS'
 		) t
 			ON r.ResourceId LIKE t.ResourceId
 	WHERE	matchid = @matchid			
@@ -259,8 +263,8 @@ BEGIN
 	FROM	#tblBettrans
 
 	-- Water break
-	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo
+	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
 	FROM	@tblResultDetail r
-	WHERE	r.ResourceId LIKE '221WB__'
+	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'
 END
 GO
