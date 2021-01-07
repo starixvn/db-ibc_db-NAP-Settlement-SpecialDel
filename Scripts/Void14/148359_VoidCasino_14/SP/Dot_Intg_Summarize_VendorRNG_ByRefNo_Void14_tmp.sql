@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Intg_Summarize_VendorRNG_ByRefNo_Void14_tmp]
 	@TVP_SummarizeRNG [TVP_SummarizeRNG] READONLY,
 	@ErrCode_ByRefNo int = -1 OUTPUT,

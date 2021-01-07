@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Intg_SummaryRefNo_Retrieve_Void14_tmp] 
 	@custId [int],
 	@betTypeId [int],

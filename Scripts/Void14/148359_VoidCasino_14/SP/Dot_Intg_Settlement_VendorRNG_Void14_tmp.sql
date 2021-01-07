@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Intg_Settlement_VendorRNG_Void14_tmp]
 	@transid_rng bigint,	
 	@custid int,
