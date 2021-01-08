@@ -14,7 +14,8 @@
 		  + Saba Soccer : sporttype = 1 and [league].leaguegroupid in (42, 74)
 		  + Saba Basketball: sporttype = 2 and [league].leaguegroupid in (42)
 		  + Saba Cricket: sporttype = 50 and [league].leaguegroupid in (42)
-
+	
+	Sample: CONVERT(VARCHAR(10),'01/13/2021',101) + ' 01:00:00'
 */
 USE bodb02
 GO
