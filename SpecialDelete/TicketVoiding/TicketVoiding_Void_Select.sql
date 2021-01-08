@@ -113,7 +113,8 @@ BEGIN
 		isNeutral             BIT,
 		matchcode             NVARCHAR(50),
 		showtime              NVARCHAR(50),
-		winlostdate			  DATETIME
+		winlostdate			  DATETIME,
+		statusID			  TINYINT
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -157,8 +158,22 @@ BEGIN
 		OddsSpread		MONEY
 	)
 	DECLARE @tmpMatchIDBatch TABLE (MatchID INT, bettype  SMALLINT)
-	DECLARE @SettledType VARCHAR(100) = 'All'
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 
+	DECLARE @SettledType VARCHAR(100) = 'All'
+		   ,@StatusIds	 VARCHAR(50) =''
+
+	IF @IssueTypeId = 13
+	BEGIN
+		SET @StatusIds = (SELECT TOP 1 TicketStatusIds FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId)
+		
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@StatusIds, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+
+	END
 	CREATE TABLE #TmpMatch 
 	( 
 		MatchId		INT, 
@@ -934,6 +949,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal account
 	BEGIN
+
 		INSERT INTO #SpecialDeleteBets(
 				GroupID
 				,bettype
@@ -967,6 +983,7 @@ BEGIN
 				,srecommend
 				,mrecommend	
 				,winlostdate
+				,statusID
 			)
 		SELECT	
 			b.translogID AS GroupID
@@ -1001,6 +1018,7 @@ BEGIN
 			,b.srecommend
 			,b.mrecommend
 			,b.winlostdate
+			,b.statusID
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.translogid AND b.eventID = s.MatchId AND s.RequestId = @RequestId
@@ -1052,6 +1070,7 @@ BEGIN
 			,srecommend
 			,mrecommend	
 			,winlostdate
+			,statusID
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1098,13 +1117,14 @@ BEGIN
 			,b.srecommend
 			,b.mrecommend
 			,b.winlostdate
+			,b.statusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
 				AND b.refno 	= tl.translogid
 				AND b.matchid 	= tl.eventid
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-				ON  s.transid = b.transid AND s.RequestId = @RequestId
+				ON  tl.translogid 	= s.transid	 AND s.RequestId = @RequestId
 			OUTER APPLY (
 						SELECT TOP (1) TransId
 						FROM dbo.MarkedTransaction WITH(NOLOCK) 
@@ -1113,6 +1133,7 @@ BEGIN
 		WHERE			
 				b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102, 103)
+			AND b.statusID IN (SELECT statusID FROM @Status_tmp)
 			
 		UNION ALL
 		SELECT	
@@ -1162,6 +1183,7 @@ BEGIN
 			,b.srecommend
 			,b.mrecommend
 			,b.winlostdate
+			,b.statusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.transid AND s.RequestId = @RequestId
@@ -1173,6 +1195,7 @@ BEGIN
 					
 		WHERE	 b.bettype NOT BETWEEN 801 AND 806-- MG
 			AND  b.statusID NOT IN (101, 102, 103)
+			AND b.statusID IN (SELECT statusID FROM @Status_tmp)
 				
 	END
 	ELSE --EKO, WKO
@@ -1898,6 +1921,7 @@ BEGIN
 			,showtime
 			,sporttype
 			,winlostdate
+			,statusID
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1950,6 +1974,7 @@ BEGIN
 			,main.showtime
 			,main.sporttype
 			,main.winlostdate
+			,main.statusID
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -2016,6 +2041,7 @@ BEGIN
 				,showtime
 				,sporttype
 				,winlostdate
+				,statusID
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -2073,6 +2099,7 @@ BEGIN
 				,sub911.showtime
 				,sub911.sporttype
 				,sub911.winlostdate
+				,sub911.statusID
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -2265,6 +2292,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.statusID
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2343,6 +2371,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.statusID
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -2411,6 +2440,7 @@ BEGIN
 			   ,s.isNeutral 
 			   ,s.matchcode
 			   ,s.winlostdate
+			   ,s.statusID
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2487,6 +2517,7 @@ BEGIN
 		   ,s.isNeutral 
 		   ,s.matchcode
 		   ,s.winlostdate
+		   ,s.statusID
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2548,7 +2579,7 @@ BEGIN
 					ELSE 1
 			  END = 1
 	)	
-	SELECT s.transid
+	SELECT CASE WHEN s.bettype BETWEEN 801 AND 806 THEN s.refno ELSE s.transid END transid
 		   ,s.SubTransid
 		   ,s.refno		
 		   ,s.custid		
@@ -2606,9 +2637,13 @@ BEGIN
 		   ,s.isNeutral 
 		   ,s.matchcode
 		   ,s.winlostdate
+		   ,s.statusID
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
+	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
+				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
+				   ELSE 0 END
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'CN88' THEN 1
 				WHEN s.OriginGroupName = 'Credit' THEN 2
@@ -2637,5 +2672,6 @@ BEGIN
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #TmpMatch
 END
+
 GO
 

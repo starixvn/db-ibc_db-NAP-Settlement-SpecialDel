@@ -357,11 +357,11 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN s.statusID NOT IN (1,2,3,12,13) THEN ''
-				  WHEN s.statusID IN (1,2) THEN 'Running'
-				  WHEN s.statusID = 12 THEN 'Completed'
-				  WHEN s.statusID IN (3,13) THEN 'Failed'
-				  ELSE '' END AS Status
+			,CASE WHEN ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN ''
+				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
+				  WHEN ISNULL(f.statusID,l.statusID) = 12 THEN 'Completed'
+				  WHEN ISNULL(f.statusID,l.statusID) = 3 THEN 'Failed'
+				  ELSE NULL END AS Status
 			,t.VoidFromTime
 			,t.VoidToTime
 			,t.FromWinlostDate
@@ -387,18 +387,25 @@ BEGIN
 					WHERE s.RequestId = t.RequestId
 					GROUP BY s.RequestId
 			)ts
-		OUTER APPLY (
+			OUTER APPLY ( -- Failed
+					SELECT DISTINCT RequestId, 3 AS statusID
+					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					WHERE s.RequestId = t.RequestID
+					AND s.statusID IN (3,13)
+					)f
+		OUTER APPLY ( -- Completed, Running
 					SELECT TOP 1 RequestId, statusID
-					FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID
 					ORDER BY VoidingHistory DESC 
-					)s
+					)l
+
 		WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND s.statusID NOT IN (1,2,3,12,13) THEN 1
-				WHEN @Status = 1 AND s.statusID IN (1,2) THEN 1 --Running
-				WHEN @Status = 2 AND s.statusID = 12 THEN 1 -- Completed
-				WHEN @Status = 3 AND s.statusID IN (3,13) THEN 1 -- Failed
+				WHEN @Status = 0 AND  ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN 1
+				WHEN @Status = 1 AND ISNULL(f.statusID,l.statusID) IN (1,2) THEN 1 --Running
+				WHEN @Status = 2 AND ISNULL(f.statusID,l.statusID) = 12 THEN 1 -- Completed
+				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC

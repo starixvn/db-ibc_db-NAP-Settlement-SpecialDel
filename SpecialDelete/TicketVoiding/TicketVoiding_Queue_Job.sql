@@ -30,6 +30,7 @@ BEGIN
 			,@ErrMsg			VARCHAR(300)
 			,@FailedTransIds	VARCHAR(MAX)
 			,@NegativeBalanceUsers VARCHAR(MAX)
+			,@IssueTypeId	TINYINT
 
 	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
 	SET @RetryCnt = 0
@@ -116,13 +117,15 @@ BEGIN
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	q.QueueId = @QueueId
 	
-		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = RequestID AND VoidingHistory = @VoidingHistoryId)
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
 		BEGIN
 			DECLARE @sessionID INT = 0
 			SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 
+			SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
+
 			INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
-			SELECT @RequestId, @VoidingHistoryId,1,@MatchId,@sessionID,0
+			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
 		END
 
 		BEGIN TRY

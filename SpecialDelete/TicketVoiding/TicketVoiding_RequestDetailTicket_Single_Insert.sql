@@ -926,7 +926,7 @@ BEGIN
 		SELECT @RequestId
 			,@IssueTypeId
 			,@SubIssueTypeId
-			,s.transid
+			,CASE WHEN s.bettype BETWEEN 801 AND 806 THEN s.refno ELSE s.transid END 
 			,s.matchid
 			,rd.Id AS RequestDetailId
 		FROM #SpecialDeleteBets s
