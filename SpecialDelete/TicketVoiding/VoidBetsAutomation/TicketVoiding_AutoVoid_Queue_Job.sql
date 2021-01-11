@@ -180,7 +180,7 @@ BEGIN
 				UPDATE s WITH (ROWLOCK, UPDLOCK)
 					SET s.statusID = 3
 				FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-				WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
+				WHERE VoidingHistory = @VoidingHistoryId
 			END
 		END
 		ELSE
@@ -195,7 +195,7 @@ BEGIN
 			UPDATE s WITH (ROWLOCK, UPDLOCK)
 				SET s.statusID = 2
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-			WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
+			WHERE VoidingHistory = @VoidingHistoryId
 		END
 			
 	END
