@@ -11,13 +11,6 @@ AS
 */
 BEGIN
 	
-	UPDATE dbo.AutoRefundResult --- Update any data to fail in case Auto Service had broken 
-	SET StatusId = 3
-	WHERE SourceId = 105
-		AND TypeId = 1 
-		AND StatusId = 1
-		AND DATEDIFF (MINUTE, CreateDate, GETDATE()	) >= 30
-
 	SELECT ar.MatchId
 		 , m.leagueid
 		 , ar.TypeId
