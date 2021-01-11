@@ -18,7 +18,7 @@ AS
 		- @SourceId: 105:   Auto Refund Child Match
 		- @TypeId  : 0 - All Type
 					 1 - AutoRefund Single
-					 2 - Auto Refund Parlay
+					 10 - Auto Refund Parlay
 		- @StatusId: 0 - New
 					 1 - Service processed
 					 2 - Refunded
@@ -57,7 +57,7 @@ BEGIN
 
 	ELSE IF (@TypeId = 0)
 	BEGIN
-		UPDATE dbo.AutoRefundResult --- Update any data to fail in case Auto Service had broken 
+		UPDATE dbo.AutoRefundResult  WITH(ROWLOCK,UPDLOCK) --- Update any data to fail in case Auto Service had broken 
 		SET StatusId = @StatusId
 		WHERE SourceId = 105
 			AND StatusId = 1

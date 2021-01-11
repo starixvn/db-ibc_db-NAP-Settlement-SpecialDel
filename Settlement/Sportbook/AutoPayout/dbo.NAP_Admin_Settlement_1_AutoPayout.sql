@@ -34,6 +34,7 @@ AS
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		
 	Param's Explanation:
 		 
