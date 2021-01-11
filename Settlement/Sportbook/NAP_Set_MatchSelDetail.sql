@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail] 
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail]
 	@matchid 				INT
     , @IsRefundPage 		BIT = 0
 AS
@@ -61,6 +61,8 @@ AS
 		- 20200908@Louisa: get ResultDetail at DBPRO [Redmine:#139979]
 		- 20201209@Kathy: Add 10 Upcoming Sports for OS [Redmine:#145816]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
+		- 20201208@Louisa: Child match: get ET and PEN matches [Redmine:#145597]
+
 */
 BEGIN
     SET NOCOUNT ON
@@ -77,6 +79,7 @@ BEGIN
         ,@FGLGStatus				NVARCHAR(50)
         ,@HTFGLGStatus				NVARCHAR(50)
         ,@LeagueID					INT
+		,@LeagueGroupID				SMALLINT
         
         -- Tennis Settlement 
         ,@TennisStatusSet1			NVARCHAR(20)
@@ -102,13 +105,16 @@ BEGIN
 		,@StatusQuarter4	NVARCHAR(20)
 		
 		,@isExistFTHighestQuarter BIT
-
+	
+	--- Get ET  match and PEN match for soccer
+	DECLARE @tmp_ChildMatch TABLE (Matchid	INT, matchcode	NVARCHAR(100),	eventstatus	NVARCHAR(100),	SettlementStatus TINYINT, BetStatus NVARCHAR(100), IsExistMarkedTicket BIT, IsExistRunningTicket BIT)
+		
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, GroupId TINYINT, IsUsedGoalRecordValue BIT, IsDetermined BIT, GroupName VARCHAR(50), IsFGLG BIT)
 	INSERT INTO @tmpBettypes (bettype, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName, IsFGLG)
 	SELECT	BetType, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName, IsFGLG
 	FROM	dbo.[f_Set_GetGroupBettypes]()
 	WHERE	IsAuto = 0
-	
+
     SELECT 
          @IsExistFGLG = 0
         ,@IsHTOnly = 0
@@ -121,11 +127,13 @@ BEGIN
 		,@IsEnabledGoalRecordFT = 0
 		,@isExistFTHighestQuarter = 0
 
-    SELECT @sporttype 	= sporttype
-		,@LeagueID    	= leagueid
-		,@eventstatus	= eventstatus
-    FROM   DBPRO.bodb02.dbo.match WITH (NOLOCK)
-    WHERE  matchid = @matchid
+    SELECT @sporttype 	= m.sporttype
+		,@LeagueID    	= m.leagueid
+		,@eventstatus	= m.eventstatus
+		,@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+    FROM   DBPRO.bodb02.dbo.match m WITH (NOLOCK)
+	INNER JOIN  DBPRO.bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+    WHERE  m.matchid = @matchid
 	
 	DECLARE @tmpMarkedTransaction TABLE (
 		bettype SMALLINT
@@ -724,5 +732,26 @@ BEGIN
 		WHERE	1 = 0
 	END
 	
+	IF @sporttype = 1 AND @LeagueGroupID IN (42,74,108)
+	BEGIN
+		INSERT INTO @tmp_ChildMatch ( Matchid, matchcode, eventstatus, SettlementStatus, BetStatus, IsExistMarkedTicket, IsExistRunningTicket)
+		SELECT	m.matchid
+				, m.matchcode
+				, m.eventstatus		
+				, ISNULL(m.SettlementStatus,0)
+				, m.betstatus
+				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS IsExistMarkedTicket
+				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS IsExistRunningTicket		
+			FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+				LEFT JOIN dbo.bettrans btr 
+					ON btr.matchid = m.matchid
+				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt 
+								WHERE btr.transID = mt.TransId AND btr.statusID IN ( 0 , 1) ) mt
+			WHERE   m.ParentID =   @matchid  
+				AND m.ChildMatchType IN ( 201,202,203)
+			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, m.BetStatus
+	END
+
+	SELECT Matchid, matchcode, eventstatus, SettlementStatus, BetStatus, IsExistMarkedTicket, IsExistRunningTicket FROM @tmp_ChildMatch
 END
 GO

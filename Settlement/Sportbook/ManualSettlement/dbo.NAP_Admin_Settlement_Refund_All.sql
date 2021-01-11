@@ -14,12 +14,13 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All]
     ,@GoalSequence                      VARCHAR(50)     = NULL 
     ,@betstatus                        	NVARCHAR(50)    = NULL
     
-    ,@Action                            VARCHAR(10)        = 'CAL'
+    ,@Action                            VARCHAR(10)     = 'CAL'
     ,@SelectedQuarter					VARCHAR(50)		= NULL
     ,@ResourceResult					VARCHAR(MAX)	= NULL
-    ,@IsNested                          BIT                = 1
-    ,@IP                                VARCHAR(15)        = ''
-    ,@ErrCode							INT                = 0      OUTPUT
+    ,@IsNested                          BIT             = 1
+    ,@IP                                VARCHAR(15)     = ''
+	,@IsAutoRefund						BIT				= 0
+    ,@ErrCode							INT             = 0      OUTPUT
     ,@ErrMsg                            NVARCHAR(200)   = ''        OUTPUT
 AS
 /*
@@ -78,6 +79,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20200820@Kathy: Do not check refund flag if refund FT [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -285,7 +287,16 @@ BEGIN
 				,@Action  = 'REFUND'
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg  = @ErrMsg	OUTPUT
-	END 
+	END
+	
+	IF @IsAutoRefund = 1
+	BEGIN
+		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
+			 @MatchId	= @matchid
+			,@TypeId	= 1
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	 OUTPUT
+	END
 
 	IF @ErrCode <> 0
 	BEGIN
@@ -295,7 +306,7 @@ BEGIN
 			, @IsReleased		= 1
 			
 		RETURN
-	END   
+	END 
     -------------------------------------------------------------
     ---        CAPTURE value BALANCE before settlement        ---
     ---------------------------VVVV------------------------------
@@ -890,6 +901,15 @@ BEGIN
                 @MatchId = @matchid
                 ,@Action = 'REFUND'
 		END
+
+		IF @IsAutoRefund = 1
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+			  @MatchId = @matchid
+			, @TypeId  = 1
+			, @StatusId = 2
+		END
+
     END TRY
     BEGIN CATCH
         -- CAPTURE value BALANCE after settlement  
@@ -916,7 +936,7 @@ BEGIN
 
         SELECT    @ErrCode = 1001017 
                 ,@ErrMsg = ERROR_MESSAGE()
-        
+				
         RETURN        
     END CATCH
     
@@ -990,7 +1010,8 @@ BEGIN
         ,@Doing =  @LogData
 
     --Write Log Settle
-    SELECT @Remark = 'NAP: ExcludeBetdaqTickets='            + convert(char(1),@IsExcludeBetdaq) 
+    SELECT @Remark = 'NAP: IsAuto: '  + CAST(@IsAutoRefund AS CHAR(1)	) + '<br/> '
+					+ 'ExcludeBetdaqTickets='            + convert(char(1),@IsExcludeBetdaq) 
                     + ' SettleDeterminedBetdaqTickets='        + convert(char(1),@IsSettleAbandonedMatch)
                     + ' ExcludeBetfairTickets='                + convert(char(1),@IsExcludeBetfair) 
                     + ' SettleDeterminedBetfairTickets='    + convert(char(1),@IsSettleAbandonedMatchBetFair)
@@ -998,7 +1019,7 @@ BEGIN
                     + CASE WHEN (@IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair =1 OR @IsSettleAbandonedMatchIBC = 1) THEN @ScoreLog ELSE '' END 
                     + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
                     + ' Action=' + @Action
-                    + ' Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;'
+                    + ' Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;' 
 
     SELECT  @BetstatusLOG =CASE 
 								WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL' THEN 'Abandoned 1H' 
@@ -1026,6 +1047,7 @@ BEGIN
 				END
 				
     BEGIN TRY
+		
         EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
             @UserID              = @creator
             ,@Matchid            = @matchid
