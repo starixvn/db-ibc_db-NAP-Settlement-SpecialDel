@@ -51,7 +51,7 @@ BEGIN
 			,@totalRecord			  INT = 0
 			,@SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-			,@IsExistMatch			  BIT = 0
+			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
@@ -170,7 +170,7 @@ BEGIN
 					,@IsInvalidLiveScore AS IsInvalidLiveScore
 					,@IsInValidTotalTickets AS IsInValidTotalTickets
 					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-					,@IsExistMatch AS IsExistMatch
+					,@IsExistSingle AS IsExistSingle
 					,@IsExistParlay AS IsExistParlay
 					,@IsExistFM AS IsExistFM
 					,@IsExistFM2 AS IsExistFM2
@@ -1191,7 +1191,7 @@ BEGIN
 			,@IsInvalidLiveScore AS IsInvalidLiveScore
 			,@IsInValidTotalTickets AS IsInValidTotalTickets
 			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-			,@IsExistMatch AS IsExistMatch
+			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
@@ -1278,7 +1278,7 @@ BEGIN
 				,@IsInvalidLiveScore AS IsInvalidLiveScore
 				,@IsInValidTotalTickets AS IsInValidTotalTickets
 				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-				,@IsExistMatch AS IsExistMatch
+				,@IsExistSingle AS IsExistSingle
 				,@IsExistParlay AS IsExistParlay
 				,@IsExistFM AS IsExistFM
 				,@IsExistFM2 AS IsExistFM2
@@ -1327,7 +1327,7 @@ BEGIN
 	END
 
 	---Prepare for lock match---
-	SELECT @IsExistMatch = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@IsExistParlay = MAX (CASE WHEN t.Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
@@ -1362,7 +1362,7 @@ BEGIN
 			,@IsInvalidLiveScore AS IsInvalidLiveScore
 			,@IsInValidTotalTickets AS IsInValidTotalTickets
 			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-			,@IsExistMatch AS IsExistMatch
+			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2

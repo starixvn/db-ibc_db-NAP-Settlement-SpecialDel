@@ -41,7 +41,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistParlay			BIT			  = 0
 	,@IsExistFM				BIT			  = 0
 	,@IsExistFM2			BIT			  = 0
-	,@IsExistMatch			BIT			  = 0
+	,@IsExistSingle			BIT			  = 0
 	,@IsExistMG				BIT           = 0
 	,@IsExistParlayVSBetradar BIT         = 0
 	,@IsExistOutright		BIT           = 0
@@ -88,7 +88,7 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	IF @IsExistMatch <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
 		OR @IsExistParlayVSBetradar <> 0 OR @IsExistOutright <> 0 OR @IsExistNG <> 0 OR @IsExistVS <> 0 OR @IsExistBB <> 0
 	BEGIN
 		INSERT INTO #tblMatchProcess (Matchid, KeyID)
@@ -102,7 +102,7 @@ BEGIN
 				,@isExistOutright = @isExistOutright
 				,@isExistMG	= @isExistMG
 				,@isExistFM	= @isExistFM
-				,@isExistMatch = @isExistMatch
+				,@isExistMatch = @IsExistSingle
 				,@isExistNG	= @isExistNG
 				,@isExistVS	= @isExistVS
 				,@isExistBB	= @isExistBB
@@ -199,7 +199,7 @@ BEGIN
 				,@FilterBy = @FilterBy				
 	END
 
-	IF @IsExistMatch <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
+	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
 		OR @IsExistParlayVSBetradar <> 0 OR @IsExistOutright <> 0 OR @IsExistNG <> 0 OR @IsExistVS <> 0 OR @IsExistBB <> 0
 	BEGIN
 		-- Release Match
@@ -208,7 +208,7 @@ BEGIN
 			,@isExistOutright = @isExistOutright
 			,@isExistMG	= @isExistMG
 			,@isExistFM	= @isExistFM
-			,@isExistMatch = @isExistMatch
+			,@isExistMatch = @IsExistSingle
 			,@isExistNG	= @isExistNG
 			,@isExistVS	= @isExistVS
 			,@isExistBB	= @isExistBB
