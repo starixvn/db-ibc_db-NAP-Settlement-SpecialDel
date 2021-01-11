@@ -310,11 +310,10 @@ BEGIN
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
 	WHERE 1 = CASE
-				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account
-				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId THEN 1 -- Void Instant Request
-				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId THEN 1 -- Auto void winning request
+				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
+				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
+				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
-	AND vip.CustID IS NULL
 		
 	SET @Void_cnt = @@ROWCOUNT
 	
@@ -723,6 +722,8 @@ BEGIN
 			,b.BonusID
 			,b.WalletType
 	
+	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
+
 	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestID = @RequestID)
 	BEGIN
 		SET @VoidDataXML = ( SELECT DISTINCT 
@@ -739,13 +740,14 @@ BEGIN
 							)
 		
 		-- Insert Voiding History first
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, VoidData)
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData)
 		OUTPUT INSERTED.RequestID
 				,INSERTED.VoidingHistoryId
 		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
 		SELECT  RequestID
 				,@UserId
 				, 1
+				,CASE WHEN @IssueTypeId = 11 THEN TransIds ELSE NULL END
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
 	END
@@ -757,8 +759,6 @@ BEGIN
 	BEGIN
 		DECLARE @sessionID INT = 0
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
-
-		SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
 
 		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
 		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1

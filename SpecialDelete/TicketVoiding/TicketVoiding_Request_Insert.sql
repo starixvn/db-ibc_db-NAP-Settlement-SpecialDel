@@ -38,10 +38,16 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@FromDate				DATETIME	  = NULL
 	,@ToDate				DATETIME	  = NULL
 	,@MatchProcessXML		XML           = NULL
-	,@IsExistSingle			BIT			  = 0
 	,@IsExistParlay			BIT			  = 0
 	,@IsExistFM				BIT			  = 0
 	,@IsExistFM2			BIT			  = 0
+	,@IsExistMatch			BIT			  = 0
+	,@IsExistMG				BIT           = 0
+	,@IsExistParlayVSBetradar BIT         = 0
+	,@IsExistOutright		BIT           = 0
+	,@IsExistNG				BIT           = 0
+	,@IsExistVS				BIT           = 0
+	,@IsExistBB				BIT           = 0
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -82,7 +88,8 @@ BEGIN
 	SET @LogActionId = 90000
 	SET @SB_Error = 0
 
-	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
+	IF @IsExistMatch <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
+		OR @IsExistParlayVSBetradar <> 0 OR @IsExistOutright <> 0 OR @IsExistNG <> 0 OR @IsExistVS <> 0 OR @IsExistBB <> 0
 	BEGIN
 		INSERT INTO #tblMatchProcess (Matchid, KeyID)
 		SELECT   T.C.value('@MatchId', 'INT') AS MatchId
@@ -90,10 +97,17 @@ BEGIN
 		FROM @MatchProcessXML.nodes('/root/r') as [T](C)
 
 		-- Check Lock Match
-		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-				,@isExistParlay = @IsExistParlay
-				,@IsExistFM = @IsExistFM
-				,@IsExistFM2 = @IsExistFM2
+		EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay 	= @isExistParlay
+				,@isExistOutright = @isExistOutright
+				,@isExistMG	= @isExistMG
+				,@isExistFM	= @isExistFM
+				,@isExistMatch = @isExistMatch
+				,@isExistNG	= @isExistNG
+				,@isExistVS	= @isExistVS
+				,@isExistBB	= @isExistBB
+				,@IsExistParlayVSBetradar = @IsExistParlayVSBetradar
+				,@isExistFM2 = @isExistFM2
 				,@avaiableProcess = @avaiableProcess OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT;
@@ -185,15 +199,22 @@ BEGIN
 				,@FilterBy = @FilterBy				
 	END
 
-	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0
+	IF @IsExistMatch <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
+		OR @IsExistParlayVSBetradar <> 0 OR @IsExistOutright <> 0 OR @IsExistNG <> 0 OR @IsExistVS <> 0 OR @IsExistBB <> 0
 	BEGIN
 		-- Release Match
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch = @IsExistSingle,
-			@isExistParlay = @IsExistParlay,
-			@IsExistFM = @IsExistFM,
-			@IsExistFM2 = @IsExistFM2,
-			@IsReleased = 1;
+			@isExistParlay 	= @isExistParlay
+			,@isExistOutright = @isExistOutright
+			,@isExistMG	= @isExistMG
+			,@isExistFM	= @isExistFM
+			,@isExistMatch = @isExistMatch
+			,@isExistNG	= @isExistNG
+			,@isExistVS	= @isExistVS
+			,@isExistBB	= @isExistBB
+			,@IsExistParlayVSBetradar = @IsExistParlayVSBetradar
+			,@isExistFM2 = @isExistFM2
+			,@IsReleased = 1;
 	END	
 
 	IF @Operators IS NOT NULL

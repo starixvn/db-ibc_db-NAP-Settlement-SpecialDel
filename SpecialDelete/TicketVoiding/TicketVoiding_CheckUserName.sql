@@ -36,10 +36,17 @@ BEGIN
 			,@IsOutright			  BIT = 0
 			,@IsSaba				  BIT = 0
 			,@IsNonSport			  BIT = 0
-			,@IsExistSingle			  BIT = 0
+			--Add abnormal account
 			,@IsExistParlay			  BIT = 0
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
+			,@IsExistMatch			  BIT = 0
+			,@IsExistMG				  BIT = 0
+			,@IsExistParlayVSBetradar BIT = 0
+			,@IsExistOutright		  BIT = 0
+			,@IsExistNG				  BIT = 0
+			,@IsExistVS				  BIT = 0
+			,@IsExistBB				  BIT = 0
 			,@MatchProcessXML		  XML = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
@@ -261,11 +268,18 @@ BEGIN
 	ELSE SET @IsInValidTotalTicket = 0
 
 	---Prepare for lock match---
-	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-		FROM #transIdTemp AS t
-			OUTER APPLY (
+	SELECT   @IsExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@IsExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+			,@IsExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
+			,@IsExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
+			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+			,@IsExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
+			,@IsExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+			,@IsExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@IsExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM	#transIdTemp t
+		OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = t.Bettype
@@ -273,11 +287,19 @@ BEGIN
 
 	SET @MatchProcessXML = (
 		SELECT DISTINCT t.MatchId "@MatchId"
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
+				, CASE 
+					WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+							AND Bettype NOT BETWEEN 801 AND 899
+							AND f.GroupId IS NULL
+							AND Bettype NOT IN (1231,1232,1233)
+						THEN 1 --SB,NG,LC
+					WHEN Bettype = 10 THEN 2	-- Outright
+					WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+					WHEN f.GroupId = 1 THEN 6 -- FM
+					WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+					WHEN Bettype = 38 THEN 5 -- Bet Builder
+					WHEN f.GroupId = 2 THEN 7 -- FM 228
+					ELSE 0
 				END AS "@KeyID" 
 		FROM #transIdTemp t
 			OUTER APPLY (
@@ -288,18 +310,23 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 			)
 
-
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
-		  ,@IsExistSingle AS IsExistSingle
-		  ,@IsExistParlay AS IsExistParlay
-		  ,@IsExistFM AS IsExistFM
-		  ,@IsExistFM2 AS IsExistFM2
 		  ,@MatchProcessXML AS MatchProcessXML
+		  ,@IsExistMatch AS IsExistMatch				
+		  ,@IsExistMG AS IsExistMG					
+		  ,@IsExistOutright AS IsExistOutright			
+		  ,@IsExistParlay AS IsExistParlay 			
+		  ,@IsExistParlayVSBetradar	AS IsExistParlayVSBetradar		
+		  ,@IsExistNG AS IsExistNG												
+		  ,@IsExistVS AS IsExistVS				
+		  ,@IsExistBB AS IsExistBB							    
+		  ,@IsExistFM AS IsExistFM
+		  ,@IsExistFM2 AS IsExistFM2		
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_tmp

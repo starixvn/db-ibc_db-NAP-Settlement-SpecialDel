@@ -59,7 +59,7 @@ BEGIN
 			,@ResettleTransids			 VARCHAR(MAX) = ''
 			,@IsCheckAutoCal			 BIT=0
 			,@OldAction					 TINYINT
-			,@IsExistSingle				 BIT = 0
+			,@IsExistMatch				 BIT = 0
 			,@IsExistParlay				 BIT = 0
 			,@IsExistFM					 BIT = 0
 			,@IsExistFM2				 BIT = 0
@@ -350,7 +350,7 @@ BEGIN
 	END
 
 	---Prepare for lock match---
-	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+	SELECT @IsExistMatch = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM #validTransId AS t
@@ -390,7 +390,7 @@ BEGIN
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
-			,@IsExistSingle AS IsExistSingle
+			,@IsExistMatch AS IsExistMatch
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
