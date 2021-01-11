@@ -88,6 +88,7 @@ AS
 	  - 20201014@July: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 	  - 20201126@Charles: God of fortune [Redmine: #146053]
 	  - 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
+	  - 20210107@Charles: Return extra oddsid column in results [Redmine: #143666]
 
 	 Param's Explanation:   
 	*/
@@ -2781,6 +2782,7 @@ BEGIN
 		,b.IsBetTrade
 		,CASE WHEN b.IsCashOutMemberTicket = 1 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isCashOut
 		,b.matchid  -- send letstalk
+		,b.oddsid AS OddsId
 		,CASE 
 			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113)
 					THEN CASE
