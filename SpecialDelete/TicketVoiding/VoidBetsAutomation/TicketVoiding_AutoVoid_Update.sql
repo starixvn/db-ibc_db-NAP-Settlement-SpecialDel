@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@VoidingHistoryId INT = 0 OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT
 AS
 /*	Created by: Helen
 	Date 20200212

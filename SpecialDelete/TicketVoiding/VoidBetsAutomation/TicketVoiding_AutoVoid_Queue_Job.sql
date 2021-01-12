@@ -151,6 +151,7 @@ BEGIN
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@VoidingHistoryId = @VoidingHistoryId OUTPUT
+				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -194,6 +195,7 @@ BEGIN
 			
 			UPDATE s WITH (ROWLOCK, UPDLOCK)
 				SET s.statusID = 2
+					,s.NegativeBalanceUsers = @NegativeBalanceUsers
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 			WHERE VoidingHistory = @VoidingHistoryId
 		END

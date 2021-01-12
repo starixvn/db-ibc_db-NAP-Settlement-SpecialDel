@@ -163,6 +163,7 @@ BEGIN
 
 		UPDATE s WITH (ROWLOCK, UPDLOCK)
 			SET s.statusID = @StatusId
+				,s.NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
 
