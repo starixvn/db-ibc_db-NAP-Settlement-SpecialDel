@@ -172,8 +172,8 @@ BEGIN
 		FROM dbo.f_SplitString(@StatusIds, ',')
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
-
 	END
+
 	CREATE TABLE #TmpMatch 
 	( 
 		MatchId		INT, 
@@ -1133,7 +1133,6 @@ BEGIN
 		WHERE			
 				b.bettype BETWEEN 801 AND 806 
 			AND b.statusID NOT IN (0, 101, 102, 103)
-			AND b.statusID IN (SELECT statusID FROM @Status_tmp)
 			
 		UNION ALL
 		SELECT	
@@ -1195,7 +1194,6 @@ BEGIN
 					
 		WHERE	 b.bettype NOT BETWEEN 801 AND 806-- MG
 			AND  b.statusID NOT IN (101, 102, 103)
-			AND b.statusID IN (SELECT statusID FROM @Status_tmp)
 				
 	END
 	ELSE --EKO, WKO
