@@ -12,6 +12,7 @@ AS
 			- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 			- 20200928@Helen: Implement New Bettype 288 Time Machine Over/Under [Redmine:#142001]
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
+			- 20210112@Kathy: Support Tickets on Intervals #45 & #90 [Redmine:#148603]
 
 	Param's Explanation:
 		
@@ -239,8 +240,12 @@ BEGIN
 	LEFT JOIN betstatus b 
 		ON	t.bettype = b.bettype 
 			AND rs.Position = CASE 
-								WHEN b.BetType <> 228 OR (b.BetType = 228 AND rs.Position <=44) THEN b.Position 
-								ELSE b.Position + 1 -- for bettype 228, the position 45 is HT injury, 2nd starts at postion 46
+								WHEN b.BetType <> 228 THEN b.Position 
+								ELSE CASE 
+										WHEN rs.Position <= 44 THEN b.Position
+										WHEN rs.Position > 45 THEN b.Position + 1 -- for bettype 228, the position 45 is HT injury, 2nd starts at postion 46
+										ELSE -1 -- injury time
+									END
 							END
 	WHERE	1 = CASE 
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
