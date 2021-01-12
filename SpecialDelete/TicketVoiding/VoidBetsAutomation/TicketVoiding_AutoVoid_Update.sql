@@ -1034,7 +1034,6 @@ BEGIN
 			, @ActionId				= 0	
 
 	-- get negative balance user list
-	DECLARE @NegativeBalanceUsers VARCHAR(MAX)
 	SET @CustIds = ''
 	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
 	FROM	@BeforeUpd b
