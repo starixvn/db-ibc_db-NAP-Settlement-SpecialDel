@@ -114,7 +114,8 @@ BEGIN
 		matchcode             NVARCHAR(50),
 		showtime              NVARCHAR(50),
 		winlostdate			  DATETIME,
-		statusID			  TINYINT
+		statusID			  TINYINT,
+		IsCashOutTicket		  BIT DEFAULT 0, --include 911,member ticket CO
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -1920,6 +1921,7 @@ BEGIN
 			,sporttype
 			,winlostdate
 			,statusID
+			,IsCashOutTicket
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1973,6 +1975,7 @@ BEGIN
 			,main.sporttype
 			,main.winlostdate
 			,main.statusID
+			,1 AS IsCashOutTicket
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -2040,6 +2043,7 @@ BEGIN
 				,sporttype
 				,winlostdate
 				,statusID
+				,IsCashOutTicket
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -2098,6 +2102,7 @@ BEGIN
 				,sub911.sporttype
 				,sub911.winlostdate
 				,sub911.statusID
+				,1 AS IsCashOutTicket
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -2291,6 +2296,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsCashOutTicket
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2370,6 +2376,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsCashOutTicket
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -2439,6 +2446,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsCashOutTicket
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2516,6 +2524,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsCashOutTicket
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2636,6 +2645,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsCashOutTicket
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid

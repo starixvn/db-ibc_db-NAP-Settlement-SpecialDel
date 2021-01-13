@@ -56,7 +56,7 @@ BEGIN
     );
 	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
-	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type VARCHAR(50))
+	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
 	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
 	SELECT TOP 1 
@@ -225,7 +225,7 @@ BEGIN
 		INSERT INTO @tmpVoidResults (VoidingHistoryId, Message, Type)
 		SELECT  @VoidingHistoryId
 				,T.C.value('@Message', 'VARCHAR(MAX)') AS Message
-				,T.C.value('@Type', 'VARCHAR(50)') AS Type
+				,T.C.value('@Type', 'INT') AS Type
 		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END

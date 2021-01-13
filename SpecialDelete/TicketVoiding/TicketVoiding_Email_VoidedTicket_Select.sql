@@ -97,6 +97,7 @@ BEGIN
 		,SettlementStatus TINYINT
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
+		,IsCashOutTicket BIT DEFAULT 0, --include 911,member ticket CO
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -330,6 +331,7 @@ BEGIN
 			SET OriginalBettype = main.bettype
 				,odds = main.odds
 				,MainTransId = main.TransId
+				,IsCashOutTicket = 1
 		FROM	#tmpTicket sub911
 			INNER JOIN #tmpTicket main WITH(NOLOCK)
 				ON sub911.Refno = main.transid
@@ -337,6 +339,7 @@ BEGIN
 		
 		UPDATE subCO 
 			SET MainTransId = sub911.MainTransId
+				,IsCashOutTicket = 1
 		FROM	#tmpTicket subCO
 			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
 				ON subCO.Refno = sub911.transid
@@ -449,6 +452,7 @@ BEGIN
 							END
 				ELSE CAST(0 AS BIT)
 			END AS IsInstantSettlementTicket
+			,t.IsCashOutTicket
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
