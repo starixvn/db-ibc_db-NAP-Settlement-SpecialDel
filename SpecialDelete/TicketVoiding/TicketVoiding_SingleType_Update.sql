@@ -27,6 +27,7 @@ AS
 		- 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -69,7 +70,6 @@ BEGIN
 		,bettype			SMALLINT
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
-		,balanceType		TINYINT
 		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
@@ -78,6 +78,9 @@ BEGIN
 		,actual_stake		MONEY
 		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
+		,sporttype			SMALLINT
+		,matchid			INT
+		,oddsid				INT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -99,8 +102,9 @@ BEGIN
 	FROM	dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
 
-	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, balanceType, TicketType)
-	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 4 AS balanceType, 5 -- Metric gaming
+	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid)
+	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
+		, tl.eventID
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
@@ -109,7 +113,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -117,11 +121,11 @@ BEGIN
 				WHEN f.GroupId = 2 THEN 7
 				ELSE 1 				
 			END AS KeyId
-			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
+			,b.matchid, b.oddsid
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -142,7 +146,56 @@ BEGIN
 
 		RETURN
 	END
+
+	-- UPDATE eventtype = 1
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE	b
+		SET sporttype 	= m.sporttype
+		FROM	#tmpTransId b
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		
+		WHERE bettype NOT IN (9, 29, 2799)
+			
+	END
 	
+	-- -- UPDATE eventtype = 2 [Outright ticket]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (10)))
+	BEGIN
+		UPDATE b
+		SET sporttype	= l.sporttype
+		FROM	#tmpTransId b
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+			ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	o.leagueid = l.leagueid
+			
+		WHERE bettype IN (10)
+	END
+	
+	-- -- UPDATE eventtype = 3 [VS range bettypes]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE b
+		SET sporttype 	= r.sporttype	
+		FROM	#tmpTransId b
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+	END
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+	BEGIN
+		UPDATE b
+		SET sporttype = sb.SportType
+		FROM #tmpTransId b
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON b.bettype = sb.BetType
+		WHERE sb.ProductID = 37
+	END
+
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@MatchId, KeyId
 	FROM	#tmpTransId
@@ -212,8 +265,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, balanceType)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
+		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid
 		FROM	#tmpTransId main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -224,8 +277,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType
+		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid)
+		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid
 		FROM	#tmpTransId sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -415,8 +468,8 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, 1, b.refcode
+		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid)
+		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -483,7 +536,11 @@ BEGIN
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
-				,t.balanceType
+				,CASE 
+					WHEN ((t.sporttype BETWEEN 1 AND 99 OR t.sporttype = 154) AND t.bettype NOT BETWEEN 801 AND 806) OR t.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN t.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				   END AS balanceType
 				,CASE 
 					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -596,7 +653,11 @@ BEGIN
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
-				,t.balanceType
+				,CASE 
+					WHEN ((t.sporttype BETWEEN 1 AND 99 OR t.sporttype = 154) AND t.bettype NOT BETWEEN 801 AND 806) OR t.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN t.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				   END AS balanceType
 				,CASE 
 					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 

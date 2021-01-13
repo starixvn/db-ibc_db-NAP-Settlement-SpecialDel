@@ -58,7 +58,7 @@ BEGIN
 		INSERT INTO #TmpTransId (TransId, MatchId)
 		SELECT DISTINCT val, b.matchid
 		FROM dbo.f_SplitString(@TransIds, ',') t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON  t.val = b.transid
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single b WITH(NOLOCK) ON  t.val = b.transid
 		WHERE val <> ''
 		OPTION (MAXRECURSION 0)
 
