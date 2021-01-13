@@ -13,7 +13,7 @@ AS
 	Revisions:
 		- 20170421@Bobby: Initial
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
-		- 20210113@Kathy: Support settle determined [Readmine:#147141]
+		- 20210113@Louisa: Support settle determined [Readmine:#147141]
 		
 	Param's Explanation:
 		- @MatchId: ID of match event
