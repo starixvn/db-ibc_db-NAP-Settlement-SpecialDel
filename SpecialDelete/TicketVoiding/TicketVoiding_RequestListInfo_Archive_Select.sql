@@ -86,7 +86,7 @@ BEGIN
     WHERE  m.eventdate BETWEEN @FromDate AND @ToDate 
     GROUP  BY rd.requestid, r.IssueTypeId , rd.Usernames, r.RequestId
 
-	SELECT DISTINCT requestid, issueTypeId, isActivedRequest, eventdate
+	SELECT DISTINCT requestid, issueTypeId, isActivedRequest
 	FROM @tmpResult
 
 END 

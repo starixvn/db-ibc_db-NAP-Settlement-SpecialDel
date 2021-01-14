@@ -128,6 +128,6 @@ BEGIN
     WHERE  m.eventdate BETWEEN @FromDate AND @ToDate 
     GROUP  BY rd.requestid, r.IssueTypeId 
 	
-	SELECT DISTINCT requestid, issueTypeId, eventdate
+	SELECT DISTINCT requestid, issueTypeId
 	FROM @tmpResult
 END 
