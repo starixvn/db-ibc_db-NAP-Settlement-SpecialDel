@@ -1074,12 +1074,17 @@ BEGIN
 	END
 
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @isExistMatch
-		,@isExistMG	= @isExistMG
-		,@isExistFM = @isExistFM
-		,@isExistBB = @isExistBB
-		,@isExistFM2 = @isExistFM2
-		,@IsReleased = 1
+		@isExistParlay 				= @isExistParlay
+		, @isExistOutright 			= @isExistOutright
+		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
+		, @isExistMatch				= @isExistMatch
+		, @isExistNG				= @isExistNG
+		, @isExistVS				= @isExistVS
+		, @isExistBB				= @isExistBB
+		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
+		, @IsReleased				= 1
 
 	------ releasing cash-out process
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
