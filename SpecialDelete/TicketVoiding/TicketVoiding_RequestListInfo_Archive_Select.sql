@@ -1,5 +1,5 @@
 /*<info serverAlias="DBARC-bodb_Archive" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RequestListInfo_Select] 
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestListInfo_Archive_Select] 
 (
 	@FromDate   DATETIME
 	,@ToDate	DATETIME
