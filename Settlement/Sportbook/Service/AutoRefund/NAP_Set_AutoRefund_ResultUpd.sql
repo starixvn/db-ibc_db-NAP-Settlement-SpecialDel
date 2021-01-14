@@ -59,6 +59,7 @@ BEGIN
 	BEGIN
 		UPDATE dbo.AutoRefundResult  WITH(ROWLOCK,UPDLOCK) --- Update any data to fail in case Auto Service had broken 
 		SET StatusId = @StatusId
+			, ModifiedDate = GETDATE()
 		WHERE SourceId = 105
 			AND StatusId = 1
 			AND DATEDIFF (MINUTE, ModifiedDate, GETDATE()	) >= 20
