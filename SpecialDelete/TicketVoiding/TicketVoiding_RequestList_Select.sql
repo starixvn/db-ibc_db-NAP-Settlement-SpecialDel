@@ -47,10 +47,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@FilteredBy	TINYINT,
-			@moveBetDay14 	SMALLDATETIME,
-		    @moveBetDay 	SMALLDATETIME,
-			@Winlostdate	DATETIME
+	DECLARE	@FilteredBy			TINYINT,
+			@moveBetDay14 		SMALLDATETIME,
+		    @moveBetDay 		SMALLDATETIME,
+			@MinWinlostdate		DATETIME,
+			@MinWinlostdate14	DATETIME
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -134,13 +135,27 @@ BEGIN
 												ELSE 0 END
 		)
 		BEGIN
-			SELECT @Winlostdate =  MIN(b.winlostdate)
+			SELECT @MinWinlostdate =  MIN(b.winlostdate)
 			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
 				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON rd.MatchId = b.matchid AND s.TransId = b.transid
 			WHERE rd.matchid IN (9, 29, 2799)
+				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+												WHEN @FilteredBy = 3 THEN 1
+												ELSE 0 END
 
-			IF (@Winlostdate >= @moveBetDay)
+			SELECT @MinWinlostdate14 =  MIN(b14.winlostdate)
+			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON rd.RequestId = s.RequestId
+				INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON rd.MatchId = b14.matchid AND s.TransId = b14.transid
+			WHERE rd.matchid IN (9, 29, 2799)
+				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
+												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
+												WHEN @FilteredBy = 3 THEN 1
+												ELSE 0 END
+
+			IF (@MinWinlostdate >= @moveBetDay)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId,MIN(b.winlostdate)
@@ -154,7 +169,7 @@ BEGIN
 						   ELSE 0 END
 				GROUP BY rd.RequestId
 			END
-			ELSE IF ( @Winlostdate >= @moveBetDay14 AND @Winlostdate < @moveBetDay)
+			IF (@MinWinlostdate14 >= @moveBetDay14)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(b14.winlostdate)
@@ -437,7 +452,7 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN ''
+			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
 				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
 				  WHEN ISNULL(f.statusID,l.statusID) = 12 THEN 'Completed'
 				  WHEN ISNULL(f.statusID,l.statusID) = 3 THEN 'Failed'
@@ -472,7 +487,7 @@ BEGIN
 					SELECT DISTINCT RequestId, 3 AS statusID
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID
-					AND s.statusID IN (3,13)
+					AND s.statusID IN (3, 13)
 					)f
 		OUTER APPLY ( -- Completed, Running
 					SELECT TOP 1 RequestId, statusID
@@ -483,7 +498,7 @@ BEGIN
 
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND  ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN 1
+				WHEN @Status = 0 AND f.statusID IS NULL AND l.statusID IS NULL THEN 1
 				WHEN @Status = 1 AND ISNULL(f.statusID,l.statusID) IN (1,2) THEN 1 --Running
 				WHEN @Status = 2 AND ISNULL(f.statusID,l.statusID) = 12 THEN 1 -- Completed
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed

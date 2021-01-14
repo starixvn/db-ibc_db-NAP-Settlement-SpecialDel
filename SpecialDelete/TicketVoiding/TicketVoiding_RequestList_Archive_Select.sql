@@ -357,7 +357,7 @@ BEGIN
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN ''
+			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
 				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
 				  WHEN ISNULL(f.statusID,l.statusID) = 12 THEN 'Completed'
 				  WHEN ISNULL(f.statusID,l.statusID) = 3 THEN 'Failed'
@@ -387,12 +387,12 @@ BEGIN
 					WHERE s.RequestId = t.RequestId
 					GROUP BY s.RequestId
 			)ts
-			OUTER APPLY ( -- Failed
-					SELECT DISTINCT RequestId, 3 AS statusID
-					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
-					WHERE s.RequestId = t.RequestID
-					AND s.statusID IN (3,13)
-					)f
+		OUTER APPLY ( -- Failed
+				SELECT DISTINCT RequestId, 3 AS statusID
+				FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+				WHERE s.RequestId = t.RequestID
+				AND s.statusID IN (3, 13)
+				)f
 		OUTER APPLY ( -- Completed, Running
 					SELECT TOP 1 RequestId, statusID
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
@@ -402,7 +402,7 @@ BEGIN
 
 		WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND  ISNULL(f.statusID,l.statusID) NOT IN (1,2,3,12) THEN 1
+				WHEN @Status = 0 AND f.statusID IS NULL AND l.statusID IS NULL THEN 1
 				WHEN @Status = 1 AND ISNULL(f.statusID,l.statusID) IN (1,2) THEN 1 --Running
 				WHEN @Status = 2 AND ISNULL(f.statusID,l.statusID) = 12 THEN 1 -- Completed
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed

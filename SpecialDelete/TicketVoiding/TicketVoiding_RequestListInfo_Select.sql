@@ -21,7 +21,9 @@ BEGIN
 
     DECLARE @moveBetDay14 SMALLDATETIME, 
             @moveBetDay   SMALLDATETIME, 
-            @Winlostdate  DATETIME 
+            @MinWinlostdate		DATETIME,
+			@MinWinlostdate14	DATETIME
+
     DECLARE @tmpResult TABLE (requestid INT, issueTypeId TINYINT, eventdate DATETIME) 
 
     SELECT @moveBetDay14 = Min(winlostdate) 
@@ -34,16 +36,26 @@ BEGIN
                FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
                WHERE  matchid IN ( 9, 29, 2799 )) 
       BEGIN 
-          SELECT @Winlostdate = Min(b.winlostdate) 
+          SELECT @MinWinlostdate = Min(b.winlostdate) 
           FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
                  INNER JOIN dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
                          ON rd.requestid = s.requestid 
                  INNER JOIN dbo.bettrans b WITH(NOLOCK) 
                          ON rd.matchid = b.matchid 
                             AND s.transid = b.transid 
-          WHERE  rd.matchid IN ( 9, 29, 2799 ) 
+          WHERE  rd.matchid IN ( 9, 29, 2799 )
 
-          IF ( @Winlostdate >= @moveBetDay ) 
+		   SELECT @MinWinlostdate14 = Min(b14.winlostdate) 
+          FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
+                 INNER JOIN dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
+                         ON rd.requestid = s.requestid 
+                 INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) 
+                         ON rd.matchid = b14.matchid 
+                            AND s.transid = b14.transid 
+          WHERE  rd.matchid IN ( 9, 29, 2799 )
+
+
+          IF ( @MinWinlostdate >= @moveBetDay ) 
             BEGIN 
                 INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
                 SELECT rd.requestid, r.IssueTypeId, Min(b.winlostdate) 
@@ -59,8 +71,7 @@ BEGIN
                        AND b.winlostdate BETWEEN @FromDate AND @ToDate 
                 GROUP  BY rd.requestid, r.IssueTypeId
             END 
-          ELSE IF ( @Winlostdate >= @moveBetDay14 
-               AND @Winlostdate < @moveBetDay ) 
+          IF (@MinWinlostdate14 >= @moveBetDay14) 
             BEGIN 
                 INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
                 SELECT rd.requestid, r.IssueTypeId, Min(b14.winlostdate) 

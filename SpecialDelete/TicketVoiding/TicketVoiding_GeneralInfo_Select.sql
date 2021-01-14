@@ -54,7 +54,7 @@ BEGIN
 		,LicenseeName	  NVARCHAR(100)
 		,Total			  INT
     );
-	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, IsFinish BIT)
+	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, VoidedTime DATETIME, IsFinish BIT)
 	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
@@ -78,11 +78,12 @@ BEGIN
 		SET @IsMovebet = 1
 	END
 
-	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy, VoidResults) 
+	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy, VoidResults, VoidedTime) 
 	SELECT	 VoidingHistoryId
 			,VoidData
 			,UserId AS VoidedBy
 			,s.VoidResults
+			,vh.CreatedDate
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistory
 	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
@@ -93,7 +94,7 @@ BEGIN
 			,z.transid			
 			,z.matchid
 			,z.status
-			,z.VoidedTime
+			,vh.VoidedTime
 			,z.custid
 			,z.refno
 			,z.bettype
@@ -104,7 +105,6 @@ BEGIN
 			SELECT	z.transid
 					,z.matchid
 					,z.status
-					,z.transdate AS VoidedTime
 					,z.custid
 					,z.refno
 					,z.bettype
@@ -125,7 +125,7 @@ BEGIN
 			,zm.matchid
 			,zm.refno
 			,zm.status
-			,zm.VoidedTime
+			,vh.VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
 			,vh.VoidedBy
@@ -136,7 +136,6 @@ BEGIN
 					,zm.matchid
 					,zm.refno 
 					,zm.status
-					,zm.transdate AS VoidedTime
 					,zm.custid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
