@@ -232,7 +232,8 @@ BEGIN
 	SELECT DISTINCT
 		 s.VoidingHistoryId
 		,s.VoidedTime
-		,CAST (m.Homeid AS VARCHAR(10)) + ' - vs - '+ CAST (m.Awayid AS VARCHAR(10)) AS MatchEvent
+		,m.Homeid
+		,m.Awayid
 		,m.leagueid 
 		,m.KickOffTime
 		,STUFF((SELECT DISTINCT  ',' + CAST( m.LicenseeName AS VARCHAR(20))

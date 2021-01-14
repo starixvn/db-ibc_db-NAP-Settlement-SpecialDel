@@ -99,7 +99,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @RequestId_tmp (RequestId)
 		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@RequestId, ',')
+		FROM	bodb02.dbo.f_SplitString(@RequestId, ',')
 		OPTION (MAXRECURSION 0) 
 	END
 
@@ -403,13 +403,13 @@ BEGIN
 			)ts
 		OUTER APPLY ( -- Failed
 				SELECT DISTINCT RequestId, 3 AS statusID
-				FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+				FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 				WHERE s.RequestId = t.RequestID
 				AND s.statusID IN (3, 13)
 				)f
 		OUTER APPLY ( -- Completed, Running
 					SELECT TOP 1 RequestId, statusID
-					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID
 					ORDER BY VoidingHistory DESC 
 					)l
