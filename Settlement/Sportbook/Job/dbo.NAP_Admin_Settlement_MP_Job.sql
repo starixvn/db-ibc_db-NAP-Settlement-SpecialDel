@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 USE [bodb02]
 GO
 SET ANSI_NULLS ON
@@ -21,7 +21,6 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20160419@Kathy: change main SP to NAP_Admin_Settlem [Redmine:#52426]
 		- 20161205@Bobby: #61352 - Apply settle determined for parlay bet types
-		- 20210108@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -159,14 +158,6 @@ BEGIN
 			,duration = DATEDIFF(ms, execTime, GETDATE())
 		WHERE keyid = @keyId
 		AND TryCount = 3
-
-		IF @action = 'REFUND' AND @creator = 0 AND @@ROWCOUNT > 0
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			  @MatchId = @matchid 
-			, @TypeId  = 10
-			, @StatusId = 3
-		END
 	END
 	ELSE
 	BEGIN
