@@ -142,7 +142,6 @@ BEGIN
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
 		BEGIN CATCH
 			SELECT	@StatusId = 3 -- failed
@@ -154,7 +153,8 @@ BEGIN
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-				,StatusId = @StatusId
+				,StatusId = CASE WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 
+								 ELSE 2 END
 				,ErrMsg = @ErrMsg
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = @NegativeBalanceUsers
@@ -162,10 +162,20 @@ BEGIN
 		WHERE	QueueId = @QueueId
 
 		UPDATE s WITH (ROWLOCK, UPDLOCK)
-			SET s.statusID = @StatusId
+			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
+								  WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 -- Failed
+								  ELSE 2 END -- DB completed
 				,s.NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
+
+		IF @ErrCode = 100 --'No ticket found.'
+		BEGIN
+			UPDATE vh WITH (ROWLOCK, UPDLOCK)
+				SET vh.statusID = 2 -- Completed
+			FROM dbo.TicketVoiding_VoidingHistory vh
+			WHERE RequestID = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+		END
 
 	END
 END
