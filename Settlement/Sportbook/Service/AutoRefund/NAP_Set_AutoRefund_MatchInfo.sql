@@ -69,8 +69,8 @@ BEGIN
 
 			SELECT @IsExistMarkedTicket		= MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END)
 					,@IsExistSettledTicket  = MAX(CASE WHEN btr.statusID IN (103, 111, 112, 113) AND mt.TransId IS NULL THEN 1 ELSE 0 END)
-			FROM dbo.bettrans btr
-				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt WHERE btr.transID = mt.TransId ) mt
+			FROM dbo.bettrans btr  WITH(NOLOCK)
+				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt  WITH(NOLOCK) WHERE btr.transID = mt.TransId ) mt
 			WHERE btr.statusID IN ( 0 , 103, 111, 112, 113)
 				AND btr.matchid = @MatchId
 		END

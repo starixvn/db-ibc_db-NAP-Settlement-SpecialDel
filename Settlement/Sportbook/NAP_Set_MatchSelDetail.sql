@@ -743,9 +743,9 @@ BEGIN
 				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS IsExistMarkedTicket
 				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS IsExistRunningTicket		
 			FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
-				LEFT JOIN dbo.bettrans btr 
+				LEFT JOIN dbo.bettrans btr WITH(NOLOCK)
 					ON btr.matchid = m.matchid
-				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt 
+				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt WITH(NOLOCK)
 								WHERE btr.transID = mt.TransId AND btr.statusID IN ( 0 , 1) ) mt
 			WHERE   m.ParentID =   @matchid  
 				AND m.ChildMatchType IN ( 201,202,203)
