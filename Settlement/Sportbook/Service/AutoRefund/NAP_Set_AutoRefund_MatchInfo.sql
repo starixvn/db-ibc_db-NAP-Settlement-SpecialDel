@@ -15,6 +15,7 @@ AS
 				10 - Auto refund parlay
 */
 BEGIN
+	SET NOCOUNT ON
 
 	DECLARE   @ParentId INT
 			, @eventstatus			NVARCHAR(100)

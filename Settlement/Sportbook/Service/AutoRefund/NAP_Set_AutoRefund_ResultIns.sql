@@ -17,7 +17,8 @@ AS
 				  10- Refund Parlay 
 */
 BEGIN
-	
+	SET NOCOUNT ON
+
 	DECLARE @SourceId  TINYINT
 	SET @SourceId = 105
 

@@ -26,7 +26,8 @@ AS
 
 */
 BEGIN
-	
+	SET NOCOUNT ON
+
 	SELECT @SourceId =  ISNULL(@SourceId, 0)
 							
 	IF @TypeId IN ( 1, 10)

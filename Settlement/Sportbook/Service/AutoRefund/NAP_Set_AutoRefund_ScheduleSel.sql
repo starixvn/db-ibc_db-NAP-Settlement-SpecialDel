@@ -11,6 +11,8 @@ AS
 */
 BEGIN
 	
+	SET NOCOUNT ON
+
 	SELECT ar.MatchId
 		 , m.leagueid
 		 , ar.TypeId
