@@ -107,6 +107,7 @@ BEGIN
 			,@IsNonSport			 BIT = 0
 			,@moveBetDay14 			 SMALLDATETIME
 			,@moveBetDay 			 SMALLDATETIME
+			,@FromWinlostDate        DATETIME	
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -187,8 +188,8 @@ BEGIN
 		SELECT @moveBetDay = MAX(winlostdate) 
 		FROM dbo.bettrans WITH(NOLOCK)
 	
-		SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-				, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+		SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
+				, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
 				, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
 	
 		INSERT INTO @Status_tmp (StatusId)
@@ -278,7 +279,7 @@ BEGIN
 				,c.Username
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
-		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
+		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
 				AND b.statusID = 0
 				AND @IsSB = 1
@@ -299,7 +300,7 @@ BEGIN
 			)ml
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-		WHERE b.winlostdate BETWEEN @FromDate AND @ToDate 
+		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
 							AND b.bettype BETWEEN 801 AND 806 
@@ -331,7 +332,7 @@ BEGIN
 			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
 							 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
-								AND ((rd.FromWinlostDate BETWEEN  @FromDate AND @ToDate) OR (rd.ToWinlostDate BETWEEN  @FromDate AND @ToDate)) THEN 1
+								AND ((rd.FromWinlostDate BETWEEN  @FromWinlostDate AND @ToDate) OR (rd.ToWinlostDate BETWEEN  @FromWinlostDate AND @ToDate)) THEN 1
 						     ELSE 0 END
 
 			DELETE 
