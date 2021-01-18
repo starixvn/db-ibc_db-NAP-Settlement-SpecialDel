@@ -173,6 +173,12 @@ BEGIN
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg  = @ErrMsg	OUTPUT
 	
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+		SELECT @ErrCode, @ErrMsg
+		RETURN
+	END
+	
 	DECLARE @IsAutoRefund BIT	= 0	
 	IF @Creator = 0
 	BEGIN
