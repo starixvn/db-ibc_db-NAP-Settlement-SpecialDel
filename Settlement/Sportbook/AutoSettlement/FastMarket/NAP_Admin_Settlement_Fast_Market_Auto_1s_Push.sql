@@ -96,12 +96,14 @@ BEGIN
 		ResourceId		VARCHAR(20)
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
+		,OtherInfo		VARCHAR(50)
 	)
 
 	DECLARE @tblSpecialResultDetail TABLE (
 		ResourceId		VARCHAR(20)
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
+		,OtherInfo		VARCHAR(50)
 	)
 	
 	DECLARE @tblResultDetail_228 TABLE (
@@ -164,13 +166,13 @@ BEGIN
 	SET @xmlData = CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	
-	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
-	SELECT	ResourceId, HomeValue, AwayValue
+	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 
-	INSERT INTO @tblSpecialResultDetail (ResourceId, HomeValue, AwayValue)
-	SELECT	ResourceId, HomeValue, AwayValue
+	INSERT INTO @tblSpecialResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	@tblResultDetail
 	WHERE	ResourceId LIKE '221WB__' OR ResourceId = '221SUS'
 	
@@ -314,8 +316,9 @@ BEGIN
 		;WITH cteSUS
 		AS (
 			SELECT	CAST(HomeValue AS INT) AS startSUS
+					,CAST(SUBSTRING(otherinfo,CHARINDEX(':',otherinfo)+ 1,LEN(otherinfo)) AS SMALLMONEY) AS second 
 			FROM	@tblSpecialResultDetail
-			WHERE	ResourceId LIKE '221SUS'
+			WHERE	ResourceId = '221SUS'
 		)
 		SELECT	@ErrCode = 1001047
 				,@ErrMsg = 'WARNING! Cannot continue due to invalid intervals selected. Please check with special sessions and try again.'
@@ -337,7 +340,9 @@ BEGIN
 			CROSS APPLY (SELECT TOP 1 1 AS IsOverlap
 							FROM	cteSUS sus
 							WHERE	m.Position BETWEEN sus.startSUS - m.mins AND 90
-									OR m.Position >=  sus.startSUS - m.mins ) sus
+									OR m.Position >=  sus.startSUS - m.mins
+									OR (d.bettype = 228 AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
+							) sus
 
 		IF @ErrCode <> 0
 			RETURN
