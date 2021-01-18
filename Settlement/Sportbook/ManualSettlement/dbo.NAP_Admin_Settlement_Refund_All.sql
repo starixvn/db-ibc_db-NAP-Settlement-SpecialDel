@@ -251,6 +251,21 @@ BEGIN
 			RETURN
 	END
 
+	IF @IsAutoRefund = 1
+	BEGIN
+		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
+			 @MatchId	= @matchid
+			,@TypeId	= 1
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	 OUTPUT
+
+		IF ISNULL(@ErrCode,0) <> 0
+		BEGIN
+			SELECT    @ErrCode, @ErrMsg
+			RETURN
+		END
+	END
+
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
@@ -287,15 +302,6 @@ BEGIN
 				,@Action  = 'REFUND'
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg  = @ErrMsg	OUTPUT
-	END
-	
-	IF @IsAutoRefund = 1
-	BEGIN
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 1
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
 	END
 
 	IF @ErrCode <> 0
