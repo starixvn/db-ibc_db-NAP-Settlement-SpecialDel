@@ -20,7 +20,7 @@
 USE bodb02
 GO
 DECLARE @sporttype INT 
-DECLARE @RoundID INT, @ShowBannerEndDate DATETIME, @ShowBannerEndDate_UUS DATETIME 
+DECLARE @RoundID INT
 
 SELECT @sporttype = 150
 	--, @RoundID = XXX
@@ -32,11 +32,8 @@ BEGIN
 					WHERE sporttype = @Sporttype)
 END	
 
-SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 6, 'xxx'),101) + ' xxx'
-SET @ShowBannerEndDate_UUS = CONVERT(VARCHAR(10), DATEADD(DD, 1, 'xxx'),101) + ' xxx'
-
 SELECT RoundID,d.CustID, d.FreeSpinCount
-	,  CASE WHEN c.currency = 20 THEN @ShowBannerEndDate_UUS ELSE @ShowBannerEndDate END AS ShowBannerEndDate 
+	, CONVERT(VARCHAR(10), DATEADD(DD, 7, GETDATE()),101) + ' 23:59:59' AS ShowBannerEndDate 
 FROM dbo.LuckyDraw3rd d WITH (NOLOCK)
 	INNER JOIN dbo.CUSTDB.dbo.customer c WITH (NOLOCK) ON d.CustID = c.custid
 WHERE Sporttype = @sporttype AND RoundID = @RoundID

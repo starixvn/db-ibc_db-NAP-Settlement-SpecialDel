@@ -20,7 +20,7 @@ USE bodb02
 GO
 
 DECLARE @sporttype INT 
-DECLARE @RoundID INT, @ShowBannerEndDate DATETIME, @ShowBannerEndDate_UUS DATETIME 
+DECLARE @RoundID INT, @ShowBannerEndDate DATETIME
 
 SELECT @sporttype = 150
 	--, @RoundID = XXX
@@ -32,8 +32,7 @@ BEGIN
 					WHERE sporttype = @Sporttype)
 END		
 
-SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 6, GETDATE()),101) + ' xxx'
-SET @ShowBannerEndDate_UUS = CONVERT(VARCHAR(10), DATEADD(DD, 1, 'xxx'),101) + ' xxx'
+SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 7, GETDATE()),101) + ' 23:59:59'
 SELECT @ShowBannerEndDate
 
 WHILE 1 = 1
@@ -41,7 +40,7 @@ BEGIN
 	UPDATE TOP (2000) ld
 		SET statusid = 1
 			,sentdate = GETDATE()
-			,ShowBannerEndDate = CASE WHEN c.currency = 20 THEN @ShowBannerEndDate_UUS ELSE @ShowBannerEndDate END  
+			,ShowBannerEndDate = @ShowBannerEndDate
 	FROM LuckyDraw3rd ld WITH (ROWLOCK)
 		INNER JOIN CUSTDB.dbo.customer c WITH (NOLOCK) ON ld.custid = c.custid
 	WHERE RoundID = @RoundID AND SportType = @sporttype AND statusid = 0

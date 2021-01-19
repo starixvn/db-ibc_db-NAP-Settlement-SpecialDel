@@ -33,7 +33,26 @@ SET @RoundID = ISNULL((SELECT MAX(roundID)
 					),1)
 CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
 INSERT INTO #testAccount (username,FreeSpinCount)
-VALUES ('xxx',10)
+VALUES ('Athena000UUS011904463',20),
+('Athena000UUS011904464',20),
+('Athena000UUS011904465',20),
+('Athena000UUS011904466',20),
+('Athena000UUS011904467',20),
+('Athena000UUS011904468',20),
+('Athena000UUS011904469',20),
+('Athena000UUS011904470',20),
+('Athena000UUS011904471',20),
+('Athena000UUS011904472',20),
+('Athena000UUS011904473',20),
+('Athena000UUS011904474',20),
+('Athena000UUS011904475',20),
+('Athena000UUS011904476',20),
+('Athena000UUS011904477',20),
+('Athena000UUS011904478',20),
+('Athena000UUS011904479',20),
+('Athena000UUS011904480',20),
+('Athena000UUS011904520',20),
+('Athena000UUS011904521',20)
 
 INSERT INTO dbo.LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 SELECT @Sporttype Sporttype

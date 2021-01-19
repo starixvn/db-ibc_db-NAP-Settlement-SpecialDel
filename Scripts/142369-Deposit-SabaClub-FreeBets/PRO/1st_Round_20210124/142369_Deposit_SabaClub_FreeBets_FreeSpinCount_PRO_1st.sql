@@ -26,7 +26,7 @@ DECLARE @RoundID INT
 
 -- Input param value here
 SELECT  @Sporttype = 150
-		, @winlostdate = 'XXX'
+		, @winlostdate = '2021-01-23'
 		
 CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, NetWinLoss MONEY)
 		
@@ -49,7 +49,7 @@ BEGIN
 	FROM bettrans b WITH (NOLOCK) 
 		INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER  JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
-		INNER JOIN CustDB.dbo.Customer c (NOLOCK) ON b.recommend = c.custid AND c.site IN ('Mansion88','11Bet','12Bet','Fabet','Five88','Lucky88')
+		INNER JOIN CustDB.dbo.Customer c (NOLOCK) ON b.recommend = c.custid AND c.site IN ('11Bet','12Bet','Fabet','Five88','Lucky88','One88','zbet','Sunwin','Debet','Red88','Zowin','SV88','Nbet','OXbet','Sky88','Mansion88')
 		INNER JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 	WHERE m.sporttype IN (1,2,50) 
 		AND eventstatus = 'completed'
@@ -77,7 +77,7 @@ BEGIN
 	FROM dbo.bettrans14 b WITH (NOLOCK) 
 		INNER JOIN dbo.match14 m WITH (NOLOCK) ON b.matchid = m.matchid 
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
-		INNER JOIN CustDB.dbo.Customer c (NOLOCK) ON b.recommend = c.custid AND c.site IN ('Mansion88','11Bet','12Bet','Fabet','Five88','Lucky88')
+		INNER JOIN CustDB.dbo.Customer c (NOLOCK) ON b.recommend = c.custid AND c.site IN ('11Bet','12Bet','Fabet','Five88','Lucky88','One88','zbet','Sunwin','Debet','Red88','Zowin','SV88','Nbet','OXbet','Sky88','Mansion88')
 		INNER JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 	WHERE m.sporttype IN (1,2,50) 
 		AND eventstatus = 'completed'
