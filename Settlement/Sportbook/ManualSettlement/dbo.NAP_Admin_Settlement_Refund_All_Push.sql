@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All_Push]
     ,@IP								VARCHAR(15)    	= ''
     ,@SelectedQuarter					VARCHAR(50)		= NULL
     ,@ResourceResult					VARCHAR(MAX)	= NULL
-    
+    ,@IsAutoRefund						BIT				= 0
     ,@ErrCode							INT            	= 0     OUTPUT
     ,@ErrMsg							NVARCHAR(200)   = ''    OUTPUT
     ,@ServiceCommand					NVARCHAR(MAX)	= ''	OUTPUT
@@ -52,6 +52,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -82,6 +83,7 @@ AS
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
 
+	* @IsAutoRefund	= 1 : Auto  Refund Service call SP to refund ET & PEN match
 */
 BEGIN
     SET NOCOUNT ON
@@ -223,7 +225,8 @@ BEGIN
                                                                                      ELSE '''' + @ResourceResult + '''' END 
                                                                   + ', @IsNested = ''' + CONVERT(NVARCHAR(1), @IsNested) + '''' 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
-                                                                  + ', @ErrCode = @ErrCode OUTPUT' 
+																  +  CASE WHEN @IsAutoRefund = 1 THEN + ', @IsAutoRefund =' + CONVERT(NVARCHAR(1), @IsAutoRefund ) +''  ELSE '' END
+																  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                   + ', @ErrMsg = @ErrMsg OUTPUT'
 			,@IsSystemSettlement = CASE
 									WHEN @sporttype NOT IN (2) THEN 1
@@ -291,5 +294,6 @@ BEGIN
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
     END
+
 END
 GO

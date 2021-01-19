@@ -34,6 +34,7 @@ AS
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Removed @IsExcludeCorner [Redmine:#115232]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 
     Param's Explanation:
         
@@ -55,6 +56,7 @@ BEGIN
 			,@CalType				TINYINT
 			,@HomeValue				VARCHAR(50)
 			,@AwayValue				VARCHAR(50)
+			,@LeagueGroupID			SMALLINT
 			
 	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
 								WHEN @Action = 'CAL-FT' THEN 2
@@ -76,7 +78,10 @@ BEGIN
 		, @HalfTimeAway = CASE WHEN @Action = 'CAL-FT' THEN m.htawayscore ELSE @HalfTimeAway END --orveride this value when CAL-FT
 		, @FullTimeHome = CASE WHEN @Action = 'CAL-HT' THEN NULL ELSE @FullTimeHome END--orveride this value
 		, @FullTimeAway = CASE WHEN @Action = 'CAL-HT' THEN NULL ELSE @FullTimeAway END--orveride this value
+		, @LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
     FROM DBPRO.bodb02.dbo.match m WITH (NOLOCK)
+		INNER JOIN DBPRO.bodb02.dbo.League l WITH (NOLOCK)
+			ON m.leagueid = l.leagueid
     WHERE m.matchid = @MatchId
 	
 	IF @@ROWCOUNT = 0
@@ -192,6 +197,11 @@ BEGIN
 		RETURN
 	END
 
+	IF @sporttype = 1 AND @Action = 'CAL-FT' AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeHome,0) <> ISNULL(@FullTimeAway,0)
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns  @ParentId = @MatchId
+	END
+
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
     BEGIN
         DECLARE	@ActionId INT
@@ -215,6 +225,7 @@ BEGIN
         SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype
 			, @AdminId, @IP, @Action, @sqlCommand, NULL
     END
+
 END
 
 GO

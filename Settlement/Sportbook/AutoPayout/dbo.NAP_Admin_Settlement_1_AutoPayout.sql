@@ -34,6 +34,7 @@ AS
 		- 20200306@Sol:	Don't change Event Status to Completed When Calculate HT - [Redmine:#129884]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		
 	Param's Explanation:
 		 
@@ -60,7 +61,7 @@ BEGIN
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
 	--END Balance tables
-	
+
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 		
 	SELECT @start					= CURRENT_TIMESTAMP
@@ -296,6 +297,29 @@ BEGIN
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
+
+	IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
+	BEGIN
+			DECLARE @sporttype	INT
+					, @LeagueGroupID	SMALLINT
+					, @ChildMatchIds	VARCHAR(500)
+
+			SELECT	@sporttype = m.sporttype
+					, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+			FROM dbo.Match m WITH(NOLOCK)
+				INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
+			WHERE m.MatchId = @matchid
+
+			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
+			BEGIN
+				SELECT @ChildMatchIds = STUFF( COALESCE(@ChildMatchIds + ',' + CAST(m.matchid AS VARCHAR), CAST(m.matchid AS VARCHAR)) , 1, 0, '' ) 
+				FROM dbo.match m 
+				WHERE ParentID = @matchid
+					AND m.ChildMatchType IN ( 201,202,203 )
+				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
+			END
+	END
  
 	SELECT @LogData = 'NAP: Auto Payout Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
 		+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
@@ -317,6 +341,10 @@ BEGIN
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
 														+ '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+							+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
+								   WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+								   ELSE ' RefChild:(' + @ChildMatchIds +')' 
+								   END
 	
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator

@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@Action                VARCHAR(10)     = 'CAL'
     ,@IP                    VARCHAR(15)     = ''
 	,@IsReSettledTickets	BIT				= 1
-    
+    ,@ChildMatchIds			VARCHAR(500)	= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 	,@ServiceCommand		NVARCHAR(MAX)	= ''	OUTPUT
@@ -48,6 +48,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -76,11 +77,15 @@ BEGIN
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsExistNetPosition	BIT = 0		
 			,@IsSystemSettlement	BIT
+			,@LeagueGroupID			SMALLINT
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
 			,@leagueid    = m.leagueid
+			,@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
     FROM	dbo.match m WITH (NOLOCK)
+		INNER JOIN dbo.League l WITH (NOLOCK)
+			ON m.leagueid = l.leagueid
     WHERE	m.matchid = @MatchId
 
     IF @@ROWCOUNT = 0
@@ -181,6 +186,7 @@ BEGIN
                                                                                      ELSE '''' + @ResourceResult + '''' END 
                                                           + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 														  + ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
+														  +    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
@@ -207,12 +213,19 @@ BEGIN
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL 
 	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd
 			@Matchid		= @Matchid
 			,@Type			= 4
 			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
 			,@IP			= @IP
+	END
+
+	IF ISNULL(@ChildMatchIds ,'') <> '' AND @Action IN ('CAL', 'CAL-FT') AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeAway,0) <> ISNULL(@FullTimeHome,0)
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns
+			 @parentId = @Matchid
+			 ,@ChildMatchIds = @ChildMatchIds
 	END
 
     IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9

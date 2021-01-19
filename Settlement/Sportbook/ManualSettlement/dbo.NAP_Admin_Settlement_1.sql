@@ -17,7 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
     ,@action            VARCHAR(10)    	= 'CAL'
     ,@IP                VARCHAR(50)    	= ''
 	,@IsReSettledTickets BIT			= 1
-
+	,@ChildMatchIds		VARCHAR(500)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -77,6 +77,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 
 
     Param's Explanation:
@@ -662,6 +663,10 @@ BEGIN
                             + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
 							+ CASE WHEN @action LIKE 'CAL%' THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';' ELSE '' END
                             + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+							+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
+								   WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+								   ELSE ' RefChild:(' + @ChildMatchIds +')' 
+								   END
 
     BEGIN TRY
         EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
@@ -699,7 +704,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
-	
+
 	DROP TABLE #tblMatchProcess
 END
 GO

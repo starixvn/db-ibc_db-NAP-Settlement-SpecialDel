@@ -25,6 +25,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 
 	Param's Explanation:		
 		
@@ -33,7 +34,7 @@ AS
 
 BEGIN
 	SET NOCOUNT ON
-
+	
 	DECLARE @start 				DATETIME
 		, @stop 				DATETIME
 		, @ActionID 			INT
@@ -171,9 +172,29 @@ BEGIN
 		,@Action  = 'MP'
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg  = @ErrMsg	OUTPUT
-
-	IF @ErrCode <> 0
+	
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+		SELECT @ErrCode, @ErrMsg
 		RETURN
+	END
+	
+	DECLARE @IsAutoRefund BIT	= 0	
+	IF @Creator = 0
+	BEGIN
+		SET @IsAutoRefund  =  1 
+		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
+			 @MatchId	= @matchid
+			,@TypeId	= 10
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg	 OUTPUT
+	END
+
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+		SELECT @ErrCode, @ErrMsg
+		RETURN
+	END
 
 	IF @Sporttype = 1
 	BEGIN
@@ -273,7 +294,7 @@ BEGIN
 		END
 		
 		SET @ticketCountTotal		= ISNULL(@ticketCountCAL, 0) + ISNULL(@ticketCountSDT, 0) + ISNULL(@ticketCountREFUND, 0)
-	
+
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = 1000004
@@ -421,7 +442,7 @@ BEGIN
 					EXEC dbo.Dot_BalancePendingCreditIns
 						@BalancePending = @tblCreditPending_29
 						,@Type			= 1 -- Sports
-
+			
 				----
 				-- Add Negative Balance into BalanceNegative table 
 				----
@@ -471,18 +492,28 @@ BEGIN
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do')
 
+	IF @IsAutoRefund = 1
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+			  @MatchId = @matchid 
+			, @TypeId  = 10
+			, @StatusId = 2
+		END
 	----------------------------------------------------------------------------------------------------------------------------------------
 	BEGIN --BEGIN: WRITE LOG ----------------------------------		
 		DECLARE @Remark VARCHAR(200)
 		
 		SET @stop = CURRENT_TIMESTAMP
 
-		SELECT @Remark = 'NAP: Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+		SELECT @Remark = 'NAP: IsAuto: ' + CAST(@IsAutoRefund AS CHAR(1)) + '<br/> '
+				+ 'Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
 		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
 
 		BEGIN TRY
+			
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchid
 				,@ActionID = @ActionID
@@ -512,7 +543,7 @@ BEGIN
 				,@IP = @IP
 		END CATCH
 	END --END: WRITE LOG ----------------------------------
-	
+
 	RETURN
 END	
 GO 
