@@ -54,6 +54,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
+		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		
 
     Param's Explanation:
@@ -65,7 +66,7 @@ BEGIN
 	
 	DECLARE @IsEnableServiceBroker BIT 
 	
-    IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
+    IF @@SERVERNAME IN ('DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
@@ -75,7 +76,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		
-    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0
+    IF (@IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0)
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)

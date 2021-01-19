@@ -16,6 +16,7 @@ AS
 		- 20191128@Helen: Not settle on db054 [Redmine:#110276]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
+		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 
 	Param's Explanation:
 
@@ -32,14 +33,13 @@ BEGIN
 				END
 	SET @IsEnableServiceBroker = 0
 
-	IF @@SERVERNAME IN ('DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'DB055') AND @isUndo = 0
+	IF @@SERVERNAME IN ('DB054C2\DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'DB055') AND @isUndo = 0
 		RETURN
 		
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		
-    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DBTP', 'DB061', 'DB062', 'DB055') OR @IsEnableServiceBroker = 1)
-			AND @CalledByBrokerService = 0
+    IF (@IsEnableServiceBroker = 1	AND @CalledByBrokerService = 0 )
 			
 	BEGIN
 		-- Just send a message to service broker and then let it to handle the rest.
