@@ -33,7 +33,7 @@ BEGIN
 END	
 
 SELECT RoundID,d.CustID, d.FreeSpinCount
-	, CONVERT(VARCHAR(10), DATEADD(DD, 7, '01/24/2021'),101) + ' 23:59:59' AS ShowBannerEndDate 
+	, CONVERT(VARCHAR(10), DATEADD(DD, 6, '01/24/2021'),101) + ' 23:59:59' AS ShowBannerEndDate 
 FROM dbo.LuckyDraw3rd d WITH (NOLOCK)
 	INNER JOIN CUSTDB.dbo.customer c WITH (NOLOCK) ON d.CustID = c.custid
 WHERE Sporttype = @sporttype AND RoundID = @RoundID
