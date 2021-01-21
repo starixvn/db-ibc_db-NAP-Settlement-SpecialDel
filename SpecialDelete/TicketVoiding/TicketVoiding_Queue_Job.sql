@@ -31,10 +31,7 @@ BEGIN
 			,@FailedTransIds	VARCHAR(MAX)
 			,@NegativeBalanceUsers VARCHAR(MAX)
 			,@IssueTypeId	TINYINT
-
-	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
-	SET @RetryCnt = 0
-
+			,@QueueIds VARCHAR(MAX)
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -49,6 +46,10 @@ BEGIN
 
 	DECLARE @tmpVoidBetAutomation_Service TABLE (
 		RequestID	INT
+	)
+
+	DECLARE @tmpQueue_update TABLE (
+		QueueId	INT
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -82,12 +83,6 @@ BEGIN
 	FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 			AND StatusId = 0
-
-	INSERT INTO @tmpVoidBetAutomation_Service (RequestID)
-	SELECT DISTINCT t.RequestId
-	FROM @tmpQueue t
-
-	TryAgain:
 
 	WHILE(1 = 1)
 	BEGIN
@@ -141,6 +136,7 @@ BEGIN
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+				,@QueueIds = @QueueIds OUTPUT
 
 		END TRY
 		BEGIN CATCH
@@ -151,6 +147,11 @@ BEGIN
 					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
+		INSERT INTO @tmpQueue_update(QueueId)
+		SELECT	val AS TransId
+		FROM	dbo.f_SplitString(@QueueIds, ',')
+		OPTION (maxrecursion 0)
+
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
 				,StatusId = CASE WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 
@@ -159,7 +160,7 @@ BEGIN
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q
-		WHERE	QueueId = @QueueId
+			INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
 
 		UPDATE s WITH (ROWLOCK, UPDLOCK)
 			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
