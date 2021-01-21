@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+	,@QueueIds			VARCHAR(MAX) = ''	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -43,6 +44,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@QueueIds = @QueueIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId = 2 -- subParlay
 	BEGIN
