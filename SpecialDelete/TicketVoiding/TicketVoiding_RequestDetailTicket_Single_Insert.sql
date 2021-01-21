@@ -475,10 +475,11 @@ BEGIN
 						WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
 				)tmp
 			CROSS APPLY (
-					SELECT TOP 1 Username, MatchId
-					FROM #transIdTemp
-					WHERE MatchId = rd.MatchId
-			)t
+						SELECT TOP 1 Username, MatchId
+						FROM #transIdTemp t
+						WHERE t.MatchId = rd.MatchId
+							AND tmp.TransId = t.transid
+				)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
 							 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
