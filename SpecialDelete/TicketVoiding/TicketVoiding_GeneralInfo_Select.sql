@@ -19,12 +19,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @IsMovebet			BIT = 0
-			,@VoidingHistoryId  INT
+	DECLARE  @VoidingHistoryId  INT
 			,@xmlVoidData		XML = NULL
 			,@xmlVoidResults	XML = NULL
 
-	CREATE TABLE #TmpMatch 
+	CREATE TABLE #tmpMatch 
 	(
 		 RequestId INT
 		,Homeid INT
@@ -34,36 +33,28 @@ BEGIN
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
 		,ActionId TINYINT
-	)
+	);
 	
-	CREATE TABLE #tmpTicket
-    (		
-		 RequestId		  INT
-		,TransId          BIGINT
-        ,matchid          INT
-        ,custid           INT
-        ,Status           NVARCHAR(10)
-		,VoidedTime       DATETIME
-        ,Bettype          SMALLINT
-        ,IsMixParlay      BIT DEFAULT(0)
-        ,Refno            BIGINT
-        ,subTransId       BIGINT
-        ,recommend        INT
-		,VoidedBy		  INT
+	CREATE TABLE #tmpVoidingHistory
+	(
+		RequestId INT
 		,VoidingHistoryId INT
-		,LicenseeName	  NVARCHAR(100)
-		,Total			  INT
-    );
-	DECLARE @tmpVoidingHistory TABLE ( VoidingHistoryId INT,VoidData XML, VoidedBy INT, VoidResults XML, VoidedTime DATETIME, IsFinish BIT)
-	DECLARE @tmpContentMessage TABLE ( RequestId INT,VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
+		,VoidData XML
+		,VoidedBy INT
+		,VoidResults XML
+		,VoidedTime DATETIME
+		,IsFinish BIT
+	)
+
+	DECLARE @tmpContentMessage TABLE ( RequestId INT, VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
-	INSERT INTO #TmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
-	SELECT TOP 1 
+	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
+	SELECT DISTINCT 
 			 rd.RequestId
-			,m.homeid
-			,m.awayid
-			,m.leagueid
+			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.homeid END
+			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.awayid END
+			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
 			,rd.kickofftime
@@ -73,133 +64,39 @@ BEGIN
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
 	
-	IF NOT EXISTS ( SELECT TOP 1 1 FROM #TmpMatch)
-	BEGIN
-		SET @IsMovebet = 1
-	END
-
-	INSERT INTO @tmpVoidingHistory(VoidingHistoryId, VoidData, VoidedBy, VoidResults, VoidedTime) 
-	SELECT	 VoidingHistoryId
-			,VoidData
-			,UserId AS VoidedBy
-			,s.VoidResults
+	-- single
+	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidedTime) 
+	SELECT	 vh.RequestId
+			,vh.VoidingHistoryId
+			,vh.UserId AS VoidedBy
 			,vh.CreatedDate
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-	LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistory
+		INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON z.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
-
-	-- single ticket
-	INSERT INTO #tmpTicket (RequestId,TransId, matchid, Status, VoidedTime, custid, Refno, Bettype, VoidedBy, VoidingHistoryId)
-	SELECT	@RequestId
-			,z.transid			
-			,z.matchid
-			,z.status
-			,vh.VoidedTime
-			,z.custid
-			,z.refno
-			,z.bettype
-			,vh.VoidedBy
+		AND (z.matchid = @MatchId OR @MatchId = 0)
+		AND 1 = CASE
+					WHEN z.bettype = 911 THEN 1
+					WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
+					ELSE 0
+				END
+	UNION 
+	-- parlay
+	SELECT   vh.RequestId
 			,vh.VoidingHistoryId
-	FROM	@tmpVoidingHistory vh 
-		CROSS APPLY (
-			SELECT	z.transid
-					,z.matchid
-					,z.status
-					,z.custid
-					,z.refno
-					,z.bettype
-			FROM	dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND (z.matchid = @MatchId OR @MatchId = 0)
-					AND 1 = CASE
-								WHEN z.bettype = 911 THEN 1
-								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-								ELSE 0
-							END
-		) z	
+			,vh.UserId AS VoidedBy
+			,vh.CreatedDate
+	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+		INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON	zm.VoidingHistoryId = vh.VoidingHistoryId
+	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
+	AND (zm.matchid = @MatchId OR @MatchId = 0)
 
-	-- parlay ticket
-	INSERT INTO #tmpTicket (RequestId, subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, VoidedBy, VoidingHistoryId)
-	SELECT	@RequestId
-			,zm.transid		
-			,zm.matchid
-			,zm.refno
-			,zm.status
-			,vh.VoidedTime
-			,zm.custid
-			,1 AS IsMixParlay
-			,vh.VoidedBy
-			,vh.VoidingHistoryId
-	FROM	@tmpVoidingHistory vh
-		CROSS APPLY (
-			SELECT	zm.transid
-					,zm.matchid
-					,zm.refno 
-					,zm.status
-					,zm.custid
-			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-					AND (zm.matchid = @MatchId OR @MatchId = 0)
-		) zm
-
-	IF @IsMovebet = 0
-	BEGIN
-		UPDATE t 
-		SET recommend = b.recommend
-		FROM	#tmpTicket t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
-
-		UPDATE t 
-		SET transid = b.transid,
-			recommend = b.recommend
-		FROM	#tmpTicket t
-			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
-			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
-		
-		UPDATE t
-		SET LicenseeName = c.site
-		FROM #tmpTicket t
-			INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON t.recommend = c.custid
-	END
-	ELSE
-	BEGIN
-		UPDATE t 
-		SET		recommend = b.recommend
-		FROM	#tmpTicket t
-			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON	t.TransId = b.transid
-
-		UPDATE t 
-		SET		transid = b.transid
-				,recommend = b.recommend
-		FROM	#tmpTicket t
-			INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON t.subTransId = bm.transid
-			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
-		
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE TransId IS NULL AND IsMixParlay = 1)
-		BEGIN
-			UPDATE	t
-				SET transid = b.transid
-					,recommend = b.recommend
-			FROM	#tmpTicket t
-				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
-		END
-
-		UPDATE t
-		SET LicenseeName = c.site
-		FROM #tmpTicket t
-			INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON t.recommend = c.custid
-	END
-
-	UPDATE t
-	SET t.Total = s.Total
-	FROM #tmpTicket t
-	CROSS APPLY (
-				SELECT COUNT(s.TransId) AS Total
-				FROM #tmpTicket s
-				WHERE t.VoidingHistoryId = s.VoidingHistoryId
-				GROUP BY s.VoidingHistoryId
-			) s
+	--Update column XML
+	UPDATE h
+	SET  h.VoidData = vh.VoidData
+	    ,h.VoidResults = s.VoidResults
+	FROM #tmpVoidingHistory h
+		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON h.VoidingHistoryId = vh.VoidingHistoryId
+		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON h.RequestId = s.RequestID AND h.VoidingHistoryId = s.VoidingHistory
 
 	WHILE (1=1)
 	BEGIN
@@ -208,7 +105,7 @@ BEGIN
 			,@xmlVoidData = T.VoidData
 			,@VoidingHistoryId = T.VoidingHistoryId
 			,@xmlVoidResults = T.VoidResults
-		FROM @tmpVoidingHistory t
+		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
@@ -236,21 +133,14 @@ BEGIN
 		,m.Awayid
 		,m.leagueid 
 		,m.KickOffTime
-		,STUFF((SELECT DISTINCT  ',' + CAST( m.LicenseeName AS VARCHAR(20))
-							  FROM #tmpTicket m
-							  WHERE s.VoidingHistoryId = m.VoidingHistoryId
-							  FOR XML PATH ('')
-							),1,1,'')
-		 AS LicenseeName
-		,s.Total AS Total
 		,m.DecidedBy
 		,m.RequestedBy
 		,s.VoidedBy
 		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
 		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 		,sv.NegativeBalanceUsers
-	FROM #tmpTicket s
-	INNER JOIN #TmpMatch m ON s.RequestId = m.RequestId
+	FROM #tmpVoidingHistory s
+	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	OUTER APPLY( SELECT sv.NegativeBalanceUsers, m.Content_en, m.Content_cs
 				 FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
 					INNER JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
@@ -264,7 +154,9 @@ BEGIN
 		  ,Type
 	FROM @tmpVoidResults
 
-	DROP TABLE #TmpMatch
-	DROP TABLE #tmpTicket
+	DROP TABLE #tmpMatch
+	DROP TABLE #tmpVoidingHistory
 
 END
+
+GO
