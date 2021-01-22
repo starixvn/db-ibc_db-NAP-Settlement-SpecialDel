@@ -38,6 +38,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -61,6 +62,7 @@ BEGIN
 		,@Sporttype					SMALLINT
 		,@isSettingByProfile		BIT
 		,@handle					INT
+		,@IsSettleDetermined BIT
     
 	
 	DECLARE	@tmpResourceIDs TABLE(
@@ -72,6 +74,7 @@ BEGIN
 	SELECT @currentdate = CURRENT_TIMESTAMP
 			,@isExistWaitingTicket = 0
 			,@isSettingByProfile = 0
+			,@IsSettleDetermined = 0
     
     SELECT	@Sporttype = sporttype
     FROM	dbo.[match] WITH (NOLOCK)
@@ -223,7 +226,7 @@ BEGIN
 				,@ResultStatus1st		VARCHAR(50)	= ''		
 				,@ResultStatus2nd		VARCHAR(50) = ''
 
-		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT, BetOption TINYINT, AccumulatedScore INT)
+		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT, BetOption TINYINT, AccumulatedScore INT, IsSettleDetermined BIT)
 
 		DECLARE @tblResultDetail TABLE (
 				ResourceId	VARCHAR(20)
@@ -243,10 +246,11 @@ BEGIN
 		
 		SET @xml = CONVERT(XML,@xmlData)
 
-		INSERT INTO @tblBettype (bettype, position, BetOption)
+		INSERT INTO @tblBettype (bettype, position, BetOption, IsSettleDetermined)
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@p','TINYINT') as Position
 			,X.C.value('@r','TINYINT') as BetOption
+			,X.C.value('@s','BIT') as IsSettleDetermined
 		FROM @xml.nodes('/r/b') AS T(C)
 			CROSS APPLY
 				C.nodes('r') AS X(C)
@@ -254,6 +258,9 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tblBettype WHERE bettype = 228)
 		BEGIN
+			IF @action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tblBettype WHERE IsSettleDetermined = 1 )
+				SET @IsSettleDetermined = 1
+			
 			INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
 			SELECT	ResourceId, HomeValue, AwayValue		
 			FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
@@ -338,7 +345,7 @@ BEGIN
 			)
 			,cteResult
 			AS (
-				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5) THEN bo.BetOption ELSE 0 END AS BetOption
+				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5,7) THEN bo.BetOption ELSE 0 END AS BetOption
 				FROM cteResutStatus rs
 					INNER JOIN cteBetOption bo
 						ON rs.Position = bo.Position
@@ -385,7 +392,7 @@ BEGIN
 											ELSE 0
 										END
 								AND 1 = CASE
-											WHEN @action = 'REFUND' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
+											WHEN @action = 'REFUND' AND @IsSettleDetermined = 0 AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal THEN 0
 											WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal - @totalChangedScore THEN 0
 											ELSE 1
 										END

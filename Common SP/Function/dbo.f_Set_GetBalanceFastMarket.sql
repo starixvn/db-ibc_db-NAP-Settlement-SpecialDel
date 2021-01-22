@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20170421@Bobby: Initial
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		- 20210113@Louisa: Support settle determined [Readmine:#147141]
 		
 	Param's Explanation:
 		- @MatchId: ID of match event
@@ -37,6 +38,7 @@ RETURN (
 			, X.C.value('@p','TINYINT') AS Position
 			, ISNULL(X.C.value('@r','TINYINT'),0) AS BetOption
 			, ISNULL(X.C.value('@a','INT'),0) AS AccumulatedScore
+			, ISNULL(X.C.value('@s','TINYINT'), 0) AS IsSettleDetermined
 		FROM @FMResults.nodes('/r/b') AS T(C)
 			CROSS APPLY C.nodes('r') AS X(C)
 	), 
@@ -47,6 +49,7 @@ RETURN (
 				 
 			, MAX(CASE WHEN f.BetType = 228 THEN rs.AccumulatedScore ELSE 0 END) AS maxSelectedTotalGoal
 			, SUM(CASE WHEN f.BetType = 228 THEN rs.BetOption ELSE 0 END) AS totalChangedScore
+			, MAX(CASE WHEN f.BetType = 228 AND rs.IsSettleDetermined = 1 THEN 1 ELSE 0 END) AS IsSettleDetermined
 		FROM f_Set_GetGroupBettypes() f
 			INNER JOIN CTE_FMResultDetail rs 
 			ON f.BetType = rs.BetType
@@ -79,7 +82,7 @@ RETURN (
 									END)
 				AND 1 = CASE
 							WHEN b.bettype <> 228 THEN 1
-							WHEN @Action = 'REFUND' AND (b.oddsspread + 0.25) < bt.maxSelectedTotalGoal THEN 0
+							WHEN @Action = 'REFUND' AND IsSettleDetermined = 0 AND (b.oddsspread + 0.25) < bt.maxSelectedTotalGoal THEN 0
 							WHEN @Action = 'UNDO' AND (b.oddsspread + 0.25) < bt.maxSelectedTotalGoal - bt.totalChangedScore THEN 0
 							ELSE 1
 						END)

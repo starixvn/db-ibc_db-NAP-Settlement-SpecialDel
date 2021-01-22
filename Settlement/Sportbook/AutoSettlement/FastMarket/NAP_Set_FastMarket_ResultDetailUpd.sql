@@ -2,7 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId INT
 	,@Results		VARCHAR(MAX)	= NULL
 	,@EventCounters	VARCHAR(MAX)	= NULL
-	,@WaterBreaks	VARCHAR(MAX)	= NULL
+	,@SpecialSession	VARCHAR(MAX)	= NULL
 	,@Action		VARCHAR(20)		= 'CAL'
 	,@IsAuto		BIT				= 0
 	,@AdminId		INT				= 0
@@ -20,6 +20,7 @@ AS
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
+		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		
 	Param's Explanation:
 		- @Results: 
@@ -43,20 +44,21 @@ AS
 					...
 				</r>'
 
-		- @WaterBreak: If this param is not null, only update ResourceId of water break (221WB01, 221WB02)
+		- @SpecialSession: If this param is not null, only update ResourceId of water break (221WB01, 221WB02) or Suspended time (221SUS)
 				'<r>
 					<w Id="221WB01" h="30" a="31" o="30:00,31:30" s="1" />
 					<w Id="221WB02" h="70" a="72" o="70:10,72:40" s="0"/>
+					<w Id="221SUS" h="80" o="80:00" s="1"/>
 				</r>'
 		
 */
 BEGIN	
 	SET NOCOUNT ON
 	-- In this sesion, Home value means the result in 1st of match, Away value means the result in 2nd of match (not home/away team)
-	DECLARE @xmlData			XML
-			,@ResultStatus		TINYINT
-			,@xmlEventCounter	XML
-			,@xmlWaterBreak		XML
+	DECLARE @xmlData				XML
+			,@ResultStatus			TINYINT
+			,@xmlEventCounter		XML
+			,@xmlSpecialSession		XML
 			
 	DECLARE @tblData TABLE (
 		ResourceId				VARCHAR(20) -- 22X00
@@ -72,7 +74,7 @@ BEGIN
 		,Result		TINYINT
 	)
 
-	DECLARE @tblDataWaterBreak TABLE(
+	DECLARE @tblDataSpecialSession TABLE(
 		ResourceId	VARCHAR(20)
 		,HomeValue	VARCHAR(50)
 		,AwayValue	VARCHAR(50)
@@ -88,7 +90,7 @@ BEGIN
 
 	SELECT	@xmlData = CONVERT(XML, @Results)
 			,@xmlEventCounter = CONVERT(XML, @EventCounters)
-			,@xmlWaterBreak = CONVERT(XML,@WaterBreaks)
+			,@xmlSpecialSession = CONVERT(XML,@SpecialSession)
 
 	SET @ResultStatus = CASE 
 							WHEN @Action = 'CAL' AND @IsAuto = 0 THEN 5
@@ -124,20 +126,20 @@ BEGIN
 		CROSS APPLY C.nodes('r') AS X(C)
 
 	BEGIN TRY
-		IF @WaterBreaks IS NOT NULL
+		IF @SpecialSession IS NOT NULL
 		BEGIN
-			INSERT INTO @tblDataWaterBreak (ResourceId, HomeValue, AwayValue, OtherInfo, IsSave)
+			INSERT INTO @tblDataSpecialSession (ResourceId, HomeValue, AwayValue, OtherInfo, IsSave)
 			SELECT	T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
 					,T.C.value('@h','VARCHAR(50)') AS HomeValue
 					,T.C.value('@a','VARCHAR(50)') AS AwayValue
 					,T.C.value('@o','VARCHAR(50)') AS OtherInfo
 					,T.C.value('@s','BIT') AS IsSave
-			FROM	@xmlWaterBreak.nodes('r/w') AS T(C)
+			FROM	@xmlSpecialSession.nodes('r/w') AS T(C)
 
 			MERGE dbo.ResultDetail TARGET
 			USING (
 				SELECT	t.ResourceId, t.HomeValue, t.AwayValue, t.OtherInfo, t.IsSave
-				FROM	@tblDataWaterBreak t
+				FROM	@tblDataSpecialSession t
 			) AS SOURCE
 				ON	TARGET.ResourceId = SOURCE.ResourceId
 					AND TARGET.MatchId = @MatchId
@@ -146,12 +148,13 @@ BEGIN
 					SET HomeValue = SOURCE.HomeValue
 						,AwayValue = SOURCE.AwayValue
 						,OtherInfo = SOURCE.OtherInfo
+						,ResultStatusID = 5
 						,LastModifyBy = @AdminId
 						,LastModifyDate = GETDATE()
 			WHEN MATCHED AND SOURCE.IsSave = 0 THEN DELETE
 			WHEN NOT MATCHED BY TARGET AND SOURCE.IsSave = 1 THEN
 				INSERT(MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)
-					VALUES(@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 0, 0, GETDATE(), GETDATE(), @AdminId, @AdminId, SOURCE.OtherInfo);
+					VALUES(@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 5, 0, GETDATE(), GETDATE(), @AdminId, @AdminId, SOURCE.OtherInfo);
 
 			RETURN
 		END

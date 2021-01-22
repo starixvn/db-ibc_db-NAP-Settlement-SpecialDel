@@ -30,6 +30,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
+		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -212,7 +213,7 @@ BEGIN
 	OPTION ( OPTIMIZE FOR ( @xmlEventCounter = NULL ) )
 	
 	-- get score before update for UNDO action
-	IF @Action IN ('UNDO', 'REFUND') AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+	IF @Action IN ('UNDO', 'REFUND') AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
 		SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
 				,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
 				,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
@@ -233,7 +234,7 @@ BEGIN
 		-- Get Result bettype 228
 	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
 	BEGIN
-		IF @Action = 'CAL'
+		IF @Action = 'CAL' OR (@Action = 'REFUND' AND @IsSettleDetermined = 1)
 		BEGIN
 			SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
 					,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
@@ -269,7 +270,7 @@ BEGIN
 			)
 			,cteResult
 			AS (
-				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5) THEN bo.BetOption ELSE 0 END AS BetOption
+				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5,7) THEN bo.BetOption ELSE 0 END AS BetOption
 				FROM cteResutStatus rs
 					INNER JOIN cteBetOption bo
 						ON rs.Position = bo.Position
@@ -298,6 +299,7 @@ BEGIN
 					,(SELECT Position '@p'
 							,BetOption '@r'
 							,CASE WHEN BetType = 228 THEN AccumulatedScore ELSE NULL END '@a'
+							,@IsSettleDetermined AS '@s'
 						FROM #tblResultDetail WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
 				FROM #tblResultDetail r
 				GROUP BY r.bettype

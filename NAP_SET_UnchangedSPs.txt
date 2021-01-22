@@ -1,1 +1,2 @@
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP_Push.proc.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql

@@ -29,6 +29,7 @@ AS
 			- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 			- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
+			- 20210107@Kathy: Support settle determined [Readmine:#147141]
 			
 	Param's Explanation:
 		- @Result: 
@@ -95,8 +96,15 @@ BEGIN
 		ResourceId		VARCHAR(20)
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
+		,OtherInfo		VARCHAR(50)
 	)
-	
+
+	DECLARE @tblSpecialResultDetail TABLE (
+		ResourceId		VARCHAR(20)
+		,HomeValue		VARCHAR(50)
+		,AwayValue		VARCHAR(50)
+		,OtherInfo		VARCHAR(50)
+	)
 	
 	DECLARE @tblResultDetail_228 TABLE (
 		ResourceId				VARCHAR(20)
@@ -158,10 +166,15 @@ BEGIN
 	SET @xmlData = CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	
-	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue)
-	SELECT	ResourceId, HomeValue, AwayValue
+	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
+
+	INSERT INTO @tblSpecialResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
+	FROM	@tblResultDetail
+	WHERE	ResourceId LIKE '221WB__' OR ResourceId = '221SUS'
 	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
@@ -270,6 +283,71 @@ BEGIN
 		END
 	END	
 
+	IF @Action = 'CAL'
+	BEGIN
+		-- Compare selected intervals with each existing WB session
+		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype BETWEEN 221 AND 227) --222,224,227
+		BEGIN
+			;WITH cteWaterBreak
+			AS (
+				SELECT	CAST(HomeValue AS INT) AS startWB
+						,CAST(AwayValue AS INT) AS endWB
+				FROM	@tblSpecialResultDetail
+				WHERE	ResourceId LIKE '221WB__'
+			)
+			SELECT	@ErrCode = 1001047
+					,@ErrMsg = 'WARNING! Cannot continue due to invalid intervals selected. Please check with special sessions and try again.'
+			FROM	@tblData d
+				CROSS APPLY (	
+					SELECT CASE
+								WHEN d.bettype IN (222, 224, 227) THEN 4
+								ELSE 0
+							END AS mins				
+				)m
+				CROSS APPLY (SELECT TOP 1 1 AS IsOverlap                                                                                                                     
+								FROM	cteWaterBreak wb
+								WHERE	d.Position BETWEEN wb.startWB - m.mins AND wb.endWB + m.mins) wb
+
+			IF @ErrCode <> 0
+				RETURN
+		END
+
+		-- Compare selected intervals with suspend time
+		;WITH cteSUS
+		AS (
+			SELECT	CAST(HomeValue AS INT) AS startSUS
+					,CAST(SUBSTRING(otherinfo,CHARINDEX(':',otherinfo)+ 1,LEN(otherinfo)) AS SMALLMONEY) AS second 
+			FROM	@tblSpecialResultDetail
+			WHERE	ResourceId = '221SUS'
+		)
+		SELECT	@ErrCode = 1001047
+				,@ErrMsg = 'WARNING! Cannot continue due to invalid intervals selected. Please check with special sessions and try again.'
+		FROM	@tblData d
+			CROSS APPLY (	
+				SELECT CASE
+							WHEN d.bettype IN (222, 224, 227) THEN 4
+							ELSE 0
+						END AS mins
+						,CASE 
+							WHEN d.bettype = 228 
+								THEN CASE 
+										WHEN d.Position <= 44 THEN d.Position
+										ELSE d.Position - 1
+									END
+							ELSE d.Position
+						END AS Position			
+			)m
+			CROSS APPLY (SELECT TOP 1 1 AS IsOverlap
+							FROM	cteSUS sus
+							WHERE	m.Position BETWEEN sus.startSUS - m.mins AND 90
+									OR m.Position >=  sus.startSUS - m.mins
+									OR (d.bettype = 228 AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
+							) sus
+
+		IF @ErrCode <> 0
+			RETURN
+	END
+
 	IF @IsAuto = 1
 	BEGIN		
 		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype NOT IN (SELECT bettype FROM dbo.f_Set_GetGroupBettypes() WHERE GroupId = 9)) -- FM
@@ -356,12 +434,13 @@ BEGIN
 							WHEN ResultStatus = 4 THEN 'Automatically Settled'
 							WHEN ResultStatus = 5 THEN 'Manually Settled'
 							WHEN ResultStatus = 6 THEN 'Refunded'
+							WHEN ResultStatus = 7 THEN 'Refunded SDT'
 							WHEN ResultStatus = 0 THEN 'No KeyedIn'
 							ELSE 'Unknown Err'
 						END
 				FROM @tblData
 				WHERE t.bettype = bettype	
-					 AND (ResultStatus IN (0,3,4,5,6)
+					 AND (ResultStatus IN (0,3,4,5,6,7)
 							OR ResultStatus IS NULL
 							OR BetOption IS NULL
 						)
@@ -369,7 +448,7 @@ BEGIN
 			+ '</br>'
 		FROM @tblData t
 		WHERE	t.bettype = 228
-				AND (ResultStatus IN (0,3,4,5,6) OR t.ResultStatus IS NULL OR t.BetOption IS NULL)
+				AND (ResultStatus IN (0,3,4,5,6,7) OR t.ResultStatus IS NULL OR t.BetOption IS NULL)
 		GROUP BY t.bettype
 
 		-- No Result, UNDO, CAL (manually), REFUND
@@ -379,23 +458,24 @@ BEGIN
 							WHEN ResultStatus = 3 THEN 'Undo'
 							WHEN ResultStatus = 5 THEN 'Manually Settled'
 							WHEN ResultStatus = 6 THEN 'Refunded'
+							WHEN ResultStatus = 7 THEN 'Refunded SDT'
 							WHEN BetOption = 0 THEN 'No KeyedIn'
 						END
 				FROM @tblData
 				WHERE t.bettype = bettype	
-					 AND (ResultStatus IN (0,3,5,6)
+					 AND (ResultStatus IN (0,3,5,6,7)
 						OR BetOption = 0
 					)
 				FOR XML PATH ('')),1,1,'')
 			+ '</br>'
 		FROM @tblData t
-		WHERE	t.ResultStatus IN (3,5,6) OR t.BetOption = 0
+		WHERE	t.ResultStatus IN (3,5,6,7) OR t.BetOption = 0
 				AND t.bettype <> 228
 		GROUP BY t.bettype
 		
 		DELETE 
 		FROM @tblData
-		WHERE	(ResultStatus IN (3,5,6) OR BetOption = 0) AND bettype <> 228
+		WHERE	(ResultStatus IN (3,5,6,7) OR BetOption = 0) AND bettype <> 228
 		
 		IF ISNULL(@subErrMsg,'') <> ''
 		BEGIN
