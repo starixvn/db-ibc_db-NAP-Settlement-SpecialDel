@@ -27,6 +27,7 @@ AS
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20200625@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		
 */
 RETURN
@@ -189,6 +190,13 @@ RETURN
 					 ELSE -1
 				END
 			
+			-- 501
+			WHEN @pfID = 501 THEN 
+				CASE 
+					WHEN (@betteam = 'h' AND fm > 0) OR (@betteam = 'a' AND fm < 0) THEN 1
+					WHEN fm = 0 THEN 0
+					ELSE -1
+				END
 			WHEN @pfID = 9088 THEN -- Correct Map Score
 				CASE WHEN @betteam = @HomeValue + ':' + @AwayValue THEN 1
 					 ELSE -1
@@ -378,6 +386,34 @@ RETURN
 					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
 					ELSE -1
 				END	
+			WHEN @pfID = 9538 THEN
+				CASE
+					WHEN fm > 0 AND @betteam IN ('1b', 'xl', '2l') THEN 1
+					WHEN fm = 0 AND @betteam IN ('xb', '1l', '2l') THEN 1
+					WHEN fm < 0 AND @betteam IN ('2b', '1l', 'xl') THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 9539 THEN
+				CASE
+					WHEN fm > 0 AND @betteam IN ('BH', 'LA') THEN 1
+					WHEN fm = 0 AND @betteam IN ('LH', 'L2') THEN 1
+					WHEN fm < 0 AND @betteam IN ('BA', 'LH') THEN 1
+					ELSE -1
+				END
+			WHEN @pfID = 9541 THEN
+				CASE
+					WHEN fm < @hdp1 
+						THEN CASE
+								WHEN @betteam = 'n' THEN 1
+								ELSE -1
+							END
+					WHEN fm >= @hdp2
+						THEN CASE
+								WHEN @betteam = 'y' THEN 1
+								ELSE -1
+							END
+					ELSE -1
+				END
 			ELSE -1 
 		END AS modds
    FROM
@@ -391,10 +427,10 @@ RETURN
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
-					WHEN @pfID IN (8101, 619) THEN CAST(@HomeValue AS SMALLMONEY)
+					WHEN @pfID IN (8101, 619, 9541) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
-					WHEN @pfID IN (8104, 601, 602) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (8104, 601, 602, 501, 9538, 9539) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID = 8105 THEN CAST(@HomeValue AS SMALLMONEY)
 
 					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
