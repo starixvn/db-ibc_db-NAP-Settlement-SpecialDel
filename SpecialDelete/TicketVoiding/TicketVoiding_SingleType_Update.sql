@@ -352,16 +352,16 @@ BEGIN
 			BEGIN
 				SET @Retry = @Retry + 1
 				SET @Success = 0
-			END
 
-			--Waitfor Delay
-			IF @isExistMatch = 1
-			BEGIN
-				WAITFOR DELAY '00:00:05'
-			END
-			ELSE IF @isExistParlay = 1
-			BEGIN
-				WAITFOR DELAY '00:00:20'
+				--Waitfor Delay
+				IF @isExistMatch = 1
+				BEGIN
+					WAITFOR DELAY '00:00:05'
+				END
+				ELSE IF @isExistParlay = 1
+				BEGIN
+					WAITFOR DELAY '00:00:20'
+				END
 			END
 				
 		END

@@ -126,9 +126,9 @@ BEGIN
 		BEGIN
 			SET @Retry = @Retry + 1
 			SET @Success = 0
-		END
 
-		WAITFOR DELAY '00:00:20'
+			WAITFOR DELAY '00:00:20'
+		END
 				
 	END
 	
