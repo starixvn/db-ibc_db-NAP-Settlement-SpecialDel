@@ -1328,7 +1328,7 @@ BEGIN
 
 	---Prepare for lock match---
 	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-			,@IsExistParlay = MAX (CASE WHEN t.Bettype IN (9, 29) THEN 1 ELSE 0 END)
+			,@IsExistParlay = MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM #SpecialDeleteBets AS t
