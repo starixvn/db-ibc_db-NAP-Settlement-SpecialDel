@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsLeader			BIT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -23,6 +24,7 @@ AS
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -38,6 +40,7 @@ BEGIN
 			,@leagueid				INT
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				NVARCHAR(50)
+			,@IsExistNetPosition	BIT = 0		
 			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
 			,@IsEarly				BIT
@@ -125,6 +128,9 @@ BEGIN
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
+	
+	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
+		SET	@IsExistNetPosition = 1 
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpSelectedRID(ResourceID, isFinal, GroupType)
@@ -155,7 +161,7 @@ BEGIN
 			,@IP			= @IP
 	END
 	
-	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+	IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand
@@ -182,16 +188,18 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
+			,execTime
 			)
 		SELECT @MatchId
 			,@matchcode
-			,0
+			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
 			,@leagueid
 			,@sporttype
 			,@AdminId
 			,@IP
 			,@Action
-			,@sqlCommand
+			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
+			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
 	END
 
 END

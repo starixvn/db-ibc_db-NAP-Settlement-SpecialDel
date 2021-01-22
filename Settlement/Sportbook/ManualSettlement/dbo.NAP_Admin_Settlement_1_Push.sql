@@ -18,7 +18,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@ChildMatchIds			VARCHAR(500)	= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
-	,@ServiceCommand		NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*    Creator: Kathy
     Date: 20140213
@@ -49,6 +48,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -75,7 +75,6 @@ BEGIN
 			,@leagueid          	INT
 			,@procName          	NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsExistNetPosition	BIT = 0		
 			,@IsSystemSettlement	BIT
 			,@LeagueGroupID			SMALLINT
 
@@ -205,11 +204,7 @@ BEGIN
 												END
 										ELSE NULL
 									END
-
-
-	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
-		SET	@IsExistNetPosition = 1 
-		
+	
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL 
 	BEGIN
@@ -228,7 +223,7 @@ BEGIN
 			 ,@ChildMatchIds = @ChildMatchIds
 	END
 
-    IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+    IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY
             EXEC sys.sp_executesql @sqlCommand
@@ -256,21 +251,16 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
-				,execTime
             )
         SELECT	@MatchId
 				,@matchcode
-				,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
+				,0
 				,@leagueid
 				,@sporttype
 				,@AdminId
 				,@IP
 				,@Action
-				,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
-				,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
-				
-		IF @IsExistNetPosition = 1
-			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
+				,@sqlCommand
     END
 END
 GO

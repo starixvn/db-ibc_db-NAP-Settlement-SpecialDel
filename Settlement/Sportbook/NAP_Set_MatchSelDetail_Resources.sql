@@ -20,6 +20,7 @@ AS
 		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200910@Louisa: Separate Ticket status: Calculated, Parlay Running and Refunded for MNL [Redmine:#141340]
 		- 20201113@Louisa: Add Hold Result - [Redmine:#135097]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		
 */
 BEGIN
@@ -228,7 +229,7 @@ BEGIN
 	END
 	
 	---Badminton AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType = 9
+	ELSE IF @SportType IN (9, 50)
 	BEGIN
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue

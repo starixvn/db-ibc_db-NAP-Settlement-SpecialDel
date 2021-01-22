@@ -15,6 +15,7 @@ AS
 		- 20200528@Kathy: add resourceid of basketball [Redmine:#134843]
 		- 20200805@July:  add resourceid of soccer [Redmine:#138475]
 		- 20200908@Louisa: add FT and HT for Soccer [Redmine:#139979]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
    
     Parameters Explanation:        
     
@@ -70,6 +71,11 @@ RETURN
 		UNION ALL SELECT 1, '08' , 'FT', '08', 'FT', 0, 3
 		UNION ALL SELECT 1, '00' , 'FT', '00', 'FT', 1, 99
 
+		UNION ALL SELECT 50, '01' , 'H1', 'H1', 'SP', 0, 1
+		UNION ALL SELECT 50, '01' , 'A1', 'A1', 'SP', 0, 2
+		UNION ALL SELECT 50, '02' , 'H2', 'H2', 'SP', 0, 3
+		UNION ALL SELECT 50, '02' , 'A2', 'A2', 'SP', 0, 4
+		UNION ALL SELECT 50, '00' , 'FT', '00', 'FT', 1, 99
 
 		
     ) AS tbl
