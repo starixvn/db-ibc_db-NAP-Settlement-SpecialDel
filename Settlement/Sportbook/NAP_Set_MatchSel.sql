@@ -60,8 +60,8 @@ AS
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund, 5: Postponed, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold
-	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
+	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund, 5: Postponed, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold, 11: Hold Key
+	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all; 4: Running Early Settle Only
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
 	@IsIncludeTest: 1: include test matches, 0: exclude test matches
@@ -80,6 +80,7 @@ BEGIN
 		,@SettlementStatus TINYINT
 		,@isSettingByProfile BIT = 0
 		,@existSettingEarly BIT = 0
+		,@RunningEarlyOnly BIT = 0
 	
 	SET @StartTime = GETDATE()
 	
@@ -112,7 +113,7 @@ BEGIN
 			,@FastMarketsOnly	= 0
 			,@SettlementStatus	= 0
 			,@IsMarkedTicket	= 0
-			,@IsIncludeTest		= 1
+			,@RunningEarlyOnly = 0
 
 		BEGIN TRY
 			SET @matchid = CASE 
@@ -147,6 +148,10 @@ BEGIN
 				WHEN @filterBy IN (3, 2) THEN 1
 				ELSE 0
 				END
+			,@RunningEarlyOnly = CASE 
+				WHEN @FilterBy IN (3, 4) THEN 1
+				ELSE 0
+				END
 			,@SettlementStatus = CASE
 				WHEN @StatusId = 7 THEN 1
 				WHEN @StatusId = 8 THEN 2
@@ -157,7 +162,7 @@ BEGIN
 				END
 
 		--ignore event status if selecting filterby
-		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @AutoSettlementOnly = 1 OR @FastMarketsOnly = 1 OR @SettlementStatus <> 0 OR @IsMarkedTicket <> 0)
+		IF (@UncalMultiOnly = 1 OR @UncalOnly = 1 OR @AutoSettlementOnly = 1 OR @FastMarketsOnly = 1 OR @SettlementStatus <> 0 OR @IsMarkedTicket <> 0 OR @RunningEarlyOnly = 1)
 			SELECT @eventstatus = ''
 				,@isRefund = NULL
 	END
