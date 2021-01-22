@@ -21,6 +21,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		
 	Param's explanation:	
 		
@@ -42,6 +43,9 @@ BEGIN
 			,@strMainTransId VARCHAR(MAX)
 			,@strRefno VARCHAR(MAX)
 			,@CustIds VARCHAR(MAX)
+
+	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
+	SET @RetryCnt = 0
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
@@ -104,19 +108,40 @@ BEGIN
 
 		RETURN
 	END
+
+	SET @Retry = 0
+	SET @Success = 0
 	
-	EXEC dbo.NAP_Admin_CheckingProcess  
+	WHILE @Retry < 3 AND @Success = 0
+	BEGIN
+		SET @Success = 1
+
+		EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay   = 1  
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode   = @ErrCode OUTPUT  
 		, @ErrMsg   = @ErrMsg OUTPUT  
-  
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN	
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN
+			SET @Retry = @Retry + 1
+			SET @Success = 0
+		END
+
+		WAITFOR DELAY '00:00:20'
+				
+	END
+	
+	IF @Success = 0 
+	BEGIN
 		SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
 		FROM	@tmpInputTransId
 
-		RETURN  
+		EXEC dbo.NAP_Admin_CheckingProcess  
+		@isExistParlay  = 1  
+		, @IsReleased  = 1 
+
+		RETURN
 	END
 
 	SET @FailedTransIds = ''
