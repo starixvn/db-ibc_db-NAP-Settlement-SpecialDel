@@ -2,7 +2,7 @@
 /*
     Created: 20201231@Max
 	Task: TVS - New issue type Abnormal Accounts - [Redmine: #143666]
-	DB: DBACC-bodb02 [Replicated Server for DBTrans_API_Data]
+	DB: DBACC-bodb02 [Replicated Server for DBTrans_Sync_DB06]
 */
 
 USE bodb02
