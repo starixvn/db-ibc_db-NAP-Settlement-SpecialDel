@@ -113,12 +113,11 @@ BEGIN
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	q.QueueId = @QueueId
 	
+		SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
 		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
 		BEGIN
 			DECLARE @sessionID INT = 0
 			SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
-
-			SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
 
 			INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
 			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
@@ -148,10 +147,18 @@ BEGIN
 					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
-		INSERT INTO @tmpQueue_update(QueueId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@QueueIds, ',')
-		OPTION (maxrecursion 0)
+		IF @IssueTypeId = 13
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	val AS TransId
+			FROM	dbo.f_SplitString(@QueueIds, ',')
+			OPTION (maxrecursion 0)
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	@QueueId
+		END
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
