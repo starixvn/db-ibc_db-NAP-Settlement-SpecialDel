@@ -1,1 +1,2 @@
 Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
+Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
