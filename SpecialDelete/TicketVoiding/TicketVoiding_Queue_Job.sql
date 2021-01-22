@@ -88,14 +88,15 @@ BEGIN
 	BEGIN
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
-				,@RequestId = RequestId
-				,@QueueId = QueueId
-				,@MatchId = MatchId
-				,@VoidingTypeId = VoidingTypeId
-				,@TransIds = TransIds
-				,@UserId = UserId
-				,@IP = IP
+				,@RequestId = q.RequestId
+				,@QueueId = q.QueueId
+				,@MatchId = q.MatchId
+				,@VoidingTypeId = q.VoidingTypeId
+				,@TransIds = q.TransIds
+				,@UserId = q.UserId
+				,@IP = q.IP
 		FROM	@tmpQueue q
+			INNER JOIN dbo.TicketVoiding_Queue t WITH (NOLOCK) ON t.QueueId = q.QueueId AND t.StatusId = 0
 		WHERE	q.IsFinished = 0
 
 		IF @@ROWCOUNT = 0
