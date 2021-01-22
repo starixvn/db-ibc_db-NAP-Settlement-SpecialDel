@@ -56,10 +56,14 @@ BEGIN
 	BEGIN -- Apply for Abnormal account
 
 		INSERT INTO #TmpTransId (TransId, MatchId)
-		SELECT DISTINCT val, b.matchid
-		FROM dbo.f_SplitString(@TransIds, ',') t
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single b WITH(NOLOCK) ON  t.val = b.transid
-		WHERE val <> ''
+		SELECT DISTINCT f.val, b.matchid
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single b WITH(NOLOCK)
+			CROSS APPLY (
+					SELECT val
+					FROM dbo.f_SplitString(@TransIds, ',')
+					WHERE val = b.TransId
+				)f
+		WHERE b.RequestId = @RequestId
 		OPTION (MAXRECURSION 0)
 
 		INSERT INTO #TmpQueue_Insert (MatchId, VoidingHistoryId, VoidingTypeId, TotalTicket, TransIds, UserId, IP)
