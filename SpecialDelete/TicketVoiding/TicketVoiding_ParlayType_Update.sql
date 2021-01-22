@@ -137,6 +137,9 @@ BEGIN
 		SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
 		FROM	@tmpInputTransId
 
+		--For update queue
+		SELECT @ErrCode = 101
+
 		EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay  = 1  
 		, @IsReleased  = 1 

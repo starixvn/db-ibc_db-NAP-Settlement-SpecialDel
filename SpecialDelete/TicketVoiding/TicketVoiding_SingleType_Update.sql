@@ -373,6 +373,8 @@ BEGIN
 			FROM #tblMatchProcess_Retry
 			WHERE isFinish = 1
 
+			SELECT @ErrCode = 101
+
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistParlay 				= @isExistParlay
 				, @isExistOutright 			= @isExistOutright
