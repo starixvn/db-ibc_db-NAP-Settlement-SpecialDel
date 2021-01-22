@@ -391,6 +391,11 @@ BEGIN
 	
 	END
 
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT matchid, KeyID
+	FROM #tblMatchProcess_Retry
+	WHERE isFinish = 1
+
 	-- checking cash-out process
 	INSERT INTO #tblCashOutProcess(transid)
 	SELECT	t.transid
