@@ -32,7 +32,7 @@ BEGIN
 					WHERE sporttype = @Sporttype)
 END		
 
-SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 6, '01/24/2020'),101) + ' 23:59:59'
+SET @ShowBannerEndDate = CONVERT(VARCHAR(10), DATEADD(DD, 6, '01/24/2021'),101) + ' 23:59:59'
 SELECT @ShowBannerEndDate
 
 WHILE 1 = 1
