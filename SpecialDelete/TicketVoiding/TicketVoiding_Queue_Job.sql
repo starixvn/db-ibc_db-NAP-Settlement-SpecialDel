@@ -124,7 +124,7 @@ BEGIN
 		END
 
 		BEGIN TRY
-			EXEC dbo.TicketVoiding_Ticket_Update 
+			EXEC dbo.TicketVoiding_Ticket_Update
 				@RequestId = @RequestId
 				,@MatchId = @MatchId
 				,@TransIds = @TransIds
@@ -147,12 +147,18 @@ BEGIN
 					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
-
-		INSERT INTO @tmpQueue_update(QueueId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@QueueIds, ',')
-		OPTION (maxrecursion 0)
-
+		IF @IssueTypeId = 13
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	val AS TransId
+			FROM	dbo.f_SplitString(@QueueIds, ',')
+			OPTION (maxrecursion 0)
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	@QueueId
+		END
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
@@ -162,7 +168,10 @@ BEGIN
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q
-			INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
+		WHERE 1 = CASE WHEN @IssueTypeId = 13 AND EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId) THEN 1
+						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
+					ELSE 0 END
+			--INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
 
 		UPDATE s WITH (ROWLOCK, UPDLOCK)
 			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
