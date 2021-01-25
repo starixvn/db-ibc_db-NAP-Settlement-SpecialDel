@@ -79,7 +79,7 @@ RETURN
 					ELSE -1 END
 						
 			WHEN @pfID = 100 THEN --betteam = homevalue (home/away/none/draw)
-			   CASE WHEN @betteam IN ('h', 'a') AND @betteam = @HomeValue THEN 1
+			   CASE WHEN @betteam IN ('h', 'a', 'c', 'nc') AND @betteam = @HomeValue THEN 1
 					WHEN @HomeValue IN ('n', 'd') THEN 0
 					ELSE -1 END
 					
