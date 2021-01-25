@@ -375,7 +375,7 @@ BEGIN
 			INSERT INTO #InputValidCustid_2 (custid, Username)	
 			SELECT ci.custid, l.Username
 			FROM #InputUsernameList l
-				INNER JOIN custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
+				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			WHERE l.roleid = 3 AND ci.roleid = 2
 		END
 
@@ -384,7 +384,7 @@ BEGIN
 			INSERT INTO #InputValidCustid_2 (custid, Username)
 			SELECT ci.custid, l.Username
 			FROM #InputUsernameList l
-				INNER JOIN dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
+				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
 			WHERE l.roleid = 4 AND ci.roleid = 2	
 		END
 
@@ -396,7 +396,7 @@ BEGIN
 		UNION
 		SELECT ci.CustID, lt.Username
 		FROM #InputValidCustid_2 lt
-			INNER JOIN dbo.custInfo ci WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
 		;
