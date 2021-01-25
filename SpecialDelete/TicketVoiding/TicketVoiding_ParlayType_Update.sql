@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+	,@QueueIds			VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -74,6 +75,13 @@ BEGIN
 	SELECT	val AS TransId
 	FROM	dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
+
+	SELECT @QueueIds = STUFF((SELECT ',' + CAST(QueueId AS VARCHAR(50)) 
+							FROM dbo. TicketVoiding_Queue q WITH (NOLOCK)	
+							WHERE q.RequestId = @RequestId
+								AND q.StatusId IN (1)
+								AND q.VoidingHistoryId = @VoidingHistoryId
+						FOR XML PATH('')),1,1,'')
 
 	UPDATE t 
 		SET MainTransId = b.transid

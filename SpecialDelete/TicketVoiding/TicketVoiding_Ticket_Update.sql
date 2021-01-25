@@ -59,6 +59,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@QueueIds = @QueueIds OUTPUT
 	END
 	
 END
