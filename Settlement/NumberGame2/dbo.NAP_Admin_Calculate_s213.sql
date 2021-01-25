@@ -13,13 +13,20 @@ AS
 		- 20161214@Johnson: correct comm value [redmine:#68766]
 		- 20190319@Johnson: migrate server DB061,062 [redmine: #110514]
 		- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
+		- 20210125@Johnson: Migrate DB054 to cluster, instance DB054C2\DB054 [redmine:#149341]
 	Parameter's Explanation:
 	
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @@SERVERNAME IN ('DB052', 'DB053', 'DB054', 'DB055', 'DB06', 'DB06C2\DB06', 'DB061', 'DB062', 'DBTP', 'DB231', 'DB232','DB215','DB234','SITDB052', 'SITDB053', 'SITDB054', 'SITDB06' ,'DB231\DBSPU2' ,'DB232\DBSPU2') AND @CalledByBrokerService = 0
+	DECLARE @IsEnableServiceBroker BIT 
+		
+	EXEC dbo.NAP_Set_ServerInfo 
+		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+	
+	IF (@@SERVERNAME IN ('DB231\DBSPU2','DB232\DBSPU2','DBLicAPI','SITDBLicAPI','DBLicAPI02') OR @IsEnableServiceBroker = 1)
+		AND @CalledByBrokerService = 0
 	BEGIN
 		-- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 		DECLARE @sMessage NVARCHAR(MAX)
