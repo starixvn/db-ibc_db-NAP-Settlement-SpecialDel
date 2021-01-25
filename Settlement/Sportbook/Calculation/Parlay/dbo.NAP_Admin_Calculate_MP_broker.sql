@@ -66,7 +66,7 @@ BEGIN
 	
 	DECLARE @IsEnableServiceBroker BIT 
 	
-    IF @@SERVERNAME IN ('DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
+    IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P

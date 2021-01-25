@@ -41,6 +41,8 @@ BEGIN
 	UNION ALL
 	SELECT 'DB04ADMIN2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund 
 	UNION ALL
+	SELECT 'DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	UNION ALL
 	SELECT 'DB054C2\DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
     UNION ALL
 	SELECT 'DB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
