@@ -147,18 +147,12 @@ BEGIN
 					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
-		IF @IssueTypeId = 13
-		BEGIN
-			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	val AS TransId
-			FROM	dbo.f_SplitString(@QueueIds, ',')
-			OPTION (maxrecursion 0)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	@QueueId
-		END
+
+		INSERT INTO @tmpQueue_update(QueueId)
+		SELECT	val AS TransId
+		FROM	dbo.f_SplitString(@QueueIds, ',')
+		OPTION (maxrecursion 0)
+
 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
