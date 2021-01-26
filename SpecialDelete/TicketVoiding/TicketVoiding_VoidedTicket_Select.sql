@@ -379,8 +379,8 @@ BEGIN
 					,ActualStake = b.actual_stake
 					,subTransId = t.subTransId
 			FROM	#tmpTicket t
-				INNER JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
-				INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+				INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
+				INNER HASH JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
 		END
 	END
 
