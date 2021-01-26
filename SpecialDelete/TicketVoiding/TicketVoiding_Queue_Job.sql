@@ -32,6 +32,7 @@ BEGIN
 			,@NegativeBalanceUsers VARCHAR(MAX)
 			,@IssueTypeId	TINYINT
 			,@QueueIds VARCHAR(MAX)
+			,@Status_Single TINYINT
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -174,10 +175,19 @@ BEGIN
 						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
 					ELSE 0 END
 			--INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
-
+		
+		IF EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29)
+		BEGIN
+			SET @Status_Single = 0
+			IF @ErrCode <> 0 AND @ErrCode <> 100
+			BEGIN
+				SET @Status_Single = 3
+			END
+		END
 		UPDATE s WITH (ROWLOCK, UPDLOCK)
 			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
 								  WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 -- Failed
+								  WHEN @Status_Single = 3 THEN 3
 								  ELSE 2 END -- DB completed
 				,s.NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
