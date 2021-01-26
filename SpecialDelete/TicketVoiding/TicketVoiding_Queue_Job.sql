@@ -176,7 +176,7 @@ BEGIN
 					ELSE 0 END
 			--INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
 		
-		IF EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29)
+		IF EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29 AND IsFinished = 0)
 		BEGIN
 			SET @Status_Single = 0
 			IF @ErrCode <> 0 AND @ErrCode <> 100
