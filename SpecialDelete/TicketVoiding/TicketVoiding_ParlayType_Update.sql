@@ -83,6 +83,15 @@ BEGIN
 								AND q.VoidingHistoryId = @VoidingHistoryId
 						FOR XML PATH('')),1,1,'')
 
+	IF  NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
+	BEGIN
+		DECLARE @sessionID INT = 0
+		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+
+		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
+		SELECT @RequestId, @VoidingHistoryId,1,@MatchId,@sessionID,0
+	END
+	
 	UPDATE t 
 		SET MainTransId = b.transid
 			,MainStatusId = b.statusID

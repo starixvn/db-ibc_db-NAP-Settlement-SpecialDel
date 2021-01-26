@@ -114,7 +114,9 @@ BEGIN
 		WHERE	q.QueueId = @QueueId
 	
 		SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
-		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
+
+		IF (@IssueTypeId = 13 OR NOT EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29))
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
 		BEGIN
 			DECLARE @sessionID INT = 0
 			SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1

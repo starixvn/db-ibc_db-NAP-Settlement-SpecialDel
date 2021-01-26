@@ -69,6 +69,7 @@ BEGIN
 			,@isExistLucky3				BIT = 0
 			,@Lucky3TransIDs			VARCHAR(MAX)
 			,@Lucky3Matches				VARCHAR(MAX) = ''
+			,@MatchId_Retry				INT = 0
 
 	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
 	SET @RetryCnt = 0
@@ -83,8 +84,9 @@ BEGIN
 						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #tblMatchProcess_Retry (matchid INT, KeyID TINYINT, isFinish BIT)
+	CREATE TABLE #tblMatchProcess_Retry (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatch_TransIds (matchid INT, transids NVARCHAR(MAX), isFinish BIT)
+	CREATE TABLE #tblMatch (matchid INT, isFinish BIT)
 
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -281,67 +283,81 @@ BEGIN
 			OR bettype = 500 /*charge comm*/
 		) 
 	
+	-- gather match Ids
+	INSERT INTO #tblMatch (matchid)
+	SELECT	matchid
+	FROM	#tmpTransId
+	WHERE matchid NOT IN (9,29,2799)
+	GROUP BY matchid
+	UNION ALL
+	SELECT	matchid
+	FROM	#tmpTransId
+	WHERE matchid IN (9,29,2799)
+	GROUP BY matchid
 
-	SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
-			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
-			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
-			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-			,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
-			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
-			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
-			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
-			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
-			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM	#tmpTransId b
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = b.Bettype
-			)f
-
-	
-	INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
-	SELECT DISTINCT matchid
-		, CASE 
-			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
-					AND Bettype NOT BETWEEN 801 AND 899
-					AND f.GroupId IS NULL
-					AND Bettype NOT IN (1231,1232,1233)
-				THEN 1 --SB,NG,LC
-			WHEN Bettype = 10 THEN 2	-- Outright
-			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
-			WHEN f.GroupId = 1 THEN 6 -- FM
-			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
-			WHEN Bettype = 38 THEN 5 -- Bet Builder
-			WHEN f.GroupId = 2 THEN 7 -- FM 228
-			ELSE 0
-		END AS KeyID
-	FROM #tmpTransId b
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = b.Bettype
-			)f
-
-	WHILE (1 = 1)
+	WHILE (1=1)
 	BEGIN
+		SET @MatchId_Retry = 0
 		DELETE #tblMatchProcess
 
-		UPDATE TOP(1) m
-			SET m.isFinish = 1
-		OUTPUT deleted.matchid
-			, deleted.KeyID
-		INTO #tblMatchProcess(matchid, KeyID)
-		FROM #tblMatchProcess_Retry m
-		WHERE isFinish IS NULL
+		UPDATE TOP(1) m SET m.isFinish = 1, @MatchId_Retry = m.matchid
+		FROM #tblMatch m
+		WHERE m.isFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+				,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+				,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+				,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
+				,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
+				,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+				,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
+				,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
+				,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+				,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+				,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
+				,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
+				,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+				,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+		FROM	#tmpTransId b
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = b.Bettype
+				)f
+		WHERE b.matchid = @MatchId_Retry
+
+	
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT DISTINCT matchid
+			, CASE 
+				WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+						AND Bettype NOT BETWEEN 801 AND 899
+						AND f.GroupId IS NULL
+						AND Bettype NOT IN (1231,1232,1233)
+					THEN 1 --SB,NG,LC
+				WHEN Bettype = 10 THEN 2	-- Outright
+				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+				WHEN f.GroupId = 1 THEN 6 -- FM
+				WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+				WHEN Bettype = 38 THEN 5 -- Bet Builder
+				WHEN f.GroupId = 2 THEN 7 -- FM 228
+				ELSE 0
+			END AS KeyID
+		FROM #tmpTransId b
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = b.Bettype
+				)f
+		WHERE b.matchid = @MatchId_Retry
+
+		INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
+		SELECT matchid, KeyID
+		FROM #tblMatchProcess
 
 		SET @Retry = 0
 		SET @Success = 0
@@ -388,7 +404,6 @@ BEGIN
 			INSERT INTO #tblMatchProcess(matchid, KeyID)
 			SELECT matchid, KeyID
 			FROM #tblMatchProcess_Retry
-			WHERE isFinish = 1
 
 			SELECT @ErrCode = 101
 
@@ -407,13 +422,8 @@ BEGIN
 
 			RETURN
 		END
-	
-	END
 
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT matchid, KeyID
-	FROM #tblMatchProcess_Retry
-	WHERE isFinish = 1
+	END
 
 	-- checking cash-out process
 	INSERT INTO #tblCashOutProcess(transid)
@@ -1326,6 +1336,8 @@ BEGIN
 	DROP TABLE #balanceGameBefore
 	DROP TABLE #Lucky3Matches
 	DROP TABLE #tblMatchProcess_Retry
+	DROP TABLE #tblMatch
+	DROP TABLE #tblMatch_TransIds
 	
 END
 
