@@ -355,10 +355,6 @@ BEGIN
 				)f
 		WHERE b.matchid = @MatchId_Retry
 
-		INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
-		SELECT matchid, KeyID
-		FROM #tblMatchProcess
-
 		SET @Retry = 0
 		SET @Success = 0
 	
@@ -396,11 +392,20 @@ BEGIN
 					WAITFOR DELAY '00:00:20'
 				END
 			END
+			ELSE 
+			BEGIN
+				INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
+				SELECT matchid, KeyID
+				FROM #tblMatchProcess
+			END
 				
 		END
 	
 		IF @Success = 0 
 		BEGIN
+			
+			DELETE #tblMatchProcess
+
 			INSERT INTO #tblMatchProcess(matchid, KeyID)
 			SELECT matchid, KeyID
 			FROM #tblMatchProcess_Retry
@@ -424,6 +429,7 @@ BEGIN
 					,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			FROM	#tmpTransId b
+				INNER JOIN #tblMatchProcess_Retry m ON m.matchid = b.matchid
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()

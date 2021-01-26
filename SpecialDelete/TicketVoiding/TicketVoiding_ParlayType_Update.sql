@@ -157,10 +157,6 @@ BEGIN
 		--For update queue
 		SELECT @ErrCode = 101
 
-		EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay  = 1  
-		, @IsReleased  = 1 
-
 		RETURN
 	END
 
