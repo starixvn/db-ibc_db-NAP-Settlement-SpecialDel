@@ -2,7 +2,7 @@
 /*
     Created: 20201110@Max
 	Task: [TVS] Abnormal Account - [Redmine: #143666]
-	DB: DBTXN-bodb02 & Replicated Server for DBTrans_Sync_DB06
+	DB: DBTXN-bodb02 & Replicated Server for DBTrans_Sync_DB06 & DBTrans_API_Data
 */
 
 USE bodb02
