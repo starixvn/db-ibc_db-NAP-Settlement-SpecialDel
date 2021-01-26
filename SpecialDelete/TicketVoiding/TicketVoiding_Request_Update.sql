@@ -78,7 +78,7 @@ BEGIN
 	DECLARE @StartTime			DATETIME
 			,@EndTime			DATETIME
 			,@LogActionId		INT
-			,@LogData			VARCHAR(MAX)
+			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
 			,@OldSportType		INT
 			,@OldSubIssueTypeId SMALLINT
@@ -308,7 +308,7 @@ BEGIN
 								+ CASE WHEN @IsTest IS NOT NULL AND (ISNULL(@IsTest, 0) <> ISNULL(@OldIsTest, 0)) THEN ', Old IsTest: ' + CASE WHEN @OldIsTest = 1 THEN 'True' ELSE 'False' END + ' New IsTest: ' + CASE WHEN @IsTest = 1 THEN 'True' ELSE 'False' END ELSE '' END
 								AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
-	) AS VARCHAR(MAX))
+	) AS NVARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
