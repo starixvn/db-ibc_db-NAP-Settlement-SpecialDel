@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@IP			VARCHAR(50)		= '125.227.140.97'
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
-	,@VoidingHistoryId INT = 0 OUTPUT
+	,@VoidingHistoryIds VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT
 AS
 /*	Created by: Helen
@@ -1105,10 +1105,11 @@ BEGIN
 		FROM @AutoVoid_ValidRequest
 	END
 
-	SELECT @VoidingHistoryId = ISNULL((SELECT MAX(VoidingHistoryId) FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK)),0)
+	SELECT @VoidingHistoryIds = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
 
 	-- Insert for WEB Auto Service PROCESS
-	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestID AND VoidingHistory = @VoidingHistoryId)
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
+						INNER JOIN @VoidingHistory_tmp t ON t.RequestID = s.RequestID AND t.VoidingHistoryId = s.VoidingHistory)
 	BEGIN
 		DECLARE @sessionID INT = 0
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1

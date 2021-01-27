@@ -57,7 +57,9 @@ BEGIN
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
-			,@VoidingHistoryId INT = 0
+			,@VoidingHistoryIds VARCHAR(MAX) = ''
+	
+	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
 
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
@@ -150,7 +152,7 @@ BEGIN
 				,@IP = @IP
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
-				,@VoidingHistoryId = @VoidingHistoryId OUTPUT
+				,@VoidingHistoryIds = @VoidingHistoryIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
@@ -159,7 +161,12 @@ BEGIN
 			SELECT	 @ErrCode = ERROR_NUMBER()
 					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
 		END CATCH
-	
+		
+		INSERT INTO @VoidingHistory_tmp(VoidingHistoryId)
+		SELECT	val AS TransId
+		FROM	dbo.f_SplitString(@VoidingHistoryIds, ',')
+		OPTION (maxrecursion 0)
+
 		IF (ISNULL(@ErrCode, 0) <> 0 )
 		BEGIN
 			IF @ErrCode = 9999 -- error due to lock match
@@ -177,11 +184,11 @@ BEGIN
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
 				WHERE	QueueId = @QueueId 	
-				
+
 				UPDATE s WITH (ROWLOCK, UPDLOCK)
 					SET s.statusID = 3
 				FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-				WHERE VoidingHistory = @VoidingHistoryId
+					INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
 			END
 		END
 		ELSE
@@ -197,7 +204,7 @@ BEGIN
 				SET s.statusID = 2
 					,s.NegativeBalanceUsers = @NegativeBalanceUsers
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-			WHERE VoidingHistory = @VoidingHistoryId
+				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
 		END
 			
 	END
