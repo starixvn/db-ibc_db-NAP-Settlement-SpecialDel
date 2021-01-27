@@ -149,7 +149,7 @@ BEGIN
 				ELSE 0
 				END
 			,@RunningEarlyOnly = CASE 
-				WHEN @FilterBy IN (3, 4) THEN 1
+				WHEN @FilterBy = 4  THEN 1
 				ELSE 0
 				END
 			,@SettlementStatus = CASE
@@ -708,7 +708,7 @@ BEGIN
 				ON	t.matchid = m.matchid
 			LEFT JOIN @tmp_ESportMatch te
 				ON te.matchid = m.matchid
-				
+	WHERE @RunningEarlyOnly = 0 OR ( @RunningEarlyOnly = 1 AND m.IsRunningEarlyBettypes = 1)			
 	ORDER BY CASE 
 				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
 				WHEN m.eventstatus = 'refund' THEN 1 
