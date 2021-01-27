@@ -11,11 +11,12 @@ AS
 	Revisions:		
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
+		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 
 */
 SET NOCOUNT ON
 BEGIN
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
 	BEGIN
 		--Refund for bettransm
 		UPDATE dbo.bettransm with (ROWLOCK, UPDLOCK)
@@ -34,7 +35,7 @@ BEGIN
 	END
 
 
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
 	BEGIN
 		-- Refund ticket
 		UPDATE dbo.bettrans with (ROWLOCK, UPDLOCK)
@@ -53,7 +54,7 @@ BEGIN
 	END
 
 
-	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB055', 'SITDB055')
+	IF @@SERVERNAME not in ('DB042', 'DB043', 'DB044', 'DB054', 'DB054C2\DB054', 'DB055', 'SITDB055')
 	BEGIN
 		Declare @LASCommand NVARCHAR(max),@createdDate DATETIME
 

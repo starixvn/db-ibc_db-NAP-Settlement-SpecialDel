@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ServerAction]
 		- 20190221@Kathy: Exclude 2 new servers DB04ADMIN1 and DB04ADMIN2 out of Settlement Flow [Redmine:#108362]
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
+		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		
     Param's Explanation:
         this SP is adding in publication DBTrans_ExecRep
@@ -41,6 +42,8 @@ BEGIN
 	SELECT 'DB04ADMIN2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund 
 	UNION ALL
 	SELECT 'DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	UNION ALL
+	SELECT 'DB054C2\DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
     UNION ALL
 	SELECT 'DB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
 	

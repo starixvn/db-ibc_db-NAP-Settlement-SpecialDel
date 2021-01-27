@@ -10,6 +10,7 @@ AS
 
     Revisions: 
 		20200825@Kathy: Server is using service broker for settlement [Redmine:#140045]
+		20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -55,6 +56,8 @@ BEGIN
 	UNION ALL
 	SELECT 'DB054', 'DBBOF', 1
 	UNION ALL
+	SELECT 'DB054C2\DB054', 'DBBOF', 1
+	UNION ALL
 	SELECT 'DB055', 'DBBOF', 1
 	UNION ALL
 	SELECT 'DB06C2\DB06', 'DBACC', 1
@@ -66,8 +69,6 @@ BEGIN
 	SELECT 'DB061', 'DBACC', 1
 	UNION ALL
 	SELECT 'DB062', 'DBACC', 1
-	UNION ALL
-	SELECT 'DB055', 'DBBOF', 1
 	UNION ALL
 	SELECT 'DB042', 'DB042', 1
 
