@@ -15,7 +15,8 @@ BEGIN
 	SET RequestDetailId = rd.Id
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(ROWLOCK, UPDLOCK)
 	INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) 
-		  ON s.RequestId = rd.RequestId AND s.MatchId = rd.MatchId\
+		  ON s.RequestId = rd.RequestId AND s.MatchId = rd.MatchId
+	WHERE s.RequestDetailId IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
 END
@@ -24,7 +25,7 @@ GO
 /***** UPDATE column RequestDetailId, MainTransId into dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk *****/
 WHILE (1 = 1)
 BEGIN
-	UPDATE rp
+	UPDATE TOP (3000) rp
 	SET rp.RequestDetailId = rd.Id
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk rp WITH(ROWLOCK, UPDLOCK)
 	INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) 
@@ -36,7 +37,7 @@ END
 GO
 WHILE (1 = 1)
 BEGIN
-	UPDATE rp
+	UPDATE TOP (3000) rp
 	SET rp.MainTransId = b.transid
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk rp WITH(ROWLOCK, UPDLOCK)
 	INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) 

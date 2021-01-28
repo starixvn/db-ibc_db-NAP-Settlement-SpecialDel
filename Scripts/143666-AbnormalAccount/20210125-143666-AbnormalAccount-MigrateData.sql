@@ -15,6 +15,7 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(ROWLOCK, UPDLOCK)
 	INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		  ON s.RequestId = rd.RequestId AND s.MatchId = rd.MatchId
+	WHERE s.RequestDetailId IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
 END
@@ -49,11 +50,11 @@ BEGIN
 
 	IF @@ROWCOUNT = 0 BREAK
 END
-GO
+
 GO
 
 -- Insert queue manual into table service
-INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service WITH(NOLOCK) (RequestID, VoidingHistory, statusID, matchID, createdDate, ModifiedDate, IsRunExternalService)
+INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID, VoidingHistory, statusID, matchID, createdDate, ModifiedDate, IsRunExternalService)
 SELECT   q.QueueId
 		,q.VoidingHistoryId
 		,12
@@ -63,13 +64,14 @@ SELECT   q.QueueId
 		,1
 FROM dbo.TicketVoiding_Queue q WITH(NOLOCK)
 INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON q.RequestId = r.RequestId
+WHERE NOT EXISTS ( SELECT 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) WHERE s.RequestID = q.RequestID)
 
 WHILE (1 = 1)
 BEGIN
 	UPDATE TOP (1) s
 	SET s.SessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 	FROM Ticketvoiding_VoidBetAutomation_Service s WITH (ROWLOCK, UPDLOCK)
-	WHERE SessionID IS NOT NULL
+	WHERE SessionID IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
 END
@@ -79,16 +81,13 @@ GO
 WHILE (1 = 1)
 BEGIN
 	UPDATE TOP (3000) s 
-	SET s.NegativeBalanceUsers = CASE WHEN s.NegativeBalanceUsers <> '' AND s.NegativeBalanceUsers IS NOT NULL THEN s.NegativeBalanceUsers
-									  ELSE CASE WHEN  q.NegativeBalanceUsers IS NOT NULL AND q.NegativeBalanceUsers <> '' THEN q.NegativeBalanceUsers
-												ELSE NULL 
-												END 
-									  END 
+	SET s.NegativeBalanceUsers = q.NegativeBalanceUsers
 	FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN dbo.TicketVoiding_Queue q WITH (NOLOCK) ON s.RequestID = q.RequestId AND s.VoidingHistory = q.VoidingHistoryId
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON s.RequestId = r.RequestId
-	WHERE (s.NegativeBalanceUsers <> ''AND s.NegativeBalanceUsers IS NOT NULL) 
-		OR (q.NegativeBalanceUsers IS NOT NULL AND q.NegativeBalanceUsers <> '')
+	WHERE (s.NegativeBalanceUsers is null or s.NegativeBalanceUsers = '')
+		AND q.NegativeBalanceUsers IS NOT NULL 
+		AND q.NegativeBalanceUsers <> ''
 
 	IF @@ROWCOUNT = 0 BREAK
 END
@@ -104,7 +103,6 @@ BEGIN
 
 	IF @@ROWCOUNT = 0 BREAK
 END
-
 GO
 
 -- 3. Update (No ticket found.%) statusID = 3(Failed) -> 2 (Completed)
@@ -114,22 +112,7 @@ BEGIN
 	SET q.StatusId = 2
 	FROM dbo.TicketVoiding_Queue q WITH (ROWLOCK, UPDLOCK)
 	WHERE q.ErrMsg LIKE '%No ticket found.%'
-
-	IF @@ROWCOUNT = 0 BREAK
-END
-
-GO
-
---- 4. Update Transid (TicketVoiding_VoidingHistory) = NULL apply for issue type (except Abnormal Bet)
-WHILE (1 = 1)
-BEGIN
-	UPDATE TOP (3000) vh
-	SET vh.TransIds = NULL
-	FROM dbo.TicketVoiding_VoidingHistory vh WITH (ROWLOCK, UPDLOCK) 
-		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON vh.RequestId = r.RequestId
-	WHERE (TransIds IS NOT NULL  OR  TransIds <> '') 
-		AND r.IssueTypeId <> 11 
-
+		AND q.StatusId = 3
 	IF @@ROWCOUNT = 0 BREAK
 END
 
