@@ -17,9 +17,11 @@ AS
 
 	Revisions:  
 		- 20190723@Raymond.Le: Create new SP [Redmine: #117343]
+		- 20201223@Charles: Optimize Voiding Workflow [Redmine: #145719]
 
 	Param's Explanation:
 		+ @CashOutTransIds: List id of cash out sub-ticket (911)
+		+ @MatchId: 0 - For TVS with issuetype is abnormal account
 
 */
 BEGIN
@@ -51,8 +53,7 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	-- If MatchId has value => this function has instantly settled ticket
-	IF @MatchId IS NOT NULL 
+	IF @MatchId IS NOT NULL
 	BEGIN
 		-- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -82,46 +83,98 @@ BEGIN
 				FROM dbo.f_Set_Instant_GetBettypes() T
 				WHERE T.InstantType IN (2, 3) -- 10, 11			
 		END
-	END
 
-	----------	
-	-- check Instant, normal settled of single ticket
-	;WITH CTE_TransId (
-		transid
-		,SettledType -- 1: Instant Settlement, 2: Normal Settlement
-		)
-	AS (
-		SELECT t.transid
-			,CASE 
-				WHEN b.StatusId IN (111, 112, 113)
-					AND EXISTS (
+		-- check Instant, normal settled of single ticket
+		;WITH CTE_TransId (
+			transid
+			,SettledType -- 1: Instant Settlement, 2: Normal Settlement
+			)
+		AS (
+			SELECT t.transid
+				,CASE 
+					WHEN b.StatusId IN (111, 112, 113)
+						AND EXISTS (
+							SELECT TOP 1 1
+							FROM #InstantSettlementBettypes AS i
+							WHERE b.bettype = i.bettype
+							) THEN 1
+					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					ELSE 0
+					END
+			FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
+			WHERE b.matchid NOT IN (9, 29, 2799)
+			)
+		SELECT @IsExistsInstantlySettledTickets = CASE 
+				WHEN EXISTS (
 						SELECT TOP 1 1
-						FROM #InstantSettlementBettypes AS i
-						WHERE b.bettype = i.bettype
+						FROM CTE_TransId
+						WHERE SettledType = 1
 						) THEN 1
-				WHEN b.StatusId IN (111, 112, 113) THEN 2
 				ELSE 0
 				END
-		FROM @TransIdTemp AS t
-			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
-		WHERE b.matchid NOT IN (9, 29, 2799)
-		)
-	SELECT @IsExistsInstantlySettledTickets = CASE 
-			WHEN EXISTS (
-					SELECT TOP 1 1
-					FROM CTE_TransId
-					WHERE SettledType = 1
-					) THEN 1
-			ELSE 0
-			END
-		,@IsExistsSettledSingleTickets = CASE 
-			WHEN EXISTS (
-					SELECT TOP 1 1
-					FROM CTE_TransId
-					WHERE SettledType = 2
-					) THEN 1
-			ELSE 0
-			END
+			,@IsExistsSettledSingleTickets = CASE 
+				WHEN EXISTS (
+						SELECT TOP 1 1
+						FROM CTE_TransId
+						WHERE SettledType = 2
+						) THEN 1
+				ELSE 0
+				END
+	END
+	
+	IF @MatchId = 0
+	BEGIN
+	-- check Instant, normal settled of single ticket
+		;WITH CTE_TransId (
+			transid
+			,SettledType -- 1: Instant Settlement, 2: Normal Settlement
+			)
+		AS (
+			SELECT t.transid
+				,CASE 
+					WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
+						THEN CASE
+								WHEN ISNULL(mr.IsHTCal, 0) = 0
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								WHEN ISNULL(mr.IsHTCal, 0) = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								ELSE 2
+							END
+					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					ELSE 0
+				END
+			FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
+				LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
+				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+			WHERE b.matchid NOT IN (9, 29, 2799)
+			)
+		SELECT @IsExistsInstantlySettledTickets = CASE 
+				WHEN EXISTS (
+						SELECT TOP 1 1
+						FROM CTE_TransId
+						WHERE SettledType = 1
+						) THEN 1
+				ELSE 0
+				END
+			,@IsExistsSettledSingleTickets = CASE 
+				WHEN EXISTS (
+						SELECT TOP 1 1
+						FROM CTE_TransId
+						WHERE SettledType = 2
+						) THEN 1
+				ELSE 0
+				END
+	END
+
+	
 
 	-- check settled parlay
 	SELECT @IsExistsSettledParlayTickets = CASE

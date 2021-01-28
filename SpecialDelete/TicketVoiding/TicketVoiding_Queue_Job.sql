@@ -8,6 +8,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -29,6 +30,9 @@ BEGIN
 			,@ErrMsg			VARCHAR(300)
 			,@FailedTransIds	VARCHAR(MAX)
 			,@NegativeBalanceUsers VARCHAR(MAX)
+			,@IssueTypeId	TINYINT
+			,@QueueIds VARCHAR(MAX)
+			,@Status_Single TINYINT
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -39,6 +43,14 @@ BEGIN
 		,UserId			INT
 		,IP				VARCHAR(50)
 		,IsFinished		BIT DEFAULT(0)
+	)
+
+	DECLARE @tmpVoidBetAutomation_Service TABLE (
+		RequestID	INT
+	)
+
+	DECLARE @tmpQueue_update TABLE (
+		QueueId	INT
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -77,14 +89,15 @@ BEGIN
 	BEGIN
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
-				,@RequestId = RequestId
-				,@QueueId = QueueId
-				,@MatchId = MatchId
-				,@VoidingTypeId = VoidingTypeId
-				,@TransIds = TransIds
-				,@UserId = UserId
-				,@IP = IP
+				,@RequestId = q.RequestId
+				,@QueueId = q.QueueId
+				,@MatchId = q.MatchId
+				,@VoidingTypeId = q.VoidingTypeId
+				,@TransIds = q.TransIds
+				,@UserId = q.UserId
+				,@IP = q.IP
 		FROM	@tmpQueue q
+			INNER JOIN dbo.TicketVoiding_Queue t WITH (NOLOCK) ON t.QueueId = q.QueueId AND t.StatusId = 0
 		WHERE	q.IsFinished = 0
 
 		IF @@ROWCOUNT = 0
@@ -100,9 +113,21 @@ BEGIN
 				,Exectime = GETDATE()
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	q.QueueId = @QueueId
+	
+		SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
+
+		IF (@IssueTypeId = 13 OR NOT EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29))
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
+		BEGIN
+			DECLARE @sessionID INT = 0
+			SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+
+			INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
+			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
+		END
 
 		BEGIN TRY
-			EXEC dbo.TicketVoiding_Ticket_Update 
+			EXEC dbo.TicketVoiding_Ticket_Update
 				@RequestId = @RequestId
 				,@MatchId = @MatchId
 				,@TransIds = @TransIds
@@ -114,8 +139,8 @@ BEGIN
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+				,@QueueIds = @QueueIds OUTPUT
 
-			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
 		BEGIN CATCH
 			SELECT	@StatusId = 3 -- failed
@@ -125,14 +150,57 @@ BEGIN
 					,@NegativeBalanceUsers = @NegativeBalanceUsers
 		END CATCH
 
+		IF @IssueTypeId = 13
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	val AS TransId
+			FROM	dbo.f_SplitString(@QueueIds, ',')
+			OPTION (maxrecursion 0)
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tmpQueue_update(QueueId)
+			SELECT	@QueueId
+		END
+
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-				,StatusId = @StatusId
+				,StatusId = CASE WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 
+								 ELSE 2 END
 				,ErrMsg = @ErrMsg
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = @NegativeBalanceUsers
 		FROM	dbo.TicketVoiding_Queue q
-		WHERE	QueueId = @QueueId
+		WHERE 1 = CASE WHEN @IssueTypeId = 13 AND EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId) THEN 1
+						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
+					ELSE 0 END
+			--INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
+		
+		IF EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29 AND IsFinished = 0)
+		BEGIN
+			SET @Status_Single = 0
+			IF @ErrCode <> 0 AND @ErrCode <> 100
+			BEGIN
+				SET @Status_Single = 3
+			END
+		END
+		UPDATE s WITH (ROWLOCK, UPDLOCK)
+			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
+								  WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 -- Failed
+								  WHEN @Status_Single = 3 THEN 3
+								  ELSE 2 END -- DB completed
+				,s.NegativeBalanceUsers = @NegativeBalanceUsers
+		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
+
+		IF @ErrCode = 100 --'No ticket found.'
+		BEGIN
+			UPDATE vh WITH (ROWLOCK, UPDLOCK)
+				SET vh.statusID = 2 -- Completed
+			FROM dbo.TicketVoiding_VoidingHistory vh
+			WHERE RequestID = @RequestId AND VoidingHistoryId = @VoidingHistoryId
+		END
+
 	END
 END
 GO

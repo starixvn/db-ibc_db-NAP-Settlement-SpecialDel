@@ -9,6 +9,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@IP			VARCHAR(50)		= '125.227.140.97'
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
+	,@VoidingHistoryIds VARCHAR(MAX) = '' OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT
 AS
 /*	Created by: Helen
 	Date 20200212
@@ -25,6 +27,7 @@ AS
 		- 20200625@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 	
 	Param's explanation:	
 		
@@ -50,9 +53,10 @@ BEGIN
 			,@AwayId			INT
 			,@KickOffTime	DATETIME	
 			
-			, @query NVARCHAR(MAX) = ''
-			, @ExecuteSQL NVARCHAR(MAX) = ''
-			, @IsActiveVoidWinning BIT = 0
+			,@query NVARCHAR(MAX) = ''
+			,@ExecuteSQL NVARCHAR(MAX) = ''
+			,@IsActiveVoidWinning BIT = 0
+			,@VoidDataXML       XML = NULL
 			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -63,6 +67,24 @@ BEGIN
 			,@IssueTypeId	TINYINT
 			,@CustIdsCashOut VARCHAR(MAX)
 			,@isExistFM2				BIT = 0
+			,@isExistMG BIT
+			,@isExistFM BIT
+			,@IsExistBB	BIT
+			,@winlostdate				DATETIME
+			,@isExistParlay				BIT = 0
+			,@IsExistParlayVSBetradar 	BIT = 0
+			,@IsExistVSBetradar 		BIT = 0
+			,@isExistOutright			BIT = 0
+			,@isExistNG					BIT = 0
+			,@isExistBT					BIT = 0
+			,@isExistCashOut			BIT = 0
+			,@isExistCricket			BIT = 0
+			,@isExistLC					BIT = 0
+			,@isExistVS					BIT = 0
+			,@Remark					VARCHAR (500) = ''
+			,@isExistLucky3				BIT = 0
+			,@Lucky3TransIDs			VARCHAR(MAX)
+			,@Lucky3Matches				VARCHAR(MAX) = ''
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX))
@@ -71,8 +93,8 @@ BEGIN
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
-	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, RequestType TINYINT)
-	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT)
+	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId TINYINT, RequestType TINYINT, DecidedBy NVARCHAR(200))
+	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId TINYINT, DecidedBy NVARCHAR(200), Winlostdate DATETIME)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
@@ -90,7 +112,6 @@ BEGIN
 		,bettype			SMALLINT
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
-		,balanceType		TINYINT
 		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
@@ -102,6 +123,9 @@ BEGIN
 		,Action				VARCHAR(100)
 		,RequestID			INT
 		,isFinish			BIT 
+		,sporttype			SMALLINT
+		,matchid			INT
+		,oddsid				INT
 	)
 	
 	CREATE TABLE #tmpTransId_Recalculate (
@@ -167,6 +191,18 @@ BEGIN
 		 ,transid	BIGINT
 		 ,RequestID	INT
 	)
+
+	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
+	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
+
+	CREATE TABLE #Lucky3Matches
+	(
+		MatchID				INT PRIMARY KEY,
+		Has1stPrize			BIT,
+		NumberOf1stPrize	INT DEFAULT(0),
+		NumberOf2ndPrize	INT DEFAULT(0),
+		NumberOf3rdPrize	INT DEFAULT(0)
+	)
 	
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90504
@@ -190,14 +226,16 @@ BEGIN
 
 	IF @RequestID > 0
 	BEGIN
-		
-		INSERT INTO #inputRequestTransId (TransId,RequestID,RequestType)
-		SELECT  rds.transid,rd.RequestID,rd.RequestType
+		INSERT INTO #inputRequestTransId (TransId, RequestID, IssueTypeId, RequestType, DecidedBy)
+		SELECT  rds.transid, rd.RequestID, req.IssueTypeId, rd.RequestType, req.DecidedBy
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId
-		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND rd.RequestId = @RequestID 
-			AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId AND rd.MatchId = rds.MatchId
+		WHERE 1 = CASE WHEN req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
+							AND rd.RequestId = @RequestID THEN 1
+						WHEN req.IssueTypeId = 13  AND req.ActionId = 4 -- Auto Void All (Instant) request only
+							AND rd.RequestId  = @RequestID  THEN 1
+						ELSE 0 END
 	END
 	ELSE
 	BEGIN
@@ -279,8 +317,8 @@ BEGIN
 		END	
 	
 		-- get all transid from all requests
-		INSERT INTO #inputRequestTransId (RequestID,TransId,RequestType)
-		SELECT  req.RequestID, rds.transid,rd.RequestType
+		INSERT INTO #inputRequestTransId (RequestID,TransId, IssueTypeId, RequestType)
+		SELECT  req.RequestID, rds.transid, req.IssueTypeId, rd.RequestType
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId
@@ -296,21 +334,19 @@ BEGIN
 		RETURN
 	END
 	-- get transid to VOID
-	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID)
-	SELECT t.TransId, t.RequestID
+	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate)
+	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
 		OUTER APPLY (SELECT TOP (1) ac.CustID 
 					 FROM @VIPAccount_tmp ac 
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
-	WHERE b.matchid = @MatchId 
-		AND 1 = CASE
-					WHEN t.RequestType = 1 THEN 1 -- Void Instant Request
-					WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1 -- Auto void winning request
-				ELSE 0 END
-		AND vip.CustID IS NULL
-		AND b.statusID = 0
+	WHERE 1 = CASE
+				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
+				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
+				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
+			ELSE 0 END
 		
 	SET @Void_cnt = @@ROWCOUNT
 	
@@ -346,19 +382,30 @@ BEGIN
 		RETURN
 	END
 	-------------DATA PREPARATION ------------
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid,RequestID)
+	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid)
+	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
+		, tl.eventID
+	FROM	#inputRequestTransId t 
+		INNER JOIN dbo.translog tl WITH(NOLOCK)
+			ON t.TransId = tl.translogid
+	WHERE	tl.statusID <> 102				
+	
+	IF @@ROWCOUNT <> 0
+		SET @isExistMG = 1
+
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-			,1 AS balanceType
 			,CASE 
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
+			,b.matchid, b.oddsid
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -389,28 +436,127 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	-- check and not allow attempt to settlement same game while it's still not finish
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	@matchid AS matchid
-			,v.KeyId
-	FROM #tmpTransId_VOID_RequestID v
-	GROUP BY v.KeyId
-	UNION ALL
-	SELECT	@matchid AS matchid
-			,r.KeyId
-	FROM #tmpTransId_Recalculate r
-	GROUP BY r.KeyId
+	-- UPDATE eventtype = 1
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE	b
+		SET sporttype 	= m.sporttype
+		FROM	#tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		
+		WHERE bettype NOT IN (9, 29, 2799)
 			
-	SELECT	@isExistMatch = MAX(CASE WHEN KeyID = 1 THEN 1 ELSE 0 END)
-		, @isExistFM2 = MAX(CASE WHEN KeyID = 7 THEN 1 ELSE 0 END)
-	FROM	#tblMatchProcess	
+	END
+	
+	-- -- UPDATE eventtype = 2 [Outright ticket]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (10)))
+	BEGIN
+		UPDATE b
+		SET sporttype	= l.sporttype
+		FROM	#tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+			ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	o.leagueid = l.leagueid
+			
+		WHERE bettype IN (10)
+	END
+	
+	-- -- UPDATE eventtype = 3 [VS range bettypes]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE b
+		SET sporttype 	= r.sporttype	
+		FROM	#tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+	END
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+	BEGIN
+		UPDATE b
+		SET sporttype = sb.SportType
+		FROM #tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON b.bettype = sb.BetType
+		WHERE sb.ProductID = 37
+	END
+
+
+	-- remove un-supported sports & bettype
+	DELETE bd
+	FROM #tmpTransId_VOID_RequestID bd
+	WHERE bettype NOT IN (9, 29, 2799)
+		AND (
+			sporttype IS NULL
+			OR bettype = 500 /*charge comm*/
+		) 
+	
+	-- check and not allow attempt to settlement same game while it's still not finish
+	SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
+			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
+			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
+			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
+			,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
+			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
+			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM	#tmpTransId_VOID_RequestID b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
+
+	
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT DISTINCT matchid
+		, CASE 
+			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+					AND Bettype NOT BETWEEN 801 AND 899
+					AND f.GroupId IS NULL
+					AND Bettype NOT IN (1231,1232,1233)
+				THEN 1 --SB,NG,LC
+			WHEN Bettype = 10 THEN 2	-- Outright
+			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+			WHEN f.GroupId = 1 THEN 6 -- FM
+			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+			WHEN Bettype = 38 THEN 5 -- Bet Builder
+			WHEN f.GroupId = 2 THEN 7 -- FM 228
+			ELSE 0
+		END AS KeyID
+	FROM #tmpTransId_VOID_RequestID b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f	
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= @isExistMatch
-		, @isExistFM2		= @isExistFM2
-		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
+		@isExistParlay 				= @isExistParlay
+		, @isExistOutright 			= @isExistOutright
+		, @isExistMG				= @isExistMG
+		, @isExistFM				= @isExistFM
+		, @isExistMatch				= @isExistMatch
+		, @isExistNG				= @isExistNG
+		, @isExistVS				= @isExistVS
+		, @isExistBB				= @isExistBB
+		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+		, @isExistFM2				= @isExistFM2
+		, @avaiableProcess 			= @avaiableProcess OUTPUT
+		, @ErrCode					= @ErrCode OUTPUT
+		, @ErrMsg					= @ErrMsg OUTPUT
 		
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN
@@ -460,9 +606,17 @@ BEGIN
 	BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch	= @isExistMatch
-			,@isExistFM2	= @isExistFM2
-			,@IsReleased	= 1
+				@isExistParlay 				= @isExistParlay
+				, @isExistOutright 			= @isExistOutright
+				, @isExistMG				= @isExistMG
+				, @isExistFM				= @isExistFM
+				, @isExistMatch				= @isExistMatch
+				, @isExistNG				= @isExistNG
+				, @isExistVS				= @isExistVS
+				, @isExistBB				= @isExistBB
+				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+				, @isExistFM2				= @isExistFM2
+				, @IsReleased				= 1
 		
 		SELECT	@ErrCode = 0
 				,@ErrMsg = 'No ticket found.'				
@@ -483,8 +637,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType, main.RequestID
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID
 		FROM	#tmpTransId_VOID_RequestID main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -495,8 +649,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId_VOID_RequestID(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, 1 AS balanceType, sub911.RequestID
+		INSERT INTO #tmpTransId_VOID_RequestID(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID)
+		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID
 		FROM	#tmpTransId_VOID_RequestID sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -586,13 +740,13 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, balanceType, TicketType, refcode,RequestID,betid)
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, TicketType, refcode,RequestID,betid)
 		SELECT b.TransId, b.custid, b.bettype
 		,CASE 
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-		, 1, 1, b.refcode,r.RequestID,b.betid
+		, 1, b.refcode,r.RequestID,b.betid
 		FROM #tmpRefCodeSummary_VOID r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -639,10 +793,208 @@ BEGIN
 				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate WHERE b.transid = TransId)
 				
 	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 5)
+	BEGIN
+		INSERT INTO [bodb02].[dbo].[bettrans]  (
+				[custid]  
+				,[transdate]  
+				,[oddsid]  
+				,[hdp1]  
+				,[hdp2]  
+				,[odds]  
+				,[stake]  
+				,[status]  
+				,[winlost]  
+				,[awinlost]  
+				,[mwinlost]  
+				,[playercomm]  
+				,[comm]  
+				,[acomm]  
+				,[apositiontaking]  
+				,[mpositiontaking]  
+				,[tpositiontaking]  
+				,[playerdiscount]  
+				,[discount]  
+				,[adiscount]  
+				,[livehomescore]  
+				,[liveawayscore]  
+				,[liveindicator]  
+				,[betteam]  
+				,[creator]  
+				,[refno]  
+				,[comstatus]  
+				,[winlostdate]  
+				,[betfrom]  
+				,[betcheck]  
+				,[checktime]  
+				,[oddsspread]  
+				,[actualrate]  
+				,[matchid]  
+				,[recommend]  
+				,[mrecommend]  
+				,[ruben]  
+				,[betid]  
+				,[statuswinlost]  
+				,[modds]  
+				,[bettype]  
+				,[betdaqid]  
+				,[actual_stake]  
+				,[currency]  
+				,[ip]  
+				,[transdesc]  
+				,[sdiscount]  
+				,[scomm]  
+				,[spositiontaking]  
+				,[swinlost]  
+				,[srecommend]  
+				,[Username]  
+				,[CurrencyName]  
+				,[virtualrate]  
+				,[oddstype]  
+				,[statusID]  
+				,[currency2]  
+				,[balance]  
+				,[SecAcceptFlag]  
+				,[transid2]  
+				,[RecommDate]
+				,[epositiontaking]
+		)  
+		SELECT	tl.[custid]  
+				,tl.[transdate]  
+				,0 [oddsid]  
+				,0 [hdp1]  
+				,0 [hdp2]  
+				,tl.[odds]  
+				,tl.[stake]  
+				,tl.[status]  
+				,0 [winlost]  
+				,0 [awinlost]  
+				,0 [mwinlost]  
+				,0 [playercomm]  
+				,0 [comm]  
+				,0 [acomm]  
+				,tl.[apositiontaking]  
+				,tl.[mpositiontaking]  
+				,tl.[tpositiontaking]  
+				,tl.[playerdiscount]  
+				,tl.[discount]  
+				,tl.[adiscount]  
+				,0 [livehomescore]  
+				,0 [liveawayscore]  
+				,tl.[liveindicator]  
+				,SUBSTRING(tl.[transdesc],11,CHARINDEX(';BettypeTime',tl.[transdesc],0) - 11) [betteam]  
+				,tl.[creator]  
+				,tl.translogid [refno]  
+				,tl.custom2 [comstatus]  
+				,tl.[winlostdate]  
+				,tl.[betfrom]  
+				,tl.transdate [betcheck]  
+				,NULL [checktime]  
+				,0 [oddsspread]  
+				,tl.[actualrate]  
+				,tl.EventID  
+				,tl.[recommend]  
+				,tl.[mrecommend]  
+				--,1 [ruben]  
+				,0 [ruben] --#94603
+				,CASE WHEN ISNULL(tl.custom3,'') = '' THEN NULL ELSE CAST(tl.custom3 AS BIGINT) END [betid]  
+				,NULL [statuswinlost]  
+				,0 [modds]  
+				,tl.GameID [bettype]  
+				,NULL [betdaqid]  
+				--,b.[actual_stake] --#94603 
+				,0 [actual_stake]
+				,tl.[currency]  
+				,tl.[ip]  
+				,tl.[transdesc]  
+				,tl.[sdiscount]  
+				,0 [scomm]  
+				,tl.[spositiontaking]  
+				,0 [swinlost]  
+				,tl.[srecommend]  
+				,tl.[Username]  
+				,tl.[CurrencyName]  
+				,tl.[virtualrate]  
+				,tl.custom1 [oddstype]  
+				,tl.[statusID]  
+				,NULL [currency2]  
+				,tl.[balance]  
+				,0 [SecAcceptFlag]  
+				,0 [transid2]  
+				,NULL [RecommDate]
+				,tl.[epositiontaking] 				
+			FROM #tmpTransId_VOID_RequestID t
+				INNER JOIN dbo.translog tl WITH(NOLOCK)  
+					ON tl.translogid = t.Refno
+			WHERE NOT EXISTS (
+					SELECT TOP 1 1 
+					FROM dbo.bettrans b WITH(NOLOCK) 
+					WHERE b.custid = tl.custid 
+						AND b.refno = tl.translogid 
+						AND b.matchid = tl.eventID
+				)
+
+		UPDATE  t
+			SET TransId = b.transid
+				,betid = ISNULL(b.BetID, rs.ResultID)
+		FROM	#tmpTransId_VOID_RequestID t
+			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				ON	t.Refno = b.refno
+					AND b.matchid = t.matchid
+					AND b.bettype = t.bettype
+					AND b.custid = t.custid
+			OUTER APPLY (
+				SELECT	rs.ResultID
+				FROM	DBPRO.bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK)
+				WHERE	(
+							(ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, b.transdesc,0) <> 0)
+							OR b.bettype = 806
+						)
+						AND rs.GameID = b.bettype	
+						AND rs.VendorID = 5		
+						AND rs.MatchID = b.matchid	
+			) rs
+		WHERE	t.TicketType = 5
+
+	END
 	
 	----------------- END OF PREPARATION -----------------------------------	
 	-----------STARTING FOR VOID AND RE-Calculation-------------------------
 	---------- Starting for Voiding Process ------------------------------------
+
+	--Get data before update
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	BEGIN
+		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
+		SELECT b.custid, b.winlostdate
+			, SUM(b.winlost - b.actual_stake)
+			, SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
+			,b.bettype
+			,CASE 
+				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
+				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
+				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
+				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				ELSE 1201
+			END AS groupId
+		FROM dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN #tmpTransId_VOID_RequestID tmp 
+			ON b.transId = tmp.transId AND b.custid = tmp.custid
+		WHERE tmp.Bettype BETWEEN 1101 AND 1199
+			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
+			OR b.bettype BETWEEN 1201 AND 1299
+			OR b.bettype BETWEEN 2700 AND 2899
+			OR b.bettype BETWEEN 1600 AND 1610
+		GROUP BY b.custid, b.winlostdate, b.bettype
+			,CASE 
+				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
+				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120THEN 81
+				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
+				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				ELSE 1201
+			END
+	END
 	
 	--capture balance before voiding & recal
 	INSERT INTO @BeforeUpd(
@@ -661,7 +1013,11 @@ BEGIN
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
-				,t.balanceType
+				,CASE 
+					WHEN ((t.sporttype BETWEEN 1 AND 99 OR t.sporttype = 154) AND t.bettype NOT BETWEEN 801 AND 806) OR t.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN t.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				   END AS balanceType
 				,CASE 
 					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -718,14 +1074,50 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-			
-	-- Insert Voiding History first
-	INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId,UserId,StatusId,TransIds)
-	OUTPUT INSERTED.RequestID
-			,INSERTED.VoidingHistoryId
-	INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
-	SELECT RequestID,@UserId, 1, TransIds
-	FROM @AutoVoid_ValidRequest v  
+	
+	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestID = @RequestID)
+	BEGIN
+		SET @VoidDataXML = ( SELECT DISTINCT 
+									'starixIT' AS "@CreatorName"
+									,a.DecidedBy AS "@DecidedBy"
+									,MIN(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidFromDate"
+									,MAX(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidToDate"
+									,MAX (CASE WHEN b.statusID IN (111, 112, 113) THEN 1 ELSE 0 END) AS "@IsHasSettledTicket"
+							FROM @tmpInputTransId_VOID a
+									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON a.TransId = b.transid
+							WHERE a.IssueTypeId = 13
+							GROUP BY a.DecidedBy
+							FOR XML PATH('VoidData')
+							)
+		
+		-- Insert Voiding History first
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData)
+		OUTPUT INSERTED.RequestID
+				,INSERTED.VoidingHistoryId
+		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
+		SELECT  RequestID
+				,@UserId
+				, 1
+				,CASE WHEN @IssueTypeId = 11 THEN TransIds ELSE NULL END
+				,@VoidDataXML
+		FROM @AutoVoid_ValidRequest
+	END
+
+	SELECT @VoidingHistoryIds = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
+
+	-- Insert for WEB Auto Service PROCESS
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
+						INNER JOIN @VoidingHistory_tmp t ON t.RequestID = s.RequestID AND t.VoidingHistoryId = s.VoidingHistory)
+	BEGIN
+		DECLARE @sessionID INT = 0
+		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+
+		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
+		FROM @VoidingHistory_tmp vh
+	END
 	
 	BEGIN TRY
 			  
@@ -735,9 +1127,9 @@ BEGIN
 			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction, DELETED.balanceType,DELETED.RequestID, DELETED.betid
+			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction,DELETED.RequestID, DELETED.betid
 					
-			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction, balanceType,RequestID,betid)
+			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID,betid)
 			FROM #tmpTransId_VOID_RequestID t 
 			WHERE isFinish IS NULL
 			
@@ -862,7 +1254,11 @@ BEGIN
 				,SUM(b.balance) AS balance
 		FROM (	
 			SELECT	b.custid
-					,t.balanceType
+					,CASE 
+						WHEN ((t.sporttype BETWEEN 1 AND 99 OR t.sporttype = 154) AND t.bettype NOT BETWEEN 801 AND 806) OR t.bettype IN (9,29,10) THEN 1 -- Sports
+						WHEN t.sporttype = 162 THEN 3 -- Casino
+						ELSE 4  -- Others
+					   END AS balanceType
 					,CASE 
 						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -924,6 +1320,126 @@ BEGIN
 		RETURN 
 		 
 	END CATCH
+
+	-- PRE CAL 501 Cricket - charge comm
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID WHERE bettype = 501)
+	BEGIN
+		DECLARE @TempData TABLE(RowId INT IDENTITY(1,1), MatchId INT, CustIds VARCHAR(MAX))		
+		BEGIN TRY
+			INSERT INTO @TempData(MatchId, CustIds)
+			SELECT MatchId, STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
+									FROM #tmpTransId_VOID_RequestID tt where tt.MatchId = t.MatchId
+									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
+			FROM #tmpTransId_VOID_RequestID t
+			WHERE Bettype = 501
+			GROUP BY MatchId
+
+			IF EXISTS (SELECT TOP 1 1 FROM @TempData)
+			BEGIN
+				DECLARE @RowId INT, @MatchIdTmp INT, @CustIdsCricket VARCHAR(MAX)
+				SELECT @RowId = 1
+				WHILE EXISTS (SELECT TOP 1 1 FROM @TempData WHERE RowId = @RowId)
+				BEGIN
+					SELECT @MatchIdTmp = MatchId
+						, @CustIdsCricket = CustIds
+					FROM @TempData t WHERE RowId = @RowId
+					SET @RowId = @RowId + 1
+					
+					EXEC dbo.NAP_Admin_Calculate_500 @MatchId	= @MatchIdTmp
+						, @Action = 'VOID'
+						, @CustIds = @CustIdsCricket
+				END
+			END
+		END TRY 
+		BEGIN CATCH
+			SELECT	@ErrCode = 500
+				,@ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
+		END CATCH
+	END
+
+	IF (@isExistLucky3 = 1)
+	BEGIN
+		SELECT @Lucky3TransIDs = STUFF(
+										(
+											SELECT ',' + CAST(transid AS VARCHAR(MAX))
+											FROM #tmpTransId_VOID_RequestID
+											WHERE Bettype = 1600
+											FOR XML PATH('')
+										), 1, 1, '')
+		
+		INSERT INTO #Lucky3Matches(MatchID, Has1stPrize)
+		SELECT	r.MatchId,
+				MAX(CASE r.Prize WHEN 1 THEN 1 ELSE 0 END)
+		FROM dbo.BetLucky3Result r WITH(NOLOCK)
+		WHERE EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID b WHERE b.transid = r.TransId AND b.Bettype = 1600)
+			AND r.Bettype = 1601
+		GROUP BY r.matchid
+		
+		--Delete data in betLucky3Result
+		EXEC dbo.NAP_Admin_PreCalculate_s160 @MatchId = 0, @Mode = 'preCAL', @Action = 'VOID', @strVoidedTransId = @Lucky3TransIDs,
+											@FirstBall = NULL, @SecondBall = NULL, @ThirdBall = NULL, @FirstPrizeMaxCount = NULL,
+											@PrizeSettingId = NULL, @strCustSetting = NULL
+		
+		UPDATE l
+		SET NumberOf1stPrize = d.NumberOf1stPrize,
+			NumberOf2ndPrize = d.NumberOf2ndPrize,
+			NumberOf3rdPrize = d.NumberOf3rdPrize
+		FROM #Lucky3Matches l
+			JOIN (
+				SELECT  r.MatchId,
+						SUM(CASE r.Prize WHEN 1 THEN Odds * Hits ELSE 0 END) AS NumberOf1stPrize,
+						SUM(CASE r.Prize WHEN 2 THEN Odds * Hits ELSE 0 END) AS NumberOf2ndPrize,
+						SUM(CASE r.Prize WHEN 3 THEN Odds * Hits ELSE 0 END) AS NumberOf3rdPrize
+				FROM dbo.BetLucky3Result r WITH(NOLOCK)
+				WHERE EXISTS (SELECT 1 FROM #Lucky3Matches l1 WHERE r.MatchId = l1.MatchID)
+					AND r.Bettype = 1601
+				GROUP BY r.MatchId
+			) d ON l.MatchID = d.MatchId
+		
+		SELECT @Lucky3Matches = CAST((	SELECT	MatchID AS '@m',
+												NumberOf1stPrize AS '@fn',
+												NumberOf2ndPrize AS '@sn',
+												NumberOf3rdPrize AS '@tn'
+										FROM #Lucky3Matches
+										FOR XML PATH('r'), ROOT('root'), TYPE) AS VARCHAR(MAX))
+		
+		--Update match prize count
+		EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update_s160 @Action = NULL, @IsAuto = 0, @strMatchInfo = @Lucky3Matches
+		
+	END
+	
+	--Get data after update
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	BEGIN
+		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
+		SELECT b.custid, b.winlostdate
+			, SUM(b.winlost - b.actual_stake)
+			, SUM(CASE WHEN b.ruben = 1 THEN b.winlost - b.actual_stake ELSE 0 END)
+			,b.bettype
+			,CASE
+				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
+				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
+				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
+				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				ELSE 1201
+			END
+		FROM dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN #tmpTransId_VOID_RequestID tmp 
+			ON b.transId = tmp.transId AND b.custid = tmp.custid
+		WHERE tmp.Bettype BETWEEN 1101 AND 1199
+			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
+			OR tmp.Bettype BETWEEN 1201 AND 1299
+			OR tmp.bettype BETWEEN 2700 AND 2899
+			OR b.bettype BETWEEN 1600 AND 1610
+		GROUP BY b.custid, b.winlostdate, b.bettype
+			,CASE
+				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
+				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
+				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
+				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				ELSE 1201
+			END
+	END
 	
 	--- Capture balance after
 	INSERT INTO @AfterUpd(
@@ -942,7 +1458,11 @@ BEGIN
 			,SUM(b.balance) AS balance
 	FROM (	
 		SELECT	b.custid
-				,t.balanceType
+				,CASE 
+					WHEN ((t.sporttype BETWEEN 1 AND 99 OR t.sporttype = 154) AND t.bettype NOT BETWEEN 801 AND 806) OR t.bettype IN (9,29,10) THEN 1 -- Sports
+					WHEN t.sporttype = 162 THEN 3 -- Casino
+					ELSE 4  -- Others
+				   END AS balanceType
 				,CASE 
 					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
@@ -994,8 +1514,67 @@ BEGIN
 			, @BalanceWalletAfter	= @afterUpd
 			, @ActionId				= 0	
 
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	BEGIN
+		
+		CREATE TABLE #balanceGameChange (
+			custid 			INT
+			,winlostdate 	SMALLDATETIME
+			,balance 		MONEY
+			,bettype		SMALLINT
+			,gametypeid		SMALLINT			
+			,Increased 		BIT
+		)
+
+		INSERT INTO #balanceGameChange (custid, winlostdate, balance, bettype, gametypeid, Increased)
+		SELECT	b.custid
+				,b.winlostdate
+				,a.winlost - b.winlost
+				,a.groupid
+				,a.gametypeid
+				,CASE WHEN a.winlost > b.winlost THEN 1 ELSE 0 END
+		FROM	#balanceGameBefore b
+			INNER JOIN #balanceGameAfter a 
+				ON	b.custid 		= a.custid
+				AND b.winlostdate 	= a.winlostdate
+				AND a.gametypeid = b.gametypeid
+				AND a.groupid = b.groupid
+		WHERE	b.winlost <> a.winlost
+		
+		INSERT INTO dbo.BalancePendingDebitGame (
+				custid
+				,winlostdate
+				,balance
+				,bettype
+				,GameTypeID
+		)
+		SELECT	custid
+				,winlostdate
+				,ABS(balance)
+				,bettype
+				,gametypeid
+		FROM	#balanceGameChange
+		WHERE	Increased = 0
+
+		INSERT INTO dbo.BalancePendingCreditGame (
+				custid
+				,winlostdate
+				,balance
+				,bettype
+				,GameTypeID
+		)
+		SELECT	custid
+				,winlostdate
+				,balance
+				,bettype
+				,gametypeid
+		FROM	#balanceGameChange
+		WHERE	Increased = 1
+		
+		DROP TABLE #balanceGameChange
+	END
+	
 	-- get negative balance user list
-	DECLARE @NegativeBalanceUsers VARCHAR(MAX)
 	SET @CustIds = ''
 	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
 	FROM	@BeforeUpd b
@@ -1084,9 +1663,17 @@ BEGIN
 
 
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @isExistMatch
-		,@isExistFM2 = @isExistFM2
-		,@IsReleased = 1
+				@isExistParlay 				= @isExistParlay
+				, @isExistOutright 			= @isExistOutright
+				, @isExistMG				= @isExistMG
+				, @isExistFM				= @isExistFM
+				, @isExistMatch				= @isExistMatch
+				, @isExistNG				= @isExistNG
+				, @isExistVS				= @isExistVS
+				, @isExistBB				= @isExistBB
+				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+				, @isExistFM2				= @isExistFM2
+				, @IsReleased				= 1
 
 	------ releasing cash-out process
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -1127,13 +1714,7 @@ BEGIN
 		CROSS APPLY (SELECT COUNT(1) AS TotalTicket
 					FROM #tmpTransId_VOID_RequestID t
 					WHERE t.RequestID = vh.RequestID) AS tmp
-	-- Insert for WEB Auto Service PROCESS
-	DECLARE @sessionID INT = 0
-	SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 	
-	INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,NegativeBalanceUsers)
-	SELECT vh.RequestID, vh.VoidingHistoryId,0,@MatchId,@sessionID,@NegativeBalanceUsers
-	FROM @VoidingHistory_tmp vh
 		
 	-- Write Log
 	DECLARE @allTransId_Void VARCHAR(MAX) = ''
@@ -1170,7 +1751,8 @@ BEGIN
 	DROP TABLE #tmpTransId_VOID_RequestID
 	DROP TABLE #tmpRefCodeSummary_Recalculate
 	DROP TABLE #tmpRefCodeSummary_VOID
-	
+	DROP TABLE #Transid_mark_tmp
+	DROP TABLE #Transid_mark_void
 END
 
 GO

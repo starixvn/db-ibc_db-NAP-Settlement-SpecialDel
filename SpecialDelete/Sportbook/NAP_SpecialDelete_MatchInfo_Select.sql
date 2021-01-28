@@ -3,7 +3,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_MatchInfo_Select]
 	@matchID INT = 0,
 	@transid BIGINT = 0,
 	@IsMatch3rd BIT = 0,	
-	@Language VARCHAR(2) = 'E'
+	@Language VARCHAR(2) = 'E',
+	@Type INT = 0
 AS
 /*
 	Created: 20180305@Helen
@@ -13,6 +14,12 @@ AS
 	Revisions: 
 		- 20180305@Helen: Initialize - [Redmine: 90153]
 		- 20190228@Kathy: Support get match info in table match14 [Redmine:#90155]
+		- 20210106@Charles: Support get match info for another product [Redmine:#143666]
+
+	Param's explanation:	
+		- @Type: 0 - Normal (get match from match table)
+				 1 - Outright
+				 2 - Virtual Sport \ Horse Racing
 	
 */
 BEGIN
@@ -55,7 +62,7 @@ BEGIN
 				FROM dbo.Match3rd AS match WITH (NOLOCK) 
 				WHERE match.Match3rdId = @matchID
 		END
-		ELSE
+		ELSE IF @Type = 0
 		BEGIN
 			SELECT	m.matchid
 					,m.homeid
@@ -81,9 +88,37 @@ BEGIN
 					,m14.kickofftime
 					,m14.sporttype
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
-			WHERE	m14.matchid = @matchID
-				
-		END		
+			WHERE	m14.matchid = @matchID		
+		END
+		ELSE IF @Type = 1
+		BEGIN
+			SELECT
+				match.orid as matchid,
+				MATCH.teamid AS homeid,
+				0 AS awayid,
+				MATCH.matchcode,
+				MATCH.eventdate,
+				MATCH.leagueid,
+				CONVERT(BIT,0) AS IsNeutral,
+				MATCH.kickofftime as kickofftime
+			FROM dbo.Outright AS MATCH WITH (NOLOCK)
+			WHERE MATCH.orid = @matchID
+		END
+		ELSE IF @Type = 2
+		BEGIN
+			SELECT
+				o.Orid as matchid,
+				o.RacerID AS homeid,
+				0 AS awayid,
+				o.RacerNum AS matchcode,
+				o.EventDate,
+				r.leagueid,
+				CONVERT(BIT,0) AS IsNeutral,
+				o.KickoffTime as kickofftime
+			FROM dbo.VSOutright o WITH (NOLOCK)
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) ON r.EventID = o.EventID
+			WHERE o.Orid = @matchID
+		END
 	END		
 
 END

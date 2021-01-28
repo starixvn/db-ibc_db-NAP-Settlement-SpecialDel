@@ -1,13 +1,17 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds        VARCHAR(MAX)  = NULL,
-                                                             @UserId          INT           = 0,
-                                                             @Username        NVARCHAR(100) = '',
-                                                             @IP              VARCHAR(15)   = NULL,
-                                                             @MarkType		  TINYINT		= 0,
-															 @RequestId		  INT			= NULL,
-															 @LogActionId	  INT			= 90500,
-                                                             @ErrMsg          NVARCHAR(200) = '' OUTPUT,
-                                                             @ErrCode         INT           = 0 OUTPUT
+ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update 
+(	
+		@TransIds        VARCHAR(MAX)  = NULL,
+        @UserId          INT           = 0,
+        @Username        NVARCHAR(100) = '',
+        @IP              VARCHAR(15)   = NULL,
+        @MarkType		 TINYINT	   = 0,
+		@RequestId		 INT		   = NULL,
+		@LogActionId	 INT		   = 90500,
+		@IsLockMatch	 BIT		   = 1,
+        @ErrMsg          NVARCHAR(200) = '' OUTPUT,
+        @ErrCode         INT           = 0 OUTPUT
+)
 AS
 /*
     Created by: Alan
@@ -27,6 +31,7 @@ AS
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20200817@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -311,60 +316,60 @@ BEGIN
 		@ErrMsg = 'No ticket found.';
 	RETURN;
 	END;
-	
-	-- Check Lock Match
+	IF @IsLockMatch = 1
 	BEGIN
-	DECLARE @avaiableProcess BIT
-		,@IsExistSingle BIT = 0
-		,@IsExistParlay BIT = 0
-		,@IsExistFM BIT = 0
-		,@IsExistFM2 BIT = 0;
+		-- Check Lock Match
+		DECLARE @avaiableProcess BIT
+			,@IsExistSingle BIT = 0
+			,@IsExistParlay BIT = 0
+			,@IsExistFM BIT = 0
+			,@IsExistFM2 BIT = 0;
 
-	SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
-		,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-		,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM #Tickets AS t
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-	WHERE t.IsParlay = 0;
+		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+		FROM #Tickets AS t
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+		WHERE t.IsParlay = 0;
 
-	SELECT TOP 1 @IsExistParlay = 1
-	FROM #Tickets AS t
-	WHERE t.IsParlay = 1
+		SELECT TOP 1 @IsExistParlay = 1
+		FROM #Tickets AS t
+		WHERE t.IsParlay = 1
 
-	INSERT INTO #tblMatchProcess (
-		MatchId
-		,KeyID
-		)
-	SELECT DISTINCT MatchId
-		,CASE 
-			WHEN f.GroupId IS NULL THEN 1 --SB
-			WHEN f.GroupId = 1 THEN 6 -- Fast Market
-			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-			ELSE 0
-			END AS KeyID
-	FROM #Tickets t
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
+		INSERT INTO #tblMatchProcess (
+			MatchId
+			,KeyID
+			)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS KeyID
+		FROM #Tickets t
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
 
-	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-		,@isExistParlay = @IsExistParlay
-		,@IsExistFM = @IsExistFM
-		,@IsExistFM2 = @IsExistFM2
-		,@avaiableProcess = @avaiableProcess OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT;
+		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+			,@isExistParlay = @IsExistParlay
+			,@IsExistFM = @IsExistFM
+			,@IsExistFM2 = @IsExistFM2
+			,@avaiableProcess = @avaiableProcess OUTPUT
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT;
 
-	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN
-		RETURN;
-	END;
+		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		BEGIN
+			RETURN;
+		END;
 	END;
 
 	INSERT INTO #Match
@@ -411,14 +416,17 @@ BEGIN
 
 		SET @TransIds_SB = ''
 	END
-
-	-- Release Match
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @IsExistSingle,
-		@isExistParlay = @IsExistParlay,
-		@IsExistFM = @IsExistFM,
-		@IsExistFM2 = @IsExistFM2,
-		@IsReleased = 1;
+	
+	IF @IsLockMatch = 1
+	BEGIN
+		-- Release Match
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = @IsExistSingle,
+			@isExistParlay = @IsExistParlay,
+			@IsExistFM = @IsExistFM,
+			@IsExistFM2 = @IsExistFM2,
+			@IsReleased = 1;
+	END
 
 	SELECT b.MatchId,
 		m.HomeId,
@@ -457,6 +465,7 @@ BEGIN
 	DROP TABLE #transIds;
 	DROP TABLE #Match;
 	DROP TABLE #ParlayTransIds;
+	DROP TABLE #tblMatchProcess
 
 	SET NOCOUNT OFF;
 END

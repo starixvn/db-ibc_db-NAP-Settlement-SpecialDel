@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
-	@MatchId			INT
+	@MatchId			INT = 0
     ,@KickOffDate		DATETIME = NULL
     ,@RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
@@ -30,6 +30,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
+		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
 		 
 	Param's explanation:	
 		
@@ -82,7 +83,7 @@ BEGIN
         sporttype             SMALLINT,
         modds                 MONEY,
         ExtraInfo             VARCHAR(1000),
-        IsCashOutMemberTicket BIT DEFAULT 0,
+        IsCashOutMemberTicket BIT DEFAULT 0, --include 911,member ticket CO
         MainCashoutId         BIGINT,
         matchid               INT,
         WalletType            TINYINT,
@@ -104,11 +105,21 @@ BEGIN
         FilterTimeInterval	  SMALLMONEY,
 		mainstatusid		  TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901,
 		FilterOddsSpread	  MONEY,
-		ActualStake			  MONEY
+		ActualStake			  MONEY,
+		oddsid                INT,
+		homeid                INT,
+        awayid                INT,
+		leagueid              INT,
+		isNeutral             BIT,
+		matchcode             NVARCHAR(50),
+		showtime              NVARCHAR(50),
+		winlostdate			  DATETIME,
+		statusID			  TINYINT
     )
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
               custid   INT,
+			  matchid  INT,
               bettype  SMALLINT,
               transid  BIGINT,
               IsMarked BIT
@@ -146,21 +157,52 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY
 	)
+	DECLARE @tmpMatchIDBatch TABLE (MatchID INT, bettype  SMALLINT)
+	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 
-	DECLARE @SportType	SMALLINT
-			,@LeagueId	INT
-	
-	SELECT	@SportType = Sporttype 
-			,@LeagueId = leagueid
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
-	
+	DECLARE @SettledType VARCHAR(100) = 'All'
+		   ,@StatusIds	 VARCHAR(50) =''
 
-	DECLARE @SettlementStatus TINYINT = NULL, @SettledType VARCHAR(100) = 'All'
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	IF @IssueTypeId = 13
+	BEGIN
+		SET @StatusIds = (SELECT TOP 1 TicketStatusIds FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId)
+		
+		INSERT INTO @Status_tmp (StatusId)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@StatusIds, ',')
+		WHERE val <> ''
+		OPTION (MAXRECURSION 0)
+	END
 
+	CREATE TABLE #TmpMatch 
+	( 
+		MatchId		INT, 
+		Sporttype	SMALLINT, 
+		Leagueid	INT, 
+		SettlementStatus TINYINT
+	)
 
-	
+	IF @RequestId = 0 -- case: search for EKO,WKO
+	BEGIN
+		INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
+		SELECT DISTINCT @MatchId
+					,ISNULL(m.sporttype, 0)
+					,ISNULL(m.leagueid, 0)
+					,ISNULL(m.SettlementStatus, 0)
+		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	END
+	ELSE 
+	BEGIN 
+		INSERT INTO #TmpMatch ( MatchId, Sporttype, Leagueid, SettlementStatus)
+		SELECT DISTINCT rd.matchid
+						,ISNULL(m.sporttype, 0)
+						,ISNULL(m.leagueid, 0)
+						,ISNULL(m.SettlementStatus, 0)
+		FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+			LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
+		WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
+	END
+
 	IF @IssueTypeId = 11 --11: AbnormalBet
 	BEGIN
 		DECLARE @transIdTemp TABLE (transid BIGINT NULL);
@@ -212,6 +254,7 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 				,ActualStake
+				,matchid
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -262,6 +305,7 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
+				,b.matchid
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -269,7 +313,7 @@ BEGIN
 			  	
 					
 	END
-	ELSE IF @IssueTypeId IN (1, 10)
+	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept, Red Card
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
@@ -324,14 +368,15 @@ BEGIN
 					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
 								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 				FROM #tblBetType cte
-					 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-					 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-					 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
+					 CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
 			) cte	
 			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 					ELSE 1 END = 1
+			OPTION (MAXRECURSION 0)
 
 			-- search tickets : not metric gaming tickets, mix parlay tickets
 			INSERT INTO #SpecialDeleteBets(
@@ -386,6 +431,7 @@ BEGIN
 					,mainstatusid
 					,FilterOddsSpread
 					,ActualStake
+					,matchid
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -447,6 +493,7 @@ BEGIN
 					,b.statusID AS mainstatusid
 					,b.oddsspread AS FilterOddsSpread
 					,b.actual_stake AS ActualStake
+					,b.matchid
 			FROM	bettrans b WITH (NOLOCK)	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -522,6 +569,8 @@ BEGIN
 						,FilterOddsSpread
 						,ExtraInfo
 						,ActualStake
+						,matchid
+						
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -572,6 +621,7 @@ BEGIN
 						,sub.oddsspread AS FilterOddsSpread
 						,main.ExtraInfo
 						,main.actual_stake AS ActualStake
+						,sub.matchid
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -717,6 +767,7 @@ BEGIN
 					,LiveIndicator
 					,mainstatusid
 					,ActualStake
+					,matchid
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -767,6 +818,7 @@ BEGIN
 					,b.liveindicator
 					,b.statusID AS mainstatusid
 					,b.actual_stake AS ActualStake
+					,b.matchid
 			FROM	bettrans b WITH (NOLOCK)	
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -833,6 +885,7 @@ BEGIN
 						,mainstatusid
 						,ExtraInfo
 						,ActualStake
+						,matchid
 					)
 				SELECT 
 						main.transid AS GroupID
@@ -874,6 +927,7 @@ BEGIN
 						,main.statusID AS mainstatusid
 						,main.ExtraInfo
 						,main.actual_stake AS ActualStake
+						,sub.matchid
 				FROM	dbo.bettransm sub WITH (NOLOCK)				
 						INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
@@ -893,121 +947,372 @@ BEGIN
 			END 
 		END
 	END
-	ELSE
-		BEGIN
-	-- search tickets : not metric gaming tickets, mix parlay tickets
-	INSERT INTO #SpecialDeleteBets(
+	ELSE IF @IssueTypeId = 13 -- Abnormal account
+	BEGIN
+
+		INSERT INTO #SpecialDeleteBets(
+				GroupID
+				,bettype
+				,transid
+				,SubTransid
+				,betid
+				,refno	
+				,hdp1
+				,hdp2
+				,odds
+				,oddsspread
+				,OddsType
+				,STATUS
+				,stake
+				,transdate
+				,betteam
+				,betcheck
+				,liveindicator	
+				,modds
+				,custid
+				,livehomescore	
+				,liveawayscore
+				,matchid
+				,winlost
+				,TransDesc
+				,betdaqid
+				,username
+				,recommend
+				,CurrencyName
+				,IsMarked
+				,srecommend
+				,mrecommend	
+				,winlostdate
+				,statusID
+			)
+		SELECT	
+			b.translogID AS GroupID
+			,b.GameID
+			,b.translogID as transid
+			,b.translogID as SubTransid
+			,0 AS BetID
+			,b.translogID refno	
+			,0 hdp1
+			,0 hdp2
+			,b.odds
+			,0 AS oddsspread
+			,b.custom1 OddsType
+			,b.STATUS
+			,b.stake
+			,b.transdate
+			,NULL betteam
+			,NULL betcheck
+			,b.liveindicator liveindicator
+			,NULL modds
+			,b.custid
+			,NULL livehomescore
+			,NULL liveawayscore
+			,b.EventID
+			,- b.actual_stake as winlost
+			,b.transdesc
+			,-1 -- normal ticket
+			,username
+			,recommend
+			,b.CurrencyName
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.srecommend
+			,b.mrecommend
+			,b.winlostdate
+			,b.statusID
+		FROM dbo.translog AS b WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				ON  s.transid = b.translogid AND b.eventID = s.MatchId AND s.RequestId = @RequestId
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.translogid = TransId
+					)m
+		WHERE b.GameID BETWEEN 801 AND 806
+			AND b.statusID = 0
+				
+		-- bettrans tickets	
+		INSERT INTO #SpecialDeleteBets (
 			GroupID			
-			,transid		
+			,bettype		
+			,transid
 			,SubTransid		
-			,refno			
-			,custid			
-			,odds			
-			,SubOdds	
-			,oddsspread			
-			,OddsType		
-			,transdate		
-			,bettype 		
-			,betteam 		
-			,SubBetTeam
-			,betcheck	
-			,SubBetcheck	
-			,hdp1 			
-			,hdp2 			
-			,livehomescore 	
-			,liveawayscore 	
-			,creator		
-			,Stake			
-			,currencyname		
-			,STATUS			
-			,SubStatus	
-			,srecommend
-			,mrecommend		
-			,recommend		
 			,betid			
-			,Transdesc		
-			,betdaqid	
+			,refno		
+			,hdp1			
+			,hdp2			
+			,odds
+			,oddsspread				
+			,OddsType		
+			,STATUS					
+			,stake							
+			,transdate		
+			,betteam		
+			,betcheck		
+			,liveindicator	
+			,modds			
+			,custid						
+			,livehomescore	
+			,liveawayscore						
+			,matchid					
+			,winlost		
+			,TransDesc		
+			,betdaqid
+			,username
+			,recommend
 			,ExtraInfo
 			,MainCashoutId
+			,CurrencyName
 			,WalletType
 			,RefCode
 			,BonusID
-			,WinLost
 			,IsMarked
-			,LiveIndicator
-			,mainstatusid
-			,ActualStake
+			,oddsid
+			,srecommend
+			,mrecommend	
+			,winlostdate
+			,statusID
 		)
-	SELECT 
-			b.transid AS GroupID
-			,b.transid
-			,b.transid AS SubTransID
-			,b.refno
-			,b.custid
-			,b.odds
-			,b.odds AS SubOdds
-			,b.oddsspread			
-			,b.OddsType
-			,b.transdate
+		SELECT	
+			b.refno AS GroupId
 			,b.bettype
-			,b.betteam
-			,b.betteam AS SubBetteam
-			,b.betcheck
-			,b.betcheck AS SubBetcheck
+			,b.transid
+			,b.transid AS SubTransid	
+			,isnull(b.BetID, 0) AS BetID
+			,b.refno			
 			,b.hdp1
 			,b.hdp2
+			,b.odds
+			,b.oddsspread
+			,b.OddsType
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS STATUS
+			,b.stake
+			,b.transdate
+			,b.betteam
+			,b.betcheck
+			,b.liveindicator
+			,b.modds
+			,b.custid
 			,b.livehomescore
 			,b.liveawayscore
-			,b.creator
-			,b.stake
+			,b.matchid				
+			,(b.winlost - b.actual_stake) winlost
+			,b.transdesc
+			,b.betdaqid
+			,b.username
+			,b.recommend			
+			,b.ExtraInfo
+			,CASE
+				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid
+				ELSE NULL END AS MainCashoutId
 			,b.CurrencyName
-			,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					ELSE b.STATUS
-				END AS STATUS
-			,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					ELSE b.STATUS
-				END AS SubStatus
+			,b.WalletType
+			,b.RefCode
+			,b.BonusID
+			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+			,b.oddsid
 			,b.srecommend
 			,b.mrecommend
-			,b.recommend
-			,b.betid
-			,b.Transdesc
+			,b.winlostdate
+			,b.statusID
+		FROM dbo.bettrans AS b WITH (NOLOCK)
+			INNER JOIN dbo.translog tl WITH(NOLOCK)
+			ON b.custid 		= tl.custid
+				AND b.refno 	= tl.translogid
+				AND b.matchid 	= tl.eventid
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				ON  tl.translogid 	= s.transid	 AND s.RequestId = @RequestId
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.transid = TransId
+					)m
+		WHERE			
+				b.bettype BETWEEN 801 AND 806 
+			AND b.statusID NOT IN (0, 101, 102, 103)
+			
+		UNION ALL
+		SELECT	
+			b.transid AS GroupId
+			,b.bettype
+			,b.transid
+			,b.transid AS SubTransid	
+			,isnull(b.BetID, 0) AS BetID
+			,b.refno			
+			,b.hdp1
+			,b.hdp2
+			,b.odds
+			,b.oddsspread
+			,b.OddsType
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS STATUS
+			,b.stake				
+			,b.transdate
+			,b.betteam
+			,b.betcheck
+			,b.liveindicator
+			,b.modds
+			,b.custid
+			,b.livehomescore
+			,b.liveawayscore				
+			,b.matchid				
+			,(b.winlost - b.actual_stake) winlost
+			,b.transdesc
 			,b.betdaqid
+			,b.username
+			,b.recommend			
 			,b.ExtraInfo
 			,CASE
 				WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
 						THEN b.transid
 				ELSE NULL
 				END AS MainCashoutId
+			,b.CurrencyName
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
-			,b.WinLost - b.actual_stake AS WinLost
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
-			,b.liveindicator
-			,b.statusID AS mainstatusid
+			,b.oddsid
+			,b.srecommend
+			,b.mrecommend
+			,b.winlostdate
+			,b.statusID
+		FROM dbo.bettrans AS b WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				ON  s.transid = b.transid AND s.RequestId = @RequestId
+			OUTER APPLY (
+						SELECT TOP (1) TransId
+						FROM dbo.MarkedTransaction WITH(NOLOCK) 
+						WHERE b.transid = TransId
+					)m
+					
+		WHERE	 b.bettype NOT BETWEEN 801 AND 806-- MG
+			AND  b.statusID NOT IN (101, 102, 103)
+				
+	END
+	ELSE --EKO, WKO
+	BEGIN
+		-- search tickets : not metric gaming tickets, mix parlay tickets
+		INSERT INTO #SpecialDeleteBets(
+				GroupID			
+				,transid		
+				,SubTransid		
+				,refno			
+				,custid			
+				,odds			
+				,SubOdds	
+				,oddsspread			
+				,OddsType		
+				,transdate		
+				,bettype 		
+				,betteam 		
+				,SubBetTeam
+				,betcheck	
+				,SubBetcheck	
+				,hdp1 			
+				,hdp2 			
+				,livehomescore 	
+				,liveawayscore 	
+				,creator		
+				,Stake			
+				,currencyname		
+				,STATUS			
+				,SubStatus	
+				,srecommend
+				,mrecommend		
+				,recommend		
+				,betid			
+				,Transdesc		
+				,betdaqid	
+				,ExtraInfo
+				,MainCashoutId
+				,WalletType
+				,RefCode
+				,BonusID
+				,WinLost
+				,IsMarked
+				,LiveIndicator
+				,mainstatusid
+			,ActualStake
+				,matchid
+			)
+		SELECT 
+				b.transid AS GroupID
+				,b.transid
+				,b.transid AS SubTransID
+				,b.refno
+				,b.custid
+				,b.odds
+				,b.odds AS SubOdds
+				,b.oddsspread			
+				,b.OddsType
+				,b.transdate
+				,b.bettype
+				,b.betteam
+				,b.betteam AS SubBetteam
+				,b.betcheck
+				,b.betcheck AS SubBetcheck
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.creator
+				,b.stake
+				,b.CurrencyName
+				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+					END AS STATUS
+				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+					END AS SubStatus
+				,b.srecommend
+				,b.mrecommend
+				,b.recommend
+				,b.betid
+				,b.Transdesc
+				,b.betdaqid
+				,b.ExtraInfo
+				,CASE
+					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+							THEN b.transid
+					ELSE NULL
+					END AS MainCashoutId
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,b.WinLost - b.actual_stake AS WinLost
+				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+				,b.liveindicator
+				,b.statusID AS mainstatusid
 			,b.actual_stake AS ActualStake
-	FROM	bettrans b WITH (NOLOCK)	
-		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
-		OUTER APPLY (
-						SELECT TOP 1 rs.TransId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-						WHERE rs.TransId = b.transid
-							AND rs.MatchId = @MatchId
-							AND r.ActionId NOT IN (2)
-							AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-										ELSE 1 END
-				)tmp
-	WHERE	b.matchid = @matchid
-			AND b.transdate >= @KickOffDate
-			AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
-						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						ELSE 0 END
-			AND b.liveindicator = 0
-			AND b.bettype NOT IN (805, 806, 9, 29)			
-			AND b.bettype NOT BETWEEN 901 AND 920
-			AND b.betfrom <> 'P'	
+				,b.matchid
+		FROM	bettrans b WITH (NOLOCK)	
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			OUTER APPLY (
+							SELECT TOP 1 rs.TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+							WHERE rs.TransId = b.transid
+								AND rs.MatchId = @MatchId
+								AND r.ActionId NOT IN (2)
+								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
+											ELSE 1 END
+					)tmp
+		WHERE	b.matchid = @matchid
+				AND b.transdate >= @KickOffDate
+				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
+							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+				AND b.liveindicator = 0
+				AND b.bettype NOT IN (805, 806, 9, 29)			
+				AND b.bettype NOT BETWEEN 901 AND 920
+				AND b.betfrom <> 'P'	
 		
 	-- Metric Gaming Super Live
 		INSERT INTO #SpecialDeleteBets(
@@ -1045,6 +1350,7 @@ BEGIN
 				,IsMarked
 				,LiveIndicator
 				,mainstatusid
+				,matchid
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -1081,6 +1387,7 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
+				,b.eventID 
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
@@ -1145,6 +1452,7 @@ BEGIN
 					,mainstatusid
 					,ExtraInfo
 					,ActualStake
+					,matchid
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -1186,6 +1494,7 @@ BEGIN
 					,main.statusID AS mainstatusid
 					,main.ExtraInfo
 					,main.actual_stake AS ActualStake
+					,sub.matchid
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -1236,12 +1545,12 @@ BEGIN
 		WHERE main.WalletType = 1					
 		  
 		-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets  
-		INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, IsMarked, transid)
-		SELECT RefCode, custid, bettype, IsMarked
+		INSERT INTO #tmpRefCodeSummary(RefCode, custid, matchid, bettype, IsMarked, transid)
+		SELECT RefCode, custid, matchid, bettype, IsMarked
 				, MAX(transid) AS transid
 		FROM #SpecialDeleteBets
 		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype, IsMarked
+		GROUP BY RefCode, custid, matchid, bettype, IsMarked
 		HAVING COUNT(*) = 1
 
 		IF @@ROWCOUNT > 0
@@ -1288,6 +1597,8 @@ BEGIN
 						,LiveIndicator
 						,mainstatusid
 						,ActualStake
+						,matchid
+						,winlostdate
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -1339,11 +1650,13 @@ BEGIN
 						,b.liveindicator
 						,b.statusID AS mainstatusid
 						,b.actual_stake AS ActualStake
+						,t.matchid
+						,b.winlostdate
 			FROM #tmpRefCodeSummary t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							ON b.RefCode = t.RefCode
 							AND b.transid <> t.transid
-							AND b.matchid = @MatchId
+							AND b.matchid = t.matchid
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype 
 			WHERE 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1 -- reject, void, refund	
@@ -1352,111 +1665,207 @@ BEGIN
 		END  			    				    					    				    					    	
 	END
 
-	UPDATE	main
-		SET main.SoldId = sub.transid
-	OUTPUT INSERTED.SoldId
-	INTO #tblSoldTicket(transid)
-	FROM #SpecialDeleteBets main 
-		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-			ON	main.transid = sub.refno
-				AND main.betdaqid = 0 -- main ticket is BTrade
-				AND main.extrainfo is null
-				AND sub.matchid = @MatchId
-				AND sub.bettype = 901
+	IF @IssueTypeId <> 13 --AB,DA,EKO,WKO,RC
+	BEGIN
+		UPDATE	main
+			SET main.SoldId = sub.transid
+		OUTPUT INSERTED.SoldId
+		INTO #tblSoldTicket(transid)
+		FROM #SpecialDeleteBets main 
+			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
+				ON	main.transid = sub.refno
+					AND main.betdaqid = 0 -- main ticket is BTrade
+					AND main.extrainfo is null
+					AND sub.matchid = main.matchid
+					AND sub.bettype = 901
 			
-	-- get sub ticket of BetTrade (901)
-	INSERT INTO #SpecialDeleteBets (
-			GroupID			
-			,transid		
-			,SubTransid		
-			,refno			
-			,custid			
-			,odds			
-			,SubOdds	
-			,oddsspread			
-			,OddsType		
-			,transdate		
-			,bettype
-			,OriginalBetType 		
-			,betteam 		
-			,SubBetTeam
-			,betcheck	
-			,SubBetcheck	
-			,hdp1 			
-			,hdp2 			
-			,livehomescore 	
-			,liveawayscore 	
-			,creator		
-			,Stake			
-			,currencyname		
-			,STATUS			
-			,SubStatus	
-			,srecommend
-			,mrecommend		
-			,recommend		
-			,betid			
-			,Transdesc		
-			,betdaqid
-			,ExtraInfo
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,WinLost
-			,IsMarked
-			,LiveIndicator
-			,mainstatusid
+		-- get sub ticket of BetTrade (901)
+		INSERT INTO #SpecialDeleteBets (
+				GroupID			
+				,transid		
+				,SubTransid		
+				,refno			
+				,custid			
+				,odds			
+				,SubOdds	
+				,oddsspread			
+				,OddsType		
+				,transdate		
+				,bettype
+				,OriginalBetType 		
+				,betteam 		
+				,SubBetTeam
+				,betcheck	
+				,SubBetcheck	
+				,hdp1 			
+				,hdp2 			
+				,livehomescore 	
+				,liveawayscore 	
+				,creator		
+				,Stake			
+				,currencyname		
+				,STATUS			
+				,SubStatus	
+				,srecommend
+				,mrecommend		
+				,recommend		
+				,betid			
+				,Transdesc		
+				,betdaqid
+				,ExtraInfo
+				,WalletType
+				,RefCode
+				,BonusID
+				,MainTransId
+				,WinLost
+				,IsMarked
+				,LiveIndicator
+				,mainstatusid
 			,ActualStake
-		)
-	SELECT  main.transid AS GroupTransId
-			,sub.transid AS transId
-			,sub.transid AS SubTransId
-			,sub.refno
-			,sub.custid
-			,main.odds
-			,main.odds AS SubOdds
-			,main.oddsspread
-			,main.OddsType
-			,sub.transdate
-			,sub.bettype
-			,main.bettype  AS OriginalBetType
-			,main.betteam
-			,main.SubBetTeam
-			,main.betcheck
-			,main.SubBetcheck
-			,main.hdp1
-			,main.hdp2			
-			,main.livehomescore
-			,main.liveawayscore
-			,sub.creator
-			,main.Stake
-			,main.CurrencyName
-			,'SOLD'
-			,'SOLD' AS SubStatus
-			,main.srecommend
-			,main.mrecommend
-			,main.recommend			
-			,main.bettype AS betid
-			,sub.transdesc
-			,sub.betdaqid
-			,sub.ExtraInfo
-			,sub.WalletType
-			,sub.RefCode
-			,sub.BonusID
-			,main.transid AS MainTransId
-			,sub.winlost - sub.actual_stake AS WinLost
-			,main.IsMarked
-			,main.LiveIndicator
-			,main.mainstatusid
+				,matchid
+			)
+		SELECT  main.transid AS GroupTransId
+				,sub.transid AS transId
+				,sub.transid AS SubTransId
+				,sub.refno
+				,sub.custid
+				,main.odds
+				,main.odds AS SubOdds
+				,main.oddsspread
+				,main.OddsType
+				,sub.transdate
+				,sub.bettype
+				,main.bettype  AS OriginalBetType
+				,main.betteam
+				,main.SubBetTeam
+				,main.betcheck
+				,main.SubBetcheck
+				,main.hdp1
+				,main.hdp2			
+				,main.livehomescore
+				,main.liveawayscore
+				,sub.creator
+				,main.Stake
+				,main.CurrencyName
+				,'SOLD'
+				,'SOLD' AS SubStatus
+				,main.srecommend
+				,main.mrecommend
+				,main.recommend			
+				,main.bettype AS betid
+				,sub.transdesc
+				,sub.betdaqid
+				,sub.ExtraInfo
+				,sub.WalletType
+				,sub.RefCode
+				,sub.BonusID
+				,main.transid AS MainTransId
+				,sub.winlost - sub.actual_stake AS WinLost
+				,main.IsMarked
+				,main.LiveIndicator
+				,main.mainstatusid
 			,main.ActualStake
-	FROM	#SpecialDeleteBets main
-		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-			ON	main.transid = sub.refno
-				AND sub.matchid = @MatchId
-				AND sub.bettype = 901
-		INNER JOIN #tblSoldTicket sold 
-			ON sold.transid = sub.transid
-				
+				,main.matchid
+		FROM	#SpecialDeleteBets main
+			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
+				ON	main.transid = sub.refno
+					AND sub.matchid = main.matchid
+					AND sub.bettype = 901
+			INNER JOIN #tblSoldTicket sold 
+				ON sold.transid = sub.transid
+	END	
+	ELSE  -- Abnormal account
+	BEGIN
+		-- UPDATE eventtype = 1
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+		BEGIN
+			UPDATE d
+			SET matchcode 	= m.matchcode
+				,homeid 	= m.homeid
+				,awayid 	= m.awayid
+				,leagueid 	= m.leagueid
+				,sporttype 	= m.sporttype
+				,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+				,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.match m WITH (NOLOCK) 
+				ON	d.matchid = m.matchid
+			WHERE d.bettype NOT IN (9, 29, 2799)
+		END
+	
+		-- UPDATE eventtype = 2 [Outright bettype]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
+		BEGIN
+			UPDATE d
+			SET matchcode 	= odds.matchcode
+				,homeid		= odds.teamid
+				,awayid 	= 0
+				,leagueid 	= odds.leagueid
+				,sporttype 	= l.sporttype
+				,showtime	= ''
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
+				ON	d.matchid = odds.orid
+				INNER JOIN dbo.league l WITH (NOLOCK) 
+				ON	odds.leagueid = l.leagueid
+			WHERE d.bettype IN (10)
+		END
+		-- UPDATE eventtype = 3 [VS range  bettypes]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+		BEGIN
+			UPDATE d
+				SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+					,homeid 	= o.RacerID
+					,awayid 	= 0
+					,leagueid 	= r.leagueid
+					,sporttype 	= r.sporttype
+					,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+			
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+				ON d.oddsid = o.Orid
+				INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+				ON r.EventID = o.EventID
+			
+			WHERE d.bettype IN (1231,1232,1233,1237,1238)
+		END
+		-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+		BEGIN
+			UPDATE d
+			SET sporttype = sb.SportType
+			FROM #SpecialDeleteBets d
+				INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+				ON d.bettype = sb.BetType
+			WHERE sb.ProductID = 37
+		END
+
+		-- UPDATE IsMixParlay = 1 [MixParlay bettype]
+		IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9, 29, 2799)))
+		BEGIN
+			UPDATE d
+			SET IsMixParlay = 1
+			FROM #SpecialDeleteBets d
+			WHERE d.bettype IN (9, 29, 2799)
+		END
+
+		--- Remove invalid sporttype
+		DELETE 
+		FROM #SpecialDeleteBets
+		WHERE bettype NOT IN (9, 29, 2799)
+			AND (
+				sporttype IS NULL
+				OR bettype = 500 /*charge comm*/
+			)	
+
+		-- Delete main bettrade
+		IF(EXISTS (SELECT TOP 1 1 
+				   FROM #SpecialDeleteBets 
+				   WHERE betdaqid = 0 AND extrainfo IS NULL))
+		BEGIN
+			DELETE FROM #SpecialDeleteBets WHERE betdaqid = 0 AND extrainfo IS NULL
+		END
+	END
+			
 	-- get sub ticket of Cash-out (911)
 	INSERT INTO #SpecialDeleteBets (
 			GroupID			
@@ -1502,6 +1911,16 @@ BEGIN
 			,LiveIndicator
 			,mainstatusid
 			,ActualStake
+			,homeid    
+			,awayid    
+			,leagueid  
+			,isNeutral 
+			,matchcode 
+			,showtime
+			,sporttype
+			,winlostdate
+			,statusID
+			,IsCashOutMemberTicket
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1546,6 +1965,16 @@ BEGIN
 			,main.LiveIndicator
 			,main.mainstatusid
 			,main.ActualStake
+			,main.homeid
+			,main.awayid
+			,main.leagueid
+			,main.IsNeutral
+			,main.matchcode
+			,main.showtime
+			,main.sporttype
+			,main.winlostdate
+			,main.statusID
+			,1 AS IsCashOutMemberTicket
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -1553,7 +1982,7 @@ BEGIN
 					AND main.betdaqid = 0
 					AND charindex ('p25',main.extrainfo)> 0			
 					AND sub911.bettype = 911
-					AND sub911.matchid = @matchid
+					AND sub911.matchid = main.matchid
 	WHERE  1= CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1 -- reject, void, refund	
 						  WHEN @ActionId = 2 AND sub911.statusID NOT IN (101, 103) THEN 1
 						  ELSE 0 END 					
@@ -1603,6 +2032,16 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 				,ActualStake
+				,matchid
+				,homeid    
+				,awayid    
+				,leagueid  
+				,isNeutral 
+				,matchcode 
+				,showtime
+				,sporttype
+				,winlostdate
+				,statusID
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1651,11 +2090,21 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
+				,b.matchid
+				,sub911.homeid
+				,sub911.awayid
+				,sub911.leagueid
+				,sub911.IsNeutral
+				,sub911.matchcode
+				,sub911.showtime
+				,sub911.sporttype
+				,sub911.winlostdate
+				,sub911.statusID
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
 								,b.hdp1, b.hdp2, b.livehomescore, b.liveawayscore, b.creator, b.stake, b.CurrencyName, b.SecAcceptFlag, b.checktime, b.odds
-								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator,statusID
+								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator,statusID,b.matchid
 							FROM dbo.bettrans b WITH (NOLOCK)
 							WHERE b.refno = sub911.transid
 							AND b.matchid = sub911.matchid					
@@ -1670,13 +2119,14 @@ BEGIN
 	UPDATE al
 		SET username = ci.username
 			,creatorName = cr.username
-			,SubLeagueId = @LeagueId
-			,sporttype = @SportType
+			,SubLeagueId = m.Leagueid
+			,sporttype = m.Sporttype
 	FROM	#SpecialDeleteBets al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
 			ON al.custid = ci.custid
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK)
 			ON al.creator = cr.custid
+		INNER JOIN #TmpMatch m ON al.matchid = m.matchid
 			
 			
 	-- update Isdeposit
@@ -1693,30 +2143,89 @@ BEGIN
 		  
 		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
 		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
-	
-		--> Get status of match
-		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
-		FROM match_remark (NOLOCK)
-		WHERE matchid = @MatchId
-	
-		SELECT @eventstatus = ISNULL(eventstatus, '')
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchId		
-	
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		IF @eventstatus <> @eventstatus_completed
+		
+		DECLARE @TempMatchID TABLE( MatchID INT, Bettype SMALLINT, IsFinish BIT)
+		INSERT INTO @TempMatchID (MatchID,Bettype)
+		SELECT m.MatchId, s.bettype
+		FROM #TmpMatch m
+		CROSS APPLY ( SELECT DISTINCT s.bettype
+						FROM #SpecialDeleteBets s where m.matchid = s.matchid
+					)s
+
+		IF @MatchId <> 0
 		BEGIN
-			IF @IsHTCal = 0
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
-				WHERE T.InstantType IN (1, 3) -- 01, 11
-			ELSE
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
-				WHERE T.InstantType IN (2, 3) -- 10, 11			
-		END	 	
+			--> Get status of match
+			SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+			FROM match_remark (NOLOCK)
+			WHERE matchid = @MatchID	
+	
+			SELECT @eventstatus = ISNULL(eventstatus, '')
+			FROM match (NOLOCK)
+			WHERE matchid = @MatchID		
+	
+			--> Build bettype list supported for instant settlement based on settlement status of match
+			IF @eventstatus <> @eventstatus_completed
+			BEGIN
+				IF @IsHTCal = 0
+					INSERT INTO #InstantSettlementBettypes(bettype)
+					SELECT T.bettype
+					FROM dbo.f_Set_Instant_GetBettypes() T
+					WHERE T.InstantType IN (1, 3) -- 01, 11
+				ELSE
+					INSERT INTO #InstantSettlementBettypes(bettype)
+					SELECT T.bettype
+					FROM dbo.f_Set_Instant_GetBettypes() T
+					WHERE T.InstantType IN (2, 3) -- 10, 11			
+			END	 
+		END
+		ELSE
+		BEGIN
+			DECLARE @OldMatchID INT = 0
+
+			WHILE (1=1)
+			  -- multiple match = 0
+			BEGIN
+				DELETE @tmpMatchIDBatch
+				UPDATE TOP (1) m
+					SET IsFinish = 1
+					   ,@MatchId = m.MatchID
+				OUTPUT DELETED.matchid
+					  ,DELETED.bettype
+				INTO @tmpMatchIDBatch (MatchID, bettype)
+				FROM @TempMatchID m
+					WHERE IsFinish IS NULL
+				
+				IF @@ROWCOUNT = 0 BREAK
+
+				--> Get status of match
+				SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
+				FROM match_remark (NOLOCK)
+				WHERE matchid = @MatchId
+	
+				SELECT @eventstatus = ISNULL(eventstatus, '')
+				FROM match (NOLOCK)
+				WHERE matchid = @MatchId
+	
+				--> Build bettype list supported for instant settlement based on settlement status of match
+				IF @eventstatus <> @eventstatus_completed
+				BEGIN
+					IF @IsHTCal = 0 AND @MatchId <> @OldMatchID
+						INSERT INTO #InstantSettlementBettypes(bettype)
+						SELECT T.bettype
+						FROM dbo.f_Set_Instant_GetBettypes() T
+						WHERE T.InstantType IN (1, 3) -- 01, 11
+
+					IF @IsHTCal = 1 AND @MatchId <> @OldMatchID
+						INSERT INTO #InstantSettlementBettypes(bettype)
+						SELECT T.bettype
+						FROM dbo.f_Set_Instant_GetBettypes() T
+						WHERE T.InstantType IN (2, 3) -- 10, 11				
+				END	
+
+				SET @OldMatchID = @MatchId
+
+			END
+		END	
 	END	
 
 	-- TICKET SECTION
@@ -1776,14 +2285,22 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
 			   ,s.ActualStake
+			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
+			   ,s.winlostdate
+			   ,s.statusID
+			   ,s.IsCashOutMemberTicket
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub
 				ON	s.GroupID = sub.GroupID
 					AND s.transid <> sub.transid
-			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.recommend
-					
+			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.recommend		
 		WHERE	f.CustID IS NULL
 				AND (s.username <> '12EU' AND ISNULL(sub.username,'') <> '12EU')
 				AND s.IsDeposit = 0
@@ -1848,10 +2365,19 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
 			   ,s.ActualStake
+			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
+			   ,s.winlostdate
+			   ,s.statusID
+			   ,s.IsCashOutMemberTicket
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
-					AND b.matchid = @matchid	
+					AND b.matchid = s.matchid --@matchid	
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -1909,6 +2435,15 @@ BEGIN
 			   ,s.LiveIndicator
 			   ,s.mainstatusid
 			   ,s.ActualStake
+			   ,s.matchid
+			   ,s.homeid    
+			   ,s.awayid    
+			   ,s.leagueid  
+			   ,s.isNeutral 
+			   ,s.matchcode
+			   ,s.winlostdate
+			   ,s.statusID
+			   ,s.IsCashOutMemberTicket
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1978,6 +2513,15 @@ BEGIN
 		   ,s.LiveIndicator
 		   ,s.mainstatusid
 		   ,s.ActualStake
+		   ,s.matchid
+		   ,s.homeid    
+		   ,s.awayid    
+		   ,s.leagueid  
+		   ,s.isNeutral 
+		   ,s.matchcode
+		   ,s.winlostdate
+		   ,s.statusID
+		   ,s.IsCashOutMemberTicket
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2009,7 +2553,8 @@ BEGIN
 									WHEN s.mainstatusid IN (111, 112, 113)
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
-													 WHERE bettype = s.MainBettype)
+													 WHERE bettype = s.MainBettype
+													 )
 											THEN s.OriginGroupName + ' (Instant Settlement)'
 									ELSE s.OriginGroupName
 								 END
@@ -2038,7 +2583,7 @@ BEGIN
 					ELSE 1
 			  END = 1
 	)	
-	SELECT s.transid
+	SELECT CASE WHEN s.bettype BETWEEN 801 AND 806 THEN s.refno ELSE s.transid END transid
 		   ,s.SubTransid
 		   ,s.refno		
 		   ,s.custid		
@@ -2083,14 +2628,27 @@ BEGIN
 		   ,s.WalletType		   
 		   ,s.MainTransId
 		   ,s.RefCode
-		   ,@SettlementStatus AS SettlementStatus
+		   ,m.SettlementStatus AS SettlementStatus
 		   ,s.WinLost
 		   ,s.IsMarked
 		   ,c.site as LicenseeName
 		   ,s.LiveIndicator AS IsLiveIndicator
 		   ,s.ActualStake
+		   ,s.matchid
+		   ,s.homeid    
+		   ,s.awayid    
+		   ,s.leagueid  
+		   ,s.isNeutral 
+		   ,s.matchcode
+		   ,s.winlostdate
+		   ,s.statusID
+		   ,s.IsCashOutMemberTicket
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
+	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
+				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
+				   ELSE 0 END
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'CN88' THEN 1
 				WHEN s.OriginGroupName = 'Credit' THEN 2
@@ -2117,7 +2675,8 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #InstantSettlementBettypes
-	
+	DROP TABLE #TmpMatch
 END
+
 GO
 

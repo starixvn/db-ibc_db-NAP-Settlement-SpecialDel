@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
-	@MatchId BIGINT
-	,@TransIds VARCHAR(MAX) = NULL
+	 @MatchId	BIGINT
+	,@TransIds	VARCHAR(MAX) = NULL
 	,@RequestId INT = 0
 	,@ActionId	TINYINT	= 0
 )
@@ -33,6 +33,7 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200907@Raymond: Disable LiveScore of Football sport [Redmine: #141058]
 		- 20201103@Charles:  No need to check Live Score once add request for Baseball [Redmine: #144544]
+		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -41,27 +42,32 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @InvalidTransIds VARCHAR(MAX) = ''
-			,@MovedTransIds VARCHAR(MAX) = ''
-			,@DifferentMatchTransIds VARCHAR(MAX) = '' 
-			,@InvalidMatchId VARCHAR(200) = ''
-			,@SettledTransIds VARCHAR(MAX) = ''
-			,@UnsupportedTransids VARCHAR(MAX) = ''
-			,@ExistingReqTransIds VARCHAR(MAX) = ''
-			,@TransIdsOfVIPCustomer VARCHAR(MAX) = ''
-			,@CN88TransIds VARCHAR(MAX) = ''
-			,@NonLiveTransIds VARCHAR(MAX) = ''
+	DECLARE @InvalidTransIds			 VARCHAR(MAX) = ''
+			,@MovedTransIds				 VARCHAR(MAX) = ''
+			,@DifferentMatchTransIds     VARCHAR(MAX) = '' 
+			,@InvalidMatchId		     VARCHAR(200) = ''
+			,@SettledTransIds			 VARCHAR(MAX) = ''
+			,@UnsupportedTransids		 VARCHAR(MAX) = ''
+			,@ExistingReqTransIds		 VARCHAR(MAX) = ''
+			,@TransIdsOfVIPCustomer		 VARCHAR(MAX) = ''
+			,@CN88TransIds				 VARCHAR(MAX) = ''
+			,@NonLiveTransIds			 VARCHAR(MAX) = ''
 			,@DifferentLiveScoreTransIds VARCHAR(MAX) = ''
-			,@query NVARCHAR(MAX) = ''
-			,@ExecuteSQL NVARCHAR(MAX) = ''
-			,@IsCalQueue	BIT = 0
-			,@ResettleTransids VARCHAR(MAX) = ''
-			,@IsCheckAutoCal BIT=0
-			,@OldAction TINYINT
+			,@query						 NVARCHAR(MAX) = ''
+			,@ExecuteSQL				 NVARCHAR(MAX) = ''
+			,@IsCalQueue				 BIT = 0
+			,@ResettleTransids			 VARCHAR(MAX) = ''
+			,@IsCheckAutoCal			 BIT=0
+			,@OldAction					 TINYINT
+			,@IsExistSingle				 BIT = 0
+			,@IsExistParlay				 BIT = 0
+			,@IsExistFM					 BIT = 0
+			,@IsExistFM2				 BIT = 0
+			,@MatchProcessXML			 XML = NULL
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-		
+					
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -114,6 +120,7 @@ BEGIN
 		,livehomescore SMALLINT
 		,liveawayscore SMALLINT
 		,liveindicator BIT
+		,matchid INT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -182,6 +189,7 @@ BEGIN
 		,livehomescore
 		,liveawayscore
 		,liveindicator
+		,matchid
 		)
 	SELECT b.transid
 		,CASE 
@@ -194,6 +202,7 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
+		,@MatchId
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
@@ -340,6 +349,34 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
+	---Prepare for lock match---
+	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM #validTransId AS t
+		OUTER APPLY (
+				SELECT GroupId
+				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+				WHERE Bettype = t.Bettype
+		)f
+
+	SET @MatchProcessXML = (
+		SELECT DISTINCT MatchId "@MatchId"
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS "@KeyID" 
+		FROM #validTransId t
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+		FOR XML PATH('r'), ROOT('root')
+		)
+
 	-- return table result
 	SELECT @InvalidMatchId AS InvalidMatchId
 			,@MovedTransIds AS MovedTransIds
@@ -353,6 +390,11 @@ BEGIN
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
+			,@IsExistSingle AS IsExistSingle
+			,@IsExistParlay AS IsExistParlay
+			,@IsExistFM AS IsExistFM
+			,@IsExistFM2 AS IsExistFM2
+			,@MatchProcessXML AS MatchProcessXML
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp

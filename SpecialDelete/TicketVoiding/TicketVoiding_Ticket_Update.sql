@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+	,@QueueIds			VARCHAR(MAX) = ''	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -20,14 +21,17 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20210501@July: [TVS] - Abnormal Account [Redmine: #143666]
 	
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	IF @VoidingTypeId = 1 -- Single
+	DECLARE @IssueTypeId INT
+	SELECT @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
+
+	IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId = 13))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId
@@ -40,6 +44,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@QueueIds = @QueueIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId = 2 -- subParlay
 	BEGIN
@@ -54,6 +59,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@QueueIds = @QueueIds OUTPUT
 	END
 	
 END

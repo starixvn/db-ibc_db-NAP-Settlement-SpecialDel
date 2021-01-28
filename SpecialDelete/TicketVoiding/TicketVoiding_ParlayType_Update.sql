@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+	,@QueueIds			VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -21,6 +22,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
+		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		
 	Param's explanation:	
 		
@@ -42,6 +44,9 @@ BEGIN
 			,@strMainTransId VARCHAR(MAX)
 			,@strRefno VARCHAR(MAX)
 			,@CustIds VARCHAR(MAX)
+
+	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
+	SET @RetryCnt = 0
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
@@ -71,6 +76,22 @@ BEGIN
 	FROM	dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
 
+	SELECT @QueueIds = STUFF((SELECT ',' + CAST(QueueId AS VARCHAR(50)) 
+							FROM dbo. TicketVoiding_Queue q WITH (NOLOCK)	
+							WHERE q.RequestId = @RequestId
+								AND q.StatusId IN (1)
+								AND q.VoidingHistoryId = @VoidingHistoryId
+						FOR XML PATH('')),1,1,'')
+
+	IF  NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
+	BEGIN
+		DECLARE @sessionID INT = 0
+		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
+
+		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
+		SELECT @RequestId, @VoidingHistoryId,1,@MatchId,@sessionID,0
+	END
+	
 	UPDATE t 
 		SET MainTransId = b.transid
 			,MainStatusId = b.statusID
@@ -104,19 +125,39 @@ BEGIN
 
 		RETURN
 	END
+
+	SET @Retry = 0
+	SET @Success = 0
 	
-	EXEC dbo.NAP_Admin_CheckingProcess  
+	WHILE @Retry < 3 AND @Success = 0
+	BEGIN
+		SET @Success = 1
+
+		EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay   = 1  
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode   = @ErrCode OUTPUT  
 		, @ErrMsg   = @ErrMsg OUTPUT  
-  
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN	
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN
+			SET @Retry = @Retry + 1
+			SET @Success = 0
+
+			WAITFOR DELAY '00:00:20'
+		END
+				
+	END
+	
+	IF @Success = 0 
+	BEGIN
 		SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
 		FROM	@tmpInputTransId
 
-		RETURN  
+		--For update queue
+		SELECT @ErrCode = 101
+
+		RETURN
 	END
 
 	SET @FailedTransIds = ''
