@@ -55,7 +55,7 @@ GO
 
 -- Insert queue manual into table service
 INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID, VoidingHistory, statusID, matchID, createdDate, ModifiedDate, IsRunExternalService)
-SELECT   q.QueueId
+SELECT   q.RequestId
 		,q.VoidingHistoryId
 		,12
 		,q.MatchId
