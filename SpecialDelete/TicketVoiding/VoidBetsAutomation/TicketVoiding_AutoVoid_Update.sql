@@ -89,7 +89,7 @@ BEGIN
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT)
-	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT)
+	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -1104,6 +1104,10 @@ BEGIN
 				,CASE WHEN IssueTypeId = 11 THEN TransIds ELSE NULL END
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
+
+		UPDATE v SET v.IssueTypeId = r.IssueTypeId
+		FROM @VoidingHistory_tmp v
+			INNER JOIN @AutoVoid_ValidRequest r ON r.RequestID = v.RequestID
 	END
 
 	SELECT @VoidingHistoryIds = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
@@ -1116,7 +1120,7 @@ BEGIN
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 
 		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
-		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN vh.IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
 		FROM @VoidingHistory_tmp vh
 	END
 	
