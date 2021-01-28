@@ -28,6 +28,7 @@ AS
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 	
 	Param's explanation:	
 		
@@ -87,7 +88,7 @@ BEGIN
 			,@Lucky3Matches				VARCHAR(MAX) = ''
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
-	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX))
+	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT)
 	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
@@ -624,9 +625,9 @@ BEGIN
 	END	
 	
 	-- Capture request and its void tickets to insert voidingHistory
-	INSERT INTO @AutoVoid_ValidRequest (RequestID, Transids)			
-	SELECT DISTINCT RequestID, STUFF(tmp.Transids,1,1,'') AS Transids
-	FROM (SELECT DISTINCT RequestID FROM @tmpInputTransId_VOID ) AS r
+	INSERT INTO @AutoVoid_ValidRequest (RequestID, IssueTypeId, Transids)			
+	SELECT DISTINCT RequestID, r.IssueTypeId,  STUFF(tmp.Transids,1,1,'') AS Transids
+	FROM (SELECT DISTINCT RequestID,IssueTypeId FROM @tmpInputTransId_VOID ) AS r
 		CROSS APPLY (SELECT ',' + CAST(v.transid AS VARCHAR(50))
 					FROM @tmpInputTransId_VOID v
 					WHERE v.RequestID = r.RequestID
@@ -1100,7 +1101,7 @@ BEGIN
 		SELECT  RequestID
 				,@UserId
 				, 1
-				,CASE WHEN @IssueTypeId = 11 THEN TransIds ELSE NULL END
+				,CASE WHEN IssueTypeId = 11 THEN TransIds ELSE NULL END
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
 	END
