@@ -396,9 +396,9 @@ RETURN
 				END
 			WHEN @pfID = 9539 THEN
 				CASE
-					WHEN fm > 0 AND @betteam IN ('BH', 'LA') THEN 1
-					WHEN fm = 0 AND @betteam IN ('LH', 'L2') THEN 1
-					WHEN fm < 0 AND @betteam IN ('BA', 'LH') THEN 1
+					WHEN fm > 0 AND @betteam IN ('HB', 'AL') THEN 1
+					WHEN fm = 0 AND @betteam IN ('HL', 'AL') THEN 1
+					WHEN fm < 0 AND @betteam IN ('AB', 'HL') THEN 1
 					ELSE -1
 				END
 			WHEN @pfID = 9541 THEN
