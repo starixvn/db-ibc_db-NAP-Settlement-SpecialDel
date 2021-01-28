@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_ReCal]
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_ReCal]
 (
 	@matchid		INT 
 	,@SportType		INT = 0
@@ -12,6 +12,7 @@ AS
     
     Revisions:            
 		- 20201211@Max: Support to Re-calculate Settled Tickets [Redmine: #145669]
+		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		
 */
 BEGIN
@@ -31,8 +32,8 @@ BEGIN
 		WHERE rs.matchid = @matchid
 	END
 	
-	---Badminton AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType = 9
+	---Badminton AIO,  Cricket AIO - get data from dbo.ResultDetailOS
+	ELSE IF @SportType IN ( 9 , 50)
 	BEGIN
 		SELECT rs.ResourceID
 	    		,rs.HomeValue
