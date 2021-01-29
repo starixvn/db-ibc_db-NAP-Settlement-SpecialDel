@@ -425,6 +425,12 @@ RETURN
 					WHEN @betteam = @HomeValue  THEN 1
 					ELSE -1					 
 				END
+			WHEN @pfID = 9540 THEN 
+				CASE 
+					WHEN @betteam IN ( 'HB', 'AL' ) AND @HomeValue = 'H' THEN 1
+					WHEN @betteam IN ( 'AB', 'HL' ) AND @HomeValue = 'A' THEN 1
+					ELSE -1
+				END
 			ELSE -1 
 		END AS modds
    FROM
