@@ -17,6 +17,7 @@ RETURNS VARCHAR(100)
 		- 20201016@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201222@July: TVS - Enhance TVS Queue data storage [Redmine: #146805]
 		- 20210128@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
