@@ -28,6 +28,7 @@ AS
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 	
 	Param's explanation:	
 		
@@ -87,8 +88,8 @@ BEGIN
 			,@Lucky3Matches				VARCHAR(MAX) = ''
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
-	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX))
-	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT)
+	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT)
+	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -624,9 +625,9 @@ BEGIN
 	END	
 	
 	-- Capture request and its void tickets to insert voidingHistory
-	INSERT INTO @AutoVoid_ValidRequest (RequestID, Transids)			
-	SELECT DISTINCT RequestID, STUFF(tmp.Transids,1,1,'') AS Transids
-	FROM (SELECT DISTINCT RequestID FROM @tmpInputTransId_VOID ) AS r
+	INSERT INTO @AutoVoid_ValidRequest (RequestID, IssueTypeId, Transids)			
+	SELECT DISTINCT RequestID, r.IssueTypeId,  STUFF(tmp.Transids,1,1,'') AS Transids
+	FROM (SELECT DISTINCT RequestID,IssueTypeId FROM @tmpInputTransId_VOID ) AS r
 		CROSS APPLY (SELECT ',' + CAST(v.transid AS VARCHAR(50))
 					FROM @tmpInputTransId_VOID v
 					WHERE v.RequestID = r.RequestID
@@ -1100,9 +1101,13 @@ BEGIN
 		SELECT  RequestID
 				,@UserId
 				, 1
-				,CASE WHEN @IssueTypeId = 11 THEN TransIds ELSE NULL END
+				,CASE WHEN IssueTypeId = 11 THEN TransIds ELSE NULL END
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
+
+		UPDATE v SET v.IssueTypeId = r.IssueTypeId
+		FROM @VoidingHistory_tmp v
+			INNER JOIN @AutoVoid_ValidRequest r ON r.RequestID = v.RequestID
 	END
 
 	SELECT @VoidingHistoryIds = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
@@ -1115,7 +1120,7 @@ BEGIN
 		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 
 		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID,IsAutoVoid)
-		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
+		SELECT vh.RequestID, vh.VoidingHistoryId,1,CASE WHEN vh.IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,1
 		FROM @VoidingHistory_tmp vh
 	END
 	
