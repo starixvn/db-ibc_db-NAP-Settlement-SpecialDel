@@ -29,7 +29,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
-		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #]
+		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
 	
 	Param's explanation:	
 		
