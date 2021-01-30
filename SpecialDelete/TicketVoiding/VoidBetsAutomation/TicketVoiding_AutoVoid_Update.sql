@@ -29,6 +29,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
+		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
 	
 	Param's explanation:	
 		
@@ -145,7 +146,10 @@ BEGIN
 		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
 		,Action				VARCHAR(100)
-		,isFinish			BIT 
+		,isFinish			BIT
+		,sporttype			SMALLINT
+		,matchid			INT
+		,oddsid				INT
 	)
 	
 	DECLARE @tmpTransIDBatch TABLE (
@@ -416,7 +420,7 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
+	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -427,7 +431,7 @@ BEGIN
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -449,6 +453,18 @@ BEGIN
 		WHERE bettype NOT IN (9, 29, 2799)
 			
 	END
+
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE	b
+		SET sporttype 	= m.sporttype
+		FROM	#tmpTransId_Recalculate b
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		
+		WHERE bettype NOT IN (9, 29, 2799)
+			
+	END
 	
 	-- -- UPDATE eventtype = 2 [Outright ticket]
 	IF(EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (10)))
@@ -456,6 +472,19 @@ BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
 		FROM	#tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+			ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	o.leagueid = l.leagueid
+			
+		WHERE bettype IN (10)
+	END
+
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (10)))
+	BEGIN
+		UPDATE b
+		SET sporttype	= l.sporttype
+		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
@@ -476,11 +505,32 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
+
+	IF(EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE b
+		SET sporttype 	= r.sporttype	
+		FROM	#tmpTransId_Recalculate b
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+	END
+
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
 		SET sporttype = sb.SportType
 		FROM #tmpTransId_VOID_RequestID b
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON b.bettype = sb.BetType
+		WHERE sb.ProductID = 37
+	END
+	BEGIN
+		UPDATE b
+		SET sporttype = sb.SportType
+		FROM #tmpTransId_Recalculate b
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
@@ -513,7 +563,14 @@ BEGIN
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM	#tmpTransId_VOID_RequestID b
+	FROM	
+		(
+			SELECT v.bettype, v.betdaqid, v.sporttype, v.extrainfo
+			FROM #tmpTransId_VOID_RequestID v
+			UNION ALL
+			SELECT r.bettype, r.betdaqid, r.sporttype, r.extrainfo
+			FROM #tmpTransId_Recalculate r
+		)b
 		OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -542,7 +599,30 @@ BEGIN
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = b.Bettype
-			)f	
+			)f
+	UNION ALL
+	SELECT DISTINCT @MatchId AS matchid
+		, CASE 
+			WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+					AND Bettype NOT BETWEEN 801 AND 899
+					AND f.GroupId IS NULL
+					AND Bettype NOT IN (1231,1232,1233)
+				THEN 1 --SB,NG,LC
+			WHEN Bettype = 10 THEN 2	-- Outright
+			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+			WHEN f.GroupId = 1 THEN 6 -- FM
+			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+			WHEN Bettype = 38 THEN 5 -- Bet Builder
+			WHEN f.GroupId = 2 THEN 7 -- FM 228
+			ELSE 0
+		END AS KeyID
+	FROM #tmpTransId_Recalculate b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
+
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistParlay 				= @isExistParlay
