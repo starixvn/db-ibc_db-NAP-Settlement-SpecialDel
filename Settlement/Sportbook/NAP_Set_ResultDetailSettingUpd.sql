@@ -15,6 +15,7 @@ AS
 
 	Revisions:
 		- 220201113@Louisa: Update Result Setting - Apply for Soccer, Basketball, Badminton, E-Sports[Redmine:#135097]
+		- 20210201@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -82,7 +83,7 @@ BEGIN
 			VALUES (@matchid, SOURCE.ResourceId, NULL, NULL, 1, 0, GETDATE(), @AdminId, NULL, POWER(2, @Type - 1));
 		END
 
-		IF @SportType  = 9 ---- Badminton
+		IF @SportType  IN ( 9 , 50) ---- Badminton
 		BEGIN
 			MERGE dbo.ResultDetailOS WITH (UPDLOCK,ROWLOCK) TARGET
 			USING (

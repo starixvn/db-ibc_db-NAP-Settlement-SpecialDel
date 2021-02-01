@@ -74,7 +74,7 @@ UNION ALL SELECT 3		,9461	,'0'		,94611		,'94611'	, 'EAR'	,0	--Away Inns Sixes
 UNION ALL SELECT 9484	,9484	,'8XXX'		,94841001	,'94841XXX'	, 'EAR'	,200	--Home Over X Exact Runs	X={1 - 200} Non-Live only needs Over 1		
 UNION ALL SELECT 9484	,9485	,'8XXX'		,94851001	,'94851XXX'	, 'EAR'	,200	--Away Over X Exact Runs	X={1 - 200} Non-Live only needs Over 1		
 UNION ALL SELECT 9490	,9490	,'8XXXYY'	,9490100101	,'94901XXXYY', 'EAR',200	--Home Over X Ball Y Exact Runs	X={1 - 200} Y={1,2,3,4,5,6}  Non-Live only needs Over 1		
-UNION ALL SELECT 9484	,9491	,'8XXXYY'	,9491100101	,'94911XXXYY', 'EAR',200	--Away Over X Ball Y Exact Runs	X={1 - 200} Y={1,2,3,4,5,6}  Non-Live only needs Over 1		
+UNION ALL SELECT 9490	,9491	,'8XXXYY'	,9491100101	,'94911XXXYY', 'EAR',200	--Away Over X Ball Y Exact Runs	X={1 - 200} Y={1,2,3,4,5,6}  Non-Live only needs Over 1		
 UNION ALL SELECT 2		,9502	,'8XXX'		,94101004	,'94101XXX'	, 'EAR'	,200	--Home Group 1-X Runs OE	  X= {4,5,6,8,10,12,15,20,25,30,35,40,45,....200}"		
 UNION ALL SELECT 2		,9503	,'8XXX'		,94111004	,'94111XXX'	, 'EAR'	,200	--Away Group 1-X Runs OE	 X= {4,5,6,8,10,12,15,20,25,30,35,40,45}"		
 UNION ALL SELECT 2		,9504	,'8XXX'		,94101005	,'94101XXX'	, 'EAR'	,200	--Home 1st Inns Group 1-X Runs OE	    X={5,6,10,12,15,20,25,30,35,40,45,....200}"		
