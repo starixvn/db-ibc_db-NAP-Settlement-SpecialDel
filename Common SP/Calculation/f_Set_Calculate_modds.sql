@@ -415,11 +415,12 @@ RETURN
 							END
 					ELSE -1
 				END
-			WHEN @pfID = 9484 THEN
+			WHEN @pfID IN ( 9484, 9490) THEN
 				CASE 
 					WHEN @betteam = 'AO' THEN
 											CASE 
-												WHEN fm > 6 THEN 1
+												WHEN @pfID = 9484 AND fm > 6 THEN 1
+												WHEN @pfID = 9490 AND fm > 4 THEN 1
 												ELSE -1
 											END
 					WHEN @betteam = @HomeValue  THEN 1
@@ -444,7 +445,7 @@ RETURN
 					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 					
 					--Happy5
-					WHEN @pfID IN (8101, 619, 9541, 9484) THEN CAST(@HomeValue AS SMALLMONEY)
+					WHEN @pfID IN (8101, 619, 9541, 9484, 9490) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID IN (8104, 601, 602, 501, 9538, 9539) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
