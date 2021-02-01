@@ -17,6 +17,7 @@ AS;
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210201@July: TVS - Archive process for Abnormal Account [Redmine: #149776]
 		
 	Param's explanation:	
 		
@@ -30,15 +31,10 @@ BEGIN
 	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
 
 	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
-	SELECT rd.MatchId, ISNULL(m.SettlementStatus, 0)
+	SELECT rd.MatchId, m.SettlementStatus
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
-
-	IF NOT EXISTS ( SELECT TOP 1 1 FROM #TmpMatch)
-	BEGIN
-		SET @IsMovebet = 1
-	END
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
@@ -179,8 +175,9 @@ BEGIN
 					INNER JOIN #TmpMatch m ON zm.matchid = m.Matchid
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
-		
-	IF @IsMovebet = 0
+	
+	--@IsMovebet = 0
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE (SettlementStatus IS NULL AND matchid IN (9,29,2799)) OR SettlementStatus IS NOT NULL )
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
@@ -215,7 +212,6 @@ BEGIN
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 
-	
 		UPDATE	t
 			SET transid = b.transid
 				,Betcheck = b.betcheck
@@ -259,7 +255,9 @@ BEGIN
 			INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON t.subTransId = bm.transid
 			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	END
-	ELSE
+
+	--@IsMovebet = 1
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE SettlementStatus IS NULL AND matchid NOT IN (9 , 29, 2799))
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
@@ -382,6 +380,7 @@ BEGIN
 				INNER LOOP JOIN dbo.bettransm14 bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 				INNER HASH JOIN dbo.bettrans14 b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
 		END
+
 	END
 
 	IF (EXISTS (SELECT TOP 1 1 
@@ -854,6 +853,7 @@ BEGIN
 							 END
 				ELSE s.transid
 			 END
+
 	DROP TABLE #tmpTicket
 	DROP TABLE #TmpMatch
 	
