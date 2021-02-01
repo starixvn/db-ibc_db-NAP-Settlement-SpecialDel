@@ -31,7 +31,7 @@ BEGIN
 	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
 
 	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
-	SELECT rd.MatchId, m.SettlementStatus
+	SELECT DISTINCT rd.MatchId, m.SettlementStatus
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
