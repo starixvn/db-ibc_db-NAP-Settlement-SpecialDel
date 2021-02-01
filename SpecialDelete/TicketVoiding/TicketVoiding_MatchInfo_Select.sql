@@ -5,8 +5,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 	,@Sporttype		SMALLINT		= NULL	
 	,@MatchId		INT				= NULL
 	,@TransIds		VARCHAR(MAX)	= NULL
-	,@IsUpdRequest	BIT = 0
-	,@ActionId		TINYINT = 0
+	,@IsUpdRequest	BIT 			= 0
+	,@ActionId		TINYINT 		= 0
 )
 AS
 /*	Created by: Kathy
@@ -20,6 +20,7 @@ AS
 		- 20200826@Zane: TVS - Enhance for Danger Accept [#140339]
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
+		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
 		
 	Param's explanation:		
 */
@@ -63,19 +64,8 @@ BEGIN
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@tmpMatchId INT'' , @tmpMatchId'
 
 		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @tmpMatchId INT', @query, @tmpMatchId
-	END
-	ELSE IF (@MatchId IS NULL AND @TransIds IS NULL)
-	BEGIN
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
-						FROM	dbo.match m WITH(NOLOCK)
-						WHERE	m.eventdate = @EventDate
-								AND m.sporttype = @Sporttype
-									'
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME'' , @Sporttype, @EventDate '
-		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME ', @query, @Sporttype, @EventDate
-		
-	END
-	ELSE
+	END	
+	ELSE IF @MatchId IS NOT NULL
 	BEGIN
 		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 					FROM	dbo.match m WITH(NOLOCK)
@@ -84,8 +74,7 @@ BEGIN
 							AND m.matchid = @MatchId
 									'
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT'' , @Sporttype, @EventDate, @MatchId '
-		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT ', @query, @Sporttype, @EventDate, @MatchId
-	
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT ', @query, @Sporttype, @EventDate, @MatchId	
 	END
 END
 GO
