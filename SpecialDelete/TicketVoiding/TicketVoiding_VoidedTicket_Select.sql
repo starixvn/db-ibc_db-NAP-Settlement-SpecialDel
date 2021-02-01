@@ -257,7 +257,7 @@ BEGIN
 	END
 
 	--@IsMovebet = 1
-	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE SettlementStatus IS NULL AND matchid NOT IN (9 , 29, 2799))
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE (SettlementStatus IS NULL AND matchid IN (9,29,2799)) OR SettlementStatus IS NULL)
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
