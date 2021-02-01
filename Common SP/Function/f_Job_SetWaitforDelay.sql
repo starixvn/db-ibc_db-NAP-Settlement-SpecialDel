@@ -18,6 +18,7 @@ RETURNS VARCHAR(100)
 		- 20201222@July: TVS - Enhance TVS Queue data storage [Redmine: #146805]
 		- 20210128@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
+		- 20210130@Max: TVS Issue [Redmine: #149743]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
