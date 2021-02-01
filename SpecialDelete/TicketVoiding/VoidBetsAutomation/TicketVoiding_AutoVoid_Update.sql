@@ -30,7 +30,8 @@ AS
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
-	
+		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
+
 	Param's explanation:	
 		
 		
@@ -43,8 +44,8 @@ BEGIN
 			,@LogActionId		INT 
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-			,@Void_cnt			INT
-			,@Recalculate_cnt	INT
+			,@Void_cnt			INT = 0
+			,@Recalculate_cnt	INT = 0
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
@@ -96,7 +97,7 @@ BEGIN
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
 
 	CREATE TABLE #inputRequestTransId (TransId BIGINT, RequestID INT, IssueTypeId TINYINT, RequestType TINYINT, DecidedBy NVARCHAR(200))
-	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId TINYINT, DecidedBy NVARCHAR(200), Winlostdate DATETIME)
+	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId TINYINT, DecidedBy NVARCHAR(200), Winlostdate DATETIME, StatusId TINYINT)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
@@ -338,9 +339,22 @@ BEGIN
 				,@ErrMsg = 'Some tickets of this match are being duplicated in multi requests!'	
 		RETURN
 	END
+	
 	-- get transid to VOID
-	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate)
-	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate
+	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate, StatusId)
+	SELECT	tl.translogid, t.RequestID, t.IssueTypeId, t.DecidedBy, tl.winlostdate, tl.statusID
+	FROM	#inputRequestTransId t 
+		INNER JOIN dbo.translog tl WITH(NOLOCK)
+			ON t.TransId = tl.translogid
+	WHERE	tl.statusID <> 102
+
+	IF @@ROWCOUNT <> 0
+		SET @isExistMG = 1
+		SET @Void_cnt = @@ROWCOUNT
+
+
+	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate, StatusId)
+	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate, statusID
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
 		OUTER APPLY (SELECT TOP (1) ac.CustID 
@@ -353,7 +367,7 @@ BEGIN
 				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
 		
-	SET @Void_cnt = @@ROWCOUNT
+	SET @Void_cnt = @Void_cnt + @@ROWCOUNT
 	
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
@@ -387,16 +401,13 @@ BEGIN
 		RETURN
 	END
 	-------------DATA PREPARATION ------------
-	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid)
+	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, RequestID)
 	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
-		, tl.eventID
-	FROM	#inputRequestTransId t 
+		, tl.eventID, t.RequestID
+	FROM	@tmpInputTransId_VOID t 
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
-	
-	IF @@ROWCOUNT <> 0
-		SET @isExistMG = 1
 
 	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid)
 	SELECT	b.transid, b.custid, b.bettype
@@ -1165,9 +1176,8 @@ BEGIN
 									,a.DecidedBy AS "@DecidedBy"
 									,MIN(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidFromDate"
 									,MAX(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidToDate"
-									,MAX (CASE WHEN b.statusID IN (111, 112, 113) THEN 1 ELSE 0 END) AS "@IsHasSettledTicket"
+									,MAX (CASE WHEN a.statusID IN (111, 112, 113) THEN 1 ELSE 0 END) AS "@IsHasSettledTicket"
 							FROM @tmpInputTransId_VOID a
-									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON a.TransId = b.transid
 							WHERE a.IssueTypeId = 13
 							GROUP BY a.DecidedBy
 							FOR XML PATH('VoidData')
@@ -1212,9 +1222,9 @@ BEGIN
 			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction,DELETED.RequestID, DELETED.betid
+			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction,DELETED.RequestID, DELETED.betid, DELETED.actual_stake
 					
-			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID,betid)
+			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID,betid,actual_stake)
 			FROM #tmpTransId_VOID_RequestID t 
 			WHERE isFinish IS NULL
 			
@@ -1838,6 +1848,9 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary_VOID
 	DROP TABLE #Transid_mark_tmp
 	DROP TABLE #Transid_mark_void
+	DROP TABLE #balanceGameAfter
+	DROP TABLE #balanceGameBefore
+	DROP TABLE #Lucky3Matches
 END
 
 GO
