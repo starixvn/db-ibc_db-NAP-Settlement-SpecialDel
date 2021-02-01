@@ -35,6 +35,7 @@ AS
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
+		- 20210201@Louisa: Add NOLOCK [Redmine:#149787]
 		
 	Param's Explanation:
 		 
@@ -314,7 +315,7 @@ BEGIN
 			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
 			BEGIN
 				SELECT @ChildMatchIds = STUFF( COALESCE(@ChildMatchIds + ',' + CAST(m.matchid AS VARCHAR), CAST(m.matchid AS VARCHAR)) , 1, 0, '' ) 
-				FROM dbo.match m 
+				FROM dbo.match m WITH(NOLOCK)
 				WHERE ParentID = @matchid
 					AND m.ChildMatchType IN ( 201,202,203 )
 				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
