@@ -20,6 +20,7 @@ AS
 		- 20200811@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20201120@Zane: HF - Manage Request [Redmine:#145756]
 		- 20201223@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
 
 	Param's explanation:	
 		@Status: 
@@ -32,8 +33,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@FilteredBy	TINYINT,
-			@Winlostdate DATETIME
+	DECLARE	@FilteredBy	TINYINT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
