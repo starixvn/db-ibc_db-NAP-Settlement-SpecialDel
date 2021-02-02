@@ -36,6 +36,7 @@ AS
 		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
+		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 	
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -432,7 +433,7 @@ BEGIN
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
-				AND b.statusID = 0
+				AND statusID IN (SELECT statusID FROM @Status_tmp)
 				AND @IsSB = 1
 				
 		UNION ALL

@@ -57,6 +57,8 @@ AS;
 		- 20200810@Charles: Offer Saba Loyalty for Saba Promotion [139255]
 		- 20201005@Max: TVS - Enhance void by Bet ID to support void by customer [Redmine: #142010]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
+
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -225,7 +227,7 @@ BEGIN
 			INNER JOIN #CustId c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
-				AND b.statusID = 0
+				AND statusID IN (SELECT statusID FROM @Status_tmp)
 				AND @IsSB = 1
 				
 		UNION ALL
