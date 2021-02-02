@@ -17,6 +17,7 @@ AS;
 		- 20200909@Max: HotFix - TVS - Danger Accept - void single when sub parlay process No. of ticket can not show ticket single [Redmine: #141124]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210202@July: [TVS] - Hot fix abnormal account [Redmine: #149697]
 		
 	Param's explanation:	
 		
@@ -844,7 +845,9 @@ BEGIN
 				WHEN s.GroupName = 'Deposit' THEN 4
 				WHEN s.GroupName = 'Betfair' THEN 5
 			 END
-
+		   , CASE WHEN s.Status IN ('waiting', 'running') THEN 1 
+				  ELSE 2 
+				END
 		   , ISNULL(s.MainTransId, s.transid)
 		   , CASE 
 				WHEN s.BonusID IS NOT NULL
