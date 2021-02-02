@@ -85,7 +85,7 @@ FROM  cteSettlementPerformanceLog s
 				AND s.rn = 1
 		)u
 	WHERE s.rn = 1
-		AND m.eventdate >= '2020-12-01'  and m.eventdate < '2021-01-01'
+		AND m.eventdate >= '2021-01-01'  and m.eventdate < '2021-02-01'
 		AND l.sporttype  = 1 -- Soccer
 		and s.Action in('CAL-HT', 'CAL-FT', 'CAL')
 		
