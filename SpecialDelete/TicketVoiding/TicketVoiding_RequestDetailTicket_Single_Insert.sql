@@ -433,7 +433,7 @@ BEGIN
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
-				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND 1 = CASE WHEN EXISTS (SELECT 1 FROM @Status_tmp WHERE statusID IN(0,1)) AND statusID = 0 THEN 1 ELSE 0 END
 				AND @IsSB = 1
 				
 		UNION ALL
