@@ -3,8 +3,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 (
 	@RequestId		VARCHAR(MAX)	= NULL
 	,@MatchId		INT				= NULL
-	,@FromDate		DATETIME		= NULL
-	,@ToDate		DATETIME		= NULL
 	,@IsExcludeTest BIT				= 1
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
