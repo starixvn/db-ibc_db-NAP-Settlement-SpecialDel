@@ -19,6 +19,7 @@ RETURNS VARCHAR(100)
 		- 20210128@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 		- 20210130@Max: TVS Issue [Redmine: #149743]
+		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
