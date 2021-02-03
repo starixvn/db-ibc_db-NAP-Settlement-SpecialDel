@@ -95,13 +95,13 @@ BEGIN
 	DECLARE @RequestId_tmp TABlE (RequestId INT)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
-	SELECT DISTINCT val
+	SELECT DISTINCT val AS IssueTypeId
 	FROM dbo.f_SplitString(@IssueTypeId, ',')
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
 	INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
-	SELECT	val AS TransId
+	SELECT	val AS SubIssueTypeId
 	FROM	dbo.f_SplitString(@SubIssueType, ',')
 	OPTION (MAXRECURSION 0) 
 
@@ -112,7 +112,7 @@ BEGIN
 	ELSE
 	BEGIN
 		INSERT INTO @RequestId_tmp (RequestId)
-		SELECT	val AS TransId
+		SELECT	val AS RequestId
 		FROM	dbo.f_SplitString(@RequestId, ',')
 		OPTION (MAXRECURSION 0) 
 	END
