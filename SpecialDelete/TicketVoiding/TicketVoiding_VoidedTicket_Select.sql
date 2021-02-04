@@ -25,16 +25,15 @@ AS;
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @IsMovebet BIT
-	SET @IsMovebet = 0
-	
 	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
 
 	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
-	SELECT DISTINCT rd.MatchId, m.SettlementStatus
+	SELECT DISTINCT rd.MatchId
+				   ,m.SettlementStatus
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
-	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
+	WHERE rd.RequestId = @RequestId 
+		AND (rd.MatchId = @MatchId OR @MatchId = 0)
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
@@ -257,7 +256,7 @@ BEGIN
 	END
 
 	--@IsMovebet = 1
-	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE (SettlementStatus IS NULL AND matchid IN (9,29,2799)) OR SettlementStatus IS NULL)
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE SettlementStatus IS NULL )
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
