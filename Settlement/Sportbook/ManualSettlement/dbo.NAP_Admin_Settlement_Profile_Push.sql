@@ -128,10 +128,6 @@ BEGIN
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
-	
-	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
-		SET	@IsExistNetPosition = 1 
-
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpSelectedRID(ResourceID, isFinal, GroupType)
 	SELECT DISTINCT Id, sd.isFinal, sd.GroupType
@@ -139,7 +135,12 @@ BEGIN
 		LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON tbl.Id = sd.ResourceID
 	EXEC sp_xml_removedocument @handle
 	
-	
+	IF ( @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID = '00' )	)
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
+		SET	@IsExistNetPosition = 1 
+  	END
+
 	---check FT round
   	SELECT TOP 1 @IsSystemSettlement = CASE
 										WHEN @Action = 'UNDO' 	THEN 0
@@ -200,6 +201,10 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+
+		IF @IsExistNetPosition = 1
+			SET @ServiceCommand = @sqlCommand
+
 	END
 
 END

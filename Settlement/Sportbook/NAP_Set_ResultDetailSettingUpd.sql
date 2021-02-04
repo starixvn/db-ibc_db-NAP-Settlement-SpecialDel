@@ -83,7 +83,7 @@ BEGIN
 			VALUES (@matchid, SOURCE.ResourceId, NULL, NULL, 1, 0, GETDATE(), @AdminId, NULL, POWER(2, @Type - 1));
 		END
 
-		IF @SportType  IN ( 9 , 50) ---- Badminton
+		IF @SportType  IN ( 9 , 50) ---- Badminton, Cricket
 		BEGIN
 			MERGE dbo.ResultDetailOS WITH (UPDLOCK,ROWLOCK) TARGET
 			USING (

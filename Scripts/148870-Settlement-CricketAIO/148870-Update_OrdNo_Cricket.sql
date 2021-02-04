@@ -1,8 +1,8 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 /* 
 	Created by: 20210126@Louisa
     Task: 20210126@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
-    DB: DBPRO/bodb02
+    DB: DBTXN/bodb02
 	
 	Revisions:
 		- 20210126@Louisa: Update Cricket OrdNo for SettlementSpecialBettypeProfile  [Redmine:#148870]
@@ -66,13 +66,12 @@ GO
 
 	SELECT	ROW_NUMBER() OVER(PARTITION BY 1 ORDER BY ord.Ord, p.ResourceID, p.BetType 	) AS NewOrd, p.ResourceID, p.BetType
 	INTO #NewOrd
-	FROM dbo.SettlementSpecialBettypeProfile p   --WHERE p.SportType = 50 and p.SettleType ='ear' --4850
+	FROM dbo.SettlementSpecialBettypeProfile p
 		INNER JOIN #OrdNo_Cricket ord 
 			ON p.ResourceID  LIKE ord.ResourceID
 	WHERE p.SportType = 50
 		AND p.SettleType ='EAR'
 
---begin tran
 	UPDATE dbo.SettlementSpecialBettypeProfile 
 	SET OrdNo = ord.NewOrd
 	FROM SettlementSpecialBettypeProfile p
@@ -80,4 +79,3 @@ GO
 			ON p.ResourceID = ord.ResourceID AND p.BetType = ord.BetType
 	WHERE p.SportType = 50
 		AND p.SettleType = 'EAR'
---rollback tran

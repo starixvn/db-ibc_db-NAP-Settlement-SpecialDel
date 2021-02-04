@@ -36,7 +36,7 @@ BEGIN
 	INSERT INTO #tblMatchID (MatchId, SportType)
 	SELECT f.Val , m.sporttype
 	FROM dbo.f_SplitString(@matchidList, ',') f
-		INNER JOIN Match m 
+		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
 	OPTION (maxrecursion 0)
 

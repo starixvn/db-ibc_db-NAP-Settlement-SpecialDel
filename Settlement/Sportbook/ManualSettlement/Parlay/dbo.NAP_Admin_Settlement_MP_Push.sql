@@ -41,6 +41,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's Explanation:		
 		
@@ -115,7 +116,7 @@ BEGIN
 	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
 	-- end
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43))
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43, 50))
 	BEGIN
 		-- get date from remote ResultDetail table 
 		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
@@ -149,7 +150,7 @@ BEGIN
 		-- end
 	END
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9))
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9, 50))
 	BEGIN
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId

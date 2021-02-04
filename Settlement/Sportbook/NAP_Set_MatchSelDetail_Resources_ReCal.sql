@@ -18,7 +18,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	IF @SportType =0
-        SELECT @SportType = SportType FROM dbo.match WHERE matchID = @matchid
+        SELECT @SportType = SportType FROM dbo.match WITH (NOLOCK) WHERE matchID = @matchid
     ---return
     IF @Sporttype = 43
     BEGIN

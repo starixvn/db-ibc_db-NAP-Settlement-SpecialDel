@@ -29,6 +29,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
+		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 
 	Param's Explanation:
@@ -153,7 +154,7 @@ BEGIN
   	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-	SELECT Id, Home, Away
+	SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)

@@ -25,6 +25,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		- 20190924@Sol: Incorporate BMAIO [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -70,7 +71,7 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailES  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE IF @Sporttype = 9
+		ELSE IF @Sporttype IN ( 9, 50 )
 			SELECT	ResourceId 
 					,HomeValue
 					,AwayValue
@@ -101,7 +102,7 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE IF @Sporttype = 9
+		ELSE IF @Sporttype IN ( 9, 50 )
 		BEGIN
 			SELECT	ResourceId
 					,HomeValue

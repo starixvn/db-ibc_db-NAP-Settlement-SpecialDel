@@ -47,7 +47,7 @@ BEGIN
 
     ---------------------------------------------------------------------------------------------
     IF @SportType =0
-        SELECT @SportType = SportType FROM Match WHERE matchID = @matchid
+        SELECT @SportType = SportType FROM Match WITH(NOLOCK) WHERE matchID = @matchid
 
     --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
