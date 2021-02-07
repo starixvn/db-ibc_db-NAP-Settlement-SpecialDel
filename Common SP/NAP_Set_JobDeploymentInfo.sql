@@ -13,6 +13,8 @@ AS
 		- 20201001@Kathy: Set waiting time for deployment [Redmine:#140452]
 		- 20201006@Louisa: Hardcode for JobName [Redmine:#140452]
 		- 20210128@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
+		- 20210207@Helen: TVS - Increase Retry for void process [Redmine: #150176]
 */
 BEGIN
 	SET NOCOUNT ON
