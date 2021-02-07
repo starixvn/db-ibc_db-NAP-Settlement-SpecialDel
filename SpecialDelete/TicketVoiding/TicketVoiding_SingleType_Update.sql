@@ -30,6 +30,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
+		- 20210207@Helen: Increase Retry for void process [Redmine: #150178]
 	
 	Param's explanation:	
 		
@@ -359,7 +360,7 @@ BEGIN
 		SET @Retry = 0
 		SET @Success = 0
 	
-		WHILE @Retry < 3 AND @Success = 0
+		WHILE @Retry < 16 AND @Success = 0
 		BEGIN
 			SET @Success = 1
 
