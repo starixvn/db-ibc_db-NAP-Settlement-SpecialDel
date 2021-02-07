@@ -29,6 +29,7 @@ AS
 		- 20200609@Charles: Remove notify when void tickets [131865]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
 	
 	Param's explanation:	
 		
@@ -556,7 +557,7 @@ BEGIN
 		FROM	#tmpTransId t
 		WHERE	t.TicketType = 3
 				AND t.bettype = 912
-		GROUP BY t.custid
+		GROUP BY t.custid, t.matchid
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 5)
