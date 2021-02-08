@@ -472,8 +472,6 @@ BEGIN
 		AS(
 			SELECT	b.transId, b.matchid, b.custid
 			FROM	dbo.bettrans b WITH(NOLOCK)
-				INNER JOIN #tmpTotalTransId t
-					ON t.transid = b.transid
 			WHERE	b.matchid = @matchid
 					AND b.betdaqid = 0 
 			UNION ALL
