@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	@VoidingHistoryId	INT
 	,@StatusId			TINYINT
-	,@MessageId			INT
-	,@ReasonId			INT
+	,@MessageId			INT = NULL
+	,@ReasonId			INT = NULL
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -22,8 +22,8 @@ BEGIN
 
 	UPDATE	dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
 		SET	StatusId = @StatusId
-			,MessageId = CASE WHEN @StatusId <> 1 THEN @MessageId ELSE MessageId END
-			,ReasonId = CASE WHEN @StatusId <> 1 THEN  @ReasonId ELSE ReasonId END
+			,MessageId = ISNULL(@MessageId, MessageId)
+			,ReasonId = ISNULL(@ReasonId, ReasonId)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 
 END
