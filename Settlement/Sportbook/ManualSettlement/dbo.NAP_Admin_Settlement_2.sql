@@ -105,8 +105,8 @@ BEGIN
 		ELSE IF @Sporttype IN ( 9, 50 )
 		BEGIN
 			SELECT	ResourceId
-					,HomeValue
-					,AwayValue
+					,ISNULL(HomeValue,'') AS HomeValue
+					,ISNULL(AwayValue, '') AS AwayValue
 					,SettlementStatusID AS ssId
 			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH (ROWLOCK)
 			WHERE	matchid = @matchid
