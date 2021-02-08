@@ -9,6 +9,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 	
 	Param's explanation:	
 		
@@ -56,11 +57,12 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
 		RETURN
 
-	SELECT TOP (1) @VoidingHistoryId = VoidingHistoryId
-	FROM	dbo.TicketVoiding_Queue WITH(ROWLOCK)
-	WHERE	StatusId = 0 -- waiting
+	SELECT TOP (1) @VoidingHistoryId = q.VoidingHistoryId
+	FROM	dbo.TicketVoiding_Queue q WITH(ROWLOCK)
+		INNER JOIN dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) ON v.VoidingHistoryId = q.VoidingHistoryId AND v.StatusId = 1
+	WHERE	q.StatusId = 0 -- waiting
 	ORDER BY Starttime 
-			,VoidingHistoryId
+			,q.VoidingHistoryId
 
 	IF @@ROWCOUNT = 0
 		RETURN
