@@ -11,6 +11,7 @@ AS
 	Revision:
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20210205@Louisa: Cricket AIO - [Redmine:#148870]
 
 	Param's explanation:  
 		
@@ -169,6 +170,7 @@ BEGIN
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
+		AND ( m.sporttype <> 50 AND ISNULL(m.ChildMatchType,0) <> 200 ) -- Cricket child match
 		
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)

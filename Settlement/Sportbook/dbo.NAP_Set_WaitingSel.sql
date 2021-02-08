@@ -40,6 +40,7 @@ AS
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
+		- 20210205@Louisa: Cricket AIO - [Redmine:#148870]
 	
 	Param's explanation:  
 		
@@ -315,6 +316,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON t.MatchId = m.matchid
 	WHERE	m.eventstatus = 'completed'
+		AND ( m.sporttype <> 50 AND ISNULL(m.ChildMatchType, 0) <> 200	) -- Cricket child match
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -404,6 +406,7 @@ BEGIN
 	WHERE m.sporttype = @sporttype
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
+		AND ( m.sporttype <> 50 AND ISNULL(m.ChildMatchType, 0) <> 200 ) -- Cricket child match
 		
 
 	DECLARE @matchidList VARCHAR(MAX) = ''
