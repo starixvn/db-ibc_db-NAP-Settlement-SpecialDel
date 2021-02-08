@@ -1192,29 +1192,6 @@ BEGIN
 		DROP TABLE #balanceGameChange
 	END
 
-	UPDATE odds  
-		SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-			   ELSE 0 END )  
-		,awaytotal = awaytotal - (CASE WHEN b.betteam = 'a' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-				ELSE 0 END)  
-		FROM dbo.odds o WITH (ROWLOCK,UPDLOCK)  
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) 
-				ON o.matchid = b.matchid AND o.oddsid = b.oddsid  
-			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) 
-				ON c.custid = b.custid  
-			INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) 
-				ON c.currency = e.exchangeid  
-		
-		WHERE	b.matchid = o.matchid
-			AND EXISTS ( 
-				SELECT TOP 1 1   
-				FROM #tmpTransId AS t
-				WHERE t.TransID  = b.transid
-					AND t.Bettype IN (1,3,7,8)				
-		   ) 
-
 	-- Update BetTradeSellingCancelled information
 	SET @CustIds = ''
 	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
@@ -1344,6 +1321,8 @@ BEGIN
 				ON b.custid = a.custid
 					AND b.matchid = a.matchid
 					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
 		WHERE	b.balance > a.balance
 	)t
 
