@@ -1,10 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 (
-	@RequestId		VARCHAR(MAX)	= NULL
+	 @RequestIdXml	XML				= NULL
 	,@MatchId		INT				= NULL
-	,@FromDate		DATETIME		= NULL
-	,@ToDate		DATETIME		= NULL
 	,@IsExcludeTest BIT				= 1
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
@@ -34,6 +32,7 @@ AS
 		- 20200910@Charles: [TVS] Enhance Void by Accept Time [Redmine: #141127]
 		- 20201019@Zane: TVS - Enhance for Danger Accept - Phase 4 - Fix duplicate request id [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
 
 	Param's explanation:	
 		@Status: 
@@ -42,16 +41,15 @@ AS
 			- 1: Running
 			- 2: Completed
 			- 3: Failed
+		@RequestIdXml : <RequestId Id="1"/><RequestId Id="2"/>
 		
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilteredBy			TINYINT,
-			@moveBetDay14 		SMALLDATETIME,
-		    @moveBetDay 		SMALLDATETIME,
-			@MinWinlostdate		DATETIME,
-			@MinWinlostdate14	DATETIME
+			@NumberofRequestId	INT,
+			@RequestId			INT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -99,41 +97,43 @@ BEGIN
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 	DECLARE @RequestId_tmp TABlE (RequestId INT)
 
-	SELECT @moveBetDay14 = MIN(winlostdate) 
-	FROM dbo.bettrans14 WITH(NOLOCK)
-
-	SELECT @moveBetDay = MIN(winlostdate) 
-	FROM dbo.bettrans WITH(NOLOCK)
-
 	INSERT INTO @tmpIssueType (IssueTypeId)
-	SELECT DISTINCT val
+	SELECT DISTINCT val AS IssueTypeId
 	FROM dbo.f_SplitString(@IssueTypeId, ',')
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
 	INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
-	SELECT	val AS TransId
+	SELECT	val AS SubIssueTypeId
 	FROM	dbo.f_SplitString(@SubIssueType, ',')
 	OPTION (MAXRECURSION 0) 
 
-	IF (@RequestId IS NOT NULL AND CHARINDEX(',', @RequestId) = 0)
+	IF @RequestIdXml IS NOT NULL
 	BEGIN
-		SET @RequestId = CAST (@RequestId AS INT)
-	END
-	ELSE
-	BEGIN
-		INSERT INTO @RequestId_tmp (RequestId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@RequestId, ',')
-		OPTION (MAXRECURSION 0) 
+		-- Parse xml @RequestId
+		INSERT INTO @RequestId_tmp(RequestId)
+		SELECT t.c.value('@Id','INT') AS RequestId
+		FROM @RequestIdXml.nodes('RequestId') t(c)
+		OPTION (OPTIMIZE FOR (@RequestIdXml = NULL))
+
+		SELECT @NumberofRequestId = COUNT(RequestId)
+		FROM @RequestId_tmp
+
+		IF @NumberofRequestId = 1
+		BEGIN
+			SELECT @RequestId = RequestId 
+			FROM @RequestId_tmp
+		END
 	END
 
-	SELECT	@FilteredBy = CASE 
-							   WHEN @RequestId IS NOT NULL AND CHARINDEX(',', @RequestId) = 0 THEN 1 -- RequestId
-							   WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
-							   WHEN @RequestId IS NOT NULL AND CHARINDEX(',', @RequestId) <> 0 THEN 3 -- Fromdate, Todate
+	SELECT	@FilteredBy = CASE
+								WHEN @RequestIdXml IS NULL THEN 2 -- MatchId
+								ELSE
+									CASE 
+										WHEN @NumberofRequestId = 1 THEN 1 -- RequestId
+										ELSE 3 -- Fromdate, Todate
+									END
 							END
-
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
 	BEGIN
@@ -147,38 +147,6 @@ BEGIN
 												ELSE 0 END
 		)
 		BEGIN
-			SELECT @MinWinlostdate =  MIN(b.winlostdate)
-			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					ON rd.RequestId = s.RequestId AND rd.MatchId = s.MatchId
-				INNER JOIN dbo.bettrans b WITH(NOLOCK) 
-					ON rd.MatchId = b.matchid AND s.TransId = b.transid
-				LEFT JOIN @RequestId_tmp r 
-					ON rd.RequestId = r.RequestId
-			WHERE rd.matchid IN (9, 29, 2799)
-				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-							 WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-							 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-							 ELSE 0 
-						END
-
-			SELECT @MinWinlostdate14 =  MIN(b14.winlostdate)
-			FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
-					ON rd.RequestId = s.RequestId AND rd.MatchId = s.MatchId
-				INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) 
-					ON rd.MatchId = b14.matchid AND s.TransId = b14.transid
-				LEFT JOIN @RequestId_tmp r 
-					ON rd.RequestId = r.RequestId
-			WHERE rd.matchid IN (9, 29, 2799)
-				AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
-							 WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
-							 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
-							 ELSE 0
-						END
-
-			IF (@MinWinlostdate >= @moveBetDay)
-			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId,MIN(b.winlostdate)
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -194,9 +162,7 @@ BEGIN
 								 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
 								 ELSE 0 END
 				GROUP BY rd.RequestId
-			END
-			IF (@MinWinlostdate14 >= @moveBetDay14)
-			BEGIN
+
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(b14.winlostdate)
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -212,7 +178,7 @@ BEGIN
 								 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
 								 ELSE 0 END
 				GROUP BY rd.RequestId
-			END
+
 		END
 
 		IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
@@ -547,3 +513,4 @@ BEGIN
 	DROP TABLE #tmpResult
 	
 END
+

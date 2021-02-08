@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 		
 		- 20210112@Zane: Create new SP [Redmine:#145719]
+        - 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
 
 	Param's explanation:
 		
@@ -19,15 +20,15 @@ AS
 BEGIN 
     SET NOCOUNT ON 
 
-    DECLARE @tmpResult TABLE (requestid INT, issueTypeId TINYINT, eventdate DATETIME) 
+    DECLARE @tmpResult TABLE (requestid INT) 
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
                WHERE  matchid IN ( 9, 29, 2799 )) 
       BEGIN 
 			--BETTRANS
-            INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
-            SELECT rd.requestid, r.IssueTypeId, Min(b.winlostdate) 
+            INSERT INTO @tmpResult (requestid) 
+            SELECT rd.requestid
             FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 					INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
 							ON rd.requestid = r.RequestId 
@@ -40,8 +41,8 @@ BEGIN
             GROUP  BY rd.requestid, r.IssueTypeId
 
 			--BETTRANS14
-            INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
-            SELECT rd.requestid, r.IssueTypeId, Min(b14.winlostdate) 
+            INSERT INTO @tmpResult (requestid) 
+            SELECT rd.requestid 
             FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 					INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
 							ON rd.requestid = r.RequestId
@@ -64,8 +65,8 @@ BEGIN
                               ON rd.matchid = o.orid 
                WHERE  o.eventdate BETWEEN @FromDate AND @ToDate) 
       BEGIN 
-          INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
-          SELECT rd.requestid, r.IssueTypeId, Min(o.eventdate) 
+          INSERT INTO @tmpResult (requestid) 
+          SELECT rd.requestid
           FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 				 INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
 								ON rd.requestid = r.RequestId
@@ -79,8 +80,8 @@ BEGIN
           GROUP  BY rd.requestid, r.IssueTypeId
       END 
 
-    INSERT INTO @tmpResult (requestid, issueTypeId, eventdate) 
-    SELECT rd.requestid, r.IssueTypeId, Min(m.eventdate) 
+    INSERT INTO @tmpResult (requestid) 
+    SELECT rd.requestid
     FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 			INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
 								ON rd.requestid = r.RequestId
@@ -93,6 +94,6 @@ BEGIN
     WHERE  m.eventdate BETWEEN @FromDate AND @ToDate 
     GROUP  BY rd.requestid, r.IssueTypeId 
 	
-	SELECT DISTINCT requestid, issueTypeId
+	SELECT DISTINCT requestid
 	FROM @tmpResult
-END 
+END
