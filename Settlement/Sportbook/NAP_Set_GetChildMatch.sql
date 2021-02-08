@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_GetChildMatch (
 	@MatchIds VARCHAR(MAX)
 )
