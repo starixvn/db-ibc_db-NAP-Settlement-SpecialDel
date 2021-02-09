@@ -31,6 +31,7 @@ AS
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
 		- 20210207@Helen: Increase Retry for void process [Redmine: #150178]
+		- 20210208@Max: [TVS] Enhance performance of void abnormal account [Redmine: #150204]
 	
 	Param's explanation:	
 		
@@ -1191,41 +1192,6 @@ BEGIN
 		DROP TABLE #balanceGameChange
 	END
 
-	-- get negative balance user list
-	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(a.custid AS VARCHAR(20)) + ','
-	FROM	@BeforeUpd b
-		INNER JOIN @AfterUpd a
-			ON b.custid = a.custid
-	WHERE	b.balance > a.balance
-
-	EXEC dbo.NAP_CustNegativeBalance_Sel
-		@CustIds = @CustIds
-		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
-	UPDATE odds  
-		SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-			   ELSE 0 END )  
-		,awaytotal = awaytotal - (CASE WHEN b.betteam = 'a' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-				ELSE 0 END)  
-		FROM dbo.odds o WITH (ROWLOCK,UPDLOCK)  
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) 
-				ON o.matchid = b.matchid AND o.oddsid = b.oddsid  
-			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) 
-				ON c.custid = b.custid  
-			INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) 
-				ON c.currency = e.exchangeid  
-		
-		WHERE	b.matchid = o.matchid
-			AND EXISTS ( 
-				SELECT TOP 1 1   
-				FROM #tmpTransId AS t
-				WHERE t.TransID  = b.transid
-					AND t.Bettype IN (1,3,7,8)				
-		   ) 
-
 	-- Update BetTradeSellingCancelled information
 	SET @CustIds = ''
 	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
@@ -1343,7 +1309,26 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 			@Mode = 'Original'
 		  , @Action = 'Void'
-		  , @IsReleased = 1  	
+		  , @IsReleased = 1
+		  
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @BeforeUpd b
+			INNER JOIN @AfterUpd a
+				ON b.custid = a.custid
+					AND b.matchid = a.matchid
+					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	-- Write Log
 	SET @EndTime = GETDATE()
