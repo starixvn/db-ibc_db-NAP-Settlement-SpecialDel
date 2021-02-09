@@ -15,6 +15,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20201202@Charles: Insert data for new VoidData column [Redmine:#143666]
+		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 		
 	Param's explanation:	
 		
@@ -31,7 +32,7 @@ BEGIN
 		)
 	SELECT	@RequestId
 			,@UserId
-			,1 -- running
+			,99 -- Queue inserting
 			,@TransIds
 			,@VoidData
 	SET @VoidingHistoryId = SCOPE_IDENTITY()

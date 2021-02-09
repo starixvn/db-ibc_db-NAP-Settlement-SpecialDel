@@ -19,6 +19,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210501@July: TVS - Abnormal Account [Redmine: #143666]
+		- 20210209@Kathy: insert queue slowly with abnormal account issue type [Redmine:#150199]
 	
 	Param's explanation:	
 		
@@ -28,7 +29,8 @@ BEGIN
 
 	CREATE TABLE #TmpTransId (TransId BIGINT, MatchId INT)
 	CREATE TABLE #TmpQueue_Insert (MatchId INT, VoidingHistoryId INT, VoidingTypeId TINYINT, TotalTicket INT, TransIds VARCHAR(MAX), UserId INT, IP VARCHAR(50))
-
+	CREATE TABLE #TmpInputTransIds (TransId BIGINT PRIMARY KEY)
+	
 	IF (@MatchId <> 0 )
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_Queue (
@@ -55,16 +57,17 @@ BEGIN
 	ELSE
 	BEGIN -- Apply for Abnormal account
 
-		INSERT INTO #TmpTransId (TransId, MatchId)
-		SELECT DISTINCT f.val, b.matchid
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single b WITH(NOLOCK)
-			CROSS APPLY (
-					SELECT val
-					FROM dbo.f_SplitString(@TransIds, ',')
-					WHERE val = b.TransId
-				)f
-		WHERE b.RequestId = @RequestId
+		INSERT INTO #TmpInputTransIds(TransId)
+		SELECT 	DISTINCT val
+		FROM 	dbo.f_SplitString(@TransIds, ',')
 		OPTION (MAXRECURSION 0)
+		
+		INSERT INTO #TmpTransId (TransId, MatchId)
+		SELECT DISTINCT b.TransId, b.matchid
+		FROM	dbo.TicketVoiding_RequestDetailTicket_Single b WITH(NOLOCK)
+			INNER JOIN #TmpInputTransIds t
+				ON 	t.TransId = b.TransId
+		WHERE 	b.RequestId = @RequestId		
 
 		INSERT INTO #TmpQueue_Insert (MatchId, VoidingHistoryId, VoidingTypeId, TotalTicket, TransIds, UserId, IP)
 		SELECT s.MatchId
@@ -106,6 +109,7 @@ BEGIN
 
 	DROP TABLE #TmpTransId
 	DROP TABLE #TmpQueue_Insert
+	DROP TABLE #TmpInputTransIds
 
 END
 GO

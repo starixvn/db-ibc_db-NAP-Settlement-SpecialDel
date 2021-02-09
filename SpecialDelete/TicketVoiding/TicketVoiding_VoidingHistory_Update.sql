@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	@VoidingHistoryId	INT
 	,@StatusId			TINYINT
-	,@MessageId			INT
-	,@ReasonId			INT
+	,@MessageId			INT = NULL
+	,@ReasonId			INT = NULL
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -11,7 +11,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20181212@Kathy: Create new SP [Redmine:#90155]\
+		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 	
 	Param's explanation:	
 		
@@ -21,8 +22,8 @@ BEGIN
 
 	UPDATE	dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
 		SET	StatusId = @StatusId
-			,MessageId = @MessageId
-			,ReasonId = @ReasonId
+			,MessageId = ISNULL(@MessageId, MessageId)
+			,ReasonId = ISNULL(@ReasonId, ReasonId)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 
 END
