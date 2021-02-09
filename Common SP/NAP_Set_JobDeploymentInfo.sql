@@ -15,6 +15,7 @@ AS
 		- 20210128@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
 		- 20210207@Helen: TVS - Increase Retry for void process [Redmine: #150176]
+		- 20210209@Helen: TVS - Performance Tuning for void abnormal account over 300 matches [Redmine: #150204]
 */
 BEGIN
 	SET NOCOUNT ON
