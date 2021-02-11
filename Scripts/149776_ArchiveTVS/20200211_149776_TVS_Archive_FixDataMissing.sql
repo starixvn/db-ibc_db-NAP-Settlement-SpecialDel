@@ -2,10 +2,79 @@
 /*
     Created: 20200211@Helen
 	Task: TVS - Fix Data for TVS Archive - [Redmine: #150199]
-	DB: DBARC-bodb_archive
+	DB: DBARC-bodb_archive 
 */
 USE bodb_archive
 GO
+
+CREATE TABLE #TicketVoiding_VoidedTransaction_bk(
+	[TransId] [bigint] NOT NULL,
+	[MessageId] [int] NOT NULL,
+	[ReasonId] [int] NOT NULL,
+	[MatchId] [int] NULL,
+	[CreatedDate] [datetime] NULL ,
+	[Id] [int] NOT NULL,
+	[IssueTypeID] [tinyint] NULL,
+	[SubIssueTypeID] [tinyint] NULL,
+	[CustID] [int] NULL,
+)
+
+CREATE TABLE #zzzbettrans_bk(
+	[transid] [bigint] NOT NULL,
+	[custid] [int] NOT NULL,
+	[transdate] [datetime] NOT NULL,
+	[oddsid] [int] NOT NULL,
+	[hdp1] [smallmoney] NULL,
+	[hdp2] [smallmoney] NULL,
+	[odds] [smallmoney] NULL,
+	[stake] [money] NOT NULL,
+	[status] [nvarchar](10) NULL,
+	[winlost] [money] NULL,
+	[livehomescore] [smallint] NULL,
+	[liveawayscore] [smallint] NULL,
+	[liveindicator] [bit] NULL,
+	[betteam] [nvarchar](10) NULL,
+	[creator] [int] NOT NULL,
+	[refno] [bigint] NULL,
+	[comstatus] [nvarchar](20) NULL,
+	[winlostdate] [smalldatetime] NULL,
+	[betfrom] [nvarchar](1) NULL,
+	[betcheck] [nvarchar](50) NULL,
+	[checktime] [datetime] NULL,
+	[matchid] [int] NULL,
+	[bettype] [smallint] NULL,
+	[keyid] [int] NOT NULL,
+	[VoidingHistoryId] [int] NULL,
+ )
+
+CREATE TABLE #zzzbettransm_bk(
+	[transid] [bigint] NOT NULL,
+	[custid] [int] NOT NULL,
+	[transdate] [datetime] NOT NULL,
+	[oddsid] [int] NOT NULL,
+	[hdp1] [smallmoney] NULL,
+	[hdp2] [smallmoney] NULL,
+	[odds] [smallmoney] NULL,
+	[stake] [money] NOT NULL,
+	[status] [nvarchar](10) NULL,
+	[winlost] [money] NULL,
+	[livehomescore] [smallint] NULL,
+	[liveawayscore] [smallint] NULL,
+	[liveindicator] [bit] NULL,
+	[betteam] [nvarchar](10) NULL,
+	[creator] [int] NOT NULL,
+	[refno] [bigint] NULL,
+	[comstatus] [nvarchar](20) NULL,
+	[winlostdate] [smalldatetime] NULL,
+	[betfrom] [nvarchar](1) NULL,
+	[betcheck] [nvarchar](50) NULL,
+	[checktime] [datetime] NULL,
+	[matchid] [int] NULL,
+	[bettype] [smallint] NULL,
+	[keyid] [int] NOT NULL,
+	[VoidingHistoryId] [int] NULL
+)
+
 CREATE TABLE #ArchiveDate (
 			id			INT		IDENTITY(1,1)
 		,	winlostdate	SMALLDATETIME
@@ -30,6 +99,7 @@ SET @stop = (SELECT COUNT(1) FROM #ArchiveDate)
 DECLARE @debug_message VARCHAR(500)
 SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)
 
+
 WHILE (@start <= @stop)
 BEGIN
 	SET  @winlostdate = (SELECT winlostdate FROM #ArchiveDate WHERE id = @start )
@@ -40,7 +110,7 @@ BEGIN
 	--process for ticket sub parlay (sportbook and virtual sport)
 	SELECT	@Query = N'';
 	SELECT	@Query = @Query + N'\
-	INSERT INTO	dbo.TicketVoiding_VoidedTransaction_bk
+	INSERT INTO	#TicketVoiding_VoidedTransaction_bk
 	(	TransId, MessageId, ReasonId, MatchId, CreatedDate, Id, IssueTypeID, SubIssueTypeID, CustID)
 	SELECT	TransId, MessageId, ReasonId, MatchId, CreatedDate, Id, IssueTypeID, SubIssueTypeID, CustID
 	FROM	OPENQUERY(DBTXN, ''\
@@ -57,7 +127,7 @@ BEGIN
 	-------------------- zzzbettrans_bk ------------
 	SELECT	@Query = N'';
 	SELECT	@Query = @Query + N'\
-	INSERT INTO	dbo.zzzbettrans_bk
+	INSERT INTO	#zzzbettrans_bk
 	(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId)
 	SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId
 	FROM	OPENQUERY(DBTXN, ''\
@@ -76,7 +146,7 @@ BEGIN
 	-------------------zzzbettransM_bk-------------
 	SELECT	@Query = '';
 	SELECT	@Query = @Query + N'\
-	INSERT INTO	dbo.zzzbettransM_bk
+	INSERT INTO	#zzzbettransM_bk
 	(transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId)
 	SELECT transid, custid, transdate, 
 	oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId
@@ -94,3 +164,19 @@ BEGIN
 	SET @start = @start + 1
 		
 END
+/*
+---------------- insert final result ---------------
+INSERT INTO	TicketVoiding_VoidedTransaction_bk(	TransId, MessageId, ReasonId, MatchId, CreatedDate, Id, IssueTypeID, SubIssueTypeID, CustID)
+SELECT	TransId, MessageId, ReasonId, MatchId, CreatedDate, Id, IssueTypeID, SubIssueTypeID, CustID
+FROM #TicketVoiding_VoidedTransaction_bk
+
+INSERT INTO	zzzbettrans_bk(	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId)
+SELECT	transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId
+FROM #zzzbettrans_bk
+
+INSERT INTO	zzzbettransM_bk	(transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId)
+SELECT transid, custid, transdate,oddsid, hdp1, hdp2, odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator, betteam, creator, refno, comstatus, winlostdate, betfrom, betcheck, checktime, matchid, bettype, keyid, VoidingHistoryId
+FROM #zzzbettransM_bk
+
+------------------------------------------------------
+*/
