@@ -16,7 +16,7 @@ CREATE TABLE #TicketVoiding_VoidedTransaction_bk(
 	[Id] [int] NOT NULL,
 	[IssueTypeID] [tinyint] NULL,
 	[SubIssueTypeID] [tinyint] NULL,
-	[CustID] [int] NULL,
+	[CustID] [int] NULL
 )
 
 CREATE TABLE #zzzbettrans_bk(
@@ -44,7 +44,7 @@ CREATE TABLE #zzzbettrans_bk(
 	[matchid] [int] NULL,
 	[bettype] [smallint] NULL,
 	[keyid] [int] NOT NULL,
-	[VoidingHistoryId] [int] NULL,
+	[VoidingHistoryId] [int] NULL
  )
 
 CREATE TABLE #zzzbettransm_bk(
