@@ -1,10 +1,21 @@
-﻿ALTER PROCEDURE dbo.NAP_Settlement_MoveTicket
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE dbo.NAP_Settlement_MoveTicket
 	@MatchId INT
 	,@AdminId INT
 	,@IP VARCHAR(50) = ''
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
+/*	Creator: Kathy
+	Date: 20210218
+	Task: Move ticket of cricket
+	DB: DBTXN/BODB02
+
+	Revisions:
+		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+
+	Param's Explanation:
+*/
 BEGIN
 	SET NOCOUNT ON
 
@@ -14,15 +25,26 @@ BEGIN
 			,@avaiableProcess BIT
 			,@logdata VARCHAR(300) = ''
 			,@Remark VARCHAR(MAX) = ''
-			,@ActionID INT = 11111
+			,@ActionID INT = 81025
 			,@ResourceIds VARCHAR(MAX) = ''
+			,@startRowId INT = 0
+			,@batchNo INT = 2000
+			,@strTransIds VARCHAR(MAX) = ''
+			,@Action VARCHAR(20) = 'MoveTicket'
+			,@Mode VARCHAR(15) = ''
+			,@StartTime DATETIME
+			,@EndTime DATETIME
+			,@totalSingle INT = 0
+			,@totalParlay INT = 0
 
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20))
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #tmpTransIdsSingle (TransId BIGINT PRIMARY KEY)
-	CREATE TABLE #tmpTransIdsParlay (TransId BIGINT PRIMARY KEY)
+	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
+	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT)
+	
+	SET @StartTime = GETDATE()
 
 	SELECT	@eventdate = m.eventdate
 	FROM	dbo.match m WITH(NOLOCK)
@@ -34,6 +56,14 @@ BEGIN
 			AND m.ChildMatchType = 200
 			AND m.eventdate = @eventdate
 	ORDER BY m.matchid
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SELECT	@ErrCode = 1
+				,@ErrMsg = 'WARNING! Cannot continue due to destination match not found.'
+		
+		RETURN
+	END
 
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	VALUES (@MatchId, 1), (@childMatchId, 1)
@@ -64,8 +94,8 @@ BEGIN
 						OR s.RefResourceId = t.ResourceId)
 		)s
 
-	INSERT INTO #tmpTransIdsSingle(TransId)
-	SELECT	b.transid
+	INSERT INTO #tmpTransIdsSingle(TransId, statusId)
+	SELECT	b.transid, b.statusID
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -74,26 +104,65 @@ BEGIN
 					AND (t.BetId = 0 OR t.BetId = b.betid)
 		)t				
 	WHERE	b.matchid = @MatchId
-			
-	IF @@ROWCOUNT = 0
+		
+	SET @totalSingle = @@ROWCOUNT
+
+	INSERT INTO #tmpTransIdsParlay(TransId)
+	SELECT	bm.transid
+	FROM	dbo.bettransm bm WITH(NOLOCK)
+		CROSS APPLY (
+			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
+			FROM	@tmpBettypeResourceId t
+			WHERE	t.Bettype = bm.bettype
+					AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
+		)t				
+	WHERE	bm.matchid = @MatchId
+	
+	SET @totalParlay = @@ROWCOUNT
+
+	IF @totalSingle = 0
 	BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
-
-		SELECT	@ErrCode = 1
-				,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'
-
-		RETURN
+		
+		IF @totalParlay = 0
+		BEGIN
+			SELECT	@ErrCode = 1
+					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'
+		
+			RETURN
+		END
 	END
 
 	-- move single
-	UPDATE b WITH(UPDLOCK, ROWLOCK)
-		SET matchid = @childMatchId
-	FROM	dbo.bettrans b 
-		INNER JOIN #tmpTransIdsSingle t
-			ON b.transid = t.transid
-	
+	IF @totalSingle > 0
+	BEGIN
+		SET @startRowId = 0
+		SET @strTransIds = ''
+		SET @Mode = 'Single'
+
+		WHILE (1=1)
+		BEGIN
+			SET @strTransIds = ''
+
+			SET @strTransIds = (
+				SELECT	TOP (@batchNo) transid AS '@t'
+				FROM	#tmpTransIdsSingle 
+				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo)		
+
+			IF ISNULL(@strTransIds,'')  = ''
+				BREAK
+
+			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @childMatchId
+				,@Action = @Action
+				,@Mode = @Mode
+				,@strTransIds = @strTransIds
+
+			SET @startRowId = @startRowId + @batchNo
+		END
+	END
+
 	-- set child match completed
 	 EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
         @Command            = 'NAP_Admin_Settlement_1-CAL'
@@ -108,22 +177,13 @@ BEGIN
 		@matchid    = @childMatchId
 		,@command    = 'C'
 
-	EXEC dbo.NAP_Admin_CheckingProcess
+	IF @totalSingle > 0
+		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= 1
 			,@IsReleased		= 1
-
-	INSERT INTO #tmpTransIdsParlay(TransId)
-	SELECT	bm.transid
-	FROM	dbo.bettransm bm WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
-			FROM	@tmpBettypeResourceId t
-			WHERE	t.Bettype = bm.bettype
-					AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
-		)t				
-	WHERE	bm.matchid = @MatchId
-			
-	IF @@ROWCOUNT > 0
+	
+	--move parlay
+	IF @totalParlay > 0
 	BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess		
 			 @isexistParlay				= 1		
@@ -133,48 +193,57 @@ BEGIN
 
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			RETURN
+
+		-- move parlay
+		SET @startRowId = 0
+		SET @strTransIds = ''
+		SET @Mode = 'subParlay'
+
+		WHILE (1=1)
+		BEGIN
+			SET @strTransIds = ''
+
+			SET @strTransIds = (
+				SELECT	TOP (@batchNo) transid AS '@t'
+				FROM	#tmpTransIdsParlay 
+				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo)		
+
+			IF ISNULL(@strTransIds,'')  = ''
+				BREAK
+
+			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @childMatchId
+				,@Action = @Action
+				,@Mode = @Mode
+				,@strTransIds = @strTransIds
+
+			SET @startRowId = @startRowId + @batchNo
+		END
+
+		-- settle parlay
+		EXEC dbo.NAP_Admin_Settlement_MP
+		@matchid				= @childMatchId
+		,@creator				= @AdminId
+		,@action				= 'CAL'
+		,@parentMatchId			= @MatchId
+		,@ErrCode				= @ErrCode	OUTPUT
+		,@ErrMsg				= @ErrMsg	OUTPUT
+
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay		= 1
+			,@IsReleased		= 1
 	END
 
-	-- move parlay -- đi chung pub với settle
-	UPDATE bm WITH(UPDLOCK, ROWLOCK)
-		SET matchid = @childMatchId
-	FROM	dbo.bettransm bm 
-		INNER JOIN #tmpTransIdsParlay t
-			ON bm.transid = t.transid
-
-	-- betparlaydetail
-	UPDATE d 
-		SET matchid = @childMatchId
-	FROM	dbo.BetParlayDetail d WITH(ROWLOCK, UPDLOCK)
-		INNER JOIN #tmpTransIdsParlay t
-			ON d.transid = t.TransId
-	WHERE	matchid = @MatchId
-
-	-- settle parlay
-	EXEC dbo.NAP_Admin_Settlement_MP
-	@matchid				= @childMatchId
-	,@creator				= @AdminId
-	,@action				= 'CAL'
-	,@ErrCode				= @ErrCode	OUTPUT
-	,@ErrMsg				= @ErrMsg	OUTPUT
-
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistParlay		= 1
-		,@IsReleased		= 1
+	SET @EndTime = GETDATE()
 
 	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
 				+' into child match: ' + CAST(@childMatchId AS VARCHAR)
-				+ ',Result: (' + @ResourceIds + ')'
+				+ ',Settled Results: (' + @ResourceIds + ')'
 						   
 						   
 	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
 						+ '(' + @ResourceIds + ')'
-						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
-						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-				
-				
+						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + ' single, ' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20))  + ' subparlay'				
 				
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @AdminId

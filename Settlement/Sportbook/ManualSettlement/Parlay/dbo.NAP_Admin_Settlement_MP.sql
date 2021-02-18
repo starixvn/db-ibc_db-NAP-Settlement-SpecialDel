@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
+	,@parentMatchId			INT				= NULL
 	,@IP					VARCHAR(15)		= ''
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
@@ -40,8 +41,10 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 
 	Param's Explanation:
+		@parentMatchId: identify main match of cricket
 */
 BEGIN
 	SET NOCOUNT ON
@@ -105,7 +108,7 @@ BEGIN
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
+	IF ISNULL(@ErrCode,0) <> 0 AND @parentMatchId IS NULL -- no check child match of cricket
 	BEGIN
 	    SELECT	@ErrCode
 				,@ErrMsg
@@ -501,6 +504,10 @@ BEGIN
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
 		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+						--+ CASE WHEN @parentMatchId IS NOT NULL THEN ', D-CHILD match'
+
+		IF @parentMatchId IS NOT NULL
+			SET @matchid = @parentMatchId
 
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
