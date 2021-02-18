@@ -222,7 +222,9 @@ BEGIN
 	SELECT @matchidList =	@matchidList + ',' + CAST(matchid AS VARCHAR(20)) FROM #tmpMatchIds
 	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 	
-	INSERT INTO #ChildMatch ( MatchId, ParentId  ) EXEC DBPRO.bodb02.dbo.NAP_Set_GetChildMatch @MatchIds = @matchidList
+	INSERT INTO #ChildMatch ( MatchId, ParentId  ) 
+	EXEC DBPRO.bodb02.dbo.NAP_Set_GetChildMatch @MatchIds = @matchidList
+
 	SET @matchidList = ''
 
 	;WITH singlequeue 

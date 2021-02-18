@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_GetChildMatch (
-	@MatchIds VARCHAR(MAX)
+	@MatchIds	VARCHAR(MAX)
 )
 AS
 /*
@@ -13,6 +13,8 @@ AS
 
 */
 BEGIN
+	
+	SET NOCOUNT ON
 	
 	DECLARE @tblMatchInfo TABLE ( MatchId INT, ParentId INT)
 
@@ -27,7 +29,9 @@ BEGIN
 	WHERE ParentID IN ( SELECT tmp.MatchId FROM @tblMatchInfo tmp )
 		AND ISNULL( m.ChildMatchType, 0) = 200
 		AND m.sporttype = 50
-	
+
 	SELECT * FROM @tblMatchInfo
 
 END
+
+GO
