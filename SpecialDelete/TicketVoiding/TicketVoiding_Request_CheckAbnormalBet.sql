@@ -34,6 +34,7 @@ AS
 		- 20200907@Raymond: Disable LiveScore of Football sport [Redmine: #141058]
 		- 20201103@Charles:  No need to check Live Score once add request for Baseball [Redmine: #144544]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
+		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -64,6 +65,7 @@ BEGIN
 			,@IsExistFM					 BIT = 0
 			,@IsExistFM2				 BIT = 0
 			,@MatchProcessXML			 XML = NULL
+			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -104,6 +106,7 @@ BEGIN
 			,@CN88TransIds AS CN88TransIds
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
+			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
 
 		RETURN;
 	END
@@ -273,7 +276,7 @@ BEGIN
 				FOR XML PATH('')
 				), 1, 1, ''), '')
 
-	IF @ActionId <>2
+	IF @ActionId <> 2
 	BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #transIdTemp t 
@@ -305,6 +308,15 @@ BEGIN
 						FROM @VIPAccount_tmp as vip
 						WHERE vip.CustID = v.custId
 					)
+					FOR XML PATH('')
+					), 1, 1, ''), '')
+
+		-- Check validation for the ticket that has customer class = 1
+		SELECT @TransIdsOfCustomerClass1 = ISNULL(STUFF((
+					SELECT ',' + CAST(v.transid AS VARCHAR(50))
+					FROM #validTransId AS v	
+						INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
+					WHERE c.CustomerClass = 1
 					FOR XML PATH('')
 					), 1, 1, ''), '')
 	END
@@ -389,6 +401,7 @@ BEGIN
 			,@CN88TransIds AS CN88TransIds
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
+			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
 			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay

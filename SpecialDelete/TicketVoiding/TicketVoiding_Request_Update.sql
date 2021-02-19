@@ -50,6 +50,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistNG				BIT           = 0
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
+	,@IsVoidVIPMember		BIT			  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
