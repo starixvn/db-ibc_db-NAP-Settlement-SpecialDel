@@ -32,6 +32,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@StatusIds				VARCHAR(50)  = NULL
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
+	,@IsVoidVIPMember		BIT = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
 	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
@@ -62,6 +63,7 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
+		- 20210224@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 	
@@ -150,7 +152,11 @@ BEGIN
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
-				,RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				,RequestType = CASE WHEN @ActionId = 4 THEN 1 
+									ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @ActionId = 1 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
+											  WHEN @IssueTypeId = 11 AND @ActionId = 1 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
+										 END
+								END
 		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept, Red Card

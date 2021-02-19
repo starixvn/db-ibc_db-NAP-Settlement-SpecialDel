@@ -63,6 +63,7 @@ AS
 		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
+		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -155,6 +156,7 @@ BEGIN
 				,@StatusIds	= @StatusIds				
 				,@FromDate = @FromDate				
 				,@ToDate = @ToDate
+				,@IsVoidVIPMember = @IsVoidVIPMember
 	
 	IF (@IssueTypeId NOT IN (1,10) OR (@IssueTypeId IN (1,10) AND @SingleCount > 0))
 	BEGIN
