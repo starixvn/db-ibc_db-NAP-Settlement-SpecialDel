@@ -28,6 +28,7 @@ AS
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -475,7 +476,7 @@ BEGIN
 		IF @Action LIKE 'CAL%'
 		BEGIN
 
-			IF  @existsFinalRound = 1
+			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN				 
 				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid				= @matchid
