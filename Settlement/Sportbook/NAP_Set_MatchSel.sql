@@ -81,6 +81,7 @@ BEGIN
 		,@SettlementStatus TINYINT
 		,@isSettingByProfile BIT = 0
 		,@existSettingEarly BIT = 0
+		,@matchidList VARCHAR(MAX)
 	
 	SET @StartTime = GETDATE()
 	
@@ -352,7 +353,23 @@ BEGIN
 	DECLARE @strBettypesParlay	VARCHAR (MAX)		
 		,@n						INT = 2147483647
 
-	
+	CREATE TABLE #tmpMatchId ( MatchId INT, ParentId INT )
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #matchList m WHERE m.sporttype = 50 )
+	BEGIN
+		SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+		FROM #matchList
+		SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+
+		INSERT INTO #tmpMatchId (MatchId, ParentId )
+		EXEC dbo.NAP_Set_GetChildMatch @MatchId =  @matchidList
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tmpMatchId (MatchId, ParentId )
+		SELECT m.MatchId, m.MatchId FROM #matchList m
+	END
+
 	CREATE TABLE #tmpBettypes (bettype SMALLINT, groupid SMALLINT, IsFGLG BIT, IsEarly BIT)
 	
 	DECLARE @minbettype SMALLINT	
@@ -717,8 +734,6 @@ BEGIN
 		, m.betstatus
 		, m.matchcode			
 
-	DECLARE @matchidList VARCHAR(MAX) = ''
-	    
 	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
 	FROM #matchList
 	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))

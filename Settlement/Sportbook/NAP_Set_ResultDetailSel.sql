@@ -38,7 +38,7 @@ BEGIN
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
-	WHERE ( m.sporttype <> 50 AND ISNULL(m.ChildMatchType,0) <> 200 ) -- Cricket child match
+	--WHERE ( m.sporttype <> 50 AND ISNULL(m.ChildMatchType,0) <> 200 ) -- Cricket child match
 	OPTION (maxrecursion 0)
 
 	;WITH  cteLatestSports
