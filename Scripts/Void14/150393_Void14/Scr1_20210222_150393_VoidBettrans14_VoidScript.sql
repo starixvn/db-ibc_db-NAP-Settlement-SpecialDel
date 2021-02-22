@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: Helen
 	Date 20210222
