@@ -19,23 +19,28 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @eventdate DATETIME
+	DECLARE @Action VARCHAR(20)
+			,@Mode VARCHAR(15) 
+			,@eventdate DATETIME
 			,@childMatchId INT
-			,@isExistParlay				BIT = 0
 			,@avaiableProcess BIT
-			,@logdata VARCHAR(300) = ''
-			,@Remark VARCHAR(MAX) = ''
-			,@ActionID INT = 81025
-			,@ResourceIds VARCHAR(MAX) = ''
-			,@startRowId INT = 0
-			,@batchNo INT = 2000
-			,@strTransIds VARCHAR(MAX) = ''
-			,@Action VARCHAR(20) = 'MoveTicket'
-			,@Mode VARCHAR(15) = ''
+			,@totalSingle INT 
+			,@totalParlay INT 
+			,@startRowId INT 
+			,@batchNo INT 
+			,@strTransIds VARCHAR(MAX) 
+			,@sqlRemoteQuery NVARCHAR(MAX) 
+
 			,@StartTime DATETIME
 			,@EndTime DATETIME
-			,@totalSingle INT = 0
-			,@totalParlay INT = 0
+			,@ActionID INT 
+			,@logdata VARCHAR(300) 
+			,@ResourceIds VARCHAR(MAX) 
+			,@Remark VARCHAR(MAX)
+			
+	SELECT @Action = 'MoveTicket'
+		,@batchNo = 2000
+		,@ActionID = 81025		
 
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20))
@@ -77,11 +82,13 @@ BEGIN
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		RETURN
 	
+	SET @sqlRemoteQuery = ' SELECT	ResourceID 
+							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
+							WHERE	matchid = ' + CAST (@MatchId AS VARCHAR) + '
+									AND ResultStatusID = 5'
+
 	INSERT INTO @tmpResourceId(ResourceId)
-	SELECT	ResourceID 
-	FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
-	WHERE	matchid = @MatchId
-			AND ResultStatusID = 5
+	EXECUTE sys.sp_executesql @sqlRemoteQuery
 
 	INSERT INTO @tmpBettypeResourceId(Bettype, BetId, ResourceId)
 	SELECT	s.BetType, s.BetID, t.ResourceID
@@ -89,7 +96,7 @@ BEGIN
 		CROSS APPLY (
 			SELECT	s.BetType, s.BetID
 			FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			WHERE	s.SportType = 1
+			WHERE	s.SportType = 50
 					AND (s.ResourceID = t.ResourceId
 						OR s.RefResourceId = t.ResourceId)
 		)s
@@ -134,7 +141,7 @@ BEGIN
 			RETURN
 		END
 	END
-
+	
 	-- move single
 	IF @totalSingle > 0
 	BEGIN
@@ -162,7 +169,7 @@ BEGIN
 			SET @startRowId = @startRowId + @batchNo
 		END
 	END
-
+	
 	-- set child match completed
 	 EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
         @Command            = 'NAP_Admin_Settlement_1-CAL'
@@ -235,6 +242,12 @@ BEGIN
 
 	SET @EndTime = GETDATE()
 
+	SELECT @ResourceIds = COALESCE(@ResourceIds + ',' + ResourceId, ResourceId)
+	FROM	@tmpBettypeResourceId
+	GROUP BY ResourceId
+
+	SET @ResourceIds = STUFF(@ResourceIds,1,1,'')
+	
 	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
 				+' into child match: ' + CAST(@childMatchId AS VARCHAR)
 				+ ',Settled Results: (' + @ResourceIds + ')'
