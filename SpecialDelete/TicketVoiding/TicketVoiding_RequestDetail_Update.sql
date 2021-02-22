@@ -61,6 +61,7 @@ AS
 		- 20200918@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
+		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 
 	Param's explanation:	
 	
@@ -116,9 +117,9 @@ BEGIN
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
-	CREATE TABLE #InputValidCustid_2 (custid INT, Username VARCHAR(30))
-	CREATE TABLE #InputValidCustid_tmp (custid INT, Username VARCHAR(30)) 
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, Username VARCHAR(30) )
+	CREATE TABLE #InputValidCustid_2 (custid INT)
+	CREATE TABLE #InputValidCustid_tmp (custid INT) 
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -214,15 +215,15 @@ BEGIN
 		WHERE val <> '' AND ci.custid IS NOT NULL
 		OPTION (MAXRECURSION 0)
 	
-		INSERT INTO #InputValidCustid_2 (custid, Username)		
-		SELECT l.custid, l.Username
+		INSERT INTO #InputValidCustid_2 (custid)		
+		SELECT l.custid
 		FROM #InputUsernameList l
 		WHERE l.roleid = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
 		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid, Username)	
-			SELECT ci.custid, l.Username
+			INSERT INTO #InputValidCustid_2 (custid)	
+			SELECT ci.custid
 			FROM #InputUsernameList l
 				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			WHERE l.roleid = 3 AND ci.roleid = 2
@@ -230,20 +231,20 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
 		BEGIN
-			INSERT INTO #InputValidCustid_2 (custid, Username)
-			SELECT ci.custid, l.Username
+			INSERT INTO #InputValidCustid_2 (custid)
+			SELECT ci.custid
 			FROM #InputUsernameList l
 				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
 			WHERE l.roleid = 4 AND ci.roleid = 2	
 		END
 
 		-- list of member to process
-		INSERT INTO #InputValidCustid_tmp (CustID, Username)
-		SELECT  CustID, Username
+		INSERT INTO #InputValidCustid_tmp (CustID)
+		SELECT  CustID
 		FROM #InputUsernameList l
 		WHERE l.roleid =1
 		UNION
-		SELECT ci.CustID, lt.Username
+		SELECT ci.CustID
 		FROM #InputValidCustid_2 lt
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 			ON lt.custid = ci.recommend
@@ -271,12 +272,11 @@ BEGIN
 			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 
-		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype, Username)
+		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype)
 		SELECT	b.translogid AS transid
 				,b.statusID  
 				,b.eventID
 				,b.gameID
-				,c.Username
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -289,7 +289,6 @@ BEGIN
 				,b.statusID
 				,b.matchid
 				,b.bettype
-				,c.Username
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -325,16 +324,12 @@ BEGIN
 							WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
 					)tmp
 				CROSS APPLY (
-						SELECT TOP 1 Username, MatchId
+						SELECT TOP 1  MatchId
 						FROM #transIdTemp t
 						WHERE t.MatchId = rd.MatchId
 							AND tmp.TransId = t.transid
 					)t
 			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-				AND 1 = CASE WHEN r.IssueTypeId <> 13 THEN 1  
-							 WHEN r.IssueTypeId = 13  AND CHARINDEX(t.Username, rd.Usernames) <> 0
-								AND ((rd.FromWinlostDate BETWEEN  @FromWinlostDate AND @ToDate) OR (rd.ToWinlostDate BETWEEN  @FromWinlostDate AND @ToDate)) THEN 1
-						     ELSE 0 END
 
 			DELETE 
 			FROM #transIdTemp
