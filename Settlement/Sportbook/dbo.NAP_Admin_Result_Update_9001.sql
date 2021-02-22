@@ -24,6 +24,7 @@ AS
 		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
         - 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		
     Param's Explanation: 
     
@@ -36,13 +37,16 @@ AS
 BEGIN
     SET NOCOUNT ON 
 
+	IF EXISTS ( SELECT TOP 1 1 FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid = @MatchID AND @Sporttype = 50 AND ISNULL(ChildMatchType,0) = 200)
+	RETURN
+
     DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
 			,@othomescore INT
 			,@otawayscore INT
-
+		
     -------------END DECLARE    
     
     --parse XML   
