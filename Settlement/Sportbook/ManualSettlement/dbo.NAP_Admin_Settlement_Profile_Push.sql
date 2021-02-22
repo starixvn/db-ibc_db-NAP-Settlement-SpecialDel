@@ -25,6 +25,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210122@Louisa:Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -44,6 +45,8 @@ BEGIN
 			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
 			,@IsEarly				BIT
+			,@ParentId				INT
+
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
@@ -51,6 +54,7 @@ BEGIN
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
+			,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 THEN ParentID ELSE MatchId END
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
@@ -62,7 +66,7 @@ BEGIN
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
+	@MatchId	= @ParentId
 	,@SelectedResources = @SelectedResources
 	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
@@ -96,7 +100,7 @@ BEGIN
 
 	-- check waiting ticket
 	EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @MatchId
+		@MatchId = @ParentId
 		,@Action = @Action
 		,@Mode = 'CAL'
 		,@xmlData = @SelectedResources
