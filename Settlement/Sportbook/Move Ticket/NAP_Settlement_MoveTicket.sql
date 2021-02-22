@@ -156,7 +156,8 @@ BEGIN
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
 				FROM	#tmpTransIdsSingle 
-				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo)		
+				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
+				FOR XML PATH('r'), ROOT('root'))
 
 			IF ISNULL(@strTransIds,'')  = ''
 				BREAK
@@ -213,7 +214,8 @@ BEGIN
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
 				FROM	#tmpTransIdsParlay 
-				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo)		
+				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
+				FOR XML PATH('r'), ROOT('root'))
 
 			IF ISNULL(@strTransIds,'')  = ''
 				BREAK
