@@ -393,7 +393,7 @@ BEGIN
 		
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
-					 WHEN t.RequestType <> 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
+					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
 				
