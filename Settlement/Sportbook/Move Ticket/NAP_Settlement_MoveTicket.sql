@@ -2,7 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Settlement_MoveTicket
 	@MatchId INT
 	,@AdminId INT
-	,@IP VARCHAR(50) = ''
+	,@IP VARCHAR(15) = ''
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
@@ -231,7 +231,8 @@ BEGIN
 		@matchid				= @childMatchId
 		,@creator				= @AdminId
 		,@action				= 'CAL'
-		,@parentMatchId			= @MatchId
+		,@isAuto				= 1
+		,@IP					= @IP
 		,@ErrCode				= @ErrCode	OUTPUT
 		,@ErrMsg				= @ErrMsg	OUTPUT
 
@@ -256,7 +257,7 @@ BEGIN
 	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
 						+ '(' + @ResourceIds + ')'
 						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + ' single, ' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20))  + ' subparlay'				
+						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
 				
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @AdminId

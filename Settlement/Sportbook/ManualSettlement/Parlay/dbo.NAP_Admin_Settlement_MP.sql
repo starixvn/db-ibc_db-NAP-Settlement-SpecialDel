@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
-	,@parentMatchId			INT				= NULL
+	,@IsAuto				BIT = 0
 	,@IP					VARCHAR(15)		= ''
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
@@ -82,6 +82,7 @@ BEGIN
 			,@priorAction		VARCHAR(20)
 			,@IsSettleBySetting	BIT = 0
 			,@IsExistEarlyBettype BIT
+			,@parentMatchId INT
 
 	SELECT	@matchdate = eventdate
 			,@finalhomescore = CASE sporttype WHEN 10 THEN finalawayscore ELSE finalhomescore END -- Golf, using Stroke count, so swap the score to make it become normal style
@@ -91,6 +92,7 @@ BEGIN
 			,@SportType = SportType
 			,@betstatus = betstatus
 			,@GoalRecord = GoalRecord
+			,@parentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL THEN ParentID ELSE NULL END
 			,@IsRefundHT = CASE WHEN @betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END
 	FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
 	WHERE	matchid = @matchid
@@ -103,12 +105,13 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+	IF @parentMatchId IS NULL  -- no check child match of cricket
+		EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+		@MatchId	= @Matchid
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0 AND @parentMatchId IS NULL -- no check child match of cricket
+	IF ISNULL(@ErrCode,0) <> 0 
 	BEGIN
 	    SELECT	@ErrCode
 				,@ErrMsg
@@ -504,7 +507,7 @@ BEGIN
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
 		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-						+ CASE WHEN @parentMatchId IS NOT NULL THEN ', '
+						+ CASE WHEN @parentMatchId IS NOT NULL THEN ', isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
 		IF @parentMatchId IS NOT NULL
 			SET @matchid = @parentMatchId
