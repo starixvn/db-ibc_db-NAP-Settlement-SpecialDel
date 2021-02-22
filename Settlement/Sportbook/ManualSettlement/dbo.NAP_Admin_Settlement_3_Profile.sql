@@ -333,7 +333,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpFilter (filterBy, modds, minrowid, maxrowid)
 			SELECT filterBy, min(modds) as modds, min(rowid) minrowid, max(rowid) maxrowid
-			FROM #tmpBatchTransId with(nolock)
+			FROM #tmpBatchTransId
 			GROUP BY filterBy
 
 			-- balance before settled
@@ -352,7 +352,7 @@ BEGIN
 				, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
 				, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 			FROM	#tmpBatchTransId st
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 					ON b.transid = st.transid
 			GROUP BY b.custid
 				, b.bonusID
@@ -378,7 +378,7 @@ BEGIN
 				BEGIN
 					SET @strTransIds = (
 										SELECT	TOP (@batchNo) transid AS '@t'
-										FROM	#tmpBatchTransId with(nolock)
+										FROM	#tmpBatchTransId
 										where	rowId between @minrowid and @minrowid + @batchNo -1
 												and rowId <= @maxrowid
 										FOR XML PATH('r'), ROOT('root')
@@ -453,7 +453,7 @@ BEGIN
 				, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
 				, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 			FROM	#tmpBatchTransId AS st
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 					ON b.transid = st.transid
 			GROUP BY b.custid
 				, b.bonusID
@@ -533,7 +533,7 @@ BEGIN
 			,0 AS BonusId
 			,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM	#tmpDummyTicket st
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 				ON b.transid = st.transid
 		GROUP BY b.custid
 			, b.bonusID
@@ -606,7 +606,7 @@ BEGIN
 			,0 AS BonusId
 			,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM	#tmpDummyTicket st
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 				ON b.transid = st.transid
 		GROUP BY b.custid
 			, b.bonusID

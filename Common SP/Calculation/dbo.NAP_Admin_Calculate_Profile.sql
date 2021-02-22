@@ -45,7 +45,7 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, modds smallmoney, ismarked bit, oddstype tinyint)
+	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY)
 	
 	DECLARE @commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
