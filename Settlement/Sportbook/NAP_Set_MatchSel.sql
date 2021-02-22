@@ -81,7 +81,7 @@ BEGIN
 		,@SettlementStatus TINYINT
 		,@isSettingByProfile BIT = 0
 		,@existSettingEarly BIT = 0
-		,@matchidList VARCHAR(MAX)
+		,@matchidList VARCHAR(MAX) = ''
 	
 	SET @StartTime = GETDATE()
 	
@@ -335,6 +335,7 @@ BEGIN
 					OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 				)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
+			AND ISNULL(m.ChildMatchType,0) <> 200
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
@@ -363,6 +364,8 @@ BEGIN
 
 		INSERT INTO #tmpMatchId (MatchId, ParentId )
 		EXEC dbo.NAP_Set_GetChildMatch @MatchId =  @matchidList
+
+		SELECT  @matchidList =''
 	END
 	ELSE
 	BEGIN
@@ -391,12 +394,12 @@ BEGIN
 		,@maxbettype = MAX(bettype)
 	FROM	#tmpBettypes
 	
-	CREATE TABLE #BettypeExtraStatus(matchid INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
+	CREATE TABLE #BettypeExtraStatus(matchid INT, ParentId  INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
 		
-	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
-	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
+	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
+	SELECT m.matchid, ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId FROM #matchList
+		SELECT TOP (@n) MatchId, ParentId FROM #tmpMatchId
 	) AS m
 		CROSS APPLY 
 		(
@@ -418,7 +421,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@n = 1))	-- using hint to force Optimize execute temp table first
 	
 	;WITH MatchExtraStatus AS (
-		SELECT matchid
+		SELECT ParentId
 			,SUM(CASE WHEN GroupId IN (2,4) AND IsFGLG = 1 THEN 1 ELSE 0 END ) AS cntFGLG
 			,SUM(CASE WHEN GroupId IN (1,3) AND IsFGLG = 1  THEN 1 ELSE 0 END ) AS cntHTFGLG
 			,SUM(CASE WHEN GroupId = 9 THEN 1 ELSE 0 END ) AS cntFastMarket
@@ -427,7 +430,7 @@ BEGIN
 			,MAX(CASE WHEN IsEarly = 1 AND isRunning = 1 THEN 1 ELSE 0 END) IsRunningEarlyBettypes
 			,MAX(CASE WHEN IsEarly = 1 AND Waiting_cnt = Bet_cnt THEN 1 ELSE 0 END) IsWatingEarlyBettypes
 		FROM #BettypeExtraStatus
-		GROUP BY matchid
+		GROUP BY ParentId
 	)
 	UPDATE m
 	SET IsExistFGLG 			= CASE WHEN ext.cntFGLG > 0 THEN 1 ELSE 0 END
@@ -439,13 +442,13 @@ BEGIN
 		,IsWaitingEarlyBettypes = CASE WHEN ext.IsWatingEarlyBettypes = 1 THEN 1 ELSE 0 END
 	FROM #matchList m
 		INNER JOIN MatchExtraStatus ext 
-		ON m.matchid = ext.matchid
+		ON m.matchid = ext.ParentId
 	
 	-- check bettransm
-	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
-	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
+	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
+	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId FROM #matchList
+		SELECT TOP (@n) MatchId, ParentId FROM #tmpMatchId
 	) AS m
 		CROSS APPLY 
 		(
@@ -467,7 +470,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@n = 1))	-- using hint to force Optimize execute temp table first
 	
 	;WITH MatchExtraStatusParlay AS (
-		SELECT matchid
+		SELECT ParentId
 			,SUM(CASE WHEN GroupId = 4 THEN 1 ELSE 0 END ) AS cntFGLG
 			,SUM(CASE WHEN GroupId = 3 THEN 1 ELSE 0 END ) AS cntHTFGLG
 			,SUM(CASE WHEN IsEarly = 1 THEN 1 ELSE 0 END) AS cntEarlyBettypeParlay
@@ -475,7 +478,7 @@ BEGIN
 			,MAX(CASE WHEN IsEarly = 1 AND Waiting_cnt = Bet_cnt THEN 1 ELSE 0 END) IsWaitingEarlyBettypesParlay
 		FROM #BettypeExtraStatus
 		WHERE IsParLay = 1
-		GROUP BY matchid
+		GROUP BY ParentId
 	)
 	UPDATE m
 	SET IsExistFGLG 			= CASE WHEN  m.IsExistFGLG = 1 OR ext.cntFGLG > 0 THEN 1 ELSE 0 END
@@ -485,7 +488,7 @@ BEGIN
 		,IsWaitingEarlyBettypesParlay = CASE WHEN ext.IsWaitingEarlyBettypesParlay = 1 THEN 1 ELSE 0 END
 	FROM #matchList m
 		INNER JOIN MatchExtraStatusParlay ext 
-		ON m.matchid = ext.matchid
+		ON m.matchid = ext.ParentId
 
 	;WITH SingleTicket AS
 	(
@@ -549,11 +552,11 @@ BEGIN
 	END
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, ParentId INT)
 
-	INSERT INTO #tmpMarkedTransaction (transId, matchId)
-	SELECT	mt.TransId, m.matchid
-	FROM	#matchList m
+	INSERT INTO #tmpMarkedTransaction (transId, matchId, ParentId)
+	SELECT	mt.TransId, m.matchid, m.ParentId
+	FROM	#tmpMatchId m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -571,7 +574,7 @@ BEGIN
 				,IsExistMarkedTicketParlay = m.HasMarkedParlay
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
-				SELECT	mt.matchId
+				SELECT	mt.ParentId
 						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
 						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
@@ -596,9 +599,9 @@ BEGIN
 								WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1
 								ELSE 0
 							END
-				GROUP BY mt.matchid
+				GROUP BY mt.ParentId
 			) m
-				ON m.matchid = mk.MatchId
+				ON m.ParentId = mk.MatchId
 
 		UPDATE m 
 			SET IsExistMarkedTicket = t.IsExistMarkedTicket

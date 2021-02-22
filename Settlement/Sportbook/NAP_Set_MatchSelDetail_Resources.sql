@@ -21,6 +21,7 @@ AS
 		- 20200910@Louisa: Separate Ticket status: Calculated, Parlay Running and Refunded for MNL [Redmine:#141340]
 		- 20201113@Louisa: Add Hold Result - [Redmine:#135097]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		
 */
 BEGIN
@@ -48,6 +49,21 @@ BEGIN
     ---------------------------------------------------------------------------------------------
     IF @SportType =0
         SELECT @SportType = SportType FROM Match WITH(NOLOCK) WHERE matchID = @matchid
+	
+	IF @SportType = 50
+	BEGIN
+		CREATE TABLE #tblMatchInfo ( MatchId INT, ParentId INT)
+
+		INSERT INTO #tblMatchInfo (MatchId, ParentId )
+		SELECT	@MatchId , @MatchId
+	
+		INSERT INTO #tblMatchInfo (MatchId, ParentId)
+		SELECT m.MatchId , m.ParentID
+		FROM dbo.match m WITH(NOLOCK)
+		WHERE ISNULL(ParentID,0) =  @MatchId
+			AND ISNULL( m.ChildMatchType, 0) = 200
+			AND m.sporttype = 50
+	END
 
     --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
@@ -89,6 +105,29 @@ BEGIN
 			AND SUBSTRING(sp.ResourceID, 5, 2) <= @BestOfMap
 		GROUP BY sp.ResourceID
 	END
+	
+	ELSE IF @SportType = 50
+	BEGIN
+		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
+		SELECT sp.ResourceID,
+				COUNT(1) AS BetCount,
+				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount,
+				SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
+				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
+				MAX(sp.OrdNo) ,
+				0
+		FROM #tblMatchInfo m
+			INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	ON bt.MatchID = m.MatchID 
+			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK)	ON bt.Bettype = sp.Bettype AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	bt.transid = mt.TransId
+		WHERE bt.statusID NOT IN (101, 102)
+		AND sp.sporttype = @SportType
+		AND sp.Settletype = @SettleType	
+		GROUP BY m.ParentId, sp.ResourceID
+	END
+
 	ELSE 
 	BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
@@ -154,34 +193,53 @@ BEGIN
 		END
 	END
 	
-	INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, OrdNo)
-	    SELECT CASE 
-					WHEN sp.ResourceID = '70400'
-						OR sp.ResourceID = '605' THEN '00' 
-					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
-					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
-					ELSE sp.ResourceID 
-				END     
-	            ,COUNT(1) AS BetCount
-	            ,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END)
-				,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
-				,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
-	            ,MAX(sp.OrdNo)
-	    FROM    dbo.Bettransm bm WITH (NOLOCK)
-	        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
-	    WHERE   matchID = @MatchID
-	    		AND bm.statusId NOT IN (101, 102)
-	    		AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
-				AND sp.sporttype = @sporttype
-				AND sp.Settletype = @Settletype
-	    GROUP BY CASE 
-					WHEN sp.ResourceID = '70400'
-						OR sp.ResourceID = '605' THEN '00' 
-					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
-					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
-					ELSE sp.ResourceID 
-				END
-
+	IF @SportType = 50
+	BEGIN
+		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, OrdNo)
+		SELECT sp.ResourceID     
+			,COUNT(1) AS BetCount
+			,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END)
+			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
+			,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
+			,MAX(sp.OrdNo)
+		FROM #tblMatchInfo m 
+			INNER JOIN dbo.Bettransm bm WITH (NOLOCK) ON bm.MatchID = m.MatchId 
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+		WHERE  bm.statusId NOT IN (101, 102)
+		AND sp.sporttype = @sporttype
+		AND sp.Settletype = @Settletype
+		GROUP BY m.ParentId, sp.ResourceID
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, OrdNo)
+			SELECT CASE 
+						WHEN sp.ResourceID = '70400'
+							OR sp.ResourceID = '605' THEN '00' 
+						WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
+						WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+						ELSE sp.ResourceID 
+					END     
+					,COUNT(1) AS BetCount
+					,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END)
+					,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
+					,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
+					,MAX(sp.OrdNo)
+			FROM    dbo.Bettransm bm WITH (NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
+			WHERE   matchID = @MatchID
+	    			AND bm.statusId NOT IN (101, 102)
+	    			AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+					AND sp.sporttype = @sporttype
+					AND sp.Settletype = @Settletype
+			GROUP BY CASE 
+						WHEN sp.ResourceID = '70400'
+							OR sp.ResourceID = '605' THEN '00' 
+						WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
+						WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+						ELSE sp.ResourceID 
+					END
+	END
 	---INSERT for Major score
 	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
