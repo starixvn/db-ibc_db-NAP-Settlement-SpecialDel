@@ -219,19 +219,15 @@ BEGIN
 	IF @ActionId NOT IN (2)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId)
-		SELECT tmp.transid
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+		SELECT DISTINCT rs.TransId
+		FROM  dbo.TicketVoiding_Request r WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						ON rs.RequestId = r.RequestId
 			CROSS APPLY (
-						SELECT rs.TransId, rs.TransId AS MainTransId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.RequestId = r.RequestId AND rs.MatchId = rd.MatchId
-				)tmp
-			CROSS APPLY (
-						SELECT TOP 1 t.MatchId
+						SELECT TOP 1 t.MatchId, t.transid
 						FROM #transIdTemp t
-						WHERE t.MatchId = rd.MatchId 
-							AND tmp.TransId = t.transid
+						WHERE t.MatchId = rs.MatchId 
+							AND rs.TransId = t.transid
 				)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 					
@@ -252,7 +248,7 @@ BEGIN
 							  FOR XML PATH ('')
 							),1,1,'')
 
-	SELECT @NumberOfTickets = COUNT (DISTINCT t.transid) 
+	SELECT @NumberOfTickets = COUNT (t.transid) 
 	FROM #TransidInRequest t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
 	WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate
