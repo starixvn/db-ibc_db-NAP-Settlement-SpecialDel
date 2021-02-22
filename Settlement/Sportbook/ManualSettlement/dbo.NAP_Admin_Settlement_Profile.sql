@@ -71,6 +71,7 @@ BEGIN
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
+			,@ParentId			INT
 
 
   	--START Balance tables
@@ -112,9 +113,9 @@ BEGIN
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
 		  ,@sportType	= sportType
+		  ,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 THEN ParentID ELSE MatchId END
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
-
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -123,7 +124,7 @@ BEGIN
   	----------------------------------------------------------------------------------------------------------------------
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
+	@MatchId	= @ParentId
 	,@SelectedResources = @SelectedResources
 	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
