@@ -68,6 +68,7 @@ BEGIN
 			,@DummyResourceIds		VARCHAR(MAX) = ''
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
+			,@SelectedQuarter 	VARCHAR(50) = NULL
 
 
   	--START Balance tables
@@ -356,8 +357,11 @@ BEGIN
   		WHERE sr.ResourceID = '01' AND @sportType = 2
 
 		IF @existsHTRound = 1
+		BEGIN
 			SELECT  @hth	= COALESCE (@hth, 0)
 					,@hta   = COALESCE (@hta, 0)
+					,@SelectedQuarter = '1H'
+		END
 			
   		IF @existsFinalRound = 1
   		BEGIN
@@ -384,6 +388,8 @@ BEGIN
 						,@fth	= NULL
 						,@fta	= NULL
 			END
+
+			SELECT @SelectedQuarter = CASE WHEN @existsHTRound = 1 THEN '1H' ELSE 'FT' END WHERE @sportType = 2
 		END
 
 		IF @Action LIKE 'CAL%'
@@ -476,11 +482,18 @@ BEGIN
 		IF @Action LIKE 'CAL%'
 		BEGIN
 
-			IF  @existsFinalRound = 1 OR @existsHTRound = 1
+			IF  @existsFinalRound = 1
 			BEGIN				 
 				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid				= @matchid
 							,@command				= 'C'
+			END
+
+			ELSE IF @existsHTRound = 1
+			BEGIN				 
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+						@matchid    = @matchid
+						,@command    = 'H'
 			END
 
 		END-------------------end CAL
@@ -507,6 +520,14 @@ BEGIN
 							@matchid			= @matchid
 							,@command			= 'U'
 							,@IsFinalRound		= @existsFinalRound
+							,@SelectedQuarter   = @SelectedQuarter
+			END
+			ELSE IF @existsHTRound = 1
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
+							@matchid			= @matchid
+							,@command			= 'U'
+							, @SelectedQuarter  = @SelectedQuarter
 			END
 			
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
@@ -548,12 +569,13 @@ BEGIN
 							,@Sporttype			= @Sporttype
 							,@SelectedRID   	= @SelectedResources
 							
-			IF  @existsFinalRound = 1
+			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN
 				  EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid			= @matchid
 							,@command			= 'F'
 							,@IsFinalRound		= @existsFinalRound
+							,@SelectedQuarter   = @SelectedQuarter
 
 			END
 		END------------end REFUND
