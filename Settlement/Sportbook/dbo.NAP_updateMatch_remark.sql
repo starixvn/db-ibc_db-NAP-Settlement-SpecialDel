@@ -35,12 +35,10 @@ BEGIN
 	DECLARE @IsHTCal	BIT
 			,@Calculate BIT
 			,@IsPending BIT
-			,@calrefund BIT
 
 	SELECT	@IsHTCal		= IsHTCal
 			,@Calculate 	= Calculate
 			,@IsPending 	= IsPending
-			,@calrefund		= calrefund
 	FROM	match_remark WITH (NOLOCK)
 	WHERE	matchid = @matchid 
 
