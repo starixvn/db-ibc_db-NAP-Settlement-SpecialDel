@@ -168,8 +168,8 @@ BEGIN
 			, @AwayId
 			, @KickOffTime
 			, CASE WHEN @ActionId = 4 THEN 1 
-					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @ActionId = 1 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
-							  WHEN @IssueTypeId = 11 AND @ActionId = 1 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
+					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
+							  WHEN @IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
 							  ELSE 0
 						 END
 				END
