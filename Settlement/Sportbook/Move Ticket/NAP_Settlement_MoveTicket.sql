@@ -220,50 +220,27 @@ BEGIN
 			IF ISNULL(@strTransIds,'')  = ''
 				BREAK
 
-			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @childMatchId
+			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @childMatchId
 				,@Action = @Action
 				,@Mode = @Mode
 				,@strTransIds = @strTransIds
 
 			SET @startRowId = @startRowId + @batchNo
 		END
-
-		-- settle parlay
-		EXEC dbo.NAP_Admin_Settlement_MP
-		@matchid				= @childMatchId
-		,@creator				= @AdminId
-		,@action				= 'CAL'
-		,@isAuto				= 1
-		,@IP					= @IP
-		,@ErrCode				= @ErrCode	OUTPUT
-		,@ErrMsg				= @ErrMsg	OUTPUT
-
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistParlay		= 1
-			,@IsReleased		= 1
 	END
 
-	SET @EndTime = GETDATE()
-
-	SELECT @ResourceIds = COALESCE(@ResourceIds + ',' + ResourceId, ResourceId)
+	SELECT @ResourceIds = COALESCE(',' + @ResourceIds + ResourceId, ResourceId)
 	FROM	@tmpBettypeResourceId
 	GROUP BY ResourceId
 
 	SET @ResourceIds = STUFF(@ResourceIds,1,1,'')
 	
-	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
-				+' into child match: ' + CAST(@childMatchId AS VARCHAR)
-				+ ',Settled Results: (' + @ResourceIds + ')'
-						   
-						   
+	SET @EndTime = GETDATE()
+
 	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
-						+ '(' + @ResourceIds + ')'
+						+ '(' + @ResourceIds + ')' + '<br/>'
 						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
-				
-	EXEC dbo.WriteLog_UserLog
-				@UserID = @AdminId
-				,@Doing = @logdata
 				
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
@@ -282,6 +259,33 @@ BEGIN
 				,@Remark			= @Remark
 				,@IP				= @ip
 	END CATCH
+
+
+	IF @totalParlay > 0
+	BEGIN
+		-- settle parlay
+		EXEC dbo.NAP_Admin_Settlement_MP
+		@matchid				= @childMatchId
+		,@creator				= @AdminId
+		,@action				= 'CAL'
+		,@isAuto				= 1
+		,@IP					= @IP
+		,@ErrCode				= @ErrCode	OUTPUT
+		,@ErrMsg				= @ErrMsg	OUTPUT
+
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay		= 1
+			,@IsReleased		= 1
+	END
+
+	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
+				+' into child match: ' + CAST(@childMatchId AS VARCHAR)
+				+ ',Settled Results: (' + @ResourceIds + ')'
+						   
+	EXEC dbo.WriteLog_UserLog
+				@UserID = @AdminId
+				,@Doing = @logdata
+									   
 
 	RETURN
 

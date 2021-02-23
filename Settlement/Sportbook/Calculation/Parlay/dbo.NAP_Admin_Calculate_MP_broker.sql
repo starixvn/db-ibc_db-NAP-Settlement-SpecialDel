@@ -55,6 +55,7 @@ AS
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		
 
     Param's Explanation:
@@ -202,7 +203,15 @@ BEGIN
             , @action = @Mode
             , @strTransIds = @strTransIds
     END
-
+	
+	IF @Mode = 'subParlay' AND @Action = 'MoveTicket'
+	BEGIN
+		EXEC dbo.ExecRep_NAP_Admin_02 @matchid = @matchid
+			,@Mode = @Mode 
+			,@strTransIds = @strTransIds
+			
+		RETURN
+	END
 
 END -- end SP
 GO
