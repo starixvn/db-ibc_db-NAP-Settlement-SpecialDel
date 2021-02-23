@@ -32,7 +32,7 @@ AS
 		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
-		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
+		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 		
@@ -369,7 +369,7 @@ BEGIN
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
 				WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 THEN 1 --Auto void winning request, void VIP
 				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
-				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request, don't void VIP
+				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
 		
 	SET @Void_cnt = @Void_cnt + @@ROWCOUNT
@@ -396,6 +396,7 @@ BEGIN
 					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
+		AND NOT EXISTS (SELECT TransId FROM @tmpInputTransId_VOID v WHERE v.TransId = t.TransId)
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
