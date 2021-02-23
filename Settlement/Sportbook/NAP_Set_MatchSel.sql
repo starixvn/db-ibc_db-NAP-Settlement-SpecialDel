@@ -363,7 +363,7 @@ BEGIN
 		SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
 
 		INSERT INTO #tmpMatchId (MatchId, ParentId )
-		EXEC dbo.NAP_Set_GetChildMatch @MatchId =  @matchidList
+		EXEC dbo.NAP_Set_GetChildMatch @MatchIds =  @matchidList
 
 		SELECT  @matchidList =''
 	END
