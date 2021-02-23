@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Settlement_MoveTicket
+ALTER PROCEDURE dbo.NAP_Admin_Settlement_50_MoveTicket
 	@MatchId INT
 	,@AdminId INT
 	,@IP VARCHAR(15) = ''
@@ -41,15 +41,14 @@ BEGIN
 	SELECT @Action = 'MoveTicket'
 		,@batchNo = 2000
 		,@ActionID = 81025		
-
+		,@StartTime = GETDATE()
+		
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20))
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
 	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT)
-	
-	SET @StartTime = GETDATE()
 
 	SELECT	@eventdate = m.eventdate
 	FROM	dbo.match m WITH(NOLOCK)
@@ -64,7 +63,7 @@ BEGIN
 
 	IF @@ROWCOUNT = 0
 	BEGIN
-		SELECT	@ErrCode = 1
+		SELECT	@ErrCode = 1001048
 				,@ErrMsg = 'WARNING! Cannot continue due to destination match not found.'
 		
 		RETURN
@@ -135,7 +134,7 @@ BEGIN
 		
 		IF @totalParlay = 0
 		BEGIN
-			SELECT	@ErrCode = 1
+			SELECT	@ErrCode = 1001049
 					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'
 		
 			RETURN
@@ -233,8 +232,6 @@ BEGIN
 	FROM	@tmpBettypeResourceId
 	GROUP BY ResourceId
 
-	SET @ResourceIds = STUFF(@ResourceIds,1,1,'')
-	
 	SET @EndTime = GETDATE()
 
 	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
