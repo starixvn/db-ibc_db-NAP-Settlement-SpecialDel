@@ -35,6 +35,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @temp_resultDetail as TABLE (rID varchar(20) PRIMARY KEY, H varchar(50), A varchar(50), ssID tinyint)
+	DECLARE @parentmatchId INT
+
+	IF @Sporttype = 50
+	BEGIN
+		SELECT	@parentmatchId = ParentID
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.matchid = @matchid
+				AND ChildMatchType = 200
+
+		IF @parentmatchId IS NOT NULL --cricket: only get result of parent match 
+			SET @matchid = @parentmatchId
+	END
 
 	IF @mode = 'tennis'
 	BEGIN
