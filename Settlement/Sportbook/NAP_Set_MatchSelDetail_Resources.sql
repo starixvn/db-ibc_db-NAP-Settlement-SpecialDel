@@ -111,18 +111,17 @@ BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT sp.ResourceID,
 				COUNT(1) AS BetCount,
-				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
 				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount,
 				SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
-				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
+				0 AS betMarkedCount,
 				MAX(sp.OrdNo) ,
-				0
+				0 AS IsSpecialBettype
 		FROM #tblMatchInfo m
 			INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	ON bt.MatchID = m.MatchID 
-			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK)	ON bt.Bettype = sp.Bettype AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
-			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-					ON	bt.transid = mt.TransId
+			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK)	ON bt.Bettype = sp.Bettype
 		WHERE bt.statusID NOT IN (101, 102)
+		AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
 		AND sp.sporttype = @SportType
 		AND sp.Settletype = @SettleType	
 		GROUP BY m.ParentId, sp.ResourceID
@@ -204,10 +203,11 @@ BEGIN
 			,MAX(sp.OrdNo)
 		FROM #tblMatchInfo m 
 			INNER JOIN dbo.Bettransm bm WITH (NOLOCK) ON bm.MatchID = m.MatchId 
-			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
 		WHERE  bm.statusId NOT IN (101, 102)
-		AND sp.sporttype = @sporttype
-		AND sp.Settletype = @Settletype
+			AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+			AND sp.sporttype = @sporttype
+			AND sp.Settletype = @Settletype
 		GROUP BY m.ParentId, sp.ResourceID
 	END
 	ELSE

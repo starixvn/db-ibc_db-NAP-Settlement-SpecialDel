@@ -6,8 +6,8 @@ ALTER PROCEDURE dbo.NAP_Set_MoveTicketSel
 	,@MatchStatus	VARCHAR(MAX)	= '0'
 	,@Remark		TINYINT			= 0
 	,@MatchCode		NVARCHAR(50)	= ''
-	,@SportType		INT				
-	,@LeagueId		INT				= 0
+	,@SportTypes		VARCHAR(MAX)				
+	,@LeagueIds		VARCHAR(MAX) 				= 0
 	,@IsIncludeTest BIT				= 0
 AS
 /*  
@@ -61,10 +61,13 @@ BEGIN
 			,@strEarlyBettypes	VARCHAR(MAX)
 			,@strResourceIds	VARCHAR(MAX)
 			,@matchidList		VARCHAR(MAX) = ''
-
+			,@Sporttype			SMALLINT	 = 50
+	
+	DECLARE @tmpLeagueIds  TABLE (LeagueId INT)
 	DECLARE @tmpTicketStatus TABLE(Id TINYINT)
 	DECLARE @tmpMatchStatus TABLE(Id TINYINT, EventStatus NVARCHAR(50))
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
+
 	DECLARE @tmpMatchIds	TABLE ( MatchId INT, ParentId INT)
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
@@ -77,17 +80,6 @@ BEGIN
 		,isRunningParlay	BIT DEFAULT(0)
 		,isWaitingParlay	BIT DEFAULT(0)
 	)
-
-	BEGIN TRY
-	SET @matchid = CASE 
-					WHEN ISNUMERIC(@matchcode) = 1 THEN CAST(@matchcode AS INT)
-					ELSE NULL
-					END
-	END TRY
-
-	BEGIN CATCH
-		SET @matchid = NULL
-	END CATCH
 
 	CREATE TABLE #tmpMatchIds (
 		matchid							INT
@@ -105,6 +97,8 @@ BEGIN
 		,betstatus						NVARCHAR(50) 
 		,suspenderhalftime				NVARCHAR(50)
 		,suspenderfulltime				NVARCHAR(50)
+		,autosetting					TINYINT
+		,autosettingforleague			TINYINT
 		,settlementstatus				TINYINT
 		,childmatchtype					TINYINT
 		,IsCalculated					BIT
@@ -121,7 +115,12 @@ BEGIN
 		,IsExistRunningBettypeSingle	BIT DEFAULT (0)		-- exclude early bettype
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
 	)
-	 
+	
+	INSERT INTO @tmpLeagueIds(LeagueId)
+	SELECT	DISTINCT val
+	FROM	dbo.f_SplitString(@LeagueIds, ',')
+	OPTION (MAXRECURSION 0)
+
 	INSERT INTO @tmpTicketStatus(Id)
 	SELECT	val
 	FROM	dbo.f_SplitString(@TicketStatus, ',')
@@ -140,83 +139,161 @@ BEGIN
 	FROM	dbo.f_SplitString(@MatchStatus, ',')
 	OPTION (MAXRECURSION 0)
 
-	
-	INSERT INTO #tmpMatchIds(matchid
-		,matchcode
-		,leagueid
-		,sporttype
-		,kickofftime
-		,homeid
-		,awayid 
-		,halftimehomescore
-		,halftimeawayscore
-		,finalhomescore
-		,finalawayscore
-		,eventstatus
-		,betstatus 
-		,suspenderhalftime
-		,suspenderfulltime
-		,settlementstatus
-		,childmatchtype
-		,IsCalculated
-		,IsMultiCaled
-		,IsRefund
-		,IsCalRefund
-		,IsHalfTimeCal 
-	)
-	SELECT	m.matchid
-			,m.matchcode
-			,l.LeagueId
-			,m.sporttype
-			,m.kickofftime
-			,m.homeid
-			,m.awayid 
-			,m.hthomescore
-			,m.htawayscore
-			,m.finalhomescore
-			,m.finalawayscore				
-			,m.eventstatus
-			,m.betstatus 
-			,NULL
-			,CASE mr.ConfirmFT
-				WHEN 0 THEN ''
-				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
-			END
-			,m.SettlementStatus
-			,m.ChildMatchType
-			,mr.calculate
-			,mr.multiple
-			,mr.refund
-			,mr.calrefund
-			,mr.IsHTCal
-	FROM	dbo.match m WITH(NOLOCK)
-		INNER JOIN dbo.League l WITH(NOLOCK)
-			ON	m.leagueid = l.LeagueId
-		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
-			ON	m.matchid = mr.matchid	
-	WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
-			AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode LIKE + '%' + @matchcode + '%')) 
-			AND m.sporttype = @Sporttype
-			AND ISNULL(m.ChildMatchType,0) <> 200
-			AND m.leagueID = CASE WHEN @LeagueID <> 0 THEN @LeagueID ELSE m.leagueID END
-			AND (@Remark = 0 OR @Remark & m.SettlementStatus > 0)
-			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
-			AND EXISTS (
-				SELECT TOP 1 1
-				FROM	@tmpMatchStatus s
-				WHERE	m.eventstatus = CASE 
-											WHEN s.Id IN (0, 7) THEN m.eventstatus
-											ELSE s.EventStatus
-										END
-						AND 1 = CASE
-									WHEN s.Id NOT IN (3,4,6,7) THEN 1
-									WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
-									WHEN s.Id = 4 AND mr.ConfirmFT > 0 THEN 1 -- Over: 'Running' and have full time scores confirmed.
-									WHEN s.Id = 6 AND m.betstatus NOT LIKE '%Refund%' THEN 1	
-									WHEN s.Id = 7 AND m.betstatus LIKE '%Refund%' THEN 1									
-									ELSE 0
-								END
-			) 
+	IF ISNUMERIC(@MatchCode) = 1
+	BEGIN
+		SET @MatchId = CAST(@MatchCode AS INT)
+	END
+
+	IF @MatchCode <> ''
+	BEGIN
+		INSERT INTO #tmpMatchIds(matchid
+			,matchcode
+			,leagueid
+			,sporttype
+			,kickofftime
+			,homeid
+			,awayid
+			,halftimehomescore
+			,halftimeawayscore
+			,finalhomescore
+			,finalawayscore
+			,eventstatus
+			,betstatus
+			,suspenderhalftime
+			,suspenderfulltime
+			,autosetting
+			,autosettingforleague
+			,settlementstatus
+			,childmatchtype
+			,IsCalculated
+			,IsMultiCaled
+			,IsRefund
+			,IsCalRefund
+			,IsHalfTimeCal 
+		)
+		SELECT	m.matchid
+				,m.matchcode
+				,m.LeagueId
+				,m.sporttype
+				,m.kickofftime
+				,m.homeid
+				,m.awayid
+				,m.hthomescore
+				,m.htawayscore
+				,m.finalhomescore
+				,m.finalawayscore
+				,m.eventstatus
+				,m.betstatus
+				,CASE mr.ConfirmHT 
+					WHEN 0 THEN ''
+					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmHT)
+				END
+				,CASE mr.ConfirmFT
+					WHEN 0 THEN ''
+					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
+				END
+				,m.AutoSetting
+				,l.AutoSetting AS AutoSettingForLeague
+				,m.SettlementStatus
+				,m.ChildMatchType
+				,mr.calculate
+				,mr.multiple
+				,mr.refund
+				,mr.calrefund
+				,mr.IsHTCal
+		FROM	dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
+			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
+				ON	m.matchid = mr.matchid			
+		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
+				AND m.eventdate BETWEEN @FromDate AND @ToDate
+				AND ISNULL(m.ChildMatchType,0) <> 200
+				AND m.Sporttype = @Sporttype
+	END
+	ELSE	
+	BEGIN
+		INSERT INTO #tmpMatchIds(matchid
+			,matchcode
+			,leagueid
+			,sporttype
+			,kickofftime
+			,homeid
+			,awayid
+			,halftimehomescore
+			,halftimeawayscore
+			,finalhomescore
+			,finalawayscore
+			,eventstatus
+			,betstatus
+			,suspenderhalftime
+			,suspenderfulltime
+			,autosetting
+			,autosettingforleague
+			,settlementstatus
+			,childmatchtype
+			,IsCalculated
+			,IsMultiCaled
+			,IsRefund
+			,IsCalRefund
+			,IsHalfTimeCal 
+		)
+		SELECT	m.matchid
+				,m.matchcode
+				,l.LeagueId
+				,m.sporttype
+				,m.kickofftime
+				,m.homeid
+				,m.awayid
+				,m.hthomescore
+				,m.htawayscore
+				,m.finalhomescore
+				,m.finalawayscore				
+				,m.eventstatus
+				,m.betstatus
+				,0 AS suspenderhalftime
+				,CASE mr.ConfirmFT
+					WHEN 0 THEN ''
+					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
+				END
+				,m.AutoSetting
+				,l.AutoSetting AS AutoSettingForLeague
+				,m.SettlementStatus
+				,m.ChildMatchType
+				,mr.calculate
+				,mr.multiple
+				,mr.refund
+				,mr.calrefund
+				,mr.IsHTCal
+		FROM	dbo.match m WITH(NOLOCK)
+			INNER JOIN @tmpLeagueIds tl 
+				ON	m.leagueid = tl.LeagueId
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON	m.leagueid = l.LeagueId
+			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
+				ON	m.matchid = mr.matchid	
+		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
+				AND (@Remark = 0 OR @Remark & m.SettlementStatus > 0)
+				AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
+				AND EXISTS (
+					SELECT TOP 1 1
+					FROM	@tmpMatchStatus s
+					WHERE	m.eventstatus = CASE 
+												WHEN s.Id IN (0, 7) THEN m.eventstatus
+												ELSE s.EventStatus
+											END
+							AND 1 = CASE
+										WHEN s.Id NOT IN (3,4,6,7) THEN 1
+										WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
+										WHEN s.Id = 4 AND mr.ConfirmFT > 0 THEN 1 -- Over: 'Running' and have full time scores confirmed.
+										WHEN s.Id = 6 AND m.betstatus NOT LIKE '%Refund%' THEN 1	
+										WHEN s.Id = 7 AND m.betstatus LIKE '%Refund%' THEN 1									
+										ELSE 0
+									END
+				)
+				AND ISNULL(m.ChildMatchType,0) <> 200
+	END	
+
 	CREATE TABLE #ChildMatch ( MatchId INT, ParentId INT )
 
 	SELECT @matchidList =	@matchidList + ',' + CAST(matchid AS VARCHAR(20)) FROM #tmpMatchIds
@@ -391,6 +468,8 @@ BEGIN
 			,m.betstatus 
 			,suspenderhalftime
 			,m.suspenderfulltime
+			,m.autosetting
+			,m.autosettingforleague
 			,m.settlementstatus
 			,q.IsCalculatingSingle
 			,q.IsCalculatingMP
