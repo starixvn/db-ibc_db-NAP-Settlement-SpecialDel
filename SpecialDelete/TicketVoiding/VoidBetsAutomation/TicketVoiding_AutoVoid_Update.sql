@@ -380,10 +380,10 @@ BEGIN
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
 	SELECT DISTINCT t.TransId
-	FROM (SELECT transid
+	FROM (SELECT transid, IssueTypeId, RequestType
 		FROM #inputRequestTransId 
 		UNION  
-		SELECT transid 
+		SELECT transid, 0 AS IssueTypeId, 0 AS RequestType
 		FROM #Transid_mark_tmp
 		WHERE statuswinlost IN (0,3,4)
 		
@@ -395,11 +395,11 @@ BEGIN
 					 ) AS vip
 		
 	WHERE b.matchid = @MatchId 
-		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
-					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
+		AND 1 = CASE WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL THEN 0 
+					 WHEN b.statuswinlost IN (0,3,4) THEN 1
+					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 				ELSE 0 END
 		AND b.statusID = 0
-		AND NOT EXISTS (SELECT TransId FROM @tmpInputTransId_VOID v WHERE v.TransId = t.TransId)
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
