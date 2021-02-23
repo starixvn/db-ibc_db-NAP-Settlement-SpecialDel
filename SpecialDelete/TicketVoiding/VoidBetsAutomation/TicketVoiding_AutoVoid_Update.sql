@@ -62,6 +62,7 @@ BEGIN
 			,@ExecuteSQL NVARCHAR(MAX) = ''
 			,@IsActiveVoidWinning BIT = 0
 			,@VoidDataXML       XML = NULL
+			,@RequestDetailId	INT
 			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -318,9 +319,11 @@ BEGIN
 			
 				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType)
 				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 
+				
+				SET @RequestDetailId = SCOPE_IDENTITY()
 
-				INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId,IssueTypeId,SubIssueTypeId,TransId,MatchId)
-				SELECT @RequestID, 11, 38, TransId, @MatchId
+				INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId,IssueTypeId,SubIssueTypeId,TransId,MatchId, RequestDetailId)
+				SELECT @RequestID, 11, 38, TransId, @MatchId, @RequestDetailId
 				FROM @tmpTransIDBatch
 				
 			END
