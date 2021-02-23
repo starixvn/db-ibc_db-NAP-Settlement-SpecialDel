@@ -113,7 +113,7 @@ BEGIN
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
 		  ,@sportType	= sportType
-		  ,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 THEN ParentID ELSE MatchId END
+		  ,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 AND ParentID IS NOT NULL THEN ParentID ELSE NULL END
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
 
@@ -123,12 +123,15 @@ BEGIN
   	SELECT	@matchid AS matchid ,1 AS KeyId
   	----------------------------------------------------------------------------------------------------------------------
 
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @ParentId
-	,@SelectedResources = @SelectedResources
-	,@IsEarly	= @IsEarly
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+	IF @ParentId IS NULL
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+		@MatchId	= @MatchId
+		,@SelectedResources = @SelectedResources
+		,@IsEarly	= @IsEarly
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
+	END
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN

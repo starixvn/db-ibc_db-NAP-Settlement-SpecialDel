@@ -575,8 +575,6 @@ RETURN (
 	UNION ALL SELECT 12, 9455, 0, 0, 0, 0, 'Special', 0, 0, 0
 	UNION ALL SELECT 12, 9460, 0, 0, 0, 0, 'Special', 0, 0, 0
 	UNION ALL SELECT 12, 9461, 0, 0, 0, 0, 'Special', 0, 0, 0
-	UNION ALL SELECT 12, 9484, 0, 0, 0, 0, 'Special', 0, 0, 0
-	UNION ALL SELECT 12, 9485, 0, 0, 0, 0, 'Special', 0, 0, 0
 	UNION ALL SELECT 12, 9490, 0, 0, 0, 0, 'Special', 0, 0, 0
 	UNION ALL SELECT 12, 9491, 0, 0, 0, 0, 'Special', 0, 0, 0
 	UNION ALL SELECT 12, 9502, 0, 0, 0, 0, 'Special', 0, 0, 0

@@ -54,7 +54,7 @@ BEGIN
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
-			,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 THEN ParentID ELSE MatchId END
+			,@ParentId		= CASE WHEN ISNULL(Matchid,0) = 200 AND ParentID IS NOT NULL THEN ParentID ELSE NULL END
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
@@ -65,12 +65,15 @@ BEGIN
 		RETURN
 	END
 
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @ParentId
-	,@SelectedResources = @SelectedResources
-	,@IsEarly	= @IsEarly
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+	IF @ParentId IS NULL
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+		@MatchId	= @MatchId
+		,@SelectedResources = @SelectedResources
+		,@IsEarly	= @IsEarly
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
+	END
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
@@ -100,7 +103,7 @@ BEGIN
 
 	-- check waiting ticket
 	EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @ParentId
+		@MatchId = @MatchId
 		,@Action = @Action
 		,@Mode = 'CAL'
 		,@xmlData = @SelectedResources
