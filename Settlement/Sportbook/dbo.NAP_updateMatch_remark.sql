@@ -24,6 +24,8 @@ WITH RECOMPILE
 		- 20170901@Kathy: Update parlay info base on user action [Redmine:#82122]
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
+
 	Param's Explanation: 
 */
 AS
@@ -83,6 +85,15 @@ BEGIN
 		SET calculate		= 0
 			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' OR @SelectedQuarter LIKE '%80[1,2]%' THEN 0 ELSE IsHTCal END
 			,calrefund		= 1
+			,isPending		= 0
+			,isUndecided	= 0			
+		WHERE matchid = @matchid 
+	END
+
+	IF @command = 'F' AND @SelectedQuarter = '1H' AND ISNULL(@IsFinalRound,0) = 0
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+		SET IsHTCal		= 0
 			,isPending		= 0
 			,isUndecided	= 0			
 		WHERE matchid = @matchid 

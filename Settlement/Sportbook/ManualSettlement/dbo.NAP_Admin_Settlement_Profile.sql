@@ -28,6 +28,7 @@ AS
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -67,6 +68,7 @@ BEGIN
 			,@DummyResourceIds		VARCHAR(MAX) = ''
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
+			,@SelectedQuarter 	VARCHAR(50) = NULL
 
 
   	--START Balance tables
@@ -355,8 +357,11 @@ BEGIN
   		WHERE sr.ResourceID = '01' AND @sportType = 2
 
 		IF @existsHTRound = 1
+		BEGIN
 			SELECT  @hth	= COALESCE (@hth, 0)
 					,@hta   = COALESCE (@hta, 0)
+					,@SelectedQuarter = '1H'
+		END
 			
   		IF @existsFinalRound = 1
   		BEGIN
@@ -383,6 +388,8 @@ BEGIN
 						,@fth	= NULL
 						,@fta	= NULL
 			END
+
+			SELECT @SelectedQuarter = CASE WHEN @existsHTRound = 1 THEN '1H' ELSE 'FT' END WHERE @sportType = 2
 		END
 
 		IF @Action LIKE 'CAL%'
@@ -482,6 +489,13 @@ BEGIN
 							,@command				= 'C'
 			END
 
+			ELSE IF @existsHTRound = 1
+			BEGIN				 
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+						@matchid    = @matchid
+						,@command    = 'H'
+			END
+
 		END-------------------end CAL
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
@@ -506,6 +520,14 @@ BEGIN
 							@matchid			= @matchid
 							,@command			= 'U'
 							,@IsFinalRound		= @existsFinalRound
+							,@SelectedQuarter   = @SelectedQuarter
+			END
+			ELSE IF @existsHTRound = 1
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
+							@matchid			= @matchid
+							,@command			= 'U'
+							, @SelectedQuarter  = @SelectedQuarter
 			END
 			
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
@@ -547,12 +569,13 @@ BEGIN
 							,@Sporttype			= @Sporttype
 							,@SelectedRID   	= @SelectedResources
 							
-			IF  @existsFinalRound = 1
+			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN
 				  EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid			= @matchid
 							,@command			= 'F'
 							,@IsFinalRound		= @existsFinalRound
+							,@SelectedQuarter   = @SelectedQuarter
 
 			END
 		END------------end REFUND
