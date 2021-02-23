@@ -236,6 +236,7 @@ BEGIN
 				ON	m.matchid = mr.matchid			
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
+				AND ISNULL(m.ChildMatchType,0) <> 200
 	END
 	ELSE
 	BEGIN
@@ -320,6 +321,7 @@ BEGIN
 										ELSE 0
 									END
 				)
+				AND ISNULL(m.ChildMatchType,0) <> 200
 	END	
 
 	;WITH singlequeue 
