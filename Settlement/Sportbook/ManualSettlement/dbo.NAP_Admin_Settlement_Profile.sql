@@ -190,7 +190,7 @@ BEGIN
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
 
-		IF @Action LIKE 'CAL%'
+		IF @Action LIKE 'CAL%' AND @ParentId IS NULL
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
 						@action					= 'CAL'
@@ -485,7 +485,7 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		
 					
-		IF @Action LIKE 'CAL%'
+		IF @Action LIKE 'CAL%' AND @ParentId IS NULL
 		BEGIN
 
 			IF  @existsFinalRound = 1
@@ -520,7 +520,7 @@ BEGIN
 							,@action			= 'UNDO'
 							,@SelectedResources = @SelectedResources
 							,@IP				= @IP
-			IF @existsFinalRound = 1
+			IF @existsFinalRound = 1 AND @ParentId IS NULL
 			BEGIN
 				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid			= @matchid
@@ -536,6 +536,7 @@ BEGIN
 							, @SelectedQuarter  = @SelectedQuarter
 			END
 			
+			IF @ParentId IS NULL
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
 							@Command			='profile'
 							,@Action			='UNDO'
@@ -553,7 +554,7 @@ BEGIN
 							,@IsFinalRound		= @existsFinalRound
 			END
 		END-------------------end UNDO
-		ELSE IF @Action LIKE 'REFUND%'
+		ELSE IF @Action LIKE 'REFUND%' AND @ParentId IS NULL
 		BEGIN
 			
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
