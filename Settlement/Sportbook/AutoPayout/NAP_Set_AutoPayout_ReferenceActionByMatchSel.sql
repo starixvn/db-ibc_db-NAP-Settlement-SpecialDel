@@ -41,7 +41,8 @@ BEGIN
 		, CASE 	WHEN ActionID IN (178, 102, 195) THEN htawayscore 
 				WHEN ActionID IN (179, 101, 100, 196) THEN finalawayscore 
 				ELSE 0 
-		END AS AwayScore		
+		END AS AwayScore	
+		,LogDate	
 	FROM dbo.UserLog_Settle l WITH(NOLOCK)
 	WHERE EXISTS (SELECT TOP 1 1 FROM MatchTmp f WHERE f.MatchId = l.MatchID)
 		AND EXISTS (SELECT TOP 1 1 FROM ActionLogTmp f WHERE f.ActionId = l.ActionID)
@@ -55,7 +56,8 @@ BEGIN
 		, CASE 	WHEN ActionID IN (178, 102, 195) THEN htawayscore 
 				WHEN ActionID IN (179, 101, 100, 196) THEN finalawayscore 
 				ELSE 0 
-		END AS AwayScore		
+		END AS AwayScore
+		,LogDate	
 	FROM [bodb_CustomerLog_Archive].dbo.UserLog_Settle l WITH(NOLOCK)
 	WHERE EXISTS (SELECT TOP 1 1 FROM MatchTmp f WHERE f.MatchId = l.MatchID)
 		AND EXISTS (SELECT TOP 1 1 FROM ActionLogTmp f WHERE f.ActionId = l.ActionID)
