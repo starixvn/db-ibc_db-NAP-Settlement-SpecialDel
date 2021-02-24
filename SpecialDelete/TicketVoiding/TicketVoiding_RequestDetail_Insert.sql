@@ -61,7 +61,7 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
-		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210224@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 	
