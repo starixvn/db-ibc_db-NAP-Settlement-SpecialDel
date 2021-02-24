@@ -27,7 +27,9 @@ BEGIN
 			,@sporttype		SMALLINT
 			,@isRefundHT	BIT
 			,@batchNo		INT 
-			
+			,@rowcount		INT
+			,@threshold		INT
+
 			,@handle		INT
 			
 			,@strTransIds	VARCHAR(MAX) 
@@ -48,10 +50,12 @@ BEGIN
 			,@mode VARCHAR(15)
 			,@strBettypes VARCHAR(MAX)
 			
+			
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
 
 	SELECT	@batchNo = 2000
+			,@threshold = 200000
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 
@@ -245,6 +249,7 @@ BEGIN
 			BREAK
 
 		SET @IsSkipBalanceUpdate = 0
+		SET @rowcount = 0
 
 		DELETE @BalanceWalletBefore
 		DELETE @BalanceWalletAfter
@@ -271,6 +276,7 @@ BEGIN
 			WHERE modds > 0 
 			ORDER BY filterBy
 
+			SET @rowcount = @@ROWCOUNT
 			SET @IsExistW = 0
 		END
 		ELSE IF @IsExistW = 0 AND @IsExistD = 1 -- LOSE 1/2, DRAW
@@ -293,6 +299,7 @@ BEGIN
 			WHERE modds BETWEEN -0.25 AND 0 
 			ORDER BY filterBy
 
+			SET @rowcount = @@ROWCOUNT
 			SET @IsExistD = 0
 		END
 		ELSE IF @IsExistW = 0 AND @IsExistD = 0 AND @IsExistMinorBettype = 1 -- minor bettypes
@@ -327,6 +334,7 @@ BEGIN
 			ORDER BY filterBy
 
 			SET @IsExistL = 0
+			SET @rowcount = @@ROWCOUNT
 		END
 		
 		IF @IsSkipBalanceUpdate = 0
@@ -337,27 +345,54 @@ BEGIN
 			GROUP BY filterBy
 
 			-- balance before settled
-			INSERT INTO @BalanceWalletBefore (
-				matchid
-				, custid
-				, balanceType
-				, walletType
-				, bonusId
-				, balance
-			)
-			SELECT @matchid AS matchid
-				, b.custid
-				,1 AS balanceType -- Sports
-				, ISNULL(b.WalletType, 2) AS WalletType
-				, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
-				, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM	#tmpBatchTransId st
-				INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-					ON b.transid = st.transid
-			GROUP BY b.custid
-				, b.bonusID
-				, b.walletType
-		
+			IF @rowcount <= @threshold
+			BEGIN
+				INSERT INTO @BalanceWalletBefore (
+					matchid
+					, custid
+					, balanceType
+					, walletType
+					, bonusId
+					, balance
+				)
+				SELECT @matchid AS matchid
+					, b.custid
+					,1 AS balanceType -- Sports
+					, ISNULL(b.WalletType, 2) AS WalletType
+					, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+				FROM	#tmpBatchTransId st
+					INNER LOOP JOIN dbo.bettrans b WITH(ROWLOCK)
+						ON b.transid = st.transid
+				GROUP BY b.custid
+					, b.bonusID
+					, b.walletType
+			END
+			ELSE
+			BEGIN
+				INSERT INTO @BalanceWalletBefore (
+					matchid
+					, custid
+					, balanceType
+					, walletType
+					, bonusId
+					, balance
+				)
+				SELECT @matchid AS matchid
+					, b.custid
+					,1 AS balanceType -- Sports
+					, ISNULL(b.WalletType, 2) AS WalletType
+					, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+				FROM	#tmpBatchTransId st
+					INNER HASH JOIN dbo.bettrans b WITH(ROWLOCK)
+						ON b.transid = st.transid
+				WHERE	b.matchid = @matchid
+				GROUP BY b.custid
+					, b.bonusID
+					, b.walletType
+			END
+
 			WHILE (1=1)
 			BEGIN
 				SELECT TOP 1	
@@ -438,26 +473,53 @@ BEGIN
 			END
 			
 			-- balance after settled	
-			INSERT INTO @BalanceWalletAfter (
-				matchid
-				, custid
-				, balanceType
-				, walletType
-				, bonusId
-				, balance
-			)
-			SELECT @matchid AS matchid
-				, b.custid
-				,1 AS balanceType -- Sports
-				, ISNULL(b.WalletType, 2) AS WalletType
-				, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
-				, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM	#tmpBatchTransId AS st
-				INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-					ON b.transid = st.transid
-			GROUP BY b.custid
-				, b.bonusID
-				, b.walletType
+			IF @rowcount <= @threshold
+			BEGIN
+				INSERT INTO @BalanceWalletAfter (
+					matchid
+					, custid
+					, balanceType
+					, walletType
+					, bonusId
+					, balance
+				)
+				SELECT @matchid AS matchid
+					, b.custid
+					,1 AS balanceType -- Sports
+					, ISNULL(b.WalletType, 2) AS WalletType
+					, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+				FROM	#tmpBatchTransId AS st
+					INNER LOOP JOIN dbo.bettrans b WITH(ROWLOCK)
+						ON b.transid = st.transid
+				GROUP BY b.custid
+					, b.bonusID
+					, b.walletType
+			END
+			ELSE
+			BEGIN
+				INSERT INTO @BalanceWalletAfter (
+					matchid
+					, custid
+					, balanceType
+					, walletType
+					, bonusId
+					, balance
+				)
+				SELECT @matchid AS matchid
+					, b.custid
+					,1 AS balanceType -- Sports
+					, ISNULL(b.WalletType, 2) AS WalletType
+					, CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+					, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+				FROM	#tmpBatchTransId AS st
+					INNER HASH JOIN dbo.bettrans b WITH(ROWLOCK)
+						ON b.transid = st.transid
+				WHERE	b.matchid = @matchid
+				GROUP BY b.custid
+					, b.bonusID
+					, b.walletType
+			END
 
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 				@BalanceWalletBefore	= @BalanceWalletBefore
@@ -533,7 +595,7 @@ BEGIN
 			,0 AS BonusId
 			,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM	#tmpDummyTicket st
-			INNER JOIN dbo.bettrans b WITH(ROWLOCK)
+			INNER LOOP JOIN dbo.bettrans b WITH(ROWLOCK)
 				ON b.transid = st.transid
 		GROUP BY b.custid
 			, b.bonusID
@@ -606,7 +668,7 @@ BEGIN
 			,0 AS BonusId
 			,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM	#tmpDummyTicket st
-			INNER JOIN dbo.bettrans b WITH(ROWLOCK)
+			INNER LOOP JOIN dbo.bettrans b WITH(ROWLOCK)
 				ON b.transid = st.transid
 		GROUP BY b.custid
 			, b.bonusID
