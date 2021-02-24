@@ -134,6 +134,8 @@ BEGIN
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, ParentId INT)
+	
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 
 	SET @n = 2147483647
 
@@ -236,7 +238,7 @@ BEGIN
 				ON	m.matchid = mr.matchid			
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
-				AND ISNULL(m.ChildMatchType,0) <> 200
+				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	END
 	ELSE
 	BEGIN
@@ -321,7 +323,7 @@ BEGIN
 										ELSE 0
 									END
 				)
-				AND ISNULL(m.ChildMatchType,0) <> 200
+				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	END	
 
 	;WITH singlequeue 
@@ -351,13 +353,16 @@ BEGIN
 		FULL OUTER JOIN parlayqueue p
 			ON	s.matchid = p.matchid
 
-	CREATE TABLE #ChildMatch ( MatchId INT, ParentId INT )
-	SELECT @matchidList =	@matchidList + ',' + CAST(matchid AS VARCHAR(20)) FROM #tmpMatchIds
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-	
-	INSERT INTO #ChildMatch ( MatchId, ParentId  ) 
-	EXEC DBPRO.bodb02.dbo.NAP_Set_GetChildMatch @MatchIds = @matchidList
-	SET @matchidList = ''
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
+	SELECT	ISNULL(m.ChildMatchId, t.matchid), t.matchid
+	FROM	#tmpMatchIds t
+		OUTER APPLY (
+			SELECT	m.matchid AS ChildMatchId
+			FROM	dbo.match m WITH(NOLOCK)
+			WHERE	m.sporttype = 50
+					AND m.ChildMatchType = 200
+					AND m.ParentID = t.matchid
+		)m
 
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
@@ -372,7 +377,7 @@ BEGIN
 			,MAX(b.isRunningParlay)
 			,MAX(b.isWaitingParlay)
 	FROM	(
-		SELECT TOP(@n) matchid, ParentId FROM #ChildMatch
+		SELECT TOP(@n) matchid, ParentId FROM #tmpAllParentChildMatch
 	)m
 		CROSS APPLY (
 			SELECT	b.bettype
@@ -423,7 +428,7 @@ BEGIN
 		INNER JOIN (
 			SELECT	m.ParentId
 					,MAX(b.IsRunningBettypeSingle) AS IsRunningBettypeSingle
-			FROM  #ChildMatch m
+			FROM  #tmpAllParentChildMatch m
 			CROSS APPLY (
 				SELECT	b.bettype
 						,MAX(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) AS IsRunningBettypeSingle
@@ -443,7 +448,7 @@ BEGIN
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId, ParentId)
 	SELECT	mt.TransId, m.matchid, m.ParentId
-	FROM	#ChildMatch m
+	FROM	#tmpAllParentChildMatch m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)

@@ -71,7 +71,6 @@ BEGIN
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
-			,@ParentId			INT
 
 
   	--START Balance tables
@@ -113,7 +112,6 @@ BEGIN
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
 		  ,@sportType	= sportType
-		  ,@ParentId	= CASE WHEN ISNULL(Matchid,0) = 200 AND ParentID IS NOT NULL THEN ParentID ELSE NULL END
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
 
@@ -123,15 +121,12 @@ BEGIN
   	SELECT	@matchid AS matchid ,1 AS KeyId
   	----------------------------------------------------------------------------------------------------------------------
 
-	IF @ParentId IS NULL
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-		@MatchId	= @MatchId
-		,@SelectedResources = @SelectedResources
-		,@IsEarly	= @IsEarly
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg OUTPUT
-	END
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	@MatchId	= @MatchId
+	,@SelectedResources = @SelectedResources
+	,@IsEarly	= @IsEarly
+	,@ErrCode	= @ErrCode OUTPUT
+	,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
@@ -190,7 +185,7 @@ BEGIN
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
 
-		IF @Action LIKE 'CAL%' AND @ParentId IS NULL
+		IF @Action LIKE 'CAL%'
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
 						@action					= 'CAL'
@@ -485,7 +480,7 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		
 					
-		IF @Action LIKE 'CAL%' AND @ParentId IS NULL
+		IF @Action LIKE 'CAL%'
 		BEGIN
 
 			IF  @existsFinalRound = 1
@@ -520,7 +515,7 @@ BEGIN
 							,@action			= 'UNDO'
 							,@SelectedResources = @SelectedResources
 							,@IP				= @IP
-			IF @existsFinalRound = 1 AND @ParentId IS NULL
+			IF @existsFinalRound = 1
 			BEGIN
 				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
 							@matchid			= @matchid
@@ -536,7 +531,6 @@ BEGIN
 							, @SelectedQuarter  = @SelectedQuarter
 			END
 			
-			IF @ParentId IS NULL
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
 							@Command			='profile'
 							,@Action			='UNDO'
@@ -554,7 +548,7 @@ BEGIN
 							,@IsFinalRound		= @existsFinalRound
 			END
 		END-------------------end UNDO
-		ELSE IF @Action LIKE 'REFUND%' AND @ParentId IS NULL
+		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
 			
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update

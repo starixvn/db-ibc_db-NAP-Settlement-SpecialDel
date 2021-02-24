@@ -46,25 +46,11 @@ BEGIN
     DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
     DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
 
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
     ---------------------------------------------------------------------------------------------
     IF @SportType =0
         SELECT @SportType = SportType FROM Match WITH(NOLOCK) WHERE matchID = @matchid
 	
-	IF @SportType = 50
-	BEGIN
-		CREATE TABLE #tblMatchInfo ( MatchId INT, ParentId INT)
-
-		INSERT INTO #tblMatchInfo (MatchId, ParentId )
-		SELECT	@MatchId , @MatchId
-	
-		INSERT INTO #tblMatchInfo (MatchId, ParentId)
-		SELECT m.MatchId , m.ParentID
-		FROM dbo.match m WITH(NOLOCK)
-		WHERE ISNULL(ParentID,0) =  @MatchId
-			AND ISNULL( m.ChildMatchType, 0) = 200
-			AND m.sporttype = 50
-	END
-
     --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
@@ -108,6 +94,15 @@ BEGIN
 	
 	ELSE IF @SportType = 50
 	BEGIN
+		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId )
+		SELECT	@MatchId , @MatchId
+		UNION ALL
+		SELECT	m.MatchId , m.ParentID
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	ISNULL(ParentID,0) =  @MatchId
+				AND ISNULL(m.ChildMatchType, 0) = 200
+				AND m.sporttype = 50
+
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT sp.ResourceID,
 				COUNT(1) AS BetCount,
@@ -117,7 +112,7 @@ BEGIN
 				0 AS betMarkedCount,
 				MAX(sp.OrdNo) ,
 				0 AS IsSpecialBettype
-		FROM #tblMatchInfo m
+		FROM #tmpAllParentChildMatch m
 			INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	ON bt.MatchID = m.MatchID 
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK)	ON bt.Bettype = sp.Bettype
 		WHERE bt.statusID NOT IN (101, 102)
@@ -201,7 +196,7 @@ BEGIN
 			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 			,MAX(sp.OrdNo)
-		FROM #tblMatchInfo m 
+		FROM #tmpAllParentChildMatch m 
 			INNER JOIN dbo.Bettransm bm WITH (NOLOCK) ON bm.MatchID = m.MatchId 
 			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
 		WHERE  bm.statusId NOT IN (101, 102)

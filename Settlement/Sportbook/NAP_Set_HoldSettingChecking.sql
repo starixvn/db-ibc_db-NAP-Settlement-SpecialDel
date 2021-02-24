@@ -35,12 +35,17 @@ BEGIN
 	DECLARE @SettlementStatus TINYINT
 			,@Sporrtype TINYINT
 			,@handle INT
+			,@ParentMatchId	INT
 
 	SELECT @Sporrtype = m.Sporttype 
 			,@SettlementStatus = m.SettlementStatus
+			,@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.Matchid =  @MatchId
-		
+	
+	IF @ParentMatchId IS NOT NULL -- child match of cricket
+		RETURN
+
 	IF @SettlementStatus & 87 > 0
 	BEGIN
 		SET	@ErrCode = 1001038	

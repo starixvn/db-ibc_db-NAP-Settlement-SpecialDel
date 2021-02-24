@@ -82,7 +82,7 @@ BEGIN
 			,@priorAction		VARCHAR(20)
 			,@IsSettleBySetting	BIT = 0
 			,@IsExistEarlyBettype BIT
-			,@parentMatchId INT
+			,@ParentMatchId INT
 
 	SELECT	@matchdate = eventdate
 			,@finalhomescore = CASE sporttype WHEN 10 THEN finalawayscore ELSE finalhomescore END -- Golf, using Stroke count, so swap the score to make it become normal style
@@ -92,7 +92,7 @@ BEGIN
 			,@SportType = SportType
 			,@betstatus = betstatus
 			,@GoalRecord = GoalRecord
-			,@parentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL THEN ParentID ELSE NULL END
+			,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
 			,@IsRefundHT = CASE WHEN @betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END
 	FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
 	WHERE	matchid = @matchid
@@ -105,8 +105,7 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 
-	IF @parentMatchId IS NULL  -- no check child match of cricket
-		EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 		@MatchId	= @Matchid
 		,@ErrCode	= @ErrCode OUTPUT
 		,@ErrMsg	= @ErrMsg OUTPUT
@@ -507,10 +506,10 @@ BEGIN
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
 		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-						+ CASE WHEN @parentMatchId IS NOT NULL THEN ', isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
+						+ CASE WHEN @ParentMatchId IS NOT NULL THEN ', isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
-		IF @parentMatchId IS NOT NULL
-			SET @matchid = @parentMatchId
+		IF @ParentMatchId IS NOT NULL
+			SET @matchid = @ParentMatchId
 
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator

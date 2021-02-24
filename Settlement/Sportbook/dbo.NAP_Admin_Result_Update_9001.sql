@@ -37,8 +37,16 @@ AS
 BEGIN
     SET NOCOUNT ON 
 
-	IF EXISTS ( SELECT TOP 1 1 FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid = @MatchID AND @Sporttype = 50 AND ISNULL(ChildMatchType,0) = 200)
-	RETURN
+	IF @Sporttype = 50
+	BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM dbo.Match m WITH(NOLOCK) 
+					WHERE	m.matchid = @MatchID 
+							AND Sporttype = @Sporttype 
+							AND ISNULL(ChildMatchType,0) = 200
+							AND m.ParentID IS NOT NULl
+		)
+			RETURN
+	END
 
     DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT

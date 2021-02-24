@@ -80,7 +80,7 @@ BEGIN
 		,@SqlCommand VARCHAR(MAX)
 		,@SettlementStatus TINYINT
 		,@isSettingByProfile BIT = 0
-		,@existSettingEarly BIT = 0
+		,@existSettingEarly BIT = 0		
 		,@matchidList VARCHAR(MAX) = ''
 	
 	SET @StartTime = GETDATE()
@@ -206,6 +206,8 @@ BEGIN
 		,IsExistMarkedTicketParlay BIT
 		,ChildMatchType TINYINT
 		)
+
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 
 	DECLARE @strmatchid VARCHAR(MAX)
 		,@betstatus VARCHAR(8000)
@@ -335,7 +337,7 @@ BEGIN
 					OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 				)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
-			AND ISNULL(m.ChildMatchType,0) <> 200
+			AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
@@ -353,25 +355,6 @@ BEGIN
 	--check FGLG & BetRadar
 	DECLARE @strBettypesParlay	VARCHAR (MAX)		
 		,@n						INT = 2147483647
-
-	CREATE TABLE #tmpMatchId ( MatchId INT, ParentId INT )
-
-	IF EXISTS ( SELECT TOP 1 1 FROM #matchList m WHERE m.sporttype = 50 )
-	BEGIN
-		SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-		FROM #matchList
-		SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-
-		INSERT INTO #tmpMatchId (MatchId, ParentId )
-		EXEC dbo.NAP_Set_GetChildMatch @MatchIds =  @matchidList
-
-		SELECT  @matchidList =''
-	END
-	ELSE
-	BEGIN
-		INSERT INTO #tmpMatchId (MatchId, ParentId )
-		SELECT m.MatchId, m.MatchId FROM #matchList m
-	END
 
 	CREATE TABLE #tmpBettypes (bettype SMALLINT, groupid SMALLINT, IsFGLG BIT, IsEarly BIT)
 	
@@ -394,12 +377,23 @@ BEGIN
 		,@maxbettype = MAX(bettype)
 	FROM	#tmpBettypes
 	
-	CREATE TABLE #BettypeExtraStatus(matchid INT, ParentId  INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
+	CREATE TABLE #BettypeExtraStatus(matchid INT, ParentId INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
 		
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
+	SELECT	ISNULL(m.ChildMatchId, t.matchid), t.matchid
+	FROM	#matchList t
+		OUTER APPLY (
+			SELECT	m.matchid AS ChildMatchId
+			FROM	dbo.match m WITH(NOLOCK)
+			WHERE	m.sporttype = 50
+					AND m.ChildMatchType = 200
+					AND m.ParentID = t.matchid
+		)m
+
 	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
-	SELECT m.matchid, ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
+	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId, ParentId FROM #tmpMatchId
+		SELECT TOP (@n) MatchId, ParentId FROM #tmpAllParentChildMatch
 	) AS m
 		CROSS APPLY 
 		(
@@ -448,7 +442,7 @@ BEGIN
 	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
 	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId, ParentId FROM #tmpMatchId
+		SELECT TOP (@n) MatchId, ParentId FROM #tmpAllParentChildMatch
 	) AS m
 		CROSS APPLY 
 		(
@@ -556,7 +550,7 @@ BEGIN
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId, ParentId)
 	SELECT	mt.TransId, m.matchid, m.ParentId
-	FROM	#tmpMatchId m
+	FROM	#tmpAllParentChildMatch m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)

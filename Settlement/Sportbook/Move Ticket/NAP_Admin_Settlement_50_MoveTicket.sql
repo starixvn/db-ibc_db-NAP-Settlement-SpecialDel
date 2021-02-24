@@ -179,10 +179,12 @@ BEGIN
         ,@HTHome            = 0
         ,@HTAway            = 0
         ,@Action            = 'CAL'
+		,@IsMovedMatch		= 1
 
 	EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
 		@matchid    = @childMatchId
 		,@command    = 'C'
+		,@IsMovedMatch = 1
 
 	IF @totalSingle > 0
 		EXEC dbo.NAP_Admin_CheckingProcess
