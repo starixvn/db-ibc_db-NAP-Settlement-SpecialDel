@@ -31,6 +31,7 @@ AS
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
+		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 
 	Param's explanation:	
 		
@@ -188,6 +189,8 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,RequestID	INT
+		 ,sporttype SMALLINT
+
 	)
 	
 	CREATE TABLE #tmpRefCodeSummary_Recalculate (
@@ -196,6 +199,8 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,RequestID	INT
+		 ,sporttype SMALLINT
+
 	)
 
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
@@ -729,8 +734,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype
 		FROM	#tmpTransId_VOID_RequestID main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -741,8 +746,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId_VOID_RequestID(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID
+		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype)
+		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype
 		FROM	#tmpTransId_VOID_RequestID sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -760,12 +765,12 @@ BEGIN
 		
 	END
 	-- Checking CASHOUT for resettle, used to recal 914 for affect customers
-	DECLARE @tmpCustCashOut_Recalculate_tmp AS TABLE(transid BIGINT, custid INT, refno BIGINT, bettype SMALLINT)
+	DECLARE @tmpCustCashOut_Recalculate_tmp AS TABLE(transid BIGINT, custid INT, refno BIGINT, bettype SMALLINT, sporttype SMALLINT)
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype )
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype
+		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype, sporttype)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, main.sporttype
 		FROM	#tmpTransId_Recalculate main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -775,8 +780,8 @@ BEGIN
 		WHERE	main.TicketType = 3
 				AND sub.statusID NOT IN (101, 102)
 		-- cashout bet ticket, 912, 913
-		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype
+		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype, sporttype)
+		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, sub911.sporttype
 		FROM	@tmpCustCashOut_Recalculate_tmp sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -790,7 +795,7 @@ BEGIN
 		WHERE	t.bettype = 912
 		GROUP BY t.custid
 		
-		INSERT INTO #tmpTransId_Recalculate (TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid)
+		INSERT INTO #tmpTransId_Recalculate (TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, sporttype)
 		SELECT	DISTINCT cob.transid, cob.custid, cob.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -798,7 +803,7 @@ BEGIN
 			END AS KeyId
 			,1 AS balanceType
 			,3 AS TicketType
-			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid
+			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid, b.sporttype
 		FROM @tmpCustCashOut_Recalculate_tmp b
 			INNER JOIN dbo.bettrans cob WITH(NOLOCK) 
 				ON cob.matchid = @MatchId
@@ -824,21 +829,21 @@ BEGIN
 	FROM @tmpCustCashOut_Recalculate
 	
 	-- Insert more bonus or cash ticket in case only one ticket appears in #tmpTransId	
-	INSERT INTO #tmpRefCodeSummary_VOID (RefCode, custid, bettype, transid,requestID)
-	SELECT	RefCode, custid, bettype, MAX(transid) as transid, requestID
+	INSERT INTO #tmpRefCodeSummary_VOID (RefCode, custid, bettype, transid,requestID, sporttype)
+	SELECT	RefCode, custid, bettype, MAX(transid) as transid, requestID, t.sporttype
 	FROM	#tmpTransId_VOID_RequestID t
 	WHERE	t.refcode IS NOT NULL 
 	GROUP BY t.refcode, t.custid, t.bettype, RequestID
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, TicketType, refcode,RequestID,betid)
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, TicketType, refcode, RequestID, betid, sporttype)
 		SELECT b.TransId, b.custid, b.bettype
 		,CASE 
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-		, 1, b.refcode,r.RequestID,b.betid
+		, 1, b.refcode, r.RequestID, b.betid, r.sporttype
 		FROM #tmpRefCodeSummary_VOID r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -854,21 +859,21 @@ BEGIN
 		WHERE	b.statusID NOT IN (101,102 ) -- reject, void
 				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID WHERE b.transid = TransId)
 	END
-	INSERT INTO #tmpRefCodeSummary_Recalculate(RefCode, custid, bettype, transid)
-	SELECT	RefCode, custid, bettype, MAX(transid) as transid
+	INSERT INTO #tmpRefCodeSummary_Recalculate(RefCode, custid, bettype, transid, sporttype)
+	SELECT	RefCode, custid, bettype, MAX(transid) as transid, t.sporttype
 	FROM	#tmpTransId_Recalculate t
 	WHERE	t.refcode IS NOT NULL 
 	GROUP BY t.refcode, t.custid, t.bettype
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, refcode)
+		INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, refcode, sporttype)
 		SELECT b.TransId, b.custid, b.bettype
 		,CASE 
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-		, 1, 1, b.refcode
+		, 1, 1, b.refcode, r.sporttype
 		FROM #tmpRefCodeSummary_Recalculate r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode

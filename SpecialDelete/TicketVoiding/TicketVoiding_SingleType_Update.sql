@@ -32,6 +32,7 @@ AS
 		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
 		- 20210207@Helen: Increase Retry for void process [Redmine: #150178]
 		- 20210208@Max: [TVS] Enhance performance of void abnormal account [Redmine: #150204]
+		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 	
 	Param's explanation:	
 		
@@ -117,6 +118,7 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,matchid	INT
+		 ,sporttype SMALLINT
 	)
 
 	CREATE TABLE #Lucky3Matches
@@ -533,8 +535,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid
+		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid, main.sporttype
 		FROM	#tmpTransId main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -545,8 +547,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid
+		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype)
+		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid, sub911.sporttype
 		FROM	#tmpTransId sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -728,16 +730,16 @@ BEGIN
 	END
 
 	-- Insert more bonus or cash ticket in case only one ticket appears in #tmpTransId	
-	INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid, matchid)
-	SELECT	RefCode, custid, bettype, MAX(transid) as transid, t.matchid
+	INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid, matchid, sporttype)
+	SELECT	RefCode, custid, bettype, MAX(transid) as transid, t.matchid, t.sporttype
 	FROM	#tmpTransId t
 	WHERE	t.refcode IS NOT NULL
 	GROUP BY t.refcode, t.custid, t.bettype, t.matchid
 
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid
+		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid, sporttype)
+		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid, r.sporttype
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode

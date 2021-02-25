@@ -19,10 +19,14 @@ AS
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200417@Charles: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210225@July: HotFix - Mark/unmark can not search CO by bet ID [Redmine: #150621]
+
 	Explanation's Param:
 */
 BEGIN
-SET NOCOUNT ON
+
+	SET NOCOUNT ON
+
 	CREATE TABLE #Tickets
              (GroupID               BIGINT,
               transid               BIGINT,
@@ -74,7 +78,7 @@ SET NOCOUNT ON
               MatchCode             NVARCHAR(50),
 			  ActualStake			MONEY
              );
-CREATE TABLE #tmpRefCodeSummary
+	CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
               custid  INT,
               matchid INT,
@@ -520,7 +524,6 @@ CREATE TABLE #tmpRefCodeSummary
 								  ,b.livehomescore
 								  ,b.liveawayscore
 								  ,b.winlost
-								  ,b.actual_stake
 								  ,b.transdesc
 								  ,b.betdaqid
 								  ,b.username
