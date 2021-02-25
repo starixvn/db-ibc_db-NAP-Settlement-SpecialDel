@@ -133,7 +133,7 @@ BEGIN
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
 	)
 
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, ParentId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 
@@ -446,9 +446,9 @@ BEGIN
 			ON m.matchid = t.ParentId
 	WHERE t.IsRunningBettypeSingle = 1
 
-	INSERT INTO #tmpMarkedTransaction (transId, matchId, ParentId)
-	SELECT	mt.TransId, m.matchid, m.ParentId
-	FROM	#tmpAllParentChildMatch m
+	INSERT INTO #tmpMarkedTransaction (transId, matchId)
+	SELECT	mt.TransId, m.matchid
+	FROM	#tmpMatchIds m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -466,7 +466,7 @@ BEGIN
 				,IsExistMarkedTicketParlay = m.HasMarkedParlay
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
-				SELECT	mt.ParentId
+				SELECT	mt.matchId
 						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
 						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
@@ -493,7 +493,7 @@ BEGIN
 							END
 				GROUP BY mt.matchid
 			) m
-				ON m.ParentId = mk.MatchId
+				ON m.matchId = mk.MatchId
 
 		UPDATE m 
 			SET IsExistMarkedTicket = t.IsExistMarkedTicket
