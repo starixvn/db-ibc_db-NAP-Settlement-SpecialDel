@@ -39,6 +39,7 @@ AS
        - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 	   - 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Cal 0-0 [Redmine:#124951]
 	   - 20200511@Kathy: Remove tennis code [Redmine:#129316]
+	   - 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 
 
     Param's Explanation:
@@ -305,6 +306,7 @@ BEGIN
 							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
 							ELSE 1
 						END
+				AND f.SettledByProfile = CASE WHEN @SportType = 1 THEN 0 ELSE f.SettledByProfile END
 										
 		UNION ALL
 		SELECT f.Bettype
@@ -322,7 +324,8 @@ BEGIN
 							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
 							WHEN f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
 							ELSE 1
-						END	 		
+						END	 
+				AND f.SettledByProfile = CASE WHEN @SportType = 1 THEN 0 ELSE f.SettledByProfile END
 				
 	)
 	INSERT INTO @ListBettype_tmp (bettype,hdp1)
@@ -492,6 +495,7 @@ BEGIN
 		END			
 			
 	END
+
     -- call execrep SP
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
         ,@mode = @mode
@@ -539,25 +543,11 @@ BEGIN
 		,@IsReSettledTickets = @IsReSettledTickets
 		-- using by service broker
 		,@CalledByBrokerService = 0 -- this one is called by NAP_Admin_Settlement_3 instead :)
-		
 					   
         --Cricket: Charged Commision
         EXEC dbo.NAP_Admin_Calculate_500
 			@MatchId = @matchId
 			,@Action = @Mode
 			
-		-- BetTrade Winlost Sharing
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 901 AND 910)
-			EXEC dbo.NAP_Admin_Calculate_904
-				@MatchId = @matchid
-				,@Action = @Mode
-		-- CashOut Winlost Sharing
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype BETWEEN 911 AND 920)
-		BEGIN
-			--RE-CAL winloss sharing
-			EXEC dbo.NAP_Admin_Calculate_914
-				@MatchId = @matchid
-				,@Action = @Mode
-		END
 END
 GO

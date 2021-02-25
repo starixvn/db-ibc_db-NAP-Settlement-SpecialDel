@@ -78,6 +78,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 
 
     Param's Explanation:
@@ -95,7 +96,7 @@ AS
 */
 BEGIN
     SET NOCOUNT ON
-    
+	
     DECLARE @SkipBalanceUpdate          BIT
         ,@start                         DATETIME
         ,@stop                          DATETIME
@@ -193,7 +194,6 @@ BEGIN
 		IF @ErrCode > 0
 			RETURN
 	END
-
     
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -507,22 +507,25 @@ BEGIN
           
             IF LEFT(@action, 3) = 'CAL'
             BEGIN
-				IF @sporttype = 2 -- Basketball
+				IF @sporttype = 1 -- soccer
                 BEGIN
-					EXEC dbo.NAP_Admin_Settlement_3_Basketball
+					EXEC dbo.NAP_Admin_Settlement_3_profile
 						@matchId = @matchid
-						,@Mode	= @action
-						,@SelectedQuarter = @SelectedQuarter
+						,@action	= @action
 						,@IsReSettledTickets = @IsReSettledTickets
+						,@ErrCode = @ErrCode OUTPUT
+						,@ErrMsg = @ErrMsg OUTPUT
+
+					IF @ErrCode <> 0
+						RETURN
+
                 END
-                ELSE
-                BEGIN
-                    EXEC dbo.NAP_Admin_Settlement_3 
-                        @matchid            = @matchid
-                        ,@mode                = @action    
+				ELSE 
+					EXEC dbo.NAP_Admin_Settlement_3
+						@matchid            = @matchid
+						,@mode                = @action    
 						,@IsReSettledTickets = @IsReSettledTickets
 						,@creator = @creator
-                END
             END
 
         IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
@@ -558,13 +561,14 @@ BEGIN
                 , @Action 			= @Action
                 , @Mode 			= 2 --@Mode Manual Settlement
                 , @BAQuarter		= @SelectedQuarter
-        END --IF @SkipBalanceUpdate = 0
+        END --
         
         -- Compare and update pending balance with error case
-        EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-            @BalanceWalletBefore	= @BalanceWalletBefore
-            , @BalanceWalletAfter	= @BalanceWalletAfter
-            , @ActionId				= @ActionID
+		IF @SkipBalanceUpdate = 0
+			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				@BalanceWalletBefore	= @BalanceWalletBefore
+				, @BalanceWalletAfter	= @BalanceWalletAfter
+				, @ActionId				= @ActionID
 
         SELECT    @ErrCode = 1001017 
                 ,@ErrMsg = ERROR_MESSAGE()
@@ -607,15 +611,14 @@ BEGIN
                 AND a.balanceType   = b.balanceType
                 AND a.walletType    = b.walletType
                 AND a.bonusId       = b.bonusId
-                
-
     WHERE a.balance <> b.balance
 
     -- Compare and update pending balance
-	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-		@BalanceWalletBefore	= @BalanceWalletBefore
-		, @BalanceWalletAfter	= @BalanceWalletAfter
-		, @ActionId				= @ActionID
+	IF @SkipBalanceUpdate = 0
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+			@BalanceWalletBefore	= @BalanceWalletBefore
+			, @BalanceWalletAfter	= @BalanceWalletAfter
+			, @ActionId				= @ActionID
 
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
