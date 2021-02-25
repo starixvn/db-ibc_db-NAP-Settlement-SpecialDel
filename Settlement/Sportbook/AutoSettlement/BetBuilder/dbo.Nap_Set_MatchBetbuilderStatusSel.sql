@@ -9,6 +9,7 @@
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200803@July: Edit sporttype in (1,2) --1: soccer, 2:basketball
 		
 		
 	Param's Explanation:	
@@ -27,7 +28,7 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) ON m.matchid = vs.matchid 
 	WHERE m.eventstatus = 'completed'
-			AND m.sporttype = 1
+			AND m.sporttype IN (1,2)
 			AND vs.opened = 1			
 			AND vs.VendorID = 34
 			AND DATEDIFF(mi, ISNULL(m.Settletime, GETDATE()), GETDATE()) > 60

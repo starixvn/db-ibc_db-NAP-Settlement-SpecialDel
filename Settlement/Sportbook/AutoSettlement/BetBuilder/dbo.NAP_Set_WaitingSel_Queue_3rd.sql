@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel_Queue_3rd] 
-	@LeagueId 		INT 			= 0			 -- 0 for ALL Leagues
-	,@SportType 	INT 			 
+	 @LeagueIds 	VARCHAR(MAX) 		
+	,@SportTypes 	VARCHAR(MAX) 			 
 	,@SettleType	VARCHAR(50)
 AS
 /*
@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20200803@July : Get list Sporttype and LeagueId [Redmine:#138475]
 		
 	Param's Explanation: 
 		@SettleType = BBD: BetBuilder
@@ -21,25 +22,43 @@ BEGIN
 
 	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
 			,@MinBettype INT, @MaxBettype INT
-	DECLARE @TempMatch TABLE (MatchId INT, QueueStatus INT)
+			,@strMatchIds		VARCHAR(MAX)
+			,@remoteQuery		NVARCHAR(MAX)
+			,@strResourceIds	VARCHAR(MAX)
+	DECLARE @TempMatch TABLE (MatchId INT,Sporttype SMALLINT, QueueStatus INT )
 	DECLARE @tblTicketStatusBySettleType TABLE (matchid INT, totalTicket INT, totalTicketRunning INT, SettleType VARCHAR(20))
 	DECLARE @tblBettype TABLE (Bettype INT, SettleType VARCHAR(3))
 	DECLARE @tblTicketStatus TABLE (MatchID INT, ParlayStatus VARCHAR(20))
+	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
+	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
+	DECLARE @tmpResultDetail TABLE (
+		MatchId				INT
+		,ResourceId			VARCHAR(20)
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+		,ResultStatusId		TINYINT
+		,SettlementStatusId TINYINT
+	)
 	------------------------------------------------------------------------------	
-	SELECT @LeagueId = ISNULL(@LeagueID, 0)
-		   ,@SportType = ISNULL(@SportType, 0)
+	INSERT INTO @tmpSporttypes(Sporttype)
+	SELECT Val 
+	FROM dbo.f_SplitString(@SportTypes, ',')
+	option (maxrecursion 0)
 
-		   
-
+	INSERT INTO @tmpLeagueIds(LeagueId)
+	SELECT Val 
+	FROM dbo.f_SplitString(@LeagueIds, ',')
+	option (maxrecursion 0)
+    	
 	----------------------------------------------------------------------------
 	--Get Bettype from PROFILE
 	IF @SettleType IS NOT NULL
 	BEGIN
 		INSERT INTO @tblBettype (Bettype, SettleType)
-		SELECT DISTINCT Bettype, SettleType
-		FROM dbo.SettlementSpecialBettypeProfile WITH (NOLOCK)
-		WHERE Sporttype = @Sporttype 
-			AND SettleType IN (SELECT val FROM dbo.[f_SplitString](@SettleType, ','))
+		SELECT DISTINCT ss.Bettype, ss.SettleType
+		FROM dbo.SettlementSpecialBettypeProfile ss WITH (NOLOCK)
+			INNER JOIN @tmpSporttypes st ON ss.Sporttype = st.Sporttype 
+		WHERE ss.SettleType IN (SELECT val FROM dbo.[f_SplitString](@SettleType, ','))
 		ORDER BY Bettype
 	END
 	
@@ -51,30 +70,63 @@ BEGIN
 	
 	--Get match info in queue
 	;WITH SingleTicket AS (
-		SELECT matchid, MIN(IsCalculating) AS QueueStatus
+		SELECT s.matchid,st.SportType, MIN(s.IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
+			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
+			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-			AND (sporttype = @sporttype OR @sporttype = 0)
-			AND (leagueid = @leagueid OR @leagueId = 0)
-		GROUP BY matchid 
+		GROUP BY matchid ,st.SportType
 	),
 	SingleTicketMainQueue AS (
-		SELECT s.matchid, MIN(IsCalculating) AS QueueStatus
+		SELECT s.matchid,st.SportType, MIN(s.IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 			INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) ON vs.MatchID = s.MatchID
+			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
+			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
 		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-			AND (sporttype = @sporttype OR @sporttype = 0)
-			AND (leagueid = @leagueid OR @leagueId = 0)
 			AND vs.Opened = 1 
 			AND IsCalculating = 2
-		GROUP BY s.matchid 
+		GROUP BY s.matchid,st.SportType
 	)
-	INSERT INTO @TempMatch(MatchId, QueueStatus)
+	INSERT INTO @TempMatch(MatchId,SportType, QueueStatus)
 	SELECT ISNULL(sg.MatchID, mq.MatchID) AS MatchID
+		, ISNULL(sg.SportType, mq.SportType) AS SportType
 		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
 	FROM SingleTicket sg
 		FULL OUTER JOIN SingleTicketMainQueue mq ON sg.matchid = mq.matchid
-	
+	----------------------------------------------------------------------------------------
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype IN (1,2))
+	BEGIN
+		SELECT @strMatchIds = ''
+			   ,@remoteQuery = ''
+			   ,@strResourceIds = ''
+
+		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
+		FROM @TempMatch tempM
+		WHERE tempM.Sporttype IN (1,2)
+		
+		IF @strMatchIds <>''
+		BEGIN
+			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+			FROM (
+				SELECT DISTINCT f.ResourceID
+				FROM @TempMatch tempM
+					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
+			)f
+			SELECT @strMatchIds		= LEFT(@strMatchIds,LEN(@strMatchIds)-1)
+				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+
+			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
+								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
+								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
+										' + CASE WHEN @strResourceIds <> '' THEN 
+										' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
+
+			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
+			EXECUTE sys.sp_executesql @remoteQuery
+		END
+	END
+	----------------------------------------------------------------------------------------
 	
 	--count ticket on table Bettrans
 	;WITH cteTicketCount AS(
@@ -111,25 +163,29 @@ BEGIN
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
-			,m.finalHomeScore
-			,m.finalAwayScore
-			,m.htHomeScore AS halfTimeHomeScore
-			,m.htAwayScore AS halfTimeAwayScore
 			,m.autoSetting
 			--,l.autoSetting AS autoSettingForLeague
 			,ISNULL(rs.parlayStatus,'No Ticket') AS parlayStatus
 			,tm.QueueStatus
+			,m.sporttype
 	FROM	@TempMatch tm
 		INNER JOIN dbo.[match] m WITH (NOLOCK) ON m.matchid = tm.matchid
 		--INNER JOIN dbo.[League] l WITH (NOLOCK) ON m.leagueID = l.LeagueID
 		LEFT JOIN @tblTicketStatus rs ON m.matchid = rs.matchid
 
+	SELECT	MatchId
+			,ResourceId
+			,HomeValue
+			,AwayValue
+			,ResultStatusId
+			,SettlementStatusId	
+	FROM	@tmpResultDetail
 	
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
 	BEGIN
-		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel_Queue_3rd @LeagueId = ' + CONVERT(VARCHAR(10),@LeagueId) 
-														+ ', @SportType =' + CONVERT(VARCHAR(10),@SportType)
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel_Queue_3rd @LeagueId = ' + CONVERT(VARCHAR(MAX),@LeagueIds) 
+														+ ', @SportType =' + CONVERT(VARCHAR(MAX),@SportTypes)
 														+ ', @SettleType =' + CONVERT(VARCHAR(50),@SettleType)
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime

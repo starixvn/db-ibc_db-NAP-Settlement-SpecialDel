@@ -13,6 +13,7 @@ AS
         - 20190923@Tiara: BMAIO - Badminton All In One [Redmine #120324]
         - 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200528@Kathy: add resourceid of basketball [Redmine:#134843]
+		- 20200805@July:  add resourceid of soccer [Redmine:#138475]
 		- 20200908@Louisa: add FT and HT for Soccer [Redmine:#139979]
    
     Parameters Explanation:        
@@ -64,11 +65,11 @@ RETURN
 		UNION ALL SELECT 2, '00' , 'OT', 'OT', 'FT', 0, 6
 		UNION ALL SELECT 2, '00' , 'FT', '00', 'FT', 1, 99
 
-		
 		UNION ALL SELECT 1, '01' , 'HT', '01', 'HT', 0, 1
 		UNION ALL SELECT 1, '09' , 'HT', '09', 'HT', 0, 2
 		UNION ALL SELECT 1, '08' , 'FT', '08', 'FT', 0, 3
 		UNION ALL SELECT 1, '00' , 'FT', '00', 'FT', 1, 99
+
 
 		
     ) AS tbl
