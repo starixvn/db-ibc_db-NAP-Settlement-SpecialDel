@@ -546,7 +546,7 @@ BEGIN
 	END
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT, ParentId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid

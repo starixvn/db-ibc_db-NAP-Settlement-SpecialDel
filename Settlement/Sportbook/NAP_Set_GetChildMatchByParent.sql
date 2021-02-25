@@ -23,7 +23,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @Sporttype TINYINT
-	DECLARE @tmpChildMatch TABLE ( MatchId INT, IsParent BIT )
+	DECLARE @tmpChildMatch TABLE ( MatchId INT)
 	SELECT @Sporttype = 50
 
 	IF @@ROWCOUNT> 0
@@ -41,12 +41,7 @@ BEGIN
 		SELECT m.Matchid
 		FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettransm bm ON m.matchid = bm.matchid
-			CROSS APPLY (
-				SELECT TOP 1  ResourceID FROM SettlementSpecialBettypeProfile sp
-				WHERE sp.bettype = bm.bettype 
-					AND sp.SportType = @Sporttype
-			) sp
-		GROUP BY m.Matchid, sp.ResourceId, CASE WHEN statusID = 0 THEN 1 ELSE 0 END
+		GROUP BY m.matchid
 
 	END
 
