@@ -118,7 +118,6 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,matchid	INT
-		 ,sporttype SMALLINT
 	)
 
 	CREATE TABLE #Lucky3Matches
@@ -730,16 +729,16 @@ BEGIN
 	END
 
 	-- Insert more bonus or cash ticket in case only one ticket appears in #tmpTransId	
-	INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid, matchid, sporttype)
-	SELECT	RefCode, custid, bettype, MAX(transid) as transid, t.matchid, t.sporttype
+	INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid, matchid)
+	SELECT	RefCode, custid, bettype, MAX(transid) as transid, t.matchid
 	FROM	#tmpTransId t
 	WHERE	t.refcode IS NOT NULL
 	GROUP BY t.refcode, t.custid, t.bettype, t.matchid
 
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid, sporttype)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid, r.sporttype
+		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid)
+		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
