@@ -20,6 +20,7 @@ AS
 		- 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20201204@Charles: Return matchid from result [Redmine: #145719]
 		- 20210104@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210226@Max: TVS - SP Time Out [Redmine: #150723]
 	
 	Param's explanation:	
 		
@@ -147,11 +148,10 @@ BEGIN
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, SubStatus, VoidedTime, custid, oddsid)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
-			,zm.status
 			,zm.SubStatus
 			,zm.VoidedTime
 			,zm.custid
@@ -161,13 +161,11 @@ BEGIN
 			SELECT	zm.transid
 					,zm.matchid
 					,zm.refno 
-					,b.status
 					,zm.status AS SubStatus
 					,zm.transdate AS VoidedTime
 					,zm.custid
 					,zm.oddsid
 			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-				LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON zm.refno = b.refno AND b.matchid = 29
 			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
 		) zm
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
@@ -251,6 +249,7 @@ BEGIN
 			,recommend = b.recommend
 			,LiveIndicator = bm.liveindicator
 			,ActualStake = b.actual_stake
+			,t.Status = b.status
 	FROM	#tmpTicket t
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK) ON	t.subTransId = bm.transid
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
