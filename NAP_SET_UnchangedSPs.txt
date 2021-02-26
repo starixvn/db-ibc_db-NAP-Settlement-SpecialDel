@@ -1,5 +1,3 @@
-Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
-Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
 Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
 Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP_Push.sql
 Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP.sql

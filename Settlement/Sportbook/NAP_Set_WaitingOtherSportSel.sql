@@ -11,6 +11,7 @@ AS
 	Revision:
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's explanation:  
 		
@@ -169,13 +170,26 @@ BEGIN
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+	
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
+	SELECT	ISNULL(m.ChildMatchId, t.matchid), t.matchid
+	FROM	@tmpMatchIds t
+		OUTER APPLY (
+			SELECT	m.matchid AS ChildMatchId
+			FROM	dbo.match m WITH(NOLOCK)
+			WHERE	m.sporttype = 50
+					AND m.ChildMatchType = 200
+					AND m.ParentID = t.matchid
+		)m
 		
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
 	FROM	dbo.f_Set_GetEarlyBettypes()
 
 	INSERT INTO @tmpBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
-	SELECT	m.matchid
+	SELECT	m.ParentId
 			,MAX(b.isExistSingle)
 			,MAX(b.IsRunningSingle)
 			,MAX(b.IsWaitingSingle)
@@ -183,7 +197,7 @@ BEGIN
 			,MAX(b.isRunningParlay)
 			,MAX(b.isWaitingParlay)
 	FROM	(
-		SELECT TOP(@n) matchid FROM @tmpMatchIds
+		SELECT TOP(@n) matchid, ParentId FROM #tmpAllParentChildMatch
 	)m
 		CROSS APPLY (
 			SELECT	b.bettype
@@ -214,7 +228,7 @@ BEGIN
 		)b
 		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
 			ON b.bettype = f.bettype
-	GROUP BY m.matchid
+	GROUP BY m.matchid, m.ParentId
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
@@ -236,6 +250,7 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
+	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId

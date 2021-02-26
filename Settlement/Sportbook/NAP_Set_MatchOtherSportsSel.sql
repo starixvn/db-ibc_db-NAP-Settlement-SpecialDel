@@ -454,6 +454,7 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
+	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
