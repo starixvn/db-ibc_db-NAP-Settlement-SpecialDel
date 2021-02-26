@@ -30,6 +30,7 @@ AS
 			- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 			- 20210107@Kathy: Support settle determined [Readmine:#147141]
+			- 20210225@Kathy: Wrong Water break validation  [Readmine:#150682]
 			
 	Param's Explanation:
 		- @Result: 
@@ -306,7 +307,8 @@ BEGIN
 				)m
 				CROSS APPLY (SELECT TOP 1 1 AS IsOverlap                                                                                                                     
 								FROM	cteWaterBreak wb
-								WHERE	d.Position BETWEEN wb.startWB - m.mins AND wb.endWB + m.mins) wb
+								WHERE	d.Position BETWEEN wb.startWB - m.mins AND wb.endWB 
+						) wb
 
 			IF @ErrCode <> 0
 				RETURN
