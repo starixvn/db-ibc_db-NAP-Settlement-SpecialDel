@@ -36,6 +36,7 @@ AS
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 
 
 	Param's Explanation:
@@ -149,7 +150,7 @@ BEGIN
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK) 
 	WHERE r.RequestId = @RequestId
 
-	IF (@ActionId <> @OldAction AND @ActionId =2 AND @OldAction IS NOT NULL)
+	IF (@ActionId <> @OldAction AND @ActionId = 2 AND @OldAction IS NOT NULL)
 	BEGIN
 		INSERT INTO #transid_tmp (transid, StatusId,statuswinlost)
 		SELECT t.transid, b.statusID, b.statuswinlost
@@ -328,7 +329,7 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
-	IF @ActionId = 4 -- Auto Void All (Instant)
+	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
 	BEGIN
 		-- get non-live and different score transids
 		INSERT #LiveTransIds(TransId, IsNonLive, IsDifferentScore)
