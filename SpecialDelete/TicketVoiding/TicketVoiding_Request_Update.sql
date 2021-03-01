@@ -227,7 +227,7 @@ BEGIN
 			,@ToDate = @ToDate
 	
 
-	IF @IssueTypeId NOT IN (11,13)
+	IF @IssueTypeId IN (1,8,9,10)
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 			@RequestId = @RequestId		
