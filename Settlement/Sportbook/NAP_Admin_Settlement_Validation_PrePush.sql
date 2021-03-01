@@ -17,6 +17,8 @@ AS
         - 20191231@Helen: Basketball | Accidentally Settled Running Match caused by Keyscore - [Redmine:126287]
 		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+
      
     Param's Explanation:
 		* sample @SelectedResource for manual:	'801,802,1H,803,804,FT'
@@ -32,9 +34,10 @@ BEGIN
     SELECT	@sporttype   = m.sporttype
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END
 	
 	IF ( 
-		@sporttype IN (2) -- check for basketball first
+		@sporttype IN (2, 50) -- check for basketball, Cricket
 		AND ISNULL(@SelectedResource,'') <> ''
 		) 
 	BEGIN
