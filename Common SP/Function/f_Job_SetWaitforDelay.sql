@@ -20,6 +20,7 @@ RETURNS VARCHAR(100)
 		- 20210128@Max: Hotfix - TVS [Redmine: #149573]
 		- 20210130@Max: TVS Issue [Redmine: #149743]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
+		- 20210301@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
