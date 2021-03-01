@@ -65,7 +65,7 @@ AS
 		- 20191218@Helen:  fix bug for TVS - [Redmine: 111541]
 		- 20191220@Charles:  Fix write log when data is null [125828]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
-		- 20210103@July: TVS - Wrong parlay count when edited request [Redmine: #150887]
+		- 20210301@July: TVS - Wrong parlay count when edited request [Redmine: #150887]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -203,7 +203,6 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			;
 
-	
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 			@RequestId = @RequestId			
 			,@MatchId = @MatchId			
@@ -226,7 +225,6 @@ BEGIN
 			,@FromDate = @FromDate			
 			,@ToDate = @ToDate
 	
-
 	IF @IssueTypeId IN (1,8,9,10)
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
