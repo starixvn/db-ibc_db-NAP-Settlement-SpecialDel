@@ -183,6 +183,7 @@ BEGIN
 					AND m.ChildMatchType = 200
 					AND m.ParentID = t.matchid
 		)m
+	UNION ALL SELECT m.matchid, m.matchid FROM @tmpMatchIds m
 		
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)

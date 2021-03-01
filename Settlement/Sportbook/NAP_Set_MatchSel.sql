@@ -389,6 +389,7 @@ BEGIN
 					AND m.ChildMatchType = 200
 					AND m.ParentID = t.matchid
 		)m
+	UNION ALL SELECT m.matchid, m.matchid FROM #matchList m
 
 	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
 	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly

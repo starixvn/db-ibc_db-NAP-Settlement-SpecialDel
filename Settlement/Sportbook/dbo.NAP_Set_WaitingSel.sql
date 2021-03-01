@@ -200,6 +200,7 @@ BEGIN
 						AND m.ChildMatchType = 200
 						AND m.ParentID = t.matchid
 			)m
+		UNION ALL SELECT m.matchid, m.matchid FROM @TempMatch m
 
 		INSERT INTO #tblBettype (bettype, GroupId, IsFGLG, IsEarly)
 		SELECT	BetType, f.GroupId, f.IsFGLG, ISNULL(e.IsEarly, 0)

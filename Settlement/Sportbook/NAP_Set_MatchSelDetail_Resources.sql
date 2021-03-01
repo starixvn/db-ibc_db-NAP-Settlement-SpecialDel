@@ -258,7 +258,7 @@ BEGIN
 	---INSERT for Major score
 	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
-	FROM dbo.f_Set_MajorRound_(@Sporttype) mr
+	FROM dbo.f_Set_MajorRound(@Sporttype) mr
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL 	
 	
@@ -271,7 +271,7 @@ BEGIN
 		BEGIN
 			DELETE t
 			FROM @tmpTicketStatus t
-			INNER JOIN dbo.f_Set_MajorRound (@Sporttype) mr ON mr.ResourceID = t.ResourceID
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
 			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
 		END
 

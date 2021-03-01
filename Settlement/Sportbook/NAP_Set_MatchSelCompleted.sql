@@ -136,6 +136,7 @@ BEGIN
 					AND m.ChildMatchType = 200
 					AND m.ParentID = t.matchid
 		)m
+	UNION ALL SELECT m.matchid, m.matchid FROM @DataTmp m
 
 	INSERT INTO @BettypeFGLG (bettype,GroupID)
 	SELECT BetType,GroupID
