@@ -102,7 +102,14 @@ BEGIN
 		WHERE	ISNULL(ParentID,0) =  @MatchId
 				AND ISNULL(m.ChildMatchType, 0) = 200
 				AND m.sporttype = 50
-
+		
+		; WITH cte_bettrans AS (
+			SELECT  m.ParentId, m.MatchId, bt.StatusID , bt.Bettype,  bt.BetID
+			FROM #tmpAllParentChildMatch m
+				INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	
+					ON bt.MatchID = m.MatchID 
+			WHERE bt.statusID NOT IN (101, 102)
+		)
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT sp.ResourceID,
 				COUNT(1) AS BetCount,
@@ -112,14 +119,16 @@ BEGIN
 				0 AS betMarkedCount,
 				MAX(sp.OrdNo) ,
 				0 AS IsSpecialBettype
-		FROM #tmpAllParentChildMatch m
-			INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	ON bt.MatchID = m.MatchID 
-			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK)	ON bt.Bettype = sp.Bettype
-		WHERE bt.statusID NOT IN (101, 102)
-		AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
-		AND sp.sporttype = @SportType
-		AND sp.Settletype = @SettleType	
-		GROUP BY m.ParentId, sp.ResourceID
+		FROM cte_bettrans bt
+			CROSS APPLY (
+				SELECT TOP 1 sp.OrdNo ,  sp.ResourceID, sp.sporttype, sp.Settletype
+				FROM  SettlementSpecialBettypeProfile sp WITH (NOLOCK)	
+				WHERE bt.Bettype = sp.Bettype
+					AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
+			) sp
+		WHERE sp.sporttype = @SportType
+			AND sp.Settletype = @SettleType	
+		GROUP BY bt.ParentId, sp.ResourceID
 	END
 
 	ELSE 
@@ -189,6 +198,12 @@ BEGIN
 	
 	IF @SportType = 50
 	BEGIN
+		;WITH cte_bettransm AS (
+			SELECT  m.ParentId, m.MatchId, bm.StatusID , bm.Bettype,  bm.Betcheck
+			FROM #tmpAllParentChildMatch m
+				INNER JOIN dbo.Bettransm bm WITH(NOLOCK) ON bm.MatchID = m.MatchID 
+			WHERE bm.statusID NOT IN (101, 102)
+		)
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, OrdNo)
 		SELECT sp.ResourceID     
 			,COUNT(1) AS BetCount
@@ -196,14 +211,19 @@ BEGIN
 			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 			,MAX(sp.OrdNo)
-		FROM #tmpAllParentChildMatch m 
-			INNER JOIN dbo.Bettransm bm WITH (NOLOCK) ON bm.MatchID = m.MatchId 
-			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
-		WHERE  bm.statusId NOT IN (101, 102)
-			AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
-			AND sp.sporttype = @sporttype
-			AND sp.Settletype = @Settletype
-		GROUP BY m.ParentId, sp.ResourceID
+		FROM cte_bettransm bm
+			CROSS APPLY (
+							SELECT TOP 1 sp.ResourceID, sp.OrdNo , sp.sporttype, sp.Settletype
+							FROM dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+							WHERE sp.Bettype = bm.Bettype
+							AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
+							AND sp.sporttype = 50
+							AND sp.Settletype = @Settletype
+						) sp
+		
+		WHERE sp.sporttype = @SportType
+			AND sp.Settletype = @SettleType	
+		GROUP BY bm.ParentId, sp.ResourceID
 	END
 	ELSE
 	BEGIN
@@ -238,7 +258,7 @@ BEGIN
 	---INSERT for Major score
 	INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, OrdNo)
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
-	FROM dbo.f_Set_MajorRound (@Sporttype) mr
+	FROM dbo.f_Set_MajorRound_(@Sporttype) mr
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL 	
 	
