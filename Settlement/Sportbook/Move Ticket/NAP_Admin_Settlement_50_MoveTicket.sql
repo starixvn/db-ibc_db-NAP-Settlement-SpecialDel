@@ -215,7 +215,7 @@ BEGIN
 
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
-						,CASE WHEN statusid = 102 THEN statusId ELSE NULL AS '@s'
+						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
 				FROM	#tmpTransIdsParlay 
 				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
