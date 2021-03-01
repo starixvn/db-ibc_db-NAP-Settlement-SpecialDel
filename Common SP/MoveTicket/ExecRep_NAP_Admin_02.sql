@@ -64,7 +64,6 @@ BEGIN
 		FROM	@tmpTrans t
 			INNER JOIN dbo.BetParlayDetail d
 				ON d.transid = t.TransId
-		WHERE	matchid = @MatchId
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
 		BEGIN
