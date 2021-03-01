@@ -48,7 +48,7 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
-	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT)
+	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
 
 	SELECT	@eventdate = m.eventdate
 	FROM	dbo.match m WITH(NOLOCK)
@@ -113,8 +113,8 @@ BEGIN
 		
 	SET @totalSingle = @@ROWCOUNT
 
-	INSERT INTO #tmpTransIdsParlay(TransId)
-	SELECT	bm.transid
+	INSERT INTO #tmpTransIdsParlay(TransId, statusId)
+	SELECT	bm.transid, bm.statusID
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -154,6 +154,7 @@ BEGIN
 
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
+						,CASE WHEN statusId = 102 THEN statusId ELSE NULL END AS '@s'
 				FROM	#tmpTransIdsSingle 
 				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
@@ -214,6 +215,7 @@ BEGIN
 
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
+						,CASE WHEN statusid = 102 THEN statusId ELSE NULL AS '@s'
 				FROM	#tmpTransIdsParlay 
 				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))

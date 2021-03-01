@@ -21,13 +21,14 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @xml XML
 
-	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY)
+	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT)
 	
 	SET @xml = CAST(@strTransIds AS XML)
 
-	INSERT INTO @tmpTrans (TransID)
-	SELECT T.C.value('./@t', 'bigint') AS transid
-	FROM @xml.nodes('/root/r') AS T(C)
+	INSERT INTO @tmpTrans (TransID, StatusId)
+	SELECT	T.C.value('./@t', 'bigint') AS transid
+			,T.C.value('./@s', 'tinyint') AS statusId
+	FROM	@xml.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 
 	IF @Mode = 'Single'
@@ -38,6 +39,15 @@ BEGIN
 		FROM	@tmpTrans t
 			INNER JOIN dbo.bettrans b
 				ON t.TransID = b.transid
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
+		BEGIN
+			UPDATE zb WITH(ROWLOCK, UPDLOCK)
+				SET matchid = @MatchId
+			FROM	@tmpTrans t
+				INNER JOIN dbo.zzzbettrans zb
+					ON t.TransID = zb.transId
+		END
 	END
 	ELSE IF @Mode = 'subParlay'
 	BEGIN
@@ -55,5 +65,20 @@ BEGIN
 			INNER JOIN dbo.BetParlayDetail d
 				ON d.transid = t.TransId
 		WHERE	matchid = @MatchId
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
+		BEGIN
+			UPDATE zbm WITH(ROWLOCK, UPDLOCK)
+				SET matchid = @MatchId
+			FROM	@tmpTrans t
+				INNER JOIN dbo.zzzbettransm zbm
+					ON t.TransID = zbm.transId
+
+			UPDATE tv WITH(ROWLOCK, UPDLOCK)
+				SET matchid = @MatchId
+			FROM	@tmpTrans t
+				INNER JOIN dbo.TicketVoiding_VoidedTransaction tv
+					ON t.TransID = tv.transId
+		END
 	END
 END
