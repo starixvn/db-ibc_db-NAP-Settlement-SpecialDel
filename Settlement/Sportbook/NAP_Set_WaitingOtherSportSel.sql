@@ -305,9 +305,10 @@ BEGIN
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	matchid
-	FROM	@tmpMatchIds
-	WHERE	eventstatus = 'completed'
+	SELECT	m.matchid
+	FROM	@tmpMatchIds m
+	WHERE	m.eventstatus = 'completed'
+		AND IsExistMarkedTicket = 0
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -315,17 +316,12 @@ BEGIN
 			SET IsExistRunningTicket = 1
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	b.matchid
+				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
-					OUTER APPLY (
-						SELECT TOP 1 mt.transId
-						FROM	#tmpMarkedTransaction mt 
-						WHERE b.transid = mt.TransId
-					)mt
+					INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
 				WHERE	b.matchid = m.matchid
 						AND b.statusID = 0
-						AND mt.transId IS NULL
-				GROUP BY b.matchid
+				GROUP BY tmp.ParentId
 			)b
 
 		UPDATE m 

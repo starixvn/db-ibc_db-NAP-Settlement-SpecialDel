@@ -300,6 +300,7 @@ BEGIN
 				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 1 AND isRunning > 0 THEN 1 ELSE 0 END) AS IsRunningEarlyBettypesParlay
 				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 0 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingEarlyBettypes
 				,MAX(CASE WHEN IsEarly = 1 AND IsParlay = 1 AND isWaiting > 0 THEN 1 ELSE 0 END) AS IsWaitingEarlyBettypesParlay
+				,MAX(CASE WHEN isRunning = 1 AND IsParlay = 0 THEN 1 ELSE 0 END ) AS IsExistRunningTicket
 			FROM #tblBetStatus
 			GROUP BY ParentId
 		)
@@ -314,6 +315,7 @@ BEGIN
 			,IsRunningEarlyBettypesParlay = CASE WHEN tt.IsRunningEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
 			,IsWaitingEarlyBettypes = CASE WHEN tt.IsWaitingEarlyBettypes > 0 THEN 1 ELSE 0 END
 			,IsWaitingEarlyBettypesParlay = CASE WHEN tt.IsWaitingEarlyBettypesParlay >  0 THEN 1 ELSE 0 END
+			,IsExistRunningTicket = tt.IsExistRunningTicket
 		FROM @TempMatch t
 		INNER JOIN cteBetStatus tt ON t.MatchId = tt.ParentId	
 	END
@@ -388,6 +390,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON t.MatchId = m.matchid
 	WHERE	m.eventstatus = 'completed'
+		AND m.sporttype <> 50
 
 	IF @@ROWCOUNT <> 0
 	BEGIN

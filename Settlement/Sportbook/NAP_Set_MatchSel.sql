@@ -424,6 +424,7 @@ BEGIN
 			,SUM(CASE WHEN IsEarly = 1 THEN 1 ELSE 0 END ) AS cntEarlyBettypes
 			,MAX(CASE WHEN IsEarly = 1 AND isRunning = 1 THEN 1 ELSE 0 END) IsRunningEarlyBettypes
 			,MAX(CASE WHEN IsEarly = 1 AND Waiting_cnt = Bet_cnt THEN 1 ELSE 0 END) IsWatingEarlyBettypes
+			,MAX(isRunning) AS	IsExistRunningTicket
 		FROM #BettypeExtraStatus
 		GROUP BY ParentId
 	)
@@ -435,8 +436,9 @@ BEGIN
 		,IsExistEarlyBettypes = CASE WHEN ext.cntEarlyBettypes > 0 THEN 1 ELSE 0 END
 		,IsRunningEarlyBettypes = CASE WHEN ext.IsRunningEarlyBettypes = 1 THEN 1 ELSE 0 END
 		,IsWaitingEarlyBettypes = CASE WHEN ext.IsWatingEarlyBettypes = 1 THEN 1 ELSE 0 END
+		,IsExistRunningTicket = ext.IsExistRunningTicket
 	FROM #matchList m
-		INNER JOIN MatchExtraStatus ext 
+		INNER JOIN MatchExtraStatus ext
 		ON m.matchid = ext.ParentId
 	
 	-- check bettransm
@@ -557,6 +559,7 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
+	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -617,9 +620,11 @@ BEGIN
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	matchid
-	FROM	#matchList
+	SELECT	m.matchid
+	FROM	#matchList m
 	WHERE	eventstatus = 'completed'
+		AND m.sporttype <> 50
+ 
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
