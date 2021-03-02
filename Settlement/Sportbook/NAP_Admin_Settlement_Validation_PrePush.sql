@@ -37,9 +37,12 @@ BEGIN
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END
 	
 	IF ( 
-		@sporttype IN (2, 50) -- check for basketball, Cricket
-		AND ISNULL(@SelectedResource,'') <> ''
-		) 
+		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
+		OR  ISNULL(@SelectedResource,'') <> ''
+		)
+	RETURN
+
+	IF @sporttype = 2
 	BEGIN
 		IF @Action = 'CAL_EAR'
 		BEGIN
@@ -77,6 +80,19 @@ BEGIN
 			SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 		END		
 	END
+
+	ELSE IF @sporttype = 50
+	BEGIN
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.oddsOS o WITH (NOLOCK)
+								INNER JOIN dbo.f_Set_GetGroupBettypes () f ON o.bettype = f.BetType
+							WHERE o.matchid = @Matchid
+								AND f.IsAuto = 0
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+							)
+	END
+
 END
 GO
 

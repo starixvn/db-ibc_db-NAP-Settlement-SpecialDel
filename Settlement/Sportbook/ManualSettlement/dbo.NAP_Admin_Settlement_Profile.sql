@@ -71,6 +71,7 @@ BEGIN
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
+			,@ParentMatchId INT
 
 
   	--START Balance tables
@@ -112,6 +113,7 @@ BEGIN
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
 		  ,@sportType	= sportType
+		  ,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
 
@@ -643,7 +645,10 @@ BEGIN
   		) AS tbl1
 	ORDER BY OrdNo
 
-	SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	IF @ParentMatchId IS NOT NULL -- Child match Cricket
+		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'child: ' + CAST(@matchid AS VARCHAR)  + ' Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	ELSE
+		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	 
 	
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))

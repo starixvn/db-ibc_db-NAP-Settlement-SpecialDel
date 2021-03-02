@@ -62,6 +62,7 @@ BEGIN
 			,@IsExistsResourceEarlyRunning BIT = 0
 			,@HaveMarkedTicket VARCHAR(200)
 			,@HoldSettingMatchIds VARCHAR(200) = ''
+			,@ParentIds VARCHAR(MAX) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -118,6 +119,9 @@ BEGIN
 	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
 	-- end
 
+	SELECT @ParentIds =  COALESCE(@ParentIds + ',' + CAST(m.ParentId AS varchar),  CAST(ParentId AS varchar)) from #Match m 	
+	SELECT @ParentIds = STUFF(@ParentIds, 1, 1, '')
+
 	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43, 50))
 	BEGIN
 		-- get date from remote ResultDetail table 
@@ -157,15 +161,15 @@ BEGIN
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
-												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@ParentIds , '','')) tm
 													ON r.matchid = tm.val
 										OPTION (MAXRECURSION 0)
 									'
 
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@MatchIds VARCHAR(4000)'' , @matchids'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@ParentIds VARCHAR(4000)'' , @ParentIds'
 
 		INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS, @matchids
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS,@ParentIds
 		-- end
 	END
 	
