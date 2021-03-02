@@ -22,6 +22,7 @@ BEGIN
 	DECLARE @Action VARCHAR(20)
 			,@Mode VARCHAR(15) 
 			,@eventdate DATETIME
+			,@eventstatus NVARCHAR(100)
 			,@childMatchId INT
 			,@avaiableProcess BIT
 			,@totalSingle INT 
@@ -51,9 +52,18 @@ BEGIN
 	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
 
 	SELECT	@eventdate = m.eventdate
+			,@eventstatus = m.eventstatus
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
+	IF @eventstatus = 'completed'
+		BEGIN
+			SELECT	@ErrCode = 1001050
+					,@ErrMsg = 'WARNING! Cannot continue due to current match is completed.'
+		
+			RETURN
+	END
+	
 	SELECT	TOP 1 @childMatchId = matchid
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.ParentID = @MatchId
