@@ -393,13 +393,12 @@ BEGIN
 					 FROM @VIPAccount_tmp ac 
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
-		
-	WHERE b.statusID = 0
-		AND 1 = CASE WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
-					 WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND b.matchid = @MatchId THEN 0 
-					 WHEN b.statuswinlost IN (0,3,4) AND b.matchid = @MatchId THEN 1
-					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 AND b.matchid = @MatchId THEN 1
-				ELSE 0 END
+	WHERE 1 = CASE 
+				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 0 
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
+			  ELSE 0 END
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
