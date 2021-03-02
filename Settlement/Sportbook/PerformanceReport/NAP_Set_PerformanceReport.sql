@@ -11,6 +11,7 @@ BEGIN
 		- 20190710@Helen: Settlement Performance Report -  Batch by batch - [Redmine: 100002]
 		- 20200818@Kathy: Support for other sports [Redmine:#138281]
 		- 20200903@Kathy: Move SP from DBTXN to DBLOG [Redmine:#138281]
+		- 20210302@Kathy: Add more logaction [Redmine:#138281]
 */
 
 DECLARE @maxdate DATETIME
@@ -150,13 +151,13 @@ FROM	#tmpRESULT r
 		SELECT	us.MatchID
 		FROM	dbo.UserLog_Settle us WITH (NOLOCK)
 		WHERE	r.matchid = us.MatchID 
-				AND us.ActionID IN (81002,81003,81005)
+				AND us.ActionID IN (81002,81003,81005,81019)
 		GROUP BY us.MatchID
 		UNION ALL 
 		SELECT	us.MatchID
 		FROM	bodb_CustomerLog_Archive.dbo.UserLog_Settle us WITH (NOLOCK)
 		WHERE	r.matchid = us.MatchID 
-				AND us.ActionID IN (81002,81003,81005)
+				AND us.ActionID IN (81002,81003,81005,81019)
 		GROUP BY us.MatchID
 	)l
 
