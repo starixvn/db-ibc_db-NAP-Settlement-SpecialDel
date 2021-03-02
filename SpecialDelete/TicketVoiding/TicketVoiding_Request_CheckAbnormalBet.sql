@@ -86,7 +86,6 @@ BEGIN
 			SELECT TOP 1 1
 			FROM dbo.match AS m WITH (NOLOCK)
 			WHERE m.matchid = @MatchId
-				AND m.sporttype <> 50 --NOT IN Cricket
 				AND EXISTS (
 					SELECT TOP 1 1
 					FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
@@ -127,6 +126,7 @@ BEGIN
 		,liveawayscore SMALLINT
 		,liveindicator BIT
 		,matchid INT
+		,sporttype SMALLINT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -196,6 +196,7 @@ BEGIN
 		,liveawayscore
 		,liveindicator
 		,matchid
+		,sporttype
 		)
 	SELECT b.transid
 		,CASE 
@@ -208,8 +209,9 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
-		,@MatchId
+		,m.sporttype
 	FROM dbo.bettrans AS b WITH (NOLOCK)
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
 	-- get unsuppored transid
@@ -217,7 +219,9 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL 
+	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL THEN 1
+				WHEN  t.sporttype = 50 THEN 1
+				ELSE 0 END
 		
 	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t

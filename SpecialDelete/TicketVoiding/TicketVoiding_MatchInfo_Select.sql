@@ -21,8 +21,6 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
 		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
-		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
-
 		
 	Param's explanation:		
 */
@@ -62,7 +60,6 @@ BEGIN
 		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 						FROM	dbo.match m WITH(NOLOCK) 
 						WHERE	m.matchid = @tmpMatchId
-							AND m.sporttype <> 50
 									'
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@tmpMatchId INT'' , @tmpMatchId'
 
@@ -73,7 +70,7 @@ BEGIN
 		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.eventdate = @EventDate
-							AND m.sporttype = @Sporttype AND m.sporttype <> 50
+							AND m.sporttype = @Sporttype
 							AND m.matchid = @MatchId
 									'
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT'' , @Sporttype, @EventDate, @MatchId '
