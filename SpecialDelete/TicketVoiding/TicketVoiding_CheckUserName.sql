@@ -173,7 +173,6 @@ BEGIN
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
-		AND pt.SportType NOT IN (50) -- NOT IN Cricket
 
 
 	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
@@ -201,6 +200,12 @@ BEGIN
 			WHERE m.matchid = b.matchid
 				AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
 		)ml
+		OUTER APPLY (
+			SELECT TOP 1 m.sporttype 
+			FROM dbo.match m WITH (NOLOCK)
+			WHERE m.matchid = b.matchid
+				AND m.sporttype = 50
+		)mc
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 	WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -209,8 +214,10 @@ BEGIN
 						AND b.bettype BETWEEN 801 AND 806 
 						AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 					WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
-						AND b.bettype NOT BETWEEN 801 AND 806-- MG
-						AND  ml.LeagueGroupID IS NULL THEN 1
+						AND b.bettype NOT BETWEEN 801 AND 806 -- MG
+						AND ml.LeagueGroupID IS NULL 
+						AND mc.sporttype IS NULL --exclude cricket
+						THEN 1
 					WHEN @IsSaba = 1 
 						AND ml.LeagueGroupID IS NOT NULL THEN 1								
 				ELSE 0 END	

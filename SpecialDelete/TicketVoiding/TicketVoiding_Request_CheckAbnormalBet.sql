@@ -86,6 +86,7 @@ BEGIN
 			SELECT TOP 1 1
 			FROM dbo.match AS m WITH (NOLOCK)
 			WHERE m.matchid = @MatchId
+				AND m.sporttype <> 50 --NOT IN Cricket
 				AND EXISTS (
 					SELECT TOP 1 1
 					FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
