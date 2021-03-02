@@ -35,6 +35,8 @@ AS
 		- 20201103@Charles:  No need to check Live Score once add request for Baseball [Redmine: #144544]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds

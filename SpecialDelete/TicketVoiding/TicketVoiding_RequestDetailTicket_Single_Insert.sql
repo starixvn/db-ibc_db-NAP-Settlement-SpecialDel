@@ -38,6 +38,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
+		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 	
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -419,9 +420,10 @@ BEGIN
 						ELSE 0 END
 				END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
-			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+			AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
 			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
-			AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
+			AND pt.bettype NOT BETWEEN 1501 AND 1599   -- NOT IN Keno
+			AND pt.SportType NOT IN (50) -- NOT IN Cricket
 
 
 		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype)
