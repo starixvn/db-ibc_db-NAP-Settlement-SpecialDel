@@ -169,7 +169,7 @@ BEGIN
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@ParentIds VARCHAR(4000)'' , @ParentIds'
 
 		INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS,@ParentIds
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @ParentIds VARCHAR(4000)', @queryResultDetailOS, @ParentIds
 		-- end
 	END
 	

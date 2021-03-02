@@ -503,10 +503,11 @@ BEGIN
 		SET @stop = CURRENT_TIMESTAMP
 
 		SELECT @Remark = 'NAP: Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+		
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
 		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-						+ CASE WHEN @ParentMatchId IS NOT NULL THEN ', isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
+							+ CASE WHEN @ParentMatchId IS NOT NULL THEN ', child: '+CAST(@matchid AS VARCHAR)  +' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
 		IF @ParentMatchId IS NOT NULL
 			SET @matchid = @ParentMatchId

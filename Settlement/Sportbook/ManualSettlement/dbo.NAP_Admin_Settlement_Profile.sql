@@ -261,6 +261,20 @@ BEGIN
 					AND ResultStatusID = 5
 		END
 
+		ELSE IF @sportType = 50 AND @ParentMatchId IS NOT NULL -- Child match Cricket
+		BEGIN
+			DELETE FROM @tmpResourcesWeb
+			WHERE ResourceID NOT IN (
+				SELECT sp.ResourceID 
+				FROM dbo.bettrans bt WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+						AND sp.BetType = bt.bettype
+			WHERE bt.matchid = @MatchID
+				AND sp.SportType =50
+				)	
+		END
+
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
@@ -648,7 +662,7 @@ BEGIN
 	IF @ParentMatchId IS NOT NULL -- Child match Cricket
 		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
 									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-										ELSE 'Selected:' 
+										ELSE ' Selected:' 
 									END 
 									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	ELSE
