@@ -646,7 +646,11 @@ BEGIN
 	ORDER BY OrdNo
 
 	IF @ParentMatchId IS NOT NULL -- Child match Cricket
-		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'child: ' + CAST(@matchid AS VARCHAR)  + ' Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
+									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
+										ELSE 'Selected:' 
+									END 
+									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	ELSE
 		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	 
@@ -672,6 +676,9 @@ BEGIN
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @creator
 				,@Doing = @logdata
+	
+	IF @ParentMatchId IS NOT NULL
+	SELECT @MatchId =  @ParentMatchId
 				
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
