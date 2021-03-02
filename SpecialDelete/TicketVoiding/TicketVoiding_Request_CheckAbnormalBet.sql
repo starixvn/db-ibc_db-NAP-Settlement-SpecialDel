@@ -209,6 +209,7 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
+		,@MatchId
 		,m.sporttype
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
