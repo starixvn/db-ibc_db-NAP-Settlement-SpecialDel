@@ -260,22 +260,8 @@ BEGIN
 					AND SettlementStatusID = 4
 					AND ResultStatusID = 5
 		END
-
-		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
-				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
-				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE ISNULL(AwayValue,'') END, 
-				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
-				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
-				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
-				sp.GroupType, sp.OddsType
-		FROM @tmpResourcesWeb tbl
-			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
-			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-		WHERE sp.SportType = @SportType
-		-----------------------------------------------------END parse XML----------------------------------------------------------------------
-
-		IF @sportType = 50 AND @ParentMatchId IS NOT NULL -- Child match Cricket
+		-- Cricket child match 
+		IF @sportType = 50 AND @ParentMatchId IS NOT NULL 
 		BEGIN
 			DELETE FROM @tmpResourcesWeb
 			WHERE ResourceID NOT IN (
@@ -292,6 +278,20 @@ BEGIN
   			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   			WHERE   matchid = @ParentMatchId
 		END
+
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
+		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE ISNULL(AwayValue,'') END, 
+				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
+				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
+				sp.GroupType, sp.OddsType
+		FROM @tmpResourcesWeb tbl
+			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
+			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
+		WHERE sp.SportType = @SportType
+		-----------------------------------------------------END parse XML----------------------------------------------------------------------
 
 		SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
 											 ,BetID	AS '@b'
