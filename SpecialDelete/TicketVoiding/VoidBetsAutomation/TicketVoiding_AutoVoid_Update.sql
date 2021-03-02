@@ -370,7 +370,7 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
-				WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 THEN 1 --Auto void winning request, void VIP
+				WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP
 				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
 				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
@@ -396,7 +396,7 @@ BEGIN
 		
 	WHERE b.matchid = @MatchId 
 		AND 1 = CASE WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
-					 WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL THEN 0 
+					 WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 0 
 					 WHEN b.statuswinlost IN (0,3,4) THEN 1
 					 WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 				ELSE 0 END
