@@ -281,12 +281,16 @@ BEGIN
 			WHERE ResourceID NOT IN (
 				SELECT sp.ResourceID 
 				FROM dbo.bettrans bt WITH(NOLOCK)
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
-						AND sp.BetType = bt.bettype
-			WHERE bt.matchid = @MatchID
-				AND sp.SportType =50
-				)	
+					INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+						ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+							AND sp.BetType = bt.bettype
+				WHERE bt.matchid = @MatchID
+					AND sp.SportType =50 )
+
+			SELECT  @fth	= finalhomescore
+					,@fta	= finalawayscore
+  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @ParentMatchId
 		END
 
 		SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
