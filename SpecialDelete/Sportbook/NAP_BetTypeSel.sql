@@ -38,6 +38,7 @@ AS
         - 20191004@Charles: Badminton AIO - [120325]
         - 20191202@Raymond.Le: Separate function Group Bettype from Report team [124675]
         - 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		
     Param's Explanation:  
     @Mode:   
@@ -65,7 +66,7 @@ BEGIN
         FROM match WITH (NOLOCK)
         WHERE matchid = @MatchID
         
-        IF (@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160)
+        IF (@Mode = 9 AND @Sporttype = 50 OR (@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160))
         BEGIN 
             SET @ErrCode = 100
             SET @ErrMsg ='Invalid match' 
