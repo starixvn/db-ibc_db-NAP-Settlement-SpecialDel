@@ -48,6 +48,7 @@ AS
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 		- 20201027@Kathy: - Change Calculate Formula for HDP Bet Types of Baseball
 						  - Exclude livescore for bettype moneyline [Redmine:#144297]
+		- 20210303@Kathy: Exclude LiveScores When Calculate HDP Bet Types [Redmine:#150198]
 		
 */
 BEGIN
@@ -147,10 +148,18 @@ BEGIN
 							WHEN bettype IN (154,155,1311, 1316) AND BetID = 805 AND @SelectedSet LIKE '%5%' THEN @TotalGameAwaySet5
 							ELSE @fta END        
 			,@modds = CASE betteam
-				--WHEN N'h' THEN (hdp2 - hdp1) + (@fth - livehomescore) - (@fta - liveawayscore)
-				--WHEN N'a' THEN (hdp1 - hdp2) - (@fth - livehomescore) + (@fta - liveawayscore)
-				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE WHEN @Sporttype IN (3,8) OR @bettype = 20 THEN 0 ELSE (livehomescore - liveawayscore) END
-				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE WHEN @Sporttype IN (3,8) OR @bettype = 20 THEN 0 ELSE (livehomescore - liveawayscore) END
+				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																		OR @Sporttype = 99
+																		OR @bettype = 20 THEN 0 
+																	ELSE (livehomescore - liveawayscore) 
+																END
+				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																		OR @Sporttype = 99
+																		OR @bettype = 20 THEN 0 
+																	ELSE (livehomescore - liveawayscore) 
+																END
 				END
 			,@IsUpd_Void = CASE WHEN (statusID = 102) OR (mt.TransId IS NOT NULL) THEN 0 ELSE 1 END	
 			,modds = @modds
