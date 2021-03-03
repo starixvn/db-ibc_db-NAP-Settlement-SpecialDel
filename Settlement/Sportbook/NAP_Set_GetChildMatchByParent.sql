@@ -57,11 +57,13 @@ BEGIN
 	BEGIN
 		SELECT m.Matchid
 		FROM @tmpChildMatch m
-			INNER JOIN dbo.Bettransm bm ON m.matchid = bm.matchid
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+			INNER JOIN dbo.Bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK)
 					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-					  AND sp.BetType = bm.bettype)
+					  AND sp.BetType = bm.bettype
+					  AND (sp.BetID = bm.betcheck OR sp.BetId =0)
+					  )
 			OR @SelectedResources = ''
 		GROUP BY m.matchid
 
@@ -70,11 +72,13 @@ BEGIN
 	ELSE IF @Mode LIKE 'CAL%'
 	BEGIN
 		SELECT m.matchid FROM @tmpChildMatch m
-			INNER JOIN dbo.Bettrans b ON m.matchid = b.matchid
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+			INNER JOIN dbo.Bettrans b WITH(NOLOCK) ON m.matchid = b.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp  WITH(NOLOCK)
 					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-					  AND sp.BetType = b.bettype)
+					  AND sp.BetType = b.bettype
+					  AND (sp.BetID = b.BetId OR sp.BetId =0)
+					  )
 			OR @SelectedResources = ''
 		GROUP BY m.matchid
 	END
@@ -83,8 +87,8 @@ BEGIN
 	BEGIN
 	  SELECT m.Matchid
 		FROM @tmpChildMatch m
-			INNER JOIN dbo.Bettransm bm ON m.matchid = bm.matchid
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+			INNER JOIN dbo.Bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK) 
 					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
 					  AND sp.BetType = bm.bettype)
@@ -92,8 +96,8 @@ BEGIN
 		
 		UNION
 		SELECT m.matchid FROM @tmpChildMatch m
-			INNER JOIN dbo.Bettrans b ON m.matchid = b.matchid
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+			INNER JOIN dbo.Bettrans b WITH(NOLOCK) ON m.matchid = b.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK)
 					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
 					  AND sp.BetType = b.bettype)
