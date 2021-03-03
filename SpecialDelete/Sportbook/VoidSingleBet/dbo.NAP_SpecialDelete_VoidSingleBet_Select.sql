@@ -813,7 +813,11 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR (b.FilterSet LIKE tp.[Set] + '%') OR (b.FilterSet LIKE '%'+ tp.[Set]  AND @SportTypeCricket = 50) ))
+			WHERE tp.Id = b.FilterBettype 
+			AND (	tp.[Set] = 'All' 
+				OR (b.FilterSet LIKE tp.[Set] + '%') 
+				OR (b.FilterSet LIKE '%'+ tp.[Set]  AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 ))
+				)
 
 		DELETE b
 		FROM  #SpecialDeleteBets b

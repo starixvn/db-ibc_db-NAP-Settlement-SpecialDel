@@ -367,7 +367,7 @@ BEGIN
 								WHEN tp.[Set] = 'ALL' THEN 1							
 								ELSE CASE 						  
 										WHEN s.betid LIKE tp.[Set] + '%' THEN 1
-										WHEN s.betid LIKE '%'+ tp.[Set] AND @SportType = 50 THEN 1 -- Cricket
+										WHEN s.betid LIKE '%'+ tp.[Set] AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 THEN 1 -- Cricket
 										ELSE 0
 									 END
 							END = 1) 
