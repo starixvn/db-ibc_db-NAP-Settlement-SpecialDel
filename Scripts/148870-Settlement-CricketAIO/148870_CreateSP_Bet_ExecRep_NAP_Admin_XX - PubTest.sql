@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_01_UAT1
+CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_10_UAT1
 	
 AS
 /*
@@ -18,7 +18,7 @@ BEGIN
 END
 GO
 
-CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_01_UAT2
+CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_10_UAT2
 	
 AS
 /*
@@ -37,7 +37,7 @@ BEGIN
 END
 GO
 
-CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_01_UAT3
+CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_10_UAT3
 	
 AS
 /*
