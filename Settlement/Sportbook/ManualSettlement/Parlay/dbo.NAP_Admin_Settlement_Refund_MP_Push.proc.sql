@@ -29,6 +29,7 @@ AS
 		- 20200410@Sol: HotFix - Tennis - Refund parlay [Redmine:#132208]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -57,6 +58,7 @@ BEGIN
 		,@IsExistNetPosition	BIT = 0
 		,@Mode					VARCHAR(20)
 		,@IsExistsResourceEarlyRunning	BIT = 0
+		,@ParentIds VARCHAR(MAX) = ''
 	
 	SET @currentdate = CURRENT_TIMESTAMP
     
@@ -69,6 +71,7 @@ BEGIN
 	
 	DECLARE @match TABLE ( 
 		matchid		INT
+		,ParentId	INT
 		,matchcode	NVARCHAR(50)
 		,fth		SMALLINT
 		,fta		SMALLINT
@@ -99,8 +102,9 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes() f
 	WHERE	f.IsUsedGoalRecordValue = 1
 	
-	INSERT INTO @match ( matchid, matchcode, fth, fta, hth, hta, sporttype, leagueid, betstatus)
+	INSERT INTO @match ( matchid, ParentId, matchcode, fth, fta, hth, hta, sporttype, leagueid, betstatus)
 	SELECT matchid
+		,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND ParentId IS NOT NULL THEN ParentId ELSE MatchId END ParentId
 		,matchcode
 		,finalhomescore
 		,finalawayscore
@@ -115,6 +119,7 @@ BEGIN
     SELECT	@matchcode    	= m.matchcode
 			,@sporttype   	= m.sporttype
 			,@leagueid    	= m.leagueid
+			,@ParentIds		= m.ParentId
     FROM @match m
     
      -- CHECK supported actions & sport type
@@ -246,17 +251,19 @@ BEGIN
 		;WITH cteBetstatus
 		AS(
 			SELECT	bm.matchid
+					,m.ParentId
 					,bm.bettype
 					,bm.betcheck
 					,m.sporttype
 			FROM	@match m
 				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
 			WHERE bm.statusID = 0
-			GROUP BY bm.matchid, bm.bettype, bm.betcheck,m.sporttype
+			GROUP BY bm.matchid, m.ParentId, bm.bettype, bm.betcheck,m.sporttype
 		)
 		,cteResourceID
 		AS(
 			SELECT c.matchid
+					,c.ParentId
 					,CASE 
 						WHEN f.ResourceID IN('70400','605')
 							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
@@ -268,7 +275,7 @@ BEGIN
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.matchid
+			GROUP BY c.matchid, c.ParentId
 				,CASE 
 					WHEN f.ResourceID IN('70400','605')
 						OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
@@ -279,7 +286,7 @@ BEGIN
 		)
 			
 		INSERT INTO @tmpRunningBAIO (matchid, QuarterX, OrdNo)
-		SELECT	c.matchid, COALESCE(sd.RoundName, 'Early Settle'), MAX(c.OrdNo)
+		SELECT	c.ParentId, COALESCE(sd.RoundName, 'Early Settle'), MAX(c.OrdNo)
 		FROM	cteResourceID c
 			OUTER  APPLY(
 	  			SELECT ResultStatusID
@@ -290,7 +297,7 @@ BEGIN
 				SELECT ResultStatusID
 	  			FROM DBPRO.bodb02.dbo.ResultDetailOS rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
-	  				AND rd.matchid = c.matchid
+	  				AND rd.matchid = c.ParentId
 				UNION ALL
 				SELECT ResultStatusID
 	  			FROM DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
@@ -299,7 +306,7 @@ BEGIN
 	  		) AS rs
 			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON c.ResourceID = sd.ResourceID
 		WHERE	ISNULL(rs.ResultStatusId,'') <> 5
-		GROUP BY c.matchid, sd.RoundName--,c.OrdNo
+		GROUP BY c.ParentId, sd.RoundName--,c.OrdNo
 		--ORDER BY c.OrdNo
 	END
 	
@@ -310,7 +317,7 @@ BEGIN
 			FROM @match
 			WHERE 1 = CASE 
 						WHEN betstatus LIKE 'Abandoned 1H%' THEN CASE WHEN (hth IS NULL OR hta IS NULL) THEN 1 ELSE 0 END
-						WHEN (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL) THEN 1
+						WHEN MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL) THEN 1
 						ELSE 0
 					END
 		)

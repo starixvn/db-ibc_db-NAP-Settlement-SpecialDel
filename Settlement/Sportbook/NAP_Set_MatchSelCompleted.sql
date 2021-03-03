@@ -173,7 +173,10 @@ BEGIN
 		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
-	WHERE  winlostdate = @Date
+	WHERE 1 = CASE WHEN  winlostdate  = @Date THEN 1
+			WHEN Matchid <> ParentId THEN 1
+			ELSE 0
+		END
 	GROUP BY b.ParentId
 	OPTION (OPTIMIZE FOR (@n = 1))	
 

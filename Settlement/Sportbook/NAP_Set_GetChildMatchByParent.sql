@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_GetChildMatchByParent(
+ALTER PROCEDURE dbo.NAP_Set_GetChildMatchByParent (
 	@MatchIds	VARCHAR(MAX)
 	,@Mode		VARCHAR(20) ='CAL'
 	,@SelectedResources VARCHAR(MAX) = ''
@@ -17,6 +17,7 @@ AS
 		@MatchId: Parent's Matchid
 		@Mode	: CAL
 				  CAL-MP
+				  UNDO
 		@SelectedResources: 
 				<Resources>
 					<Resource Id="M1" Home="1" Away="3" />
@@ -52,7 +53,7 @@ BEGIN
 		EXEC sp_xml_removedocument @handle
 	END
 
-	IF @Mode ='CAL-MP'
+	IF @Mode = 'CAL-MP'
 	BEGIN
 		SELECT m.Matchid
 		FROM @tmpChildMatch m
@@ -66,7 +67,7 @@ BEGIN
 
 	END
 
-	IF @Mode ='CAL'
+	ELSE IF @Mode LIKE 'CAL%'
 	BEGIN
 		SELECT m.matchid FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettrans b ON m.matchid = b.matchid
@@ -78,6 +79,27 @@ BEGIN
 		GROUP BY m.matchid
 	END
 
+	ELSE IF @Mode LIKE 'UNDO%'
+	BEGIN
+	  SELECT m.Matchid
+		FROM @tmpChildMatch m
+			INNER JOIN dbo.Bettransm bm ON m.matchid = bm.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
+					  WHERE sp.SportType = 50
+					  AND sp.BetType = bm.bettype)
+			OR @SelectedResources = ''
+		
+		UNION
+		SELECT m.matchid FROM @tmpChildMatch m
+			INNER JOIN dbo.Bettrans b ON m.matchid = b.matchid
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp 
+					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
+					  WHERE sp.SportType = 50
+					  AND sp.BetType = b.bettype)
+			OR @SelectedResources = ''
+		GROUP BY m.matchid
+	END
 
 END
 
