@@ -107,6 +107,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
+		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -149,10 +150,17 @@ BEGIN
 			,@isExistFM			BIT = 0
 			,@isExistFM2		BIT = 0
 			,@avaiableProcess	BIT = 0
-	DECLARE @session			NVARCHAR(50)
+			,@ValueDefault		SMALLMONEY = 9999.00
+
+	DECLARE @session			NVARCHAR(50)	
+		   ,@SportType			SMALLINT
 	DECLARE @CustIds			VARCHAR(MAX) = ''
 	SET @NegativeBalanceUsers = ''
 	
+	SELECT	@SportType = Sporttype
+	FROM	dbo.match WITH(NOLOCK) 
+	WHERE	matchid = @matchid
+
 	CREATE TABLE #tblBetType
 	(
 		Id				SMALLINT,		 				
@@ -361,15 +369,15 @@ BEGIN
 			 , cte.[Set]
 			 , cte.Game
 			 , bop.val AS BetOption
-			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
+			 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault 
 						ELSE v.val END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 
+			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
 						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
-			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
-			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
@@ -915,7 +923,7 @@ BEGIN
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%'  ))
+			WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR (b.FilterSet LIKE tp.[Set] + '%') OR (b.FilterSet LIKE '%'+ tp.[Set]  AND @SportType = 50) ))
 
 		DELETE b
 		FROM  #BetDelete b

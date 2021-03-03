@@ -100,6 +100,8 @@ Revisions:
 	- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 	- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	- 20201126@Charles: God of fortune [Redmine: #146053]
+	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -120,20 +122,22 @@ Param's Explanation: Special bet delete option
 BEGIN  
 	SET NOCOUNT ON 		 
 
-	DECLARE @eventdate DATETIME 
-		,@LogData NVARCHAR(500)     
-		,@Remark VARCHAR(500) 
-		,@CountTransId	INT 
+	DECLARE @eventdate		DATETIME 
+			,@LogData		NVARCHAR(500)     
+			,@Remark		VARCHAR(500) 
+			,@CountTransId	INT
+			,@SportType		SMALLINT
 	 
 	DECLARE @isExistMatch		BIT = 0  
 			,@isExistMG			BIT = 0 
-		, @isExistFM  BIT = 0 
+			,@isExistFM			BIT = 0 
 			,@isExistParlay		BIT = 0  
 			,@avaiableProcess	BIT = 0  
 			,@isExistBT			BIT = 0 
 			,@isExistCashOut	BIT = 0
 			,@IsExistBB			BIT = 0
 			,@isExistFM2		BIT = 0
+			,@ValueDefault		SMALLMONEY = 9999.00
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 	
@@ -277,8 +281,9 @@ BEGIN
 			,@GlobalShowTime SMALLDATETIME
 
 	SELECT @eventdate = m.eventdate 
-		,@SettlementStatus = m.SettlementStatus 
-		,@GlobalShowTime = m.GlobalShowTime
+		  ,@SettlementStatus = m.SettlementStatus 
+		  ,@GlobalShowTime = m.GlobalShowTime
+		  ,@SportType = m.sporttype
 	FROM dbo.match m WITH (NOLOCK)  
 	WHERE matchid = @matchid  
 
@@ -360,20 +365,20 @@ BEGIN
 			 , cte.Game
 			 , bop.val AS BetOption
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN 9999.00 
+						WHEN v.val = 'ALL' THEN @ValueDefault
 						ELSE v.val
 					END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN 9999.00 
+						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
 						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
 			 , CAST(CASE 
-			 			WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+			 			WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
 			 , CAST(CASE 
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
-			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
@@ -600,6 +605,7 @@ BEGIN
 								WHEN tp.[Set] = 'ALL' THEN 1							
 								ELSE CASE 						  
 										WHEN s.betid LIKE tp.[Set] + '%' THEN 1
+										WHEN s.betid LIKE '%'+ tp.[Set] AND @SportType = 50 THEN 1 -- Cricket
 										ELSE 0
 									 END
 							END = 1) 
