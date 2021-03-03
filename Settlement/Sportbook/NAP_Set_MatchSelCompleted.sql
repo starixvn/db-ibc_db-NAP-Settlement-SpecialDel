@@ -106,8 +106,9 @@ BEGIN
 							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
 						ELSE 1 END
 				END
-		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END''
-		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END
+		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END''
+		
 		)'
 
 	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
