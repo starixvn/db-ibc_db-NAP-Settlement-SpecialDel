@@ -154,6 +154,9 @@ BEGIN
 
     DECLARE @isUndo BIT
 		,@IsEnableServiceBroker BIT
+		,@IsSkipValidation BIT
+
+	SET @IsSkipValidation = CASE WHEN @action = 'MoveTicket' THEN 1 ELSE 0 END 
 
     SET @isUndo = CASE
                     WHEN @mode LIKE '%UNDO%' THEN 1
@@ -163,8 +166,9 @@ BEGIN
 
 	SET @IsEnableServiceBroker = 0
 
-    IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
-        RETURN
+	IF @IsSkipValidation = 0
+		IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
+			RETURN
 
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
