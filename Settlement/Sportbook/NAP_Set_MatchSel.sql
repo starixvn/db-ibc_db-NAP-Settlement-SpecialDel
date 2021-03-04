@@ -370,7 +370,7 @@ BEGIN
 			WHERE f.BetType = e.bettype
 		) e
 	WHERE	f.IsUsedGoalRecordValue = 1 
-			OR f.GroupId = 9 
+			OR f.GroupId IN ( 9 ,12 )
 			OR e.IsEarly = 1
 	
 	SELECT @minbettype = MIN(bettype)

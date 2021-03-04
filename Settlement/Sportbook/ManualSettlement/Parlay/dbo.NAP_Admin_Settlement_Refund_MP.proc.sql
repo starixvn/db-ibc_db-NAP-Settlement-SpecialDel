@@ -112,6 +112,14 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 
+	IF @SportType = 50 AND @ParentMatchId IS NOT NULL
+	BEGIN
+		SELECT  @fthomescore = finalhomescore 
+			   ,@ftawayscore = finalawayscore
+		FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
+		WHERE	matchid = @ParentMatchId
+	END
+
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
 	,@ErrCode	= @ErrCode OUTPUT
