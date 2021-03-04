@@ -83,9 +83,7 @@ BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
 				,@execSql NVARCHAR(MAX) = ''
 
-		CREATE TABLE #CheckOdds ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID SMALLINT )
-		
-		
+		CREATE TABLE #CheckOdds ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID BIGINT )
 
 		SET @queryMatch =
 		'SELECT  sp.BetType
