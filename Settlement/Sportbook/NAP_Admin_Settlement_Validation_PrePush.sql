@@ -105,7 +105,6 @@ BEGIN
 								INNER JOIN #CheckOdds	c
 									ON o.bettype = c.Bettype
 							WHERE o.matchid = @Matchid
-								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 								AND ( c.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
