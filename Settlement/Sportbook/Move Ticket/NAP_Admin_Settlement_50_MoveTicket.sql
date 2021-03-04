@@ -49,7 +49,7 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
-	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
+	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT)
 
 	SELECT	@eventdate = m.eventdate
 			,@eventstatus = m.eventstatus
@@ -123,8 +123,8 @@ BEGIN
 		
 	SET @totalSingle = @@ROWCOUNT
 
-	INSERT INTO #tmpTransIdsParlay(TransId, statusId)
-	SELECT	bm.transid, bm.statusID
+	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno)
+	SELECT	bm.transid, bm.statusID, bm.refno
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -205,6 +205,15 @@ BEGIN
 	--move parlay
 	IF @totalParlay > 0
 	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay WHERE statusId = 102)
+			UPDATE  t
+				SET MainTransId = b.transid
+			FROM	#tmpTransIdsParlay t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.refno = b.refno
+			WHERE	b.matchid = 29
+					AND t.statusId = 102
+				
 		EXEC dbo.NAP_Admin_CheckingProcess		
 			 @isexistParlay				= 1		
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
@@ -218,7 +227,7 @@ BEGIN
 		SET @startRowId = 0
 		SET @strTransIds = ''
 		SET @Mode = 'subParlay'
-
+		
 		WHILE (1=1)
 		BEGIN
 			SET @strTransIds = ''
@@ -226,6 +235,7 @@ BEGIN
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
+						,CASE WHEN statusid = 102 THEN MainTransId ELSE NULL END AS '@mt'
 				FROM	#tmpTransIdsParlay 
 				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))

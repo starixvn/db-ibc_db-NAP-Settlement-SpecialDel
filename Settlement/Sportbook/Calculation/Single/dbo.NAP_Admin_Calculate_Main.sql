@@ -152,9 +152,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @isUndo BIT
+    DECLARE @isUndo				BIT
 		,@IsEnableServiceBroker BIT
-		,@IsSkipValidation BIT
+		,@IsSkipValidation		BIT
 
 	SET @IsSkipValidation = CASE WHEN @action = 'MoveTicket' THEN 1 ELSE 0 END 
 
