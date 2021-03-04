@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Validation_PrePush] 
-    @Matchid				INT
-    ,@SelectedResource		VARCHAR(MAX)		= NULL
+	 @Matchid				INT
+    ,@SelectedResource		VARCHAR(MAX)	= NULL
     ,@Action				VARCHAR(100)	= 'CAL_EAR'
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
@@ -23,6 +23,7 @@ AS
     Param's Explanation:
 		* sample @SelectedResource for manual:	'801,802,1H,803,804,FT'
 		* sample @SelectedResource for early:	'604,6130215,6130115,6130110'
+		* sample @SelectedResource for Cricket: '94101001,94101002'
 		
     Matchid for testing: 70031309     
 */
@@ -38,7 +39,7 @@ BEGIN
 	
 	IF ( 
 		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
-		OR  ISNULL(@SelectedResource,'') <> ''
+		AND ISNULL(@SelectedResource,'') <> ''
 		)
 	RETURN
 
@@ -75,24 +76,45 @@ BEGIN
 								AND o.oddsstatus <> 'closed'
 							)	
 		END
-		IF @ErrCode > 0
-		BEGIN
-			SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
-		END		
 	END
 
 	ELSE IF @sporttype = 50
 	BEGIN
+		DECLARE @queryMatch NVARCHAR(MAX) = ''
+				,@execSql NVARCHAR(MAX) = ''
+
+		CREATE TABLE #CheckOdds ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID SMALLINT )
+		
+		
+
+		SET @queryMatch =
+		'SELECT  sp.BetType
+				, sp.BetID
+		FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+			INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(@SelectedResource , '','')) tm
+									ON sp.ResourceID = tm.val
+						OPTION (MAXRECURSION 0)'
+
+		SET @execSql = 'DBTXN.bodb02.dbo.sp_executesql @queryMatch, N''@SelectedResource VARCHAR(MAX)'' , @SelectedResource'
+
+		INSERT INTO #CheckOdds ( Bettype , BetID )
+		EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @SelectedResource VARCHAR(MAX)', @queryMatch, @SelectedResource
+
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
-								INNER JOIN dbo.f_Set_GetGroupBettypes () f ON o.bettype = f.BetType
+								INNER JOIN #CheckOdds	c
+									ON o.bettype = c.Bettype
 							WHERE o.matchid = @Matchid
-								AND f.IsAuto = 0
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
+								AND ( c.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
 	END
 
+	IF @ErrCode > 0
+	BEGIN
+		SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+	END		
+
 END
 GO
-
