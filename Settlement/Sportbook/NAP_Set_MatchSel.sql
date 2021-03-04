@@ -372,6 +372,7 @@ BEGIN
 	WHERE	f.IsUsedGoalRecordValue = 1 
 			OR f.GroupId IN ( 9 ,12 )
 			OR e.IsEarly = 1
+			OR f.BetType IN (9538 ,9539 ,9604 ,9605 ,9606) -- FT of Cricket
 	
 	SELECT @minbettype = MIN(bettype)
 		,@maxbettype = MAX(bettype)
