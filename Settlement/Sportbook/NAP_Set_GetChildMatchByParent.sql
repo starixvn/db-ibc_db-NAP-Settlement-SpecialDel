@@ -72,7 +72,7 @@ BEGIN
 
 	END
 
-	ELSE IF @Mode LIKE 'CAL%'
+	ELSE IF @Mode LIKE 'CAL%' OR @Mode LIKE 'REFUND%'
 	BEGIN
 		INSERT INTO @tmpReturnTable (MatchId)
 		SELECT m.matchid FROM @tmpChildMatch m
