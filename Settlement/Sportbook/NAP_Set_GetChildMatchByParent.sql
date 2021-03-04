@@ -96,8 +96,9 @@ BEGIN
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) 
 						INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-						AND sp.BetType = bm.bettype)
-						AND (sp.BetID = b.BetCheck OR sp.BetId =0)
+						AND sp.BetType = bm.bettype
+						AND (sp.BetID = bm.BetCheck OR sp.BetId =0)
+						)
 			OR @SelectedResources = ''
 		
 		UNION
@@ -106,8 +107,9 @@ BEGIN
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK)
 						INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-						AND sp.BetType = b.bettype)
+						AND sp.BetType = b.bettype
 						AND (sp.BetID = b.BetId OR sp.BetId =0)
+						)
 			OR @SelectedResources = ''
 		GROUP BY m.matchid
 	END
