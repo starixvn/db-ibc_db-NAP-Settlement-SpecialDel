@@ -506,8 +506,9 @@ BEGIN
 		
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
-		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-							+ CASE WHEN @ParentMatchId IS NOT NULL THEN ', child: '+CAST(@matchid AS VARCHAR)  +' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
+		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN ', child: '+CAST(@matchid AS VARCHAR)  ELSE '' END
+						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+						+ CASE WHEN @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
 		IF @ParentMatchId IS NOT NULL
 			SET @matchid = @ParentMatchId
