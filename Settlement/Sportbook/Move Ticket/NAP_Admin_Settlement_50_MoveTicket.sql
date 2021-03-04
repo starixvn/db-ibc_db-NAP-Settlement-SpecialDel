@@ -36,7 +36,7 @@ BEGIN
 			,@EndTime DATETIME
 			,@ActionID INT 
 			,@logdata VARCHAR(300) 
-			,@ResourceIds VARCHAR(MAX) 
+			,@ResourceIds VARCHAR(MAX) = ''
 			,@Remark VARCHAR(MAX)
 			
 	SELECT @Action = 'MoveTicket'
@@ -252,9 +252,11 @@ BEGIN
 		END
 	END
 
-	SELECT @ResourceIds = COALESCE(',' + @ResourceIds + ResourceId, ResourceId)
+	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + ResourceId, ResourceId)
 	FROM	@tmpBettypeResourceId
 	GROUP BY ResourceId
+
+	SELECT @ResourceIds = STUFF(@ResourceIds, 1, 1, '')
 
 	SET @EndTime = GETDATE()
 
