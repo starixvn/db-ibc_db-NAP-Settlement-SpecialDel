@@ -109,6 +109,7 @@ BEGIN
 	BEGIN
 		SELECT  @finalhomescore = finalhomescore 
 			   ,@finalawayscore = finalawayscore
+			   ,@betstatus		= betstatus
 		FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
 		WHERE	matchid = @ParentMatchId
 	END

@@ -116,6 +116,7 @@ BEGIN
 	BEGIN
 		SELECT  @fthomescore = finalhomescore 
 			   ,@ftawayscore = finalawayscore
+			   ,@betstatus	 = ISNULL(betstatus,'')
 		FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
 		WHERE	matchid = @ParentMatchId
 	END
