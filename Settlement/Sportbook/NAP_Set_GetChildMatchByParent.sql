@@ -15,13 +15,13 @@ AS
 
 	Param's Explanation:
 		@MatchId: Parent's Matchid
-		@Mode	: CAL
-				  CAL-MP
-				  UNDO
+		@Mode	: CAL, CAL-EAR, UNDO, UNDO-EAR, REFUND, REFUND-EAR: Any Action on Single Ticket
+				  CAL-MP: Any Action on Parlay Ticket
+				  
 		@SelectedResources: 
 				<Resources>
-					<Resource Id="M1" Home="1" Away="3" />
-					<Resource Id="M2" Home="2" Away="4" />
+					<Resource Id="H1" Home="1" />
+					<Resource Id="A1" Home="2" />
 				</Resources>
 
 */
@@ -52,9 +52,12 @@ BEGIN
 		SELECT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)	) AS tbl
 		EXEC sp_xml_removedocument @handle
 	END
+	
+	DECLARE @tmpReturnTable TABLE (MatchId INT)
 
 	IF @Mode = 'CAL-MP'
 	BEGIN
+		INSERT INTO @tmpReturnTable (MatchId)
 		SELECT m.Matchid
 		FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
@@ -71,13 +74,14 @@ BEGIN
 
 	ELSE IF @Mode LIKE 'CAL%'
 	BEGIN
+		INSERT INTO @tmpReturnTable (MatchId)
 		SELECT m.matchid FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettrans b WITH(NOLOCK) ON m.matchid = b.matchid
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp  WITH(NOLOCK)
-					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
+						INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-					  AND sp.BetType = b.bettype
-					  AND (sp.BetID = b.BetId OR sp.BetId =0)
+						AND sp.BetType = b.bettype
+						AND (sp.BetID = b.BetId OR sp.BetId =0)
 					  )
 			OR @SelectedResources = ''
 		GROUP BY m.matchid
@@ -85,26 +89,31 @@ BEGIN
 
 	ELSE IF @Mode LIKE 'UNDO%'
 	BEGIN
-	  SELECT m.Matchid
+		INSERT INTO @tmpReturnTable (MatchId)
+	    SELECT m.Matchid
 		FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK) 
-					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) 
+						INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-					  AND sp.BetType = bm.bettype)
+						AND sp.BetType = bm.bettype)
+						AND (sp.BetID = b.BetCheck OR sp.BetId =0)
 			OR @SelectedResources = ''
 		
 		UNION
 		SELECT m.matchid FROM @tmpChildMatch m
 			INNER JOIN dbo.Bettrans b WITH(NOLOCK) ON m.matchid = b.matchid
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.SettlementSpecialBettypeProfile  sp WITH(NOLOCK)
-					  INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
+						INNER JOIN @tmpResources r ON sp.ResourceID = r.ResourceID
 					  WHERE sp.SportType = 50
-					  AND sp.BetType = b.bettype)
+						AND sp.BetType = b.bettype)
+						AND (sp.BetID = b.BetId OR sp.BetId =0)
 			OR @SelectedResources = ''
 		GROUP BY m.matchid
 	END
 
+	SELECT MatchId FROM @tmpReturnTable
+	
 END
 
 GO

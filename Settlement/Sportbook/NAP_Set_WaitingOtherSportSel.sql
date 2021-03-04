@@ -174,10 +174,10 @@ BEGIN
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
-	SELECT	ISNULL(m.ChildMatchId, t.matchid), t.matchid
+	SELECT	m.matchid, m.ParentId
 	FROM	@tmpMatchIds t
-		OUTER APPLY (
-			SELECT	m.matchid AS ChildMatchId
+		CROSS APPLY (
+			SELECT	m.matchid, m.ParentId
 			FROM	dbo.match m WITH(NOLOCK)
 			WHERE	m.sporttype = 50
 					AND m.ChildMatchType = 200

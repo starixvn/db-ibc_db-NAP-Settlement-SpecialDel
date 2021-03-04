@@ -310,7 +310,12 @@ BEGIN
 			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
-	  		SELECT b.transid, m.modds, sr.OddsType, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	  		SELECT 
+				b.transid, m.modds
+				, CASE WHEN b.bettype = 501 AND '2021-04-08 00:00:00.000' > b.transdate THEN 0
+						ELSE sr.OddsType
+					END AS OddsType
+				, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  		FROM bettrans b WITH (NOLOCK)
 				OUTER APPLY (
 								SELECT TOP (1) mt.TransId

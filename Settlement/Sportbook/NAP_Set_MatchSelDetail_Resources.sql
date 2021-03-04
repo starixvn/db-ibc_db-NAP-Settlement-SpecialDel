@@ -121,7 +121,7 @@ BEGIN
 				0 AS IsSpecialBettype
 		FROM cte_bettrans bt
 			CROSS APPLY (
-				SELECT TOP 1 sp.OrdNo ,  sp.ResourceID, sp.sporttype, sp.Settletype
+				SELECT sp.OrdNo ,  sp.ResourceID, sp.sporttype, sp.Settletype
 				FROM  SettlementSpecialBettypeProfile sp WITH (NOLOCK)	
 				WHERE bt.Bettype = sp.Bettype
 					AND (sp.Betid = 0 OR sp.BetID = bt.BetID)
@@ -213,7 +213,7 @@ BEGIN
 			,MAX(sp.OrdNo)
 		FROM cte_bettransm bm
 			CROSS APPLY (
-							SELECT TOP 1 sp.ResourceID, sp.OrdNo , sp.sporttype, sp.Settletype
+							SELECT  sp.ResourceID, sp.OrdNo , sp.sporttype, sp.Settletype
 							FROM dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 							WHERE sp.Bettype = bm.Bettype
 							AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)

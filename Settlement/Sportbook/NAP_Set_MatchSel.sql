@@ -380,10 +380,10 @@ BEGIN
 	CREATE TABLE #BettypeExtraStatus(matchid INT, ParentId INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
 		
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
-	SELECT	ISNULL(m.ChildMatchId, t.matchid), t.matchid
+	SELECT	m.matchid, m.ParentId
 	FROM	#matchList t
-		OUTER APPLY (
-			SELECT	m.matchid AS ChildMatchId
+		CROSS APPLY (
+			SELECT	m.matchid, m.ParentId
 			FROM	dbo.match m WITH(NOLOCK)
 			WHERE	m.sporttype = 50
 					AND m.ChildMatchType = 200
@@ -715,7 +715,9 @@ BEGIN
 				ELSE 'Completed'
 			END AS EarlySettleStatus
 			
-			,m.IsExistRunningTicket
+			,CASE WHEN m.eventstatus ='Completed' AND m.SportType = 50 AND m.IsExistRunningTicket = 1 THEN 1
+					ELSE m.IsExistRunningTicket
+			END AS IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 	FROM	#matchList m

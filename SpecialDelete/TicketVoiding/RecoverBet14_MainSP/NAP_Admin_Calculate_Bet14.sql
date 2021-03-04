@@ -58,7 +58,12 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 	---parse XML
 	INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
-	SELECT t.TransID, CASE WHEN ot.oddstype = 1 THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b14.bettype
+	SELECT t.TransID
+	, CASE	WHEN b14.bettype = 501 AND '2021-04-08 00:00:00.000' > b14.transdate THEN 0
+			WHEN ot.oddstype = 1 THEN 1 
+			ELSE 0 
+		END AS isDecimalOdd
+	, srecommend, b14.bettype
 	FROM @tbl_transIDs t
 		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
