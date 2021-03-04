@@ -32,6 +32,7 @@ AS
 		- 20210130@Max: TVS -Issue Lock Match Resettle [Redmine: #149743]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
+		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 		
@@ -61,6 +62,7 @@ BEGIN
 			,@ExecuteSQL NVARCHAR(MAX) = ''
 			,@IsActiveVoidWinning BIT = 0
 			,@VoidDataXML       XML = NULL
+			,@RequestDetailId	INT
 			
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -317,9 +319,11 @@ BEGIN
 			
 				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType)
 				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 
+				
+				SET @RequestDetailId = SCOPE_IDENTITY()
 
-				INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId,IssueTypeId,SubIssueTypeId,TransId,MatchId)
-				SELECT @RequestID, 11, 38, TransId, @MatchId
+				INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId,IssueTypeId,SubIssueTypeId,TransId,MatchId, RequestDetailId)
+				SELECT @RequestID, 11, 38, TransId, @MatchId, @RequestDetailId
 				FROM @tmpTransIDBatch
 				
 			END
@@ -366,6 +370,7 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
+				WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND b.matchid = @MatchId THEN 1 --Auto void winning request, void VIP
 				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
 				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
@@ -375,10 +380,10 @@ BEGIN
 	-- get transid to unmark and resettle
 	INSERT INTO @tmpInputTransId_ReCalculate (TransId)
 	SELECT DISTINCT t.TransId
-	FROM (SELECT transid
+	FROM (SELECT transid, IssueTypeId, RequestType
 		FROM #inputRequestTransId 
 		UNION  
-		SELECT transid 
+		SELECT transid, 0 AS IssueTypeId, 0 AS RequestType
 		FROM #Transid_mark_tmp
 		WHERE statuswinlost IN (0,3,4)
 		
@@ -388,12 +393,12 @@ BEGIN
 					 FROM @VIPAccount_tmp ac 
 					 WHERE  ac.CustID = b.custid
 					 ) AS vip
-		
-	WHERE b.matchid = @MatchId 
-		AND 1 = CASE WHEN b.statuswinlost IN (0,3,4) THEN 1
-					WHEN vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 1
-				ELSE 0 END
-		AND b.statusID = 0
+	WHERE 1 = CASE 
+				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 0 
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
+			  ELSE 0 END
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	

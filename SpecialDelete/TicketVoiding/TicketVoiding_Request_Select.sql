@@ -25,6 +25,7 @@ AS
 		- 20200922@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201021@Zane: TVS - Enhance for Danger Accept Phase 4 [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 	
@@ -93,6 +94,7 @@ BEGIN
 				,rd.FilterBy
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
+				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime

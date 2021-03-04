@@ -31,6 +31,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@StatusIds				VARCHAR(50) = NULL
 	,@FromDate				DATETIME = NULL
 	,@ToDate				DATETIME = NULL
+	,@IsVoidVIPMember		BIT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -60,6 +61,7 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
+		- 20210224@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 
 	Param's explanation:	
 	
@@ -165,7 +167,12 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+			, CASE WHEN @ActionId = 4 THEN 1 
+					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
+							  WHEN @IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
+							  ELSE 0
+						 END
+				END
 			, @FilterFromTransTime
 			, @FilterToTransTime
 			, @FilterFromBetId

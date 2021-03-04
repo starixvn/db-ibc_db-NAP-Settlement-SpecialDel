@@ -50,6 +50,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistNG				BIT           = 0
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
+	,@IsVoidVIPMember		BIT			  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -66,6 +67,7 @@ AS
 		- 20191220@Charles:  Fix write log when data is null [125828]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210301@July: TVS - Wrong parlay count when edited request [Redmine: #150887]
+		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		
 	Param's explanation:	
 		@Operator: Type: 1 - Trader
@@ -196,7 +198,8 @@ BEGIN
 			,@ProductIds = @ProductIds			
 			,@StatusIds	= @StatusIds				
 			,@FromDate = @FromDate				
-			,@ToDate = @ToDate				
+			,@ToDate = @ToDate
+			,@IsVoidVIPMember = @IsVoidVIPMember				
 			,@ErrMsg = @ErrMsg	OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
