@@ -39,7 +39,7 @@ BEGIN
 	INSERT INTO @tmpChildMatch( MatchId)
 	SELECT m.MatchId
 	FROM dbo.match m WITH(NOLOCK)
-		INNER JOIN dbo.f_SplitString(@MatchIds, ',') tmp ON m.ParentID = tmp.val
+		INNER JOIN dbo.f_SplitString(@MatchIds, ',') tmp ON CAST (tmp.val AS INT ) = m.ParentID
 	WHERE ISNULL( m.ChildMatchType, 0) = 200
 		AND m.sporttype = @Sporttype
 		AND m.eventstatus = 'completed'

@@ -58,7 +58,6 @@ BEGIN
 		,@IsExistNetPosition	BIT = 0
 		,@Mode					VARCHAR(20)
 		,@IsExistsResourceEarlyRunning	BIT = 0
-		,@ParentIds VARCHAR(MAX) = ''
 	
 	SET @currentdate = CURRENT_TIMESTAMP
     
@@ -104,7 +103,7 @@ BEGIN
 	
 	INSERT INTO @match ( matchid, ParentId, matchcode, fth, fta, hth, hta, sporttype, leagueid, betstatus)
 	SELECT matchid
-		,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND ParentId IS NOT NULL THEN ParentId ELSE MatchId END ParentId
+		,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND ParentId IS NOT NULL AND sporttype = 50 THEN ParentId ELSE MatchId END ParentId
 		,matchcode
 		,finalhomescore
 		,finalawayscore
@@ -119,7 +118,6 @@ BEGIN
     SELECT	@matchcode    	= m.matchcode
 			,@sporttype   	= m.sporttype
 			,@leagueid    	= m.leagueid
-			,@ParentIds		= m.ParentId
     FROM @match m
     
      -- CHECK supported actions & sport type

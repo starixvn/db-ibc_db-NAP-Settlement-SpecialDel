@@ -106,7 +106,7 @@ BEGIN
 								,htawayscore
 								,sporttype
 								,ISNULL(SettlementStatus,0) SettlementStatus
-								,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL THEN m.ParentId ELSE m.MatchId END ParentId
+								,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 						FROM BODB02.dbo.Match m WITH (NOLOCK)
 								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 									ON m.matchid = tm.val
