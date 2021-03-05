@@ -329,7 +329,7 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
-	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
+	IF @ActionId IN (4) -- Auto Void All (Instant)
 	BEGIN
 		-- get non-live and different score transids
 		INSERT #LiveTransIds(TransId, IsNonLive, IsDifferentScore)
