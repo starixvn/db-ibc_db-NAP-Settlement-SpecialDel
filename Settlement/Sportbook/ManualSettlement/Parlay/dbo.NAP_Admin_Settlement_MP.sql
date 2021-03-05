@@ -158,7 +158,7 @@ BEGIN
 		IF @ErrCode > 0
 			RETURN
 
-		IF (@finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL)
+		IF ( @ParentMatchId IS NULL AND ( @finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL)	)
 		BEGIN
 			SELECT	@ErrCode = 1001011
 					,@ErrMsg = 'This match has not been keyed in score yet'
