@@ -461,9 +461,8 @@ BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
 											  WHEN @ActionId = 4 THEN 'VoidInstant'
-											  WHEN @ActionId = 6 THEN 'Void5mBeforeKO'
-											  WHEN @ActionId = 7 THEN 'Void10mBeforeKO'
-											  ELSE '' END
+											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
+											  ELSE 'VoidInstant10m' END --@ActionId = 7
 			, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
