@@ -124,7 +124,7 @@ BEGIN
 			)r
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
-					WHEN q.RequestId > 0 AND r.ActionId = 4 THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId IN (1,4) THEN 1
 					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1
 					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1
 					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1
