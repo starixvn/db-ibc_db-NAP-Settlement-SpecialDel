@@ -267,7 +267,9 @@ BEGIN
     END    
     
     SELECT tb.typeid
-        ,b.typenamee AS bettypename
+        ,CASE WHEN tb.typeid = 9604 THEN 'Over/Under'
+			  WHEN tb.typeid = 9605 THEN 'Odd/Even'
+			 ELSE b.typenamee END AS bettypename
         ,tb.type
         ,tb.liveindicator
         ,tb.GroupName
