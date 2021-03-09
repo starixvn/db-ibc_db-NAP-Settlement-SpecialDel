@@ -261,24 +261,6 @@ BEGIN
 					AND SettlementStatusID = 4
 					AND ResultStatusID = 5
 		END
-		-- Cricket child match 
-		IF @sportType = 50 AND @ParentMatchId IS NOT NULL 
-		BEGIN
-			DELETE FROM @tmpResourcesWeb
-			WHERE ResourceID NOT IN (
-				SELECT sp.ResourceID 
-				FROM dbo.bettrans bt WITH(NOLOCK)
-					INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-						ON (sp.BetID = 0 OR sp.BetID =bt.betid)
-							AND sp.BetType = bt.bettype
-				WHERE bt.matchid = @MatchID
-					AND sp.SportType =50 )
-
-			SELECT  @fth	= finalhomescore
-					,@fta	= finalawayscore
-  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  			WHERE   matchid = @ParentMatchId
-		END
 
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
@@ -657,6 +639,24 @@ BEGIN
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
 	
+	IF @ParentMatchId IS NOT NULL 
+	BEGIN
+		DELETE FROM @tmpResourcesWeb
+		WHERE ResourceID NOT IN (
+			SELECT sp.ResourceID 
+			FROM dbo.bettrans bt WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+						AND sp.BetType = bt.bettype
+			WHERE bt.matchid = @MatchID
+				AND sp.SportType =50 )
+
+		SELECT  @fth	= finalhomescore
+				,@fta	= finalawayscore
+  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  		WHERE   matchid = @ParentMatchId
+	END
+
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
