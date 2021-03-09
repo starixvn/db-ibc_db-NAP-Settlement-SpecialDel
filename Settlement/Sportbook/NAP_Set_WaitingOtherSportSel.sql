@@ -308,7 +308,6 @@ BEGIN
 	SELECT	m.matchid
 	FROM	@tmpMatchIds m
 	WHERE	m.eventstatus = 'completed'
-		AND IsExistMarkedTicket = 0
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -319,8 +318,14 @@ BEGIN
 				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
 					INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
-				WHERE	b.matchid = m.matchid
+					OUTER APPLY (
+							SELECT TOP 1 mt.transId
+							FROM	#tmpMarkedTransaction mt 
+							WHERE b.transid = mt.TransId
+						)mt
+				WHERE	tmp.ParentId = m.matchid
 						AND b.statusID = 0
+						AND mt.transId IS NULL
 				GROUP BY tmp.ParentId
 			)b
 

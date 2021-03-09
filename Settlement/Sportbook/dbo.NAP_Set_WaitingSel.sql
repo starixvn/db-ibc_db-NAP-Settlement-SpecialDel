@@ -211,9 +211,8 @@ BEGIN
 				WHERE f.BetType = e.bettype
 			) e
 		WHERE	f.IsUsedGoalRecordValue = 1 
-				OR f.GroupId IN ( 9 , 12 )
+				OR f.GroupId = 9
 				OR e.IsEarly = 1
-				OR f.BetType IN (9538 ,9539 ,9604 ,9605 ,9606) -- FT of Cricket
 
 		SELECT @MinBettype = MIN(bettype)
 			,@MaxBettype = MAX(bettype)
@@ -391,7 +390,6 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON t.MatchId = m.matchid
 	WHERE	m.eventstatus = 'completed'
-		AND m.sporttype <> 50
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -399,19 +397,20 @@ BEGIN
 			SET IsExistRunningTicket = 1
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	b.matchid
+				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
+					INNER JOIN #tmpAllParentChildMatch tmp ON tmp.MatchId = b.matchid
 					OUTER APPLY (
 						SELECT TOP 1 mt.transId
 						FROM	#tmpMarkedTransaction mt 
 						WHERE b.transid = mt.TransId
 					)mt
-				WHERE	b.matchid = m.matchid
+				WHERE	tmp.ParentId = m.matchid
 						AND b.statusID = 0
 						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 						AND b.bettype <> 38 -- BetBuilder
 						AND mt.transId IS NULL
-				GROUP BY b.matchid
+				GROUP BY tmp.ParentId
 			)b
 
 		UPDATE m 
@@ -468,9 +467,7 @@ BEGIN
 			ELSE 'Completed'
 		END AS EarlySettleStatus
 		,m.IsExistMarkedTicket
-		,CASE WHEN m.eventstatus ='Completed' AND m.SportType = 50 AND m.IsExistRunningTicket = 1 THEN 1
-				ELSE m.IsExistRunningTicket
-		END AS IsExistRunningTicket
+		,m.IsExistRunningTicket
 		,m.IsExistMarkedTicketParlay
 		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
 		,ISNULL(ciFT.username,'') AS suspenderFullTime

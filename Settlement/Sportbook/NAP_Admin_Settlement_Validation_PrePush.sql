@@ -35,7 +35,6 @@ BEGIN
     SELECT	@sporttype   = m.sporttype
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
-		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END
 	
 	IF ( 
 		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
@@ -83,29 +82,29 @@ BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
 				,@execSql NVARCHAR(MAX) = ''
 
-		CREATE TABLE #CheckOdds ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID BIGINT )
+		CREATE TABLE #Resources ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID BIGINT )
 
 		SET @queryMatch =
 		'SELECT  sp.BetType
 				, sp.BetID
 		FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-			INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(@SelectedResource , '','')) tm
-									ON sp.ResourceID = tm.val
-						OPTION (MAXRECURSION 0)'
+		WHERE sp.Sporttype = 50
+			AND sp.ResourceID IN ( SELECT val FROM bodb02.dbo.f_SplitString(@SelectedResource , '','') )
+		OPTION (MAXRECURSION 0)'
 
 		SET @execSql = 'DBTXN.bodb02.dbo.sp_executesql @queryMatch, N''@SelectedResource VARCHAR(MAX)'' , @SelectedResource'
 
-		INSERT INTO #CheckOdds ( Bettype , BetID )
+		INSERT INTO #Resources ( Bettype , BetID )
 		EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @SelectedResource VARCHAR(MAX)', @queryMatch, @SelectedResource
 
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
-								INNER JOIN #CheckOdds	c
-									ON o.bettype = c.Bettype
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
 							WHERE o.matchid = @Matchid
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
-								AND ( c.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
 	END
 

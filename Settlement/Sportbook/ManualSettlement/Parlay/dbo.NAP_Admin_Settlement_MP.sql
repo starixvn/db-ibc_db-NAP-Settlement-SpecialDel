@@ -105,15 +105,6 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 
-	IF @SportType = 50 AND @ParentMatchId IS NOT NULL
-	BEGIN
-		SELECT  @finalhomescore = finalhomescore 
-			   ,@finalawayscore = finalawayscore
-			   ,@betstatus		= betstatus
-		FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
-		WHERE	matchid = @ParentMatchId
-	END
-
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 		@MatchId	= @Matchid
 		,@ErrCode	= @ErrCode OUTPUT
@@ -520,7 +511,14 @@ BEGIN
 						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
 		IF @ParentMatchId IS NOT NULL
-			SET @matchid = @ParentMatchId
+		BEGIN
+			SELECT  @matchid		= @ParentMatchId
+				   ,@finalhomescore = finalhomescore 
+				   ,@finalawayscore = finalawayscore
+				   ,@betstatus		= betstatus
+			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+			WHERE	matchid = @ParentMatchId
+		END
 
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator

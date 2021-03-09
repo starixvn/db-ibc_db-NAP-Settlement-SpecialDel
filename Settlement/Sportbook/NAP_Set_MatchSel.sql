@@ -370,9 +370,8 @@ BEGIN
 			WHERE f.BetType = e.bettype
 		) e
 	WHERE	f.IsUsedGoalRecordValue = 1 
-			OR f.GroupId IN ( 9 ,12 )
+			OR f.GroupId = 9
 			OR e.IsEarly = 1
-			OR f.BetType IN (9538 ,9539 ,9604 ,9605 ,9606) -- FT of Cricket
 	
 	SELECT @minbettype = MIN(bettype)
 		,@maxbettype = MAX(bettype)
@@ -437,7 +436,6 @@ BEGIN
 		,IsExistEarlyBettypes = CASE WHEN ext.cntEarlyBettypes > 0 THEN 1 ELSE 0 END
 		,IsRunningEarlyBettypes = CASE WHEN ext.IsRunningEarlyBettypes = 1 THEN 1 ELSE 0 END
 		,IsWaitingEarlyBettypes = CASE WHEN ext.IsWatingEarlyBettypes = 1 THEN 1 ELSE 0 END
-		,IsExistRunningTicket = ext.IsExistRunningTicket
 	FROM #matchList m
 		INNER JOIN MatchExtraStatus ext
 		ON m.matchid = ext.ParentId
@@ -624,7 +622,6 @@ BEGIN
 	SELECT	m.matchid
 	FROM	#matchList m
 	WHERE	eventstatus = 'completed'
-		AND m.sporttype <> 50
  
 
 	IF @@ROWCOUNT <> 0
@@ -633,19 +630,20 @@ BEGIN
 			SET IsExistRunningTicket = 1
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	b.matchid
+				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
 					OUTER APPLY (
 						SELECT TOP 1 mt.transId
 						FROM	#tmpMarkedTransaction mt 
 						WHERE b.transid = mt.TransId
 					)mt
-				WHERE	b.matchid = m.matchid
+				WHERE	tmp.ParentId = m.matchid
 						AND b.statusID = 0
 						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 						AND b.bettype <> 38 -- BetBuilder
 						AND mt.transId IS NULL
-				GROUP BY b.matchid
+				GROUP BY tmp.ParentId
 			)b
 
 		UPDATE m 
@@ -716,9 +714,7 @@ BEGIN
 				ELSE 'Completed'
 			END AS EarlySettleStatus
 			
-			,CASE WHEN m.eventstatus ='Completed' AND m.SportType = 50 AND m.IsExistRunningTicket = 1 THEN 1
-					ELSE m.IsExistRunningTicket
-			END AS IsExistRunningTicket
+			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 	FROM	#matchList m

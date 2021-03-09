@@ -112,15 +112,6 @@ BEGIN
 		RETURN -- incorrect matchid? maybe
 	END
 
-	IF @SportType = 50 AND @ParentMatchId IS NOT NULL
-	BEGIN
-		SELECT  @fthomescore = finalhomescore 
-			   ,@ftawayscore = finalawayscore
-			   ,@betstatus	 = ISNULL(betstatus,'')
-		FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
-		WHERE	matchid = @ParentMatchId
-	END
-
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
 	,@ErrCode	= @ErrCode OUTPUT
@@ -166,9 +157,9 @@ BEGIN
 			RETURN
 			
 		IF (
-			(@hthomescore IS NULL AND @htawayscore IS NULL) --HT scores
+			(@ParentMatchId IS NULL AND @hthomescore IS NULL AND @htawayscore IS NULL) --HT scores
 			AND 
-			(@fthomescore IS NULL AND @ftawayscore IS NULL) --FT scores
+			(@ParentMatchId IS NULL AND @fthomescore IS NULL AND @ftawayscore IS NULL) --FT scores
 		)
 		BEGIN
 			SELECT	@ErrCode = 1000003
@@ -525,7 +516,14 @@ BEGIN
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
 		
 		IF @ParentMatchId IS NOT NULL
-		SELECT @MatchId =  @ParentMatchId
+		BEGIN
+			SELECT  @MatchId =  @ParentMatchId
+					,@fthomescore = finalhomescore 
+					,@ftawayscore = finalawayscore
+					,@betstatus	 = ISNULL(betstatus,'')
+			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+			WHERE	matchid = @ParentMatchId
+		END
 
 		BEGIN TRY
 			

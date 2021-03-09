@@ -71,7 +71,8 @@ BEGIN
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
-			,@ParentMatchId INT
+			,@ParentMatchId		INT
+			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
 
 
   	--START Balance tables
@@ -312,7 +313,7 @@ BEGIN
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT 
 				b.transid, m.modds
-				, CASE WHEN b.bettype = 501 AND '2021-04-08 00:00:00.000' > b.transdate THEN 0
+				, CASE WHEN b.bettype = 501 AND b.transdate < @CutOffDate THEN 0
 						ELSE sr.OddsType
 					END AS OddsType
 				, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked

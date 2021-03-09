@@ -536,8 +536,6 @@ BEGIN
 	SELECT	m.matchid
 	FROM	#tmpMatchIds m
 	WHERE	m.eventstatus = 'completed'
-		AND m.IsExistMarkedTicket = 0
-		AND m.sporttype <> 50
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -545,11 +543,18 @@ BEGIN
 			SET IsExistRunningTicket = 1
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	b.matchid
+				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
-				WHERE	b.matchid = m.matchid
+					INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
+					OUTER APPLY (
+							SELECT TOP 1 mt.transId
+							FROM	#tmpMarkedTransaction mt 
+							WHERE	b.transid = mt.TransId
+						)mt
+				WHERE	tmp.ParentId = m.matchid
 						AND b.statusID = 0
-				GROUP BY b.matchid
+						AND mt.transId IS NULL
+				GROUP BY tmp.ParentId
 			)b
 
 		UPDATE m 
@@ -624,9 +629,7 @@ BEGIN
 				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
 				ELSE 'Completed'
 			END AS EarlySettleStatus
-			,CASE WHEN m.eventstatus ='Completed' AND m.sporttype = 50 AND ( m.IsExistRunningBettypeSingle = 1 OR m.IsRunningEarlyBettypesSingle = 1) THEN 1
-				ELSE m.IsExistRunningTicketAfterCompleted 
-			 END AS IsExistRunningTicket
+			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 	FROM	#tmpMatchIds m

@@ -151,7 +151,7 @@ BEGIN
 			, m.ParentId
 			, tmp.bettype
 			, tmp.betcount
-			, tmp.winlostdate
+			, CASE WHEN m.Matchid <> m.ParentId THEN @Date ELSE tmp.winlostdate END AS winlostdate
 		FROM (SELECT TOP (@n) matchid, ParentId FROM #tmpAllParentChildMatch ) m 
 			CROSS APPLY (SELECT 
 								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
@@ -166,6 +166,7 @@ BEGIN
 								AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
 						GROUP BY  b.matchid	, b.bettype,b.winlostdate
 					) AS tmp
+
 	)
 	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
 	SELECT b.ParentId
@@ -174,10 +175,7 @@ BEGIN
 		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
-	WHERE 1 = CASE WHEN  winlostdate  = @Date THEN 1
-			WHEN Matchid <> ParentId THEN 1
-			ELSE 0
-		END
+	WHERE winlostdate  = @Date
 	GROUP BY b.ParentId
 	OPTION (OPTIMIZE FOR (@n = 1))	
 
