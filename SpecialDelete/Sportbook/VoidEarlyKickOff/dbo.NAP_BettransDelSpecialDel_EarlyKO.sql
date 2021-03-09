@@ -126,7 +126,6 @@ BEGIN
 			,@LogData		NVARCHAR(500)     
 			,@Remark		VARCHAR(500) 
 			,@CountTransId	INT
-			,@SportType		SMALLINT
 	 
 	DECLARE @isExistMatch		BIT = 0  
 			,@isExistMG			BIT = 0 
@@ -283,7 +282,6 @@ BEGIN
 	SELECT @eventdate = m.eventdate 
 		  ,@SettlementStatus = m.SettlementStatus 
 		  ,@GlobalShowTime = m.GlobalShowTime
-		  ,@SportType = m.sporttype
 	FROM dbo.match m WITH (NOLOCK)  
 	WHERE matchid = @matchid  
 
@@ -605,7 +603,6 @@ BEGIN
 								WHEN tp.[Set] = 'ALL' THEN 1							
 								ELSE CASE 						  
 										WHEN s.betid LIKE tp.[Set] + '%' THEN 1
-										WHEN s.betid LIKE '%'+ tp.[Set] AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 THEN 1 -- Cricket
 										ELSE 0
 									 END
 							END = 1) 

@@ -153,13 +153,8 @@ BEGIN
 			,@ValueDefault		SMALLMONEY = 9999.00
 
 	DECLARE @session			NVARCHAR(50)	
-		   ,@SportType			SMALLINT
 	DECLARE @CustIds			VARCHAR(MAX) = ''
 	SET @NegativeBalanceUsers = ''
-	
-	SELECT	@SportType = Sporttype
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
 
 	CREATE TABLE #tblBetType
 	(
@@ -924,10 +919,8 @@ BEGIN
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype 
-				AND (tp.[Set] = 'All' 
-					OR (b.FilterSet LIKE tp.[Set] + '%') 
-					OR (b.FilterSet LIKE '%'+ tp.[Set]  AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 ))
-					)
+				AND (	tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
+
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp

@@ -351,10 +351,8 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
-			,@SportTypeCricket SMALLINT
 
 	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
-		   ,@SportTypeCricket = Sporttype
 	FROM	dbo.match WITH(NOLOCK) 
 	WHERE	matchid = @matchid
 	
@@ -814,10 +812,7 @@ BEGIN
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype 
-			AND (	tp.[Set] = 'All' 
-				OR (b.FilterSet LIKE tp.[Set] + '%') 
-				OR (b.FilterSet LIKE '%'+ tp.[Set]  AND @SportTypeCricket = 50 AND CHARINDEX('8', tp.[Set]) <= 0 ))
-				)
+			AND (	tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b

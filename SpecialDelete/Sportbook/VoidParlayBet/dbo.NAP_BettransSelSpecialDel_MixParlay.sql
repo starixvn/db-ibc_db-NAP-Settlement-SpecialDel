@@ -87,7 +87,6 @@ BEGIN
 	SET NOCOUNT ON  
 
 	DECLARE @ValueDefault SMALLMONEY = 9999.00
-		   ,@SportType	  SMALLINT
 
 	CREATE TABLE #tblBetType
 	(
@@ -169,10 +168,6 @@ BEGIN
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
      ) 
-
-    SELECT	@SportType = Sporttype
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
 
     -- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
@@ -322,7 +317,6 @@ BEGIN
 								WHEN tp.[Set] = 'ALL' THEN 1							
 								ELSE CASE 						  
 										WHEN s.betcheck LIKE tp.[Set] + '%' THEN 1
-										WHEN s.betcheck LIKE '%'+ tp.[Set] AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 THEN 1 -- Cricket
 										ELSE 0
 									 END
 							END = 1) 

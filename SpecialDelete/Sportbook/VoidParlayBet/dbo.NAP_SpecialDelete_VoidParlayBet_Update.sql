@@ -73,7 +73,6 @@ BEGIN
 			,@CustIds			VARCHAR(MAX) = ''
 			,@CountSubTransId	INT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
-			,@SportType			SMALLINT
 
 	SET @NegativeBalanceUsers = ''
 
@@ -117,10 +116,6 @@ BEGIN
 	)  
        
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)								 
-    
-	SELECT	@SportType = Sporttype
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
 
 	SELECT @ErrCode = 0  
    
@@ -314,7 +309,6 @@ BEGIN
 								WHEN tp.[Set] = 'ALL' THEN 1							
 								ELSE CASE 						  
 										WHEN s.betcheck LIKE tp.[Set] + '%' THEN 1
-										WHEN s.betcheck LIKE '%'+ tp.[Set] AND @SportType = 50 AND CHARINDEX('8', tp.[Set]) <= 0 THEN 1 -- Cricket
 										ELSE 0
 									 END
 							END = 1) 
