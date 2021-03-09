@@ -229,7 +229,7 @@ BEGIN
 		)b
 		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
 			ON b.bettype = f.bettype
-	GROUP BY m.matchid, m.ParentId
+	GROUP BY m.ParentId
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
