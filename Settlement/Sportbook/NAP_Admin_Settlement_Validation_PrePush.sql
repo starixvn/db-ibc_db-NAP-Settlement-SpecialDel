@@ -38,7 +38,7 @@ BEGIN
 	
 	IF ( 
 		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
-		AND ISNULL(@SelectedResource,'') <> ''
+		OR ISNULL(@SelectedResource,'') = ''
 		)
 	RETURN
 
