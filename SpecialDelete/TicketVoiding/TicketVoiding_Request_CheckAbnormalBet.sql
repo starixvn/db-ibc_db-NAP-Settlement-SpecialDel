@@ -79,7 +79,6 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND 1 = CASE WHEN @ActionId IN (1,4) AND pt.SportType IN (50) AND pt.BetType IN (501) THEN 0 ELSE 1 END --Exclude bettype 501 of Cricket when add Void Auto Winning & Void Instant Request
 
 	-- check valid match id
 	IF NOT EXISTS (
