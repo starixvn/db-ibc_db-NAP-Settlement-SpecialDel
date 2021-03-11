@@ -48,6 +48,7 @@ AS
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
+		- 20210310@Kathy: Show Unconfirmed FT Match after KO 30 minutes [Redmine:#147230]
 
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -61,7 +62,9 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT
+		, IsExistingSingle BIT DEFAULT(0), IsExistingParlay BIT DEFAULT(0)
+	)
 	
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647, @isSettingByProfile BIT = 0
 	
@@ -92,7 +95,11 @@ BEGIN
 		AND m.leagueID = CASE WHEN ''''' + CONVERT(VARCHAR(50), @LeagueID) + ''''' <> 0 THEN ''''' + CONVERT(VARCHAR(50), @LeagueID) + ''''' ELSE m.leagueID END
 		AND m.sporttype = CASE WHEN ''''' + CONVERT(VARCHAR(50), @sporttype) + ''''' <> 0 THEN ''''' + CONVERT(VARCHAR(50), @sporttype) + ''''' ELSE m.sporttype END
 		AND m.eventstatus <> ''''Completed''''
-		AND (m.kickofftime < DATEADD(s, - 6000, GETDATE()) OR mr.ConfirmFT > 0)
+		AND (m.kickofftime < CASE 
+								WHEN ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108) THEN DATEADD(s, - 6000, GETDATE())
+								ELSE DATEADD(s, -1800, GETDATE())
+							END
+				OR mr.ConfirmFT > 0) 
 		AND 1 = CASE WHEN ''''' + CONVERT(VARCHAR(10), @IsManualSettlementOnly) + ''''' = 0 THEN 1
 				ELSE CASE WHEN m.AutoSetting IS NULL AND (17 & ISNULL(l.AutoSetting, 0) IN (1,16)) THEN 0
 							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
@@ -152,6 +159,17 @@ BEGIN
 	WHERE  winlostdate = @Date
 	GROUP BY b.matchid
 	OPTION (OPTIMIZE FOR (@n = 1))	
+
+	UPDATE m
+		SET IsExistingSingle = 1
+	FROM	@DataTmp m
+		INNER JOIN @BetStatus b
+			ON m.MatchId = b.matchid
+
+	UPDATE m 
+		SET IsExistingParlay = 1
+	FROM	@DataTmp m
+	WHERE EXISTS (SELECT TOP 1 1 FROM dbo.bettransm bm WITH(NOLOCK) WHERE bm.matchid = m.MatchId AND bm.statusID <> 101)
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -220,18 +238,20 @@ BEGIN
 		, ISNULL(ft.username, '') AS suspenderFullTime
 		, ISNULL(m.IsHTCal, 0) AS IsHalfTimeCal
 		, m.SettlementStatus
-		, CASE WHEN b.cntFGLG = 0 THEN 0 ELSE 1 END AS isExistFGLG
-		, CASE WHEN b.cntHTFGLG = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
-		, b.BetCount
+		, CASE WHEN ISNULL(b.cntFGLG,0) = 0 THEN 0 ELSE 1 END AS isExistFGLG
+		, CASE WHEN ISNULL(b.cntHTFGLG,0) = 0 THEN 0 ELSE 1 END AS isExistHTFGLG
+		, ISNULL(b.BetCount,0) AS BetCount
 		, t.seqS AS IsCalculatingSingle
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
 	FROM @DataTmp m
-		INNER JOIN @BetStatus b ON m.matchid = b.matchid
+		LEFT JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.custinfo ht WITH (NOLOCK) ON m.ConfirmHT > 0 AND m.ConfirmHT = ht.custid
 		LEFT JOIN CustDB.dbo.custinfo ft WITH (NOLOCK) ON m.ConfirmFT > 0 AND m.ConfirmFT = ft.custid
 		LEFT JOIN @tblSingle t ON t.matchid = m.matchid
+	WHERE	m.IsExistingSingle > 0
+		OR m.IsExistingParlay > 0
 	ORDER BY m.eventstatus, m.matchcode
 
 	DECLARE @matchidList VARCHAR(MAX) = ''
