@@ -37,6 +37,7 @@ AS
 		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		- 20210201@Louisa: Add NOLOCK [Redmine:#149787]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		
 	Param's Explanation:
@@ -59,6 +60,7 @@ BEGIN
 		, @strHTBettypes				VARCHAR(MAX)
 		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
+		, @sporttype                     SMALLINT
 		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -146,7 +148,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= 1
+		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
 		
@@ -177,6 +179,7 @@ BEGIN
 								ELSE m.eventstatus END
 			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
 						ELSE @FTDone END
+			, @sporttype = m.sporttype
 		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
 		WHERE m.matchid = @matchid
  
@@ -193,26 +196,40 @@ BEGIN
 			, @HTDone					= @HTDone
 			, @creator					= @creator
  
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
-			, @MatchID			= @MatchID
-			, @fth 				= @fth
-			, @fta 				= @fta
-			, @hth 				= @hth
-			, @hta 				= @hta
-			, @Action			= @Action
-			, @creator			= @creator
-			, @ResourceResult	= @ResourceResult
+		IF @sporttype = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
+				, @MatchID			= @MatchID
+				, @fth 				= @fth
+				, @fta 				= @fta
+				, @hth 				= @hth
+				, @hta 				= @hta
+				, @Action			= @Action
+				, @creator			= @creator
+				, @ResourceResult	= @ResourceResult
+		END
 		
-		EXEC dbo.NAP_Admin_Settlement_3_profile
-			@matchId = @matchid
-			,@action	= @action
+		IF @sporttype = 1
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_3_profile
+				@matchId = @matchid
+				,@action	= @action
 			,@ActionID	= @ActionID
-			,@IsReSettledTickets = @IsReSettledTickets
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT
 
-		IF @ErrCode <> 0
-			RETURN
+			IF @ErrCode <> 0
+				RETURN
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_3
+				@matchid            = @matchid
+				,@mode                = @action    
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@creator = @creator
+		END
 			
 		IF @eventstatus = 'completed'
 		BEGIN
@@ -245,7 +262,7 @@ BEGIN
 		)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 		= @matchId
-			, @sportType 	= 1
+			, @sportType 	= @sporttype
 			, @Action		= @Action
 			, @Mode 		= 2
 		
@@ -282,7 +299,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= 1
+		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
  
@@ -310,12 +327,10 @@ BEGIN
 
 	IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
 	BEGIN
-			DECLARE @sporttype	INT
-					, @LeagueGroupID	SMALLINT
+			DECLARE @LeagueGroupID	SMALLINT
 					, @ChildMatchIds	VARCHAR(500)
 
-			SELECT	@sporttype = m.sporttype
-					, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+			SELECT	@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
 			FROM dbo.Match m WITH(NOLOCK)
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid

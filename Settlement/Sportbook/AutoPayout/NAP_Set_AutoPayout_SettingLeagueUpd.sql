@@ -22,6 +22,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200817@July: Add sporttype = 2 (BetBuilder BasketBall) - [Redmine:#138475]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -66,7 +67,7 @@ BEGIN
 		SET AutoSetting = @AutoSettingForLeague
 	FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
 	WHERE	m.leagueid = @LeagueId 
-			AND sporttype IN (1,2)
+			AND sporttype IN (1,2,18)
 			AND AutoSetting IS NULL
 	
 	SELECT	@AutoSettingForLeague =  CASE 
@@ -115,7 +116,7 @@ BEGIN
 		OUTPUT  deleted.matchid INTO @tmpUpdatedMatches (matchid)
 		FROM	dbo.match m WITH(UPDLOCK, ROWLOCK)
 		WHERE	m.leagueid 	= @LeagueId 
-				AND sporttype IN (1,2)
+				AND sporttype IN (1,2,18)
 				AND 1 = CASE 
 							WHEN @AutoType IN (1,3,5) AND eventstatus <> 'completed' THEN 1
 							WHEN @AutoType = 2 AND eventstatus IN ('running', 'closed') THEN 1
