@@ -18,6 +18,7 @@ AS
 		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210311@Louisa: Check runnind Odds [Redmine:#151173]
 
      
     Param's Explanation:
@@ -36,10 +37,10 @@ BEGIN
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
 	
-	IF ( 
-		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
-		OR ISNULL(@SelectedResource,'') = ''
-		)
+	IF ( ISNULL(@SelectedResource,'') = ''	)
+	RETURN
+	
+	IF ( @sporttype = 2 )
 	RETURN
 
 	IF @sporttype = 2
@@ -74,28 +75,29 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 							)	
-		END
+		END		
 	END
 
-	ELSE IF @sporttype = 50
+	ELSE IF ( @sporttype IN ( 5, 9, 43 )	)
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
+				,@execSql NVARCHAR(MAX) = ''
 
-		CREATE TABLE #Resources ( Bettype SMALLINT, BetID BIGINT )
+		CREATE TABLE #Resources ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID BIGINT )
 
-		SET	@queryMatch = N'INSERT INTO #Resources ( Bettype , BetID )
-							SELECT   BetType
-										, BetID
-							FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType
- 										, sp.BetID
-							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.val
-												OPTION (MAXRECURSION 0)
-							'')'
+		SET @queryMatch =
+		'SELECT  sp.BetType
+				, sp.BetID
+		FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+		WHERE sp.Sporttype = @sporttype
+			AND sp.ResourceID IN ( SELECT val FROM bodb02.dbo.f_SplitString(@SelectedResource , '','') )
+		OPTION (MAXRECURSION 0)'
 
-		EXECUTE	sys.sp_executesql @queryMatch
- 
+		SET @execSql = 'DBTXN.bodb02.dbo.sp_executesql @queryMatch, N''@sporttype INT, @SelectedResource VARCHAR(MAX)'' , @sporttype, @SelectedResource'
+
+		INSERT INTO #Resources ( Bettype , BetID )
+		EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @sporttype INT, @SelectedResource VARCHAR(MAX)', @queryMatch, @sporttype, @SelectedResource
+
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
 								INNER JOIN #Resources	r
@@ -107,10 +109,12 @@ BEGIN
 							)
 	END
 
+
+	
 	IF @ErrCode > 0
 	BEGIN
 		SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
-	END		
-
+	END
 END
+
 GO
