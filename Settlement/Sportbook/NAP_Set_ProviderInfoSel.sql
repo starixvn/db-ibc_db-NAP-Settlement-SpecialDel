@@ -5,7 +5,7 @@ ALTER PROC [dbo].[NAP_Set_ProviderInfoSel]
 	,@GameTypes		VARCHAR(MAX) =  ''
 	,@SourceStatus	SMALLINT = 1
 	,@SourceType	SMALLINT
-	,@Sporttype		SMALLINT = 0
+	,@Sporttype		SMALLINT = 43
 )
 AS
 /*
@@ -49,10 +49,10 @@ BEGIN
 		INNER JOIN dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
 			ON p.SourceId = pgm.SourceId
 	WHERE pgm.Sporttype = @Sporttype
-		AND p.isActive = @SourceStatus OR @SourceStatus = 99
+		AND (p.isActive = @SourceStatus OR @SourceStatus = 99)
 		AND ( @GameTypes = '' OR pgm.GameType IN ( SELECT fs.val FROM dbo.f_SplitString(@GameTypes, ',') fs)	)
-		AND p.SourceName LIKE '%'+ @Sourcename + '%' OR ISNULL(p.Remark,'') LIKE '%'+ @Sourcename + '%'
-		AND 1 =  CASE WHEN @SourceType = 0 AND p.SourceId < 1001 AND p.SourceId <> 100 THEN 1
+		AND ( p.SourceName LIKE '%'+ @Sourcename + '%' OR ISNULL(p.Remark,'') LIKE '%'+ @Sourcename + '%')
+		AND 1 =  CASE WHEN @SourceType = 0 AND p.SourceId < 1001 AND p.SourceId <> 100 AND pgm.isActive = 1 THEN 1
 					  WHEN @SourceType = 1 AND p.SourceId > 1001 THEN 1
 					  ELSE 0
 				 END

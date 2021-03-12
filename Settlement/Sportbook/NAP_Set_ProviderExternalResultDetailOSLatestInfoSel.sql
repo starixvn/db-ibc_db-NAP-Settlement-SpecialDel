@@ -19,9 +19,10 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SportType SMALLINT
+			,@LeagueId INT
 
-
-	SET @SportType = 5
+	SELECT @SportType = 5
+	SELECT @LeagueId = m.LeagueId FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchId = @MatchId
 
 	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
@@ -39,7 +40,7 @@ BEGIN
 		WHERE	p.MatchId = @MatchId
 	)
 
-	INSERT INTO @tmpLatestResult ( SourceId,ResourceId, HomeValue, AwayValue)
+	INSERT INTO @tmpLatestResult (SourceId,ResourceId, HomeValue, AwayValue)
 	SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
 	FROM cteLatestId l	
 		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
@@ -49,14 +50,19 @@ BEGIN
 				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
 				   ELSE 0
 				   END
+
 	
 	INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
-	SELECT  pgm.SourceId, pi.SourceName, pi.Remark,  pgm.OrderNo
+	SELECT  pgm.SourceId, pi.SourceName, pi.Remark,  ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
 	FROM   ProviderInfo pi WITH(NOLOCK)
 		INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)
-			ON pi.SourceId  = pgm.SourceId 
+			ON pi.SourceId  = pgm.SourceId
+		LEFT JOIN ProviderLeagueMappingOutsideSource plmo WITH(NOLOCK)
+			ON plmo.PGId =  pgm.PGId and plmo.LeagueId  = @LeagueId
 	WHERE   pgm.Sporttype = @SportType
-		AND pgm.SourceId <= 1001
+		AND (	pgm.SourceId <= 1001 
+				OR  plmo.PGId  IS NOT NULL
+			)
 		AND pi.isActive	 = 1
 		AND pgm.isActive = 1
 	
@@ -69,7 +75,10 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpSourceId s WHERE s.SourceId = 1001)
 		BEGIN
 			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
-			VALUES (1001,'Screenshot','n/a', 1)
+			SELECT 1001
+				, CASE WHEN @SportType = 43 THEN 'Into Site' ELSE 'Screenshot' END
+				,'n/a'
+				, 1
 		END
 
 	INSERT INTO @tmpProviderExternalResult(SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
@@ -81,7 +90,7 @@ BEGIN
 		OR s.SourceId >= 1001
 				
 	SELECT	t.SourceId
-			,t.SourceName
+			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Into Site' ELSE t.SourceName END AS SourceName
 			,t.Remark
 			,t.ResourceId
 			,t.HomeValue
@@ -90,4 +99,6 @@ BEGIN
 	FROM	@tmpProviderExternalResult t
 
 
+
 END
+GO

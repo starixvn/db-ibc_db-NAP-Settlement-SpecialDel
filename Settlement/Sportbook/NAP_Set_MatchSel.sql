@@ -54,6 +54,7 @@ AS
 		- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] + remove unused code - [Redmine:#143441]
+		- 20210312@Louisa: Exclude Test Matches when Match Code/ID = «blank» [Readmine:#150425]
 
       
  Param explanation:  
@@ -105,12 +106,13 @@ BEGIN
 				ELSE 0
 				END
 			,-- reload partial; search on LeagueID, not reload: get all leagues	
-			@UncalOnly = NULL
-			,@UncalMultiOnly = NULL
+			@UncalOnly			= NULL
+			,@UncalMultiOnly	= NULL
 			,@AutoSettlementOnly = 0
-			,@FastMarketsOnly =0
-			,@SettlementStatus = 0
-			,@IsMarkedTicket = 0
+			,@FastMarketsOnly	= 0
+			,@SettlementStatus	= 0
+			,@IsMarkedTicket	= 0
+			,@IsIncludeTest		= 1
 
 		BEGIN TRY
 			SET @matchid = CASE 

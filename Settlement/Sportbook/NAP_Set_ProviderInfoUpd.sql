@@ -3,6 +3,7 @@ ALTER  PROC NAP_Set_ProviderInfoUpd
 (
 	 @GameType		TINYINT 
 	,@ProviderSources VARCHAR(MAX)
+	,@Sporttype		SMALLINT		= 43
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 )
@@ -14,6 +15,7 @@ AS
     
     Revisions:            
 		- 20200806@Louisa: Order provider info [Redmine:#138656]
+		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 
 	Param's Explanation:
 		@GameTypes : Single select
@@ -44,9 +46,10 @@ BEGIN
 			UPDATE dbo.ProviderGameTypeMapping  WITH(ROWLOCK, UPDLOCK)
 				SET OrderNo = tmp.OrderNo
 			FROM ProviderGameTypeMapping pgm
-			INNER JOIN @tmpProviderSort tmp 
-				ON pgm.SourceId = tmp.SourceId
-					AND	pgm.GameType  = @GameType
+				INNER JOIN @tmpProviderSort tmp 
+					ON pgm.SourceId = tmp.SourceId
+						AND	pgm.GameType  = @GameType
+			WHERE pgm.Sporttype = @Sporttype
 			
 		END TRY
 
