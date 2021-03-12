@@ -212,6 +212,17 @@ BEGIN
 		RETURN  
 	END CATCH    
   
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransId t
+					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE b.matchid <> @MatchId
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'No ticket found.'
+		RETURN
+	END
  ---- Check for concurrent running  
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay   = 1  

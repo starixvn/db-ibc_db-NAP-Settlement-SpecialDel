@@ -340,6 +340,32 @@ BEGIN
 		RETURN  
 	END CATCH  
 
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE matchid <> @MatchId
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'No ticket found.'
+		RETURN
+	END
+	--Parlay
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+				WHERE b.matchid = 29  
+					AND b.bettype = 29   
+					AND bm.matchid  <> @matchid  
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'No ticket found.'
+		RETURN
+	END 
+
 	-- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
 	(	
