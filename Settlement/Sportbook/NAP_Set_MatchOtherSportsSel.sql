@@ -9,6 +9,7 @@ ALTER PROCEDURE dbo.NAP_Set_MatchOtherSportsSel
 	,@Sporttypes	VARCHAR(MAX)	
 	,@LeagueIds		VARCHAR(MAX) 
 	,@IsIncludeTest BIT				= 0
+	,@AutoSetting 			TINYINT = 0
 AS
 /*  
 	 Created by: Kathy
@@ -368,6 +369,26 @@ BEGIN
 									END
 				)
 				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+	END
+
+	--check auto setting
+	IF (@AutoSetting > 0)
+	BEGIN
+		DECLARE @DirectAutoPayout TINYINT
+		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
+										WHEN @AutoSetting = 3 THEN 18 -- Auto payout and Instant Calc
+										ELSE 0
+									END
+		DELETE m
+		FROM #tmpMatchIds m
+		--WHERE @AutoSetting & m.AutoSetting <> @AutoSetting
+		WHERE 1 = 
+				CASE 
+					WHEN 16 & m.AutoSetting = 16 AND @AutoSetting IN (1,3) THEN 
+						CASE WHEN @DirectAutoPayout & m.AutoSetting <> @DirectAutoPayout THEN 1 ELSE 0 END 
+					ELSE 
+						CASE WHEN @AutoSetting & m.AutoSetting <> @AutoSetting THEN 1 ELSE 0 END
+				END
 	END
 
 	;WITH singlequeue 
