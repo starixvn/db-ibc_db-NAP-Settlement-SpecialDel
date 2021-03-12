@@ -52,7 +52,11 @@ VALUES ('Athena000UUS011904463',20),
 ('Athena000UUS011904479',20),
 ('Athena000UUS011904480',20),
 ('Athena000UUS011904520',20),
-('Athena000UUS011904521',20)
+('Athena000UUS011904521',20),
+---20210312 Test N8B-----
+('N8BUUS01098',20),
+('N8BUUS01099',20)
+
 
 INSERT INTO dbo.LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 SELECT @Sporttype Sporttype
