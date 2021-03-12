@@ -79,9 +79,7 @@ BEGIN
 						AND (d.HomeValue <> @HomeValue OR d.AwayValue <> @AwayValue)
 						AND EXISTS (SELECT TOP 1 1
 										FROM dbo.AutoPayoutResult p WITH(NOLOCK) 
-										WHERE p.MatchId = d.MatchId AND p.CalculationType = CASE WHEN d.TypeId = 3 THEN 1
-																								WHEN  d.TypeId = 4 THEN 2
-																								ELSE d.TypeId END AND p.StatusId <> 0))
+										WHERE p.MatchId = d.MatchId AND p.CalculationType = 2 AND p.StatusId <> 0))
 		BEGIN
 			--being processing or already settled
 			SELECT @ErrCode = 1001025, @ErrMsg = 'Failed to update result detail. Because this match has already settled.'
@@ -91,7 +89,7 @@ BEGIN
 		UPDATE dbo.ProviderExternalResultDetail WITH(ROWLOCK, UPDLOCK)
 		SET HomeValue = @HomeValue
 			, AwayValue = @AwayValue
-			, CreatedDate = GETDATE()
+			, CreateDate = GETDATE()
 		WHERE MatchId = @MatchId AND SourceId = @SourceId AND ResourceId = '00'
 			AND (HomeValue <> @HomeValue OR AwayValue <> @AwayValue)
 
