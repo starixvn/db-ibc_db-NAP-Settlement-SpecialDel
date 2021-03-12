@@ -1,4 +1,58 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+CREATE PROCEDURE dbo.ExecRep_NAP_Admin_01_UAT1
+/*
+	Created by: 20210303@Louisa
+	Task: execRep SP for Settlement [Redmine:#140452]
+	DB: DBTXN/bodb02
+	
+	Revisions:
+		- 20201006@Louisa: add SPs into Pub Test [Redmine:#140452]
+
+	Param's Explanation:
+		- ExecRep SP: DBTrans_ExecRep_UAT
+*/
+AS
+BEGIN
+	SET NOCOUNT ON
+END
+GO
+
+CREATE PROCEDURE dbo.ExecRep_NAP_Admin_01_UAT2
+/*
+	Created by: 20210303@Louisa
+	Task: execRep SP for Settlement [Redmine:#140452]
+	DB: DBTXN/bodb02
+	
+	Revisions:
+		- 20201006@Louisa: add SPs into Pub Test [Redmine:#140452]
+
+	Param's Explanation:
+		- ExecRep SP: DBTrans_ExecRep_UAT
+*/
+AS
+BEGIN
+	SET NOCOUNT ON
+END
+GO
+
+CREATE PROCEDURE dbo.ExecRep_NAP_Admin_01_UAT3
+/*
+	Created by: 20210303@Louisa
+	Task: execRep SP for Settlement [Redmine:#140452]
+	DB: DBTXN/bodb02
+	
+	Revisions:
+		- 20201006@Louisa: add SPs into Pub Test [Redmine:#140452]
+
+	Param's Explanation:
+		- ExecRep SP: DBTrans_ExecRep_UAT
+*/
+AS
+BEGIN
+	SET NOCOUNT ON
+END
+GO
+---------------------------------------------------------------------------
 CREATE PROCEDURE dbo.ExecRep_NAP_Admin_02_UAT1
 	@MatchId INT
 	,@Mode VARCHAR(15)
@@ -307,7 +361,7 @@ BEGIN
 	END
 END
 GO
-
+---------------------------------------------------------------------------
 CREATE PROCEDURE dbo.ExecRep_NAP_Admin_03_UAT1
 /*
 	Created by: 20210303@Louisa
@@ -361,8 +415,7 @@ BEGIN
 	SET NOCOUNT ON
 END
 GO
--------------------------------------------------------------------
-
+---------------------------------------------------------------------------
 CREATE PROCEDURE dbo.ExecRep_NAP_Admin_04_UAT1
 /*
 	Created by: 20210303@Louisa
