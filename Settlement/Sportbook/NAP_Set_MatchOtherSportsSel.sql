@@ -21,6 +21,7 @@ AS
 			- 20200827@Louisa: get external result to compare [Redmine:#139979]
 			- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 			- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+			- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 			- 20210324@Louisa: Enhancement MultiSports page [Redmine:#151545]
       
 	 Param explanation:  
@@ -134,6 +135,8 @@ BEGIN
 		,IsExistMarkedTicketParlay		BIT DEFAULT (0)
 		,IsExistRunningBettypeSingle	BIT DEFAULT (0) -- exclude early bettype
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
+
+		,AutoPayoutStatus				TINYINT
 		,IsExistsRunningInterval		BIT DEFAULT (0) --Apply for Basketball, Tennis, Badminton, E-sports, Cricket
 		,IsPending						BIT DEFAULT (0)
 	)
@@ -211,6 +214,7 @@ BEGIN
 			,IsRefund
 			,IsCalRefund
 			,IsHalfTimeCal
+			,AutoPayoutStatus
 			,IsPending
 		)
 		SELECT	m.matchid
@@ -244,6 +248,7 @@ BEGIN
 				,mr.refund
 				,mr.calrefund
 				,mr.IsHTCal
+				,ap.StatusId
 				,mr.isPending
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
@@ -251,7 +256,12 @@ BEGIN
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
 			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
-				ON	m.matchid = mr.matchid			
+				ON	m.matchid = mr.matchid
+			OUTER APPLY (
+					SELECT TOP 1 matchid, StatusId
+					FROM dbo.AutoPayoutResult WITH (NOLOCK)
+					WHERE matchid = m.matchid
+				)ap
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
 				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
@@ -283,6 +293,7 @@ BEGIN
 			,IsRefund
 			,IsCalRefund
 			,IsHalfTimeCal
+			,AutoPayoutStatus
 			,IsPending
 		)
 		SELECT	m.matchid
@@ -316,6 +327,7 @@ BEGIN
 				,mr.refund
 				,mr.calrefund
 				,mr.IsHTCal
+				,ap.StatusId
 				,mr.isPending
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpLeagueIds tl 
@@ -323,7 +335,12 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON	m.leagueid = l.LeagueId
 			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
-				ON	m.matchid = mr.matchid	
+				ON	m.matchid = mr.matchid
+			OUTER APPLY (
+					SELECT TOP 1 matchid, StatusId
+					FROM dbo.AutoPayoutResult WITH (NOLOCK)
+					WHERE matchid = m.matchid
+				)ap
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 				AND (@Remark = 0 OR @Remark & m.SettlementStatus > 0)
 				AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
@@ -706,6 +723,7 @@ BEGIN
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
+			,m.AutoPayoutStatus
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
