@@ -361,7 +361,7 @@ BEGIN
 									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
 									ELSE ''
 								END
-							+ 'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> '
+							+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END
 							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
