@@ -34,7 +34,7 @@ BEGIN
 				END AS ResultStatusID
 				
 			,CASE WHEN m.eventstatus = 'completed' THEN 
-													CASE WHEN m.betstatus = 'Refunded' THEN 1 --Refund All 
+													CASE WHEN ISNULL(m.betstatus,'') LIKE '%Refund%' THEN 1 --Refund All
 														ELSE 4 -- Completed -Cal FT
 													END
 					ELSE 0 
@@ -42,12 +42,8 @@ BEGIN
 			,8			
 			,GETDATE()			
 			,8	
-			,GETDATE()		
-			--,OtherInfo
-			--,ResultSetting	
+			,GETDATE()			
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.sporttype = 50
-	--AND ISNULL( m.childMatchType, 0) <> 200
-	--AND m.eventdate = '2021-03-12'
 
 END
