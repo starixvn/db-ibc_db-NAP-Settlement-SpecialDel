@@ -61,6 +61,7 @@ BEGIN
 		LEFT JOIN dbo.ResultDetailOS r WITH(NOLOCK)
 			ON  r.MatchID = m.matchid
 	WHERE m.sporttype = 50
+		AND ISNULL(m.ChildMatchType,0) <> 200
 		AND r.MatchID IS NULL
 	
 
