@@ -16,6 +16,7 @@ AS
 	Revisions: 	
 		- 20130121@Dan: change linked server DB06 to DBARC
 		- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
+		- 20210316@Louisa: Cricket AIO [Redmine:#148870]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -62,6 +63,9 @@ BEGIN
 						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 						ELSE 0
 					END
+			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+						ELSE 1
+					END
 
 		IF @BalanceUpDay < @FromDate     
 			SELECT @BalanceUpDay=@FromDate  
@@ -76,6 +80,9 @@ BEGIN
 						WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
 						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 						ELSE 0
+					END
+			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+						ELSE 1
 					END
 	END
 
@@ -94,6 +101,9 @@ BEGIN
 						WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
 						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
 						ELSE 0
+					END
+			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+						ELSE 1
 					END
 	END
 

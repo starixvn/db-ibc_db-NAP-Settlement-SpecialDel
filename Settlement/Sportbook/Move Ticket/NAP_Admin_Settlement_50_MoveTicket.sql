@@ -45,11 +45,11 @@ BEGIN
 		,@StartTime = GETDATE()
 		
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
-	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20))
+	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT)
-	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT)
+	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, ResourceId VARCHAR(20) )
+	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20) )
 
 	SELECT	@eventdate = m.eventdate
 			,@eventstatus = m.eventstatus
@@ -110,8 +110,8 @@ BEGIN
 						OR s.RefResourceId = t.ResourceId)
 		)s
 
-	INSERT INTO #tmpTransIdsSingle(TransId, statusId)
-	SELECT	b.transid, b.statusID
+	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId)
+	SELECT	b.transid, b.statusID, t.ResourceId
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -123,8 +123,8 @@ BEGIN
 		
 	SET @totalSingle = @@ROWCOUNT
 
-	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno)
-	SELECT	bm.transid, bm.statusID, bm.refno
+	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId)
+	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -252,9 +252,14 @@ BEGIN
 		END
 	END
 
-	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + ResourceId, ResourceId)
-	FROM	@tmpBettypeResourceId
-	GROUP BY ResourceId
+	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + r.ResourceId, r.ResourceId)
+	FROM (
+			SELECT  ResourceId FROM	#tmpTransIdsSingle
+			UNION ALL
+			SELECT  ResourceId FROM	#tmpTransIdsParlay
+		) r
+		GROUP BY r.ResourceId
+
 
 	SELECT @ResourceIds = STUFF(@ResourceIds, 1, 1, '')
 
