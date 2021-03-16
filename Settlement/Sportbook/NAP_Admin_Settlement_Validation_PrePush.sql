@@ -80,7 +80,6 @@ BEGIN
 	ELSE IF @sporttype = 50
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
-				,@execSql NVARCHAR(MAX) = ''
 
 		CREATE TABLE #Resources ( Bettype SMALLINT, BetID BIGINT )
 
