@@ -81,23 +81,50 @@ BEGIN
 	ELSE IF ( @sporttype IN ( 5, 9, 43 )	)
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
-				,@execSql NVARCHAR(MAX) = ''
 
-		CREATE TABLE #Resources ( Bettype SMALLINT,  ResourceId VARCHAR(20), BetID BIGINT )
+		CREATE TABLE #Resources ( Bettype SMALLINT, BetID BIGINT )
 
-		SET @queryMatch =
-		'SELECT  sp.BetType
-				, sp.BetID
-		FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-		WHERE sp.Sporttype = @sporttype
-			AND sp.ResourceID IN ( SELECT val FROM bodb02.dbo.f_SplitString(@SelectedResource , '','') )
-		OPTION (MAXRECURSION 0)'
+		SET	@queryMatch = N'INSERT INTO #Resources ( Bettype , BetID )
+							SELECT   BetType
+										, BetID
+							FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType
+ 										, sp.BetID
+							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
+															ON sp.ResourceID = tm.val
+												OPTION (MAXRECURSION 0)
+							'')'
 
-		SET @execSql = 'DBTXN.bodb02.dbo.sp_executesql @queryMatch, N''@sporttype INT, @SelectedResource VARCHAR(MAX)'' , @sporttype, @SelectedResource'
+		EXECUTE	sys.sp_executesql @queryMatch
 
-		INSERT INTO #Resources ( Bettype , BetID )
-		EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @sporttype INT, @SelectedResource VARCHAR(MAX)', @queryMatch, @sporttype, @SelectedResource
+		IF( @sporttype = 43)
+		BEGIN
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.oddsES o WITH (NOLOCK)
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+							)
+		END
 
+		ELSE IF( @sporttype = 5)
+		BEGIN
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.odds o WITH (NOLOCK)
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+							)
+		END
+
+		ELSE IF( @sporttype = 9)
+		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
 								INNER JOIN #Resources	r
@@ -107,6 +134,8 @@ BEGIN
 								AND o.oddsstatus <> 'closed'
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
+		END
+
 	END
 
 
