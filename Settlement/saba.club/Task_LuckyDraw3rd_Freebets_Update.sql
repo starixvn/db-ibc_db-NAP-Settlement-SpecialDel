@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="vnSAS" isFunction="0"></info>*/
 CREATE PROC Task_LuckyDraw3rd_Freebets_Update
 AS
 /*
