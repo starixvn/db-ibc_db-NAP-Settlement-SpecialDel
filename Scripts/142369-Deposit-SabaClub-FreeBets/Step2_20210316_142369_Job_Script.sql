@@ -1,4 +1,13 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+/*
+	Created: Helen
+	Date: 20210319
+	Task: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+	DB: DBTRANS/bodb02
+	
+	Revisions:
+		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+*/
 USE [msdb]
 GO
 
