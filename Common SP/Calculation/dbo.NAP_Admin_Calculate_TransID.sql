@@ -15,6 +15,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 202103186@Louisa: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:  
 		   
@@ -133,7 +134,12 @@ BEGIN
 								WHEN @modds IS NULL THEN 6
 							END 			   	
 		,@winlost = CASE
-				WHEN @modds >  0.25 THEN actual_stake + stake * @odds
+				WHEN @modds >  0.25 THEN actual_stake + stake * ( CASE WHEN b.bettype IN (9538,9539,9540) 
+																			THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
+																						THEN  1
+																						ELSE  @odds - 1	
+																					END
+																	ELSE @odds END)
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
@@ -161,7 +167,12 @@ BEGIN
 		,aWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN aWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
+								WHEN @modds >  0.25 THEN stake * -apositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
+																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
+																										THEN  1 
+																										ELSE @odds - 1
+																									  END
+																							ELSE @odds END)
 								WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
@@ -172,7 +183,12 @@ BEGIN
 		,mWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN mWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking
+								WHEN @modds >  0.25 THEN stake * -mpositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
+																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
+																										THEN  1 
+																										ELSE @odds - 1
+																									  END
+																							ELSE @odds END)
 								WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
@@ -183,7 +199,12 @@ BEGIN
 		,sWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN sWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking
+								WHEN @modds >  0.25 THEN stake * -spositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
+																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
+																										THEN  1 
+																										ELSE @odds - 1
+																									  END
+																							ELSE @odds END)
 								WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
