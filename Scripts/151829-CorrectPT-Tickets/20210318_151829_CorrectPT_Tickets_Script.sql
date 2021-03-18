@@ -264,8 +264,8 @@ UNION ALL SELECT 	'Jinyazhou',	0.9
 UNION ALL SELECT 	'Titancraft',	0.9
 UNION ALL SELECT 	'webet88',	0.9
 UNION ALL SELECT 	'HAPPY8',	0.9
-UNION ALL SELECT 	'BSSB168',	0.93
-UNION ALL SELECT 	'TSEnter',	0.93
+--UNION ALL SELECT 	'BSSB168',	0.93
+--UNION ALL SELECT 	'TSEnter',	0.93
 
 INSERT INTO #input_Super(custid, apositiontaking)
 SELECT ci.custid, t.apositiontaking 	
@@ -288,8 +288,8 @@ WHERE ci.roleid = 2
 	
 -------------------------------------------------------------
 ---- GET affected transid
-DECLARE @winlostdate DATETIME
-SET @winlostdate = '2021-04-01 00:00:00.000'
+--DECLARE @winlostdate DATETIME
+--SET @winlostdate = '2021-04-01 00:00:00.000'
 
 INSERT INTO #tickets_tmp(transid, Matchid,apositiontaking, IsBettrans, IsTranslog)
 -- bettrans
@@ -303,7 +303,7 @@ WHERE m.sporttype < 99 AND eventstatus <> 'completed'
 	AND b.apositiontaking  <> r.apositiontaking
 	AND b.bettype < 19999
 	AND b.bettype NOT IN (29)
-	AND b.winlostdate >= @winlostdate
+	--AND b.winlostdate >= @winlostdate
 	AND ba.custid IS NULL
 	
 UNION ALL
@@ -315,7 +315,7 @@ FROM #tmp_recommend r
 WHERE  b.statusID IN (0,1,102)
 	AND b.bettype = 10 -- outright
 	AND b.apositiontaking  <> r.apositiontaking
-	AND b.winlostdate >= @winlostdate
+	--AND b.winlostdate >= @winlostdate
 	AND ba.custid IS NULL
 	
 UNION ALL
@@ -327,7 +327,7 @@ FROM #tmp_recommend r
 WHERE b.gameID BETWEEN 801 AND 806
 	AND b.statusID IN (0,1,102)
 	AND b.apositiontaking  <> r.apositiontaking
-	AND b.winlostdate >= @winlostdate
+	--AND b.winlostdate >= @winlostdate
 	AND ba.custid IS NULL
 	
 ---- get list of matchid
