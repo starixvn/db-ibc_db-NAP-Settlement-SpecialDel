@@ -101,7 +101,7 @@ BEGIN
 			SET @remoteQuery = 'INSERT INTO #tmpMissingCombination (refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm)
 								   SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
 								   FROM OPENQUERY (DBARC,''SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
-															FROM bodb_archive.dbo.BetParlayResult_bk with(nolock) where refno in (' + @strRefno  +')'')'
+															FROM bodb_archive.dbo.BetParlayResult with(nolock) where refno in (' + @strRefno  +')'')'
 			
 			EXECUTE sys.sp_executesql @remoteQuery
 			
