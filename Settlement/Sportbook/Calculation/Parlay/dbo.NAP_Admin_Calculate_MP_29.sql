@@ -89,20 +89,22 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			SET @strRefno = ''
-
-			SELECT	@strRefno = @strRefno + CAST(refno AS VARCHAR(30)) + ','
+			SELECT	@strRefno = @strRefno + ',' + CAST(refno AS VARCHAR(30)) 
 			FROM	@tmpMissingRefno
 			WHERE	id between @id AND @id + @batchNo - 1
 
 			IF ISNULL(@strRefno,'') = ''
 				BREAK
 
-			SET @strRefno = STUFF(@strRefno,len(@strRefno),1,1)
-
+			SET @strRefno = STUFF(@strRefno, 1, 1, '')
+			
 			SET @remoteQuery = 'INSERT INTO #tmpMissingCombination (refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm)
 								   SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
 								   FROM OPENQUERY (DBARC,''SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
 															FROM bodb_archive.dbo.BetParlayResult_bk with(nolock) where refno in (' + @strRefno  +')'')'
+			
+			EXECUTE sys.sp_executesql @remoteQuery
+			
 			SET @id = @id + @batchNo
 		END
 	END
