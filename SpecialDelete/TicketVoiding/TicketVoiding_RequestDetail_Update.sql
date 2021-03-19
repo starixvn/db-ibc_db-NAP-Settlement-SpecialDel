@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
 	,@IsVoidVIPMember		BIT = NULL
+	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
 	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
@@ -67,6 +68,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210401@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
+		- 20210402@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 
 	Param's explanation:	
 	
@@ -113,7 +115,8 @@ BEGIN
 			,@IsNonSport			 BIT = 0
 			,@moveBetDay14 			 SMALLDATETIME
 			,@moveBetDay 			 SMALLDATETIME
-			,@FromWinlostDate        DATETIME	
+			,@FromWinlostDate        DATETIME
+			,@OldTypeAccept			 VARCHAR(MAX) = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -171,6 +174,7 @@ BEGIN
 			, @OldFilterFromBetId = FilterFromBetId
 			, @OldFilterToBetId = FilterToBetId
 			, @OldFilterBy = FilterBy
+			, @OldTypeAccept = TransIds
 			, FilterFromTransTime = @FilterFromTransTime
 			, FilterToTransTime = @FilterToTransTime
 			, FilterFromBetId = @FilterFromBetId
@@ -187,6 +191,7 @@ BEGIN
 			, IssueDetail = @LiveScores
 			, IsCheckedHomeTeam = @IsCheckedHomeTeam
 			, IsCheckedAwayTeam = @IsCheckedAwayTeam
+			, TransIds = @TypeAccept
 		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
@@ -624,6 +629,10 @@ BEGIN
 		IF @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1, 2)
 		BEGIN
 			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
+		END
+		IF @OldTypeAccept <> @TypeAccept
+		BEGIN
+			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', TypeAccept: ' + @TypeAccept
 		END
 	END
 	ELSE IF @IssueTypeId = 13

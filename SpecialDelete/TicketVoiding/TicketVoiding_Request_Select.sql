@@ -26,6 +26,7 @@ AS
 		- 20201021@Zane: TVS - Enhance for Danger Accept Phase 4 [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210319@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 
 	Param's explanation:	
 	
@@ -33,12 +34,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid BIGINT = 0
-		--,@IsAutoVoid BIT = 0
-
-	--SELECT @Matchid = (SELECT TOP 1 MatchId FROM TicketVoiding_RequestDetail WITH (NOLOCK) WHERE RequestId = @RequestId)
-	
-	--SELECT @IsAutoVoid = (SELECT TOP 1 1 FROM TicketVoiding_AutoVoidRequest_Queue tq WITH (NOLOCK) WHERE MatchId = @Matchid AND StatusId = 1)
+	DECLARE @Matchid	 BIGINT = 0
+		   ,@IssueTypeId TINYINT
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -54,7 +51,6 @@ BEGIN
 			,r.Source
 			,r.Remark
 			,r.IsTest
-			--,CASE WHEN r.IssueTypeId = 11 AND @IsAutoVoid = 1 THEN 1 ELSE ISNULL(isVoided,0) END AS isVoided
 			,ISNULL(isVoided,0) AS isVoided
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
@@ -68,11 +64,26 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer cv WITH (NOLOCK) ON cv.custid = tblVoid.VoidBy			
 	WHERE	r.RequestId = @RequestId
 
-	IF EXISTS (
-		SELECT TOP 1 1
+	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
+							FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
+							WHERE RequestId = @RequestId
+						  )
+
+	IF @IssueTypeId IN (1,10)
+	BEGIN 
+		DECLARE @TypeAccept XML, @AutoAccept INT, @PendingAccept INT, @SecondAccept INT
+		
+		SELECT @TypeAccept = CAST (rd.TransIds AS XML)
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		WHERE rd.RequestId = @RequestId AND req.IssueTypeId <> 13)
+		WHERE RequestId = @RequestId
+
+		SELECT	@AutoAccept = T.C.value('@AA', 'INT')
+				,@PendingAccept = T.C.value('@PA', 'INT')
+				,@SecondAccept = T.C.value('@SA', 'INT')
+		FROM	@TypeAccept.nodes('/r') AS T(C)
+	END
+
+	IF @IssueTypeId IN (1,8,9,10,11)
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -95,6 +106,9 @@ BEGIN
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @AutoAccept ELSE NULL END AA
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @PendingAccept ELSE NULL END PA
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @SecondAccept ELSE NULL END SA
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
@@ -120,7 +134,7 @@ BEGIN
 				)ts
 		WHERE	rd.RequestId = @RequestId
 	END
-	ELSE -- apply for Abnormal Account
+	IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN
 		SELECT	TOP 1
 				 rd.Usernames AS UserNames
