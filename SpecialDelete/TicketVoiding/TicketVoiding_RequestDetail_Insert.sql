@@ -23,15 +23,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@VoidFromTime			DATETIME = NULL
 	,@VoidToTime			DATETIME = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT = NULL
-	,@IsCheckedAwayTeam		BIT = NULL
+	,@IsCheckedHomeTeam		BIT = 0
+	,@IsCheckedAwayTeam		BIT = 0
 	,@SubIssueTypeId		TINYINT = NULL
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50) = NULL
 	,@StatusIds				VARCHAR(50) = NULL
 	,@FromDate				DATETIME = NULL
 	,@ToDate				DATETIME = NULL
-	,@IsVoidVIPMember		BIT = NULL
+	,@IsVoidVIPMember		BIT = 0
 	,@TypeAccept			VARCHAR(MAX) = NULL
 )
 AS
@@ -173,8 +173,8 @@ BEGIN
 			, @AwayId
 			, @KickOffTime
 			, CASE WHEN @ActionId IN (4,6,7) THEN 1
-					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
-							  WHEN @IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
+					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @IsVoidVIPMember = 0) THEN 0
+							  WHEN @IssueTypeId = 11 AND @IsVoidVIPMember = 1 THEN 3
 							  ELSE 0
 						 END
 				END
@@ -482,10 +482,10 @@ BEGIN
 									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy IN(1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21) + ', TypeAccept: ' + @TypeAccept
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy IN (1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
-										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20)) + ', TypeAccept: ' + @TypeAccept
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(10)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10)) + ', TypeAccept: ' + @TypeAccept
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20)) + ', TypeAccept: ' + @TypeAccept
 									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
-										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20)) + ', TypeAccept: ' + @TypeAccept
+										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(10)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10)) + ', TypeAccept: ' + @TypeAccept
 									-- IssueTypeId = 13
 									WHEN @IssueTypeId = 13 THEN ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
 																+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))

@@ -32,8 +32,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@VoidFromTime			DATETIME	  = NULL
 	,@VoidToTime			DATETIME	  = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT			  = NULL
-	,@IsCheckedAwayTeam		BIT			  = NULL
+	,@IsCheckedHomeTeam		BIT			  = 0
+	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)	  = NULL
 	,@StatusIds				VARCHAR(50)	  = NULL
@@ -50,7 +50,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistNG				BIT           = 0
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
-	,@IsVoidVIPMember		BIT			  = NULL
+	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
