@@ -113,7 +113,10 @@ BEGIN
 							ELSE 0.5
 						END
 	   ,@odds = (CASE WHEN b.odds < 0 THEN 1 
-	   				 WHEN sr.oddstype = 1 THEN CASE WHEN b.bettype = 376 THEN sr.finalodds - 1 ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
+	   				 WHEN sr.oddstype = 1 THEN CASE 
+													WHEN b.bettype = 376 THEN sr.finalodds - 1
+													WHEN sr.modds > 0.25 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
+													ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
 					 ELSE b.odds END)
 		,odds = CASE 
 					WHEN b.bettype = 376 
@@ -134,12 +137,7 @@ BEGIN
 								WHEN @modds IS NULL THEN 6
 							END 			   	
 		,@winlost = CASE
-				WHEN @modds >  0.25 THEN actual_stake + stake * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																			THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																						THEN  1
-																						ELSE  @odds - 1	
-																					END
-																	ELSE @odds END)
+				WHEN @modds >  0.25 THEN actual_stake + stake * @odds
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
@@ -167,12 +165,7 @@ BEGIN
 		,aWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN aWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * -apositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
 								WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
@@ -183,12 +176,7 @@ BEGIN
 		,mWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN mWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * -mpositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking
 								WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
@@ -199,12 +187,7 @@ BEGIN
 		,sWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN sWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * -spositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking
 								WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5

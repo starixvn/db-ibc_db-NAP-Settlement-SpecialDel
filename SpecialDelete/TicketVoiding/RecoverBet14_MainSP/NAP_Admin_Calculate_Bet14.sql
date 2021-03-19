@@ -97,7 +97,10 @@ BEGIN
 							END
 		   ,@odds = CASE WHEN b.bettype IN (468,469) THEN b.odds
 							 ELSE (CASE WHEN b.odds < 0 THEN 1 
-	   									WHEN sr.isDecimalOdd = 1 THEN b.odds - 1 ----/*DECIMAL ONLY*/
+	   									WHEN sr.isDecimalOdd = 1 THEN CASE 
+																		WHEN b.statuswinlost = 2 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
+																		ELSE b.odds - 1 ----/*DECIMAL ONLY*/
+																		END
 										ELSE b.odds 
 									END)
 					END
@@ -109,12 +112,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN actual_stake + stake * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																			THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																						THEN  1
-																						ELSE  @odds - 1	
-																					END
-																	ELSE @odds END)
+								WHEN statuswinlost = 2 THEN actual_stake + stake * @odds
 								WHEN statuswinlost = 1 THEN actual_stake + stake * @odds * 0.5
 								WHEN statuswinlost IN (0,6) THEN actual_stake
 								WHEN statuswinlost = 3 THEN actual_stake * 0.5
@@ -141,12 +139,7 @@ BEGIN
 															  END	
 							ELSE 
 							CASE
-								WHEN statuswinlost = 2 THEN stake * -apositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN statuswinlost = 2 THEN stake * -apositiontaking * @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * apositiontaking * 0.5
@@ -161,12 +154,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * -mpositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN statuswinlost = 2 THEN stake * -mpositiontaking *  @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * mpositiontaking * 0.5
@@ -181,12 +169,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * -spositiontaking * ( CASE WHEN b.bettype IN (9538,9539,9540) 
-																								THEN CASE WHEN b.betteam IN ('xl', '2l', '1l', 'AL', 'HL')
-																										THEN  1 
-																										ELSE @odds - 1
-																									  END
-																							ELSE @odds END)
+								WHEN statuswinlost = 2 THEN stake * -spositiontaking * @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * spositiontaking * 0.5
