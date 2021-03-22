@@ -278,6 +278,21 @@ INSERT INTO #input_BAMember (custid)
 SELECT custid
 FROM dbcust.custdb.dbo.Dep_CustBAActive WITH (NOLOCK)
 
+SELECT custid, onDate
+INTO #input_BAMember_History
+FROM DBCUST.bodb_licensee.dbo.LicenseeBAHistory a WITH (NOLOCK)
+WHERE Status= 'Running'
+
+SELECT custid, ba_tmp.onDate
+INTO #input_BAMember_Final
+FROM #input_BAMember ba WITH (NOLOCK)
+	CROSS APPLY (SELECT TOP 1 onDate 
+				 FROM #input_BAMember_History ba_h 
+				 WHERE ba.custid = ba_h.CustID
+				 ORDER BY onDate DESC
+				 ) AS ba_tmp
+
+
 -------------------------- DATA PREPARATION  ------------------------
 ------ GET list of recommend to utilize index IX_recommend on bettrans
 INSERT INTO #tmp_recommend (custid, apositiontaking)
@@ -297,7 +312,7 @@ SELECT b.transid, b.Matchid, r.apositiontaking, 1, 0
 FROM #tmp_recommend r
 	INNER JOIN bettrans b WITH (NOLOCK) ON r.custid = b.recommend
 	INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
-	LEFT JOIN #input_BAMember ba ON ba.custid = b.custid
+	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE m.sporttype < 99 AND eventstatus <> 'completed'
 	AND b.statusID IN (0,1,102)
 	AND b.apositiontaking  <> r.apositiontaking
@@ -311,7 +326,7 @@ UNION ALL
 SELECT b.transid, b.Matchid, r.apositiontaking, 1, 0
 FROM #tmp_recommend r
 	INNER JOIN bettrans b WITH (NOLOCK) ON r.custid = b.recommend
-	LEFT JOIN #input_BAMember ba ON ba.custid = b.custid
+	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE  b.statusID IN (0,1,102)
 	AND b.bettype = 10 -- outright
 	AND b.apositiontaking  <> r.apositiontaking
@@ -323,7 +338,7 @@ UNION ALL
 SELECT b.translogid, b.eventID, r.apositiontaking,  0, 1
 FROM #tmp_recommend r
 	INNER JOIN translog b WITH (NOLOCK) ON r.custid = b.recommend
-	LEFT JOIN #input_BAMember ba ON ba.custid = b.custid
+	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE b.gameID BETWEEN 801 AND 806
 	AND b.statusID IN (0,1,102)
 	AND b.apositiontaking  <> r.apositiontaking
@@ -458,6 +473,8 @@ DROP TABLE #Ticket_OldValue_BackupForCompare
 DROP TABLE #input_BAMember
 DROP TABLE #supers
 DROP TABLE #tmpSite
+DROP TABLE #input_BAMember_Final
+DROP TABLE #input_BAMember_History
 
 
 
