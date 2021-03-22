@@ -274,24 +274,23 @@ FROM CUSTDB.dbo.Dep_custsuper cs WITH (NOLOCK)
 	INNER JOIN #tmpSite t ON cs.site = t.site
 WHERE ci.Enabled=1
 
-INSERT INTO #input_BAMember (custid)
-SELECT custid
-FROM dbcust.custdb.dbo.Dep_CustBAActive WITH (NOLOCK)
+--INSERT INTO #input_BAMember (custid)
+--SELECT custid
+--FROM dbcust.custdb.dbo.Dep_CustBAActive WITH (NOLOCK)
 
-SELECT custid, onDate
-INTO #input_BAMember_History
-FROM DBCUST.bodb_licensee.dbo.LicenseeBAHistory a WITH (NOLOCK)
-WHERE Status= 'Running'
+--SELECT custid, onDate
+--INTO #input_BAMember_History
+--FROM DBCUST.bodb_licensee.dbo.LicenseeBAHistory a WITH (NOLOCK)
+--WHERE Status= 'Running'
 
-SELECT custid, ba_tmp.onDate
-INTO #input_BAMember_Final
-FROM #input_BAMember ba WITH (NOLOCK)
-	CROSS APPLY (SELECT TOP 1 onDate 
-				 FROM #input_BAMember_History ba_h 
-				 WHERE ba.custid = ba_h.CustID
-				 ORDER BY onDate DESC
-				 ) AS ba_tmp
-
+--SELECT custid, ba_tmp.onDate
+--INTO #input_BAMember_Final
+--FROM #input_BAMember ba WITH (NOLOCK)
+--	CROSS APPLY (SELECT TOP 1 onDate 
+--				 FROM #input_BAMember_History ba_h 
+--				 WHERE ba.custid = ba_h.CustID
+--				 ORDER BY onDate DESC
+--				 ) AS ba_tmp
 
 -------------------------- DATA PREPARATION  ------------------------
 ------ GET list of recommend to utilize index IX_recommend on bettrans
@@ -312,39 +311,48 @@ SELECT b.transid, b.Matchid, r.apositiontaking, 1, 0
 FROM #tmp_recommend r
 	INNER JOIN bettrans b WITH (NOLOCK) ON r.custid = b.recommend
 	INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
-	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
+	--LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE m.sporttype < 99 AND eventstatus <> 'completed'
 	AND b.statusID IN (0,1,102)
 	AND b.apositiontaking  <> r.apositiontaking
 	AND b.bettype < 19999
 	AND b.bettype NOT IN (29)
 	--AND b.winlostdate >= @winlostdate
-	AND ba.custid IS NULL
+	--AND ba.custid IS NULL
 	
 UNION ALL
 -- outright
 SELECT b.transid, b.Matchid, r.apositiontaking, 1, 0
 FROM #tmp_recommend r
 	INNER JOIN bettrans b WITH (NOLOCK) ON r.custid = b.recommend
-	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
+	--LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE  b.statusID IN (0,1,102)
 	AND b.bettype = 10 -- outright
 	AND b.apositiontaking  <> r.apositiontaking
 	--AND b.winlostdate >= @winlostdate
-	AND ba.custid IS NULL
+	--AND ba.custid IS NULL
 	
 UNION ALL
 -- translog
 SELECT b.translogid, b.eventID, r.apositiontaking,  0, 1
 FROM #tmp_recommend r
 	INNER JOIN translog b WITH (NOLOCK) ON r.custid = b.recommend
-	LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
+	--LEFT JOIN #input_BAMember_Final ba ON ba.custid = b.custid AND ba.OnDate < b.transdate
 WHERE b.gameID BETWEEN 801 AND 806
 	AND b.statusID IN (0,1,102)
 	AND b.apositiontaking  <> r.apositiontaking
 	--AND b.winlostdate >= @winlostdate
-	AND ba.custid IS NULL
+	--AND ba.custid IS NULL
 	
+-------------------- remove BA Transaction ---------------
+SELECT TransID
+INTO #BA_Transaction_tmp
+FROM DBLIC.bodb_Licensee.dbo.LicenseeBATransaction_active WITH (NOLOCK)
+
+DELETE t
+FROM #tickets_tmp t
+	INNER JOIN #BA_Transaction_tmp ba ON t.transid = ba.TransID
+
 ---- get list of matchid
 INSERT INTO #Match_Final(Matchid)
 SELECT matchid
@@ -473,8 +481,6 @@ DROP TABLE #Ticket_OldValue_BackupForCompare
 DROP TABLE #input_BAMember
 DROP TABLE #supers
 DROP TABLE #tmpSite
-DROP TABLE #input_BAMember_Final
-DROP TABLE #input_BAMember_History
 
 
 
