@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 /*
 	Created:20210322@Louisa
-    Task: Move data from AutoRefundResult to AutoRefundResult_bk [Redmine:#149770]
+    Task: Move data from AutoRefundResult to AutoRefundResult_bk [Redmine:#152070]
     DB: DBPRO/bodb02
 	
 	Revisions:
-		- 20210322@Louisa: Step 2: Delete data in AutoRefundResult after insert manually into AutoRefundResult_bk [Redmine:#149770]
+		- 20210322@Louisa: Step 2: Delete data in AutoRefundResult after insert manually into AutoRefundResult_bk [Redmine:#152070]
 	
 	Param's Explanation: 
 
