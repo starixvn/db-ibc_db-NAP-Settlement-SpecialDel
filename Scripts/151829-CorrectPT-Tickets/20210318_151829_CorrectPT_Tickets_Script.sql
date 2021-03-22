@@ -14,7 +14,6 @@ CREATE TABLE #input_Super (custid INT, apositiontaking	smallmoney)
 CREATE TABLE #tmp_recommend (custid INT,apositiontaking	smallmoney)
 CREATE TABLE #Match_Final (Matchid INT, ID INT IDENTITY(1,1))
 CREATE TABLE #tickets_tmp (transid BIGINT, matchid INT,apositiontaking smallmoney, IsBettrans BIT, IsTranslog BIT,IsFinish BIT)
-CREATE TABLE #input_BAMember (custid INT)
 CREATE TABLE #Ticket_OldValue_BackupForCompare ( transid BIGINT
 												,apositiontaking smallmoney
 												,tpositiontaking smallmoney
@@ -478,7 +477,6 @@ DROP TABLE #input_Super
 DROP TABLE #tickets_tmp
 DROP TABLE #tmp_recommend
 DROP TABLE #Ticket_OldValue_BackupForCompare	
-DROP TABLE #input_BAMember
 DROP TABLE #supers
 DROP TABLE #tmpSite
 
