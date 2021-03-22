@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
+		- 20210315@Kathy: get more combinations from bk range  [Redmine:#148870] 
 		
 	Param's Explanation:  
 		
@@ -17,15 +18,44 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT)
 	DECLARE @minRefno BIGINT	
+			,@settlementTime DATETIME
 			
-	DECLARE @xml XML
+			,@xml XML
 			,@statusId TINYINT
 			,@winlost MONEY
 			,@winlostdate SMALLDATETIME
 			,@currentDate SMALLDATETIME
 			
+			,@remoteQuery		NVARCHAR(MAX)
+			,@strRefno			VARCHAR(4000)
+			,@batchNo			INT
+			,@id				INT
+			
+	DECLARE @tmpMissingRefno TABLE (id INT IDENTITY(1,1), refno BIGINT)
+		
+	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT)
+	
+	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
+								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT)
+	
+	CREATE TABLE #tmpMissingCombination (
+		refno				BIGINT
+		,serial				INT
+		,stake				MONEY
+		,winlostdate		SMALLDATETIME
+		,statusId			TINYINT
+		,mOdds				MONEY
+		,winlost			MONEY
+		,awinlost			MONEY
+		,mwinlost			MONEY
+		,swinlost			MONEY
+		,playercomm			MONEY
+		,comm				MONEY
+		,acomm				MONEY
+		,scomm				MONEY		
+	)
+	
 	SET @currentDate =  CONVERT(VARCHAR(10),GETDATE(),102)
 	
 	SET @xml = CONVERT(XML, N'<root><r rn="' + REPLACE(REPLACE(@strXML, '|', '" t="'), ',', '"/><r rn="') + '"/></root>')
@@ -39,11 +69,48 @@ BEGIN
 	SELECT @minRefno = MIN(refno)
 	FROM #Refno
 	
-	DECLARE @settlementTime DATETIME
-	SET @settlementTime = GETDATE();
+	INSERT INTO @tmpMissingRefno(refno)
+	SELECT  DISTINCT r.refno
+	FROM	#Refno r
+		CROSS APPLY (
+			SELECT	COUNT(DISTINCT serial) AS cntDetail
+			FROM	dbo.BetParlayDetail bpd WITH(NOLOCK)
+			WHERE	r.refno = bpd.RefNo
+		) AS bpd
+		CROSS APPLY (
+			SELECT	COUNT(DISTINCT serial) as cntResult
+			FROM	dbo.BetParlayResult bpr WITH(NOLOCK)
+			WHERE	r.refno = bpr.RefNo
+		) AS bpr
+	WHERE bpd.cntDetail > bpr.cntResult
 	
-	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
-								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMissingRefno) -- there are some combinations had moved on bk, need to get them from archive server
+	BEGIN
+		SET @id = 1
+		SET @batchNo = 100
+
+		WHILE (1=1)
+		BEGIN
+			SET @strRefno = ''
+			SELECT	@strRefno = @strRefno + ',' + CAST(refno AS VARCHAR(30)) 
+			FROM	@tmpMissingRefno
+			WHERE	id between @id AND @id + @batchNo - 1
+
+			IF ISNULL(@strRefno,'') = ''
+				BREAK
+
+			SET @strRefno = STUFF(@strRefno, 1, 1, '')
+			
+			SET @remoteQuery = 'INSERT INTO #tmpMissingCombination (refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm)
+								   SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
+								   FROM OPENQUERY (DBARC,''SELECT refno, serial, stake, winlostdate, statusId, mOdds, winlost	,awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm
+															FROM bodb_archive.dbo.BetParlayResult with(nolock) where refno in (' + @strRefno  +')'')'
+			
+			EXECUTE sys.sp_executesql @remoteQuery
+			
+			SET @id = @id + @batchNo
+		END
+	END
 	
 	INSERT INTO #temp_source (transid,winlostdate, totalStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
 	SELECT transid = b.transid
@@ -59,9 +126,18 @@ BEGIN
 		,scomm = SUM(pr.scomm) 			
 		,ruben = CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
 	FROM #Refno b 
-		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK) ON pr.refno = b.refno
+		INNER JOIN 
+			(SELECT	pr.winlostdate, pr.stake, pr.winlost, pr.awinlost,pr.mwinlost, pr.swinlost, pr.playercomm, pr.comm, pr.acomm, pr.scomm, pr.statusid, pr.RefNo, pr.Serial
+			 FROM	dbo.BetParlayResult pr WITH(NOLOCK)
+			 UNION
+			 SELECT	t.winlostdate, t.stake, t.winlost, t.awinlost, t.mwinlost, t.swinlost, t.playercomm, t.comm, t.acomm, t.scomm, t.statusid, t.refno, t.serial
+			 FROM	#tmpMissingCombination t
+		) pr
+			ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid
+	
+	SET @settlementTime = GETDATE();
 	
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusId = CASE 
