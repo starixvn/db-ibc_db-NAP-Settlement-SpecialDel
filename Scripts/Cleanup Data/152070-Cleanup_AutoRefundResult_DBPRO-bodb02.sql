@@ -19,15 +19,16 @@ BEGIN
 SET NOCOUNT ON
 
 	DECLARE @batch INT = 1000
-			,@min_AutoRefundResultId INT
+			,@max_AutoRefundResultId INT
 	
-	--- Get min data in Active
-	SELECT  @min_AutoRefundResultId = MIN(r.AutoRefundResultId)
+
+	SELECT  @max_AutoRefundResultId = MAX(r.AutoRefundResultId)
 	FROM dbo.AutoRefundResult r WITH(NOLOCK)
-		INNER JOIN dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.match14 m WITH(NOLOCK)
 				ON r.MatchId = m.matchid
+	WHERE  m.eventdate <= '2021-03-11 00:00:00.000'
 	
-	IF @min_AutoRefundResultId IS NULL
+	IF @max_AutoRefundResultId IS NULL
 	RETURN
 
 	--- Delete data
@@ -35,7 +36,7 @@ SET NOCOUNT ON
 	BEGIN
 		DELETE TOP(@batch)
 		FROM dbo.AutoRefundResult WITH(ROWLOCK, UPDLOCK)
-		WHERE AutoRefundResultId < @min_AutoRefundResultId
+		WHERE AutoRefundResultId < @max_AutoRefundResultId
 
 		IF @@ROWCOUNT = 0
 			BREAK			
