@@ -171,37 +171,25 @@ GO
 ------------------------------------------------------------------------------------------------------------------
 
 	--- 9723 rows
-	MERGE dbo.SettlementSpecialBettypeProfile WITH (UPDLOCK,ROWLOCK) TARGET
-	USING (
-		SELECT g.pfID
-				,g.BetType
-				,g.BetID
-				,g.ResourceID
-				,g.SettleType
-				FROM #Generate_ResourceID g
-				) AS SOURCE ON  TARGET.BetType = SOURCE.BetType 
-							AND TARGET.pfID = SOURCE.pfID
-							AND TARGET.BetID = SOURCE.BetID
-							AND TARGET.sporttype = 50
-							AND TARGET.Settletype = 'EAR'
-		WHEN NOT MATCHED BY TARGET THEN
-			INSERT (pfID
-					,SportType
-					,BetType
-					,BetID
-					,ResourceID
-					,SettleType
-					,GroupType
-					,OddsType
-					)
-			VALUES ( SOURCE.pfID
-					,50
-					,SOURCE.BetType
-					,SOURCE.BetID
-					,SOURCE.ResourceID
-					,SOURCE.SettleType
-					,'SP'
-					,1);
+	INSERT INTO dbo.SettlementSpecialBettypeProfile
+			(pfID
+			,SportType
+			,BetType
+			,BetID
+			,ResourceID
+			,SettleType
+			,GroupType
+			,OddsType
+			)
+	SELECT	g.pfID
+			,50
+			,g.BetType
+			,g.BetID
+			,g.ResourceID
+			,g.SettleType
+			,'SP'
+			,1
+	FROM #Generate_ResourceID g
 
 
 ---------------------------------------------------------
@@ -209,69 +197,34 @@ GO
 ---------------------------------------------------------
 
 	--- 16 main bettype
-	--- 16 rows
-	;WITH cte_Main_bettype (pfID
-							,BetType
-							,BetID
-							,ResourceID
-							,GroupType
-							,OrdNo
-							,RoundID
-							) AS (
-	SELECT  401	  ,9404		,0		,'H1'	,'SP' ,1  ,'1'  UNION ALL
-	SELECT  401	  ,9406		,0		,'H1'	,'SP' ,1  ,'1'  UNION ALL
-	SELECT  2	  ,9496		,0		,'H1'	,'SP' ,1  ,'1'  UNION ALL
-	SELECT  2	  ,9498		,0		,'H1'	,'SP' ,1  ,'1'  UNION ALL
-	SELECT  401	  ,9405		,0		,'A1'	,'SP' ,2  ,'1'  UNION ALL
-	SELECT  401	  ,9407		,0		,'A1'	,'SP' ,2  ,'1'  UNION ALL
-	SELECT  2	  ,9497		,0		,'A1'	,'SP' ,2  ,'1'  UNION ALL
-	SELECT  2	  ,9499		,0		,'A1'	,'SP' ,2  ,'1'  UNION ALL
-	SELECT  401	  ,9408		,0		,'H2'	,'SP' ,3  ,'2'  UNION ALL
-	SELECT  2	  ,9500		,0		,'H2'	,'SP' ,3  ,'2'  UNION ALL	
-	SELECT  401	  ,9409		,0		,'A2'	,'SP' ,4  ,'2'  UNION ALL
-	SELECT  2	  ,9501		,0		,'A2'	,'SP' ,4  ,'2'  UNION ALL		
-	SELECT  5	  ,5		,0		,'00'	,'FT' ,99 ,'0'  UNION ALL
-	SELECT  501	  ,501		,0		,'00'	,'FT' ,99 ,'0'  UNION ALL
-	SELECT  9538  ,9538		,0		,'00'	,'FT' ,99 ,'0'  UNION ALL
-	SELECT  9539  ,9539		,0		,'00'	,'FT' ,99 ,'0'  
-	)
-	MERGE dbo.SettlementSpecialBettypeProfile WITH (UPDLOCK,ROWLOCK) TARGET
-	USING (
-		SELECT pfID
-				,BetType
-				,BetID
-				,ResourceID
-				,GroupType
-				,OrdNo
-				,RoundID
-				FROM cte_Main_bettype
-				) AS SOURCE ON  TARGET.BetType = SOURCE.BetType 
-							AND TARGET.pfID = SOURCE.pfID
-							AND TARGET.BetID = SOURCE.BetID
-							AND TARGET.sporttype = 50
-							AND TARGET.Settletype = 'MNL'
-		WHEN NOT MATCHED BY TARGET THEN
-		INSERT (	pfID
-					,SportType
-					,BetType
-					,BetID
-					,ResourceID
-					,SettleType
-					,GroupType
-					,OrdNo
-					,RoundID
-					,OddsType
-					)
-		VALUES ( SOURCE.pfID
-				,50
-				,SOURCE.BetType
-				,SOURCE.BetID
-				,SOURCE.ResourceID
-				,'MNL'
-				,SOURCE.GroupType
-				,SOURCE.OrdNo
-				,SOURCE.RoundID
-				,1
-				);
+	--- 16 rowsndID
+	INSERT INTO dbo.SettlementSpecialBettypeProfile
+				( pfID
+				  ,SportType
+				  ,BetType
+				  ,BetID
+				  ,ResourceID
+				  ,SettleType
+				  ,GroupType
+				  ,OrdNo
+				  ,RoundID
+				  ,OddsType
+				)
+			VALUES ( 401	,50	,9404	,0		,'H1'	,'MNL'	,'SP' ,1  ,'1' ,1  )
+				  ,( 401	,50	,9406	,0		,'H1'	,'MNL'	,'SP' ,1  ,'1' ,1  )
+				  ,( 2		,50	,9496	,0		,'H1'	,'MNL'	,'SP' ,1  ,'1' ,1  )
+				  ,( 2		,50	,9498	,0		,'H1'	,'MNL'	,'SP' ,1  ,'1' ,1  )
+				  ,( 401	,50	,9405	,0		,'A1'	,'MNL'	,'SP' ,2  ,'1' ,1  )
+				  ,( 401	,50	,9407	,0		,'A1'	,'MNL'	,'SP' ,2  ,'1' ,1  )
+				  ,( 2		,50	,9497	,0		,'A1'	,'MNL'	,'SP' ,2  ,'1' ,1  )
+				  ,( 2		,50	,9499	,0		,'A1'	,'MNL'	,'SP' ,2  ,'1' ,1  )
+				  ,( 401	,50	,9408	,0		,'H2'	,'MNL'	,'SP' ,3  ,'2' ,1  )
+				  ,( 2		,50	,9500	,0		,'H2'	,'MNL'	,'SP' ,3  ,'2' ,1  )	
+				  ,( 401	,50	,9409	,0		,'A2'	,'MNL'	,'SP' ,4  ,'2' ,1  )
+				  ,( 2		,50	,9501	,0		,'A2'	,'MNL'	,'SP' ,4  ,'2' ,1  )		
+				  ,( 5		,50	,5		,0		,'00'	,'MNL'	,'FT' ,99 ,'0' ,1  )
+				  ,( 501	,50	,501	,0		,'00'	,'MNL'	,'FT' ,99 ,'0' ,1  )
+				  ,( 9538   ,50	,9538	,0		,'00'	,'MNL'	,'FT' ,99 ,'0' ,1  )
+				  ,( 9539   ,50	,9539	,0		,'00'	,'MNL'	,'FT' ,99 ,'0' ,1  )
 
 GO 
