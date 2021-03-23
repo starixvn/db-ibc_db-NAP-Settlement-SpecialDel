@@ -27,11 +27,12 @@ SET NOCOUNT ON
 		,TryCount			TINYINT
 		,CreateDate			DATETIME
 		,ModifiedDate		DATETIME
+		,Remark				VARCHAR(1000)
 		)
 
 	INSERT INTO #temp_Table
-			( AutoRefundResultId	,MatchId ,SourceId	,TypeId		,StatusId	,TryCount	,CreateDate	 ,ModifiedDate )
-	SELECT	 r.AutoRefundResultId ,r.MatchId ,r.SourceId ,r.TypeId ,r.StatusId ,r.TryCount ,r.CreateDate ,r.ModifiedDate		
+			( AutoRefundResultId	,MatchId ,SourceId	,TypeId		,StatusId	,TryCount	,CreateDate	 ,ModifiedDate	,Remark )
+	SELECT	 r.AutoRefundResultId ,r.MatchId ,r.SourceId ,r.TypeId ,r.StatusId ,r.TryCount ,r.CreateDate ,r.ModifiedDate,r.Remark		
 	FROM DBPRO.bodb02.dbo.AutoRefundResult r WITH(NOLOCK)
 		INNER JOIN dbo.match_bk m WITH(NOLOCK) 
 				ON r.MatchId = m.matchid
@@ -39,8 +40,8 @@ SET NOCOUNT ON
 
 	---INSERT data into ProviderExternalResultDetail_bk
 	INSERT INTO dbo.AutoRefundResult_bk
-			(AutoRefundResultId		,MatchId ,SourceId	,TypeId		,StatusId  ,TryCount	,CreateDate	 ,ModifiedDate	)
-	SELECT	 r.AutoRefundResultId ,r.MatchId ,r.SourceId ,r.TypeId ,r.StatusId ,r.TryCount ,r.CreateDate ,r.ModifiedDate		
+			(AutoRefundResultId		,MatchId ,SourceId	,TypeId		,StatusId  ,TryCount	,CreateDate	 ,ModifiedDate	,Remark)
+	SELECT	 r.AutoRefundResultId ,r.MatchId ,r.SourceId ,r.TypeId ,r.StatusId ,r.TryCount ,r.CreateDate ,r.ModifiedDate,r.Remark		
 	FROM #temp_Table r
 
 
