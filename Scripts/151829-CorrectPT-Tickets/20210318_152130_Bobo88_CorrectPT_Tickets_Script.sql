@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
 /*
 	Created by: Helen
-	Date 20210318
-	Task: Adjust Sportsbook PT for all licensees - Update tickets - [Redmine:151829]
+	Date 20210323
+	Task: Adjust Sportsbook PT for all licensees - Update tickets - [Redmine:152130]
 	DB: DBTXN/bodb02
 */
 USE bodb02
