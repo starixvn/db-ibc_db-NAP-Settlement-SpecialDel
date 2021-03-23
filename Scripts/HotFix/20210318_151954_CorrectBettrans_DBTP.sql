@@ -1,11 +1,11 @@
 /*<info serverAlias="DBTP-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 /* 
 	Created:20210318@Louisa
-    Task: Correct data on table bettrans
+    Task: Correct data on table bettrans [Redmine:#151954]
     DB: DBTP/bodb02
 	
 	Revisions:
-		- 20210318@Louisa: Correct data on table bettrans
+		- 20210318@Louisa: Correct data on table bettrans [Redmine:#151954]
 */
 
 
