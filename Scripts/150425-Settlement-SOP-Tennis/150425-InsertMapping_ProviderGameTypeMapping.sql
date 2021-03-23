@@ -14,8 +14,19 @@ GO
 
 BEGIN
 
-	IF NOT EXISTS ( SELECT TOP 1 1 FROM dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
-									WHERE pgm.sporttype = 5 AND SourceId = 25
+	IF NOT EXISTS ( SELECT TOP 1 1 
+					FROM dbo.ProviderInfo p WITH(NOLOCK)
+					WHERE p.SourceId = 25
+					)
+	BEGIN
+		INSERT INTO dbo.ProviderInfo ( SourceId, SourceName,	isActive )
+		SELECT 25, 'LSports', 1
+	END
+
+	-----------------------------------------------------------------------------------
+	IF NOT EXISTS ( SELECT TOP 1 1 
+					FROM dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
+					WHERE pgm.sporttype = 5 AND SourceId = 25
 					)
 	BEGIN
 		INSERT INTO dbo.ProviderGameTypeMapping

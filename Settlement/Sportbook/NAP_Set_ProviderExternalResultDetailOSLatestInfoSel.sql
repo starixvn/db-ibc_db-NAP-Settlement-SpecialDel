@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02 " executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02 " executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
 	@MatchId INT
 	,@SettleType	VARCHAR(10) = 'MNL'
@@ -21,8 +21,11 @@ BEGIN
 	DECLARE @SportType SMALLINT
 			,@LeagueId INT
 
-	SELECT @SportType = 5
-	SELECT @LeagueId = m.LeagueId FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchId = @MatchId
+
+	SELECT @LeagueId = m.LeagueId 
+		, @SportType = m.sporttype
+	FROM dbo.Match m WITH(NOLOCK) 
+	WHERE m.MatchId = @MatchId
 
 	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
@@ -76,7 +79,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 			SELECT 1001
-				, CASE WHEN @SportType = 43 THEN 'Into Site' ELSE 'Screenshot' END
+				, CASE WHEN @SportType = 5 THEN 'Into Site' ELSE 'Screenshot' END
 				,'n/a'
 				, 1
 		END

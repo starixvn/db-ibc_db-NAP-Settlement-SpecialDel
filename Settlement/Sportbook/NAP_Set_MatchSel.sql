@@ -54,7 +54,7 @@ AS
 		- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] + remove unused code - [Redmine:#143441]
-		- 20210312@Louisa: Exclude Test Matches when Match Code/ID = «blank» [Readmine:#150425]
+		- 20210312@Louisa: Ignore filter  "Include Test Matches" when user input Match Code/ID [Readmine:#150425]
 
       
  Param explanation:  

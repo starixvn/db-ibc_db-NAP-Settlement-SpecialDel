@@ -62,9 +62,7 @@ BEGIN
 
 	SELECT @Sporttype = m.sporttype
 		  ,@LeagueId  = m.leagueid
-	FROM dbo.Match m WITH(NOLOCK) 
-		INNER JOIN dbo.League l WITH(NOLOCK)
-			ON l.leagueid  = m.leagueid
+	FROM dbo.Match m WITH(NOLOCK)
 	WHERE m.MatchId = @MatchId
 	
 	BEGIN TRY

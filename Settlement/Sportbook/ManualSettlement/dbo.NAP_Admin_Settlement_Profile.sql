@@ -29,6 +29,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
+		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
