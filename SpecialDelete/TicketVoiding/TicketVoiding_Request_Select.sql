@@ -80,7 +80,7 @@ BEGIN
 		SELECT	@AutoAccept = T.C.value('@AA', 'INT')
 				,@PendingAccept = T.C.value('@PA', 'INT')
 				,@SecondAccept = T.C.value('@SA', 'INT')
-		FROM	@TypeAccept.nodes('/r') AS T(C)
+		FROM	@TypeAccept.nodes('root/r') AS T(C)
 	END
 
 	IF @IssueTypeId IN (1,8,9,10,11)
