@@ -1,24 +1,6 @@
 /*
 	Created by: 20210322@Louisa: Prevent Update/Delete a large of data manually ( effected > 1000 rows)
 	THIS TRIGGER RUN ON LOCAL TEST ENVIRONMENT ONLY
-
-	26 Tables applied:
-		bettrans		bettrans14
-		bettransg		bettransg14
-		BettransInfo	BettransInfo14
-		bettransLC		bettransLC14
-		bettransm		bettransm14
-		bettransRnG		bettransRnG14
-		zzzbettrans
-		zzzbettransm
-
-		match			match14
-		Match3rd		Match3rd14
-
-		ResultDetail		ResultDetail14
-		ResultDetail3rd		ResultDetail3rd14
-		ResultDetailES		ResultDetailES14
-		ResultDetailOS		ResultDetailOS14
 */
 
 --- DB206/bodb02
@@ -26,48 +8,25 @@ USE bodb02
 GO
 
 ----------1. INPUT ---------------------------------------------
+
+----Apply on 14 tables DB206
 declare @table VARCHAR(MAX) = 
 'bettrans
-,bettrans14
-,bettransg		
-,bettransg14
+,bettransg
 ,BettransInfo
-,BettransInfo14
 ,bettransLC
-,bettransLC14
 ,bettransm
-,bettransm14
 ,bettransRnG
-,bettransRnG14
 ,zzzbettrans
 ,zzzbettransm
 ,match
-,match14
 ,Match3rd
-,Match3rd14
 ,ResultDetail
-,ResultDetail14
 ,ResultDetail3rd
-,ResultDetail3rd14
 ,ResultDetailES
-,ResultDetailES14
-,ResultDetailOS
-,ResultDetailOS14'
+,ResultDetailOS'
 
---DECLARE @sql_account VARCHAR(MAX) = 
---'spvn\louisa.vo
---,spvn\kaka.huynh
---,spvn\dora.le
---,spvn\megan.dinh
---,spvn\tommy.nguyen
---,spvn\Neil.dao
---,spvn\jane.dinh
---,spvn\harley.nguyen
---,spvn\dory.vu
---,spvn\elio.nguyen'
 -------------/ END INPUT -------------------------------------------------------------------------------------
-
-DECLARE @Trigger_UPDATE_DELETE VARCHAR(MAX) = ''
 
 DECLARE @tbl_table TABLE ( table_name VARCHAR(100) )
 SELECT @table = REPLACE (REPLACE (REPLACE (@table, CHAR(13), ''), CHAR(10), ''), CHAR(9), '')
@@ -75,41 +34,71 @@ SELECT @table = REPLACE (REPLACE (REPLACE (@table, CHAR(13), ''), CHAR(10), ''),
 INSERT INTO @tbl_table (table_name ) SELECT val FROM dbo.f_SplitString (@table, ',')
 
 
+----------2. GERNERATE SCRIPT TRIGER -------------------------------------------------------------------------
 SELECT '
 /* DB206/bodb02 */
 USE bodb02
 GO
 
-CREATE	TRIGGER [dbo].[trg_UpdateDelete_'+ t.table_name +'] ON [dbo].['+ t.table_name +']
-FOR DELETE, UPDATE	AS
+	CREATE	TRIGGER [dbo].[trg_DML_'+ t.table_name +'] ON [dbo].['+ t.table_name +']
+	FOR DELETE, UPDATE, INSERT	AS
 
-BEGIN
-	SET NOCOUNT ON;
-		DECLARE @AffectedRows BIGINT = 0
-				, @cnt INT			 =  - 1
-
-    SELECT @AffectedRows = COUNT(1) FROM DELETED
-	SELECT @cnt =    COUNT(1) FROM [dbo].['+ t.table_name +']  WITH(NOLOCK)
-
-	IF ( @AffectedRows >=  1000 
-		AND  SUSER_SNAME() LIKE ''%spvn%''
-		AND SUSER_SNAME() NOT LIKE  ''%bodb%'' )
 	BEGIN
-		RAISERROR(''Please UPDATE/DELETE by batch less than 1000'', 16, 1)
-		ROLLBACK
-	END
+		SET NOCOUNT ON;
 
-	IF ( @cnt = @AffectedRows )
-	BEGIN
-		RAISERROR(''Please limit data by WHERE statement'', 16, 1)
-		ROLLBACK
-	END
+		DECLARE  @UpdatedRows BIGINT  = 0
+				,@InsertedRows BIGINT = 0
+				,@cnt INT			  = - 1
+				,@action VARCHAR(1)   = NULL
 
-END
-GO
+			
+			SELECT @UpdatedRows  = COUNT(1) FROM DELETED
+			SELECT @InsertedRows = COUNT(1) FROM INSERTED
+			SELECT @cnt			 = COUNT(1) FROM [dbo].['+ t.table_name +']  WITH(NOLOCK)
+			SELECT @action		 = CASE WHEN @UpdatedRows  =  @InsertedRows THEN ''U''
+										WHEN @UpdatedRows  > 0 THEN ''D''		
+										WHEN @InsertedRows > 0 THEN ''I''
+										ELSE @action
+									END	
+		
+		IF ( (@UpdatedRows = 0 AND @InsertedRows = 0)
+			 OR SUSER_SNAME() LIKE ''%bodb%''
+			 OR SUSER_SNAME() LIKE ''%helen%''
+			 OR SUSER_SNAME() LIKE ''%kathy%''
+			 OR SUSER_SNAME() LIKE ''%sol%''
+			 OR SUSER_SNAME() LIKE ''%louisa%''
+			 OR SUSER_SNAME() LIKE ''%Max%''
+			 )
+			RETURN
+
+		ELSE
+		BEGIN			
+			IF ( @action IN (''U'',''D'') AND  @UpdatedRows >= 1000)
+			BEGIN
+				RAISERROR(''Please Update/Delete by batch less than 1000'', 16, 1)
+				ROLLBACK
+			END
+
+			ELSE IF ( @action IN (''I'') AND @InsertedRows > 500 )
+			BEGIN
+				RAISERROR(''Please Insert by batch 500'', 16, 1)
+				ROLLBACK
+			END
+
+			ELSE IF	( @action = ''U'' AND @UpdatedRows = @cnt ) --update all data
+					OR (@action =''D'' AND @cnt = 0  ) -- delete all data
+			BEGIN
+				RAISERROR(''Please limit data by WHERE statement'', 16, 1)
+				ROLLBACK
+			END
+
+		END
+	END
+	GO
 '
 FROM @tbl_table t
 
+----------/END GERNERATE SCRIPT --------------------------------------------------------------------------------
 
 
 
