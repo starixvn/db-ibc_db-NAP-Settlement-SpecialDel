@@ -57,17 +57,14 @@ GO
 										ELSE @action
 									END	
 		
-		IF ( (@UpdatedRows = 0 AND @InsertedRows = 0)
-			 OR SUSER_SNAME() LIKE ''%bodb%''
-			 OR SUSER_SNAME() LIKE ''%helen%''
-			 OR SUSER_SNAME() LIKE ''%kathy%''
-			 OR SUSER_SNAME() LIKE ''%sol%''
-			 OR SUSER_SNAME() LIKE ''%louisa%''
-			 OR SUSER_SNAME() LIKE ''%Max%''
-			 )
+		IF (@UpdatedRows = 0 AND @InsertedRows = 0)
 			RETURN
 
-		ELSE
+		IF ( SUSER_SNAME() LIKE ''%spvn%'' 
+				OR SUSER_SNAME() LIKE ''%dba%'' 
+				OR SUSER_SNAME() IN (''testteam'',''sputeam'')
+			)
+
 		BEGIN			
 			IF ( @action IN (''U'',''D'') AND  @UpdatedRows >= 1000)
 			BEGIN
