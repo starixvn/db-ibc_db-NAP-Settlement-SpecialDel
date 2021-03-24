@@ -9,7 +9,7 @@ GO
 
 ----------1. INPUT ---------------------------------------------
 
-----Apply on 14 tables DB206
+----Apply on 10 tables DB206
 declare @table VARCHAR(MAX) = 
 'bettrans
 ,bettransg
@@ -17,12 +17,8 @@ declare @table VARCHAR(MAX) =
 ,bettransLC
 ,bettransm
 ,bettransRnG
-,zzzbettrans
-,zzzbettransm
 ,match
-,Match3rd
 ,ResultDetail
-,ResultDetail3rd
 ,ResultDetailES
 ,ResultDetailOS'
 
@@ -75,20 +71,20 @@ GO
 		BEGIN			
 			IF ( @action IN (''U'',''D'') AND  @UpdatedRows >= 1000)
 			BEGIN
-				RAISERROR(''Please Update/Delete by batch less than 1000'', 16, 1)
+				RAISERROR(''In LOCAL evironment, please Update/Delete by batch less than 1000'', 16, 1)
 				ROLLBACK
 			END
 
 			ELSE IF ( @action IN (''I'') AND @InsertedRows > 500 )
 			BEGIN
-				RAISERROR(''Please Insert by batch 500'', 16, 1)
+				RAISERROR(''In LOCAL evironment, please Insert by batch 500'', 16, 1)
 				ROLLBACK
 			END
 
 			ELSE IF	( @action = ''U'' AND @UpdatedRows = @cnt ) --update all data
 					OR (@action =''D'' AND @cnt = 0  ) -- delete all data
 			BEGIN
-				RAISERROR(''Please limit data by WHERE statement'', 16, 1)
+				RAISERROR(''In LOCAL evironment, please limit data by WHERE statement'', 16, 1)
 				ROLLBACK
 			END
 
