@@ -74,7 +74,7 @@ AS
 
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 
-		+ @TypeAccept: <root><r AA="3" PA="3" SA="9"/></root> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
 */
 BEGIN
 	SET NOCOUNT ON

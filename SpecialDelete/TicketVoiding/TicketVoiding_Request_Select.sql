@@ -71,16 +71,16 @@ BEGIN
 
 	IF @IssueTypeId IN (1,10)
 	BEGIN 
-		DECLARE @TypeAccept XML, @AutoAccept INT, @PendingAccept INT, @SecondAccept INT
+		DECLARE @TypeAcceptXml XML, @AutoAccept INT, @PendingAccept INT, @SecondAccept INT
 		
-		SELECT @TypeAccept = CAST (rd.TransIds AS XML)
+		SELECT @TypeAcceptXml = CAST (rd.TransIds AS XML)
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		WHERE RequestId = @RequestId
 
 		SELECT	@AutoAccept = T.C.value('@AA', 'INT')
 				,@PendingAccept = T.C.value('@PA', 'INT')
 				,@SecondAccept = T.C.value('@SA', 'INT')
-		FROM	@TypeAccept.nodes('root/r') AS T(C)
+		FROM	@TypeAcceptXml.nodes('/r') AS T(C)
 	END
 
 	IF @IssueTypeId IN (1,8,9,10,11)
