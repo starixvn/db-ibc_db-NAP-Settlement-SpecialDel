@@ -40,7 +40,7 @@ SELECT '
 USE bodb02
 GO
 
-	CREATE	TRIGGER [dbo].[trg_DML_'+ t.table_name +'] ON [dbo].['+ t.table_name +']
+	CREATE	TRIGGER [dbo].[trg_DML_'+ t.table_name +'_LOCAL] ON [dbo].['+ t.table_name +']
 	FOR DELETE, UPDATE, INSERT	AS
 
 	BEGIN
