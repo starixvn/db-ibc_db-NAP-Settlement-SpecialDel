@@ -212,17 +212,6 @@ BEGIN
 		RETURN  
 	END CATCH    
   
-	-- Apply for move match Cricket
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransId t
-					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE b.matchid <> @MatchId
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'No ticket found.'
-		RETURN
-	END
  ---- Check for concurrent running  
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay   = 1  
@@ -235,6 +224,23 @@ BEGIN
 		RETURN  
 	END
     
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransId t
+					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE b.matchid <> @MatchId
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+
+		EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay  = 1  
+			, @IsReleased  = 1	
+
+		RETURN
+	END
+
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
 	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator)  
