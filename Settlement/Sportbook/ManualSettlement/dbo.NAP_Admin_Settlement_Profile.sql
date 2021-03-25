@@ -653,6 +653,8 @@ BEGIN
 
 		SELECT  @fth	= finalhomescore
 				,@fta	= finalawayscore
+				,@hth	= hthomescore
+				,@hta	= htawayscore
   		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   		WHERE   matchid = @ParentMatchId
 	END

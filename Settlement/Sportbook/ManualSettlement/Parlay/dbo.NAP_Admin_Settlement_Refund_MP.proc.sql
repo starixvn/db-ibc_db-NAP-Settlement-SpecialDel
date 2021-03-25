@@ -520,6 +520,8 @@ BEGIN
 			SELECT  @MatchId =  @ParentMatchId
 					,@fthomescore = finalhomescore 
 					,@ftawayscore = finalawayscore
+					,@hthomescore = hthomescore
+					,@htawayscore = htawayscore
 					,@betstatus	 = ISNULL(betstatus,'')
 			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
 			WHERE	matchid = @ParentMatchId
