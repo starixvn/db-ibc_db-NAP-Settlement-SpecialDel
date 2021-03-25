@@ -912,6 +912,7 @@ VALUES
 (40520613,-50),
 (40524337,-592),
 (40569437,-44.7)
+
 -- batch 2
 INSERT INTO #temp_Negative (CustID, BalanceNegative)
 values(40585230,-521),
@@ -1632,7 +1633,12 @@ values(40585230,-521),
 (47990450,-803),
 (47992870,-500),
 (47992977,-400),
-(47995445,-920),
+(47995445,-920)
+
+-- batch 3
+INSERT INTO #temp_Negative (CustID, BalanceNegative)
+values
+
 (47996269,-35.2),
 (47999289,-17.64),
 (48003947,-115.56),
@@ -1934,7 +1940,6 @@ values(40585230,-521),
 (49276603,-1066.5)
 
 UPDATE #temp_Negative SET actionID = 102
-
 
 INSERT INTO [bodb02].[dbo].[BalanceNegative] (
 				[ExecDate]
