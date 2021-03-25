@@ -1961,7 +1961,7 @@ SELECT GETDATE()
 		,NULL
 FROM #temp_Negative bal
 	LEFT JOIN dbo.f_Set_NegativeBalance_ActionGroup() AS bg
-	ON bg.ActionId = @ActionId
+	ON bg.ActionId = 102
 	
 	
 	
