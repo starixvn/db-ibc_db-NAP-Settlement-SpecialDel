@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: Helen
-	Date 20210222
+	Date 20210323
 	Task: Support to void tickets in bettrans14 - [Redmine: 150393]
 	DB: DBTXN/bodb02
 	
