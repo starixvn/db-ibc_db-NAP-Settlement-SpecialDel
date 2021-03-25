@@ -19,6 +19,7 @@ AS
 		- 20201106@July: Create new SP - Check username invalid [Redmine: #143666]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 	
 	Param's Explanation:
 */
@@ -54,8 +55,8 @@ BEGIN
 
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
-	CREATE TABLE #InputValidCustid_2 (custid INT)
-	CREATE TABLE #InputValidCustid_tmp (custid INT )
+	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
+	--CREATE TABLE #InputValidCustid_tmp (custid INT )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 
@@ -87,15 +88,25 @@ BEGIN
 	END
 
 	--2. Get info match belong to username
+	/*
 	SELECT @moveBetDay14 = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
-
-	SELECT @moveBetDay = MAX(winlostdate) 
-	FROM dbo.bettrans WITH(NOLOCK)
+	*/
+	SELECT @moveBetDay14 = MAX(eventdate) 
+	FROM dbo.match14 WITH(NOLOCK)
+	WHERE sporttype < 99
 	
 	SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
 			, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-			, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+			
+	IF @ToDate IS NULL
+	BEGIN
+		SELECT @moveBetDay = MAX(eventdate) 
+		FROM dbo.match WITH(NOLOCK)
+		WHERE sporttype < 99
+		
+		SET @ToDate = @moveBetDay
+	END
 	
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT val 
@@ -126,7 +137,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
 	BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)	
-		SELECT ci.custid
+		SELECT DISTINCT ci.custid
 		FROM #InputUsernameList l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 		WHERE l.roleid = 3 AND ci.roleid = 2
@@ -135,12 +146,14 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
 	BEGIN
 		INSERT INTO #InputValidCustid_2 (custid)
-		SELECT ci.custid
+		SELECT DISTINCT ci.custid
 		FROM #InputUsernameList l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-		WHERE l.roleid = 4 AND ci.roleid = 2	
+			LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
+		WHERE l.roleid = 4 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
 
+	/*
 	-- list of member to process
 	INSERT INTO #InputValidCustid_tmp (CustID)
 	SELECT  CustID
@@ -152,7 +165,7 @@ BEGIN
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 		ON lt.custid = ci.recommend
 	WHERE ci.roleid = 1
-	
+	*/
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -181,7 +194,7 @@ BEGIN
 			,b.EventID
 			,b.GameID
 	FROM	dbo.translog AS b WITH (NOLOCK)
-		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
+		INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 	WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND b.GameID BETWEEN 801 AND 806
 			AND b.statusID = 0
@@ -200,13 +213,13 @@ BEGIN
 			WHERE m.matchid = b.matchid
 				AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
 		)ml
+		INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 		OUTER APPLY (
 			SELECT TOP 1 m.sporttype 
 			FROM dbo.match m WITH (NOLOCK)
 			WHERE m.matchid = b.matchid
 				AND m.sporttype = 50
 		)mc
-		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 	WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 		AND 1 = CASE 
@@ -330,7 +343,7 @@ BEGIN
 		  ,@IsExistFM2 AS IsExistFM2		
 
 	DROP TABLE #InputUsernameList
-	DROP TABLE #InputValidCustid_tmp
+	--DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransidInRequest

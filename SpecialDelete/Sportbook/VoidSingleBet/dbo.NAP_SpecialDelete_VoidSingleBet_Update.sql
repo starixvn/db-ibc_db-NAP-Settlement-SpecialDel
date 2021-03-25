@@ -108,6 +108,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
 	Param's Explanation: Special bet delete option
@@ -448,13 +449,11 @@ BEGIN
 				)f
 		WHERE b.matchid = @matchid 
 	 
+		-- Tuning EC2021
 		SELECT TOP 1 @isExistParlay = 1  
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-		WHERE b.matchid = 29  
-			AND b.bettype = 29   
-			AND bm.matchid  = @matchid  
+		WHERE bm.matchid  = @matchid  
 	END 
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
@@ -2127,11 +2126,23 @@ BEGIN
 		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID
 
+		-- Tuning EC2021
+		-- get negative balance user list
 		SET @NegativeBalanceUsers = ''
-		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
-		FROM #BeforeUpd b
-			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
-		WHERE b.balance > a.balance
+		SET @CustIds = ''
+		SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+		FROM	(
+			SELECT DISTINCT b.custid
+			FROM @BeforeUpd b
+				INNER JOIN @AfterUpd a
+					ON b.custid = a.custid
+						AND b.matchid = a.matchid
+						AND b.balanceType = a.balanceType
+						AND b.bonusId = a.bonusId
+						AND b.walletType = a.walletType
+			WHERE	b.balance > a.balance
+		)t
+		
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
