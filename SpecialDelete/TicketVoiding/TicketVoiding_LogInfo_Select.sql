@@ -202,14 +202,14 @@ BEGIN
 
 	IF @IssueTypeId IN (1,10)
 	BEGIN
+		SELECT @MinAccept = @AATime
+			 , @MaxAccept = @AATime
 
-		SELECT @MinAccept = @AATime, @MaxAccept = @AATime
-		IF @MinAccept > @PATime
-			SET @MinAccept = @PATime
-		ELSE SET @MaxAccept = @PATime	
-		IF @MinAccept > @SATime
-			SET @MinAccept = @SATime
-		ELSE SET @MaxAccept = @SATime
+		IF @MinAccept > @PATime SET @MinAccept = @PATime
+		IF @MinAccept > @SATime SET @MinAccept = @SATime
+	
+		IF @MaxAccept < @PATime SET @MaxAccept = @PATime
+		IF @MaxAccept < @SATime SET @MaxAccept = @SATime
 
 		SELECT @AutoAcceptTime = DATEADD (SECOND,@AATime,@FilterFromTransTime)
 			  ,@PendingAcceptTime = DATEADD (SECOND,@PATime,@FilterFromTransTime)
