@@ -21,6 +21,7 @@ AS
 			- 20200827@Louisa: get external result to compare [Redmine:#139979]
 			- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 			- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+			- 20210324@Louisa: Enhancemant MultiSports page [Redmine:#151545]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -318,14 +319,21 @@ BEGIN
 					SELECT TOP 1 1
 					FROM	@tmpMatchStatus s
 					WHERE	m.eventstatus = CASE 
-												WHEN s.Id IN (0, 7) THEN m.eventstatus
+												WHEN s.Id IN (0, 7, 4) THEN m.eventstatus
 												ELSE s.EventStatus
 											END
 							AND 1 = CASE
 										WHEN s.Id NOT IN (3,4,6,7) THEN 1
 										WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
-										WHEN s.Id = 4 AND mr.ConfirmFT > 0 THEN 1 -- Over: 'Running' and have full time scores confirmed.
-										WHEN s.Id = 6 AND m.betstatus NOT LIKE '%Refund%' THEN 1	
+										WHEN s.Id = 4 AND ISNULL(mr.calculate,0) = 0 
+													  AND ISNULL(mr.calrefund,0) = 0
+													  AND m.eventstatus IN ( 'running', 'closed')
+													  THEN CASE WHEN mr.ConfirmFT > 0 THEN 1
+																ELSE  CASE WHEN  DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
+																			ELSE 0 
+																	  END
+															END
+										WHEN s.Id = 6 AND m.betstatus NOT LIKE '%Refund%' THEN 1
 										WHEN s.Id = 7 AND m.betstatus LIKE '%Refund%' THEN 1									
 										ELSE 0
 									END
