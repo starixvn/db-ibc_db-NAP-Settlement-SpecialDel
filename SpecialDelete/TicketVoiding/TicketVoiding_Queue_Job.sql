@@ -10,6 +10,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
+		- 20210326@Max: [TVS] Enhance void queue and service integration [Redmine: #152053]
 	
 	Param's explanation:	
 		
@@ -44,6 +45,7 @@ BEGIN
 		,UserId			INT
 		,IP				VARCHAR(50)
 		,IsFinished		BIT DEFAULT(0)
+		,VoidingHistoryId	INT
 	)
 
 	DECLARE @tmpVoidBetAutomation_Service TABLE (
@@ -75,6 +77,7 @@ BEGIN
 		,TransIds
 		,UserId
 		,IP
+		,VoidingHistoryId
 	)
 	SELECT	RequestId
 			,QueueId
@@ -83,6 +86,7 @@ BEGIN
 			,TransIds
 			,UserId
 			,IP
+			,@VoidingHistoryId
 	FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 			AND StatusId = 0
@@ -178,22 +182,16 @@ BEGIN
 					ELSE 0 END
 			--INNER JOIN @tmpQueue_update q1 ON q1.QueueId = q.QueueId
 		
-		IF EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingTypeId = 2 AND MatchId <> 29 AND IsFinished = 0)
+		IF NOT EXISTS (SELECT 1 FROM @tmpQueue WHERE VoidingHistoryId = @VoidingHistoryId AND IsFinished = 0) OR @IssueTypeId = 13
 		BEGIN
-			SET @Status_Single = 0
-			IF @ErrCode <> 0 AND @ErrCode <> 100
-			BEGIN
-				SET @Status_Single = 3
-			END
+			UPDATE s WITH (ROWLOCK, UPDLOCK)
+				SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
+									  WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 -- Failed
+									  ELSE 2 END -- DB completed
+					,s.NegativeBalanceUsers = @NegativeBalanceUsers
+			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+			WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
 		END
-		UPDATE s WITH (ROWLOCK, UPDLOCK)
-			SET s.statusID = CASE WHEN @ErrCode = 100 THEN 12 -- Service completed
-								  WHEN @ErrCode <> 0 AND @ErrCode <> 100 THEN 3 -- Failed
-								  WHEN @Status_Single = 3 THEN 3
-								  ELSE 2 END -- DB completed
-				,s.NegativeBalanceUsers = @NegativeBalanceUsers
-		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-		WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId
 
 		IF @ErrCode = 100 --'No ticket found.'
 		BEGIN
