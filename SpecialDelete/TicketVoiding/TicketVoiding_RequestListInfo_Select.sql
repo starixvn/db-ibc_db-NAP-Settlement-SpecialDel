@@ -13,6 +13,7 @@ AS
 	Revisions: 		
 		- 20210112@Zane: Create new SP [Redmine:#145719]
         - 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
+        - 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 
 	Param's explanation:
 		
@@ -24,22 +25,20 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
-               WHERE  matchid IN ( 9, 29, 2799 )) 
+               WHERE  matchid = 29) 
       BEGIN 
 			--BETTRANS
             INSERT INTO @tmpResult (requestid) 
             SELECT rd.requestid
-            FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
-					INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
-							ON rd.requestid = r.RequestId 
-					INNER JOIN dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
-							ON rd.requestid = s.requestid AND rd.MatchId = s.MatchId
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) 
-							ON rd.matchid = b.matchid AND s.transid = b.transid 
-            WHERE  rd.matchid IN ( 9, 29, 2799 ) 
-                    AND b.winlostdate BETWEEN @FromDate AND @ToDate 
-            GROUP  BY rd.requestid, r.IssueTypeId
-
+            FROM   TicketVoiding_RequestDetail rd WITH(NOLOCK)
+					CROSS APPLY (SELECT TOP 1 s.transid  
+								FROM dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
+									INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid 
+								WHERE	s.RequestId = rd.RequestId
+										AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+							) AS MainParly
+            WHERE  matchid = 29
+                 
 			--BETTRANS14
             INSERT INTO @tmpResult (requestid) 
             SELECT rd.requestid 
