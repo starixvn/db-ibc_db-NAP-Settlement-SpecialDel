@@ -1,3 +1,1 @@
 Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
-Settlement\Sportbook\AutoPayout\dbo.NAP_Admin_Settlement_1_AutoPayout_Push.sql
