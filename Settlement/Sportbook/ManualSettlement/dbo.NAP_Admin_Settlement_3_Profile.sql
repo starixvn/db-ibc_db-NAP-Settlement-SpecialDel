@@ -14,6 +14,7 @@ AS
 
     Revisions:
 	   - 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+	   - 20210326@Louisa: Negative balance
 
 */
 BEGIN
@@ -49,7 +50,7 @@ BEGIN
 			,@sqlCommand VARCHAR(MAX)
 			,@mode VARCHAR(15)
 			,@strBettypes VARCHAR(MAX)
-			
+			,@ActionID	  INT
 			
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -77,6 +78,12 @@ BEGIN
 			,@sqlCommand = ''
 			,@mode = 'profile-major'
 			,@strBettypes = ''
+			,@ActionID = CASE @action
+							WHEN 'CAL' THEN 100
+							WHEN 'CAL-FT' THEN 101
+							WHEN 'CAL-HT' THEN 102
+							WHEN 'UNDO'	THEN 103
+							END
 
     SELECT	@fth = FinalHomeScore
 			,@fta = FinalAwayScore
@@ -524,6 +531,7 @@ BEGIN
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 				@BalanceWalletBefore	= @BalanceWalletBefore
 				,@BalanceWalletAfter	= @BalanceWalletAfter
+				,@ActionId				= @ActionID
 		END
 	END
 	
@@ -677,5 +685,6 @@ BEGIN
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @BalanceWalletBefore
 			,@BalanceWalletAfter	= @BalanceWalletAfter
+			,@ActionId				= @ActionID
 	END
 END
