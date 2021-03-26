@@ -641,7 +641,7 @@ BEGIN
 	
 	IF @ParentMatchId IS NOT NULL 
 	BEGIN
-		DELETE FROM @tmpResourcesWeb
+		DELETE FROM @tmpSelectedRID
 		WHERE ResourceID NOT IN (
 			SELECT sp.ResourceID 
 			FROM dbo.bettrans bt WITH(NOLOCK)
