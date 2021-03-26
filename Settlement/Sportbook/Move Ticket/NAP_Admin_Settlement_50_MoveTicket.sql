@@ -154,7 +154,7 @@ BEGIN
 	-- move single
 	IF @totalSingle > 0
 	BEGIN
-		SET @startRowId = 1
+		SET @startRowId = 0
 		SET @strTransIds = ''
 		SET @Mode = 'Single'
 
@@ -166,7 +166,7 @@ BEGIN
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusId = 102 THEN statusId ELSE NULL END AS '@s'
 				FROM	#tmpTransIdsSingle 
-				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo - 1
+				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
 
 			IF ISNULL(@strTransIds,'')  = ''
@@ -224,7 +224,7 @@ BEGIN
 			RETURN
 
 		-- move parlay
-		SET @startRowId = 1
+		SET @startRowId = 0
 		SET @strTransIds = ''
 		SET @Mode = 'subParlay'
 		
@@ -237,7 +237,7 @@ BEGIN
 						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
 						,CASE WHEN statusid = 102 THEN MainTransId ELSE NULL END AS '@mt'
 				FROM	#tmpTransIdsParlay 
-				WHERE	RowId BETWEEN @startRowId AND @startRowId + @batchNo -1
+				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
 
 			IF ISNULL(@strTransIds,'')  = ''
