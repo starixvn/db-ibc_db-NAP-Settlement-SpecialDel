@@ -79,6 +79,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210326@Louisa: Negative balance [Redmine:#152345]
 
 
     Param's Explanation:
@@ -510,11 +511,12 @@ BEGIN
 				IF @sporttype = 1 -- soccer
                 BEGIN
 					EXEC dbo.NAP_Admin_Settlement_3_profile
-						@matchId = @matchid
+						@matchId	= @matchid
 						,@action	= @action
+						,@ActionID	= @ActionID
 						,@IsReSettledTickets = @IsReSettledTickets
-						,@ErrCode = @ErrCode OUTPUT
-						,@ErrMsg = @ErrMsg OUTPUT
+						,@ErrCode	= @ErrCode OUTPUT
+						,@ErrMsg	= @ErrMsg OUTPUT
 
 					IF @ErrCode <> 0
 						RETURN

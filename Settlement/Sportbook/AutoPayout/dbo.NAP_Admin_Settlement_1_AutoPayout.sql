@@ -37,6 +37,7 @@ AS
 		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		- 20210201@Louisa: Add NOLOCK [Redmine:#149787]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		
 	Param's Explanation:
 		 
@@ -205,6 +206,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_Settlement_3_profile
 			@matchId = @matchid
 			,@action	= @action
+			,@ActionID	= @ActionID
 			,@IsReSettledTickets = @IsReSettledTickets
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT

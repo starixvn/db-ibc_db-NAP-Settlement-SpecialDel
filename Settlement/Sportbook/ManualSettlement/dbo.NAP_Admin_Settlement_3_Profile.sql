@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile] 
 	@matchid INT
     ,@action VARCHAR(6) = 'CAL'
+	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@IsReSettledTickets BIT = 1
 	,@ErrCode INT = 0 OUTPUT
@@ -14,6 +15,7 @@ AS
 
     Revisions:
 	   - 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+	   - 20210326@Louisa: Negative balance [Redmine:#152345]
 
 */
 BEGIN
@@ -49,7 +51,6 @@ BEGIN
 			,@sqlCommand VARCHAR(MAX)
 			,@mode VARCHAR(15)
 			,@strBettypes VARCHAR(MAX)
-			
 			
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -524,6 +525,7 @@ BEGIN
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 				@BalanceWalletBefore	= @BalanceWalletBefore
 				,@BalanceWalletAfter	= @BalanceWalletAfter
+				,@ActionId				= @ActionID
 		END
 	END
 	
@@ -677,5 +679,6 @@ BEGIN
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			@BalanceWalletBefore	= @BalanceWalletBefore
 			,@BalanceWalletAfter	= @BalanceWalletAfter
+			,@ActionId				= @ActionID
 	END
 END
