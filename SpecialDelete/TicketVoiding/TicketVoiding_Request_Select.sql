@@ -71,15 +71,15 @@ BEGIN
 
 	IF @IssueTypeId IN (1,10)
 	BEGIN 
-		DECLARE @TypeAcceptXml XML, @AutoAccept INT, @PendingAccept INT, @SecondAccept INT
+		DECLARE @TypeAcceptXml XML, @AutoAccept TINYINT, @PendingAccept TINYINT, @SecondAccept TINYINT
 		
 		SELECT @TypeAcceptXml = CAST (rd.TransIds AS XML)
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		WHERE RequestId = @RequestId
 
-		SELECT	@AutoAccept = T.C.value('@AA', 'INT')
-				,@PendingAccept = T.C.value('@PA', 'INT')
-				,@SecondAccept = T.C.value('@SA', 'INT')
+		SELECT	@AutoAccept = T.C.value('@AA', 'TINYINT')
+				,@PendingAccept = T.C.value('@PA', 'TINYINT')
+				,@SecondAccept = T.C.value('@SA', 'TINYINT')
 		FROM	@TypeAcceptXml.nodes('/r') AS T(C)
 	END
 
@@ -106,9 +106,9 @@ BEGIN
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @AutoAccept ELSE NULL END AA
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @PendingAccept ELSE NULL END PA
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @SecondAccept ELSE NULL END SA
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @AutoAccept ELSE NULL END AATime
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @PendingAccept ELSE NULL END PATime
+				,CASE WHEN @IssueTypeId IN (1,10) THEN @SecondAccept ELSE NULL END SATime
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime

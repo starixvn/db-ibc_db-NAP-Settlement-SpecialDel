@@ -15,9 +15,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IsCheckedHomeTeam   BIT = 0
 	,@IsCheckedAwayTeam   BIT = 0
 	,@KickOffTime		  DATETIME = NULL
-	,@AATime			  INT = 0
-	,@PATime			  INT = 0
-	,@SATime			  INT = 0
 )
 AS
 /*	
@@ -60,17 +57,7 @@ BEGIN
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-
-	DECLARE @AutoAcceptTime		DATETIME = NULL,
-			@PendingAcceptTime	DATETIME = NULL,
-			@SecondAcceptTime	DATETIME = NULL,
-			@MinFromTime		DATETIME = NULL,
-			@MaxFromTime		DATETIME = NULL,
-			@MinAccept			INT = 0,
-			@MaxAccept			INT = 0,
-			@MinTicketFromTime	DATETIME = NULL
 	
-
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
 			transid               BIGINT,
@@ -126,9 +113,7 @@ BEGIN
 			WinLost               MONEY,
 			IsMarked              BIT,
 			LiveIndicator		  BIT,
-			StatusId			  TINYINT,
-			checktime			  DATETIME,
-			TypeAccept			  TINYINT
+			StatusId			  TINYINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -163,7 +148,6 @@ BEGIN
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
 	CREATE TABLE #tblInstantSettlement (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT)
-	CREATE TABLE #tblGroupTypeAccept (TypeAccept TINYINT, MinTicket DATETIME)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -202,23 +186,6 @@ BEGIN
 
 	IF @IssueTypeId IN (1,10)
 	BEGIN
-		SELECT @MinAccept = @AATime
-			 , @MaxAccept = @AATime
-
-		IF @MinAccept > @PATime SET @MinAccept = @PATime
-		IF @MinAccept > @SATime SET @MinAccept = @SATime
-	
-		IF @MaxAccept < @PATime SET @MaxAccept = @PATime
-		IF @MaxAccept < @SATime SET @MaxAccept = @SATime
-
-		SELECT @AutoAcceptTime = DATEADD (SECOND,@AATime,@FilterFromTransTime)
-			  ,@PendingAcceptTime = DATEADD (SECOND,@PATime,@FilterFromTransTime)
-			  ,@SecondAcceptTime = DATEADD (SECOND,@SATime,@FilterFromTransTime)
-			  ,@MinFromTime = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
-			  ,@MaxFromTime = DATEADD (SECOND,@MaxAccept,@FilterFromTransTime)
-
-		SELECT @FilterFromTransTime = @MinFromTime
-
 		/*Generate LogInfo*/
 		/*Check valid transid*/
 		IF @FilterBy = 0
@@ -325,7 +292,6 @@ BEGIN
 				,LiveIndicator
 				,matchid
 				,StatusId
-				,checktime
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -376,7 +342,6 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
-				,b.checktime
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -447,7 +412,6 @@ BEGIN
 					,LiveIndicator
 					,matchid
 					,StatusId
-					,checktime
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -488,7 +452,6 @@ BEGIN
 					,sub.liveindicator
 					,@MatchId
 					,main.statusID
-					,sub.checktime
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -511,66 +474,6 @@ BEGIN
 										   ELSE 0 END
 							END)
 		END 
-
-		UPDATE b
-		SET TypeAccept = CASE WHEN b.transdate = b.checktime THEN 1 --Auto Accept
-							  WHEN ISNULL(b.checktime,0) = DATEADD(SECOND,ISNULL(bi.LiveBetAcceptTime,0),DATEADD( SECOND,ISNULL(bi.SecAcceptTime,0),b.transdate)) THEN 2 --Second Accept
-							  WHEN ISNULL(b.checktime,0) ! = DATEADD(SECOND,ISNULL(bi.LiveBetAcceptTime,0),DATEADD( SECOND,ISNULL(bi.SecAcceptTime,0),b.transdate)) THEN 3 --Pending Accept
-							  END
-		FROM #SpecialDeleteBets b
-			LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
-
-		INSERT INTO #tblGroupTypeAccept (TypeAccept , MinTicket )
-		SELECT TypeAccept, MIN(CASE WHEN @FilterBy = 1 THEN transdate 
-									WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime 
-									WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate 
-									END )
-		FROM #SpecialDeleteBets 
-		WHERE CASE WHEN @FilterBy = 1 THEN transdate
-				   WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime
-				   WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate
-				END BETWEEN @MinFromTime AND @MaxFromTime
-		GROUP BY TypeAccept
-
-		DELETE FROM #tblGroupTypeAccept 
-		WHERE 1 = CASE WHEN typeaccept = 1 AND MinTicket < @AutoAcceptTime THEN 1
-					   WHEN typeaccept = 2 AND MinTicket < @SecondAcceptTime THEN 1
-					   WHEN typeaccept = 3 AND MinTicket < @PendingAcceptTime THEN 1
-					   ELSE 0 END
-
-		SELECT @MinTicketFromTime = MIN(MinTicket) 
-		FROM #tblGroupTypeAccept
-
-		IF (@MinTicketFromTime IS NOT NULL)
-		BEGIN
-			DELETE FROM  #SpecialDeleteBets 
-			WHERE CASE WHEN @FilterBy = 1 THEN transdate
-					   WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime
-					   WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate
-					END < @MinTicketFromTime
-
-			SELECT @FilterFromTransTime = @MinTicketFromTime
-		END
-		ELSE
-		BEGIN
-			SELECT @MinTicketFromTime = MIN(CASE WHEN @FilterBy = 1 THEN transdate 
-											WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime 
-											WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate 
-										END)
-			FROM #SpecialDeleteBets 
-			WHERE CASE WHEN @FilterBy = 1 THEN transdate
-						WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime
-						WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate
-					END >= @MaxFromTime
-
-			DELETE FROM  #SpecialDeleteBets 
-			WHERE CASE WHEN @FilterBy = 1 THEN transdate
-						WHEN @FilterBy = 2 AND checktime IS NOT NULL THEN checktime
-						WHEN @FilterBy = 2 AND checktime IS NULL THEN transdate
-					END < @MaxFromTime
-
-			SELECT @FilterFromTransTime = @MinTicketFromTime
-		END
 
 	END
 	IF @IssueTypeId IN (8,9)
@@ -1606,7 +1509,6 @@ BEGIN
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tblInstantSettlement
-	DROP TABLE #tblGroupTypeAccept
 
 END
 GO
