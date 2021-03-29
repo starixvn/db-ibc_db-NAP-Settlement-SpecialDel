@@ -650,13 +650,6 @@ BEGIN
 						AND sp.BetType = bt.bettype
 			WHERE bt.matchid = @MatchID
 				AND sp.SportType =50 )
-
-		SELECT  @fth	= finalhomescore
-				,@fta	= finalawayscore
-				,@hth	= hthomescore
-				,@hta	= htawayscore
-  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  		WHERE   matchid = @ParentMatchId
 	END
 
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
@@ -703,8 +696,20 @@ BEGIN
 				@UserID = @creator
 				,@Doing = @logdata
 	
-	IF @ParentMatchId IS NOT NULL
-	SELECT @MatchId =  @ParentMatchId
+	IF @sportType = 50
+	BEGIN
+		SELECT @hth	= NULL
+				,@hta = NULL
+
+		IF @ParentMatchId IS NOT NULL
+		BEGIN
+			SELECT  @MatchId =  @ParentMatchId
+					,@fth	= finalhomescore
+					,@fta	= finalawayscore
+  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @ParentMatchId
+		END
+	END
 				
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle

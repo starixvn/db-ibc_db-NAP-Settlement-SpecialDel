@@ -510,16 +510,20 @@ BEGIN
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
-		IF @ParentMatchId IS NOT NULL
+		IF @SportType = 50
 		BEGIN
-			SELECT  @matchid		= @ParentMatchId
-				   ,@finalhomescore = finalhomescore 
-				   ,@finalawayscore = finalawayscore
-				   ,@hthomescore	= hthomescore
-				   ,@htawayscore	= htawayscore
-				   ,@betstatus		= betstatus
-			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-			WHERE	matchid = @ParentMatchId
+			SELECT @hthomescore	= NULL  
+				,@htawayscore	= NULL
+
+			IF @ParentMatchId IS NOT NULL
+			BEGIN
+				SELECT  @matchid		= @ParentMatchId
+					   ,@finalhomescore = finalhomescore 
+					   ,@finalawayscore = finalawayscore
+					   ,@betstatus		= betstatus
+				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+				WHERE	matchid = @ParentMatchId
+			END
 		END
 
 		BEGIN TRY

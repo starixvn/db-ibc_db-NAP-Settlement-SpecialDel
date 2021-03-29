@@ -515,16 +515,20 @@ BEGIN
 		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
 		
-		IF @ParentMatchId IS NOT NULL
+		IF @SportType = 50
 		BEGIN
-			SELECT  @MatchId =  @ParentMatchId
-					,@fthomescore = finalhomescore 
-					,@ftawayscore = finalawayscore
-					,@hthomescore = hthomescore
-					,@htawayscore = htawayscore
-					,@betstatus	 = ISNULL(betstatus,'')
-			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-			WHERE	matchid = @ParentMatchId
+			SELECT @hthomescore = NULL
+				  ,@htawayscore = NULL
+
+			IF @ParentMatchId IS NOT NULL
+			BEGIN
+				SELECT  @MatchId =  @ParentMatchId
+						,@fthomescore = finalhomescore 
+						,@ftawayscore = finalawayscore
+						,@betstatus	 = ISNULL(betstatus,'')
+				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+				WHERE	matchid = @ParentMatchId
+			END
 		END
 
 		BEGIN TRY
