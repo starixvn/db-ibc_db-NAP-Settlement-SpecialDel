@@ -23,6 +23,7 @@ AS
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
+		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 
 	Param's explanation:	
 	
@@ -243,7 +244,7 @@ BEGIN
 											GROUP BY TransId for XML PATH('')), 1, 1, '')
 			
 			BEGIN TRY
-				EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds_tmp
+				EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @TransIds_tmp
 					,@UserId = @UserId
 					,@Username = @UserName
 					,@IP = @IP

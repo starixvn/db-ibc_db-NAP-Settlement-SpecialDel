@@ -34,6 +34,7 @@ AS
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
+		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 	Param's explanation:	
 		
 		
@@ -1302,11 +1303,12 @@ BEGIN
 								
 			SET @TransIDList_tmp = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) FROM @tmpTransIDBatch FOR XML PATH('')),1,1,'')
 			
-			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIDList_tmp
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @TransIDList_tmp
 				,@UserId = @UserId
 				,@Username = @Username
 				,@IP = @IP
 				,@LogActionId = 90510
+				,@IsLockMatch = 0
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 			
