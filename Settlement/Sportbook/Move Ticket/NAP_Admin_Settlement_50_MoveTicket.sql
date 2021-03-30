@@ -63,6 +63,19 @@ BEGIN
 		
 			RETURN
 	END
+
+	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
+		@MatchId	= @Matchid
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) <> 0 
+	BEGIN
+	    SELECT	@ErrCode = 1001038
+				,@ErrMsg = 'WARNING! Cannot continue due to current match is on-hold.'
+	    
+	    RETURN
+	END
 	
 	SELECT	TOP 1 @childMatchId = matchid
 	FROM	dbo.match m WITH(NOLOCK)
