@@ -16,6 +16,9 @@ AS
         - 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 
 	Param's explanation:
+	
+	Sample execution:
+	EXEC TicketVoiding_RequestListInfo_Select @FromDate = '2021-03-01', @ToDate = '2021-03-28'
 		
 */
 BEGIN 
@@ -25,33 +28,29 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
-               WHERE  matchid = 29) 
+               WHERE  matchid IN ( 9, 29, 2799 )) 
       BEGIN 
 			--BETTRANS
             INSERT INTO @tmpResult (requestid) 
-            SELECT rd.requestid
-            FROM   TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					CROSS APPLY (SELECT TOP 1 s.transid  
-								FROM dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
-									INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid 
-								WHERE	s.RequestId = rd.RequestId
-										AND b.winlostdate BETWEEN @FromDate AND @ToDate 
-							) AS MainParly
-            WHERE  matchid = 29
+            SELECT s.requestid
+            FROM   dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
+					CROSS APPLY (SELECT TOP 1 1 AS IsValid
+								FROM dbo.bettrans b WITH(NOLOCK) 
+								WHERE s.transid = b.transid AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+								) AS tmp
+								
+            WHERE  s.matchid IN ( 9, 29, 2799 ) 
+            GROUP  BY s.requestid
                  
 			--BETTRANS14
             INSERT INTO @tmpResult (requestid) 
-            SELECT rd.requestid 
-            FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
-					INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
-							ON rd.requestid = r.RequestId
-					INNER JOIN dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
-							ON rd.requestid = s.requestid AND rd.MatchId = s.MatchId
+            SELECT s.requestid 
+            FROM   dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) 
-							ON rd.matchid = b14.matchid AND s.transid = b14.transid 
-            WHERE  rd.matchid IN ( 9, 29, 2799 ) 
+							ON s.transid = b14.transid 
+            WHERE  s.matchid IN ( 9, 29, 2799 ) 
                     AND b14.winlostdate BETWEEN @FromDate AND @ToDate 
-            GROUP  BY rd.requestid, r.IssueTypeId
+            GROUP  BY s.requestid
       END 
 
     IF EXISTS (SELECT TOP 1 rd.requestid, o.eventdate 
@@ -82,16 +81,15 @@ BEGIN
     INSERT INTO @tmpResult (requestid) 
     SELECT rd.requestid
     FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
-			INNER JOIN dbo.ticketvoiding_request r WITH(NOLOCK) 
-								ON rd.requestid = r.RequestId
 			INNER JOIN (SELECT m.matchid, m.eventdate 
 						FROM   dbo.match m WITH(NOLOCK) 
-						UNION 
+						UNION ALL
 						SELECT m14.matchid, m14.eventdate 
-						FROM   dbo.match14 m14 WITH(NOLOCK)) m 
+						FROM   dbo.match14 m14 WITH(NOLOCK)
+						) m 
 					ON rd.matchid = m.matchid 
     WHERE  m.eventdate BETWEEN @FromDate AND @ToDate 
-    GROUP  BY rd.requestid, r.IssueTypeId 
+    GROUP  BY rd.requestid
 	
 	SELECT DISTINCT requestid
 	FROM @tmpResult
