@@ -178,8 +178,8 @@ BEGIN
 				,@UserId = @UserId			
 				,@IP = @IP				
 				,@ActionId = @ActionId			
-				,@FilterFromTransTime = @FilterFromTransTime
-				,@FilterToTransTime = @FilterToTransTime	
+				,@FilterFromTransTime = @VoidFromTime
+				,@FilterToTransTime = @VoidToTime	
 				,@FilterBy = @FilterBy			
 				,@UserNames	= @UserNames			
 				,@ProductIds = @ProductIds		
@@ -202,8 +202,8 @@ BEGIN
 				,@UserId = @UserId				
 				,@IP = @IP					
 				,@ActionId = @ActionId				
-				,@FilterFromTransTime = @FilterFromTransTime	
-				,@FilterToTransTime	= @FilterToTransTime		
+				,@FilterFromTransTime = @VoidFromTime	
+				,@FilterToTransTime	= @VoidToTime		
 				,@FilterBy = @FilterBy				
 	END
 
