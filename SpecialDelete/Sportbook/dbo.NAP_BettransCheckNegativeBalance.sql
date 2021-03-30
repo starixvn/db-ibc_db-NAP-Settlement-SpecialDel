@@ -71,7 +71,7 @@ BEGIN
 	)
 	
 	DECLARE @tmpAffectedCustId TABLE (CustId INT)
-	
+
 	INSERT INTO @tmpTransId(transid)
 	SELECT val FROM dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
