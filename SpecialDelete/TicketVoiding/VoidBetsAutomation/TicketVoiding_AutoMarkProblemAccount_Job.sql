@@ -22,6 +22,7 @@ AS
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
 
 	Param's explanation:	
 	
@@ -78,7 +79,7 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND 1 = CASE WHEN pt.SportType IN (50) AND pt.BetType IN (501) THEN 0
+		AND 1 = CASE WHEN pt.SportType IN (50) THEN 0
 					WHEN pt.SportType <= 99 THEN 1 END
 	
 	SELECT  @query = N''		
@@ -110,7 +111,7 @@ BEGIN
 			SELECT b.transid, b.matchid
 			FROM @ProblemAccountByBatch_tmp t
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.custid = b.custid
-				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype <= 99 AND m.eventstatus <> 'completed'
+				INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid AND m.sporttype <= 99 AND m.eventstatus <> 'completed' AND m.sporttype <> 50 --Exclude Cricket for TVS
 				INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid 
 				OUTER APPLY (SELECT TOP 1 transid
 							FROM dbo.MarkedTransaction mt WITH (NOLOCK)

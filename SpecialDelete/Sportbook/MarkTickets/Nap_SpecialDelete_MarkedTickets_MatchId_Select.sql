@@ -34,6 +34,7 @@ AS;
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -62,7 +63,9 @@ AS;
 BEGIN
     SET NOCOUNT ON
     
-    DECLARE @SportType TINYINT= NULL;
+    DECLARE @SportType		TINYINT= NULL
+		   ,@ValueDefault	SMALLMONEY = 9999.00
+
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
     WHERE MatchId = @MatchId;
@@ -141,11 +144,11 @@ BEGIN
 			 , cte.[Set]
 			 , cte.Game
 			 , bop.val AS BetOption
-			 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 ELSE v.val END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
-			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
+			 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault ELSE v.val END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
-			 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+			 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt

@@ -35,6 +35,8 @@ AS
 		- 20201103@Charles:  No need to check Live Score once add request for Baseball [Redmine: #144544]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -77,7 +79,6 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND 1 = CASE WHEN @ActionId IN (1,4) AND pt.SportType IN (50) AND pt.BetType IN (501) THEN 0 ELSE 1 END --Exclude bettype 501 of Cricket when add Void Auto Winning & Void Instant Request
 
 	-- check valid match id
 	IF NOT EXISTS (
@@ -124,6 +125,7 @@ BEGIN
 		,liveawayscore SMALLINT
 		,liveindicator BIT
 		,matchid INT
+		,sporttype SMALLINT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -193,6 +195,7 @@ BEGIN
 		,liveawayscore
 		,liveindicator
 		,matchid
+		,sporttype
 		)
 	SELECT b.transid
 		,CASE 
@@ -206,7 +209,9 @@ BEGIN
 		,b.liveawayscore
 		,b.liveindicator
 		,@MatchId
+		,m.sporttype
 	FROM dbo.bettrans AS b WITH (NOLOCK)
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 
 	-- get unsuppored transid
@@ -214,7 +219,9 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE bt.bettype IS NULL 
+	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL THEN 1
+				WHEN  t.sporttype = 50 THEN 1
+				ELSE 0 END
 		
 	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t

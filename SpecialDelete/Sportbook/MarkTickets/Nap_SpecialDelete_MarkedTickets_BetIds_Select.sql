@@ -19,6 +19,7 @@ AS
 		- 20200225@Charles: Mark & Unmark tickets for Esport, Badminton and Tennis [129139]
 		- 20200417@Charles: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 	Explanation's Param:			    
 */
 BEGIN
@@ -307,7 +308,7 @@ SET NOCOUNT ON
 	--- Remove invalid sporttype	
 	DELETE 
 	FROM #Tickets
-	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/)
+	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/ OR SportType = 50 /*Cricket*/)
 
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	IF(EXISTS (SELECT TOP (1) 1 

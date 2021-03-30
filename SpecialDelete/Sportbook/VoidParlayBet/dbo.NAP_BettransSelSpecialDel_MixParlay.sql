@@ -57,6 +57,7 @@ AS
 		- 20200723@Zane: Basketball AIO Phase 2 - Change filter advanced mode [137189]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -84,6 +85,8 @@ AS
 */  
 BEGIN   
 	SET NOCOUNT ON  
+
+	DECLARE @ValueDefault SMALLMONEY = 9999.00
 
 	CREATE TABLE #tblBetType
 	(
@@ -165,7 +168,7 @@ BEGIN
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
      ) 
-     
+
     -- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
 	(	
@@ -187,16 +190,16 @@ BEGIN
 			 , cte.[Set]
 			 , cte.Game
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN 9999.00 
+						WHEN v.val = 'ALL' THEN @ValueDefault
 						ELSE v.val
 					END AS SMALLMONEY) AS [Value]	
 			, CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN 9999.00 
+						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
 						ELSE vhdp1.val
 					END AS SMALLMONEY) AS ValueHdp1
 
 			, CAST(CASE
-						WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+						WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2
 					END AS SMALLMONEY) AS ValueHdp2
 

@@ -48,6 +48,7 @@ AS
 		- 20201002@Charles: Letstalk notification for void settled bets [141828]
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -71,6 +72,7 @@ BEGIN
 			,@avaiableProcess	BIT = 1
 			,@CustIds			VARCHAR(MAX) = ''
 			,@CountSubTransId	INT = 0
+			,@ValueDefault		SMALLMONEY = 9999.00
 
 	SET @NegativeBalanceUsers = ''
 
@@ -114,7 +116,7 @@ BEGIN
 	)  
        
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)								 
-    
+
 	SELECT @ErrCode = 0  
    
 	IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @UserPassword  AND custid = @UserId AND roleid>=5)  
@@ -153,16 +155,16 @@ BEGIN
 			 , cte.[Set]
 			 , cte.Game
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN 9999.00 
+						WHEN v.val = 'ALL' THEN @ValueDefault 
 						ELSE v.val
 					END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN 9999.00 
+						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
 						ELSE vhdp1.val
 					END AS SMALLMONEY) AS ValueHdp1
 
 			 , CAST(CASE
-						WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+						WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2
 					END AS SMALLMONEY) AS ValueHdp2			 
 			 , CAST(CASE 
@@ -222,6 +224,23 @@ BEGIN
 		RETURN  
 	END
     
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransId t
+					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE b.matchid <> @MatchId
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+
+		EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay  = 1  
+			, @IsReleased  = 1	
+
+		RETURN
+	END
+
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
 	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator)  

@@ -313,7 +313,8 @@ BEGIN
 							+ CASE WHEN @CurrencyCodes <> '' THEN ',' ELSE '' END
 							+ currency
 	FROM #t_exchanges
-	
+
+
 	-------> Build @LogData	
 	SET @LogData = 'Void currency transaction for matchid ' + CONVERT(VARCHAR(20), @matchid) 
 		+ ' for ' + @LicenseeNames + ' ' + @CurrencyCodes + ' IP=' + @IP + ' reason: ' + @Reason + ' - ' + @ReasonSC
@@ -1441,6 +1442,50 @@ BEGIN
 					  , @IsReleased = 1
 				RETURN
 			END
+
+			-- Apply for move match Cricket
+			IF EXISTS ( SELECT TOP 1 1 
+						FROM @tblTransIds t
+						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+						WHERE matchid <> @MatchId
+					)
+			BEGIN
+				SELECT	@ErrorCode = 99
+						,@ErrorMsg = 'Some tickets not found.'
+
+				EXEC dbo.NAP_Admin_CheckingProcess
+					  @IsReleased		= 1						
+					, @isExistMatch		= @isExistMatch	
+					, @isExistFM		= @isExistFM		
+					, @isExistBB		= @isExistBB		
+					, @isExistParlay	= @isExistParlay
+					, @isExistFM2		= @isExistFM2
+
+				RETURN
+			END
+			--Parlay
+			IF EXISTS ( SELECT TOP 1 1 
+						FROM @tblTransIds t
+							INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+						WHERE b.matchid = 29  
+							AND b.bettype = 29   
+							AND bm.matchid  <> @matchid  
+					)
+			BEGIN
+				SELECT	@ErrorCode = 99
+						,@ErrorMsg = 'Some tickets not found.'
+
+				EXEC dbo.NAP_Admin_CheckingProcess
+					  @IsReleased		= 1						
+					, @isExistMatch		= @isExistMatch	
+					, @isExistFM		= @isExistFM		
+					, @isExistBB		= @isExistBB		
+					, @isExistParlay	= @isExistParlay
+					, @isExistFM2		= @isExistFM2
+				RETURN
+			END 
+
 		END
 		
 		INSERT INTO #t_CustID_501(custid)

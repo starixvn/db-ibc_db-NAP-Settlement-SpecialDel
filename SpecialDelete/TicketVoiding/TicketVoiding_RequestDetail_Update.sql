@@ -64,6 +64,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 		- 20210224@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 
 	Param's explanation:	
 	
@@ -274,10 +275,9 @@ BEGIN
 						ELSE 0 END
 				END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
-			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+			AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
 			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
-
 
 		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype)
 		SELECT	b.translogid AS transid
@@ -304,6 +304,12 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
 			)ml
+			OUTER APPLY (
+				SELECT TOP 1 m.sporttype 
+				FROM dbo.match m WITH (NOLOCK)
+				WHERE m.matchid = b.matchid
+					AND m.sporttype = 50
+			)mc
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -313,7 +319,9 @@ BEGIN
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
 							AND b.bettype NOT BETWEEN 801 AND 806-- MG
-							AND  ml.LeagueGroupID IS NULL THEN 1
+							AND ml.LeagueGroupID IS NULL 
+							AND mc.sporttype IS NULL --exclude cricket
+							THEN 1
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	

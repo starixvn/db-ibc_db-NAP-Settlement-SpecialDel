@@ -33,7 +33,7 @@ AS
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
-
+		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
 	Param's explanation:	
 		
 		
@@ -266,7 +266,7 @@ BEGIN
 			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 			
 			-- check and create request first for auto mark ticket or marked manually
-			IF @@ROWCOUNT > 0
+			IF @@ROWCOUNT > 0 AND @sporttype NOT IN (50)
 			BEGIN
 				INSERT INTO #Transid_mark_tmp (transid,statuswinlost)
 				SELECT b.transid, b.statuswinlost
