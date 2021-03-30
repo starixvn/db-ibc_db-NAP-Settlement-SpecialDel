@@ -248,6 +248,7 @@ BEGIN
 					,@Username = @UserName
 					,@IP = @IP
 					,@LogActionId = 90510
+					,@IsLockMatch	= 1
 					,@ErrMsg = @ErrMsg_tmp OUTPUT
 					,@ErrCode = @ErrCode OUTPUT
 			END TRY
