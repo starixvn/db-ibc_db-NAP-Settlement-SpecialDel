@@ -1,16 +1,12 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update 
-(
-	@TransIds		VARCHAR(MAX)	= NULL,
-    @UserId			INT				= 0,
-    @Username		NVARCHAR(100)	= '',
-    @IP				VARCHAR(15)		= NULL,
-	@RequestId		INT				= NULL,
-	@LogActionId	INT				= 90501,
-	@IsLockMatch	BIT				= 0,
-    @ErrMsg			NVARCHAR(200)	= '' OUTPUT,
-    @ErrCode		INT				= 0 OUTPUT
-)
+﻿﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds VARCHAR(MAX)  = NULL,
+                                                           @UserId   INT           = 0,
+                                                           @Username NVARCHAR(100) = '',
+                                                           @IP       VARCHAR(15)   = NULL,
+														   @RequestId INT		   = NULL,
+														   @LogActionId	  INT			= 90501,
+                                                           @ErrMsg   NVARCHAR(200) = '' OUTPUT,
+                                                           @ErrCode  INT           = 0 OUTPUT
 AS
 /*
     Created by: Alan
@@ -29,7 +25,6 @@ AS
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
-		- 20210329@Max: HotFix  - TVS - Correct Ticket on DBTP [Redmine : #151954]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -65,8 +60,7 @@ BEGIN
                    RefCode   BIGINT,
 				   refno	 BIGINT,
 				   IsParlay  BIT DEFAULT(0),
-				   SubTransId BIGINT,
-				   IsFinish	BIT
+				   SubTransId BIGINT
                   );
      CREATE TABLE #Cashout911Tickets
                   (TransId BIGINT,
@@ -82,11 +76,6 @@ BEGIN
      CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
      CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
      CREATE TABLE #Match(MatchId INT);
-
-	 CREATE TABLE #tblMatchProcess
-				(matchid INT,
-				KeyID   TINYINT
-				);
 	
 	-- Get tickets insert into transaction
 	INSERT INTO #Tickets (
@@ -279,107 +268,18 @@ BEGIN
 				AND b.matchid = 29
 	END
 
-	IF @IsLockMatch = 1
-	BEGIN
-		-- Check Lock Match
-		DECLARE @avaiableProcess BIT
-			,@IsExistSingle BIT = 0
-			,@IsExistParlay BIT = 0
-			,@IsExistFM BIT = 0
-			,@IsExistFM2 BIT = 0
-
-		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
-				,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-				,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-		FROM #Tickets AS t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-		WHERE t.IsParlay = 0;
-
-		SELECT TOP 1 @IsExistParlay = 1
-		FROM #Tickets AS t
-		WHERE t.IsParlay = 1
-
-		INSERT INTO #tblMatchProcess (
-			MatchId
-			,KeyID
-			)
-		SELECT DISTINCT MatchId
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
-				END AS KeyID
-		FROM #Tickets t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-
-		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-			,@isExistParlay = @IsExistParlay
-			,@IsExistFM = @IsExistFM
-			,@IsExistFM2 = @IsExistFM2
-			,@avaiableProcess = @avaiableProcess OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT;
-
-		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-		BEGIN
-			RETURN;
-		END;
-	END;
-
 	-- Delete Transaction
-	DECLARE @TransIds_SB VARCHAR(MAX)
 	WHILE (0=0)
 	BEGIN
-		DELETE #MarkedTransactionDeleted
-
-		UPDATE TOP (2000) t
-			SET t.IsFinish = 1
+		DELETE TOP (2000) m 
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
 		INTO #MarkedTransactionDeleted (TransId, MatchId)
-		FROM #Tickets t
-		WHERE t.IsFinish IS NULL
+		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+        INNER JOIN #Tickets t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
 
-		IF @@ROWCOUNT = 0 BREAK	
-
-		SELECT @TransIds_SB = CAST((
-									SELECT m.TransId AS '@id'
-										,m.MatchId AS '@match'
-									FROM #MarkedTransactionDeleted m
-									FOR XML PATH('r')
-										,ROOT('root')
-										,TYPE
-								) AS VARCHAR(MAX));
-
-		EXEC dbo.TicketVoiding_Admin_VoidingTransId
-			@TransIds = @TransIds_SB,
-			@UserId = @UserId,
-			@CalledByBrokerService = 0,
-			@IsUseServiceBroker = 1,
-			@ActionType = 2
-		
-		SET @TransIds_SB = ''	  
-	END
-	
-	IF @IsLockMatch = 1
-	BEGIN
-		-- Release Match
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch = @IsExistSingle,
-			@isExistParlay = @IsExistParlay,
-			@IsExistFM = @IsExistFM,
-			@IsExistFM2 = @IsExistFM2,
-			@IsReleased = 1;
-	END
+		IF @@ROWCOUNT = 0 BREAK	  
+	END 
 
     INSERT INTO #Match
     SELECT DISTINCT
@@ -395,7 +295,7 @@ BEGIN
 					,m.matchid AS '@MatchId'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
-							FROM #Tickets AS d
+							FROM #MarkedTransactionDeleted AS d
 							WHERE d.MatchId = m.MatchId
 							FOR XML PATH('')
 							), 1, 1, '')  AS '@LogData'
@@ -426,10 +326,6 @@ BEGIN
      DROP TABLE #Match;
      DROP TABLE #MarkedTransactionDeleted;
 	 DROP TABLE #ParlayTransIds
-	 DROP TABLE #Cashout911Tickets
-	 DROP TABLE #tblMatchProcess
-	 DROP TABLE #Tickets
-	 DROP TABLE #tmpRefCodeSummary
 
      SET NOCOUNT OFF;
 END
