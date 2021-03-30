@@ -2,7 +2,6 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidTime_Select]
 (	
 	 @MatchId             INT
-	,@RequestId			  INT = 0
 	,@FilterFromTransTime DATETIME = NULL
 	,@FilterToTransTime	  DATETIME = NULL
 	,@FilterBy			  TINYINT = 1
@@ -24,7 +23,7 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20201106@July: Create new SP [Redmine: #150459] 
+		- 20210329@July: Create new SP [Redmine: #150459] 
 
 	Param's explanation:
 		
@@ -107,16 +106,6 @@ BEGIN
 	
 	CREATE TABLE #tblGroupTypeAccept (TypeAccept TINYINT, MinTicket DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-
-	IF @RequestId <> 0 --Edit
-	BEGIN
-		SELECT @VoidFromTime = VoidFromTime
-			  ,@VoidToTime = VoidToTime
-		FROM dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
-		WHERE RequestId = @RequestId
-
-		RETURN;
-	END
 
 	IF @IssueTypeId IN (1,10)
 	BEGIN
@@ -426,6 +415,12 @@ BEGIN
 		END
 
 	END
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets )
+	BEGIN
+		SELECT  @VoidFromTime = NULL
+			   ,@VoidToTime = NULL
+	END 
+
 	SELECT @VoidFromTime AS VoidFromTime
 		  ,@VoidToTime AS VoidToTime
 
