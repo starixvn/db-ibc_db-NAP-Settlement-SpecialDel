@@ -23,6 +23,7 @@ AS
 		- 20170503@Kent: Integrate bonus [Redmine:#72790]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
+		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
 	
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -39,6 +40,20 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
+	
+	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
+	
+	DECLARE @tmpCurrentBalance TABLE (
+		custid		INT
+		,username	nvarchar(50)
+		,balance	money
+	)
+	
+	DECLARE @tmpChangedBalance TABLE (
+		custid		INT
+		,balance	money
+	)	
+	
 	CREATE TABLE #BetDelete (
 		transid			BIGINT PRIMARY KEY
 		,custid			INT
@@ -54,34 +69,10 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 	)
-	CREATE INDEX IDX_BetDelete_bettype ON #BetDelete(bettype)		
 	
-	CREATE TABLE #CustomerList (
-		custid			INT
-		,username		NVARCHAR(50)	
-		,winlost		MONEY
-		,actual_stake	MONEY
-		,playercomm		MONEY
-	)
-	CREATE CLUSTERED INDEX IDX_CustomerList_custid_username ON #CustomerList(custid, username)
+	DECLARE @tmpAffectedCustId TABLE (CustId INT)
 	
-	DECLARE @balanceCust TABLE (
-		custid		INT
-		,username	nvarchar(50)
-		,balance	money
-	)
-	DECLARE @balanceTrans TABLE(
-		custid		INT
-		,balance	money
-	)
-	
-	DECLARE @tblTransId TABLE (transid BIGINT PRIMARY KEY)
-	
-	DECLARE @yesterday DATE
-	
-	SET @yesterday = CONVERT(DATE,GETDATE() - 1)
-	
-	INSERT INTO @tblTransId(transid)
+	INSERT INTO @tmpTransId(transid)
 	SELECT val FROM dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
 	
@@ -113,8 +104,8 @@ BEGIN
 			,b.WalletType
 			,b.RefCode
 			,b.BonusID
-	FROM	bettrans b WITH(NOLOCK)
-		INNER JOIN @tblTransId t
+	FROM	@tmpTransId t
+		INNER JOIN bettrans b WITH(NOLOCK)
 			ON	b.transid = t.transid		
 	WHERE	1 = CASE 
 					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
@@ -128,26 +119,35 @@ BEGIN
 					ELSE 1
 				END = 1 -- exclude BT member
 			AND b.bettype NOT IN (911,912,913,914)			
-	UNION ALL
-	SELECT	b.transid -- MG tickets (settled) in bettrans
-			,b.custid
-			,b.winlost
-			,b.actual_stake
-			,b.playercomm
-			,b.bettype
-			,b.matchid
-			,b.refno
-			,-1 AS betdaqid
-			,b.ExtraInfo
-			,b.WalletType
-			,b.RefCode
-			,b.BonusID
-	FROM	translog tl WITH(NOLOCK)
-		INNER JOIN @tblTransId t
+	
+	INSERT INTO #BetDelete(
+		transid
+		,custid
+		,winlost
+		,actual_stake
+		,playercomm
+		,bettype
+		,matchid
+		,refno
+		,betdaqid
+	)
+	SELECT	ISNULL(b.transId,tl.translogid) AS transid
+			,tl.custid
+			,ISNULL(b.winlost,0) AS winlost
+			,tl.actual_stake
+			,ISNULL(b.playercomm,0) AS playercomm
+			,tl.gameID
+			,tl.eventID
+			,ISNULL(b.refno, tl.translogid) as refno
+			,-1 AS betdaqid			
+	FROM	@tmpTransId t
+		INNER JOIN translog tl WITH(NOLOCK)
 			ON	tl.translogid = t.transid		
 		LEFT JOIN dbo.bettrans b WITH(NOLOCK)
-			ON	b.refno = tl.translogid
-				AND b.matchid = tl.eventID
+			ON	b.matchid = tl.eventID
+				AND b.custid = tl.custid
+				AND b.bettype = tl.gameID
+				AND b.refno = tl.translogid
 	WHERE	1 = CASE 
 					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
 					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
@@ -155,33 +155,7 @@ BEGIN
 					ELSE 0 
 					END 
 			AND b.bettype IN (801,803,804,805,806)
-			AND b.statusID <> 0
-			AND b.transid IS NOT NULL
-	UNION ALL
-	SELECT	tl.translogid -- MG tickets (running) in translog
-			,tl.custid
-			,0 AS winlost
-			,tl.actual_stake
-			,0 AS playercomm
-			,tl.gameID
-			,tl.eventID
-			,tl.translogid
-			,-1 AS betdaqid
-			,NULL AS ExtraInfo
-			,NULL AS WalletType
-			,NULL AS RefCode
-			,NULL AS BonusID
-	FROM	translog tl WITH(NOLOCK)
-		INNER JOIN @tblTransId t
-			ON tl.translogid = t.transid
-	WHERE	1 = CASE WHEN @Type = 0 AND @ExcludeRunning = 0 AND tl.statusID IN (0, 1,111,112,113) THEN 1 
-						WHEN @Type = 0 AND @ExcludeRunning = 1 AND tl.statusID IN (111, 112, 113) THEN 1
-						WHEN @Type = 1 AND tl.statusID = 102 THEN 1
-						ELSE 0 
-					END 
-			AND tl.gameid IN (801,803,804,805,806)
-			AND tl.statusID = 0	
-			
+
 	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete
 	;WITH CTE_RefCodeSummary AS
 	(
@@ -279,7 +253,7 @@ BEGIN
 	DELETE t
 	FROM #BetDelete t
 	WHERE EXISTS (SELECT TOP 1 1
-				  FROM #BetDelete sub911 (NOLOCK)
+				  FROM #BetDelete sub911 
 				  WHERE sub911.bettype = 911
 				    AND sub911.transid = t.refno)
 				    
@@ -295,35 +269,39 @@ BEGIN
 	  AND t.WalletType = 1 
 	  AND st.BonusFlag = 2				    				    		  		  			 				    		  
 
-	-- calculate sum of members' balance on bettrans tables
-	INSERT INTO #CustomerList(custid, username, winlost, actual_stake, playercomm)	
-	SELECT	b.custid, b.Username, b.winlost, b.actual_stake, b.playercomm 				
-	FROM	dbo.bettrans b WITH(NOLOCK)
-		LEFT JOIN dbo.translog tl WITH(NOLOCK)
-			ON	b.refno = tl.translogid
-				AND b.matchid = tl.eventID						
-	WHERE	b.custid IN (SELECT custid FROM #BetDelete)
-			AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))			
-	UNION ALL 
-	SELECT	tl.custid, tl.Username, 0 AS winlost, tl.actual_stake, 0 AS playercomm 
-	FROM	dbo.translog tl WITH(NOLOCK)
-	WHERE	tl.custid IN (SELECT custid FROM #BetDelete)
-			AND tl.statusID IN (0, 1)				
-	UNION ALL
-	SELECT	custid, Username, winlost, actual_stake, playercomm 
-	FROM	dbo.bettransRnG WITH(NOLOCK)
-	WHERE	custid IN (SELECT custid FROM #BetDelete)
-			AND IsSum=0				
-	UNION ALL
-	SELECT	custid, Username, winlost, actual_stake, playercomm
-	FROM	dbo.bettransLC WITH(NOLOCK)
-	WHERE	custid IN (SELECT custid FROM #BetDelete) 
-			AND IsSum=0		
+	INSERT INTO @tmpAffectedCustId(CustId)
+	SELECT	DISTINCT custid
+	FROM	#BetDelete
 
-	INSERT INTO @balanceCust (custid, username, balance)
-	SELECT custid, username, SUM(winlost - actual_stake + playercomm) AS balance 
-	FROM #CustomerList
-	GROUP BY custid, username				
+	-- calculate sum of members' balance on bettrans tables
+	INSERT INTO @tmpCurrentBalance(custid, username, balance)
+	SELECT b.custid, b.Username, SUM(b.balance)
+	FROM 
+	(
+		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
+		FROM	dbo.bettrans b WITH(NOLOCK)					
+		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId)
+				AND	1 = CASE 
+							WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
+							ELSE 1
+						END		
+		UNION ALL 
+		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
+		FROM	dbo.translog tl WITH(NOLOCK)
+		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
+				AND tl.statusID IN (0, 1)				
+		UNION ALL
+		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
+		FROM	dbo.bettransRnG b WITH(NOLOCK)
+		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId)
+				AND b.IsSum=0				
+		UNION ALL
+		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
+		FROM	dbo.bettransLC b WITH(NOLOCK)
+		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId) 
+				AND b.IsSum=0	
+	) b
+	GROUP BY b.custid, b.Username
 
 	--calc chargecomm
 	DECLARE @ChargeComm TABLE (custid INT, matchid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY)
@@ -334,7 +312,7 @@ BEGIN
 		SELECT MIN(transid) AS FirstTransId, SUM(winlost - actual_stake) AS NetWin, custid, matchid
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE EXISTS (SELECT TOP 1 1 FROM #BetDelete bb WHERE b.custid = bb.custid)  
-			AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId bb WHERE b.transid = bb.transid)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTransId bb WHERE b.transid = bb.transid)
 			AND bettype = 501
 			AND playerdiscount < 0
 		GROUP BY custid, matchid
@@ -350,7 +328,7 @@ BEGIN
 
 	IF(@Type = 0)
 	BEGIN
-		INSERT INTO @balanceTrans (custid, balance)
+		INSERT INTO @tmpChangedBalance (custid, balance)
 		SELECT t.custid, SUM(t.winlost - t.actual_stake + t.playercomm) AS balance
 		FROM (
 			SELECT b.custid, b.winlost, b.actual_stake, b.playercomm
@@ -364,7 +342,7 @@ BEGIN
 	END
 	ELSE -- recover
 	BEGIN
-		INSERT INTO @balanceTrans(custid, balance)
+		INSERT INTO @tmpChangedBalance(custid, balance)
 		SELECT tmp.custid, SUM(tmp.balance)
 		FROM (
 			SELECT	b.custid, b.actual_stake AS balance
@@ -401,16 +379,18 @@ BEGIN
 	
 	SELECT	bal.custid
 			,bal.username
-			,ag.site
-	FROM	@balanceTrans t
-		INNER JOIN @balanceCust bal 
+			,c.site
+	FROM	@tmpChangedBalance t
+		INNER JOIN @tmpCurrentBalance bal 
 			on	t.custid = bal.custid
-		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
-			ON	bal.custid = c.custid
-		INNER JOIN custDB.dbo.Customer ag WITH(NOLOCK) 
-			ON	ag.custid = c.recommend AND ag.site <> 'CN88'
+		INNER JOIN DBCUST.custDB.dbo.custInfo ci WITH(NOLOCK ) 
+			ON	bal.custid = ci.custid
+		INNER JOIN custDB.dbo.Customer c WITH(NOLOCK) 
+			ON	c.custid = ci.custid AND c.site <> 'CN88'
 		LEFT JOIN @BalNetPositionTmp tt ON t.CustId = tt.CustId
 	WHERE	t.balance > 0 
-			AND (c.credit + bal.balance - t.balance + ISNULL(tt.Balance, 0)) < 0			
+			AND (ci.credit + bal.balance - t.balance + ISNULL(tt.Balance, 0)) < 0	
+			
+	DROP TABLE #BetDelete
 END
 GO
