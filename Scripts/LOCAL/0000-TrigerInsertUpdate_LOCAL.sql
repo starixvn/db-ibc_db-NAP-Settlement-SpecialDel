@@ -60,7 +60,7 @@ GO
 		IF (@UpdatedRows = 0 AND @InsertedRows = 0)
 			RETURN
 
-		IF ( SUSER_SNAME() LIKE ''%spvn%'' 
+		IF ( SUSER_SNAME() LIKE ''spvn%'' 
 				OR SUSER_SNAME() LIKE ''dba%'' 
 				OR SUSER_SNAME() LIKE ''%dba'' 
 				OR SUSER_SNAME() IN (''testteam'',''sputeam'')
