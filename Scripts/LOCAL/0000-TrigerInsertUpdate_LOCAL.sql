@@ -69,7 +69,7 @@ GO
 		BEGIN			
 			IF ( @action IN (''U'',''D'') AND  @UpdatedRows > 1000)
 			BEGIN
-				RAISERROR(''In LOCAL evironment, please Update/Delete by batch less than 1000'', 16, 1)
+				RAISERROR(''In LOCAL evironment, please Update/Delete by batch less than or equal to 1000'', 16, 1)
 				ROLLBACK
 			END
 
