@@ -107,12 +107,11 @@ BEGIN
 	CREATE TABLE #tblGroupTypeAccept (TypeAccept TINYINT, MinTicket DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
-	IF @IssueTypeId IN (1,10)
+	IF @IssueTypeId = 1
 	BEGIN
 		SELECT @MinAccept = @AATime
 			 , @MaxAccept = @AATime
 			 
-
 		IF @MinAccept > @PATime SET @MinAccept = @PATime
 		IF @MinAccept > @SATime SET @MinAccept = @SATime
 	

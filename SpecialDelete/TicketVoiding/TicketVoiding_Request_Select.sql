@@ -69,20 +69,6 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,10)
-	BEGIN 
-		DECLARE @TypeAcceptXml XML, @AutoAccept TINYINT, @PendingAccept TINYINT, @SecondAccept TINYINT
-		
-		SELECT @TypeAcceptXml = CAST (rd.TransIds AS XML)
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-		WHERE RequestId = @RequestId
-
-		SELECT	@AutoAccept = T.C.value('@AA', 'TINYINT')
-				,@PendingAccept = T.C.value('@PA', 'TINYINT')
-				,@SecondAccept = T.C.value('@SA', 'TINYINT')
-		FROM	@TypeAcceptXml.nodes('/r') AS T(C)
-	END
-
 	IF @IssueTypeId IN (1,8,9,10,11)
 	BEGIN
 		SELECT	rd.MatchId
@@ -92,7 +78,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
-				,ts.TransIds
+				,STUFF(ts.TransIds,1,1,'') AS TransIds
 				,m.hthomescore
 				,m.htawayscore
 				,m.finalhomescore
@@ -106,9 +92,7 @@ BEGIN
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @AutoAccept ELSE NULL END AATime
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @PendingAccept ELSE NULL END PATime
-				,CASE WHEN @IssueTypeId IN (1,10) THEN @SecondAccept ELSE NULL END SATime
+				,rd.TransIds AS SettingTime 
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
@@ -119,19 +103,11 @@ BEGIN
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 			) m
-			OUTER APPLY (
-						SELECT COUNT(1) AS TotalSingle
-							,STUFF((
-								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-								FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-								WHERE (RequestId = s.RequestId) 
-								FOR XML PATH(''))
-								,1,1,''
-							) AS TransIds
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-						WHERE s.RequestId = @RequestId
-						GROUP BY s.RequestId
-				)ts
+			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					WHERE s.RequestId = rd.RequestId
+					FOR XML PATH('')
+				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
 	END
 	IF @IssueTypeId = 13 -- apply for Abnormal Account
