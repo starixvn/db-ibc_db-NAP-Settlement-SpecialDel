@@ -117,7 +117,8 @@ BEGIN
 				WHERE RequestId = q.RequestId
 			)r
 	WHERE q.StatusId = 0 
-		AND r.ActionId NOT IN (4,6,7)
+		AND q.Action IN ('VoidInstant5m', 'VoidInstant10m')
+		AND r.ActionId NOT IN (6,7)
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 	
 	-------------------END OF Process invalid request-----------	
