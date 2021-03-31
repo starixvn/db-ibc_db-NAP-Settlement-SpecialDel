@@ -207,7 +207,7 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @UnmarkTransids
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@Username = @Username
 				,@IP = @IP

@@ -38,7 +38,8 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
-		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075]
+		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 	
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -224,7 +225,7 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 		END
 
@@ -302,7 +303,7 @@ BEGIN
 				--Unmark ticket
 				IF @MarkedTransIds IS NOT NULL
 					BEGIN
-						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																			, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 					END												
 
@@ -497,7 +498,7 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 		END
 
@@ -558,7 +559,7 @@ BEGIN
 				--Unmark ticket
 				IF @MarkedTransIds IS NOT NULL
 					BEGIN
-						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																			, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 					END												
 

@@ -244,7 +244,7 @@ BEGIN
 											GROUP BY TransId for XML PATH('')), 1, 1, '')
 			
 			BEGIN TRY
-				EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @TransIds_tmp
+				EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @TransIds_tmp
 					,@UserId = @UserId
 					,@Username = @UserName
 					,@IP = @IP
