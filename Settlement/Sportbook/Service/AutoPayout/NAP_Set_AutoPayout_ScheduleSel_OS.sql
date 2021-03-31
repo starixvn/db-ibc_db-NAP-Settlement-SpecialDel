@@ -55,8 +55,7 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 		WHERE m.eventstatus = 'running' 
 			AND m.sporttype IN (18) --Table Tennis
-			AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203
-			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
+			AND mr.ConfirmFT > 0
 			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 			AND NOT EXISTS (SELECT TOP 1 1 
 								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
@@ -75,13 +74,7 @@ BEGIN
 	FROM @tmpMatchAuto t
 		LEFT JOIN dbo.ProviderExternalResultDetail p 
 			ON t.MatchId = p.MatchId AND p.ResourceId = '00'
-		OUTER APPLY(
-			SELECT TOP 1 ss.WaitingTime
-			FROM	dbo.SettlementSetting ss WITH (NOLOCK)
-			WHERE	ss.LeagueId = t.leagueid
-					AND ss.AutoType = 5 -- Direct Auto Payout
-		) ss
-	WHERE 1 = CASE WHEN p.ProviderExternalId IS NOT NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16 AND p.SourceId = 101 AND p.CreateDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,1), @currTime) THEN 1
+	WHERE 1 = CASE WHEN p.ProviderExternalId IS NOT NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16 AND p.SourceId = 101 THEN 1
 					WHEN 1 & ISNULL(t.AutoSetting, 0) = 1 THEN 1
 				END
 

@@ -254,8 +254,6 @@ BEGIN
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
-			INNER JOIN @tmpSporttypes s
-				ON m.sporttype = s.Sporttype
 			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 				ON	m.matchid = mr.matchid
 			OUTER APPLY (
@@ -372,7 +370,7 @@ BEGIN
 	END
 
 	--check auto setting
-	IF (@AutoSetting > 0)
+	IF (@AutoSetting > 0) AND @MatchCode <> ''
 	BEGIN
 		DECLARE @DirectAutoPayout TINYINT
 		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
@@ -623,7 +621,7 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpTicketStatus WHERE id = 0)
+	IF @MatchCode <> '' AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTicketStatus WHERE id = 0)
 	BEGIN
 		DELETE	m
 		FROM	#tmpMatchIds m
