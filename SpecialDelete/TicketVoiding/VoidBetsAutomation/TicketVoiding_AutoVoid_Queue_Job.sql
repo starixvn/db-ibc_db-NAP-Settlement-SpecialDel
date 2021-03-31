@@ -104,6 +104,21 @@ BEGIN
 		AND q.RequestId = 0 
 		AND mt_tmp.TransId IS NULL AND m.matchid IS NULL	
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
+
+	--Update cancel for action change to Manual Action
+	UPDATE q
+		SET StatusId = 4
+			,ErrMsg = 'Change action from AutoVoid Instant to other action'
+			,Exectime = GETDATE()
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
+		CROSS APPLY (
+				SELECT TOP 1 ActionId
+				FROM dbo.TicketVoiding_Request WITH (NOLOCK)
+				WHERE RequestId = q.RequestId
+			)r
+	WHERE q.StatusId = 0 
+		AND r.ActionId NOT IN (4,6,7)
+		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
