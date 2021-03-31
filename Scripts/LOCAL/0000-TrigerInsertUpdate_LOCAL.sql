@@ -61,7 +61,8 @@ GO
 			RETURN
 
 		IF ( SUSER_SNAME() LIKE ''%spvn%'' 
-				OR SUSER_SNAME() LIKE ''%dba%'' 
+				OR SUSER_SNAME() LIKE ''dba%'' 
+				OR SUSER_SNAME() LIKE ''%dba'' 
 				OR SUSER_SNAME() IN (''testteam'',''sputeam'')
 			)
 
