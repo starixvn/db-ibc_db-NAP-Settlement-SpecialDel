@@ -147,7 +147,7 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
-	CREATE TABLE #tblInstantSettlement (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT)
+	CREATE TABLE #tblInstantSettlement (RequestId INT, MatchId INT, InstantlySettleCount INT)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -1298,24 +1298,12 @@ BEGIN
 		WHERE sub911.bettype = 911
 
 		/*Get Instant settlement*/
-		INSERT INTO #tblInstantSettlement (RequestId, MatchId, transid, bettype)
-		SELECT @RequestId, @MatchId, s.TransId, b.bettype
+		INSERT INTO #tblInstantSettlement (RequestId, MatchId,InstantlySettleCount)
+		SELECT @RequestId, @MatchId, COUNT(s.TransId)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 		WHERE s.RequestId = @RequestId
 			AND s.MatchId = @MatchId
-			AND b.statusID IN (111,112,113)
-			 AND EXISTS (SELECT TOP 1 1
-						 FROM #InstantSettlementBettypes
-						 WHERE bettype = b.bettype)
-		-- Parlay
-		INSERT INTO #tblInstantSettlement (RequestId, MatchId, transid, bettype)
-		SELECT @RequestId, @MatchId, b.TransId AS MainTransId , b.bettype
-		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
-		WHERE rp.RequestId = @RequestId
-			AND rp.MatchId = @MatchId
 			AND b.statusID IN (111,112,113)
 			 AND EXISTS (SELECT TOP 1 1
 						 FROM #InstantSettlementBettypes
@@ -1327,7 +1315,7 @@ BEGIN
 			,rd.VoidToTime
 			,rd.SingleCount
 			,c.CashOutCount AS CashOutCount
-			,i.InstantlySettleCount AS InstantlySettleCount
+			,i.InstantlySettleCount
 			,rd.MainParlayCount
 			,rd.MinSingleTransId
 			,rd.MaxSingleTransId
@@ -1340,12 +1328,7 @@ BEGIN
 					WHERE RequestId = rd.RequestId	
 						AND MatchId = rd.MatchId
 			) c
-		  OUTER APPLY (
-					SELECT COUNT(TransID) AS InstantlySettleCount
-					FROM #tblInstantSettlement
-					WHERE RequestId = rd.RequestId	
-						AND MatchId = rd.MatchId
-		  )i
+			LEFT JOIN #tblInstantSettlement i ON rd.RequestId = i.RequestId AND rd.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
 
 		RETURN;
