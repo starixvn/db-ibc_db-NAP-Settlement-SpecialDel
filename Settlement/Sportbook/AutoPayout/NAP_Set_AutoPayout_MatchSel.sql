@@ -10,8 +10,9 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	, @IsReLoad 			BIT = 0
 	, @IsHTOverOnly 		BIT = 0
 	, @IsOverOnly 			BIT = 0
-	, @AutoSetting 			TINYINT = 0
-	,@IsMarkedTicket		BIT = 0
+	, @AutoSetting 			VARCHAR(10) = ''
+	, @IsMarkedTicket		BIT = 0
+	, @IsInstant			BIT = 0
 AS
 /*  
  Created by: 20160311@Patrick
@@ -55,6 +56,7 @@ AS
 	- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 	- 20200904@Louisa: Get external score [Redmine:#139979]
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
 
 	
  Param explanation:  
@@ -64,12 +66,13 @@ AS
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
+	@AutoSetting : 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout; '': not select  | Ex: @AutoSetting = '16,0'
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @UncalOnly BIT, @UncalMultiOnly BIT, @EventStatus NVARCHAR(50), @IsRefund BIT
-		, @MatchId INT, @Today DATETIME
+		,@MatchId INT, @Today DATETIME
 		,@SettlementStatus TINYINT
 
 	SELECT @matchcode 	= ISNULL(@matchcode, '')
@@ -85,7 +88,15 @@ BEGIN
 			, @LeagueID = CASE WHEN @isReLoad = 1 THEN @LeagueID 
 							ELSE 0 END -- reload partial; search on LeagueID, not reload: get all leagues
 			,@SettlementStatus = 0
+			,@SportType = 0
+			,@FilterBy = 3
 			,@IsMarkedTicket = 0
+			,@IsHTOverOnly = 0
+			,@IsOverOnly   = 0
+			,@AutoSetting = ''
+			,@IsInstant =0
+			,@StatusId = 0
+			,@IsMarkedTicket =0
 
 		IF ISNUMERIC(@matchcode) = 1
 		BEGIN
@@ -302,24 +313,39 @@ BEGIN
 				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 
-	--check auto setting
-	IF (@AutoSetting > 0)
+	IF (@IsInstant = 1)
 	BEGIN
-		DECLARE @DirectAutoPayout TINYINT
-		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
-										WHEN @AutoSetting = 3 THEN 18 -- Auto payout and Instant Calc
-										ELSE 0
-									END
 		DELETE m
 		FROM #matchList m
-		--WHERE @AutoSetting & m.AutoSetting <> @AutoSetting
-		WHERE 1 = 
-				CASE 
-					WHEN 16 & m.AutoSetting = 16 AND @AutoSetting IN (1,3) THEN 
-						CASE WHEN @DirectAutoPayout & m.AutoSetting <> @DirectAutoPayout THEN 1 ELSE 0 END 
-					ELSE 
-						CASE WHEN @AutoSetting & m.AutoSetting <> @AutoSetting THEN 1 ELSE 0 END
-				END
+		WHERE m.AutoSetting & 2  = 0
+	END
+		
+	--check auto setting
+	IF ( ISNULL(@AutoSetting,'') <> '')
+	BEGIN
+		DECLARE @AutoValue TINYINT
+				,@minValue TINYINT
+
+		DECLARE @tmpAutoSetting TABLE (AutoSetting TINYINT)
+
+		INSERT INTO @tmpAutoSetting ( AutoSetting ) 
+		SELECT val FROM dbo.f_SplitString(@AutoSetting, ',')
+
+		SELECT  @AutoValue = SUM(AutoSetting) 
+				,@minValue = MIN(AutoSetting)
+		FROM @tmpAutoSetting
+
+		DELETE m
+		FROM #matchList m
+		WHERE 1 =  CASE WHEN @AutoSetting = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1 
+				   										 ELSE 0 END
+				   		WHEN @minValue = 0 
+				   			AND m.AutoSetting & (@AutoSetting ^17) > 0  
+				   			AND m.AutoSetting & @AutoSetting = 0
+				   			THEN 1
+				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoSetting = 0 THEN 1
+				   		ELSE 0
+				   		END
 	END
 	
 	BEGIN --update status
@@ -484,7 +510,7 @@ BEGIN
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
 
 	--Checking for Inst match info
-	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
+	IF (@AutoSetting = '' OR @IsInstant = 1)
 	BEGIN 
 		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
 		SELECT t.MatchId
