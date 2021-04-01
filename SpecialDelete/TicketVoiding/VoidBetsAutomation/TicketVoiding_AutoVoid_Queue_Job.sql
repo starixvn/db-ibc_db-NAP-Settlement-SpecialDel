@@ -16,7 +16,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
 		- 20201220@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
-		- 20200308@Max: [TVS] Auto void before KO time [Redmine: #150522]
+		- 20210308@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		
 	Param's explanation:	
 	
