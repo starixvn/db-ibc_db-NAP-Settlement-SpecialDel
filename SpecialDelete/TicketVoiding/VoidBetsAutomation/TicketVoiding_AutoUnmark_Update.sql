@@ -32,6 +32,7 @@ AS
 		- 20200615@Max: HotFix - Do not settle after confirm auto unmark - Remove check StatusId in Queue - [Redmine: #135864]
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		
 	Param's explanation:	
 		
@@ -206,10 +207,11 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
-			EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @UnmarkTransids
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@Username = @Username
 				,@IP = @IP
+				,@IsLockMatch = 0
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@ErrCode = @ErrCode OUTPUT;
 

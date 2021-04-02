@@ -30,6 +30,7 @@ AS
 		- 20201013@July: [TVS] - HotFix - Danger accept add by accept time can add ticket super live [Redmine: #143308]
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
+		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 	
 	Param's explanation:	
 		
@@ -179,7 +180,7 @@ BEGIN
 										), 1,1,'')
 		IF @RemoveTransIds IS NOT NULL
 		BEGIN
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 		END
 
@@ -262,7 +263,7 @@ BEGIN
 			
 				IF @MarkedTransIds IS NOT NULL
 					BEGIN
-						EXEC dbo.Nap_SpecialDelete_MarkedTickets_ManualUpdate @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																			, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 					END												
 
