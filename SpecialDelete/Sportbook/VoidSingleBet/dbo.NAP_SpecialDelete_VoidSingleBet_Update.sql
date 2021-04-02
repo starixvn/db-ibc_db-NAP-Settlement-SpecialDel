@@ -503,10 +503,7 @@ BEGIN
 	IF EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t
 					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-				WHERE b.matchid = 29  
-					AND b.bettype = 29   
-					AND bm.matchid  <> @matchid  
+				WHERE bm.matchid  <> @matchid  
 			)
 	BEGIN
 		SELECT	@ErrCode = 99
@@ -2126,27 +2123,15 @@ BEGIN
 		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID
 
-		-- Tuning EC2021
-		-- get negative balance user list
 		SET @NegativeBalanceUsers = ''
-		SET @CustIds = ''
-		SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-		FROM	(
-			SELECT DISTINCT b.custid
-			FROM @BeforeUpd b
-				INNER JOIN @AfterUpd a
-					ON b.custid = a.custid
-						AND b.matchid = a.matchid
-						AND b.balanceType = a.balanceType
-						AND b.bonusId = a.bonusId
-						AND b.walletType = a.walletType
-			WHERE	b.balance > a.balance
-		)t
-		
+		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
+		FROM #BeforeUpd b
+			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
+		WHERE b.balance > a.balance
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-		 
+
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistSingle

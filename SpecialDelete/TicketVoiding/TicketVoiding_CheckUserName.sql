@@ -52,11 +52,12 @@ BEGIN
 			,@IsExistVS				  BIT = 0
 			,@IsExistBB				  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-
+			,@todate_tmp			  DATETIME = '9999-01-01'
+	
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
-	--CREATE TABLE #InputValidCustid_tmp (custid INT )
+	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 
@@ -92,20 +93,17 @@ BEGIN
 	SELECT @moveBetDay14 = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
 	*/
+	
 	SELECT @moveBetDay14 = MAX(eventdate) 
 	FROM dbo.match14 WITH(NOLOCK)
-	WHERE sporttype < 99
 	
 	SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
 			, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
 			
 	IF @ToDate IS NULL
 	BEGIN
-		SELECT @moveBetDay = MAX(eventdate) 
-		FROM dbo.match WITH(NOLOCK)
-		WHERE sporttype < 99
 		
-		SET @ToDate = @moveBetDay
+		SET @ToDate = @todate_tmp
 	END
 	
 	INSERT INTO @Status_tmp (StatusId)
@@ -121,10 +119,11 @@ BEGIN
 			, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
-	INSERT INTO #InputUsernameList (Username, custid, roleid)
+	INSERT INTO #InputUsernameList (Username, custid, roleid,recommend)
 	SELECT l.Username
 		  ,ci.custid
 		  ,ci.roleid
+		  ,ci.recommend
 	FROM #TmpInValidUserName l
 		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
 	WHERE ci.custid IS NOT NULL
@@ -140,7 +139,8 @@ BEGIN
 		SELECT DISTINCT ci.custid
 		FROM #InputUsernameList l
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
-		WHERE l.roleid = 3 AND ci.roleid = 2
+			LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
+		WHERE l.roleid = 3 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
@@ -153,19 +153,14 @@ BEGIN
 		WHERE l.roleid = 4 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
 
-	/*
+	
 	-- list of member to process
-	INSERT INTO #InputValidCustid_tmp (CustID)
-	SELECT  CustID
-	FROM #InputUsernameList l
-	WHERE l.roleid =1
-	UNION
-	SELECT ci.CustID
-	FROM #InputValidCustid_2 lt
-		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
-		ON lt.custid = ci.recommend
-	WHERE ci.roleid = 1
-	*/
+	INSERT INTO #InputValidCustid_1 (CustID)
+	SELECT  DISTINCT l1.CustID
+	FROM #InputUsernameList l1
+		LEFT JOIN #InputValidCustid_2 l2 ON l1.recommend = l2.custid 
+	WHERE l1.roleid = 1 AND l2.custid IS NULL
+	
 	------------Prepare Data------------------------
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -187,54 +182,108 @@ BEGIN
 		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
+	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
+	BEGIN
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		SELECT	b.translogid AS transid
+				,b.statusID 
+				,b.EventID
+				,b.GameID
+		FROM	dbo.translog AS b WITH (NOLOCK)
+			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
+				AND b.GameID BETWEEN 801 AND 806
+				AND b.statusID = 0
+				AND @IsSB = 1
+					
+		UNION ALL
+		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
+				,b.statusID
+				,b.matchid
+				,b.bettype
+		FROM dbo.bettrans AS b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+			)ml
+			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+			OUTER APPLY (
+				SELECT TOP 1 m.sporttype 
+				FROM dbo.match m WITH (NOLOCK)
+				WHERE m.matchid = b.matchid
+					AND m.sporttype = 50
+			)mc
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
+			AND 1 = CASE 
+						WHEN @IsSB = 1 
+							AND b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+							AND b.bettype NOT BETWEEN 801 AND 806 -- MG
+							AND ml.LeagueGroupID IS NULL 
+							AND mc.sporttype IS NULL --exclude cricket
+							THEN 1
+						WHEN @IsSaba = 1 
+							AND ml.LeagueGroupID IS NOT NULL THEN 1								
+					ELSE 0 END	
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
+	END
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_1)
+	BEGIN
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		SELECT	b.translogid AS transid
+				,b.statusID 
+				,b.EventID
+				,b.GameID
+		FROM	dbo.translog AS b WITH (NOLOCK)
+			INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
+		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
+				AND b.GameID BETWEEN 801 AND 806
+				AND b.statusID = 0
+				AND @IsSB = 1
+					
+		UNION ALL
+		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
+				,b.statusID
+				,b.matchid
+				,b.bettype
+		FROM dbo.bettrans AS b WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT TOP 1 1 LeagueGroupID 
+				FROM dbo.match m WITH (NOLOCK)
+					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+				WHERE m.matchid = b.matchid
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+			)ml
+			OUTER APPLY (
+				SELECT TOP 1 m.sporttype 
+				FROM dbo.match m WITH (NOLOCK)
+				WHERE m.matchid = b.matchid
+					AND m.sporttype = 50
+			)mc
+			INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
+			AND 1 = CASE 
+						WHEN @IsSB = 1 
+							AND b.bettype BETWEEN 801 AND 806 
+							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+							AND b.bettype NOT BETWEEN 801 AND 806 -- MG
+							AND ml.LeagueGroupID IS NULL 
+							AND mc.sporttype IS NULL --exclude cricket
+							THEN 1
+						WHEN @IsSaba = 1 
+							AND ml.LeagueGroupID IS NOT NULL THEN 1								
+					ELSE 0 END	
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 
-	INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
-	SELECT	b.translogid AS transid
-			,b.statusID 
-			,b.EventID
-			,b.GameID
-	FROM	dbo.translog AS b WITH (NOLOCK)
-		INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
-	WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
-			AND b.GameID BETWEEN 801 AND 806
-			AND b.statusID = 0
-			AND @IsSB = 1
-				
-	UNION ALL
-	SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
-			,b.statusID
-			,b.matchid
-			,b.bettype
-	FROM dbo.bettrans AS b WITH (NOLOCK)
-		OUTER APPLY (
-			SELECT TOP 1 1 LeagueGroupID 
-			FROM dbo.match m WITH (NOLOCK)
-				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-			WHERE m.matchid = b.matchid
-				AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
-		)ml
-		INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
-		OUTER APPLY (
-			SELECT TOP 1 m.sporttype 
-			FROM dbo.match m WITH (NOLOCK)
-			WHERE m.matchid = b.matchid
-				AND m.sporttype = 50
-		)mc
-		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-	WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
-		AND 1 = CASE 
-					WHEN @IsSB = 1 
-						AND b.bettype BETWEEN 801 AND 806 
-						AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
-					WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
-						AND b.bettype NOT BETWEEN 801 AND 806 -- MG
-						AND ml.LeagueGroupID IS NULL 
-						AND mc.sporttype IS NULL --exclude cricket
-						THEN 1
-					WHEN @IsSaba = 1 
-						AND ml.LeagueGroupID IS NOT NULL THEN 1								
-				ELSE 0 END	
-		AND statusID IN (SELECT statusID FROM @Status_tmp)
+	END
 	
 	----------End of data prepare-----------------
 	--3. TransId in request table
@@ -261,6 +310,8 @@ BEGIN
 		DELETE 
 		FROM #transIdTemp
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+		
+		SET @NumberOfTickets = @@ROWCOUNT
 
 	END
 
@@ -270,17 +321,11 @@ BEGIN
 							  FOR XML PATH ('')
 							),1,1,'')
 
-	SELECT @NumberOfTickets = COUNT (t.transid) 
-	FROM #TransidInRequest t
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.TransId = b.transid
-	WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate
-
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp b WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.transid))
-	BEGIN
-		SET @IsInValidTotalTicket = 1
-	END
-	ELSE SET @IsInValidTotalTicket = 0
-
+	IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp) 
+		SET @IsInValidTotalTicket = 0 
+	ELSE 
+		SET @IsInValidTotalTicket = 1 
+	
 	---Prepare for lock match---
 	SELECT   @IsExistSingle 		    = MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@IsExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
@@ -343,7 +388,7 @@ BEGIN
 		  ,@IsExistFM2 AS IsExistFM2		
 
 	DROP TABLE #InputUsernameList
-	--DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #InputValidCustid_1
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransidInRequest

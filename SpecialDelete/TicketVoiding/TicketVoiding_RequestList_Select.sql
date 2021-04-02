@@ -33,6 +33,7 @@ AS
 		- 20201019@Zane: TVS - Enhance for Danger Accept - Phase 4 - Fix duplicate request id [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
+		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 
 	Param's explanation:	
