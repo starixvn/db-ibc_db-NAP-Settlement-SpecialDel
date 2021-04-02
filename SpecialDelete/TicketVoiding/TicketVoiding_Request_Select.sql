@@ -34,8 +34,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid	 BIGINT = 0
-		   ,@IssueTypeId TINYINT
+	DECLARE @IssueTypeId TINYINT
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -105,7 +104,7 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId = 11
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId

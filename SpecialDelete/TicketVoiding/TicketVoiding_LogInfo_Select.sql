@@ -47,8 +47,6 @@ BEGIN
 			,@IsInValidTotalTickets   BIT = 0
 			,@IsInvalidLiveScore	  BIT = 0
 			,@IsExistedInOtherRequest BIT = 0
-			,@totalLiveHomeScore	  INT = 0
-			,@totalAwayLiveScore	  INT = 0
 			,@totalRecord			  INT = 0
 			,@SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
@@ -57,6 +55,7 @@ BEGIN
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
+			,@InstantlySettleCount	  INT = 0
 	
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -124,8 +123,6 @@ BEGIN
 			IsMarked BIT
 	)
 
-	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
-
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
@@ -147,7 +144,6 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
-	CREATE TABLE #tblInstantSettlement (RequestId INT, MatchId INT, InstantlySettleCount INT)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
@@ -1298,8 +1294,7 @@ BEGIN
 		WHERE sub911.bettype = 911
 
 		/*Get Instant settlement*/
-		INSERT INTO #tblInstantSettlement (RequestId, MatchId,InstantlySettleCount)
-		SELECT @RequestId, @MatchId, COUNT(s.TransId)
+		SELECT @InstantlySettleCount = COUNT(s.TransId)
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 		WHERE s.RequestId = @RequestId
@@ -1315,7 +1310,7 @@ BEGIN
 			,rd.VoidToTime
 			,rd.SingleCount
 			,c.CashOutCount AS CashOutCount
-			,i.InstantlySettleCount
+			,@InstantlySettleCount AS InstantlySettleCount
 			,rd.MainParlayCount
 			,rd.MinSingleTransId
 			,rd.MaxSingleTransId
@@ -1328,7 +1323,6 @@ BEGIN
 					WHERE RequestId = rd.RequestId	
 						AND MatchId = rd.MatchId
 			) c
-			LEFT JOIN #tblInstantSettlement i ON rd.RequestId = i.RequestId AND rd.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
 
 		RETURN;
@@ -1486,12 +1480,10 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #logInfo
-	DROP TABLE #tblSoldTicket
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
-	DROP TABLE #tblInstantSettlement
 
 END
 GO
