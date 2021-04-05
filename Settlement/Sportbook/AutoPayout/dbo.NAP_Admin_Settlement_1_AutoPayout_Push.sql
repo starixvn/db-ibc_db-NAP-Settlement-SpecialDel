@@ -121,7 +121,7 @@ BEGIN
 
         RETURN
 	END
-	IF @sporttype = 18 AND EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.match_remark WITH (NOLOCK) WHERE calculate = 1)
+	IF @sporttype = 18 AND EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.match_remark WITH (NOLOCK) WHERE calculate = 1 AND matchid = @MatchId)
 	BEGIN
 		SELECT @ErrCode = 1001018
 			, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
