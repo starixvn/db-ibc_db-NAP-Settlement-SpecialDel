@@ -36,7 +36,8 @@ BEGIN
 													INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 												WHERE 1 = CASE 
 															WHEN q.Action NOT IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
-															WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) < -30 THEN 1
+															WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND q.Starttime > m.GlobalShowTime
+																AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
 															ELSE 0 END
 												FOR XML PATH(''))
 												,1,1,''),'')
