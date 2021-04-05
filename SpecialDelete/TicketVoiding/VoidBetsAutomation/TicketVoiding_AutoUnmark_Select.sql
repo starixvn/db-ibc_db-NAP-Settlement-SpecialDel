@@ -25,6 +25,7 @@ AS
 		- 20200526@Max: Incorporate E-Sports (phase 3) - Change Group By MarkType [Redmine: #133121]
 		- 20200608@Charles: Auto Void for remaining sports [Redmine: #131865]
 		- 20200729@Zane: Basketball AIO Phase 2 - Fix error when show tickets [Redmine: #137189]
+		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 
 	Param's explanation:	
 	
@@ -67,22 +68,25 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,CASE WHEN f.IsCheckBetId = 1 AND bm.IsParlay = 1 THEN bm.betcheck
-						WHEN f.IsCheckBetId = 1 AND bm.IsParlay IS NULL THEN b.betid 
-						ELSE NULL END AS BetId
+				,b.betid 
 			FROM CTE_FilterData AS f
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
-				OUTER APPLY (
-					SELECT TOP 1 m.betcheck
-						,1 AS IsParlay
-					FROM dbo.bettransm AS m WITH (NOLOCK)
-					WHERE m.refno = b.refno
-						AND m.statusID NOT IN (101, 102)
-						AND b.matchId = 29
-						AND m.matchid = f.MatchId
-				) AS bm
-			WHERE 1 = CASE WHEN b.matchid <> 29 AND b.statusID NOT IN (101, 102) THEN 1
-							WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1 ELSE 0 END
+			WHERE b.matchid <> 29 AND b.statusID NOT IN (101, 102) 
+
+			UNION ALL
+			
+			SELECT f.TransId
+				,f.MatchId
+				,f.bettype
+				,f.UserId
+				,f.CreatedDate
+				,f.MarkType
+				,m.betcheck
+			FROM CTE_FilterData AS f
+				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
+				INNER HASH JOIN bettransm AS m WITH (NOLOCK) ON f.MatchId = m.matchid AND b.refno = m.refno AND m.statusID NOT IN (101, 102)
+			WHERE b.matchid = 29
+														
 			)
 		INSERT INTO #MarkedTransaction_tmp (
 			MatchId
