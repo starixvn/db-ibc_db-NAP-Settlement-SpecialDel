@@ -642,15 +642,15 @@ BEGIN
 		END
 		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedHomeTeam <> @IsCheckedHomeTeam
 		BEGIN
-			SET @LogDataContent += 'Old IsCheckedHomeTeam: '+ CAST(@OldIsCheckedHomeTeam AS VARCHAR(10)) + ', IsCheckedHomeTeam: ' + CAST(@IsCheckedHomeTeam AS VARCHAR(10))
+			SET @LogDataContent += 'Old IsCheckedHomeTeam: '+ CAST(@OldIsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(@IsCheckedHomeTeam AS VARCHAR(10))
 		END
 		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedAwayTeam <> @IsCheckedAwayTeam
 		BEGIN
-			SET @LogDataContent += 'Old IsCheckedAwayTeam: '+ CAST(@OldIsCheckedAwayTeam AS VARCHAR(10)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10))
+			SET @LogDataContent += 'Old IsCheckedAwayTeam: '+ CAST(@OldIsCheckedAwayTeam AS VARCHAR(10)) + ', New IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10))
 		END
 		IF @OldTypeAccept <> @TypeAccept
 		BEGIN
-			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', TypeAccept: ' + @TypeAccept
+			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', New TypeAccept: ' + @TypeAccept
 		END
 	END
 	ELSE IF @IssueTypeId = 13
