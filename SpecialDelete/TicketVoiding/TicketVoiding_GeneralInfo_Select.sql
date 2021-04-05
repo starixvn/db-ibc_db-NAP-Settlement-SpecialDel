@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20201207@July: Create new SP [Redmine:#145719]
 		- 20201224@Zane: Return KO time [Redmine:#143666]
+		- 20210305@July: TVS - Auto void before KO time - [Redmine: #150522] 
 	
 	Param's explanation:
 		
@@ -147,8 +148,8 @@ BEGIN
 		,m.DecidedBy
 		,m.RequestedBy
 		,s.VoidedBy
-		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4) THEN sv.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4,6,7) THEN sv.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4,6,7) THEN sv.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 		,sv.NegativeBalanceUsers
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId

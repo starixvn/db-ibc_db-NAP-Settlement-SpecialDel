@@ -35,6 +35,7 @@ AS
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210402@July: TVS - Auto void before KO time with 2 new action - [Redmine: #150522]
 	Param's explanation:	
 		
 		
@@ -243,7 +244,7 @@ BEGIN
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId AND rd.MatchId = rds.MatchId
-		WHERE 1 = CASE WHEN req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.ActionId IN (1,4) -- Auto Void Winning, Auto Void All (Instant) request only, not for take notes and waiting
+		WHERE 1 = CASE WHEN req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.ActionId IN (1,4,6,7) -- Auto Void Winning, Auto Void All (Instant), Auto Void 5m & 10m before KOtime request only, not for take notes and waiting
 							AND rd.RequestId = @RequestID THEN 1
 						WHEN req.IssueTypeId = 13  AND req.ActionId = 4 -- Auto Void All (Instant) request only
 							AND rd.RequestId  = @RequestID  THEN 1

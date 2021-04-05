@@ -63,6 +63,7 @@ AS
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 		- 20210224@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
+		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 
 	Param's explanation:	
 	
@@ -168,7 +169,7 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @ActionId = 4 THEN 1 
+			, CASE WHEN @ActionId IN (4,6,7) THEN 1
 					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
 							  WHEN @IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
 							  ELSE 0
@@ -455,10 +456,14 @@ BEGIN
 			END		
 		END
 		
-		IF @ActionId = 4 OR (@ActionId = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		IF @ActionId IN (4,6,7) OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-			VALUES(@RequestId, CAST (@MatchId AS INT), CASE WHEN @ActionId = 1 THEN 'AddRequest' ELSE 'VoidInstant' END, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
+											  WHEN @ActionId = 4 THEN 'VoidInstant'
+											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
+											  ELSE 'VoidInstant10m' END --@ActionId = 7
+			, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
 	-- Write Log

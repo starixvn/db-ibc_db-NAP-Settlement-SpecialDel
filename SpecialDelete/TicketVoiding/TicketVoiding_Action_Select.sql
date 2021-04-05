@@ -10,6 +10,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
+		- 20210305@July: [TVS] Auto void before KO time - [Redmine: #150522]
 	
 	Param's explanation:		
 */
@@ -21,9 +22,12 @@ BEGIN
 				,ActionName
 		FROM 	[dbo].[TicketVoiding_Action] WITH(NOLOCK)
 		ORDER BY CASE WHEN ActionName = 'Auto Void Winning' THEN '1'
-			WHEN ActionName = 'Auto Void All (Instant)' THEN '2'
-			WHEN ActionName = 'Manual Void' THEN '3'
-			ELSE ActionName END
+					  WHEN ActionName = 'Auto Void All (Instant)' THEN '2'
+			          WHEN ActionName = 'Auto Void All (5m before KO)' THEN '3'
+				      WHEN ActionName = 'Auto Void All (10m before KO)' THEN '4'
+				      WHEN ActionName = 'Manual Void' THEN '5'
+				      ELSE ActionName 
+				 END
 	END
 END
 GO

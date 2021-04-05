@@ -16,6 +16,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
 		- 20201220@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210308@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		
 	Param's explanation:	
 	
@@ -103,6 +104,22 @@ BEGIN
 		AND q.RequestId = 0 
 		AND mt_tmp.TransId IS NULL AND m.matchid IS NULL	
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
+
+	--Update cancel for action change to Manual Action
+	UPDATE q
+		SET StatusId = 4
+			,ErrMsg = 'Change action from AutoVoid Instant to other action'
+			,Exectime = GETDATE()
+	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK)
+		CROSS APPLY (
+				SELECT TOP 1 ActionId
+				FROM dbo.TicketVoiding_Request WITH (NOLOCK)
+				WHERE RequestId = q.RequestId
+			)r
+	WHERE q.StatusId = 0 
+		AND q.Action IN ('VoidInstant5m', 'VoidInstant10m')
+		AND r.ActionId NOT IN (6,7)
+		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 	
 	-------------------END OF Process invalid request-----------	
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
@@ -115,9 +132,18 @@ BEGIN
 	SELECT q.QueueId, q.matchid, q.RequestId, q.sporttype
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
+		OUTER APPLY (
+				SELECT TOP 1 ActionId
+				FROM dbo.TicketVoiding_Request WITH (NOLOCK)
+				WHERE RequestId = q.RequestId
+			)r
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
-					WHEN q.RequestId > 0 THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId IN (1,4) THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1
 				ELSE 0 END
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
 	ORDER BY q.Action DESC, Starttime
