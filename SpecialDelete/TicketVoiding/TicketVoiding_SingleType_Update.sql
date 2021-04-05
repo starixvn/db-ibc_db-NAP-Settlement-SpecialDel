@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
 	,@IP				VARCHAR(50)		= ''
-
+	,@BypassCheckingProcess TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
@@ -33,6 +33,8 @@ AS
 		- 20210207@Helen: Increase Retry for void process [Redmine: #150178]
 		- 20210208@Max: [TVS] Enhance performance of void abnormal account [Redmine: #150204]
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
+		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
+
 	
 	Param's explanation:	
 		
@@ -299,122 +301,18 @@ BEGIN
 	WHERE matchid IN (9,29,2799)
 	GROUP BY matchid
 
-	WHILE (1=1)
+	IF @BypassCheckingProcess = 0
 	BEGIN
-		SET @MatchId_Retry = 0
-		DELETE #tblMatchProcess
-
-		UPDATE TOP(1) m SET m.isFinish = 1, @MatchId_Retry = m.matchid
-		FROM #tblMatch m
-		WHERE m.isFinish IS NULL
-
-		IF @@ROWCOUNT = 0 BREAK
-
-		SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-				,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-				,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-				,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
-				,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
-				,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-				,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
-				,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-				,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-				,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
-				,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
-				,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
-				,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
-				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-				,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
-				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-		FROM	#tmpTransId b
-			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = b.Bettype
-				)f
-		WHERE b.matchid = @MatchId_Retry
-
-	
-		INSERT INTO #tblMatchProcess(matchid, KeyID)
-		SELECT DISTINCT matchid
-			, CASE 
-				WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
-						AND Bettype NOT BETWEEN 801 AND 899
-						AND f.GroupId IS NULL
-						AND Bettype NOT IN (1231,1232,1233)
-					THEN 1 --SB,NG,LC
-				WHEN Bettype = 10 THEN 2	-- Outright
-				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
-				WHEN f.GroupId = 1 THEN 6 -- FM
-				WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
-				WHEN Bettype = 38 THEN 5 -- Bet Builder
-				WHEN f.GroupId = 2 THEN 7 -- FM 228
-				ELSE 0
-			END AS KeyID
-		FROM #tmpTransId b
-			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = b.Bettype
-				)f
-		WHERE b.matchid = @MatchId_Retry
-
-		SET @Retry = 0
-		SET @Success = 0
-	
-		WHILE @Retry < 16 AND @Success = 0
+		WHILE (1=1)
 		BEGIN
-			SET @Success = 1
-
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay 				= @isExistParlay
-				, @isExistOutright 			= @isExistOutright
-				, @isExistMG				= @isExistMG
-				, @isExistFM				= @isExistFM
-				, @isExistMatch				= @isExistMatch
-				, @isExistNG				= @isExistNG
-				, @isExistVS				= @isExistVS
-				, @isExistBB				= @isExistBB
-				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-				, @isExistFM2				= @isExistFM2
-				, @avaiableProcess 			= @avaiableProcess OUTPUT
-				, @ErrCode					= @ErrCode OUTPUT
-				, @ErrMsg					= @ErrMsg OUTPUT
-
-			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-			BEGIN
-				SET @Retry = @Retry + 1
-				SET @Success = 0
-
-				--Waitfor Delay
-				IF @isExistMatch = 1
-				BEGIN
-					WAITFOR DELAY '00:00:05'
-				END
-				ELSE IF @isExistParlay = 1
-				BEGIN
-					WAITFOR DELAY '00:00:20'
-				END
-			END
-			ELSE 
-			BEGIN
-				INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
-				SELECT matchid, KeyID
-				FROM #tblMatchProcess
-			END
-				
-		END
-	
-		IF @Success = 0 
-		BEGIN
-			
+			SET @MatchId_Retry = 0
 			DELETE #tblMatchProcess
 
-			INSERT INTO #tblMatchProcess(matchid, KeyID)
-			SELECT matchid, KeyID
-			FROM #tblMatchProcess_Retry
+			UPDATE TOP(1) m SET m.isFinish = 1, @MatchId_Retry = m.matchid
+			FROM #tblMatch m
+			WHERE m.isFinish IS NULL
 
-			SELECT @ErrCode = 101
+			IF @@ROWCOUNT = 0 BREAK
 
 			SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 					,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
@@ -433,59 +331,239 @@ BEGIN
 					,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			FROM	#tmpTransId b
-				INNER JOIN #tblMatchProcess_Retry m ON m.matchid = b.matchid
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 							WHERE Bettype = b.Bettype
 					)f
+			WHERE b.matchid = @MatchId_Retry
 
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay 				= @isExistParlay
-				, @isExistOutright 			= @isExistOutright
-				, @isExistMG				= @isExistMG
-				, @isExistFM				= @isExistFM
-				, @isExistMatch				= @isExistMatch
-				, @isExistNG				= @isExistNG
-				, @isExistVS				= @isExistVS
-				, @isExistBB				= @isExistBB
-				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-				, @isExistFM2				= @isExistFM2
-				, @IsReleased				= 1
+	
+			INSERT INTO #tblMatchProcess(matchid, KeyID)
+			SELECT DISTINCT matchid
+				, CASE 
+					WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+							AND Bettype NOT BETWEEN 801 AND 899
+							AND f.GroupId IS NULL
+							AND Bettype NOT IN (1231,1232,1233)
+						THEN 1 --SB,NG,LC
+					WHEN Bettype = 10 THEN 2	-- Outright
+					WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+					WHEN f.GroupId = 1 THEN 6 -- FM
+					WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
+					WHEN Bettype = 38 THEN 5 -- Bet Builder
+					WHEN f.GroupId = 2 THEN 7 -- FM 228
+					ELSE 0
+				END AS KeyID
+			FROM #tmpTransId b
+				OUTER APPLY (
+							SELECT GroupId
+							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+							WHERE Bettype = b.Bettype
+					)f
+			WHERE b.matchid = @MatchId_Retry
 
-			RETURN
+			SET @Retry = 0
+			SET @Success = 0
+	
+			WHILE @Retry < 16 AND @Success = 0
+			BEGIN
+				SET @Success = 1
+
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistParlay 				= @isExistParlay
+					, @isExistOutright 			= @isExistOutright
+					, @isExistMG				= @isExistMG
+					, @isExistFM				= @isExistFM
+					, @isExistMatch				= @isExistMatch
+					, @isExistNG				= @isExistNG
+					, @isExistVS				= @isExistVS
+					, @isExistBB				= @isExistBB
+					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+					, @isExistFM2				= @isExistFM2
+					, @avaiableProcess 			= @avaiableProcess OUTPUT
+					, @ErrCode					= @ErrCode OUTPUT
+					, @ErrMsg					= @ErrMsg OUTPUT
+
+				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+				BEGIN
+					SET @Retry = @Retry + 1
+					SET @Success = 0
+
+					--Waitfor Delay
+					IF @isExistMatch = 1
+					BEGIN
+						WAITFOR DELAY '00:00:05'
+					END
+					ELSE IF @isExistParlay = 1
+					BEGIN
+						WAITFOR DELAY '00:00:20'
+					END
+				END
+				ELSE 
+				BEGIN
+					INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
+					SELECT matchid, KeyID
+					FROM #tblMatchProcess
+				END
+				
+			END
+	
+			IF @Success = 0 
+			BEGIN
+			
+				DELETE #tblMatchProcess
+
+				INSERT INTO #tblMatchProcess(matchid, KeyID)
+				SELECT matchid, KeyID
+				FROM #tblMatchProcess_Retry
+
+				SELECT @ErrCode = 101
+
+				SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+						,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+						,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+						,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
+						,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
+						,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+						,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
+						,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
+						,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+						,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+						,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
+						,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
+						,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+						,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+						,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+						,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+				FROM	#tmpTransId b
+					INNER JOIN #tblMatchProcess_Retry m ON m.matchid = b.matchid
+					OUTER APPLY (
+								SELECT GroupId
+								FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+								WHERE Bettype = b.Bettype
+						)f
+
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistParlay 				= @isExistParlay
+					, @isExistOutright 			= @isExistOutright
+					, @isExistMG				= @isExistMG
+					, @isExistFM				= @isExistFM
+					, @isExistMatch				= @isExistMatch
+					, @isExistNG				= @isExistNG
+					, @isExistVS				= @isExistVS
+					, @isExistBB				= @isExistBB
+					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+					, @isExistFM2				= @isExistFM2
+					, @IsReleased				= 1
+
+				RETURN
+			END
+
 		END
 
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT matchid, KeyID
+		FROM #tblMatchProcess_Retry
+	END
+	ELSE
+	BEGIN
+		DECLARE @tmpRemainingBatchTransIds TABLE (TransIds VARCHAR(MAX))
+		DECLARE @tmpRemainingTransId TABLE (TransId BIGINT)
+
+		INSERT INTO @tmpRemainingBatchTransIds (TransIds)
+		SELECT	q.TransIds
+		FROM	dbo.TicketVoiding_Queue q WITH (NOLOCK)	
+		WHERE	q.VoidingHistoryId = @VoidingHistoryId 
+				AND q.voidingtypeId = 1 -- single
+				AND StatusId = 0
+				AND q.MatchId = @MatchId
+
+		INSERT INTO @tmpRemainingTransId (TransId)
+		SELECT	f.TransId AS TransId
+		FROM	@tmpRemainingBatchTransIds t 
+			CROSS APPLY (
+					SELECT	val AS TransId
+					FROM	dbo.f_SplitString(t.TransIds, ',')
+				)f
+		OPTION (maxrecursion 0)
+
+		;WITH cteRemainingKeyIds
+		AS (
+			SELECT	@MatchId AS matchid
+					,CASE 
+						WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+						WHEN Bettype = 38 THEN 5 -- Bet Builder
+						WHEN f.GroupId = 1 THEN 6 -- FM
+						WHEN f.GroupId = 2 THEN 7 -- FM 228
+						WHEN Bettype NOT IN (9, 10, 29, 2799) THEN 1 --SB,NG,LC
+						ELSE 0
+					END AS KeyID
+			FROM	@tmpRemainingTransId t
+				LEFT JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.TransId = b.transid
+				OUTER APPLY (
+						SELECT	GroupId
+						FROM	dbo.f_TVS_CheckingProcessGroupBettypes() f
+						WHERE	f.Bettype = b.bettype
+					)f
+			GROUP BY CASE 
+						WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+						WHEN Bettype = 38 THEN 5 -- Bet Builder
+						WHEN f.GroupId = 1 THEN 6 -- FM
+						WHEN f.GroupId = 2 THEN 7 -- FM 228
+						WHEN Bettype NOT IN (9, 10, 29, 2799) THEN 1 --SB,NG,LC
+						ELSE 0
+					END
+		)
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT t.matchid, t.KeyID
+		FROM (
+			SELECT	DISTINCT matchid
+					,CASE 
+						WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
+						WHEN Bettype = 38 THEN 5 -- Bet Builder
+						WHEN f.GroupId = 1 THEN 6 -- FM
+						WHEN f.GroupId = 2 THEN 7 -- FM 228
+						WHEN Bettype NOT IN (9, 10, 29, 2799, 1231,1232,1233) THEN 1 --SB
+						ELSE 0
+					END AS KeyID
+			FROM	#tmpTransId b
+				OUTER APPLY (
+							SELECT GroupId
+							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+							WHERE Bettype = b.Bettype
+					)f
+		) t
+			LEFT JOIN cteRemainingKeyIds r
+				ON	t.matchid = r.matchid
+					AND t.KeyID = r.KeyID
+		WHERE r.matchid IS NULL			
 	END
 
 	SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-				,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-				,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-				,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
-				,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
-				,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-				,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
-				,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-				,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-				,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
-				,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
-				,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
-				,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
-				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-				,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
-				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-		FROM	#tmpTransId b
-			OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = b.Bettype
-				)f
+			,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
+			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
+			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
+			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
+			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
+			,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
+			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
+			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
+			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
+			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM	#tmpTransId b
+		OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+			)f
 	
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT matchid, KeyID
-	FROM #tblMatchProcess_Retry
-
-
 	-- checking cash-out process
 	INSERT INTO #tblCashOutProcess(transid)
 	SELECT	t.transid
@@ -509,7 +587,8 @@ BEGIN
 				,@ErrMsg = 'No ticket found.'
 
 		------ releasing SD process
-		EXEC dbo.NAP_Admin_CheckingProcess
+		IF @BypassCheckingProcess = 0
+			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistParlay 				= @isExistParlay
 				, @isExistOutright 			= @isExistOutright
 				, @isExistMG				= @isExistMG
@@ -521,6 +600,15 @@ BEGIN
 				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 				, @isExistFM2				= @isExistFM2
 				, @IsReleased				= 1
+		ELSE	
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMG				= @isExistMG
+				, @isExistFM				= @isExistFM
+				, @isExistMatch				= @isExistMatch
+				, @isExistBB				= @isExistBB
+				, @isExistFM2				= @isExistFM2
+				, @IsReleased				= 1
+		
 			
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -1293,19 +1381,32 @@ BEGIN
 			AND b.[Status] IN ('Accept', 'Confirm')
 	END
 
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistParlay 				= @isExistParlay
-		, @isExistOutright 			= @isExistOutright
-		, @isExistMG				= @isExistMG
-		, @isExistFM				= @isExistFM
-		, @isExistMatch				= @isExistMatch
-		, @isExistNG				= @isExistNG
-		, @isExistVS				= @isExistVS
-		, @isExistBB				= @isExistBB
-		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-		, @isExistFM2				= @isExistFM2
-		, @IsReleased				= 1
-
+	IF @BypassCheckingProcess = 0
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay 				= @isExistParlay
+			, @isExistOutright 			= @isExistOutright
+			, @isExistMG				= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistNG				= @isExistNG
+			, @isExistVS				= @isExistVS
+			, @isExistBB				= @isExistBB
+			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+			, @isExistFM2				= @isExistFM2
+			, @IsReleased				= 1
+	END
+	ELSE
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMG					= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistBB				= @isExistBB
+			, @isExistFM2				= @isExistFM2
+			, @IsReleased				= 1
+	END	
+	
 	------ releasing cash-out process
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 			@Mode = 'Original'

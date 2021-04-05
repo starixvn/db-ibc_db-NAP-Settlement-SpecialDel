@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@VoidingTypeId		TINYINT
 	,@UserId			INT
 	,@IP				VARCHAR(50)
+	,@BypassCheckingProcess TINYINT = 0
 
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
@@ -22,6 +23,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210501@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 	
 	Param's explanation:	
 		
@@ -40,6 +42,7 @@ BEGIN
 			,@TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
+			,@BypassCheckingProcess = @BypassCheckingProcess
 			,@ErrCode = @ErrCode OUTPUT	
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
@@ -55,6 +58,7 @@ BEGIN
 			,@TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
+			,@BypassCheckingProcess = @BypassCheckingProcess
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
