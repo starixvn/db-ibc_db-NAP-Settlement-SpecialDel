@@ -240,8 +240,8 @@ BEGIN
 					WHEN 0 THEN ''
 					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 				END
-				,m.AutoSetting
-				,l.AutoSetting AS AutoSettingForLeague
+				,ISNULL(m.AutoSetting, 0) AutoSetting
+				,ISNULL(l.AutoSetting,0) AS AutoSettingForLeague
 				,m.SettlementStatus
 				,m.ChildMatchType
 				,mr.calculate
@@ -317,8 +317,8 @@ BEGIN
 					WHEN 0 THEN ''
 					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 				END
-				,m.AutoSetting
-				,l.AutoSetting AS AutoSettingForLeague
+				,ISNULL(m.AutoSetting, 0) AutoSetting
+				,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 				,m.SettlementStatus
 				,m.ChildMatchType
 				,mr.calculate
@@ -370,7 +370,7 @@ BEGIN
 	END
 
 	--check auto setting
-	IF (@AutoSetting > 0) AND @MatchCode <> ''
+	IF (@AutoSetting > 0) AND @MatchCode = ''
 	BEGIN
 		DECLARE @DirectAutoPayout TINYINT
 		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
@@ -621,7 +621,7 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 
-	IF @MatchCode <> '' AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTicketStatus WHERE id = 0)
+	IF @MatchCode = '' AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTicketStatus WHERE id = 0)
 	BEGIN
 		DELETE	m
 		FROM	#tmpMatchIds m
