@@ -12,6 +12,7 @@ AS
 		- 20200325@Max: Highlight Abnormal Voiding Request [Redmine: #129639]
 		- 20201012@Louisa: Update new email domain starixvn.com + Use DBNOTI instead of DBTP [Redmine:#143284]
 		- 20210401@Max: [TVS] Auto void before KO time [Redmine: #150522]
+		- 20210405@Max: Enhance [TVS] Auto void before KO time [Redmine: #150522]
 	
 	Param's explanation:	
 		
@@ -38,6 +39,8 @@ BEGIN
 															WHEN q.Action NOT IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
 															WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND q.Starttime > m.GlobalShowTime
 																AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
+															WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.StatusId = 0 AND q.Starttime <= m.GlobalShowTime
+																AND DATEDIFF(MINUTE, m.GlobalShowTime, GETDATE()) > 30 THEN 1 
 															ELSE 0 END
 												FOR XML PATH(''))
 												,1,1,''),'')
