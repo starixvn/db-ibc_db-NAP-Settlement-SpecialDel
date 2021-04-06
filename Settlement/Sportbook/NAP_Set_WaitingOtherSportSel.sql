@@ -82,6 +82,7 @@ BEGIN
 
 		,AutoPayoutStatus				TINYINT
 	)
+	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
@@ -98,16 +99,27 @@ BEGIN
 	
 	
 	;WITH singlequeue AS (
-		SELECT	matchid, MIN(IsCalculating) AS IsCalculating
+		SELECT	matchid, MIN(IsCalculating) AS IsCalculatingSingle
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -100, GETDATE()) 
 		GROUP BY matchid
 	), parlayqueue AS (
-		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculating
+		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculatingMP
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -100, GETDATE())
 		GROUP BY p.matchid
 	)
+	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP)
+	SELECT	ISNULL(s.matchid, p.matchid) AS matchid
+			,s.IsCalculatingSingle
+			,p.IsCalculatingMP
+	FROM	singlequeue s
+		FULL OUTER JOIN parlayqueue p
+			ON	s.matchid = p.matchid
+	
+	SELECT	@minBettype = MIN(bettype)
+			,@maxBettype = MAX(bettype)
+	FROM	dbo.f_Set_GetEarlyBettypes()
 	
 	INSERT INTO @tmpMatchIds(MatchId
 		,Sporttype
@@ -144,8 +156,8 @@ BEGIN
 			,ISNULL(mr.IsHTCal, 0) AS IsHalfTimeCal
 			,m.eventstatus
 			,m.betstatus
-			,tmp.IsCalculatingSingle
-			,tmp.IsCalculatingMP
+			,q.IsCalculatingSingle
+			,q.IsCalculatingMP
 			,ISNULL(m.AutoSetting, 0) AS AutoSetting 
 			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 			,m.SettlementStatus
@@ -158,16 +170,7 @@ BEGIN
 				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 			END
 			,ap.StatusId
-	FROM (
-		SELECT	ISNULL(s.matchid, p.matchid) AS MatchId
-				,s.IsCalculating AS IsCalculatingSingle
-				,p.IsCalculating AS IsCalculatingMP
-		FROM	singlequeue s
-			FULL OUTER JOIN parlayqueue p 
-				ON	s.matchid = p.matchid
-	) tmp
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON	tmp.MatchId = m.matchid
+	FROM  dbo.match m WITH(NOLOCK)
 		INNER JOIN @tmpLeagueIds tl
 			ON	m.leagueid = tl.LeagueId
 		INNER JOIN dbo.League l WITH(NOLOCK)	
@@ -179,6 +182,8 @@ BEGIN
 					FROM dbo.AutoPayoutResult WITH (NOLOCK)
 					WHERE matchid = m.matchid
 				)ap
+		LEFT JOIN @tmpQueueStatus q
+			ON	m.matchid = q.MatchId
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
@@ -194,11 +199,7 @@ BEGIN
 					AND m.ParentID = t.matchid
 		)m
 	UNION ALL SELECT m.matchid, m.matchid FROM @tmpMatchIds m
-		
-	SELECT	@minBettype = MIN(bettype)
-			,@maxBettype = MAX(bettype)
-	FROM	dbo.f_Set_GetEarlyBettypes()
-
+	
 	INSERT INTO @tmpBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
 	SELECT	m.ParentId
 			,MAX(b.isExistSingle)
@@ -425,6 +426,8 @@ BEGIN
 	    
 	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
 		@matchidList = @matchidList
+
+	DROP TABLE #tmpMarkedTransaction
 
 END
 GO
