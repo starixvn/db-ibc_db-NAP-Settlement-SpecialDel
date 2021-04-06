@@ -11,6 +11,7 @@ AS
     
     Revisions:            
 		- 20200805@Louisa: get TOP 4 OutsideSource by LeagueId  [Redmine:#138656]
+		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 	
 	Param's Explanation:
 		PGId = 0: create new mapping for OutsideSource 1001
@@ -21,11 +22,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @GameType TINYINT
+	DECLARE @GameType	TINYINT
+			,@Sporttype	TINYINT
 
-	SELECT @GameType =  l.OverTimeSession 
-						FROM League l  WITH(NOLOCK)
-						WHERE l.LeagueId = @LeagueId
+	SELECT	@GameType =  CASE WHEN l.sporttype= 43 THEN l.OverTimeSession ELSE 0 END
+			,@Sporttype = l.sporttype
+	FROM League l  WITH(NOLOCK)
+	WHERE l.LeagueId = @LeagueId
 
 	CREATE TABLE #GameTypeMapping 
 	( 
@@ -44,16 +47,21 @@ BEGIN
 	FROM ProviderInfo pi WITH(NOLOCK)
 		CROSS APPLY	(
 					SELECT 	pgm.PGId FROM ProviderGameTypeMapping pgm WITH(NOLOCK)
-					WHERE pgm.GameType = @GameType 
-						AND pi.SourceId = pgm.SourceId 
-						AND pgm.isActive =1 
+					WHERE  pi.SourceId = pgm.SourceId 
+						AND pgm.isActive =1
+						AND pgm.sporttype = @Sporttype
+						AND pgm.GameType = @GameType				
 					) pgm
 	WHERE pi.SourceID > 1000
 		AND pi.isActive  =1
   
 	IF NOT EXISTS (SELECT PGId FROM #GameTypeMapping WHERE SourceId = 1001 )
 		BEGIN
-			INSERT INTO	 #GameTypeMapping (PGId , SourceId, SourceName, Remark) SELECT	0 , 1001, 'Screenshot', 'n/a' 
+			INSERT INTO	 #GameTypeMapping (PGId , SourceId, SourceName, Remark) 
+			SELECT	0 
+					, 1001
+					, CASE WHEN @Sporttype = 5 THEN 'Into Site' ELSE 'Screenshot' END
+					, 'n/a' 
 		END
 
 	SELECT DISTINCT PGId, SourceName, Remark 
@@ -62,10 +70,10 @@ BEGIN
 
 	SELECT
 		 ISNULL(plmo.PGId,gm.PGId) AS PGId
-		,gm.SourceName
+		,CASE WHEN @Sporttype = 5 AND gm.SourceId = 1001 THEN 'Into Site' ELSE  gm.SourceName END AS SourceName
 		,gm.Remark
 		,ISNULL( OrderNo,1) OrderNo 
-	FROM #GameTypeMapping gm 
+	FROM #GameTypeMapping gm
 		OUTER APPLY	( 
 					SELECT plmo.PGId,  plmo.OrderNo FROM ProviderLeagueMappingOutsideSource plmo  WITH(NOLOCK)
 					WHERE plmo.PGId  = gm.PGId AND plmo.LeagueId  = @LeagueId

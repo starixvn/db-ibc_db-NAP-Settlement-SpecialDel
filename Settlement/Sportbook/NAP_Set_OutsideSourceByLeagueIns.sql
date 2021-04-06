@@ -14,6 +14,7 @@ AS
     
     Revisions:            
 		- 20200805@Louisa: SORT TOP 4 OutsideSource by LeagueId [Redmine:#138656]
+		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 
 	Param explanation:
 					PGId ="0" : The first time mapping for Screenshot and League
@@ -21,17 +22,20 @@ AS
  							 <PGId PGId ="45" OrderNo="2"/>
  							 <PGId PGId ="48" OrderNo="3"/>
  							 <PGId PGId ="30" OrderNo="4"/>
- 				   </PGIds>'	
+ 				    </PGIds>'	
 */
 BEGIN
 
 	SET NOCOUNT ON
 
 	DECLARE @handle	INT
-	DECLARE @GameType TINYINT
+			,@GameType TINYINT
+			,@Sporttype	TINYINT
+
 	DECLARE @tmpLeagueMapping TABLE (PGId INT, [OrderNo] INT)
 	
-	SELECT  @GameType =  l.OverTimeSession
+	SELECT @GameType =  CASE WHEN l.sporttype= 43 THEN l.OverTimeSession ELSE 0 END
+						,@Sporttype = l.sporttype
 						FROM League l WITH(NOLOCK)
 						WHERE l.LeagueId = @LeagueId
 
@@ -53,10 +57,13 @@ BEGIN
 				BEGIN			
 					DECLARE @GameTypes VARCHAR(MAX) = ''
 
-					SELECT @GameTypes  = '<GameTypes><GameType Id= "'+CAST(@GameType AS VARCHAR(2)) +'" Remark="" IsActive="1" /></GameTypes>'
+					SELECT @GameTypes  = CASE WHEN @Sporttype =43 THEN '<GameTypes><GameType Id= "'+CAST(@GameType AS VARCHAR(2)) +'" Remark="" IsActive="1" /></GameTypes>'
+											ELSE ''
+										END
 			
 					EXEC [dbo].[NAP_Set_ProviderGameTypeMapping] 
 						 @SourceId	 = 1001
+						,@Sporttype	 = @Sporttype
 						,@SourceName ='Screenshot'
 						,@Remark	 = 'n/a'
 						,@IsActive	 = 1
@@ -68,7 +75,8 @@ BEGIN
 						SELECT pgm.PGId , 1 
 						FROM ProviderGameTypeMapping pgm  WITH(NOLOCK)
 						WHERE pgm.SourceId = 1001 	
-							AND pgm.GameType = @GameType						 													 												 		 
+							AND pgm.GameType = @GameType
+							AND pgm.sporttype = @Sporttype						 													 												 		 
 				END
 
 			;WITH cte_Source
