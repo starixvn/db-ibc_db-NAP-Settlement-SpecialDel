@@ -12,6 +12,7 @@ AS
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 
 	Param's explanation:  
 		
@@ -78,6 +79,8 @@ BEGIN
 		,IsExistMarkedTicket			BIT DEFAULT(0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT(0)
 		,IsExistRunningTicket			BIT DEFAULT(0)
+
+		,AutoPayoutStatus				TINYINT
 	)
 	
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -126,6 +129,7 @@ BEGIN
 		,settlementstatus	
 		,suspenderhalftime
 		,suspenderfulltime
+		,AutoPayoutStatus
 	)
 	SELECT	m.matchid
 			,m.sporttype
@@ -142,8 +146,8 @@ BEGIN
 			,m.betstatus
 			,tmp.IsCalculatingSingle
 			,tmp.IsCalculatingMP
-			,m.AutoSetting
-			,l.AutoSetting AS AutoSettingForLeague
+			,ISNULL(m.AutoSetting, 0) AS AutoSetting 
+			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 			,m.SettlementStatus
 			,CASE mr.ConfirmHT 
 				WHEN 0 THEN ''
@@ -153,6 +157,7 @@ BEGIN
 				WHEN 0 THEN ''
 				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 			END
+			,ap.StatusId
 	FROM (
 		SELECT	ISNULL(s.matchid, p.matchid) AS MatchId
 				,s.IsCalculating AS IsCalculatingSingle
@@ -169,6 +174,11 @@ BEGIN
 			ON m.leagueid = l.leagueid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
+		OUTER APPLY (
+					SELECT TOP 1 matchid, StatusId
+					FROM dbo.AutoPayoutResult WITH (NOLOCK)
+					WHERE matchid = m.matchid
+				)ap
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
@@ -400,6 +410,7 @@ BEGIN
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistMarkedTicket
 			,tmp.IsExistMarkedTicketParlay
+			,tmp.AutoPayoutStatus
 	FROM	@tmpMatchIds tmp
 		LEFT JOIN @tmpMatchEsport me
 			ON tmp.MatchId = me.MatchId
