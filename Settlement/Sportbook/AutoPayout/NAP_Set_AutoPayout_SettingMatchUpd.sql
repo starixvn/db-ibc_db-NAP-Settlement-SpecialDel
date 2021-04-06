@@ -79,7 +79,6 @@ BEGIN
 		SELECT TOP 1 1 
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId 
-			AND sporttype IN (1,18)
 			AND 1 = CASE 
 					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
 					WHEN @AutoType = 2 AND eventstatus NOT IN ('running', 'closed', 'Refund HT') THEN 1
