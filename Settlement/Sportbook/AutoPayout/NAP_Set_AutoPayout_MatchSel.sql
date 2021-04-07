@@ -329,7 +329,7 @@ BEGIN
 		DECLARE @tmpAutoSetting TABLE (AutoSetting TINYINT)
 
 		INSERT INTO @tmpAutoSetting ( AutoSetting ) 
-		SELECT val FROM dbo.f_SplitString(@AutoSetting, ',')
+		SELECT CAST(val AS TINYINT) FROM dbo.f_SplitString(@AutoSetting, ',')
 
 		SELECT  @AutoValue = SUM(AutoSetting) 
 				,@minValue = MIN(AutoSetting)
@@ -337,13 +337,13 @@ BEGIN
 
 		DELETE m
 		FROM #matchList m
-		WHERE 1 =  CASE WHEN @AutoSetting = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1 
+		WHERE 1 =  CASE WHEN @AutoValue = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1 
 				   										 ELSE 0 END
 				   		WHEN @minValue = 0 
-				   			AND m.AutoSetting & (@AutoSetting ^17) > 0  
-				   			AND m.AutoSetting & @AutoSetting = 0
+				   			AND m.AutoSetting & (@AutoValue ^17) > 0  
+				   			AND m.AutoSetting & @AutoValue = 0
 				   			THEN 1
-				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoSetting = 0 THEN 1
+				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoValue = 0 THEN 1
 				   		ELSE 0
 				   		END
 	END
