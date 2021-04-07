@@ -258,7 +258,7 @@ BEGIN
 				ON	m.matchid = mr.matchid
 			OUTER APPLY (
 					SELECT TOP 1 matchid, StatusId
-					FROM dbo.AutoPayoutResult WITH (NOLOCK)
+					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
 					WHERE matchid = m.matchid
 				)ap
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
@@ -337,7 +337,7 @@ BEGIN
 				ON	m.matchid = mr.matchid
 			OUTER APPLY (
 					SELECT TOP 1 matchid, StatusId
-					FROM dbo.AutoPayoutResult WITH (NOLOCK)
+					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
 					WHERE matchid = m.matchid
 				)ap
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
