@@ -22,7 +22,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
+			,@CutOffDate		DATETIME = '2021-04-08 02:00:00.000'
 
 	SET @ServerName = @@SERVERNAME
 
