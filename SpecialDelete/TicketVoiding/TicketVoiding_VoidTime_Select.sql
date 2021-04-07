@@ -31,10 +31,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @MinAccept			TINYINT = 0,
-			@MinFromTime		DATETIME = NULL
-
+	DECLARE @MinAccept			TINYINT = 0	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+
+	SELECT 	@VoidFromTime = NULL, @VoidToTime = NULL
 
 	IF @IssueTypeId = 1 -- Danger Accept
 	BEGIN
@@ -43,7 +43,7 @@ BEGIN
 		IF @MinAccept > @PATime SET @MinAccept = @PATime
 		IF @MinAccept > @SATime SET @MinAccept = @SATime
 
-		SELECT @MinFromTime = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
+		SELECT @VoidFromTime = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
 			   
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
@@ -53,7 +53,7 @@ BEGIN
 			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
-		SELECT @MinFromTime = MIN(CASE WHEN act.FromDate >= DATEADD (SECOND,CASE WHEN act.AcceptType = 1 THEN @AATime
+		SELECT @VoidFromTime = MIN(CASE WHEN act.FromDate >= DATEADD (SECOND,CASE WHEN act.AcceptType = 1 THEN @AATime
 																				 WHEN act.AcceptType = 2 THEN @SATime
 																				 WHEN act.AcceptType = 3 THEN @PATime
 																				 ELSE NULL END
@@ -62,6 +62,7 @@ BEGIN
 			
 											 THEN act.FromDate ELSE NULL END
 										)
+			  ,@VoidToTime = MAX(act.FromDate)
 		FROM (
 			SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
 			FROM dbo.bettrans b WITH(NOLOCK) 
@@ -85,7 +86,7 @@ BEGIN
 					   END AS FromDate
 		)act
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-		WHERE act.FromDate BETWEEN @MinFromTime AND @FilterToTransTime
+		WHERE act.FromDate BETWEEN @VoidFromTime AND @FilterToTransTime
 			AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
 						ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
 										WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
@@ -94,11 +95,7 @@ BEGIN
 						END
 			  )
 
-		IF @MinFromTime IS NOT NULL
-		BEGIN
-			SELECT @VoidFromTime = @MinFromTime, @VoidToTime = @FilterToTransTime
-		END
-		ELSE
+		IF @VoidFromTime IS NULL
 		BEGIN
 			SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
 		END
