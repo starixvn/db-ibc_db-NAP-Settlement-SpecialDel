@@ -66,7 +66,7 @@ AS
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
-	@AutoSetting : 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout; '': not select  | Ex: @AutoSetting = '16,0'
+	@AutoSetting : '': not select or select All; 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout  | Ex: @AutoSetting = '16,0'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -80,7 +80,7 @@ BEGIN
 		, @filterBy 	= ISNULL(@filterBy, 0)
 		, @Today 		= GETDATE()
 		, @MatchId 	= 0
-
+	
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF @matchcode <> ''
 	BEGIN
@@ -510,7 +510,7 @@ BEGIN
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
 
 	--Checking for Inst match info
-	IF (@AutoSetting = '' OR @IsInstant = 1)
+	IF (@AutoSetting = '' OR @IsInstant = 1 )
 	BEGIN 
 		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
 		SELECT t.MatchId
