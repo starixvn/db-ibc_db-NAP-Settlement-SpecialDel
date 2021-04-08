@@ -236,12 +236,11 @@ BEGIN
 	DELETE t
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE t.betfrom <>'p' 
-		AND ((1 = CASE WHEN @ActionId <>2 AND StatusId IN (101, 102, 103) THEN 1
-					   WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
-					   ELSE 0 END)
-			  OR bt.bettype IS NULL
-			)
+	WHERE (1 = CASE WHEN @ActionId <>2 AND StatusId IN (101, 102, 103) THEN 1
+				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
+					ELSE 0 END)
+		OR bt.bettype IS NULL
+		OR t.betfrom ='p'
 		
 	-- invalid transId
 	;WITH t_invalid

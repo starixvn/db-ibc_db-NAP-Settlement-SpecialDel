@@ -7,8 +7,9 @@
 
 USE bodb02
 GO
-
-INSERT INTO dbo.TicketVoiding_IssueType (IssueTypeName) VALUES ('AB (Real Member)')
+SET IDENTITY_INSERT TicketVoiding_IssueType ON
+INSERT INTO dbo.TicketVoiding_IssueType (IssueTypeId, IssueTypeName) VALUES (15,'AB (Real Member)')
+SET IDENTITY_INSERT TicketVoiding_IssueType OFF
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (IssueTypeId, SubIssueTypeName,SubIssueTypeNameCS)
 SELECT	15,
@@ -16,17 +17,17 @@ SELECT	15,
 		SubIssueTypeNameCS
 FROM dbo.TicketVoiding_SubIssueType WITH(NOLOCK)
 WHERE IssueTypeId = 11
-
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,41)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,42)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,43)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,44)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,45)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,46)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,47)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,48)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (34,NULL,49)
-
+GO
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,41)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,42)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,43)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,44)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,45)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,46)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,47)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,48)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,SubIssueTypeId) VALUES (34,49)
+GO
 INSERT INTO dbo.TicketVoiding_ReasonTemplate(Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,41,'Abnormal bet',N'由于非正常投注')
 INSERT INTO dbo.TicketVoiding_ReasonTemplate(Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,42,'Abnormal bet',N'由于非正常投注')
 INSERT INTO dbo.TicketVoiding_ReasonTemplate(Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,43,'Abnormal bet',N'由于非正常投注')
