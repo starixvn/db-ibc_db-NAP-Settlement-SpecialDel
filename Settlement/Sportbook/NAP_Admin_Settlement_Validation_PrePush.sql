@@ -40,9 +40,6 @@ BEGIN
 	IF ( ISNULL(@SelectedResource,'') = ''	)
 	RETURN
 	
-	IF ( @sporttype = 2 )
-	RETURN
-
 	IF @sporttype = 2
 	BEGIN
 		IF @Action = 'CAL_EAR'
@@ -78,7 +75,7 @@ BEGIN
 		END		
 	END
 
-	ELSE IF ( @sporttype IN ( 5, 9, 43 )	)
+	ELSE IF ( @sporttype IN ( 5, 9, 43, 50 )	)
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
 
@@ -123,7 +120,7 @@ BEGIN
 							)
 		END
 
-		ELSE IF( @sporttype = 9)
+		ELSE IF( @sporttype IN (9,50) )
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
