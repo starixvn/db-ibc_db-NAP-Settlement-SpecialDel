@@ -14,6 +14,7 @@ AS
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 			- 20210112@Kathy: Support Tickets on Intervals #45 & #90 [Redmine:#148603]
 			- 20210107@Kathy: Support settle determined [Readmine:#147141]
+			- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 
 	Param's Explanation:
 		
@@ -48,6 +49,10 @@ BEGIN
 			SELECT	BetType, ResourceId
 			FROM	@tblFMBettype t
 			UNION ALL
+			SELECT 229, '22901H'
+			UNION ALL
+			SELECT 229, '22901A'
+			UNION ALL
 			SELECT 221, '221CNT__'
 			UNION ALL
 			SELECT 0, '221WB__'
@@ -61,21 +66,28 @@ BEGIN
 		SET HomeValue = CASE WHEN ISNULL(HomeValue,'') = '' THEN REPLICATE('0', 50) ELSE HomeValue END
 		, AwayValue = CASE WHEN ISNULL(AwayValue,'') = '' THEN REPLICATE('0', 50) ELSE AwayValue END
 	FROM @tblResultDetail d
-	WHERE bettype = 228 AND (ISNULL(HomeValue,'') = '' OR ISNULL(AwayValue,'') = '')
+	WHERE bettype IN (228, 229) AND (ISNULL(HomeValue,'') = '' OR ISNULL(AwayValue,'') = '')
 	
-	-- Always shows 228
-	IF NOT EXISTS (SELECT TOP (1) 1 FROM @tblResultDetail WHERE ResourceId IN ('22800'))
-	BEGIN
-		INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
-		SELECT '22800', 228, REPLICATE('0', 50),REPLICATE('0', 50)
-	END
-	
-	IF NOT EXISTS (SELECT TOP (1) 1 FROM @tblResultDetail WHERE ResourceId IN ('22801'))
-	BEGIN
-		INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
-		SELECT '22801', 228, REPLICATE('0', 50),REPLICATE('0', 50)
-	END
-	
+	-- Always shows 228, 229
+	;WITH cteBetOption
+	AS (
+		SELECT  228 AS Bettype, CAST('22800' AS VARCHAR(50)) AS ResourceId
+		UNION ALL
+		SELECT  228 AS Bettype, CAST('22801' AS VARCHAR(50))
+		UNION ALL
+		SELECT  229 AS Bettype,  CAST('22900' AS VARCHAR(50))
+		UNION ALL
+		SELECT  229 AS Bettype, CAST('22901H' AS VARCHAR(50))
+		UNION ALL
+		SELECT  229 AS Bettype, CAST('22901A' AS VARCHAR(50))
+	)
+	INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
+	SELECT	c.ResourceId, c.Bettype, REPLICATE('0', 50) AS HomeValue, REPLICATE('0', 50) AS AwayValue
+	FROM	cteBetOption c
+		LEFT JOIN @tblResultDetail t
+			ON c.ResourceId = t.ResourceId
+	WHERE t.ResourceId IS NULL
+
 	INSERT INTO #tblBettrans(TransId, bettype, hdp1, statusId)
 	SELECT	b.transid, bettype, hdp1, statusID
 	FROM	dbo.bettrans b WITH(NOLOCK)
@@ -164,12 +176,17 @@ BEGIN
 	-- result detail of each bettype
 	;WITH cteBetOption AS (
 		SELECT	bettype
-				, MAX(CASE WHEN ResourceId % 100 = 0 THEN HomeValue END) AS ResultStatus1st -- 22X00 
-				, MAX(CASE WHEN ResourceId % 100 = 1 THEN HomeValue END) AS BetOption1st -- 22X01
-				, MAX(CASE WHEN ResourceId % 100 = 0 THEN AwayValue END) AS ResultStatus2nd -- 22X00 
-				, MAX(CASE WHEN ResourceId % 100 = 1 THEN AwayValue END) AS BetOption2nd -- 22X01
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '00' THEN HomeValue END) AS ResultStatus1st -- 22X00 
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01' THEN HomeValue END) AS BetOption1st -- 22X01
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '00' THEN AwayValue END) AS ResultStatus2nd -- 22X00 
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01' THEN AwayValue END) AS BetOption2nd -- 22X01
+
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01H' THEN HomeValue END) AS BetOptionHome1st -- 22901H
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01H' THEN AwayValue END) AS BetOptionHome2nd -- 22901H
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01A' THEN HomeValue END) AS BetOptionAway1st -- 22901A
+				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01A' THEN AwayValue END) AS BetOptionAway2nd -- 22901A
 		FROM	@tblResultDetail
-		WHERE	ResourceId LIKE CAST(BetType AS VARCHAR) + '__'
+		WHERE	ResourceId LIKE CAST(BetType AS VARCHAR) + '0[0-1]%' 
 		GROUP BY bettype
 		
 	), cteResultStatus AS (
@@ -177,6 +194,12 @@ BEGIN
 			, CASE WHEN BetOption1st IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOption1st END AS BetOption1st
 			, CASE WHEN ResultStatus2nd IS NULL AND TicketCount > 0 THEN REPLICATE('0', 50) ELSE ResultStatus2nd END AS ResultStatus2nd
 			, CASE WHEN BetOption2nd IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOption2nd END AS BetOption2nd
+
+			, CASE WHEN BetOptionHome1st IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOptionHome1st END AS BetOptionHome1st
+			, CASE WHEN BetOptionHome2nd IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOptionHome2nd END AS BetOptionHome2nd
+			, CASE WHEN BetOptionAway1st IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOptionAway1st END AS BetOptionAway1st
+			, CASE WHEN BetOptionAway2nd IS NULL AND TicketCount > 0 THEN REPLICATE(CHAR(0), 50) ELSE BetOptionAway2nd END AS BetOptionAway2nd
+
 			, ISNULL(t.BetType,tt.bettype) AS BetType
 		FROM	cteBetOption t
 			FULL OUTER JOIN (
@@ -214,7 +237,7 @@ BEGIN
 		FROM	dbo.f_Set_GetBytes(BetOption1st) f
 			INNER JOIN dbo.f_Set_GetChars(ResultStatus1st) ff 
 				ON	f.pos = ff.pos
-		WHERE	f.pos < 45 AND t.BetType <> 228
+		WHERE	f.pos < 45 AND t.BetType NOT IN (228, 229)
 
 		UNION ALL
 		
@@ -222,7 +245,7 @@ BEGIN
 		FROM	dbo.f_Set_GetBytes(BetOption2nd) f
 			INNER JOIN dbo.f_Set_GetChars(ResultStatus2nd) ff 
 				ON	f.pos = ff.pos
-		WHERE	f.pos < 45 AND t.BetType <> 228
+		WHERE	f.pos < 45 AND t.BetType NOT IN (228, 229)
 		
 		UNION ALL
 		
@@ -233,18 +256,43 @@ BEGIN
 		WHERE	f.pos < 46 AND t.BetType = 228
 
 		UNION ALL
-		
+
 		SELECT	f.pos + 46 AS Position, f.ResultStatus AS Result, ff.ResultStatus AS ResultStatus
 		FROM	dbo.f_Set_GetChars(BetOption2nd) f
 			INNER JOIN dbo.f_Set_GetChars(ResultStatus2nd) ff 
 				ON	f.pos = ff.pos
 		WHERE	f.pos < 45 AND t.BetType = 228
-		
+
+		UNION ALL
+
+		SELECT	f.Position, f.Result, f.ResultStatus
+		FROM (
+			SELECT	fh.pos AS Position, (fh.ResultStatus + fa.ResultStatus * 10) AS Result, ff.ResultStatus AS ResultStatus
+			FROM	dbo.f_Set_GetChars(BetOptionHome1st) fh
+				INNER JOIN dbo.f_Set_GetChars(BetOptionAway1st) fa
+					on fh.pos = fa.pos
+				INNER JOIN dbo.f_Set_GetChars(ResultStatus1st) ff 
+					ON	fh.pos = ff.pos
+			WHERE	fh.pos < 46 AND t.BetType  = 229
+		) f
+
+		UNION ALL
+
+		SELECT	f.Position, f.Result, f.ResultStatus
+		FROM(
+			SELECT	fh.pos + 46 AS Position, (fh.ResultStatus + fa.ResultStatus * 10) AS Result, ff.ResultStatus AS ResultStatus
+			FROM	dbo.f_Set_GetChars(BetOptionHome2nd) fh
+				INNER JOIN dbo.f_Set_GetChars(BetOptionAway2nd) fa
+					ON fh.pos = fa.pos
+				INNER JOIN dbo.f_Set_GetChars(ResultStatus2nd) ff 
+					ON	fh.pos = ff.pos
+			WHERE	fh.pos < 45 AND t.BetType = 229
+		)f
 	) rs
 	LEFT JOIN betstatus b 
 		ON	t.bettype = b.bettype 
 			AND rs.Position = CASE 
-								WHEN b.BetType <> 228 THEN b.Position 
+								WHEN b.BetType NOT IN (228, 229) THEN b.Position 
 								ELSE CASE 
 										WHEN rs.Position <= 44 THEN b.Position
 										WHEN rs.Position > 45 THEN b.Position + 1 -- for bettype 228, the position 45 is HT injury, 2nd starts at postion 46

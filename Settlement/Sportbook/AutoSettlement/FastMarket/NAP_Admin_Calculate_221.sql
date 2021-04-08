@@ -21,6 +21,7 @@ AS
 		- 20201109@Kathy: Exclude reject ticket of bettype 228 [Redmine:#145036]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
     Param's Explanation:
 
@@ -32,7 +33,7 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
-
+	
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -70,21 +71,27 @@ BEGIN
 			
 	SET @xmlData = CONVERT(XML, @result)
 	
-	CREATE TABLE #tblTransIds(transid BIGINT, BetOption TINYINT, IsRefund BIT DEFAULT(0))	
+	CREATE TABLE #tblTransIds(transid BIGINT, BetOption INT, IsRefund BIT DEFAULT(0), ScoreDiff SMALLMONEY DEFAULT (0))	
 	DECLARE @TmpData AS TABLE (
-		bettype				SMALLINT
-		,Position			TINYINT
-		,BetOption			TINYINT
-		,AccumulatedScore	INT
-		,IsSettleDetermined	BIT
+		bettype					SMALLINT
+		,Position				TINYINT
+		,BetOption				TINYINT
+		,AccumulatedScore		INT -- 228
+		,AccumulatedHomeScore	INT -- 229
+		,AccumulatedAwayScore	INT -- 229
+		,IsSettleDetermined		BIT
+		,HasInjuryTime			BIT DEFAULT(0)
 	)
 	
-	INSERT INTO @TmpData (bettype, Position, BetOption, AccumulatedScore, IsSettleDetermined)
+	INSERT INTO @TmpData (bettype, Position, BetOption, AccumulatedScore, AccumulatedHomeScore, AccumulatedAwayScore, IsSettleDetermined, HasInjuryTime)
 	SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 		,X.C.value('@p','TINYINT') as Position
 		,X.C.value('@r','TINYINT') as BetOption
 		,X.C.value('@a','INT') as AccumulatedScore
+		,X.C.value('@ah','INT') as AccumulatedHomeScore
+		,X.C.value('@aa','INT') as AccumulatedAwayScore
 		,X.C.value('@s','TINYINT') as IsSettleDetermined
+		,ISNULL(X.C.value('@i','BIT'), 0) AS HasInjuryTime
 	FROM @xmlData.nodes('/r/b') AS T(C)
 		CROSS APPLY
 			C.nodes('r') AS X(C)
@@ -112,10 +119,13 @@ BEGIN
 		WHERE	bettype = 228
 	END
 
-	INSERT INTO #tblTransIds (transid, BetOption, IsRefund)
+	INSERT INTO #tblTransIds (transid, BetOption, IsRefund, ScoreDiff)
 	SELECT	b.transid
-			,CASE WHEN b.bettype = 228 THEN t.AccumulatedScore ELSE t.BetOption END AS BetOption
+			,CASE 
+				WHEN b.bettype = 228 THEN t.AccumulatedScore 
+				ELSE t.BetOption END AS BetOption
 			,CASE
+				WHEN b.bettype = 229 THEN 1
 				WHEN b.bettype <> 228 AND @IsSettleDetermined = 1 
 					THEN CASE
 							WHEN t.BetOption = 1 THEN 1
@@ -129,13 +139,14 @@ BEGIN
 						END
 				ELSE 0
 			END AS IsRefund
+			,CASE WHEN b.bettype = 229 THEN (t.AccumulatedHomeScore - t.AccumulatedAwayScore) ELSE 0 END AS ScoreDiff
 	FROM	@TmpData t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON	b.matchid = @matchid
 				AND b.bettype = t.Bettype
 	WHERE	b.statusID NOT IN (101)
 			AND 1 = CASE
-						WHEN b.bettype <> 228 
+						WHEN t.HasInjuryTime = 0
 							THEN CASE 
 									WHEN b.hdp1 = t.Position THEN 1
 									ELSE 0
@@ -192,6 +203,12 @@ BEGIN
 											WHEN b.betteam = 'u' THEN b.oddsspread  - t.BetOption
 											ELSE -1
 										END
+								WHEN b.bettype = 229
+									THEN CASE
+											WHEN b.betteam = 'h' THEN b.oddsspread + t.ScoreDiff - (b.livehomescore - b.liveawayscore)
+											when b.betteam = 'a' THEN - b.oddsspread - t.ScoreDiff + (b.livehomescore - b.liveawayscore)
+											ELSE -1
+										END
 								ELSE CASE
 										WHEN b.betteam > 0 AND (CAST(hdp2 AS INT) & t.betoption) > 0 THEN 1
 										WHEN b.betteam = 0 AND (CAST(hdp2 AS INT) & (t.betoption ^ 65535)) > 0 THEN 1
@@ -223,8 +240,8 @@ BEGIN
 								WHEN @modds < 0 THEN 113 --LOSE
 							END
 				,@winlost = CASE 
-								WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END)
-								WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * 0.5
+								WHEN @modds > 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END)
+								WHEN @modds = 0.25 THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * 0.5
 								WHEN @modds = 0 THEN actual_stake
 								WHEN @modds = -0.25 THEN actual_stake * 0.5
 								WHEN @modds < -0.25 THEN 0
@@ -241,8 +258,8 @@ BEGIN
 				, aWinLost = CASE 
 								WHEN @IsUpd_Void = 0 THEN aWinLost 
 								ELSE CASE 
-										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -apositiontaking
-										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -apositiontaking * 0.5
+										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -apositiontaking
+										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -apositiontaking * 0.5
 										WHEN @modds = 0 THEN 0
 										WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
 										WHEN @modds < -0.25 THEN actual_stake * apositiontaking
@@ -252,8 +269,8 @@ BEGIN
 				, mWinLost = CASE 
 								WHEN @IsUpd_Void = 0 THEN mWinLost 
 								ELSE CASE
-										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -mpositiontaking
-										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -mpositiontaking * 0.5
+										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -mpositiontaking
+										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -mpositiontaking * 0.5
 										WHEN @modds = 0 THEN 0
 										WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
 										WHEN @modds < -0.25 THEN actual_stake * mpositiontaking
@@ -263,8 +280,8 @@ BEGIN
 				, sWinLost = CASE 
 								WHEN @IsUpd_Void = 0 THEN sWinLost 
 								ELSE CASE
-										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -spositiontaking
-										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype = 228 THEN odds ELSE (odds - 1) END) END) * -spositiontaking * 0.5
+										WHEN @modds > 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -spositiontaking
+										WHEN @modds = 0.25 THEN stake * (CASE WHEN odds < 0 THEN 1 ELSE (CASE WHEN bettype IN (228,229) THEN odds ELSE (odds - 1) END) END) * -spositiontaking * 0.5
 										WHEN @modds = 0 THEN 0
 										WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
 										WHEN @modds < -0.25 THEN actual_stake * spositiontaking

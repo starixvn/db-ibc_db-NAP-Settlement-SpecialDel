@@ -34,6 +34,7 @@ AS
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
 	
     Parameters Explanation:    
@@ -302,6 +303,7 @@ RETURN (
 	UNION ALL SELECT 9,    226  ,  0, 0, 0, 1, 'Special', 0, 0,0,0
 	UNION ALL SELECT 9,    227  ,  0, 0, 0, 1, 'Special', 0, 0,0,0
 	UNION ALL SELECT 9,    228  ,  0, 0, 0, 1, 'Special', 0, 0,0,0
+	UNION ALL SELECT 9,    229  ,  0, 0, 0, 1, 'Special', 0, 0,0,0
 																
 	-- new bettypes of Basketball								
 	UNION ALL SELECT 10,   609  ,  0, 0, 0, 0, 'Special', 0, 0,1,0

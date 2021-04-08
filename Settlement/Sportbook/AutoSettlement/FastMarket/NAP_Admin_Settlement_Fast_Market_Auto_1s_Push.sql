@@ -31,6 +31,7 @@ AS
 			- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 			- 20210107@Kathy: Support settle determined [Readmine:#147141]
 			- 20210225@Kathy: Wrong Water break validation  [Readmine:#150682]
+			- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 			
 	Param's Explanation:
 		- @Result: 
@@ -81,6 +82,13 @@ BEGIN
 			,@ResultStatus2nd VARCHAR(50)
 			,@minSelectedPosition TINYINT
 			,@maxSelectedPosition TINYINT
+
+			-- new bettype 229
+			,@BetOptionHome_1st VARCHAR(50)
+			,@BetOptionHome_2nd VARCHAR(50)
+			,@BetOptionAway_1st VARCHAR(50)
+			,@BetOptionAway_2nd VARCHAR(50)
+
 			,@IsFailed BIT = 0
 			
 	DECLARE @tblData TABLE (
@@ -108,6 +116,12 @@ BEGIN
 	)
 	
 	DECLARE @tblResultDetail_228 TABLE (
+		ResourceId				VARCHAR(20)
+		,Position				TINYINT 
+		,Value					TINYINT
+	)
+
+	DECLARE @tblResultDetail_229 TABLE (
 		ResourceId				VARCHAR(20)
 		,Position				TINYINT 
 		,Value					TINYINT
@@ -188,7 +202,7 @@ BEGIN
 	INSERT INTO @tblData (bettype, ResourceId, ResourceId_BetOption, Position, BetOption, IsSettleDetermined)
 	SELECT	bettype
 			,CAST(BetType * 100 AS VARCHAR(20)) AS ResourceId
-			,CAST(BetType * 100 + 1 AS VARCHAR(20)) AS ResourceId_BetOption
+			,CASE WHEN bettype = 229 THEN '22901H' ELSE CAST(BetType * 100 + 1 AS VARCHAR(20)) END AS ResourceId_BetOption
 			,Position
 			,BetOption
 			,@IsSettleDetermined AS IsSettleDetermined
@@ -284,6 +298,113 @@ BEGIN
 		END
 	END	
 
+	IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 229)
+	BEGIN
+		-- For bettype 229
+		SELECT	@BetOptionHome_1st = HomeValue
+				,@BetOptionHome_2nd = AwayValue
+		FROM	@tblResultDetail
+		WHERE	ResourceId = '22901H'
+
+		SELECT	@BetOptionAway_1st = HomeValue
+				,@BetOptionAway_2nd = AwayValue
+		FROM	@tblResultDetail
+		WHERE	ResourceId = '22901A'
+	
+		SELECT	@ResultStatus1st = HomeValue
+				,@ResultStatus2nd = AwayValue
+		FROM	@tblResultDetail
+		WHERE	ResourceId = '22900'
+
+	
+		INSERT INTO @tblResultDetail_229 (ResourceId, Position, Value)
+		SELECT	'22900', f.pos AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+		WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
+		UNION ALL
+		SELECT	'22900', f.pos + 46 AS Position, f.ResultStatus AS Value
+		FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+		WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
+		UNION ALL
+		SELECT	'22901H', f.Position, f.Result
+		FROM (
+			SELECT	fh.pos AS Position, (fh.ResultStatus + fa.ResultStatus * 10) AS Result, ff.ResultStatus AS ResultStatus
+			FROM	dbo.f_Set_GetChars(@BetOptionHome_1st) fh
+				INNER JOIN dbo.f_Set_GetChars(@BetOptionAway_1st) fa
+					on fh.pos = fa.pos
+				INNER JOIN dbo.f_Set_GetChars(@ResultStatus1st) ff 
+					ON	fh.pos = ff.pos
+			WHERE	fh.pos < 46 AND ISNULL(@BetOptionHome_1st,'') <> '' AND ISNULL(@BetOptionAway_1st,'') <> ''
+		) f
+		UNION ALL
+		SELECT	'22901H', f.Position, f.Result
+		FROM(
+			SELECT	fh.pos + 46 AS Position, (fh.ResultStatus + fa.ResultStatus * 10) AS Result, ff.ResultStatus AS ResultStatus
+			FROM	dbo.f_Set_GetChars(@BetOptionHome_2nd) fh
+				INNER JOIN dbo.f_Set_GetChars(@BetOptionAway_2nd) fa
+					ON fh.pos = fa.pos
+				INNER JOIN dbo.f_Set_GetChars(@ResultStatus2nd) ff 
+					ON	fh.pos = ff.pos
+			WHERE	fh.pos < 45 AND ISNULL(@BetOptionHome_2nd,'') <> '' AND ISNULL(@BetOptionAway_2nd,'') <> ''
+		)f		
+
+		SELECT	@maxSelectedPosition = MAX(Position)
+				,@minSelectedPosition = MIN(Position)
+		FROM	@tblData
+		WHERE	bettype = 229
+
+		IF @Action = 'CAL'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 
+						FROM	@tblResultDetail_229 t
+						WHERE	t.ResourceId = '22900'
+								AND 1 = CASE
+											WHEN t.Value NOT IN (4,5) AND t.Position < @minSelectedPosition THEN 1 -- previous interval
+											WHEN t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition -- between selected intervals
+												AND NOT EXISTS (SELECT TOP 1 1 FROM @tblData d WHERE t.Position = d.Position) THEN 1
+											ELSE 0
+										END
+			)
+				SET @IsFailed = 1
+		END		
+		ELSE IF @Action = 'REFUND'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1
+						FROM	@tblResultDetail_229 t
+						WHERE	t.ResourceId = '22900'
+								AND 1 = CASE
+										WHEN t.Value NOT IN (4,5) AND t.Position < @minSelectedPosition THEN 1 
+										WHEN t.Value IN (4,5) AND t.Position > @maxSelectedPosition THEN 1 
+										ELSE 0
+									END
+			)
+				SET @IsFailed = 1
+												
+		END
+		ELSE IF @Action = 'UNDO'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1
+			FROM	@tblResultDetail_229 t
+			WHERE	t.ResourceId = '22900'
+					AND t.Value IN (4,5)
+					AND 1 = CASE 
+								WHEN t.Position > @maxSelectedPosition THEN 1
+								WHEN t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition 
+									AND NOT EXISTS (SELECT TOP 1 1 FROM @tblData d WHERE d.Position = t.Position) THEN 1
+								ELSE 0
+							END
+			)
+				SET @IsFailed = 1
+		END
+
+		IF @IsFailed = 1
+		BEGIN
+			SELECT	 @ErrCode	= 1001015
+						,@ErrMsg	= 'WARNING! Cannot continue due to procedure violations. Please check selected intervals' + CASE WHEN @IsAuto = 0 THEN ' or reload the screen' ELSE '' END + ' and try again.'
+			RETURN
+		END
+	END	
+
 	IF @Action = 'CAL'
 	BEGIN
 		-- Compare selected intervals with each existing WB session
@@ -331,7 +452,7 @@ BEGIN
 							ELSE 0
 						END AS mins
 						,CASE 
-							WHEN d.bettype = 228 
+							WHEN d.bettype IN (228, 229)
 								THEN CASE 
 										WHEN d.Position <= 44 THEN d.Position
 										ELSE d.Position - 1
@@ -343,7 +464,7 @@ BEGIN
 							FROM	cteSUS sus
 							WHERE	m.Position BETWEEN sus.startSUS - m.mins AND 90
 									OR m.Position >=  sus.startSUS - m.mins
-									OR (d.bettype = 228 AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
+									OR (d.bettype IN (228, 229) AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
 							) sus
 
 		IF @ErrCode <> 0
@@ -381,7 +502,7 @@ BEGIN
 			RETURN
 		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype = 228)
+		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype IN (228,229))
 			SET @IsReSettledTickets = 0
 
 		-- For bettype between 221 and 227	
@@ -395,7 +516,7 @@ BEGIN
 		FROM	@tblData t
 			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId_BetOption
-		WHERE	r.ResourceId NOT LIKE '228__'
+		WHERE	r.ResourceId NOT LIKE '22[8-9]01%'
 				
 		UPDATE t
 		SET	ResultStatus = (SELECT TOP 1 [char] 
@@ -407,7 +528,7 @@ BEGIN
 		FROM	@tblData t
 			INNER JOIN @tblResultDetail r
 				ON r.ResourceId = t.ResourceId
-		WHERE	r.ResourceId NOT LIKE '228__'
+		WHERE	r.ResourceId NOT LIKE '22[8-9]00'
 		-- end update for bettype between 221 and 227
 
 		--For bettype 228
@@ -427,6 +548,24 @@ BEGIN
 					AND t.Position = r.Position
 		WHERE	r.ResourceId = '22800'
 		-- end update for bettype 228
+
+		--For bettype 229
+		UPDATE t
+			SET BetOption = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_229 r
+				ON	r.ResourceId = t.ResourceId_BetOption 
+					AND t.Position = r.Position
+		WHERE	r.ResourceId = '22901H'
+
+		UPDATE t
+			SET ResultStatus = r.Value
+		FROM	@tblData t
+			INNER JOIN @tblResultDetail_229 r 
+				ON	r.ResourceId = t.ResourceId 
+					AND t.Position = r.Position
+		WHERE	r.ResourceId = '22900'
+		-- end update for bettype 229
 			
 		-- No Result, UNDO, CAL (manually, auto), REFUND
 		SELECT @subErrMsg = @subErrMsg + 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
@@ -449,7 +588,7 @@ BEGIN
 				FOR XML PATH ('')),1,1,'')
 			+ '</br>'
 		FROM @tblData t
-		WHERE	t.bettype = 228
+		WHERE	t.bettype IN (228, 229)
 				AND (ResultStatus IN (0,3,4,5,6,7) OR t.ResultStatus IS NULL OR t.BetOption IS NULL)
 		GROUP BY t.bettype
 
@@ -472,12 +611,12 @@ BEGIN
 			+ '</br>'
 		FROM @tblData t
 		WHERE	t.ResultStatus IN (3,5,6,7) OR t.BetOption = 0
-				AND t.bettype <> 228
+				AND t.bettype NOT IN (228, 229)
 		GROUP BY t.bettype
 		
 		DELETE 
 		FROM @tblData
-		WHERE	(ResultStatus IN (3,5,6,7) OR BetOption = 0) AND bettype <> 228
+		WHERE	(ResultStatus IN (3,5,6,7) OR BetOption = 0) AND bettype NOT IN (228, 229)
 		
 		IF ISNULL(@subErrMsg,'') <> ''
 		BEGIN
@@ -492,7 +631,8 @@ BEGIN
 					SELECT bettype '@Id'
 						,(SELECT Position '@p'
 								,BetOption '@r'
-								,CASE WHEN @IsSettleDetermined = 1 THEN 1 ELSE NULL END AS '@s'
+								,CASE WHEN @IsSettleDetermined = 1 AND r.bettype <> 229 THEN 1 ELSE NULL END AS '@s'
+								,CASE WHEN r.bettype IN (228, 229) THEN 1 ELSE NULL END AS '@i' -- HasInjuryTime
 							FROM @tblData WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
 					FROM @tblData r
 					GROUP BY r.bettype
