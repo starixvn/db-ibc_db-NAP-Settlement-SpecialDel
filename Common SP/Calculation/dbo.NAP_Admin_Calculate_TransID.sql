@@ -15,6 +15,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 202103186@Louisa: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:  
 		   
@@ -112,7 +113,10 @@ BEGIN
 							ELSE 0.5
 						END
 	   ,@odds = (CASE WHEN b.odds < 0 THEN 1 
-	   				 WHEN sr.oddstype = 1 THEN CASE WHEN b.bettype = 376 THEN sr.finalodds - 1 ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
+	   				 WHEN sr.oddstype = 1 THEN CASE 
+													WHEN b.bettype = 376 THEN sr.finalodds - 1
+													WHEN sr.modds > 0.25 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
+													ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
 					 ELSE b.odds END)
 		,odds = CASE 
 					WHEN b.bettype = 376 

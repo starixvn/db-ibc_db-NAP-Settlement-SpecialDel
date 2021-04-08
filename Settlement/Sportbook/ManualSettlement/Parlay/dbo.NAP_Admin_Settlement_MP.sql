@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
+	,@IsAuto				BIT = 0
 	,@IP					VARCHAR(15)		= ''
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
@@ -40,8 +41,10 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 
 	Param's Explanation:
+		@parentMatchId: identify main match of cricket
 */
 BEGIN
 	SET NOCOUNT ON
@@ -79,6 +82,7 @@ BEGIN
 			,@priorAction		VARCHAR(20)
 			,@IsSettleBySetting	BIT = 0
 			,@IsExistEarlyBettype BIT
+			,@ParentMatchId INT
 
 	SELECT	@matchdate = eventdate
 			,@finalhomescore = CASE sporttype WHEN 10 THEN finalawayscore ELSE finalhomescore END -- Golf, using Stroke count, so swap the score to make it become normal style
@@ -88,6 +92,7 @@ BEGIN
 			,@SportType = SportType
 			,@betstatus = betstatus
 			,@GoalRecord = GoalRecord
+			,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
 			,@IsRefundHT = CASE WHEN @betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END
 	FROM	DBPRO.BODB02.dbo.Match WITH(ROWLOCK)
 	WHERE	matchid = @matchid
@@ -101,11 +106,11 @@ BEGIN
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+		@MatchId	= @Matchid
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
+	IF ISNULL(@ErrCode,0) <> 0 
 	BEGIN
 	    SELECT	@ErrCode
 				,@ErrMsg
@@ -144,7 +149,7 @@ BEGIN
 		IF @ErrCode > 0
 			RETURN
 
-		IF (@finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL)
+		IF ( @ParentMatchId IS NULL AND ( @finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL)	)
 		BEGIN
 			SELECT	@ErrCode = 1001011
 					,@ErrMsg = 'This match has not been keyed in score yet'
@@ -498,9 +503,28 @@ BEGIN
 		SET @stop = CURRENT_TIMESTAMP
 
 		SELECT @Remark = 'NAP: Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+		
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
-		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
+						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
+
+		IF @SportType = 50
+		BEGIN
+			SELECT @hthomescore	= NULL  
+				,@htawayscore	= NULL
+
+			IF @ParentMatchId IS NOT NULL
+			BEGIN
+				SELECT  @matchid		= @ParentMatchId
+					   ,@finalhomescore = finalhomescore 
+					   ,@finalawayscore = finalawayscore
+					   ,@betstatus		= betstatus
+				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+				WHERE	matchid = @ParentMatchId
+			END
+		END
 
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator

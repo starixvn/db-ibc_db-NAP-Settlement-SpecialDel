@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsLeader			BIT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -23,6 +24,7 @@ AS
 		- 20200804@Kathy: Add new param to indicate calculation action by leader or not for Esport [Redmine:#136931]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -38,9 +40,11 @@ BEGIN
 			,@leagueid				INT
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				NVARCHAR(50)
+			,@IsExistNetPosition	BIT = 0		
 			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
 			,@IsEarly				BIT
+
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
@@ -59,7 +63,7 @@ BEGIN
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
+	@MatchId	= @MatchId
 	,@SelectedResources = @SelectedResources
 	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
@@ -125,7 +129,6 @@ BEGIN
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
-
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpSelectedRID(ResourceID, isFinal, GroupType)
 	SELECT DISTINCT Id, sd.isFinal, sd.GroupType
@@ -133,7 +136,12 @@ BEGIN
 		LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON tbl.Id = sd.ResourceID
 	EXEC sp_xml_removedocument @handle
 	
-	
+	IF ( @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID = '00' )	)
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
+		SET	@IsExistNetPosition = 1 
+  	END
+
 	---check FT round
   	SELECT TOP 1 @IsSystemSettlement = CASE
 										WHEN @Action = 'UNDO' 	THEN 0
@@ -155,7 +163,7 @@ BEGIN
 			,@IP			= @IP
 	END
 	
-	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+	IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand
@@ -182,16 +190,22 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
+			,execTime
 			)
 		SELECT @MatchId
 			,@matchcode
-			,0
+			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
 			,@leagueid
 			,@sporttype
 			,@AdminId
 			,@IP
 			,@Action
-			,@sqlCommand
+			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
+			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+
+		IF @IsExistNetPosition = 1
+			SET @ServiceCommand = @sqlCommand
+
 	END
 
 END

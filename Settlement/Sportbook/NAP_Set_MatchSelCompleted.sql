@@ -49,6 +49,7 @@ AS
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20210310@Kathy: Show Unconfirmed FT Match after KO 30 minutes [Redmine:#147230]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -105,7 +106,9 @@ BEGIN
 							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
 						ELSE 1 END
 				END
-		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END''
+		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END''
+		
 		)'
 
 	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated
@@ -123,6 +126,20 @@ BEGIN
 		AND IsCalculating IN (1, 0)
 	GROUP BY matchid
 
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
+	SELECT	m.matchid, m.ParentId
+	FROM	@DataTmp t
+		CROSS APPLY (
+			SELECT	m.matchid, m.ParentId
+			FROM	dbo.match m WITH(NOLOCK)
+			WHERE	m.sporttype = 50
+					AND m.ChildMatchType = 200
+					AND m.ParentID = t.matchid
+		)m
+	UNION ALL
+	SELECT m.matchid, m.matchid FROM @DataTmp m
+
 	INSERT INTO @BettypeFGLG (bettype,GroupID)
 	SELECT BetType,GroupID
 	FROM dbo.f_Set_GetGroupBettypes()
@@ -131,10 +148,11 @@ BEGIN
 	;WITH Match_cte AS (
 		SELECT 
 			 m.matchid
+			, m.ParentId
 			, tmp.bettype
 			, tmp.betcount
-			, tmp.winlostdate
-		FROM (SELECT TOP (@n) matchid FROM @DataTmp ) m 
+			, CASE WHEN m.Matchid <> m.ParentId THEN @Date ELSE tmp.winlostdate END AS winlostdate
+		FROM (SELECT TOP (@n) matchid, ParentId FROM #tmpAllParentChildMatch ) m 
 			CROSS APPLY (SELECT 
 								TOP (2147483647) -- It's used for performance tuning, make sure estimated of rows always: 10%
 								b.matchid, b.bettype,b.winlostdate, COUNT_BIG(1) as betcount
@@ -148,16 +166,17 @@ BEGIN
 								AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
 						GROUP BY  b.matchid	, b.bettype,b.winlostdate
 					) AS tmp
+
 	)
 	INSERT INTO @BetStatus (matchid,betcount,cntFGLG,cntHTFGLG)
-	SELECT b.matchid
+	SELECT b.ParentId
 		, SUM(betcount) AS betcount
 		, SUM(CASE WHEN GroupID IN (2,4) THEN 1 ELSE 0 END) AS cntFGLG
 		, SUM(CASE WHEN GroupID IN (1,3) THEN 1 ELSE 0 END) AS cntHTFGLG
 	FROM Match_cte b  
 		LEFT JOIN @BettypeFGLG fglg ON fglg.bettype = b.bettype
-	WHERE  winlostdate = @Date
-	GROUP BY b.matchid
+	WHERE winlostdate  = @Date
+	GROUP BY b.ParentId
 	OPTION (OPTIMIZE FOR (@n = 1))	
 
 	UPDATE m
@@ -182,6 +201,7 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
+	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId

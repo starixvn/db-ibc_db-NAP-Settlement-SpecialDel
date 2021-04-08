@@ -29,6 +29,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
+		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 
 	Param's Explanation:
@@ -70,6 +71,8 @@ BEGIN
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
+			,@ParentMatchId		INT
+			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
 
 
   	--START Balance tables
@@ -111,9 +114,9 @@ BEGIN
 		  ,@hth			= hthomescore
 		  ,@hta			= htawayscore
 		  ,@sportType	= sportType
+		  ,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
   	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   	WHERE   matchid = @matchid
-
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -122,7 +125,7 @@ BEGIN
   	----------------------------------------------------------------------------------------------------------------------
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
+	@MatchId	= @MatchId
 	,@SelectedResources = @SelectedResources
 	,@IsEarly	= @IsEarly
 	,@ErrCode	= @ErrCode OUTPUT
@@ -153,7 +156,7 @@ BEGIN
   	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-	SELECT Id, Home, Away
+	SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
@@ -261,8 +264,8 @@ BEGIN
 
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
-				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE HomeValue END, 
-				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE AwayValue END, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
+				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE ISNULL(AwayValue,'') END, 
 				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
 				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
 				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
@@ -290,7 +293,12 @@ BEGIN
 			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
-	  		SELECT b.transid, m.modds, sr.OddsType, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	  		SELECT 
+				b.transid, m.modds
+				, CASE WHEN b.bettype = 501 AND b.transdate < @CutOffDate THEN 0
+						ELSE sr.OddsType
+					END AS OddsType
+				, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  		FROM bettrans b WITH (NOLOCK)
 				OUTER APPLY (
 								SELECT TOP (1) mt.TransId
@@ -631,6 +639,19 @@ BEGIN
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
 	
+	IF @ParentMatchId IS NOT NULL 
+	BEGIN
+		DELETE FROM @tmpSelectedRID
+		WHERE ResourceID NOT IN (
+			SELECT sp.ResourceID 
+			FROM dbo.bettrans bt WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+						AND sp.BetType = bt.bettype
+			WHERE bt.matchid = @MatchID
+				AND sp.SportType =50 )
+	END
+
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
@@ -643,7 +664,14 @@ BEGIN
   		) AS tbl1
 	ORDER BY OrdNo
 
-	SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	IF @ParentMatchId IS NOT NULL -- Child match Cricket
+		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
+									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
+										ELSE ' Selected:' 
+									END 
+									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	ELSE
+		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	 
 	
 	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
@@ -667,6 +695,21 @@ BEGIN
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @creator
 				,@Doing = @logdata
+	
+	IF @sportType = 50
+	BEGIN
+		SELECT @hth	= NULL
+				,@hta = NULL
+
+		IF @ParentMatchId IS NOT NULL
+		BEGIN
+			SELECT  @MatchId =  @ParentMatchId
+					,@fth	= finalhomescore
+					,@fta	= finalawayscore
+  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @ParentMatchId
+		END
+	END
 				
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle

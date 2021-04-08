@@ -16,7 +16,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @RowCount                   INT = 0 OUTPUT,
 	@Creator 					INT = 0,
 	@IsFinalRound               BIT = NULL,
-	@IsHTRound					BIT = 0 
+	@IsHTRound					BIT = 0,
+	@IsMovedMatch				BIT = 0
 )
 AS
 /*
@@ -59,6 +60,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
+		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		
     Parameters Explanation:
 
@@ -67,9 +69,21 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    DECLARE @Sporttype INT
-	DECLARE @eventstatus VARCHAR(20)
+    DECLARE @Sporttype		INT
+			,@eventstatus	VARCHAR(20)
+			,@ParentMatchId	INT
+
     SET @BetStatus = ISNULL(@BetStatus, N'')
+
+	IF @IsMovedMatch = 0
+	BEGIN
+		SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.matchid = @MatchID
+
+		IF @ParentMatchId IS NOT NULL -- child match of cricket
+			RETURN
+	END
 
     IF @Command = 'NAP_Admin_Settlement_1-UNDO'
     BEGIN

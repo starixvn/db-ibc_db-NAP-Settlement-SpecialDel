@@ -25,6 +25,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner, auto betradar bettypes [Redmine:#109584]
 		- 20190924@Sol: Incorporate BMAIO [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -34,6 +35,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @temp_resultDetail as TABLE (rID varchar(20) PRIMARY KEY, H varchar(50), A varchar(50), ssID tinyint)
+	DECLARE @parentmatchId INT
+
+	IF @Sporttype = 50
+	BEGIN
+		SELECT	@parentmatchId = ParentID
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.matchid = @matchid
+				AND ChildMatchType = 200
+
+		IF @parentmatchId IS NOT NULL --cricket: only get result of parent match 
+			SET @matchid = @parentmatchId
+	END
 
 	IF @mode = 'tennis'
 	BEGIN
@@ -70,10 +83,10 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailES  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE IF @Sporttype = 9
+		ELSE IF @Sporttype IN ( 9, 50 )
 			SELECT	ResourceId 
-					,HomeValue
-					,AwayValue
+					,ISNULL(HomeValue, '' ) AS HomeValue
+					,ISNULL(AwayValue, '') AS AwayValue
 					,SettlementStatusID AS ssId
 			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
@@ -101,11 +114,11 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE IF @Sporttype = 9
+		ELSE IF @Sporttype IN ( 9, 50 )
 		BEGIN
 			SELECT	ResourceId
-					,HomeValue
-					,AwayValue
+					,ISNULL(HomeValue,'') AS HomeValue
+					,ISNULL(AwayValue, '') AS AwayValue
 					,SettlementStatusID AS ssId
 			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH (ROWLOCK)
 			WHERE	matchid = @matchid

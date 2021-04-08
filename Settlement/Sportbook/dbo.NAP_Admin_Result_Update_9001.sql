@@ -23,6 +23,8 @@ AS
         - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
         - 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		
     Param's Explanation: 
     
@@ -35,13 +37,24 @@ AS
 BEGIN
     SET NOCOUNT ON 
 
+	IF @Sporttype = 50
+	BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM dbo.Match m WITH(NOLOCK) 
+					WHERE	m.matchid = @MatchID 
+							AND Sporttype = @Sporttype 
+							AND ISNULL(ChildMatchType,0) = 200
+							AND m.ParentID IS NOT NULl
+		)
+			RETURN
+	END
+
     DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
 			,@othomescore INT
 			,@otawayscore INT
-
+		
     -------------END DECLARE    
     
     --parse XML   
@@ -115,7 +128,7 @@ BEGIN
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
     END
 	--Insert and update ResultDetailOS - Badminton
-    ELSE IF @Sporttype = 9
+    ELSE IF @Sporttype IN (9, 50)
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (

@@ -4,7 +4,8 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@command 			VARCHAR(5),
 	@ivalue 			BIGINT = NULL,
 	@SelectedQuarter 	VARCHAR(50) = NULL,
-	@IsFinalRound       BIT = 0
+	@IsFinalRound       BIT = 0,
+	@IsMovedMatch		BIT = 1
 WITH RECOMPILE
 /*  
 	Created: Kathy
@@ -25,6 +26,7 @@ WITH RECOMPILE
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
+		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's Explanation: 
 */
@@ -35,6 +37,7 @@ BEGIN
 	DECLARE @IsHTCal	BIT
 			,@Calculate BIT
 			,@IsPending BIT
+			,@ParentMatchId	INT
 
 	SELECT	@IsHTCal		= IsHTCal
 			,@Calculate 	= Calculate
@@ -42,6 +45,15 @@ BEGIN
 	FROM	match_remark WITH (NOLOCK)
 	WHERE	matchid = @matchid 
 
+	IF @IsMovedMatch = 0
+	BEGIN
+		SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.matchid = @MatchID
+
+		IF @ParentMatchId IS NOT NULL -- child match of cricket
+			RETURN
+	END
 
 	IF NOT EXISTS (SELECT * FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid)
 	BEGIN

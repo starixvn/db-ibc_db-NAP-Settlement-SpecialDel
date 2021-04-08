@@ -20,6 +20,7 @@ AS
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
+		- 20210305@Kathy: Generate combination of ticket by main match of cricket [Redmine:#148870] 
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -144,13 +145,14 @@ BEGIN
 				SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
 					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.matchid) --RN			
+					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.mainmatch) --RN			
 				FROM #temp_bettrans b
 					CROSS APPLY
 						(
 							SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
 								,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 								,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
+								,CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE bm.matchid END AS mainmatch
 							FROM	dbo.bettransm bm WITH(rowlock)	
 								INNER JOIN dbo.match m WITH (NOLOCK)
 									ON	bm.matchid = m.matchid
@@ -160,6 +162,7 @@ BEGIN
 							SELECT	bm14.refno, bm14.transid, bm14.winlostdate, bm14.statuswinlost, bm14.statusID, bm14.matchid
 								,bm14.bettype, bm14.odds, bm14.betteam, bm14.hdp1, bm14.hdp2, bm14.livehomescore
 								,bm14.liveawayscore, bm14.liveindicator, bm14.betcheck, bm14.stake, bm14.transdesc
+								,CASE WHEN ISNULL(m14.ChildMatchType,0) = 200 AND m14.ParentID IS NOT NULL AND m14.sporttype = 50 THEN m14.ParentID ELSE bm14.matchid END AS mainmatch
 							FROM	dbo.bettransm14 bm14 WITH(rowlock)			
 								INNER JOIN dbo.match14 m14 WITH(NOLOCK)
 									ON bm14.matchid = m14.matchid

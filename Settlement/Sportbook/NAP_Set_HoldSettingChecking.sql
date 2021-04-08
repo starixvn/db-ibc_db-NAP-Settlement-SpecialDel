@@ -15,6 +15,7 @@ AS
 	Revisions:
 		-  20201111@Louisa: Check Hold setting [Redmine:#143441]
 		-  20201113@Louisa: Check Hold Result [Redmine:#135097]
+		-  20210122@Louisa: Cricket AIO [Redmine:#148870]
 
 		
 	Parameters Explanation:    
@@ -34,12 +35,17 @@ BEGIN
 	DECLARE @SettlementStatus TINYINT
 			,@Sporrtype TINYINT
 			,@handle INT
+			,@ParentMatchId	INT
 
 	SELECT @Sporrtype = m.Sporttype 
 			,@SettlementStatus = m.SettlementStatus
+			,@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.Matchid =  @MatchId
-		
+	
+	IF @ParentMatchId IS NOT NULL -- child match of cricket
+		RETURN
+
 	IF @SettlementStatus & 87 > 0
 	BEGIN
 		SET	@ErrCode = 1001038	
@@ -69,7 +75,7 @@ BEGIN
 		END
 
 		---- Badminton
-		ELSE IF @Sporrtype = 9 
+		ELSE IF @Sporrtype IN ( 9 , 50 ) 
 		BEGIN
 			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
 			FROM ResultDetailOS r WITH(NOLOCK)

@@ -41,6 +41,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's Explanation:		
 		
@@ -61,6 +62,7 @@ BEGIN
 			,@IsExistsResourceEarlyRunning BIT = 0
 			,@HaveMarkedTicket VARCHAR(200)
 			,@HoldSettingMatchIds VARCHAR(200) = ''
+			,@ParentIds VARCHAR(MAX) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
@@ -79,7 +81,8 @@ BEGIN
 						  ,hth SMALLINT
 						  ,hta SMALLINT
 						  ,sporttype SMALLINT
-						  ,SettlementStatus	TINYINT )
+						  ,SettlementStatus	TINYINT
+						  ,ParentId INT )
 
 	CREATE TABLE #ResultDetail (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	CREATE TABLE #ResultDetailES (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
@@ -103,6 +106,7 @@ BEGIN
 								,htawayscore
 								,sporttype
 								,ISNULL(SettlementStatus,0) SettlementStatus
+								,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 						FROM BODB02.dbo.Match m WITH (NOLOCK)
 								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 									ON m.matchid = tm.val
@@ -111,11 +115,14 @@ BEGIN
 
 	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(4000)'' , @matchids'
 
-	INSERT INTO #Match ( matchid, matchcode, fth, fta, hth, hta, sporttype, SettlementStatus)
+	INSERT INTO #Match ( matchid, matchcode, fth, fta, hth, hta, sporttype, SettlementStatus, ParentId)
 	EXECUTE	sys.sp_executesql @execSql, N'@queryMatch NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryMatch, @matchids
 	-- end
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43))
+	SELECT @ParentIds =  COALESCE(@ParentIds + ',' + CAST(m.ParentId AS varchar),  CAST(ParentId AS varchar)) from #Match m 	
+	SELECT @ParentIds = STUFF(@ParentIds, 1, 1, '')
+
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43, 50))
 	BEGIN
 		-- get date from remote ResultDetail table 
 		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
@@ -149,20 +156,20 @@ BEGIN
 		-- end
 	END
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9))
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9, 50))
 	BEGIN
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
-												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
+												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@ParentIds , '','')) tm
 													ON r.matchid = tm.val
 										OPTION (MAXRECURSION 0)
 									'
 
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@MatchIds VARCHAR(4000)'' , @matchids'
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@ParentIds VARCHAR(4000)'' , @ParentIds'
 
 		INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
-		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @MatchIds VARCHAR(4000)', @queryResultDetailOS, @matchids
+		EXECUTE	sys.sp_executesql @execSql, N'@queryResultDetailOS NVARCHAR(MAX), @ParentIds VARCHAR(4000)', @queryResultDetailOS, @ParentIds
 		-- end
 	END
 	
@@ -264,18 +271,20 @@ BEGIN
 		;WITH cteBetstatus
 		AS(
 			SELECT	bm.matchid
+					,m.ParentId
 					,bm.bettype
 					,bm.betcheck
 					,m.sporttype
 			FROM	#Match m
 				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.matchid = bm.matchid
 			WHERE bm.statusID = 0
-			GROUP BY bm.matchid, bm.bettype, bm.betcheck,m.sporttype
+			GROUP BY bm.matchid, bm.bettype, bm.betcheck,m.sporttype, m.ParentId
 		)
 		,cteResourceID
 		AS(
 			SELECT c.sporttype
 					,c.matchid
+					,c.ParentId
 					,CASE 
 						WHEN f.ResourceID IN('70400','605')
 							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
@@ -287,7 +296,7 @@ BEGIN
 			FROM	cteBetstatus c
 				INNER JOIN	dbo.SettlementSpecialBettypeProfile f WITH(NOLOCK) ON f.sporttype = c.sporttype AND c.bettype = f.BetType
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
-			GROUP BY c.sporttype, c.matchid
+			GROUP BY c.sporttype, c.matchid, c.ParentId
 					,CASE 
 						WHEN f.ResourceID IN('70400','605')
 							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
@@ -309,7 +318,7 @@ BEGIN
 				SELECT ResultStatusID
 	  			FROM #ResultDetailOS rd WITH (NOLOCK) 
 	  			WHERE rd.ResourceID = c.ResourceID
-	  				AND rd.matchid = c.matchid
+	  				AND rd.matchid = c.ParentId
 				UNION ALL
 				SELECT ResultStatusID
 	  			FROM #ResultDetail rd WITH (NOLOCK) 
@@ -336,7 +345,7 @@ BEGIN
 
 	IF EXISTS (SELECT 1
 				FROM #Match
-				WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL ) AND @action <> 'UNDO'
+				WHERE  MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL) ) AND @action <> 'UNDO'
 		OR @IsExistsResourceEarlyRunning = 1	
 		OR EXISTS (SELECT TOP 1 1
 					FROM @tblRunningBAIO
@@ -352,7 +361,7 @@ BEGIN
 		-- exclude matches were not keyscore yet
 		DELETE
 		FROM #Match
-		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
+		WHERE (MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL))
 				OR @IsExistsResourceEarlyRunning = 1
 				
 		
@@ -453,6 +462,7 @@ BEGIN
 		)bm
 		INNER JOIN #Match m 
 			ON mt.matchid = m.matchid	
+		WHERE m.sporttype <> 50 --  currenlty, not exists marked ticket in Cricket
 	GROUP BY m.matchid, m.matchcode
 
 	DELETE FROM #Match

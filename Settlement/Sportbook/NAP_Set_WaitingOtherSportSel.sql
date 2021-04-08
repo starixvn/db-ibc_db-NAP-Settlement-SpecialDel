@@ -11,6 +11,7 @@ AS
 	Revision:
 		- 20200528@Kathy: Get status for a match [Redmine:#134843] 
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's explanation:  
 		
@@ -169,13 +170,27 @@ BEGIN
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
+		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+	
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
+	SELECT	m.matchid, m.ParentId
+	FROM	@tmpMatchIds t
+		CROSS APPLY (
+			SELECT	m.matchid, m.ParentId
+			FROM	dbo.match m WITH(NOLOCK)
+			WHERE	m.sporttype = 50
+					AND m.ChildMatchType = 200
+					AND m.ParentID = t.matchid
+		)m
+	UNION ALL SELECT m.matchid, m.matchid FROM @tmpMatchIds m
 		
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
 	FROM	dbo.f_Set_GetEarlyBettypes()
 
 	INSERT INTO @tmpBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
-	SELECT	m.matchid
+	SELECT	m.ParentId
 			,MAX(b.isExistSingle)
 			,MAX(b.IsRunningSingle)
 			,MAX(b.IsWaitingSingle)
@@ -183,7 +198,7 @@ BEGIN
 			,MAX(b.isRunningParlay)
 			,MAX(b.isWaitingParlay)
 	FROM	(
-		SELECT TOP(@n) matchid FROM @tmpMatchIds
+		SELECT TOP(@n) matchid, ParentId FROM #tmpAllParentChildMatch
 	)m
 		CROSS APPLY (
 			SELECT	b.bettype
@@ -214,7 +229,7 @@ BEGIN
 		)b
 		INNER JOIN dbo.f_Set_GetEarlyBettypes() f
 			ON b.bettype = f.bettype
-	GROUP BY m.matchid
+	GROUP BY m.ParentId
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
@@ -236,6 +251,7 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
+	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -289,9 +305,9 @@ BEGIN
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	matchid
-	FROM	@tmpMatchIds
-	WHERE	eventstatus = 'completed'
+	SELECT	m.matchid
+	FROM	@tmpMatchIds m
+	WHERE	m.eventstatus = 'completed'
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
@@ -299,17 +315,18 @@ BEGIN
 			SET IsExistRunningTicket = 1
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	b.matchid
+				SELECT	tmp.ParentId
 				FROM	dbo.bettrans b WITH(NOLOCK)
+					INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
 					OUTER APPLY (
-						SELECT TOP 1 mt.transId
-						FROM	#tmpMarkedTransaction mt 
-						WHERE b.transid = mt.TransId
-					)mt
-				WHERE	b.matchid = m.matchid
+							SELECT TOP 1 mt.transId
+							FROM	#tmpMarkedTransaction mt 
+							WHERE b.transid = mt.TransId
+						)mt
+				WHERE	tmp.ParentId = m.matchid
 						AND b.statusID = 0
 						AND mt.transId IS NULL
-				GROUP BY b.matchid
+				GROUP BY tmp.ParentId
 			)b
 
 		UPDATE m 

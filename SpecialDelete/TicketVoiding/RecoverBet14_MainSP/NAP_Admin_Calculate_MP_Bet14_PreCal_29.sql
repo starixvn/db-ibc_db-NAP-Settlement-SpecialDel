@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]	
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 				
 */
 BEGIN
@@ -125,13 +126,14 @@ BEGIN
 					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
 					,b.inserted_Detail, b.inserted_Result
-					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.matchid) --RN			
+					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.mainmatch) --RN			
 				FROM #temp_bettrans b
 					CROSS APPLY
 						(
 							SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
 								,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 								,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
+								,CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE bm.matchid END AS mainmatch
 							FROM	dbo.bettransm bm WITH(rowlock)	
 								INNER JOIN dbo.match m WITH (NOLOCK)
 									ON	bm.matchid = m.matchid
@@ -141,6 +143,7 @@ BEGIN
 							SELECT	bm14.refno, bm14.transid, bm14.winlostdate, bm14.statuswinlost, bm14.statusID, bm14.matchid
 								,bm14.bettype, bm14.odds, bm14.betteam, bm14.hdp1, bm14.hdp2, bm14.livehomescore
 								,bm14.liveawayscore, bm14.liveindicator, bm14.betcheck, bm14.stake, bm14.transdesc
+								,CASE WHEN ISNULL(m14.ChildMatchType,0) = 200 AND m14.ParentID IS NOT NULL AND m14.sporttype = 50 THEN m14.ParentID ELSE bm14.matchid END AS mainmatch
 							FROM	dbo.bettransm14 bm14 WITH(rowlock)			
 								INNER JOIN dbo.match14 m14 WITH(NOLOCK)
 									ON bm14.matchid = m14.matchid
@@ -152,6 +155,7 @@ BEGIN
 							SELECT	bmbk.refno, bmbk.transid, bmbk.winlostdate, bmbk.statuswinlost, bmbk.statusID, bmbk.matchid
 								,bmbk.bettype, bmbk.odds, bmbk.betteam, bmbk.hdp1, bmbk.hdp2, bmbk.livehomescore
 								,bmbk.liveawayscore, bmbk.liveindicator, bmbk.betcheck, bmbk.stake, bmbk.transdesc
+								,CASE WHEN ISNULL(mbk.ChildMatchType,0) = 200 AND mbk.ParentID IS NOT NULL AND mbk.sporttype = 50 THEN mbk.ParentID ELSE bmbk.matchid END AS mainmatch
 							FROM	dbarc.bodb_archive.dbo.bettransm bmbk WITH(rowlock)			
 								INNER JOIN dbarc.bodb_archive.dbo.match_bk mbk WITH(NOLOCK)
 									ON bmbk.matchid = mbk.matchid

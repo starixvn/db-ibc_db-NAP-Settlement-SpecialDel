@@ -136,6 +136,7 @@ AS
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 
     Param's Explanation:
         @action             @mode
@@ -146,12 +147,16 @@ AS
         + CAL-SET           CAL        --Tennis
         + CAL-CORNER
         + CAL-INST          INST-HT,INST-FT
+		+ MoveTicket
 */
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @isUndo BIT
+    DECLARE @isUndo				BIT
 		,@IsEnableServiceBroker BIT
+		,@IsSkipValidation		BIT
+
+	SET @IsSkipValidation = CASE WHEN @action = 'MoveTicket' THEN 1 ELSE 0 END 
 
     SET @isUndo = CASE
                     WHEN @mode LIKE '%UNDO%' THEN 1
@@ -161,8 +166,9 @@ BEGIN
 
 	SET @IsEnableServiceBroker = 0
 
-    IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
-        RETURN
+	IF @IsSkipValidation = 0
+		IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
+			RETURN
 
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
@@ -295,8 +301,16 @@ BEGIN
 			END
 	        RETURN
         END 
- 
-        
+	
+        IF @Action = 'MoveTicket'
+		BEGIN
+			EXEC dbo.ExecRep_NAP_Admin_02 @matchid = @matchid
+				,@Mode = @Mode 
+				,@strTransIds = @strTransIds
+				
+			RETURN
+		END
+		
         IF @action = 'CAL'
         BEGIN
             IF @Mode <> 'UNDO'

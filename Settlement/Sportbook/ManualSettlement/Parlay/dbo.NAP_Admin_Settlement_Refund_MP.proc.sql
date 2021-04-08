@@ -26,6 +26,7 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
 
 	Param's Explanation:		
 		
@@ -78,6 +79,7 @@ BEGIN
 		,@betstatus			NVARCHAR(50)
 		,@GoalRecord		VARCHAR(50)		
 		,@IsRefundHT		BIT
+		,@ParentMatchId		INT
 		
 		
 	SELECT	TOP(1)
@@ -98,7 +100,7 @@ BEGIN
 							WHEN @betstatus LIKE 'Refund HT%' THEN 1 
 							ELSE 0 
 						END
-		
+		,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
 	FROM dbo.Match WITH(ROWLOCK)
 	WHERE matchid = @matchid
 	
@@ -155,9 +157,9 @@ BEGIN
 			RETURN
 			
 		IF (
-			(@hthomescore IS NULL AND @htawayscore IS NULL) --HT scores
+			(@ParentMatchId IS NULL AND @hthomescore IS NULL AND @htawayscore IS NULL) --HT scores
 			AND 
-			(@fthomescore IS NULL AND @ftawayscore IS NULL) --FT scores
+			(@ParentMatchId IS NULL AND @fthomescore IS NULL AND @ftawayscore IS NULL) --FT scores
 		)
 		BEGIN
 			SELECT	@ErrCode = 1000003
@@ -510,7 +512,24 @@ BEGIN
 
 		EXEC dbo.WriteLog_UserLog @creator, @Remark
 
-		SELECT @Remark = 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
+		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
+						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
+		
+		IF @SportType = 50
+		BEGIN
+			SELECT @hthomescore = NULL
+				  ,@htawayscore = NULL
+
+			IF @ParentMatchId IS NOT NULL
+			BEGIN
+				SELECT  @MatchId =  @ParentMatchId
+						,@fthomescore = finalhomescore 
+						,@ftawayscore = finalawayscore
+						,@betstatus	 = ISNULL(betstatus,'')
+				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+				WHERE	matchid = @ParentMatchId
+			END
+		END
 
 		BEGIN TRY
 			

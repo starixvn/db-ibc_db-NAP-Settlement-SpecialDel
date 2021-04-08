@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
+		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
 		
 	Param's Explanation:  
 		   
@@ -21,6 +22,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
 
 	SET @ServerName = @@SERVERNAME
 
@@ -58,7 +60,12 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 	---parse XML
 	INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
-	SELECT t.TransID, CASE WHEN ot.oddstype = 1 THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b14.bettype
+	SELECT t.TransID
+	, CASE	WHEN b14.bettype = 501 AND b14.transdate < @CutOffDate THEN 0
+			WHEN ot.oddstype = 1 THEN 1 
+			ELSE 0 
+		END AS isDecimalOdd
+	, srecommend, b14.bettype
 	FROM @tbl_transIDs t
 		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
@@ -90,7 +97,10 @@ BEGIN
 							END
 		   ,@odds = CASE WHEN b.bettype IN (468,469) THEN b.odds
 							 ELSE (CASE WHEN b.odds < 0 THEN 1 
-	   									WHEN sr.isDecimalOdd = 1 THEN b.odds - 1 ----/*DECIMAL ONLY*/
+	   									WHEN sr.isDecimalOdd = 1 THEN CASE 
+																		WHEN b.statuswinlost = 2 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
+																		ELSE b.odds - 1 ----/*DECIMAL ONLY*/
+																		END
 										ELSE b.odds 
 									END)
 					END
@@ -129,7 +139,7 @@ BEGIN
 															  END	
 							ELSE 
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -apositiontaking
+								WHEN statuswinlost = 2 THEN stake * -apositiontaking * @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * apositiontaking * 0.5
@@ -144,7 +154,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -mpositiontaking
+								WHEN statuswinlost = 2 THEN stake * -mpositiontaking *  @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * mpositiontaking * 0.5
@@ -159,7 +169,7 @@ BEGIN
 															  END	
 							ELSE
 							CASE
-								WHEN statuswinlost = 2 THEN stake * @odds * -spositiontaking
+								WHEN statuswinlost = 2 THEN stake * -spositiontaking * @odds
 								WHEN statuswinlost = 1 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN statuswinlost IN (0,6)	THEN 0
 								WHEN statuswinlost = 3 THEN actual_stake * spositiontaking * 0.5

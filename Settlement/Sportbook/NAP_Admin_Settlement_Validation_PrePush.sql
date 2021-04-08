@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Validation_PrePush] 
-    @Matchid				INT
-    ,@SelectedResource		VARCHAR(MAX)		= NULL
+	 @Matchid				INT
+    ,@SelectedResource		VARCHAR(MAX)	= NULL
     ,@Action				VARCHAR(100)	= 'CAL_EAR'
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
@@ -17,10 +17,13 @@ AS
         - 20191231@Helen: Basketball | Accidentally Settled Running Match caused by Keyscore - [Redmine:126287]
 		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+
      
     Param's Explanation:
 		* sample @SelectedResource for manual:	'801,802,1H,803,804,FT'
 		* sample @SelectedResource for early:	'604,6130215,6130115,6130110'
+		* sample @SelectedResource for Cricket: '94101001,94101002'
 		
     Matchid for testing: 70031309     
 */
@@ -34,9 +37,12 @@ BEGIN
     WHERE	m.matchid = @MatchId
 	
 	IF ( 
-		@sporttype IN (2) -- check for basketball first
-		AND ISNULL(@SelectedResource,'') <> ''
-		) 
+		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
+		OR ISNULL(@SelectedResource,'') = ''
+		)
+	RETURN
+
+	IF @sporttype = 2
 	BEGIN
 		IF @Action = 'CAL_EAR'
 		BEGIN
@@ -69,11 +75,42 @@ BEGIN
 								AND o.oddsstatus <> 'closed'
 							)	
 		END
-		IF @ErrCode > 0
-		BEGIN
-			SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
-		END		
 	END
+
+	ELSE IF @sporttype = 50
+	BEGIN
+		DECLARE @queryMatch NVARCHAR(MAX) = ''
+
+		CREATE TABLE #Resources ( Bettype SMALLINT, BetID BIGINT )
+
+		SET	@queryMatch = N'INSERT INTO #Resources ( Bettype , BetID )
+							SELECT   BetType
+										, BetID
+							FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType
+ 										, sp.BetID
+							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
+															ON sp.ResourceID = tm.val
+												OPTION (MAXRECURSION 0)
+							'')'
+
+		EXECUTE	sys.sp_executesql @queryMatch
+ 
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.oddsOS o WITH (NOLOCK)
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+							)
+	END
+
+	IF @ErrCode > 0
+	BEGIN
+		SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+	END		
+
 END
 GO
-
