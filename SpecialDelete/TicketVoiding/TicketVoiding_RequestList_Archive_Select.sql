@@ -19,6 +19,7 @@ AS
 		- 20201120@Zane: HF - Manage Request [Redmine:#145756]
 		- 20201223@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 
 	Param's explanation:	
 		@Status: 
@@ -386,8 +387,8 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,CASE WHEN t.IssueTypeId = 11 THEN ts.TotalSingle ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId = 11 THEN ts.TransIds ELSE NULL END AS TransIds
+			,CASE WHEN t.IssueTypeId IN (11,15) THEN ts.TotalSingle ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (11,15) THEN ts.TransIds ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
 				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'

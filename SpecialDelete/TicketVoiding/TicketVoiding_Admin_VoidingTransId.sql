@@ -23,6 +23,7 @@ AS
 		- 20200820@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+		- 20210422@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		
 	
 	Param's explanation:
@@ -144,7 +145,7 @@ BEGIN
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
-		IF @IssueTypeId = 11
+		IF @IssueTypeId IN (11,15)
 		BEGIN
 			SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
 			SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)

@@ -32,6 +32,7 @@ AS
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20210427@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		 
 	Param's explanation:	
 		
@@ -205,7 +206,7 @@ BEGIN
 		WHERE rd.RequestId = @RequestId AND  (rd.MatchId = @MatchId OR @MatchId = 0)
 	END
 
-	IF @IssueTypeId = 11 --11: AbnormalBet
+	IF @IssueTypeId IN (11,15) --11: AbnormalBet, 15: AB(RealMember)
 	BEGIN
 		DECLARE @transIdTemp TABLE (transid BIGINT NULL);
 				

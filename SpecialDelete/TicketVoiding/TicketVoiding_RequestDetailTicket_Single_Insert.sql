@@ -40,6 +40,7 @@ AS
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 	
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -311,7 +312,7 @@ BEGIN
 			END
 		END
 	END
-	ELSE IF @IssueTypeId = 11 AND @TransIds IS NOT NULL
+	ELSE IF @IssueTypeId IN (11,15) AND @TransIds IS NOT NULL
 	BEGIN
 		IF @IsEditRequest = 1
 		BEGIN

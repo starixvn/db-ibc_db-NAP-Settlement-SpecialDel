@@ -69,7 +69,7 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210401@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 		- 20210402@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
-
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 	Param's explanation:	
 	
 */
@@ -161,8 +161,8 @@ BEGIN
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
 				,RequestType = CASE WHEN @ActionId IN (4,6,7) THEN 1
-									ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @IsVoidVIPMember = 0) THEN 0
-											  WHEN @IssueTypeId = 11 AND @IsVoidVIPMember = 1 THEN 3
+									ELSE CASE WHEN @IssueTypeId NOT IN (11,15) OR (@IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
+											  WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
 											  ELSE 0
 										 END
 								END
@@ -467,7 +467,7 @@ BEGIN
 	END
 
 	-- Auto mark ticket running for auto void
-	IF @IssueTypeId = 11 AND @Sporttype <= 99
+	IF @IssueTypeId IN (11,15) AND @Sporttype <= 99
 	BEGIN
 		
 		INSERT INTO #TransidInRequest (TransId)
@@ -583,7 +583,7 @@ BEGIN
 
 	-- Get content of log data
 	SET @LogDataContent = ''
-	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL
+	IF @IssueTypeId IN (11,15) OR @TransIds IS NOT NULL
 	BEGIN
 		IF @MatchId <> @OldMatchId
 		BEGIN

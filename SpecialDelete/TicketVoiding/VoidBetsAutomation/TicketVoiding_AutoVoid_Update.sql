@@ -36,6 +36,8 @@ AS
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210402@July: TVS - Auto void before KO time with 2 new action - [Redmine: #150522]
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+
 	Param's explanation:	
 		
 		
@@ -244,7 +246,7 @@ BEGIN
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId AND rd.MatchId = rds.MatchId
-		WHERE 1 = CASE WHEN req.IssueTypeId = 11 AND rd.MatchId = @MatchId AND req.ActionId IN (1,4,6,7) -- Auto Void Winning, Auto Void All (Instant), Auto Void 5m & 10m before KOtime request only, not for take notes and waiting
+		WHERE 1 = CASE WHEN req.IssueTypeId IN (11,15) AND rd.MatchId = @MatchId AND req.ActionId IN (1,4,6,7) -- Auto Void Winning, Auto Void All (Instant), Auto Void 5m & 10m before KOtime request only, not for take notes and waiting
 							AND rd.RequestId = @RequestID THEN 1
 						WHEN req.IssueTypeId = 13  AND req.ActionId = 4 -- Auto Void All (Instant) request only
 							AND rd.RequestId  = @RequestID  THEN 1
@@ -372,7 +374,7 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
-				WHEN t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND b.matchid = @MatchId THEN 1 --Auto void winning request, void VIP
+				WHEN t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND b.matchid = @MatchId THEN 1 --Auto void winning request, void VIP
 				WHEN t.IssueTypeId <> 13 AND t.RequestType = 1 AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Void Instant Request
 				WHEN t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND b.statusID = 0 AND b.matchid = @MatchId AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
@@ -397,7 +399,7 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE 
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId = 11 AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 0 
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) THEN 0 
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END
@@ -1201,7 +1203,7 @@ BEGIN
 		SELECT  RequestID
 				,@UserId
 				, 1
-				,CASE WHEN IssueTypeId = 11 THEN TransIds ELSE NULL END
+				,CASE WHEN IssueTypeId IN (11,15) THEN TransIds ELSE NULL END
 				,@VoidDataXML
 		FROM @AutoVoid_ValidRequest
 
@@ -1271,11 +1273,20 @@ BEGIN
 									FROM	@tmpTransIDBatch t
 									FOR XML PATH('r'), ROOT('root')
 								)
-
-			EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-				@TransIds = @xmlTransId
-				,@UserId = @UserId
-				,@IssueTypeId = 11  
+			IF @IssueTypeId = 11
+			BEGIN
+				EXEC dbo.TicketVoiding_Admin_VoidingTransId 
+					@TransIds = @xmlTransId
+					,@UserId = @UserId
+					,@IssueTypeId = 11
+			END
+			ELSE IF @IssueTypeId = 15
+			BEGIN
+				EXEC dbo.TicketVoiding_Admin_VoidingTransId 
+					@TransIds = @xmlTransId
+					,@UserId = @UserId
+					,@IssueTypeId = 15
+			END
 				
 			SET @xmlTransId = ''	 
 			
