@@ -379,6 +379,10 @@ BEGIN
 
 	END
 
+	DELETE t
+	FROM @tmpMatchIds t
+	WHERE t.IsCalculatingSingle IS NULL AND t.IsCalculatingMP IS NULL AND t.AutoPayoutStatus IS NULL
+	
 	SELECT	tmp.MatchId
 			,tmp.Sporttype
 			,tmp.EventStatus
