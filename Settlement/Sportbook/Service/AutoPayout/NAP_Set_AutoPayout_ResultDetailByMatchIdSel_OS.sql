@@ -17,8 +17,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	SELECT TOP 1 MatchId, SourceId, 2 AS TypeId, HomeValue, AwayValue
-	FROM dbo.ProviderExternalResultDetail WITH (NOLOCK)
-	WHERE  MatchId = @MatchId
+	FROM dbo.ProviderExternalResultDetail p WITH (NOLOCK)
+	WHERE  p.MatchId = @MatchId
+		AND p.ResourceId = '00' 
 	ORDER BY ProviderExternalId DESC
 END
 GO
