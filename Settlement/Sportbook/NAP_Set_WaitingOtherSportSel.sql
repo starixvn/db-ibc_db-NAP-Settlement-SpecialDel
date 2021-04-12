@@ -143,7 +143,7 @@ BEGIN
 		,suspenderfulltime
 		,AutoPayoutStatus
 	)
-	SELECT	m.matchid
+	SELECT DISTINCT	m.matchid
 			,m.sporttype
 			,m.hthomescore
 			,m.htawayscore
@@ -177,15 +177,12 @@ BEGIN
 			ON m.leagueid = l.leagueid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
-		OUTER APPLY (
-					SELECT TOP 1 matchid, StatusId
-					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
-					WHERE matchid = m.matchid
-				)ap
+		LEFT JOIN DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK) ON ap.MatchId = m.matchid
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+		AND (q.IsCalculatingSingle IS NOT NULL OR q.IsCalculatingMP IS NOT NULL OR ap.StatusId IS NOT NULL)
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
@@ -378,10 +375,6 @@ BEGIN
 		EXECUTE sys.sp_executesql @remoteQuery
 
 	END
-
-	DELETE t
-	FROM @tmpMatchIds t
-	WHERE t.IsCalculatingSingle IS NULL AND t.IsCalculatingMP IS NULL AND t.AutoPayoutStatus IS NULL
 	
 	SELECT	tmp.MatchId
 			,tmp.Sporttype
