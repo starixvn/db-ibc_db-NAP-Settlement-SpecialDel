@@ -18,6 +18,7 @@ AS
 		- 20200110@Max: Prevent User From Calculating a Running Match [Redmine: #127031]
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210311@Louisa: Check runnind Odds [Redmine:#151173]
 
      
     Param's Explanation:
@@ -36,12 +37,9 @@ BEGIN
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
 	
-	IF ( 
-		@sporttype NOT IN (2, 50) -- check for basketball, Cricket
-		OR ISNULL(@SelectedResource,'') = ''
-		)
+	IF ( ISNULL(@SelectedResource,'') = ''	)
 	RETURN
-
+	
 	IF @sporttype = 2
 	BEGIN
 		IF @Action = 'CAL_EAR'
@@ -74,10 +72,10 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 							)	
-		END
+		END		
 	END
 
-	ELSE IF @sporttype = 50
+	ELSE IF ( @sporttype IN ( 5, 9, 43, 50 )	)
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
 
@@ -95,7 +93,35 @@ BEGIN
 							'')'
 
 		EXECUTE	sys.sp_executesql @queryMatch
- 
+
+		IF( @sporttype = 43)
+		BEGIN
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.oddsES o WITH (NOLOCK)
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+							)
+		END
+
+		ELSE IF( @sporttype = 5)
+		BEGIN
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.odds o WITH (NOLOCK)
+								INNER JOIN #Resources	r
+									ON o.bettype = r.Bettype
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
+								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+							)
+		END
+
+		ELSE IF( @sporttype IN (9,50) )
+		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
 								INNER JOIN #Resources	r
@@ -105,12 +131,16 @@ BEGIN
 								AND o.oddsstatus <> 'closed'
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
+		END
+
 	END
 
+
+	
 	IF @ErrCode > 0
 	BEGIN
 		SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
-	END		
-
+	END
 END
+
 GO
