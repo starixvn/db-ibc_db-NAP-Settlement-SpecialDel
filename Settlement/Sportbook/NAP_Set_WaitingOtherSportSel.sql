@@ -101,12 +101,12 @@ BEGIN
 	;WITH singlequeue AS (
 		SELECT	matchid, MIN(IsCalculating) AS IsCalculatingSingle
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
-		WHERE	Starttime > DATEADD(MINUTE, -100, GETDATE()) 
+		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE()) 
 		GROUP BY matchid
 	), parlayqueue AS (
 		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculatingMP
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
-		WHERE	Starttime > DATEADD(MINUTE, -100, GETDATE())
+		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
 		GROUP BY p.matchid
 	)
 	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP)
