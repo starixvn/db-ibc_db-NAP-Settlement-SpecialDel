@@ -19,6 +19,7 @@ AS
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210311@Louisa: Check runnind Odds [Redmine:#151173]
+		- 20210413@Louisa: Enhancement [Redmine:#148241]
 
      
     Param's Explanation:
@@ -79,17 +80,21 @@ BEGIN
 	BEGIN
 		DECLARE @queryMatch NVARCHAR(MAX) = ''
 
+		IF @sporttype = 9 AND @SelectedResource LIKE '%00%'
+			SELECT @SelectedResource = @SelectedResource + ',70400' ---Special resource FT
+
 		CREATE TABLE #Resources ( Bettype SMALLINT, BetID BIGINT )
 
 		SET	@queryMatch = N'INSERT INTO #Resources ( Bettype , BetID )
 							SELECT   BetType
-										, BetID
+									, BetID
 							FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType
  										, sp.BetID
 							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.val
-												OPTION (MAXRECURSION 0)
+															ON sp.ResourceID = tm.val OR ISNULL(sp.RefResourceId,'''''''') = tm.val
+							WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
+							OPTION (MAXRECURSION 0)
 							'')'
 
 		EXECUTE	sys.sp_executesql @queryMatch
