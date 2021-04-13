@@ -54,9 +54,9 @@ BEGIN
 			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 		SELECT @VoidFromTime = MIN(CASE WHEN act.FromDate >= DATEADD (SECOND,CASE WHEN act.AcceptType = 1 THEN @AATime
-																				 WHEN act.AcceptType = 2 THEN @SATime
-																				 WHEN act.AcceptType = 3 THEN @PATime
-																				 ELSE NULL END
+																				  WHEN act.AcceptType = 2 THEN @SATime
+																				  ELSE @PATime --act.AcceptType = 3
+																			 END
 																			,@FilterFromTransTime
 																		  )
 			
@@ -75,9 +75,11 @@ BEGIN
 		)b
 		CROSS APPLY (
 				SELECT CASE 
-							WHEN b.transdate = b.checktime THEN 1 --Auto Accept
-							WHEN ISNULL(b.checktime,0) = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0),DATEADD( SECOND,ISNULL(b.SecAcceptTime,0),b.transdate)) THEN 2 --Second Accept
-							WHEN ISNULL(b.checktime,0) != DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0),DATEADD( SECOND,ISNULL(b.SecAcceptTime,0),b.transdate)) THEN 3 --Pending Accept
+							WHEN b.checktime IS NULL THEN 1 --Auto Accept
+							ELSE CASE 
+									  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+									  ELSE 3 --Pending Accept
+								 END
 						END AS AcceptType
 					  ,CASE 
 							WHEN @FilterBy = 1 THEN b.transdate
