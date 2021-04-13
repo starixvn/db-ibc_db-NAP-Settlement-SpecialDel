@@ -127,8 +127,8 @@ BEGIN
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
-	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
-	--CREATE TABLE #InputValidCustid_tmp (custid INT) 
+	CREATE TABLE #InputValidCustid_2 (custid INT)
+	CREATE TABLE #InputValidCustid_tmp (custid INT) 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -202,22 +202,16 @@ BEGIN
 	BEGIN
 		
 		-- Get info match belong to username
-		SELECT @moveBetDay14 = MAX(eventdate) 
-		FROM dbo.match14 WITH(NOLOCK)
-		WHERE sporttype < 99
-	
-		SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
-				, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+		SELECT @moveBetDay14 = MAX(winlostdate) 
+		FROM dbo.bettrans14 WITH(NOLOCK)
 
-		IF @ToDate IS NULL
-		BEGIN
-			SELECT @moveBetDay = MAX(eventdate) 
-			FROM dbo.match WITH(NOLOCK)
-			WHERE sporttype < 99
-			
-			SET @ToDate = @moveBetDay
-		END
-	
+		SELECT @moveBetDay = MAX(winlostdate) 
+		FROM dbo.bettrans WITH(NOLOCK)
+
+		SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
+			 , @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			 , @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT val 
 		FROM dbo.f_SplitString(@StatusIds, ',')
@@ -248,7 +242,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 3)
 		BEGIN
 			INSERT INTO #InputValidCustid_2 (custid)	
-			SELECT DISTINCT ci.custid
+			SELECT ci.custid
 			FROM #InputUsernameList l
 				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.mrecommend
 			WHERE l.roleid = 3 AND ci.roleid = 2
@@ -257,14 +251,12 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #InputUsernameList WHERE roleid = 4)
 		BEGIN
 			INSERT INTO #InputValidCustid_2 (custid)
-			SELECT DISTINCT ci.custid
+			SELECT ci.custid
 			FROM #InputUsernameList l
 				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-				LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
-			WHERE l.roleid = 4 AND ci.roleid = 2 AND ag.custid IS NULL	
+			WHERE l.roleid = 4 AND ci.roleid = 2
 		END
 
-		/*
 		-- list of member to process
 		INSERT INTO #InputValidCustid_tmp (CustID)
 		SELECT  CustID
@@ -277,7 +269,6 @@ BEGIN
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
 		;
-		*/
 
 		------------Prepare Data------------------------
 		INSERT INTO @bettype_tmp (bettype)
@@ -306,7 +297,7 @@ BEGIN
 				,b.eventID
 				,b.gameID
 		FROM	dbo.translog AS b WITH (NOLOCK)
-			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 				AND b.GameID BETWEEN 801 AND 806
 				AND b.statusID = 0
@@ -325,13 +316,13 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
 			)ml
-			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			OUTER APPLY (
 				SELECT TOP 1 m.sporttype 
 				FROM dbo.match m WITH (NOLOCK)
 				WHERE m.matchid = b.matchid
 					AND m.sporttype = 50
 			)mc
+			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
@@ -706,7 +697,7 @@ BEGIN
 	DROP TABLE #TempMatch
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
-	--DROP TABLE #InputValidCustid_tmp
+	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #transIdTemp
 
 END
