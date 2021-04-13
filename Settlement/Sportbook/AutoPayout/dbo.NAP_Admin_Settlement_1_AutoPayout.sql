@@ -61,7 +61,7 @@ BEGIN
 		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
 		, @sporttype                    SMALLINT
-		, @matchcode					VARCHAR(100)
+		, @matchcode					NVARCHAR(50)
 		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
