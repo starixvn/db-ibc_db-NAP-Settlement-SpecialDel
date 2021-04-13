@@ -35,6 +35,7 @@ AS
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Removed @IsExcludeCorner [Redmine:#115232]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 
     Param's Explanation:
         
