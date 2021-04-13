@@ -240,7 +240,7 @@ BEGIN
 					WHEN 0 THEN ''
 					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 				END
-				,ISNULL(m.AutoSetting, 0) AutoSetting
+				,ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AutoSetting
 				,ISNULL(l.AutoSetting,0) AS AutoSettingForLeague
 				,m.SettlementStatus
 				,m.ChildMatchType
@@ -256,6 +256,8 @@ BEGIN
 				ON m.leagueid = l.leagueid
 			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 				ON	m.matchid = mr.matchid
+			INNER JOIN @tmpSporttypes s
+				ON m.sporttype = s.Sporttype
 			OUTER APPLY (
 					SELECT TOP 1 matchid, StatusId
 					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
@@ -317,7 +319,7 @@ BEGIN
 					WHEN 0 THEN ''
 					ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 				END
-				,ISNULL(m.AutoSetting, 0) AutoSetting
+				,ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AutoSetting
 				,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 				,m.SettlementStatus
 				,m.ChildMatchType

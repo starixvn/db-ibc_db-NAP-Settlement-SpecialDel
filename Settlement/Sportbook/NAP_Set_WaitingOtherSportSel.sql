@@ -82,7 +82,7 @@ BEGIN
 
 		,AutoPayoutStatus				TINYINT
 	)
-	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
+	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT)
 	
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
@@ -116,6 +116,17 @@ BEGIN
 	FROM	singlequeue s
 		FULL OUTER JOIN parlayqueue p
 			ON	s.matchid = p.matchid
+
+	MERGE @tmpQueueStatus  TARGET
+	USING (
+		SELECT  ap.MatchId, ap.StatusId
+		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
+	WHEN MATCHED THEN
+		UPDATE SET AutoPayoutStatus = SOURCE.statusid
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (MatchId, AutoPayoutStatus)
+		VALUES (SOURCE.MatchId, SOURCE.statusid); 
 	
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
@@ -158,7 +169,7 @@ BEGIN
 			,m.betstatus
 			,q.IsCalculatingSingle
 			,q.IsCalculatingMP
-			,ISNULL(m.AutoSetting, 0) AS AutoSetting 
+			,ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting 
 			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 			,m.SettlementStatus
 			,CASE mr.ConfirmHT 
@@ -169,7 +180,7 @@ BEGIN
 				WHEN 0 THEN ''
 				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 			END
-			,ap.StatusId
+			,q.AutoPayoutStatus
 	FROM  dbo.match m WITH(NOLOCK)
 		INNER JOIN @tmpLeagueIds tl
 			ON	m.leagueid = tl.LeagueId
@@ -177,12 +188,10 @@ BEGIN
 			ON m.leagueid = l.leagueid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
-		LEFT JOIN DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK) ON ap.MatchId = m.matchid
-		LEFT JOIN @tmpQueueStatus q
+		INNER JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
-		AND (q.IsCalculatingSingle IS NOT NULL OR q.IsCalculatingMP IS NOT NULL OR ap.StatusId IS NOT NULL)
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
 	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)

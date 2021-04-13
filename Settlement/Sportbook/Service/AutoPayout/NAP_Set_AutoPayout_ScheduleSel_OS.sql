@@ -56,16 +56,14 @@ BEGIN
 		WHERE m.eventstatus = 'running' 
 			AND m.sporttype IN (18) --Table Tennis
 			AND mr.ConfirmFT > 0
-			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
+			AND 1 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) = 1
 			AND NOT EXISTS (SELECT TOP 1 1 
 								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
 								WHERE rs.MatchId = m.matchid 
-									AND rs.CalculationType = 2 AND rs.StatusId IN (1, 2, 3))
+									AND rs.CalculationType = 2)
 		)t
 	WHERE IsConfirmed > 0
 	ORDER BY t.kickofftime, t.MatchId
-
-	DECLARE @currTime DATETIME = GETDATE()
 	
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
@@ -74,9 +72,6 @@ BEGIN
 	FROM @tmpMatchAuto t
 		LEFT JOIN dbo.ProviderExternalResultDetail p 
 			ON t.MatchId = p.MatchId AND p.ResourceId = '00'
-	WHERE 1 = CASE WHEN p.ProviderExternalId IS NOT NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16 AND p.SourceId = 101 THEN 1
-					WHEN 1 & ISNULL(t.AutoSetting, 0) = 1 THEN 1
-				END
 
 END
 GO
