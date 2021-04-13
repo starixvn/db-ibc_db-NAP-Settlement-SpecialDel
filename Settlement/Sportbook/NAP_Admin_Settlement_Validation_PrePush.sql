@@ -92,7 +92,7 @@ BEGIN
  										, sp.BetID
 							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.val OR ISNULL(sp.RefResourceId,'''''''') = tm.val
+															ON sp.ResourceID = tm.val
 							WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
 							OPTION (MAXRECURSION 0)
 							'')'
