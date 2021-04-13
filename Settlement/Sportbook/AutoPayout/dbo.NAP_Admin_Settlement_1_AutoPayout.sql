@@ -60,7 +60,8 @@ BEGIN
 		, @strHTBettypes				VARCHAR(MAX)
 		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
-		, @sporttype                     SMALLINT
+		, @sporttype                    SMALLINT
+		, @matchcode					VARCHAR(100)
 		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -135,7 +136,9 @@ BEGIN
 					 ELSE 0	END
 	END
 
-	SELECT @sporttype = m.sporttype
+	SELECT @eventstatus = m.eventstatus
+		, @matchcode = m.matchcode
+		, @sporttype = m.sporttype
 	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
  
@@ -178,14 +181,11 @@ BEGIN
 		UNDO : Unsettle the match  -- not use
 		*/
 
-		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
 									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-								ELSE m.eventstatus END
-			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
+								ELSE @eventstatus END
+			, @FTDone = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN 0
 						ELSE @FTDone END
-		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
-		WHERE m.matchid = @matchid
-
  
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
 			, @MatchID					= @matchid
