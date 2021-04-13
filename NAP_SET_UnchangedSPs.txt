@@ -1,8 +1,2 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Checking.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Calculate_9001.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Refund.proc.sql
-Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Calculate.proc.sql
-Settlement\Sportbook\NAP_Set_CheckingMarkedTransaction.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_SDT.proc.sql
-SpecialDelete\TicketVoiding\TicketVoiding_RecoverHistorical_Single_Update.sql
+Settlement\Sportbook\AutoPayout\dbo.NAP_Set_AutoPayout_MatchInfo.sql
+Settlement\Sportbook\AutoPayout\NAP_Set_AutoPayout_WaitingSel.sql
