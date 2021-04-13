@@ -135,12 +135,7 @@ BEGIN
 					 ELSE 0	END
 	END
 
-	SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-							ELSE m.eventstatus END
-		, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
-					ELSE @FTDone END
-		, @sporttype = m.sporttype
+	SELECT @sporttype = m.sporttype
 	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
  
@@ -182,6 +177,14 @@ BEGIN
 		SCORE : Only Save Score -- not use
 		UNDO : Unsettle the match  -- not use
 		*/
+
+		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+								ELSE m.eventstatus END
+			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
+						ELSE @FTDone END
+		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+		WHERE m.matchid = @matchid
 
  
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
