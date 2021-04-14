@@ -188,7 +188,7 @@ BEGIN
 
 	IF @FilteredBy = 1
 	BEGIN
-	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -203,6 +203,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -213,6 +214,12 @@ BEGIN
 		FROM dbo.TicketVoiding_Request_bk r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
+			INNER JOIN (
+						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
+						FROM @MinEventDate_tmp m
+						GROUP BY RequestID
+						)m
+				ON r.RequestId = m.RequestID
 		WHERE	r.RequestId = @RequestId
 					   		
 	END
@@ -223,7 +230,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -238,6 +245,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -264,7 +272,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -279,6 +287,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
+				,m.eventdate
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.VoidFromTime
@@ -387,8 +396,8 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,CASE WHEN t.IssueTypeId IN (11,15) THEN ts.TotalSingle ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId IN (11,15) THEN ts.TransIds ELSE NULL END AS TransIds
+			,CASE WHEN t.IssueTypeId IN (11,15) THEN LEN(ts.TransIds) - LEN(REPLACE(ts.TransIds, ',', '')) ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
 				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
@@ -407,19 +416,11 @@ BEGIN
 			ON t.LastVoidedBy = v.CustId
 		LEFT JOIN bodb02.dbo.Customer ch WITH(NOLOCK)
 			ON t.CheckedBy = ch.CustId
-		OUTER APPLY (
-					SELECT COUNT(1) AS TotalSingle
-						,STUFF((
-								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-								FROM TicketVoiding_RequestDetailTicket_Single_bk  WITH (NOLOCK)
-								WHERE (RequestId = s.RequestId) 
-								FOR XML PATH(''))
-								,1,1,''
-							) AS TransIds
+		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId
-					GROUP BY s.RequestId
-			)ts
+					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (11,15)
+					FOR XML PATH('')
+				)ts	 (TransIds)
 		OUTER APPLY ( -- Failed
 				SELECT DISTINCT RequestId, 3 AS statusID
 				FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
