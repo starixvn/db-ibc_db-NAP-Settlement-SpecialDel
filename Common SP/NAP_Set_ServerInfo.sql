@@ -11,6 +11,7 @@ AS
     Revisions: 
 		20200825@Kathy: Server is using service broker for settlement [Redmine:#140045]
 		20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -48,6 +49,10 @@ BEGIN
 	SELECT 'SITDB06', 'DBACC', 1
 	UNION ALL
 	SELECT 'SITDB055', 'DBBOF', 1
+	UNION ALL
+	SELECT 'SITDBAWS', 'DBBAL', 1
+	UNION ALL
+	SELECT 'SITDBBAL', 'DBBAL', 1
 	
 	UNION ALL -- PROD
 	SELECT 'DB052', 'DBEXT', 1
@@ -71,6 +76,9 @@ BEGIN
 	SELECT 'DB062', 'DBACC', 1
 	UNION ALL
 	SELECT 'DB042', 'DB042', 1
+
+	UNION ALL
+	SELECT 'DBBAL', 'DBBAL', 1
 
 	SELECT	@ServerAlias = ServerAlias
 			,@IsEnableServiceBroker = IsEnableServiceBroker
