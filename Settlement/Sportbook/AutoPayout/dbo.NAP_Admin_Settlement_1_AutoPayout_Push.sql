@@ -85,6 +85,12 @@ BEGIN
 			ON m.leagueid = l.leagueid
     WHERE m.matchid = @MatchId
 	
+	IF @sporttype = 18 --Set 0 for HTScore table Tennis if NULL
+	BEGIN
+		SELECT @HalfTimeHome = ISNULL(@HalfTimeHome, 0)
+			, @HalfTimeAway = ISNULL(@HalfTimeAway, 0)
+	END
+	
 	IF @@ROWCOUNT = 0
     BEGIN
         SELECT @ErrCode = 1001001
