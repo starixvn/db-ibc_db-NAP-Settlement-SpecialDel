@@ -71,7 +71,7 @@ BEGIN
 			, AutoSetting
 	FROM @tmpMatchAuto t
 		LEFT JOIN dbo.ProviderExternalResultDetail p 
-			ON t.MatchId = p.MatchId AND p.ResourceId = '00'
+			ON t.MatchId = p.MatchId AND p.ResourceId = '00' AND p.SourceId = 1
 
 END
 GO

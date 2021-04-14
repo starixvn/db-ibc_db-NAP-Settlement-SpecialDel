@@ -20,6 +20,7 @@ BEGIN
 	FROM dbo.ProviderExternalResultDetail p WITH (NOLOCK)
 	WHERE  p.MatchId = @MatchId
 		AND p.ResourceId = '00' 
+		AND p.SourceId = 1
 	ORDER BY ProviderExternalId DESC
 END
 GO
