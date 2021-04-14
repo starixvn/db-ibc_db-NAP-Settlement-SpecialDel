@@ -10,8 +10,9 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchSel
 	, @IsReLoad 			BIT = 0
 	, @IsHTOverOnly 		BIT = 0
 	, @IsOverOnly 			BIT = 0
-	, @AutoSetting 			TINYINT = 0
-	,@IsMarkedTicket		BIT = 0
+	, @AutoSetting 			VARCHAR(10) = ''
+	, @IsMarkedTicket		BIT = 0
+	, @IsInstant			BIT = 0
 AS
 /*  
  Created by: 20160311@Patrick
@@ -55,6 +56,7 @@ AS
 	- 20200617@Kathy: Allow to search like on MatchCode [Redmine:#135991]
 	- 20200904@Louisa: Get external score [Redmine:#139979]
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
 
 	
  Param explanation:  
@@ -64,12 +66,13 @@ AS
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
+	@AutoSetting : '': not select or select All; 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout  | Ex: @AutoSetting = '16,0'
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @UncalOnly BIT, @UncalMultiOnly BIT, @EventStatus NVARCHAR(50), @IsRefund BIT
-		, @MatchId INT, @Today DATETIME
+		,@MatchId INT, @Today DATETIME
 		,@SettlementStatus TINYINT
 
 	SELECT @matchcode 	= ISNULL(@matchcode, '')
@@ -77,7 +80,7 @@ BEGIN
 		, @filterBy 	= ISNULL(@filterBy, 0)
 		, @Today 		= GETDATE()
 		, @MatchId 	= 0
-
+	
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF @matchcode <> ''
 	BEGIN
@@ -85,7 +88,15 @@ BEGIN
 			, @LeagueID = CASE WHEN @isReLoad = 1 THEN @LeagueID 
 							ELSE 0 END -- reload partial; search on LeagueID, not reload: get all leagues
 			,@SettlementStatus = 0
+			,@SportType = 0
+			,@FilterBy = 3
 			,@IsMarkedTicket = 0
+			,@IsHTOverOnly = 0
+			,@IsOverOnly   = 0
+			,@AutoSetting = ''
+			,@IsInstant =0
+			,@StatusId = 0
+			,@IsMarkedTicket =0
 
 		IF ISNUMERIC(@matchcode) = 1
 		BEGIN
@@ -302,24 +313,39 @@ BEGIN
 				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 
-	--check auto setting
-	IF (@AutoSetting > 0)
+	IF (@IsInstant = 1)
 	BEGIN
-		DECLARE @DirectAutoPayout TINYINT
-		SELECT @DirectAutoPayout = CASE WHEN @AutoSetting = 1 THEN 16 -- Auto payout only (Auto/Direct)
-										WHEN @AutoSetting = 3 THEN 18 -- Auto payout and Instant Calc
-										ELSE 0
-									END
 		DELETE m
 		FROM #matchList m
-		--WHERE @AutoSetting & m.AutoSetting <> @AutoSetting
-		WHERE 1 = 
-				CASE 
-					WHEN 16 & m.AutoSetting = 16 AND @AutoSetting IN (1,3) THEN 
-						CASE WHEN @DirectAutoPayout & m.AutoSetting <> @DirectAutoPayout THEN 1 ELSE 0 END 
-					ELSE 
-						CASE WHEN @AutoSetting & m.AutoSetting <> @AutoSetting THEN 1 ELSE 0 END
-				END
+		WHERE m.AutoSetting & 2  = 0
+	END
+		
+	--check auto setting
+	IF ( ISNULL(@AutoSetting,'') <> '')
+	BEGIN
+		DECLARE @AutoValue TINYINT
+				,@minValue TINYINT
+
+		DECLARE @tmpAutoSetting TABLE (AutoSetting TINYINT)
+
+		INSERT INTO @tmpAutoSetting ( AutoSetting ) 
+		SELECT CAST(val AS TINYINT) FROM dbo.f_SplitString(@AutoSetting, ',')
+
+		SELECT  @AutoValue = SUM(AutoSetting) 
+				,@minValue = MIN(AutoSetting)
+		FROM @tmpAutoSetting
+
+		DELETE m
+		FROM #matchList m
+		WHERE 1 =  CASE WHEN @AutoValue = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1 
+				   										 ELSE 0 END
+				   		WHEN @minValue = 0 
+				   			AND m.AutoSetting & (@AutoValue ^17) > 0  
+				   			AND m.AutoSetting & @AutoValue = 0
+				   			THEN 1
+				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoValue = 0 THEN 1
+				   		ELSE 0
+				   		END
 	END
 	
 	BEGIN --update status
@@ -483,148 +509,146 @@ BEGIN
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
 
-	--Checking for Inst match info
-	IF (@AutoSetting = 0 OR 2 & @AutoSetting = 2)
-	BEGIN 
-		INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
-		SELECT t.MatchId
-			, 0 AS HomeValue
-			, 0 AS AwayValue
-			, 0 AS StatusId
-			, 0 AS CalculationType
-			, 4 AS Priority
-			, t.SettlementStatus
-			, 0  AS InstantKey
-		FROM #matchList t 
-		WHERE 2 & t.AutoSetting = 2
-			AND (t.eventstatus IN ('running') OR t.eventstatus LIKE 'Refund%') --#86964
+	--Inst match info
+	INSERT INTO #InstMatchInfo (MatchId, InstantHomeScore, InstantAwayScore, InstantStatusId,InstantCalculationType,InstantPriority, SettlementStatus, InstantKey)
+	SELECT t.MatchId
+		, 0 AS HomeValue
+		, 0 AS AwayValue
+		, 0 AS StatusId
+		, 0 AS CalculationType
+		, 4 AS Priority
+		, t.SettlementStatus
+		, 0  AS InstantKey
+	FROM #matchList t 
+	WHERE 2 & t.AutoSetting = 2
+		AND (t.eventstatus IN ('running') OR t.eventstatus LIKE 'Refund%') --#86964
 		
-		;WITH InstantScores AS (
-			SELECT *
-			FROM (
-				SELECT prd.MatchId
-					, prd.HomeValue
-					, prd.AwayValue
-					, prd.TypeId AS CalculationType
-					, prd.IsConfirmed
-					, prd.SourceID
-					, prd.ProviderResultDetailId AS InstantKey
-					, ROW_NUMBER() OVER(
-						PARTITION BY prd.matchID
-						ORDER BY ProviderResultDetailId DESC
-					) AS RowIdx
-				FROM #InstMatchInfo m
-					INNER JOIN DBPRO.bodb02.dbo.ProviderResultDetail prd WITH(NOLOCK)
-					ON m.matchid = prd.matchID
-				WHERE prd.TypeId IN (101, 102)
-					AND m.SettlementStatus & 87 = 0 ----bit 1,2,3,5,7
-					AND prd.SourceID = 100 --#86964
-			) AS t
-			WHERE RowIdx IN (1, 2)
-		)
-		,InstMatchConfirm AS (
-			SELECT temp.MatchId
-				,temp.HomeValue
-				,temp.AwayValue
-				, 1 AS StatusId --to Confirm
-				,temp.CalculationType
-				,temp.InstantKey
-				--,CASE WHEN (chk.matchID > 0 AND  (temp.HomeValue < chk.HomeValue OR temp.AwayValue < chk.AwayValue) ) THEN 1 ELSE 0 END AS InstantScoreDiff
-				,CASE WHEN (chk.matchID > 0 AND  (CAST(ISNULL(temp.HomeValue, 0) AS INT)) < (CAST(ISNULL(chk.HomeValue, 0) AS INT)) OR (CAST(ISNULL(temp.AwayValue, 0) AS INT)) < (CAST(ISNULL(chk.AwayValue, 0) AS INT))) THEN 1 ELSE 0 END AS InstantScoreDiff
-			FROM InstantScores AS temp
-				LEFT JOIN InstantScores AS chk 
-					ON temp.matchId = chk.matchId AND chk.RowIdx = 2
-				LEFT JOIN DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
-					ON temp.matchid = aps.matchID
-					AND temp.CalculationType = aps.CalculationType
-					AND temp.HomeValue 	= aps.HomeValue
-					AND temp.AwayValue 	= aps.AwayValue
-					
-			WHERE temp.RowIdx = 1
-				AND (
-					aps.StatusId IS NULL --not confirm yet
-					OR (aps.StatusId = 3 --FAILED to re-confirm
-						 
-						 --#86964
-						 AND (NOT EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.AutoPayoutResult a WITH(NOLOCK)  --SUCCESSS by Others (Auto/Manual)
-									   WHERE a.matchid			  = aps.matchID
-									   AND a.CalculationType	  = aps.CalculationType
-									   AND a.HomeValue		  = aps.HomeValue
-									   AND a.AwayValue		  = aps.AwayValue
-									   AND a.StatusId		  = 2)
-							 
-							 OR EXISTS (SELECT 1 FROM (SELECT TOP 2 MatchID, ModifiedDate, StatusID, -- Not Calculate yet
-												    ROW_NUMBER() OVER( PARTITION BY aps.matchid ORDER BY ModifiedDate DESC) AS RowIdx
-												  FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
-												  WHERE aps.matchid		   = temp.matchID
-												    AND aps.CalculationType = temp.CalculationType
-												    AND aps.HomeValue	   = temp.HomeValue
-												    AND aps.AwayValue	   = temp.AwayValue
-									  ) AS T1
-									  LEFT JOIN (SELECT TOP 2 MatchID, ModifiedDate, StatusID, 
-											     ROW_NUMBER() OVER( PARTITION BY aps.matchid ORDER BY ModifiedDate DESC) AS RowIdx
-											   FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
-											   WHERE aps.MatchID		 = temp.MatchID
-												AND aps.CalculationType	 = temp.CalculationType
-												AND aps.HomeValue		 = temp.HomeValue
-												AND aps.AwayValue		 = temp.AwayValue
-										  ) AS T2 ON T1.MatchID= T2.MatchID AND T2.RowIdx = 2
-										  WHERE T1.RowIdx = 1
-										  AND (T1.StatusID <> 2 AND T1.ModifiedDate > T2.ModifiedDate) --last update still calculate failed
-									  )
-							 )
-					  )--#86964
-
-					OR (aps.StatusId = 2 AND temp.IsConfirmed = 0)--abnormal case -> re-calculate
-				    )
-		)
-		UPDATE d
-		SET InstantHomeScore			= u.HomeValue
-			, InstantAwayScore			= u.AwayValue
-			, InstantStatusId			= u.StatusId
-			, InstantCalculationType	     = u.CalculationType
-			, InstantPriority			= 3
-			, InstantKey				= u.InstantKey
-			, InstantScoreDiff			= u.InstantScoreDiff
-		FROM #InstMatchInfo d
-			INNER JOIN InstMatchConfirm u 
-			ON d.matchID = u.matchID
-			
-		;WITH InstMatchInProgress AS (
-			SELECT m.MatchId
-				, aps.HomeValue
-				, aps.AwayValue
-				, 2 AS StatusId -- has confirmed
-				, aps.CalculationType
-				, pr.InstantKey
-			FROM #InstMatchInfo m
-				INNER JOIN DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
-				ON m.matchid = aps.matchID
-				OUTER APPLY (
-					SELECT TOP(1) ProviderResultDetailId AS InstantKey
-					FROM DBPRO.bodb02.dbo.ProviderResultDetail pr WITH(NOLOCK)
-					WHERE matchID = m.matchID 
-						AND TypeId = aps.CalculationType
-						AND HomeValue = aps.HomeValue
-						AND AwayValue = aps.AwayValue
-						AND pr.SourceID = 100 --#86964
+	;WITH InstantScores AS (
+		SELECT *
+		FROM (
+			SELECT prd.MatchId
+				, prd.HomeValue
+				, prd.AwayValue
+				, prd.TypeId AS CalculationType
+				, prd.IsConfirmed
+				, prd.SourceID
+				, prd.ProviderResultDetailId AS InstantKey
+				, ROW_NUMBER() OVER(
+					PARTITION BY prd.matchID
 					ORDER BY ProviderResultDetailId DESC
-				) AS pr
+				) AS RowIdx
+			FROM #InstMatchInfo m
+				INNER JOIN DBPRO.bodb02.dbo.ProviderResultDetail prd WITH(NOLOCK)
+				ON m.matchid = prd.matchID
+			WHERE prd.TypeId IN (101, 102)
+				AND m.SettlementStatus & 87 = 0 ----bit 1,2,3,5,7
+				AND prd.SourceID = 100 --#86964
+		) AS t
+		WHERE RowIdx IN (1, 2)
+	)
+	,InstMatchConfirm AS (
+		SELECT temp.MatchId
+			,temp.HomeValue
+			,temp.AwayValue
+			, 1 AS StatusId --to Confirm
+			,temp.CalculationType
+			,temp.InstantKey
+			--,CASE WHEN (chk.matchID > 0 AND  (temp.HomeValue < chk.HomeValue OR temp.AwayValue < chk.AwayValue) ) THEN 1 ELSE 0 END AS InstantScoreDiff
+			,CASE WHEN (chk.matchID > 0 AND  (CAST(ISNULL(temp.HomeValue, 0) AS INT)) < (CAST(ISNULL(chk.HomeValue, 0) AS INT)) OR (CAST(ISNULL(temp.AwayValue, 0) AS INT)) < (CAST(ISNULL(chk.AwayValue, 0) AS INT))) THEN 1 ELSE 0 END AS InstantScoreDiff
+		FROM InstantScores AS temp
+			LEFT JOIN InstantScores AS chk 
+				ON temp.matchId = chk.matchId AND chk.RowIdx = 2
+			LEFT JOIN DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
+				ON temp.matchid = aps.matchID
+				AND temp.CalculationType = aps.CalculationType
+				AND temp.HomeValue 	= aps.HomeValue
+				AND temp.AwayValue 	= aps.AwayValue
+					
+		WHERE temp.RowIdx = 1
+			AND (
+				aps.StatusId IS NULL --not confirm yet
+				OR (aps.StatusId = 3 --FAILED to re-confirm
+						 
+						--#86964
+						AND (NOT EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.AutoPayoutResult a WITH(NOLOCK)  --SUCCESSS by Others (Auto/Manual)
+									WHERE a.matchid			  = aps.matchID
+									AND a.CalculationType	  = aps.CalculationType
+									AND a.HomeValue		  = aps.HomeValue
+									AND a.AwayValue		  = aps.AwayValue
+									AND a.StatusId		  = 2)
+							 
+							OR EXISTS (SELECT 1 FROM (SELECT TOP 2 MatchID, ModifiedDate, StatusID, -- Not Calculate yet
+												ROW_NUMBER() OVER( PARTITION BY aps.matchid ORDER BY ModifiedDate DESC) AS RowIdx
+												FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
+												WHERE aps.matchid		   = temp.matchID
+												AND aps.CalculationType = temp.CalculationType
+												AND aps.HomeValue	   = temp.HomeValue
+												AND aps.AwayValue	   = temp.AwayValue
+									) AS T1
+									LEFT JOIN (SELECT TOP 2 MatchID, ModifiedDate, StatusID, 
+											    ROW_NUMBER() OVER( PARTITION BY aps.matchid ORDER BY ModifiedDate DESC) AS RowIdx
+											FROM DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
+											WHERE aps.MatchID		 = temp.MatchID
+											AND aps.CalculationType	 = temp.CalculationType
+											AND aps.HomeValue		 = temp.HomeValue
+											AND aps.AwayValue		 = temp.AwayValue
+										) AS T2 ON T1.MatchID= T2.MatchID AND T2.RowIdx = 2
+										WHERE T1.RowIdx = 1
+										AND (T1.StatusID <> 2 AND T1.ModifiedDate > T2.ModifiedDate) --last update still calculate failed
+									)
+							)
+					)--#86964
 
-			WHERE aps.StatusId IN (1) --waiting & calculating
-				AND aps.CalculationType IN (101, 102)	
-		)
-		UPDATE d
-		SET InstantHomeScore			= u.HomeValue
-			, InstantAwayScore			= u.AwayValue
-			, InstantStatusId			= u.StatusId
-			, InstantCalculationType	= u.CalculationType
-			, InstantPriority			= 1
-			, InstantKey				= u.InstantKey
-		FROM #InstMatchInfo d
-			INNER JOIN InstMatchInProgress u 
-			ON d.matchID = u.matchID
-	END
+				OR (aps.StatusId = 2 AND temp.IsConfirmed = 0)--abnormal case -> re-calculate
+				)
+	)
+	UPDATE d
+	SET InstantHomeScore			= u.HomeValue
+		, InstantAwayScore			= u.AwayValue
+		, InstantStatusId			= u.StatusId
+		, InstantCalculationType	     = u.CalculationType
+		, InstantPriority			= 3
+		, InstantKey				= u.InstantKey
+		, InstantScoreDiff			= u.InstantScoreDiff
+	FROM #InstMatchInfo d
+		INNER JOIN InstMatchConfirm u 
+		ON d.matchID = u.matchID
+	----/END Inst match info
+		
+	;WITH InstMatchInProgress AS (
+		SELECT m.MatchId
+			, aps.HomeValue
+			, aps.AwayValue
+			, 2 AS StatusId -- has confirmed
+			, aps.CalculationType
+			, pr.InstantKey
+		FROM #InstMatchInfo m
+			INNER JOIN DBPRO.bodb02.dbo.AutoPayoutResult aps WITH(NOLOCK)
+			ON m.matchid = aps.matchID
+			OUTER APPLY (
+				SELECT TOP(1) ProviderResultDetailId AS InstantKey
+				FROM DBPRO.bodb02.dbo.ProviderResultDetail pr WITH(NOLOCK)
+				WHERE matchID = m.matchID 
+					AND TypeId = aps.CalculationType
+					AND HomeValue = aps.HomeValue
+					AND AwayValue = aps.AwayValue
+					AND pr.SourceID = 100 --#86964
+				ORDER BY ProviderResultDetailId DESC
+			) AS pr
+
+		WHERE aps.StatusId IN (1) --waiting & calculating
+			AND aps.CalculationType IN (101, 102)	
+	)
+	UPDATE d
+	SET InstantHomeScore			= u.HomeValue
+		, InstantAwayScore			= u.AwayValue
+		, InstantStatusId			= u.StatusId
+		, InstantCalculationType	= u.CalculationType
+		, InstantPriority			= 1
+		, InstantKey				= u.InstantKey
+	FROM #InstMatchInfo d
+		INNER JOIN InstMatchInProgress u 
+		ON d.matchID = u.matchID
 	
 	-- match is calculated or not
 	IF @SportType IN (0,1)
