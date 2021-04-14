@@ -21,6 +21,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost - [Redmine:115377]
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
+		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		
     Param's Explanation:
         
@@ -91,7 +92,7 @@ BEGIN
 					LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
 						ON tmp.bettype = f.BetType
 
-		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','SITDBTRANS')
+		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','SITDBTRANS', 'DBBAL', 'SITDBAWS', 'SITDBBAL')
 		BEGIN
 			SET @settlementTime = GETDATE();
 

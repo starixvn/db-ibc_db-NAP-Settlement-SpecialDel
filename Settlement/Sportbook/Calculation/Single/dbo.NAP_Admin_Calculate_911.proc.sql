@@ -16,6 +16,7 @@ AS
 		- 20170614@Kathy: Remove table BetTradeSellingCancelled on server DBLicAPI, SITDBLicAPI [Redmine:#77991]
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 		- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
+		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		
 	Parameter's Explanation:
 		- @Action: CAL, Refund
@@ -180,7 +181,8 @@ BEGIN
 		--RECOVER BetTradeSellingCancelled
 		IF @@SERVERNAME IN ('DB230' -- local dev
 			,'DB206' -- local test
-			,'SITDBTRANS' -- SIT
+			,'SITDBTRANS', 'SITDBBAL','SITDBAWS' -- SIT
+			,'DBBAL' -- cloud
 			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
 		) OR @ServerAlias = 'DBACC'
 		BEGIN		
@@ -221,7 +223,8 @@ BEGIN
 		--REFUND CashOut transaction
 		IF @@SERVERNAME IN ('DB230' -- local dev
 			,'DB206' -- local test
-			,'SITDBTRANS' -- SIT
+			,'SITDBTRANS', 'SITDBBAL','SITDBAWS' -- SIT
+			,'DBBAL' -- cloud
 			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
 		) OR @ServerAlias = 'DBACC'
 		BEGIN	
