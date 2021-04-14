@@ -72,9 +72,10 @@ BEGIN
 		
 	SELECT @start					= CURRENT_TIMESTAMP
 		, @TicketCount				= 0
-		, @ActionID					= CASE @Action
+		, @ActionID					= CASE  @Action
 										WHEN 'CAL-FT'	THEN 158
 										WHEN 'CAL-HT'	THEN 157
+										WHEN 'CAL'		THEN 100
 										END
  
 	IF @@ROWCOUNT = 0
@@ -119,7 +120,7 @@ BEGIN
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (2, 4) -- inclued FGLG bettype -- #106901
  
-	IF @Action = 'CAL-HT'
+	IF @Action IN ('CAL-HT', 'CAL')
 	BEGIN
 		SELECT @TicketCount = COUNT(1)
 		FROM dbo.bettrans b WITH(NOLOCK)
@@ -127,14 +128,15 @@ BEGIN
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 1
 					 ELSE 0	END
 	END
-	ELSE IF @Action = 'CAL-FT'
+	IF @Action IN ('CAL-FT', 'CAL')
 	BEGIN
-		SELECT @TicketCount = COUNT(1)
+		SELECT @TicketCount = @TicketCount + COUNT(1)
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE b.matchid = @matchid
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strFTBettypes + ',') > 0 THEN 1
 					 ELSE 0	END
 	END
+
 
 	SELECT @eventstatus = m.eventstatus
 		, @matchcode = m.matchcode
@@ -181,7 +183,8 @@ BEGIN
 		UNDO : Unsettle the match  -- not use
 		*/
 
-		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+		SELECT @eventstatus = CASE WHEN @action = 'CAL'  THEN N'completed'
+									WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
 									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 								ELSE @eventstatus END
 			, @FTDone = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN 0
@@ -249,6 +252,7 @@ BEGIN
 		DECLARE @TypeId TINYINT
 		SET @TypeId = CASE @Action WHEN 'CAL-HT' THEN 1
 									WHEN 'CAL-FT' THEN 2
+									WHEN 'CAL'		THEN 2
 						ELSE -1	END --not supported
 		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
