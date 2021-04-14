@@ -112,7 +112,8 @@ BEGIN
 			WinLost               MONEY,
 			IsMarked              BIT,
 			LiveIndicator		  BIT,
-			StatusId			  TINYINT
+			StatusId			  TINYINT,
+			checktime			  DATETIME
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -288,6 +289,7 @@ BEGIN
 				,LiveIndicator
 				,matchid
 				,StatusId
+				,checktime
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -338,6 +340,7 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
+				,b.checktime
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -408,6 +411,7 @@ BEGIN
 					,LiveIndicator
 					,matchid
 					,StatusId
+					,checktime
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -448,6 +452,7 @@ BEGIN
 					,sub.liveindicator
 					,@MatchId
 					,main.statusID
+					,sub.checktime
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -516,6 +521,7 @@ BEGIN
 				,LiveIndicator
 				,matchid
 				,StatusId
+				,checktime
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -566,6 +572,7 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
+				,b.checktime
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			OUTER APPLY (
@@ -625,6 +632,7 @@ BEGIN
 				,LiveIndicator
 				,matchid
 				,StatusId
+				,checktime
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -662,6 +670,7 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
+				,NULL
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
@@ -725,6 +734,7 @@ BEGIN
 					,LiveIndicator
 					,matchid
 					,StatusId
+					,checktime
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -765,6 +775,7 @@ BEGIN
 					,sub.liveindicator
 					,@MatchId
 					,main.statusID
+					,sub.checktime
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -867,6 +878,7 @@ BEGIN
 						,LiveIndicator
 						,matchid
 						,StatusId
+						,checktime
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -918,6 +930,7 @@ BEGIN
 						,b.liveindicator
 						,@MatchId
 						,b.statusID
+						,b.checktime
 			FROM #tmpRefCodeSummary t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							ON b.RefCode = t.RefCode
@@ -983,6 +996,7 @@ BEGIN
 			,IsMarked
 			,LiveIndicator
 			,StatusId
+			,checktime
 		)
 	SELECT  sub911.transid AS GroupTransId
 			,sub911.transid AS transId
@@ -1026,6 +1040,7 @@ BEGIN
 			,main.IsMarked
 			,main.LiveIndicator
 			,main.StatusId
+			,sub911.checktime
 	FROM dbo.bettrans sub911 WITH(NOLOCK)
 			INNER JOIN #SpecialDeleteBets main 
 				ON	sub911.refno = main.transid	
@@ -1091,6 +1106,7 @@ BEGIN
 				,LiveIndicator
 				,matchid
 				,StatusId
+				,checktime
 			)
 		SELECT  sub911.transid AS GroupID
 				,b.transid
@@ -1139,6 +1155,7 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
+				,sub911.checktime
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
 							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
@@ -1222,8 +1239,16 @@ BEGIN
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 	SELECT @MatchId AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
-		,CASE WHEN @FilterBy <> 0 THEN @FilterFromTransTime ELSE MIN(b.transdate) END AS VoidFromTime
-		,CASE WHEN @FilterBy <> 0 THEN @FilterToTransTime ELSE MAX(b.transdate) END AS VoidToTime
+		,MIN(CASE WHEN @FilterBy = 1 THEN b.transdate
+				  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+				  WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+				  ELSE  b.transdate END
+			) AS VoidFromTime
+		,MAX(CASE WHEN @FilterBy = 1 THEN b.transdate
+				  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+				  WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+				  ELSE  b.transdate END
+			) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = 1 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL THEN  b.transid ELSE NULL END) AS InstantlySettleCount
