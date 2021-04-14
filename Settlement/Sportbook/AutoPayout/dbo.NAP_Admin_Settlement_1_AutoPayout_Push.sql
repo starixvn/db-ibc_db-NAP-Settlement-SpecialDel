@@ -109,7 +109,7 @@ BEGIN
 				FROM DBPRO.bodb02.dbo.ResultDetail with(NOLOCK)
 				WHERE matchid = @matchid
 					AND 1 = CASE 
-								WHEN resourceId = '00' AND @Action IN ('CAL-FT', 'CAL') THEN 1
+								WHEN resourceId = '00' AND @Action = 'CAL-FT' THEN 1
 								WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
 								ELSE 0
 							END
