@@ -9,6 +9,7 @@ AS
 		- 20181018@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20181224@Helen: Clean conversation when reach limit (sent 1000) - [Redmine:106881]
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20210415@Louisa: Fixbug: Body email is empty because check wrong SB name [Redmine:#143442]
 		
 */
 BEGIN
@@ -119,7 +120,7 @@ BEGIN
 				-- 20150921@viet: handle deadlock case, put some delay then retry. in case queue is disable, enable it again
 				SELECT @isQueueEnabled = is_enqueue_enabled
 				FROM sys.service_queues WITH(NOLOCK)
-				WHERE name = 'Service_Settlement_OtherSports'	
+				WHERE name = 'Queue_Settlement_OtherSports'
 						
 				IF @error_number = 1205 --deadlock
 				BEGIN
