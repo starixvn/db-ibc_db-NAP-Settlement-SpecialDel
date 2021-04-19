@@ -124,7 +124,7 @@ BEGIN
 
 	MERGE @tmpQueueStatus  TARGET
 	USING (
-		SELECT TOP 1 ap.MatchId, ap.StatusId
+		SELECT ap.MatchId, ap.StatusId
 		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
 	WHEN MATCHED THEN
