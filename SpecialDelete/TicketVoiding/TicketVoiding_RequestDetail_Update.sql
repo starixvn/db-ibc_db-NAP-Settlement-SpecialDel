@@ -143,7 +143,7 @@ BEGIN
 		RETURN;
 	END
 
-	IF @IssueTypeId = 11 OR @TransIds IS NOT NULL -- Abnormal Bet
+	IF @IssueTypeId IN (11,15) OR @TransIds IS NOT NULL -- Abnormal Bet
 	BEGIN
 	
 		SELECT	@LeagueId = leagueid

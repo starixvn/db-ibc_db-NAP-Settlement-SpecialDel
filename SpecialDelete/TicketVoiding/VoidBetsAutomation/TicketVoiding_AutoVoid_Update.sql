@@ -339,7 +339,7 @@ BEGIN
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId
-		WHERE req.IssueTypeId = 11 AND rd.MatchId = @MatchId 
+		WHERE req.IssueTypeId IN (11,15) AND rd.MatchId = @MatchId 
 			AND req.ActionId = 1 -- Auto Void Winning ONLY, Auto Void All (Instant) will cover at the time process for request in queue
 		
 	END
@@ -1273,20 +1273,10 @@ BEGIN
 									FROM	@tmpTransIDBatch t
 									FOR XML PATH('r'), ROOT('root')
 								)
-			IF @IssueTypeId = 11
-			BEGIN
-				EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-					@TransIds = @xmlTransId
-					,@UserId = @UserId
-					,@IssueTypeId = 11
-			END
-			ELSE IF @IssueTypeId = 15
-			BEGIN
-				EXEC dbo.TicketVoiding_Admin_VoidingTransId 
-					@TransIds = @xmlTransId
-					,@UserId = @UserId
-					,@IssueTypeId = 15
-			END
+			EXEC dbo.TicketVoiding_Admin_VoidingTransId 
+				@TransIds = @xmlTransId
+				,@UserId = @UserId
+				,@IssueTypeId = @IssueTypeId
 				
 			SET @xmlTransId = ''	 
 			
