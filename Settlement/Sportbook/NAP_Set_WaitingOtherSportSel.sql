@@ -82,7 +82,7 @@ BEGIN
 
 		,AutoPayoutStatus				TINYINT
 	)
-	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT)
+	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT, Sporttype SMALLINT)
 	
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
@@ -109,19 +109,24 @@ BEGIN
 		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
 		GROUP BY p.matchid
 	)
-	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP)
-	SELECT	ISNULL(s.matchid, p.matchid) AS matchid
-			,s.IsCalculatingSingle
-			,p.IsCalculatingMP
-	FROM	singlequeue s
-		FULL OUTER JOIN parlayqueue p
-			ON	s.matchid = p.matchid
+	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP, Sporttype)
+	SELECT q.matchid, q.IsCalculatingSingle, q.IsCalculatingMP, m.sporttype
+	FROM (
+		SELECT	ISNULL(s.matchid, p.matchid) AS matchid
+				,s.IsCalculatingSingle
+				,p.IsCalculatingMP
+		FROM	singlequeue s
+			FULL OUTER JOIN parlayqueue p
+				ON	s.matchid = p.matchid
+		)q
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.matchid
+	WHERE m.sporttype <> 1
 
 	MERGE @tmpQueueStatus  TARGET
 	USING (
-		SELECT  ap.MatchId, ap.StatusId
+		SELECT TOP 1 ap.MatchId, ap.StatusId
 		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
-		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
+		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
 	WHEN MATCHED THEN
 		UPDATE SET AutoPayoutStatus = SOURCE.statusid
 	WHEN NOT MATCHED BY TARGET THEN
