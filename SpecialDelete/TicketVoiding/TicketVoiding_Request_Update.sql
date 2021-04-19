@@ -18,20 +18,20 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@MatchId				INT			  = 0
 	,@KickOffTime			DATETIME	  = NULL
 	,@TransIds				VARCHAR(MAX)  = NULL
-	,@FilterFromTransTime	DATETIME	  = NULL
-	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterFromBetId		BIGINT		  = NULL
-	,@FilterToBetId			BIGINT		  = NULL
-	,@FilterBy				TINYINT		  = 1
-	,@SingleCount			INT			  = NULL
-	,@MainParlayCount		INT			  = NULL
-	,@MinSingleTransId		BIGINT		  = NULL
-	,@MaxSingleTransId		BIGINT		  = NULL
-	,@MinMainParlayTransId	BIGINT		  = NULL
-	,@MaxMainParlayTransId	BIGINT		  = NULL
-	,@VoidFromTime			DATETIME	  = NULL
-	,@VoidToTime			DATETIME	  = NULL
-	,@LiveScores			NVARCHAR(300) = NULL
+	--,@FilterFromTransTime	DATETIME	  = NULL
+	--,@FilterToTransTime		DATETIME	  = NULL
+	--,@FilterFromBetId		BIGINT		  = NULL
+	--,@FilterToBetId			BIGINT		  = NULL
+	--,@FilterBy				TINYINT		  = 1
+	--,@SingleCount			INT			  = NULL
+	--,@MainParlayCount		INT			  = NULL
+	--,@MinSingleTransId		BIGINT		  = NULL
+	--,@MaxSingleTransId		BIGINT		  = NULL
+	--,@MinMainParlayTransId	BIGINT		  = NULL
+	--,@MaxMainParlayTransId	BIGINT		  = NULL
+	--,@VoidFromTime			DATETIME	  = NULL
+	--,@VoidToTime			DATETIME	  = NULL
+	--,@LiveScores			NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT			  = 0
 	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
@@ -53,6 +53,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@IsConfirmCalculator   BIT			  = 0
+	,@LogInfoXml			XML = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -72,6 +73,7 @@ AS
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210412@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -80,6 +82,10 @@ AS
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		@LogInfoXml: 
+		<root>
+			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" FilterFromBetId="3" FilterToBetId ="4" FilterBy="0" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores="" IsCheckedHomeTeam="" IsCheckedAwayTeam="" TypeAccept =""/>
+		</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -182,22 +188,22 @@ BEGIN
 			,@TransIds = @TransIds 				
 			,@ActionId = @ActionId				
 			,@IssueTypeId = @IssueTypeId			
-			,@FilterFromTransTime = @FilterFromTransTime
-			,@FilterToTransTime	= @FilterToTransTime		
-			,@FilterFromBetId = @FilterFromBetId		
-			,@FilterToBetId	= @FilterToBetId			
-			,@FilterBy = @FilterBy				
-			,@SingleCount = @SingleCount			
-			,@MainParlayCount = @MainParlayCount		
-			,@MinSingleTransId = @MinSingleTransId		
-			,@MaxSingleTransId = @MaxSingleTransId		
-			,@MinMainParlayTransId = @MinMainParlayTransId
-			,@MaxMainParlayTransId = @MaxMainParlayTransId
-			,@VoidFromTime = @VoidFromTime			
-			,@VoidToTime = @VoidToTime			
-			,@LiveScores = @LiveScores			
-			,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
-			,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
+			--,@FilterFromTransTime = @FilterFromTransTime
+			--,@FilterToTransTime	= @FilterToTransTime		
+			--,@FilterFromBetId = @FilterFromBetId		
+			--,@FilterToBetId	= @FilterToBetId			
+			--,@FilterBy = @FilterBy				
+			--,@SingleCount = @SingleCount			
+			--,@MainParlayCount = @MainParlayCount		
+			--,@MinSingleTransId = @MinSingleTransId		
+			--,@MaxSingleTransId = @MaxSingleTransId		
+			--,@MinMainParlayTransId = @MinMainParlayTransId
+			--,@MaxMainParlayTransId = @MaxMainParlayTransId
+			--,@VoidFromTime = @VoidFromTime			
+			--,@VoidToTime = @VoidToTime			
+			--,@LiveScores = @LiveScores			
+			--,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
+			--,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
 			,@SubIssueTypeId = @SubIssueTypeId		
 			,@IsConfirmCalculator = @IsConfirmCalculator
 			,@UserNames	= @UserNames				
@@ -207,6 +213,7 @@ BEGIN
 			,@ToDate = @ToDate
 			,@IsVoidVIPMember = @IsVoidVIPMember
 			,@TypeAccept = @TypeAccept		
+			,@LogInfoXml = @LogInfoXml				
 			,@ErrMsg = @ErrMsg	OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
@@ -219,8 +226,8 @@ BEGIN
 			,@KickOffTime = @KickOffTime		
 			,@IssueTypeId = @IssueTypeId		
 			,@SubIssueTypeId = @SubIssueTypeId	
-			,@MinSingleTransId = @MinSingleTransId	
-			,@MaxSingleTransId = @MaxSingleTransId	
+			--,@MinSingleTransId = @MinSingleTransId	
+			--,@MaxSingleTransId = @MaxSingleTransId	
 			,@TransIds = @TransIds			
 			,@IsEditRequest	= 1		
 			,@UserId = @UserId			
@@ -228,14 +235,15 @@ BEGIN
 			,@ActionId = @ActionId			
 			,@FilterFromTransTime = @VoidFromTime
 			,@FilterToTransTime = @VoidToTime	
-			,@FilterBy = @FilterBy			
+			--,@FilterBy = @FilterBy			
 			,@UserNames	= @UserNames			
 			,@ProductIds = @ProductIds		
 			,@StatusIds = @StatusIds			
 			,@FromDate = @FromDate			
 			,@ToDate = @ToDate
+			,@LogInfoXml = @LogInfoXml
 	
-	IF @IssueTypeId IN (1,8,9,10)
+	IF @IssueTypeId IN (1,8,9,10,3)
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 			@RequestId = @RequestId		
@@ -243,15 +251,16 @@ BEGIN
 			,@KickOffTime = @KickOffTime			
 			,@IssueTypeId = @IssueTypeId			
 			,@SubIssueTypeId = @SubIssueTypeId		
-			,@MinMainParlayTransId = @MinMainParlayTransId	
-			,@MaxMainParlayTransId = @MaxMainParlayTransId	
+			--,@MinMainParlayTransId = @MinMainParlayTransId	
+			--,@MaxMainParlayTransId = @MaxMainParlayTransId	
 			,@IsEditRequest	= 1		
 			,@UserId = @UserId				
 			,@IP = @IP					
 			,@ActionId = @ActionId				
 			,@FilterFromTransTime = @VoidFromTime	
 			,@FilterToTransTime = @VoidToTime		
-			,@FilterBy = @FilterBy				
+			--,@FilterBy = @FilterBy
+			,@LogInfoXml = @LogInfoXml				
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0

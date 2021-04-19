@@ -16,20 +16,20 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@MatchId				INT			  = 0
 	,@KickOffTime			DATETIME	  = NULL
 	,@TransIds				VARCHAR(MAX)  = NULL
-	,@FilterFromTransTime	DATETIME	  = NULL
-	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterFromBetId		BIGINT		  = NULL
-	,@FilterToBetId			BIGINT		  = NULL
-	,@FilterBy				TINYINT		  = 1
-	,@SingleCount			INT			  = NULL
-	,@MainParlayCount		INT			  = NULL
-	,@MinSingleTransId		BIGINT		  = NULL
-	,@MaxSingleTransId		BIGINT		  = NULL
-	,@MinMainParlayTransId	BIGINT		  = NULL
-	,@MaxMainParlayTransId	BIGINT		  = NULL
-	,@VoidFromTime			DATETIME	  = NULL
-	,@VoidToTime			DATETIME	  = NULL
-	,@LiveScores			NVARCHAR(300) = NULL
+	--,@FilterFromTransTime	DATETIME	  = NULL
+	--,@FilterToTransTime		DATETIME	  = NULL
+	--,@FilterFromBetId		BIGINT		  = NULL
+	--,@FilterToBetId			BIGINT		  = NULL
+	--,@FilterBy				TINYINT		  = 1
+	--,@SingleCount			INT			  = NULL
+	--,@MainParlayCount		INT			  = NULL
+	--,@MinSingleTransId		BIGINT		  = NULL
+	--,@MaxSingleTransId		BIGINT		  = NULL
+	--,@MinMainParlayTransId	BIGINT		  = NULL
+	--,@MaxMainParlayTransId	BIGINT		  = NULL
+	--,@VoidFromTime			DATETIME	  = NULL
+	--,@VoidToTime			DATETIME	  = NULL
+	--,@LiveScores			NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT			  = 0
 	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
@@ -50,6 +50,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistBB				BIT           = 0
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
+	,@LogInfoXml			XML = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -66,6 +67,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -75,6 +77,10 @@ AS
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		@LogInfoXml: 
+		<root>
+			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" FilterFromBetId="3" FilterToBetId ="4" FilterBy="0" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores="" IsCheckedHomeTeam="" IsCheckedAwayTeam="" TypeAccept =""/>
+		</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -85,6 +91,8 @@ BEGIN
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
 			,@avaiableProcess	BIT
+			,@SingleCount		INT	= NULL
+			,@MainParlayCount	INT	= NULL
 			
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
@@ -124,6 +132,14 @@ BEGIN
 		END;
 	END
 
+	IF @IssueTypeId IN (1,10,3)--DA,RC,WC
+	BEGIN
+		SELECT @SingleCount = t.c.value('@SingleCount','INT')
+			  ,@MainParlayCount = t.c.value('@MainParlayCount','INT')
+		FROM @LogInfoXml.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@LogInfoXml = NULL))
+	END
+
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
 	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
 
@@ -138,22 +154,22 @@ BEGIN
 				,@UserId = @UserId
 				,@IP = @IP
 				,@ActionId = @ActionId
-				,@FilterFromTransTime = @FilterFromTransTime
-				,@FilterToTransTime	= @FilterToTransTime
-				,@FilterFromBetId = @FilterFromBetId		
-				,@FilterToBetId	= @FilterToBetId			
-				,@FilterBy = @FilterBy				
-				,@SingleCount = @SingleCount			
-				,@MainParlayCount = @MainParlayCount		
-				,@MinSingleTransId = @MinSingleTransId		
-				,@MaxSingleTransId = @MaxSingleTransId		
-				,@MinMainParlayTransId = @MinMainParlayTransId	
-				,@MaxMainParlayTransId = @MaxMainParlayTransId	
-				,@VoidFromTime = @VoidFromTime			
-				,@VoidToTime = @VoidToTime			
-				,@LiveScores = @LiveScores			
-				,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
-				,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
+				--,@FilterFromTransTime = @FilterFromTransTime
+				--,@FilterToTransTime	= @FilterToTransTime
+				--,@FilterFromBetId = @FilterFromBetId		
+				--,@FilterToBetId	= @FilterToBetId			
+				--,@FilterBy = @FilterBy				
+				--,@SingleCount = @SingleCount			
+				--,@MainParlayCount = @MainParlayCount		
+				--,@MinSingleTransId = @MinSingleTransId		
+				--,@MaxSingleTransId = @MaxSingleTransId		
+				--,@MinMainParlayTransId = @MinMainParlayTransId	
+				--,@MaxMainParlayTransId = @MaxMainParlayTransId	
+				--,@VoidFromTime = @VoidFromTime			
+				--,@VoidToTime = @VoidToTime			
+				--,@LiveScores = @LiveScores			
+				--,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
+				--,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
 				,@SubIssueTypeId = @SubIssueTypeId	
 				,@UserNames	= @UserNames				
 				,@ProductIds = @ProductIds			
@@ -162,8 +178,9 @@ BEGIN
 				,@ToDate = @ToDate
 				,@IsVoidVIPMember = @IsVoidVIPMember
 				,@TypeAccept = @TypeAccept
+				,@LogInfoXml = @LogInfoXml
 	
-	IF (@IssueTypeId NOT IN (1,10) OR (@IssueTypeId IN (1,10) AND @SingleCount > 0))
+	IF (@IssueTypeId IN(8,9,11,13,15) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
@@ -171,8 +188,8 @@ BEGIN
 				,@KickOffTime = @KickOffTime		
 				,@IssueTypeId = @IssueTypeId		
 				,@SubIssueTypeId = @SubIssueTypeId	
-				,@MinSingleTransId = @MinSingleTransId	
-				,@MaxSingleTransId = @MaxSingleTransId	
+				--,@MinSingleTransId = @MinSingleTransId	
+				--,@MaxSingleTransId = @MaxSingleTransId	
 				,@TransIds = @TransIds			
 				,@IsEditRequest	= 0		
 				,@UserId = @UserId			
@@ -180,15 +197,16 @@ BEGIN
 				,@ActionId = @ActionId			
 				,@FilterFromTransTime = @VoidFromTime
 				,@FilterToTransTime = @VoidToTime	
-				,@FilterBy = @FilterBy			
+				--,@FilterBy = @FilterBy			
 				,@UserNames	= @UserNames			
 				,@ProductIds = @ProductIds		
 				,@StatusIds = @StatusIds			
 				,@FromDate = @FromDate			
 				,@ToDate = @ToDate
+				,@LogInfoXml = @LogInfoXml
 	END
 
-	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10) AND @MainParlayCount > 0))
+	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3) AND @MainParlayCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
@@ -196,15 +214,16 @@ BEGIN
 				,@KickOffTime = @KickOffTime			
 				,@IssueTypeId = @IssueTypeId			
 				,@SubIssueTypeId = @SubIssueTypeId		
-				,@MinMainParlayTransId = @MinMainParlayTransId	
-				,@MaxMainParlayTransId = @MaxMainParlayTransId	
+				--,@MinMainParlayTransId = @MinMainParlayTransId	
+				--,@MaxMainParlayTransId = @MaxMainParlayTransId	
 				,@IsEditRequest	= 0			
 				,@UserId = @UserId				
 				,@IP = @IP					
 				,@ActionId = @ActionId				
 				,@FilterFromTransTime = @VoidFromTime	
 				,@FilterToTransTime	= @VoidToTime		
-				,@FilterBy = @FilterBy				
+				--,@FilterBy = @FilterBy
+				,@LogInfoXml = @LogInfoXml						
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
