@@ -31,6 +31,7 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		 
 	Param's explanation:	
 		
@@ -343,11 +344,11 @@ BEGIN
 				 , cte.[Set]
 				 , cte.Game
 				 , cte.BetOption
-				 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 228) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
+				 , CAST(CASE WHEN (cte.GroupId IS NULL) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS [Value]
 				 , cte.ValueHdp1
 		 		 , cte.ValueHdp2
-				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 228) OR (cte.Id IN (479, 481)) THEN cte.[Value]
+				 , CAST(CASE WHEN (cte.GroupId IN (1,2)) OR (cte.Id IN (479, 481)) THEN cte.[Value]
 							ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
 				 , cte.Goal
 				 , cte.OddsSpread
@@ -367,11 +368,17 @@ BEGIN
 								ELSE cte.Goal END AS BIGINT) AS Goal
 					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
 								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+					 ,f.GroupId
 				FROM #tblBetType cte
 					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 					 CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
+					 OUTER APPLY (
+									SELECT GroupId
+									FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+									WHERE Bettype = cte.Id
+								)f
 			) cte	
 			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']

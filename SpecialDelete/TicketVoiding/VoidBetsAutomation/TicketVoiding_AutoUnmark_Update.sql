@@ -33,6 +33,7 @@ AS
 		- 20200727@Max: [TVS] Danger Accept Bets Issue Type [Redmine: #135947]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		
 	Param's explanation:	
 		
@@ -151,8 +152,8 @@ BEGIN
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
 			,CASE 
-				WHEN @Bettype NOT IN (228) THEN 1
-				WHEN @Bettype = 228 THEN 7 
+				WHEN @Bettype NOT IN (228,229) THEN 1
+				WHEN @Bettype IN (228,229) THEN 7 
 			END AS KeyId
 	
 	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
