@@ -27,6 +27,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210319@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210420@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 
 	Param's explanation:	
 	
@@ -68,7 +69,7 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,8,9,10,11)
+	IF @IssueTypeId IN (1,8,9,10,11,15) -- DA,EKO,WKO,RC,AB,AB(Real Member)
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -104,12 +105,12 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId AND @IssueTypeId = 11
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15)
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
 	END
-	IF @IssueTypeId = 13 -- apply for Abnormal Account
+	ELSE IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN
 		SELECT	TOP 1
 				 rd.Usernames AS UserNames
