@@ -138,7 +138,8 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
-		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+		- 20210416@Kathy: - Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+						  - Remove unused param matchCode
 
     Param's Explanation:
         @action             @mode
@@ -220,7 +221,6 @@ BEGIN
             + CASE WHEN @GoalRecord IS NULL THEN '' ELSE ',@GoalRecord = ' + '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
 			+ CASE WHEN @goalsequenceHT IS NULL THEN '' ELSE ',@goalsequenceHT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceHT) + '''' END
 			+ CASE WHEN @goalsequenceFT IS NULL THEN '' ELSE ',@goalsequenceFT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceFT) + '''' END
-            + CASE WHEN @matchCode IS NULL THEN '' ELSE ',@matchCode = ' + '''' + CONVERT(NVARCHAR(50), @matchCode) + '''' END
             + CASE WHEN @oddeven IS NULL THEN '' ELSE ',@oddeven = ' + CONVERT(NVARCHAR(50), @oddeven) END
             + CASE WHEN @oddevenht IS NULL THEN '' ELSE ',@oddevenht = ' + CONVERT(NVARCHAR(50), @oddevenht) END
             + CASE WHEN @oddevenhome IS NULL THEN '' ELSE ',@oddevenhome = ' + CONVERT(NVARCHAR(50), @oddevenhome) END
