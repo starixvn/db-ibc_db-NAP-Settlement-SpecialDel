@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
 	,@action						VARCHAR(20)		= 'CAL'
 	,@strTransIds					VARCHAR(MAX)	= NULL
 	,@CalledByBrokerService         BIT         = 0
-	,@RunOnServer					VARCHAR(100) = NULL
 AS
 /*
 	Created: 20181016@Vicky
@@ -18,7 +17,6 @@ AS
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
-		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 
 	Param's Explanation:
 
@@ -34,14 +32,6 @@ BEGIN
 					ELSE 0
 				END
 	SET @IsEnableServiceBroker = 0
-	
-	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
-
-	IF @RunOnServer <> @@SERVERNAME
-	BEGIN
-		PRINT 'This command was skipped because run wrong server'
-		RETURN
-	END
 
 	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'DB055') AND @isUndo = 0
 		RETURN
@@ -58,7 +48,6 @@ BEGIN
 		SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_OtherSports @matchid = ' + CONVERT(NVARCHAR(50), @matchid) + ','
 			+ '@action = ' + '''' + @action + '''' +  ','
 			+ '@strTransIds = ' + '''' + @strTransIds + '''' +  ','
-			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE '@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END + ','
 			+ '@CalledByBrokerService = 1 '
 			
 		EXEC [sb].[SBInputMessage] @fromService = N'Service_Settlement_OtherSports'
