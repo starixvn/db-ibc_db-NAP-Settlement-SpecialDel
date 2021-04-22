@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 	,@CalledByBrokerService     BIT         = 0
 	,@IsUseServiceBroker		BIT = 0
 	,@ActionType				TINYINT = NULL
+	,@RunOnServer				VARCHAR(100) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -21,6 +22,8 @@ AS
 		- 20200212@Helen: update if <> void status [Redmine:#127398]
 		- 20200820@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
+		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+		
 	
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
@@ -53,6 +56,14 @@ BEGIN
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+
+	IF @RunOnServer <> @@SERVERNAME
+	BEGIN
+		PRINT 'This command was skipped because run wrong server'
+		RETURN
+	END
+	
 	SET @xml = CONVERT(XML, @TransIds)
 
 	EXEC dbo.NAP_Set_ServerInfo 
@@ -72,6 +83,7 @@ BEGIN
 					+ ',@CalledByBrokerService = 1'
 					+ ',@IsUseServiceBroker = 1'
 					+ ',@ActionType = ' + CONVERT(NVARCHAR(10), @ActionType)
+					+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
 
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
 				,@toService = N'//Service/Calculation_receive'

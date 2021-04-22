@@ -25,6 +25,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@betstatus     NVARCHAR(50) = NULL
 	,@Sporttype SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
+	,@RunOnServer VARCHAR(100) = NULL
 AS
 /*
     Created: Kathy
@@ -56,6 +57,7 @@ AS
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		
 
     Param's Explanation:
@@ -73,6 +75,14 @@ BEGIN
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P
 	
 	SET @IsEnableServiceBroker = 0
+	
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+	
+	IF @RunOnServer <> @@SERVERNAME
+	BEGIN
+		PRINT 'This command was skipped because run wrong server'
+		RETURN
+	END
 	
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
@@ -108,6 +118,7 @@ BEGIN
                 + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
                 + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
 				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
+				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
                 + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'

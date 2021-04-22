@@ -68,6 +68,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@oddstype						TINYINT		= NULL
 	,@isMarked						BIT			= NULL
 	,@modds							SMALLMONEY	= NULL
+	,@RunOnServer					VARCHAR(100) = NULL
 
 AS
 /*
@@ -137,6 +138,8 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210416@Kathy: - Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+						  - Remove unused param matchCode
 
     Param's Explanation:
         @action             @mode
@@ -165,6 +168,13 @@ BEGIN
                 END
 
 	SET @IsEnableServiceBroker = 0
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+
+	IF @RunOnServer <> @@SERVERNAME
+	BEGIN
+		PRINT 'This command was skipped because run wrong server'
+		RETURN
+	END
 
 	IF @IsSkipValidation = 0
 		IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
@@ -211,7 +221,6 @@ BEGIN
             + CASE WHEN @GoalRecord IS NULL THEN '' ELSE ',@GoalRecord = ' + '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
 			+ CASE WHEN @goalsequenceHT IS NULL THEN '' ELSE ',@goalsequenceHT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceHT) + '''' END
 			+ CASE WHEN @goalsequenceFT IS NULL THEN '' ELSE ',@goalsequenceFT = ' + '''' + CONVERT(NVARCHAR(50), @goalsequenceFT) + '''' END
-            + CASE WHEN @matchCode IS NULL THEN '' ELSE ',@matchCode = ' + '''' + CONVERT(NVARCHAR(50), @matchCode) + '''' END
             + CASE WHEN @oddeven IS NULL THEN '' ELSE ',@oddeven = ' + CONVERT(NVARCHAR(50), @oddeven) END
             + CASE WHEN @oddevenht IS NULL THEN '' ELSE ',@oddevenht = ' + CONVERT(NVARCHAR(50), @oddevenht) END
             + CASE WHEN @oddevenhome IS NULL THEN '' ELSE ',@oddevenhome = ' + CONVERT(NVARCHAR(50), @oddevenhome) END
@@ -256,10 +265,11 @@ BEGIN
 
             + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ' + '''' + CONVERT(NVARCHAR(50), @SelectedQuarter) + '''' END
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
-			 + CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
-			  + CASE WHEN @oddstype IS NULL THEN '' ELSE ',@oddstype = ' + CONVERT(NVARCHAR(50), @oddstype) END
-			   + CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
-			    + CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
+			+ CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
+			+ CASE WHEN @oddstype IS NULL THEN '' ELSE ',@oddstype = ' + CONVERT(NVARCHAR(50), @oddstype) END
+			+ CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
+			+ CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
+			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
