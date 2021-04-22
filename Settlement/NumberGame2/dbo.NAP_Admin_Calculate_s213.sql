@@ -1,7 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_s213] 
 	@strXML VARCHAR(MAX),
-	@CalledByBrokerService BIT = 0 
+	@CalledByBrokerService BIT = 0,
+	@RunOnServer VARCHAR(100) = NULL
 AS
 /*
 	Created by:[Johnson]
@@ -14,6 +15,7 @@ AS
 		- 20190319@Johnson: migrate server DB061,062 [redmine: #110514]
 		- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
 		- 20210125@Johnson: Migrate DB054 to cluster, instance DB054C2\DB054 [redmine:#149341]
+		- 20210419@Johnson: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 	Parameter's Explanation:
 	
 */
@@ -25,6 +27,14 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 	
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+	
+	IF @RunOnServer <> @@SERVERNAME
+	BEGIN
+		PRINT 'This command was skipped because run wrong server'
+		RETURN
+	END
+	
 	IF (@@SERVERNAME IN ('DB231\DBSPU2','DB232\DBSPU2','DBLicAPI','SITDBLicAPI','DBLicAPI02') OR @IsEnableServiceBroker = 1)
 		AND @CalledByBrokerService = 0
 	BEGIN
@@ -34,6 +44,7 @@ BEGIN
 		SET @sMessage = 'EXEC dbo.NAP_Admin_Calculate_s213 '
 		+'@strXML =' + '''' + @strXML + '''' + ','
 		+'@CalledByBrokerService = 1'
+		+CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
 		
 		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
 			,@toService = N'//Service/Calculation_receive'
@@ -76,7 +87,7 @@ BEGIN
 			comm = CASE WHEN @statusid IN (112,113) THEN discount * stake * (1-apositiontaking) ELSE 0 END,
 			acomm = CASE WHEN @statusid IN (112,113) THEN adiscount * stake * (1-(mpositiontaking+apositiontaking)) ELSE 0 END,
 			scomm = CASE WHEN @statusid IN (112,113) THEN sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) ELSE 0 END			
-		FROM bettrans b WITH(NOLOCK)
+		FROM bettrans b WITH(ROWLOCK)
 			INNER JOIN #tmpTrans t ON b.transid = t.transid
 		
 		DROP TABLE #tmpTrans
