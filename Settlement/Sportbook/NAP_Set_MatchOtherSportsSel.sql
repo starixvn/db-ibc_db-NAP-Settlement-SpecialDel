@@ -21,7 +21,7 @@ AS
 			- 20200827@Louisa: get external result to compare [Redmine:#139979]
 			- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 			- 20210205@Louisa: Cricket AIO [Redmine:#148870]
-			- 20210324@Louisa: Enhancemant MultiSports page [Redmine:#151545]
+			- 20210324@Louisa: Enhancement MultiSports page [Redmine:#151545]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -42,7 +42,8 @@ AS
 							5 - Postponed
 							6 - Completed
 							7 - Refund
-							8 - Internal )
+							8 - Internal
+							9 - Interval Over )
 
 		@Remark:	Un-check all: 0
 					Check all: 87
@@ -108,6 +109,7 @@ BEGIN
 		,finalhomescore					INT
 		,finalawayscore					INT
 		,eventstatus					NVARCHAR(50)
+		,IsNeutral						BIT
 		,betstatus						NVARCHAR(50)
 		,suspenderhalftime				NVARCHAR(50)
 		,suspenderfulltime				NVARCHAR(50)
@@ -132,6 +134,8 @@ BEGIN
 		,IsExistMarkedTicketParlay		BIT DEFAULT (0)
 		,IsExistRunningBettypeSingle	BIT DEFAULT (0) -- exclude early bettype
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
+		,IsExistsRunningInterval		BIT DEFAULT (0) --Apply for Basketball, Tennis, Badminton, E-sports, Cricket
+		,IsPending						BIT DEFAULT (0)
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -194,6 +198,7 @@ BEGIN
 			,finalhomescore
 			,finalawayscore
 			,eventstatus
+			,IsNeutral
 			,betstatus
 			,suspenderhalftime
 			,suspenderfulltime
@@ -205,7 +210,8 @@ BEGIN
 			,IsMultiCaled
 			,IsRefund
 			,IsCalRefund
-			,IsHalfTimeCal 
+			,IsHalfTimeCal
+			,IsPending
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -219,6 +225,7 @@ BEGIN
 				,m.finalhomescore
 				,m.finalawayscore
 				,m.eventstatus
+				,m.IsNeutral
 				,m.betstatus
 				,CASE mr.ConfirmHT 
 					WHEN 0 THEN ''
@@ -237,6 +244,7 @@ BEGIN
 				,mr.refund
 				,mr.calrefund
 				,mr.IsHTCal
+				,mr.isPending
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -262,6 +270,7 @@ BEGIN
 			,finalhomescore
 			,finalawayscore
 			,eventstatus
+			,IsNeutral
 			,betstatus
 			,suspenderhalftime
 			,suspenderfulltime
@@ -273,7 +282,8 @@ BEGIN
 			,IsMultiCaled
 			,IsRefund
 			,IsCalRefund
-			,IsHalfTimeCal 
+			,IsHalfTimeCal
+			,IsPending
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -287,6 +297,7 @@ BEGIN
 				,m.finalhomescore
 				,m.finalawayscore				
 				,m.eventstatus
+				,m.IsNeutral
 				,m.betstatus
 				,CASE mr.ConfirmHT 
 					WHEN 0 THEN ''
@@ -305,6 +316,7 @@ BEGIN
 				,mr.refund
 				,mr.calrefund
 				,mr.IsHTCal
+				,mr.isPending
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpLeagueIds tl 
 				ON	m.leagueid = tl.LeagueId
@@ -319,7 +331,7 @@ BEGIN
 					SELECT TOP 1 1
 					FROM	@tmpMatchStatus s
 					WHERE	m.eventstatus = CASE 
-												WHEN s.Id IN (0, 7, 4) THEN m.eventstatus
+												WHEN s.Id IN (0, 7, 4, 9) THEN m.eventstatus
 												ELSE s.EventStatus
 											END
 							AND 1 = CASE
@@ -339,7 +351,7 @@ BEGIN
 									END
 				)
 				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
-	END	
+	END
 
 	;WITH singlequeue 
 	AS(
@@ -461,6 +473,59 @@ BEGIN
 		)t
 			ON m.matchid = t.ParentId
 	WHERE t.IsRunningBettypeSingle = 1
+
+	IF (@MatchStatus LIKE '%9%' AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds m WHERE m.sporttype IN (2,5,9,43,50)	)) --interval Over
+	BEGIN
+		
+		CREATE TABLE #RunningInterval ( MatchId INT, SportType TINYINT, ResourceId VARCHAR(20))
+
+		INSERT INTO #RunningInterval ( MatchId, SportType, ResourceId )
+		SELECT    MatchId , SportType, ResourceId
+		FROM  #tmpMatchIds m
+			CROSS APPLY (SELECT r.ResourceId 
+						FROM bodb02.dbo.ResultDetail r WITH(NOLOCK)
+						WHERE r.SettlementStatusID = 0
+							AND r.ResultStatusID = 3
+							AND r.ResourceID IN ('Q1','Q2','Q3','Q4','01','02','03','04','05')
+							AND r.MatchId = m.matchid
+							AND m.sporttype IN (2, 5)
+												
+						UNION ALL
+						SELECT r.ResourceId 
+						FROM bodb02.dbo.ResultDetailES r WITH(NOLOCK)
+						WHERE r.SettlementStatusID = 0
+							AND r.ResultStatusID = 3
+							AND r.ResourceID IN ('M1','M2','M3','M4','M5','M6','M7','M8','M9')
+							AND r.MatchId = m.matchid
+							AND m.sporttype = 43
+												
+						UNION ALL
+						SELECT r.ResourceId 
+						FROM bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+						WHERE r.SettlementStatusID = 0
+							AND r.ResultStatusID = 3
+							AND r.ResourceID IN ('0101','0102','0103','0104','0105','H1','A1','H2','A2')
+							AND r.MatchId = m.matchid
+							AND m.sporttype IN( 9, 50)
+						)r
+		WHERE m.IsExistRunningBettypeSingle =1 
+			OR m.IsRunningEarlyBettypesSingle = 1
+
+		 UPDATE m SET IsExistsRunningInterval = 1 
+		 FROM #tmpMatchIds m
+			INNER JOIN	 #RunningInterval i ON m.matchid = i.MatchId
+			CROSS APPLY ( SELECT TOP 1 i.MatchId
+							FROM dbo.bettrans b WITH(NOLOCK)
+								INNER JOIN dbo.SettlementSpecialBettypeProfile sp  WITH(NOLOCK)
+								ON b.bettype = sp.BetType AND (sp.Betid = 0 OR sp.BetID = b.BetID)
+							WHERE sp.SportType = i.SportType
+								AND sp.SettleType ='MNL'
+								AND i.MatchId = b.matchid
+								AND i.ResourceId = sp.ResourceID
+			
+					) b
+		 DELETE FROM #tmpMatchIds WHERE  sporttype IN (2, 5, 9, 43, 50) AND IsExistsRunningInterval = 0
+	END
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
@@ -615,6 +680,7 @@ BEGIN
 			,m.finalhomescore
 			,m.finalawayscore
 			,m.eventstatus
+			,m.IsNeutral
 			,m.betstatus
 			,m.suspenderhalftime
 			,m.suspenderfulltime
@@ -644,7 +710,22 @@ BEGIN
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
 		LEFT JOIN @tmpMatchEsport me
-			ON	m.matchid = me.MatchId
+			ON	m.matchid = me.MatchId			  
+	ORDER BY 
+		 CASE 
+				WHEN m.eventstatus = 'completed' AND m.IsExistRunningTicketAfterCompleted = 1 THEN 0
+				WHEN m.eventstatus = 'running'	 THEN 1
+				WHEN m.eventstatus = 'postponed' THEN 2
+				WHEN m.eventstatus = 'internal'  THEN 3
+				WHEN m.eventStatus = 'closed'	 THEN 4
+				ELSE 99
+			END
+		, m.IsCalRefund
+		, m.IsPending
+		, m.kickofftime
+		, m.sporttype
+		, m.leagueid
+		, m.matchcode
 	
 	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
 	FROM #tmpMatchIds

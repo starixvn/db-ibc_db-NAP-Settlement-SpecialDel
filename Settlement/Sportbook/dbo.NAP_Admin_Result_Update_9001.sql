@@ -23,7 +23,7 @@ AS
         - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
         - 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
-		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		
     Param's Explanation: 
@@ -85,7 +85,7 @@ BEGIN
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
-	   SET @ResultStatusID      = 0     -- Initial 
+	   SET @ResultStatusID      = CASE WHEN @Sporttype IN (2,5,9,43,50) THEN 4 ELSE 0 END
        SET @SettlementStatusID  = 0     -- Initial
     END 
     ELSE IF @action = 'REFUND'
@@ -127,7 +127,7 @@ BEGIN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
     END
-	--Insert and update ResultDetailOS - Badminton
+	--Insert and update ResultDetailOS - Badminton, Cricket
     ELSE IF @Sporttype IN (9, 50)
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET

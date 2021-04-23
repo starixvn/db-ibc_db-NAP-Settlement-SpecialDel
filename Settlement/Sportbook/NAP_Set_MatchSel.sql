@@ -56,6 +56,7 @@ AS
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] + remove unused code - [Redmine:#143441]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210312@Louisa: Ignore filter  "Include Test Matches" when user input Match Code/ID [Readmine:#150425]
+		- 20210324@Louisa: Enhancement [Redmine:#151545]
 
       
  Param explanation:  
@@ -114,6 +115,7 @@ BEGIN
 			,@FastMarketsOnly	= 0
 			,@SettlementStatus	= 0
 			,@IsMarkedTicket	= 0
+			,@IsIncludeTest		= 1
 
 		BEGIN TRY
 			SET @matchid = CASE 
@@ -725,7 +727,6 @@ BEGIN
 				
 	ORDER BY CASE 
 				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
-				WHEN m.eventstatus = 'refund' THEN 1 
 				ELSE 0 
 			END
 		, m.eventdate
