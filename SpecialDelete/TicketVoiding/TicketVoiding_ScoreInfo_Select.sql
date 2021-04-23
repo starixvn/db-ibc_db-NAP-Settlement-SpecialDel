@@ -19,7 +19,7 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScores
+	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
 		,MIN(b.transdate) AS FromTime
 		,MAX(b.transdate) AS ToTime
 	FROM dbo.bettrans b WITH (NOLOCK)
