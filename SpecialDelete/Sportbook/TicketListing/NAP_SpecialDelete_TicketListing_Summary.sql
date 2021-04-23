@@ -109,6 +109,7 @@ AS
 					ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
 					ValueHdp2				-- Default : "All" ; Format : Single Number
 					Goal="2"				-- Default : "All" ; Format : Single Number
+					OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 		/>
 	<BetTypes/>'
     - @SingleOrSubParlay: 
@@ -127,6 +128,8 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SportType SMALLINT = NULL
+		   ,@ValueDefault SMALLMONEY = 9999.00
+
 	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
@@ -193,7 +196,10 @@ BEGIN
 		,FilterGame			VARCHAR(50)
 		,FilterValue		SMALLMONEY	
 		,FilterGoal			BIGINT
-		,FilterBetOption	NVARCHAR(50)		
+		,FilterBetOption	NVARCHAR(50)
+		,FilterHdp1			SMALLMONEY
+        ,FilterHdp2			SMALLMONEY
+		,FilterOddsSpread	 MONEY
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -268,7 +274,10 @@ BEGIN
 		Game			VARCHAR(500),
 		BetOption		NVARCHAR(250),
 		[Value]			VARCHAR(500),
-		Goal			VARCHAR(10)
+		ValueHdp1		VARCHAR(500),
+		ValueHdp2		VARCHAR(20),
+		Goal			VARCHAR(10),
+		OddsSpread		VARCHAR(20)
 	)
 	CREATE TABLE #tblBetType_Detail
 	(
@@ -277,46 +286,62 @@ BEGIN
 		[Set]			VARCHAR(10),
 		Game			VARCHAR(3),
 		BetOption		NVARCHAR(50),
-		[Value]			SMALLMONEY,	
-		Goal			BIGINT
+		[Value]			SMALLMONEY,
+		ValueHdp1		SMALLMONEY,
+		ValueHdp2		SMALLMONEY,
+		Goal			BIGINT,
+		OddsSpread		MONEY
 	)
 
 	-- Parse xml @BetTeams
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
 			, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice
 			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1	 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
+			, t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
 	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], Goal)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
 			, cte.BetTeam
 			, cte.[Set]
 			, cte.Game
 			, cte.BetOption
-			, cte.[Value] 
+			, cte.[Value]
+			, cte.ValueHdp1
+			, cte.ValueHdp2
 			, cte.Goal
+			, cte.OddsSpread
 	FROM (
 		SELECT cte.Id
 				, bt.val AS BetTeam 
 				, se.val AS [Set]
 				, ga.val AS Game
 				, bop.val AS BetOption
-				, CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
+				, CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault
 						ELSE v.val END AS SMALLMONEY) AS [Value]
+				, CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault
+						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+				, CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault
+						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2		
 				, CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
+				, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
+						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM #tblBetType cte
 				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
 				CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
 				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
+				CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
 	) cte
 	OPTION(MAXRECURSION 0)
 
@@ -401,7 +426,7 @@ BEGIN
 	ELSE -- For Others
 	BEGIN
 		INSERT INTO @TmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, WalletType, RefCode,
-			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption)
+			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
 		SELECT transid 
 			,srecommend
 			,b.bettype
@@ -418,6 +443,9 @@ BEGIN
 			,b.hdp1 + b.hdp2 AS FilterValue
 			,ISNULL(b.betid, 0) AS FilterGoal
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
+			,b.hdp1 AS FilterHdp1
+			,b.hdp2 AS FilterHdp2
+			,b.oddsspread AS FilterOddsSpread
 		FROM bettrans b WITH (NOLOCK)
 		WHERE matchid = @MatchId
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
@@ -449,9 +477,12 @@ BEGIN
 			,NULL AS FilterBetTeam
 			,NULL AS FilterSet
 			,NULL AS FilterGame
-			,NULL FilterValue
+			,NULL AS FilterValue
 			,NULL AS FilterGoal
 			,NULL AS FilterBetOption
+			,NULL AS FilterHdp1
+			,NULL AS FilterHdp2
+			,NULL AS FilterOddsSpread
 		FROM translog bl WITH (NOLOCK)
 			LEFT JOIN bettrans b WITH(NOLOCK) ON bl.gameid = b.bettype AND b.matchid = bl.eventid AND b.custid = bl.Custid AND bl.translogid = b.refno
 		WHERE EventID = @MatchId
@@ -511,6 +542,21 @@ BEGIN
 			FROM  @TmpBettransList b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 				WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ))
+			
+			DELETE b
+			FROM  @TmpBettransList b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.FilterHdp1 = tp.ValueHdp1 ))
+
+			DELETE b
+			FROM  @TmpBettransList b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.FilterHdp2 = tp.ValueHdp2 ))
+
+			DELETE b
+			FROM  @TmpBettransList b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+				 WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 		END
 
 		-- Insert data for Bonus tickets
@@ -620,6 +666,9 @@ BEGIN
 				,FilterValue
 				,FilterGoal
 				,FilterBetOption
+				,FilterHdp1
+				,FilterHdp2
+				,FilterOddsSpread
 			) AS (
 			SELECT b.transid
 				,b.bettype
@@ -632,6 +681,9 @@ BEGIN
 				,bm.hdp1 + bm.hdp2 AS FilterValue
 				,ISNULL(bm.betcheck, 0) AS FilterGoal
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
+				,bm.hdp1 AS FilterHdp1
+				,bm.hdp2 AS FilterHdp2
+				,bm.oddsspread AS FilterOddsSpread
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
@@ -670,7 +722,10 @@ BEGIN
 				,0
 				,@LicenseeName AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd 
+			WHERE @SportType NOT IN (43,50) 
+			OR (
+					@SportType IN (43,50) 
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd 
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -681,7 +736,14 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption ))) -- filter Map X Round Y
+					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption )) -- filter Map X Round Y
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp1 = 9999 OR t.FilterHdp1 = bd.ValueHdp1 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp2 = 9999 OR t.FilterHdp2 = bd.ValueHdp2 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.OddsSpread = 9999 OR t.FilterOddsSpread = bd.OddsSpread ))
+			  )
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
 			HAVING Count(t.Refno) > 0
@@ -776,6 +838,9 @@ BEGIN
 				,FilterValue
 				,FilterGoal
 				,FilterBetOption
+				,FilterHdp1
+				,FilterHdp2
+				,FilterOddsSpread
 			) AS (
 				SELECT
 					b.transid
@@ -789,6 +854,9 @@ BEGIN
 					,bm.hdp1 + bm.hdp2 AS FilterValue
 					,ISNULL(bm.betcheck, 0) AS FilterGoal
 					,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
+					,bm.hdp1 AS FilterHdp1
+					,bm.hdp2 AS FilterHdp2
+					,bm.oddsspread AS FilterOddsSpread
 				FROM bettransm bm WITH (NOLOCK)
 					INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 					INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
@@ -831,7 +899,10 @@ BEGIN
 				,0
 				,'Credit' AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+			WHERE @SportType NOT IN (43,50) 
+			OR (
+				  @SportType IN (43,50) 
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -842,7 +913,14 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption ))) -- filter Map X Round Y
+					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption )) -- filter Map X Round Y
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp1 = 9999 OR t.FilterHdp1 = bd.ValueHdp1 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp2 = 9999 OR t.FilterHdp2 = bd.ValueHdp2 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.OddsSpread = 9999 OR t.FilterOddsSpread = bd.OddsSpread ))
+				)
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
 			HAVING Count(t.Refno) > 0
@@ -937,6 +1015,9 @@ BEGIN
 				,FilterValue
 				,FilterGoal
 				,FilterBetOption
+				,FilterHdp1
+				,FilterHdp2
+				,FilterOddsSpread
 			) AS (
 			SELECT 
 				b.transid
@@ -950,6 +1031,9 @@ BEGIN
 				,bm.hdp1 + bm.hdp2 AS FilterValue
 				,ISNULL(bm.betcheck, 0) AS FilterGoal
 				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
+				,bm.hdp1 AS FilterHdp1
+				,bm.hdp2 AS FilterHdp2
+				,bm.oddsspread AS FilterOddsSpread
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN @tmpBettypes t ON bm.bettype=t.bettype
@@ -988,7 +1072,10 @@ BEGIN
 				,0
 				,'CN88' AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+			WHERE @SportType NOT IN (43,50) 
+			OR (
+				  @SportType IN (43,50) 
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -999,7 +1086,14 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption ))) -- filter Map X Round Y
+					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption )) -- filter Map X Round Y
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp1 = 9999 OR t.FilterHdp1 = bd.ValueHdp1 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp2 = 9999 OR t.FilterHdp2 = bd.ValueHdp2 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.OddsSpread = 9999 OR t.FilterOddsSpread = bd.OddsSpread ))
+				)
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
 			HAVING Count(t.Refno) > 0
@@ -1099,6 +1193,9 @@ BEGIN
 			,FilterValue
 			,FilterGoal
 			,FilterBetOption
+			,FilterHdp1
+			,FilterHdp2
+			,FilterOddsSpread
 		) AS (
 		  SELECT b.transid AS ParentTransId
 			 ,b.bettype AS ParentBettype
@@ -1112,6 +1209,9 @@ BEGIN
 			,bm.hdp1 + bm.hdp2 AS FilterValue
 			,ISNULL(bm.betcheck, 0) AS FilterGoal
 			,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
+			,bm.hdp1 AS FilterHdp1
+			,bm.hdp2 AS FilterHdp2
+			,bm.oddsspread AS FilterOddsSpread
 		  FROM bettransm bm WITH (NOLOCK)
 			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			 INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
@@ -1158,18 +1258,28 @@ BEGIN
 			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit'
 			 ELSE t.site END AS LicenseeName
 		  FROM CTE_ParlayTickets AS t
-		  WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
-			AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
-			AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.Game = 'All' OR (bd.Game LIKE '>%' AND t.FilterGame > RIGHT(bd.Game, 2)) OR (t.FilterGame = bd.Game)))	
-			AND	EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.[Value] = 9999 OR t.FilterValue = bd.[Value] ))
-			AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
-			AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-				WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption ))) -- filter Map X Round Y
+		 WHERE @SportType NOT IN (43,50) 
+			OR (
+				  @SportType IN (43,50) 
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.Game = 'All' OR (bd.Game LIKE '>%' AND t.FilterGame > RIGHT(bd.Game, 2)) OR (t.FilterGame = bd.Game)))	
+				AND	EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.[Value] = 9999 OR t.FilterValue = bd.[Value] ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption )) -- filter Map X Round Y
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp1 = 9999 OR t.FilterHdp1 = bd.ValueHdp1 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp2 = 9999 OR t.FilterHdp2 = bd.ValueHdp2 ))
+				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+					WHERE bd.Id = t.FilterBettype AND (bd.OddsSpread = 9999 OR t.FilterOddsSpread = bd.OddsSpread ))
+				)
 		  GROUP BY t.Site
 			 ,t.mLiveIndicator
 			 ,t.ParentBettype
