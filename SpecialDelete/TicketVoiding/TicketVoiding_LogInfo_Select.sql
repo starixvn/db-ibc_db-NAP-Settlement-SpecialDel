@@ -826,7 +826,7 @@ BEGIN
 				,T.C.value('./@FilterFromTime', 'datetime')
 				,T.C.value('./@FilterToTime', 'datetime')
 		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
-		OPTION (OPTIMIZE FOR (@xml = NULL ))
+		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
