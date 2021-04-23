@@ -1662,24 +1662,42 @@ BEGIN
 			END
 			
 			--Loginfo Table
-			SELECT MatchId
-				,STUFF((SELECT '|' + LiveScores
-						FROM #logInfo WITH (NOLOCK)
-						FOR XML PATH ('')
-						),1,1,'') AS LiveScores
-				,MIN(VoidFromTime) AS VoidFromTime
-				,MAX(VoidToTime) AS VoidToTime
-				,SUM(SingleCount) AS SingleCount
-				,SUM(CashOutCount) AS CashOutCount
+			IF @IssueTypeId <> 3
+			BEGIN
+				SELECT MatchId
+					,STUFF((SELECT '|' + LiveScores
+							FROM #logInfo WITH (NOLOCK)
+							FOR XML PATH ('')
+							),1,1,'') AS LiveScores
+					,MIN(VoidFromTime) AS VoidFromTime
+					,MAX(VoidToTime) AS VoidToTime
+					,SUM(SingleCount) AS SingleCount
+					,SUM(CashOutCount) AS CashOutCount
 				,SUM(InstantlySettleCount) AS InstantlySettleCount
-				,SUM(MainParlayCount) AS MainParlayCount
-				,MIN(MinSingleTransId) AS MinSingleTransId
-				,MAX(MaxSingleTransId) AS MaxSingleTransId
-				,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-				,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-			FROM #logInfo
-			GROUP BY MatchId
-
+					,SUM(MainParlayCount) AS MainParlayCount
+					,MIN(MinSingleTransId) AS MinSingleTransId
+					,MAX(MaxSingleTransId) AS MaxSingleTransId
+					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+				FROM #logInfo
+				GROUP BY MatchId
+			END
+			ELSE
+			BEGIN
+				SELECT MatchId
+					,LiveScores
+					,MIN(VoidFromTime) AS VoidFromTime
+					,MAX(VoidToTime) AS VoidToTime
+					,SUM(SingleCount) AS SingleCount
+					,SUM(CashOutCount) AS CashOutCount
+					,SUM(MainParlayCount) AS MainParlayCount
+					,MIN(MinSingleTransId) AS MinSingleTransId
+					,MAX(MaxSingleTransId) AS MaxSingleTransId
+					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+				FROM #logInfo
+				GROUP BY MatchId, LiveScores
+			END
 			RETURN;
 		END
 	END
@@ -1749,23 +1767,42 @@ BEGIN
 	END
 
 	--Loginfo table
-	SELECT MatchId
-		,STUFF((SELECT '|' + LiveScores
-				FROM #logInfo WITH (NOLOCK)
-				FOR XML PATH ('')
-				),1,1,'') AS LiveScores
-		,MIN(VoidFromTime) AS VoidFromTime
-		,MAX(VoidToTime) AS VoidToTime
-		,SUM(SingleCount) AS SingleCount
-		,SUM(CashOutCount) AS CashOutCount
+	IF @IssueTypeId <> 3
+	BEGIN
+		SELECT MatchId
+			,STUFF((SELECT '|' + LiveScores
+					FROM #logInfo WITH (NOLOCK)
+					FOR XML PATH ('')
+					),1,1,'') AS LiveScores
+			,MIN(VoidFromTime) AS VoidFromTime
+			,MAX(VoidToTime) AS VoidToTime
+			,SUM(SingleCount) AS SingleCount
+			,SUM(CashOutCount) AS CashOutCount
 		,SUM(InstantlySettleCount) AS InstantlySettleCount
-		,SUM(MainParlayCount) AS MainParlayCount
-		,MIN(MinSingleTransId) AS MinSingleTransId
-		,MAX(MaxSingleTransId) AS MaxSingleTransId
-		,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-		,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-	FROM #logInfo
-	GROUP BY MatchId
+			,SUM(MainParlayCount) AS MainParlayCount
+			,MIN(MinSingleTransId) AS MinSingleTransId
+			,MAX(MaxSingleTransId) AS MaxSingleTransId
+			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+		FROM #logInfo
+		GROUP BY MatchId
+	END
+	ELSE
+	BEGIN
+		SELECT MatchId
+			,LiveScores
+			,MIN(VoidFromTime) AS VoidFromTime
+			,MAX(VoidToTime) AS VoidToTime
+			,SUM(SingleCount) AS SingleCount
+			,SUM(CashOutCount) AS CashOutCount
+			,SUM(MainParlayCount) AS MainParlayCount
+			,MIN(MinSingleTransId) AS MinSingleTransId
+			,MAX(MaxSingleTransId) AS MaxSingleTransId
+			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
+			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+		FROM #logInfo
+		GROUP BY MatchId, LiveScores
+	END
 
 
 	DROP TABLE #SpecialDeleteBets
