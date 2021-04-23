@@ -43,7 +43,7 @@ AS
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
 		+ @WrongScoreInfo:
 		<root>
-			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTime ="" FilterToTime="" />
+			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" />
 		</root>
 		
 */
@@ -823,8 +823,8 @@ BEGIN
 		SELECT	@MatchId
 				,T.C.value('./@LiveHomeScore', 'smallint')
 				,T.C.value('./@LiveAwayScore', 'smallint')
-				,T.C.value('./@FilterFromTime', 'datetime')
-				,T.C.value('./@FilterToTime', 'datetime')
+				,T.C.value('./@FilterFromTransTime', 'datetime')
+				,T.C.value('./@FilterToTransTime', 'datetime')
 		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 		
