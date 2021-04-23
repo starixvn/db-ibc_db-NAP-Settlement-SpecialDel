@@ -15,6 +15,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IsCheckedHomeTeam   BIT = 0
 	,@IsCheckedAwayTeam   BIT = 0
 	,@KickOffTime		  DATETIME = NULL
+	,@WrongScoreInfo			VARCHAR(MAX) = ''
 )
 AS
 /*	
@@ -36,9 +37,14 @@ AS
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210322@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210510@Max: [TVS] Danger Accept/Red Card Enhancement - Search and save not same log info [Redmine: #154772]
+		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
+		+ @WrongScoreInfo:
+		<root>
+			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTime ="" FilterToTime="" />
+		</root>
 		
 */
 BEGIN
@@ -57,6 +63,11 @@ BEGIN
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
 			,@InstantlySettleCount	  INT = 0
+			,@WrongScoreInfoXML		XML = NULL
+			,@LiveHomeScore			SMALLINT
+			,@LiveAwayScore			SMALLINT
+			,@FilterFromTime		DATETIME
+			,@FilterToTime			DATETIME
 	
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -146,7 +157,7 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
-
+	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 
 	BEGIN -- Instant Settlement declaration
@@ -803,6 +814,260 @@ BEGIN
 					AND main.transdate >= @KickOffTime
 					AND main.statusID NOT IN (101, 102, 103)
 		END 
+	END
+	IF @IssueTypeId = 3 AND @WrongScoreInfo <> '' --Wrong Score
+	BEGIN
+		SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
+		
+		INSERT INTO #WrongScores(MatchId, LiveHomeScore, LiveAwayScore, FilterFromTime, FilterToTime)
+		SELECT	@MatchId
+				,T.C.value('./@LiveHomeScore', 'smallint')
+				,T.C.value('./@LiveAwayScore', 'smallint')
+				,T.C.value('./@FilterFromTime', 'datetime')
+				,T.C.value('./@FilterToTime', 'datetime')
+		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@xml = NULL ))
+		
+		-- search tickets : not metric gaming tickets, mix parlay tickets
+		INSERT INTO #SpecialDeleteBets(
+				GroupID			
+				,transid		
+				,SubTransid		
+				,refno			
+				,custid			
+				,odds			
+				,SubOdds	
+				,oddsspread			
+				,OddsType		
+				,transdate		
+				,bettype 		
+				,betteam 		
+				,SubBetTeam
+				,betcheck	
+				,SubBetcheck	
+				,hdp1 			
+				,hdp2 			
+				,livehomescore 	
+				,liveawayscore 	
+				,creator		
+				,Stake			
+				,currencyname		
+				,STATUS			
+				,SubStatus	
+				,srecommend
+				,mrecommend		
+				,recommend		
+				,betid			
+				,Transdesc		
+				,betdaqid	
+				,ExtraInfo
+				,MainCashoutId
+				,WalletType
+				,RefCode
+				,BonusID
+				,WinLost
+				,IsMarked
+				,LiveIndicator
+				,matchid
+			)
+		SELECT 
+				b.transid AS GroupID
+				,b.transid
+				,b.transid AS SubTransID
+				,b.refno
+				,b.custid
+				,b.odds
+				,b.odds AS SubOdds
+				,b.oddsspread			
+				,b.OddsType
+				,b.transdate
+				,b.bettype
+				,b.betteam
+				,b.betteam AS SubBetteam
+				,b.betcheck
+				,b.betcheck AS SubBetcheck
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.creator
+				,b.stake
+				,b.CurrencyName
+				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+					END AS STATUS
+				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+					END AS SubStatus
+				,b.srecommend
+				,b.mrecommend
+				,b.recommend
+				,b.betid
+				,b.Transdesc
+				,b.betdaqid
+				,b.ExtraInfo
+				,CASE
+					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
+							THEN b.transid
+					ELSE NULL
+					END AS MainCashoutId
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,b.WinLost - b.actual_stake AS WinLost
+				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
+				,b.liveindicator
+				,@MatchId
+		FROM	bettrans b WITH (NOLOCK)	
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			OUTER APPLY (
+							SELECT TOP 1 rs.TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+							WHERE rs.TransId = b.transid
+								AND rs.MatchId = @MatchId
+								AND r.ActionId NOT IN (2)
+								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
+											ELSE 1 END
+					)tmp
+		WHERE	b.matchid = @matchid
+				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
+							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+				AND b.bettype NOT IN (805, 806, 9, 29)			
+				AND b.bettype NOT BETWEEN 901 AND 920
+				AND b.betfrom <> 'P'
+				AND EXISTS (SELECT TOP 1 1 
+								FROM #WrongScores
+								WHERE matchid = @MatchId
+									AND b.livehomescore = LiveHomeScore
+									AND b.liveawayscore = LiveAwayScore
+									AND b.transdate BETWEEN FilterFromTime AND FilterToTime)
+				
+		---get sub ticket of a mix parlay	
+		IF EXISTS (
+				SELECT 1
+				FROM dbo.bettransm AS bm WITH (NOLOCK)
+				WHERE bm.matchid = @matchid
+					AND 1= CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1
+								WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+					AND bm.betfrom <> 'P'
+					AND EXISTS (SELECT TOP 1 1 
+								FROM #WrongScores
+								WHERE matchid = @MatchId
+									AND bm.livehomescore = LiveHomeScore
+									AND bm.liveawayscore = LiveAwayScore
+									AND bm.transdate BETWEEN FilterFromTime AND FilterToTime)
+				)
+		BEGIN		
+			INSERT INTO #SpecialDeleteBets(
+					GroupID			
+					,transid		
+					,SubTransid		
+					,refno			
+					,custid					
+					,odds			
+					,SubOdds	
+					,oddsspread
+					,OddsType		
+					,transdate		
+					,bettype		
+					,betteam		
+					,SubBetTeam
+					,betcheck	
+					,SubBetcheck	
+					,Subhdp1
+					,Subhdp2
+					,hdp1 			
+					,hdp2 			
+					,livehomescore	
+					,liveawayscore	
+					,creator		
+					,Stake			
+					,currencyname						
+					,STATUS			
+					,SubStatus	
+					,srecommend		
+					,mrecommend		
+					,recommend						
+					,Transdesc		
+					,ParlayType		
+					,IsMixParlay
+					,modds
+					,WinLost
+					,IsMarked
+					,LiveIndicator
+					,matchid
+				)
+			SELECT 
+					main.transid AS GroupID
+					,main.transid AS TransId
+					,sub.transid AS SubTransID
+					,sub.refno
+					,sub.custid				
+					,main.odds
+					,sub.odds AS SubOdds
+					,sub.oddsspread
+					,main.OddsType
+					,sub.transdate
+					,main.bettype
+					,main.betteam
+					,sub.betteam
+					,main.betcheck				
+					,sub.betcheck
+					,sub.hdp1
+					,sub.hdp2
+					,main.hdp1
+					,main.hdp2
+					,sub.livehomescore
+					,sub.liveawayscore
+					,main.creator
+					,main.stake
+					,main.currencyname				
+					,main.STATUS
+					,sub.STATUS AS SubStatus
+					,main.srecommend
+					,main.mrecommend
+					,main.recommend
+					,sub.Transdesc
+					,sub.bettype AS parlaytype
+					,1 AS IsMixParlay
+					,main.modds
+					,main.winlost -main.actual_stake AS WinLost
+					,0
+					,sub.liveindicator
+					,@MatchId
+			FROM	dbo.bettransm sub WITH (NOLOCK)				
+					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
+						ON	main.refno = sub.refno				
+							AND sub.matchid = @matchid
+					OUTER APPLY (
+							SELECT TOP 1 rs.TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
+							WHERE rs.TransId = sub.transid
+								AND rs.MatchId = @MatchId
+								AND r.ActionId NOT IN (2)
+								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
+										ELSE 1 END
+						)tmp
+			WHERE 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
+								WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+					AND sub.betfrom <> 'P'
+					AND main.matchid = 29
+					AND main.bettype = 29
+					AND main.liveindicator = 0
+					AND main.statusID NOT IN (101, 102, 103)
+					AND EXISTS (SELECT TOP 1 1 
+								FROM #WrongScores
+								WHERE matchid = @MatchId
+									AND sub.livehomescore = LiveHomeScore
+									AND sub.liveawayscore = LiveAwayScore
+									AND sub.transdate BETWEEN FilterFromTime AND FilterToTime)
+		END
+		
 	END
 
 	-- delete cash-out member bet tickets
