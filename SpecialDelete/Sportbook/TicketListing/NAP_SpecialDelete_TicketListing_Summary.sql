@@ -68,6 +68,7 @@ AS
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 		- 20201013@July: [TVS] - HotFix - TicketListing bettype > 100 items [Redmine: #143308]
 		- 20201202@Max: Tuning SP [Redmine: #146485]
+		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -479,7 +480,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		
-		IF @SportType = 43 -- E-Sports
+		IF @SportType IN (43,50) -- E-Sports, Cricket
 		BEGIN
 			DELETE b
 			FROM  @TmpBettransList b
@@ -669,7 +670,7 @@ BEGIN
 				,0
 				,@LicenseeName AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd 
+			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd 
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -830,7 +831,7 @@ BEGIN
 				,0
 				,'Credit' AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -987,7 +988,7 @@ BEGIN
 				,0
 				,'CN88' AS LicenseeName
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+			WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
@@ -1157,7 +1158,7 @@ BEGIN
 			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit'
 			 ELSE t.site END AS LicenseeName
 		  FROM CTE_ParlayTickets AS t
-		  WHERE @SportType <> 43 OR (@SportType = 43 AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
+		  WHERE @SportType NOT IN (43,50) OR (@SportType IN (43,50) AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 				WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 			AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 				WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))

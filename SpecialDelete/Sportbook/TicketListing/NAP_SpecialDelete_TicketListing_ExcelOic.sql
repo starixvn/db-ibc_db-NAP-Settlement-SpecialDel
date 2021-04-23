@@ -47,6 +47,7 @@ AS
 		- 20200911@Max: Tuning SP [Redmine: 141476]
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 		- 20201202@Max: Tuning SP [Redmine: #146485]
+		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -361,7 +362,7 @@ BEGIN
 				WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 			END
 
-			IF @SportType = 43 -- E-Sports
+			IF @SportType IN (43,50) -- E-Sports, Cricket
 			BEGIN
 				DELETE b
 				FROM  #SpecialDeleteBets b
@@ -438,7 +439,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		--========================================================================--
-		IF @SportType = 43 -- E-Sports
+		IF @SportType IN (43,50) -- E-Sports, Cricket
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
