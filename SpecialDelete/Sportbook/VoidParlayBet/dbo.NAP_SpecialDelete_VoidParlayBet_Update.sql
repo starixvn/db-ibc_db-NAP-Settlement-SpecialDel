@@ -49,6 +49,7 @@ AS
 		- 20200925@Charles: HotFix - advance mode can not search all for 226-227 (fast market)[142312]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -253,7 +254,7 @@ BEGIN
 			,b.betfrom  
 			,b.bettype  
 			,b.hdp1  
-			,b.hdp2  
+			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS hdp2 --646: Match Handicap & Total
 			,b.odds  
 			,b.betteam    
 			,b.livehomescore  
