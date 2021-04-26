@@ -35,6 +35,7 @@ AS;
 		- 20201009@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -395,8 +396,8 @@ BEGIN
 			ISNULL(b.betid, 0) AS FilterGoal,
 			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 			b.hdp1 AS FilterHdp1,
-			b.hdp2 AS FilterHdp2,
-			b.oddsspread AS FilterOddsSpread,
+			CASE WHEN bt.Id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
+			CASE WHEN bt.Id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
 			b.actual_stake AS ActualStake
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
@@ -510,8 +511,8 @@ BEGIN
 				ISNULL(b.betid, 0) AS FilterGoal,
 				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
 				b.hdp1 AS FilterHdp1,
-				b.hdp2 AS FilterHdp2,
-				b.oddsspread AS FilterOddsSpread,
+				CASE WHEN bt.Id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
+				CASE WHEN bt.Id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
 				b.actual_stake AS ActualStake
 			FROM 
 				dbo.bettrans b WITH (NOLOCK)
@@ -624,9 +625,9 @@ BEGIN
 				RIGHT(bm.betcheck, 2) AS FilterGame,
 				bm.hdp1 + bm.hdp2 AS FilterValue,
 				bm.hdp1 AS FilterHdp1,
-				bm.hdp2 AS FilterHdp2,
+				CASE WHEN bt.Id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				ISNULL(bm.betcheck, 0) AS FilterGoal,
-				bm.oddsspread AS FilterOddsSpread,
+				CASE WHEN bt.Id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake
 			FROM dbo.bettransm bm WITH (NOLOCK)

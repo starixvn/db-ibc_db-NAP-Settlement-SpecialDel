@@ -1,4 +1,5 @@
 SpecialDelete\Sportbook\NAP_BetTypeSel.sql
+SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
 
 
 

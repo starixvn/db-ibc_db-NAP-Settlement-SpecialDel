@@ -499,7 +499,7 @@ BEGIN
 					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 					,b.hdp1 AS FilterTimeInterval
 					,b.statusID AS mainstatusid
-					,CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread-- 229:SABA HDP Time Machine
+					,CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread --229:SABA HDP Time Machine
 					,b.actual_stake AS ActualStake
 					,b.matchid
 			FROM	bettrans b WITH (NOLOCK)	
@@ -626,7 +626,7 @@ BEGIN
 						,CASE WHEN tp.id = 646 THEN ABS(sub.hdp2) ELSE sub.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 						,ISNULL(sub.betcheck, 0) AS FilterGoal
 						,main.statusID AS mainstatusid
-						,CASE WHEN tp.id = 229 THEN ABS(sub.oddsspread) ELSE sub.oddsspread END AS FilterOddsSpread-- 229:SABA HDP Time Machine
+						,CASE WHEN tp.id = 229 THEN ABS(sub.oddsspread) ELSE sub.oddsspread END AS FilterOddsSpread --229:SABA HDP Time Machine
 						,main.ExtraInfo
 						,main.actual_stake AS ActualStake
 						,sub.matchid
