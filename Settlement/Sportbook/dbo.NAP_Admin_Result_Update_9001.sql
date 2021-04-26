@@ -23,8 +23,9 @@ AS
         - 20200320@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Settlement Enhancement for Basketball Phase 2 [Redmine:#135846]
         - 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
-		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
+		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
+		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
 		
     Param's Explanation: 
     
