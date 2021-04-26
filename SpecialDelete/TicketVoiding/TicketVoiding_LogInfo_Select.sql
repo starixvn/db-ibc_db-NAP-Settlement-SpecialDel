@@ -154,7 +154,7 @@ BEGIN
 		,MaxMainParlayTransId BIGINT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT,liveawayscore SMALLINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
 	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
@@ -226,6 +226,7 @@ BEGIN
 				--TransId in request table
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 					,r.RequestId
+					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 				FROM #TransidInRequest r
 			
 				--Loginfo Table
@@ -1443,7 +1444,7 @@ BEGIN
 											WHEN @IssueTypeId IN (8,9) THEN 1 ELSE 0 END
 						) AS b
 	WHERE sub911.bettype = 911
-
+	
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
@@ -1472,8 +1473,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId)
-			SELECT tmp.transid, rd.RequestId, tmp.MainTransId
+			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, livehomescore, liveawayscore)
+			SELECT tmp.transid, rd.RequestId, tmp.MainTransId, t.livehomescore, t.liveawayscore
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
 				CROSS APPLY (
@@ -1545,6 +1546,7 @@ BEGIN
 		--TransId in request table
 		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 			,r.RequestId
+			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 		FROM #TransidInRequest r
 
 		/*Get log info for Void Page*/
@@ -1651,13 +1653,16 @@ BEGIN
 					WHERE (RequestId = r.RequestId) 
 					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 					,1,2,'') AS TransIds
+					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 				FROM #TransidInRequest r
 				GROUP BY r.RequestId
+					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
 			END
 			ELSE
 			BEGIN
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 					,r.RequestId
+					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 				FROM #TransidInRequest r
 			END
 			
@@ -1756,13 +1761,16 @@ BEGIN
 			WHERE (RequestId = r.RequestId) 
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
+			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 		FROM #TransidInRequest r
 		GROUP BY r.RequestId
+			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
 	END
 	ELSE
 	BEGIN
 		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 			,r.RequestId
+			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 		FROM #TransidInRequest r
 	END
 
@@ -1812,6 +1820,7 @@ BEGIN
 	DROP TABLE #transIdTemp
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
+	DROP TABLE #WrongScores
 
 END
 GO
