@@ -483,7 +483,7 @@ BEGIN
 		SELECT    MatchId , SportType, ResourceId
 		FROM  #tmpMatchIds m
 			CROSS APPLY (SELECT r.ResourceId 
-						FROM bodb02.dbo.ResultDetail r WITH(NOLOCK)
+						FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 						WHERE r.SettlementStatusID = 0
 							AND r.ResultStatusID = 3
 							AND r.ResourceID IN ('Q1','Q2','Q3','Q4','01','02','03','04','05')
@@ -492,7 +492,7 @@ BEGIN
 												
 						UNION ALL
 						SELECT r.ResourceId 
-						FROM bodb02.dbo.ResultDetailES r WITH(NOLOCK)
+						FROM DBPRO.bodb02.dbo.ResultDetailES r WITH(NOLOCK)
 						WHERE r.SettlementStatusID = 0
 							AND r.ResultStatusID = 3
 							AND r.ResourceID IN ('M1','M2','M3','M4','M5','M6','M7','M8','M9')
@@ -501,7 +501,7 @@ BEGIN
 												
 						UNION ALL
 						SELECT r.ResourceId 
-						FROM bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+						FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
 						WHERE r.SettlementStatusID = 0
 							AND r.ResultStatusID = 3
 							AND r.ResourceID IN ('0101','0102','0103','0104','0105','H1','A1','H2','A2')
