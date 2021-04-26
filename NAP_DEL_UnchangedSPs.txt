@@ -1,6 +1,4 @@
-SpecialDelete\TicketVoiding\TicketVoiding_Request_Insert.sql
-SpecialDelete\TicketVoiding\TicketVoiding_Request_Update.sql
-
+SpecialDelete\Sportbook\NAP_BetTypeSel.sql
 
 
 
