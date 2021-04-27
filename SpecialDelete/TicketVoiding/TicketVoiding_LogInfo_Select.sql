@@ -154,11 +154,26 @@ BEGIN
 		,MaxMainParlayTransId BIGINT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT,liveawayscore SMALLINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
-	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT)
+	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, livehomescore SMALLINT, liveawayscore SMALLINT)
 	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @Validation AS TABLE (
+			livehomescore SMALLINT
+			,liveawayscore SMALLINT
+			,IsInvalidTransId     BIT 
+			,IsInValidTotalTickets   BIT 
+			,IsInvalidLiveScore	  BIT
+			,IsExistedInOtherRequest BIT 
+			,IsExistSingle			  BIT 
+			,IsExistParlay			  BIT 
+			,IsExistFM				  BIT 
+			,IsExistFM2			  BIT 
+			,MatchProcessXML		  XML 
+			,LiveScores NVARCHAR(300)
+		)
+	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT, RequestId INT)
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -226,7 +241,6 @@ BEGIN
 				--TransId in request table
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 					,r.RequestId
-					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 				FROM #TransidInRequest r
 			
 				--Loginfo Table
@@ -1058,6 +1072,11 @@ BEGIN
 									AND sub.liveawayscore = LiveAwayScore
 									AND sub.transdate BETWEEN FilterFromTime AND FilterToTime)
 		END
+
+		--Init Validation
+		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores)
+		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+		FROM #SpecialDeleteBets
 		
 	END
 
@@ -1489,6 +1508,13 @@ BEGIN
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT @IsExistedInOtherRequest = 1
+
+			IF EXISTS (SELECT TOP (1) 1 FROM @Validation)
+			BEGIN
+				UPDATE v SET v.IsExistedInOtherRequest = 1
+				FROM @Validation v
+				WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.livehomescore = v.livehomescore AND t.liveawayscore = v.liveawayscore)
+			END
 		END
 	END
 
@@ -1522,26 +1548,54 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		--Error Table
-		SELECT @IsInvalidTransId AS IsInvalidTransId
-			,@IsInvalidLiveScore AS IsInvalidLiveScore
-			,@IsInValidTotalTickets AS IsInValidTotalTickets
-			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-			,@IsExistSingle AS IsExistSingle
-			,@IsExistParlay AS IsExistParlay
-			,@IsExistFM AS IsExistFM
-			,@IsExistFM2 AS IsExistFM2
-			,@MatchProcessXML AS MatchProcessXML
+		IF @IssueTypeId <> 3
+		BEGIN
+			--Error Table
+			SELECT @IsInvalidTransId AS IsInvalidTransId
+				,@IsInvalidLiveScore AS IsInvalidLiveScore
+				,@IsInValidTotalTickets AS IsInValidTotalTickets
+				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+				,@IsExistSingle AS IsExistSingle
+				,@IsExistParlay AS IsExistParlay
+				,@IsExistFM AS IsExistFM
+				,@IsExistFM2 AS IsExistFM2
+				,@MatchProcessXML AS MatchProcessXML
+		END
+		ELSE
+		BEGIN
+			SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+				,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
+				,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
+				,ISNULL(IsInValidTotalTickets,0) AS IsInValidTotalTickets
+				,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
+				,ISNULL(IsExistSingle,0) AS IsExistSingle
+				,ISNULL(IsExistParlay,0) AS IsExistParlay
+				,ISNULL(IsExistFM,0) AS IsExistFM
+				,ISNULL(@IsExistFM2,0) AS IsExistFM2
+				,MatchProcessXML AS MatchProcessXML
+			FROM @Validation
+		END
 
 		--TransId in request table
-		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-			,r.RequestId
-			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-		FROM #TransidInRequest r
+		IF @IssueTypeId <> 3
+		BEGIN
+			SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+				,r.RequestId
+			FROM #TransidInRequest r
+		END
+		ELSE
+		BEGIN
+			SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+				,r.RequestId
+				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+			FROM #TransidInRequest r
+		END
 
 		/*Get log info for Void Page*/
-		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket)
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket, livehomescore, liveawayscore)
 		SELECT @RequestId, @MatchId, s.TransId, b.bettype, 0
+			, CASE WHEN @IssueTypeId = 3 THEN b.livehomescore ELSE NULL END
+			, CASE WHEN @IssueTypeId = 3 THEN b.liveawayscore ELSE NULL END
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 		WHERE s.RequestId = @RequestId
@@ -1549,23 +1603,27 @@ BEGIN
 			AND b.betdaqid = 0
 			AND charindex ('p25',b.extrainfo)> 0	
 
-		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket, livehomescore, liveawayscore)
 		SELECT @RequestId, @MatchId 
 			,sub911.transid
 			,sub911.bettype
 			,main.bettype
 			,1
+			, CASE WHEN @IssueTypeId = 3 THEN main.livehomescore ELSE NULL END
+			, CASE WHEN @IssueTypeId = 3 THEN main.liveawayscore ELSE NULL END
 		FROM dbo.bettrans sub911 WITH(NOLOCK)
 				INNER JOIN #CashOuts main 
 					ON	sub911.refno = main.transid	
 		WHERE sub911.matchid = @MatchId
 
-		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket)
+		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, OriginalBetType, IsCOTicket, livehomescore, liveawayscore)
 		SELECT @RequestId, @MatchId 
 			,b.transid
 			,b.bettype
 			,sub911.OriginalBetType
 			,1
+			, CASE WHEN @IssueTypeId = 3 THEN sub911.livehomescore ELSE NULL END
+			, CASE WHEN @IssueTypeId = 3 THEN sub911.liveawayscore ELSE NULL END
 		FROM #CashOuts sub911
 				CROSS APPLY (
 								SELECT b.transid, b.bettype
@@ -1577,36 +1635,78 @@ BEGIN
 		WHERE sub911.bettype = 911
 
 		/*Get Instant settlement*/
-		SELECT @InstantlySettleCount = COUNT(s.TransId)
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
-		WHERE s.RequestId = @RequestId
-			AND s.MatchId = @MatchId
-			AND b.statusID IN (111,112,113)
-			 AND EXISTS (SELECT TOP 1 1
-						 FROM #InstantSettlementBettypes
-						 WHERE bettype = b.bettype)
+		IF @IssueTypeId <> 3
+		BEGIN
+			SELECT @InstantlySettleCount = COUNT(s.TransId)
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
+			WHERE s.RequestId = @RequestId
+				AND s.MatchId = @MatchId
+				AND b.statusID IN (111,112,113)
+				 AND EXISTS (SELECT TOP 1 1
+							 FROM #InstantSettlementBettypes
+							 WHERE bettype = b.bettype)
 
-		SELECT rd.MatchId
-			,rd.IssueDetail AS LiveScores
-			,rd.VoidFromTime
-			,rd.VoidToTime
-			,rd.SingleCount
-			,c.CashOutCount AS CashOutCount
-			,@InstantlySettleCount AS InstantlySettleCount
-			,rd.MainParlayCount
-			,rd.MinSingleTransId
-			,rd.MaxSingleTransId
-			,rd.MinMainParlayTransId
-			,rd.MaxMainParlayTransId
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-		  OUTER APPLY (
-					SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
-					FROM #CashOuts
-					WHERE RequestId = rd.RequestId	
-						AND MatchId = rd.MatchId
-			) c
-		WHERE rd.RequestId = @RequestId
+			SELECT rd.MatchId
+				,rd.IssueDetail AS LiveScores
+				,rd.VoidFromTime
+				,rd.VoidToTime
+				,rd.SingleCount
+				,c.CashOutCount AS CashOutCount
+				,@InstantlySettleCount AS InstantlySettleCount
+				,rd.MainParlayCount
+				,rd.MinSingleTransId
+				,rd.MaxSingleTransId
+				,rd.MinMainParlayTransId
+				,rd.MaxMainParlayTransId
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+			  OUTER APPLY (
+						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
+						FROM #CashOuts
+						WHERE RequestId = rd.RequestId	
+							AND MatchId = rd.MatchId
+				) c
+			WHERE rd.RequestId = @RequestId
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @InstantlySettleCount_tmp (transidCount, livehomescore, liveawayscore, RequestId)
+			SELECT COUNT(s.TransId), b.livehomescore, b.liveawayscore, @RequestId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
+			WHERE s.RequestId = @RequestId
+				AND s.MatchId = @MatchId
+				AND b.statusID IN (111,112,113)
+				 AND EXISTS (SELECT TOP 1 1
+							 FROM #InstantSettlementBettypes
+							 WHERE bettype = b.bettype)
+			GROUP BY b.livehomescore, b.liveawayscore, @RequestId
+
+			SELECT rd.MatchId
+				,CAST(rd.livehomescore AS VARCHAR(2)) + ' - ' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
+				,rd.VoidFromTime
+				,rd.VoidToTime
+				,rd.SingleCount
+				,c.CashOutCount AS CashOutCount
+				,t.transidCount AS InstantlySettleCount
+				,rd.MainParlayCount
+				,rd.MinSingleTransId
+				,rd.MaxSingleTransId
+				,rd.MinMainParlayTransId
+				,rd.MaxMainParlayTransId
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+				OUTER APPLY (
+						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
+						FROM #CashOuts
+						WHERE RequestId = rd.RequestId	
+							AND MatchId = rd.MatchId
+							AND livehomescore = rd.LiveHomeScore
+							AND liveawayscore = rd.LiveAwayScore
+						GROUP BY livehomescore, liveawayscore
+					) c
+				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.livehomescore = rd.LiveHomeScore AND t.liveawayscore = rd.LiveAwayScore
+			WHERE rd.RequestId = @RequestId
+		END
 
 		RETURN;
 	END
@@ -1622,38 +1722,79 @@ BEGIN
 		BEGIN
 			SELECT @IsInValidTotalTickets = 1
 
-			--Error Table
-			SELECT @IsInvalidTransId AS IsInvalidTransId
-				,@IsInvalidLiveScore AS IsInvalidLiveScore
-				,@IsInValidTotalTickets AS IsInValidTotalTickets
-				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-				,@IsExistSingle AS IsExistSingle
-				,@IsExistParlay AS IsExistParlay
-				,@IsExistFM AS IsExistFM
-				,@IsExistFM2 AS IsExistFM2
-				,@MatchProcessXML AS MatchProcessXML
-
-			--TransId in request table
-			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-			BEGIN			
-				SELECT RequestId,
-					STUFF((
-					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-					FROM #TransidInRequest
-					WHERE (RequestId = r.RequestId) 
-					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-					,1,2,'') AS TransIds
-					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-				FROM #TransidInRequest r
-				GROUP BY r.RequestId
-					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+			IF @IssueTypeId <> 3
+			BEGIN
+				--Error Table
+				SELECT @IsInvalidTransId AS IsInvalidTransId
+					,@IsInvalidLiveScore AS IsInvalidLiveScore
+					,@IsInValidTotalTickets AS IsInValidTotalTickets
+					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+					,@IsExistSingle AS IsExistSingle
+					,@IsExistParlay AS IsExistParlay
+					,@IsExistFM AS IsExistFM
+					,@IsExistFM2 AS IsExistFM2
+					,@MatchProcessXML AS MatchProcessXML
 			END
 			ELSE
 			BEGIN
-				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-					,r.RequestId
-					,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-				FROM #TransidInRequest r
+				SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
+					,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
+					,@IsInValidTotalTickets AS IsInValidTotalTickets
+					,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
+					,ISNULL(IsExistSingle,0) AS IsExistSingle
+					,ISNULL(IsExistParlay,0) AS IsExistParlay
+					,ISNULL(IsExistFM,0) AS IsExistFM
+					,ISNULL(@IsExistFM2,0) AS IsExistFM2
+					,MatchProcessXML AS MatchProcessXML
+				FROM @Validation
+			END
+
+			--TransId in request table
+			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+			BEGIN
+				IF @IssueTypeId <> 3
+				BEGIN
+					SELECT RequestId,
+						STUFF((
+						SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+						FROM #TransidInRequest
+						WHERE (RequestId = r.RequestId) 
+						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+						,1,2,'') AS TransIds
+					FROM #TransidInRequest r
+					GROUP BY r.RequestId
+				END
+				ELSE 
+				BEGIN
+					SELECT RequestId,
+						STUFF((
+						SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+						FROM #TransidInRequest
+						WHERE (RequestId = r.RequestId) 
+						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+						,1,2,'') AS TransIds
+						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+					FROM #TransidInRequest r
+					GROUP BY r.RequestId
+						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+				END
+			END
+			ELSE
+			BEGIN
+				IF @IssueTypeId <> 3
+				BEGIN
+					SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+						,r.RequestId
+					FROM #TransidInRequest r
+				END
+				ELSE
+				BEGIN
+					SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+						,r.RequestId
+						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+					FROM #TransidInRequest r
+				END
 			END
 			
 			--Loginfo Table
@@ -1668,7 +1809,7 @@ BEGIN
 					,MAX(VoidToTime) AS VoidToTime
 					,SUM(SingleCount) AS SingleCount
 					,SUM(CashOutCount) AS CashOutCount
-				,SUM(InstantlySettleCount) AS InstantlySettleCount
+					,SUM(InstantlySettleCount) AS InstantlySettleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 					,MIN(MinSingleTransId) AS MinSingleTransId
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1685,6 +1826,7 @@ BEGIN
 					,MAX(VoidToTime) AS VoidToTime
 					,SUM(SingleCount) AS SingleCount
 					,SUM(CashOutCount) AS CashOutCount
+					,SUM(InstantlySettleCount) AS InstantlySettleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 					,MIN(MinSingleTransId) AS MinSingleTransId
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1696,72 +1838,175 @@ BEGIN
 			RETURN;
 		END
 	END
+	
+	IF @IssueTypeId = 3
+	BEGIN
+		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN l.SingleCount = 0 AND l.MainParlayCount = 0 THEN 1 ELSE 0 END
+		FROM @Validation v
+			CROSS APPLY( 
+				SELECT SUM(SingleCount) AS SingleCount
+					,SUM(MainParlayCount) AS MainParlayCount
+				FROM #logInfo
+				WHERE LiveScores = v.LiveScores
+				GROUP BY LiveScores
+			)l
+	END
 
 	---Prepare for lock match---
-	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-			,@IsExistParlay = MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END)
-			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM #SpecialDeleteBets AS t
-		OUTER APPLY (
-				SELECT GroupId
-				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-				WHERE Bettype = t.Bettype
-		)f
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-
-	SET @MatchProcessXML = (
-		SELECT DISTINCT t.matchid "@MatchId"
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
-				END AS "@KeyID"
-		FROM #SpecialDeleteBets t
+	IF @IssueTypeId <> 3
+	BEGIN
+		SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+				,@IsExistParlay = MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END)
+				,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+				,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+		FROM #SpecialDeleteBets AS t
 			OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = t.Bettype
 			)f
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-		FOR XML PATH('r'), ROOT('root')
-		)
+
+		SET @MatchProcessXML = (
+			SELECT DISTINCT t.matchid "@MatchId"
+				,CASE 
+					WHEN f.GroupId IS NULL THEN 1 --SB
+					WHEN f.GroupId = 1 THEN 6 -- Fast Market
+					WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+					ELSE 0
+					END AS "@KeyID"
+			FROM #SpecialDeleteBets t
+				OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+			WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+			FOR XML PATH('r'), ROOT('root')
+			)
+	END
+	ELSE
+	BEGIN
+		UPDATE v SET 
+				v.IsExistSingle = tmp.IsExistSingle
+			, v.IsExistParlay = tmp.IsExistParlay
+			, v.IsExistFM = tmp.IsExistFM
+			, v.IsExistFM2 = tmp.IsExistFM2
+		FROM @Validation v
+		CROSS APPLY (
+				SELECT   MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
+						, MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END) AS IsExistParlay
+						, MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS  IsExistFM
+						, MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
+				FROM #SpecialDeleteBets AS t
+					OUTER APPLY (
+							SELECT GroupId
+							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+							WHERE Bettype = t.Bettype
+					)f
+				WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+					AND t.livehomescore = v.livehomescore
+					AND t.liveawayscore = v.liveawayscore
+				GROUP BY t.livehomescore, t.liveawayscore
+			)tmp
+
+		
+		UPDATE @Validation 
+		SET MatchProcessXML = (
+			SELECT DISTINCT t.matchid "@MatchId"
+				,CASE 
+					WHEN f.GroupId IS NULL THEN 1 --SB
+					WHEN f.GroupId = 1 THEN 6 -- Fast Market
+					WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+					ELSE 0
+					END AS "@KeyID"
+			FROM #SpecialDeleteBets t
+				OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+			WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+				AND t.livehomescore = livehomescore AND t.liveawayscore = liveawayscore
+			FOR XML PATH('r'), ROOT('root')
+			)
+	END
 
 	--Error Table
-	SELECT @IsInvalidTransId AS IsInvalidTransId
-			,@IsInvalidLiveScore AS IsInvalidLiveScore
-			,@IsInValidTotalTickets AS IsInValidTotalTickets
-			,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-			,@IsExistSingle AS IsExistSingle
-			,@IsExistParlay AS IsExistParlay
-			,@IsExistFM AS IsExistFM
-			,@IsExistFM2 AS IsExistFM2
-			,@MatchProcessXML AS MatchProcessXML
+	IF @IssueTypeId <> 3
+	BEGIN
+		SELECT @IsInvalidTransId AS IsInvalidTransId
+				,@IsInvalidLiveScore AS IsInvalidLiveScore
+				,@IsInValidTotalTickets AS IsInValidTotalTickets
+				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+				,@IsExistSingle AS IsExistSingle
+				,@IsExistParlay AS IsExistParlay
+				,@IsExistFM AS IsExistFM
+				,@IsExistFM2 AS IsExistFM2
+				,@MatchProcessXML AS MatchProcessXML
+	END
+	ELSE
+	BEGIN
+		SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
+			,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
+			,ISNULL(IsInValidTotalTickets, 0) AS IsInValidTotalTickets
+			,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
+			,ISNULL(IsExistSingle,0) AS IsExistSingle
+			,ISNULL(IsExistParlay,0) AS IsExistParlay
+			,ISNULL(IsExistFM,0) AS IsExistFM
+			,ISNULL(@IsExistFM2,0) AS IsExistFM2
+			,MatchProcessXML AS MatchProcessXML
+		FROM @Validation
+	END
 
 	--TransId in request table
 	--For EKO check transid exists in request
 		
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-	BEGIN			
-		SELECT RequestId,
-			STUFF((
-			SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-			FROM #TransidInRequest
-			WHERE (RequestId = r.RequestId) 
-			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-			,1,2,'') AS TransIds
-			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-		FROM #TransidInRequest r
-		GROUP BY r.RequestId
-			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+	BEGIN
+		IF @IssueTypeId <> 3
+		BEGIN
+			SELECT RequestId,
+				STUFF((
+				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+				FROM #TransidInRequest
+				WHERE (RequestId = r.RequestId) 
+				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+				,1,2,'') AS TransIds
+			FROM #TransidInRequest r
+			GROUP BY r.RequestId
+		END
+		ELSE 
+		BEGIN
+			SELECT RequestId,
+				STUFF((
+				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+				FROM #TransidInRequest
+				WHERE (RequestId = r.RequestId) 
+				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+				,1,2,'') AS TransIds
+				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+			FROM #TransidInRequest r
+			GROUP BY r.RequestId
+				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+		END
 	END
 	ELSE
 	BEGIN
-		SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-			,r.RequestId
-			,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-		FROM #TransidInRequest r
+		IF @IssueTypeId <> 3
+		BEGIN
+			SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+				,r.RequestId
+			FROM #TransidInRequest r
+		END
+		ELSE
+		BEGIN
+				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+				,r.RequestId
+				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+			FROM #TransidInRequest r
+		END
 	END
 
 	--Loginfo table
@@ -1776,7 +2021,7 @@ BEGIN
 			,MAX(VoidToTime) AS VoidToTime
 			,SUM(SingleCount) AS SingleCount
 			,SUM(CashOutCount) AS CashOutCount
-		,SUM(InstantlySettleCount) AS InstantlySettleCount
+			,SUM(InstantlySettleCount) AS InstantlySettleCount
 			,SUM(MainParlayCount) AS MainParlayCount
 			,MIN(MinSingleTransId) AS MinSingleTransId
 			,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1793,6 +2038,7 @@ BEGIN
 			,MAX(VoidToTime) AS VoidToTime
 			,SUM(SingleCount) AS SingleCount
 			,SUM(CashOutCount) AS CashOutCount
+			,SUM(InstantlySettleCount) AS InstantlySettleCount
 			,SUM(MainParlayCount) AS MainParlayCount
 			,MIN(MinSingleTransId) AS MinSingleTransId
 			,MAX(MaxSingleTransId) AS MaxSingleTransId
