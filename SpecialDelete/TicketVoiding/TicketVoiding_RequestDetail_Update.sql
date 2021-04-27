@@ -23,8 +23,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@VoidFromTime			DATETIME = NULL
 	,@VoidToTime			DATETIME = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT = NULL
-	,@IsCheckedAwayTeam		BIT = NULL
+	,@IsCheckedHomeTeam		BIT = 0
+	,@IsCheckedAwayTeam		BIT = 0
 	,@SubIssueTypeId		TINYINT = NULL
 	,@IsConfirmCalculator   BIT = 0
 	,@UserNames				VARCHAR(MAX) = NULL
@@ -32,7 +32,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@StatusIds				VARCHAR(50)  = NULL
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
-	,@IsVoidVIPMember		BIT = NULL
+	,@IsVoidVIPMember		BIT = 0
+	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
 	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
@@ -67,6 +68,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210401@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
+		- 20210402@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 
 	Param's explanation:	
 	
@@ -113,7 +115,10 @@ BEGIN
 			,@IsNonSport			 BIT = 0
 			,@moveBetDay14 			 SMALLDATETIME
 			,@moveBetDay 			 SMALLDATETIME
-			,@FromWinlostDate        DATETIME	
+			,@FromWinlostDate        DATETIME
+			,@OldIsCheckedHomeTeam	 BIT = 0
+			,@OldIsCheckedAwayTeam	 BIT = 0	
+			,@OldTypeAccept			 VARCHAR(MAX) = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -156,8 +161,8 @@ BEGIN
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
 				,RequestType = CASE WHEN @ActionId IN (4,6,7) THEN 1
-									ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
-											  WHEN @IssueTypeId = 11 AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
+									ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @IsVoidVIPMember = 0) THEN 0
+											  WHEN @IssueTypeId = 11 AND @IsVoidVIPMember = 1 THEN 3
 											  ELSE 0
 										 END
 								END
@@ -171,6 +176,9 @@ BEGIN
 			, @OldFilterFromBetId = FilterFromBetId
 			, @OldFilterToBetId = FilterToBetId
 			, @OldFilterBy = FilterBy
+			, @OldIsCheckedHomeTeam = IsCheckedHomeTeam
+			, @OldIsCheckedAwayTeam = IsCheckedAwayTeam
+			, @OldTypeAccept = TransIds
 			, FilterFromTransTime = @FilterFromTransTime
 			, FilterToTransTime = @FilterToTransTime
 			, FilterFromBetId = @FilterFromBetId
@@ -187,22 +195,23 @@ BEGIN
 			, IssueDetail = @LiveScores
 			, IsCheckedHomeTeam = @IsCheckedHomeTeam
 			, IsCheckedAwayTeam = @IsCheckedAwayTeam
+			, TransIds = @TypeAccept
 		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
 		
 		-- Get info match belong to username
-			SELECT @moveBetDay14 = MAX(winlostdate) 
+		SELECT @moveBetDay14 = MAX(winlostdate) 
 		FROM dbo.bettrans14 WITH(NOLOCK)
 
 		SELECT @moveBetDay = MAX(winlostdate) 
 		FROM dbo.bettrans WITH(NOLOCK)
-	
+
 		SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
-				, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-				, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
-	
+			 , @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			 , @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT val 
 		FROM dbo.f_SplitString(@StatusIds, ',')
@@ -245,7 +254,7 @@ BEGIN
 			SELECT ci.custid
 			FROM #InputUsernameList l
 				INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.custid = ci.srecommend
-			WHERE l.roleid = 4 AND ci.roleid = 2	
+			WHERE l.roleid = 4 AND ci.roleid = 2
 		END
 
 		-- list of member to process
@@ -260,6 +269,7 @@ BEGIN
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
 		;
+
 		------------Prepare Data------------------------
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
@@ -621,9 +631,17 @@ BEGIN
 			SET @LogDataContent += ' Old To BetID: ' + CAST(@OldFilterToBetId AS VARCHAR(20))
 									+ ' New To BetID: ' + CAST(@FilterToBetId AS VARCHAR(20))
 		END
-		IF @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1, 2)
+		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedHomeTeam <> @IsCheckedHomeTeam
 		BEGIN
-			SET @LogDataContent += 'IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(20)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(20))
+			SET @LogDataContent += 'Old IsCheckedHomeTeam: '+ CAST(@OldIsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(@IsCheckedHomeTeam AS VARCHAR(10))
+		END
+		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedAwayTeam <> @IsCheckedAwayTeam
+		BEGIN
+			SET @LogDataContent += 'Old IsCheckedAwayTeam: '+ CAST(@OldIsCheckedAwayTeam AS VARCHAR(10)) + ', New IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10))
+		END
+		IF @OldTypeAccept <> @TypeAccept
+		BEGIN
+			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', New TypeAccept: ' + @TypeAccept
 		END
 	END
 	ELSE IF @IssueTypeId = 13

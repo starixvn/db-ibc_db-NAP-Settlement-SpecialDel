@@ -30,8 +30,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@VoidFromTime			DATETIME	  = NULL
 	,@VoidToTime			DATETIME	  = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT			  = NULL
-	,@IsCheckedAwayTeam		BIT			  = NULL
+	,@IsCheckedHomeTeam		BIT			  = 0
+	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)	  = NULL
 	,@StatusIds				VARCHAR(50)	  = NULL
@@ -48,7 +48,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistNG				BIT           = 0
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
-	,@IsVoidVIPMember		BIT			  = NULL
+	,@IsVoidVIPMember		BIT			  = 0
+	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -64,13 +65,16 @@ AS
 		- 20191213@Charles: Write log TVS after add abnormal bet issue type [111541]
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 
 	Param's explanation:	
-		@Operator: Type: 1 - Trader
+		+ @Operator: Type: 1 - Trader
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
-		@MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
+		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
+
+		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
 */
 BEGIN
 	SET NOCOUNT ON
@@ -157,6 +161,7 @@ BEGIN
 				,@FromDate = @FromDate				
 				,@ToDate = @ToDate
 				,@IsVoidVIPMember = @IsVoidVIPMember
+				,@TypeAccept = @TypeAccept
 	
 	IF (@IssueTypeId NOT IN (1,10) OR (@IssueTypeId IN (1,10) AND @SingleCount > 0))
 	BEGIN
@@ -173,8 +178,8 @@ BEGIN
 				,@UserId = @UserId			
 				,@IP = @IP				
 				,@ActionId = @ActionId			
-				,@FilterFromTransTime = @FilterFromTransTime
-				,@FilterToTransTime = @FilterToTransTime	
+				,@FilterFromTransTime = @VoidFromTime
+				,@FilterToTransTime = @VoidToTime	
 				,@FilterBy = @FilterBy			
 				,@UserNames	= @UserNames			
 				,@ProductIds = @ProductIds		
@@ -197,8 +202,8 @@ BEGIN
 				,@UserId = @UserId				
 				,@IP = @IP					
 				,@ActionId = @ActionId				
-				,@FilterFromTransTime = @FilterFromTransTime	
-				,@FilterToTransTime	= @FilterToTransTime		
+				,@FilterFromTransTime = @VoidFromTime	
+				,@FilterToTransTime	= @VoidToTime		
 				,@FilterBy = @FilterBy				
 	END
 

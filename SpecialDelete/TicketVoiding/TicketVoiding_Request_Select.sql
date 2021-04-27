@@ -26,6 +26,7 @@ AS
 		- 20201021@Zane: TVS - Enhance for Danger Accept Phase 4 [Redmine: #143091]
 		- 20201106@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
+		- 20210319@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 
 	Param's explanation:	
 	
@@ -33,12 +34,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid BIGINT = 0
-		--,@IsAutoVoid BIT = 0
-
-	--SELECT @Matchid = (SELECT TOP 1 MatchId FROM TicketVoiding_RequestDetail WITH (NOLOCK) WHERE RequestId = @RequestId)
-	
-	--SELECT @IsAutoVoid = (SELECT TOP 1 1 FROM TicketVoiding_AutoVoidRequest_Queue tq WITH (NOLOCK) WHERE MatchId = @Matchid AND StatusId = 1)
+	DECLARE @IssueTypeId TINYINT
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -54,7 +50,6 @@ BEGIN
 			,r.Source
 			,r.Remark
 			,r.IsTest
-			--,CASE WHEN r.IssueTypeId = 11 AND @IsAutoVoid = 1 THEN 1 ELSE ISNULL(isVoided,0) END AS isVoided
 			,ISNULL(isVoided,0) AS isVoided
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
@@ -68,11 +63,12 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer cv WITH (NOLOCK) ON cv.custid = tblVoid.VoidBy			
 	WHERE	r.RequestId = @RequestId
 
-	IF EXISTS (
-		SELECT TOP 1 1
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		WHERE rd.RequestId = @RequestId AND req.IssueTypeId <> 13)
+	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
+							FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
+							WHERE RequestId = @RequestId
+						  )
+
+	IF @IssueTypeId IN (1,8,9,10,11)
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -81,7 +77,7 @@ BEGIN
 				,rd.HomeId
 				,rd.AwayId
 				,rd.KickOffTime
-				,ts.TransIds
+				,STUFF(ts.TransIds,1,1,'') AS TransIds
 				,m.hthomescore
 				,m.htawayscore
 				,m.finalhomescore
@@ -95,6 +91,7 @@ BEGIN
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
+				,rd.TransIds AS SettingTime 
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
@@ -105,22 +102,14 @@ BEGIN
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 			) m
-			OUTER APPLY (
-						SELECT COUNT(1) AS TotalSingle
-							,STUFF((
-								SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
-								FROM TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-								WHERE (RequestId = s.RequestId) 
-								FOR XML PATH(''))
-								,1,1,''
-							) AS TransIds
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-						WHERE s.RequestId = @RequestId
-						GROUP BY s.RequestId
-				)ts
+			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId = 11
+					FOR XML PATH('')
+				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
 	END
-	ELSE -- apply for Abnormal Account
+	IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN
 		SELECT	TOP 1
 				 rd.Usernames AS UserNames
