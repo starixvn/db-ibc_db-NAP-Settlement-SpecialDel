@@ -1680,7 +1680,7 @@ BEGIN
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
-			GROUP BY b.livehomescore, b.liveawayscore, @RequestId
+			GROUP BY b.livehomescore, b.liveawayscore
 
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + ' - ' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
