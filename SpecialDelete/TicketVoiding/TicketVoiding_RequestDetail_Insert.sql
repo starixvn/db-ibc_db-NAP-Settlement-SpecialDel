@@ -9,20 +9,20 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@ActionId				TINYINT
-	--,@FilterFromTransTime	DATETIME = NULL
-	--,@FilterToTransTime		DATETIME = NULL
-	--,@FilterFromBetId		BIGINT = NULL
-	--,@FilterToBetId			BIGINT = NULL
-	--,@FilterBy				TINYINT = 1
-	--,@SingleCount			INT = NULL
-	--,@MainParlayCount		INT = NULL
-	--,@MinSingleTransId		BIGINT = NULL
-	--,@MaxSingleTransId		BIGINT = NULL
-	--,@MinMainParlayTransId	BIGINT = NULL
-	--,@MaxMainParlayTransId	BIGINT = NULL
-	--,@VoidFromTime			DATETIME = NULL
-	--,@VoidToTime			DATETIME = NULL
-	--,@LiveScores			NVARCHAR(300) = NULL
+	,@FilterFromTransTime	DATETIME = NULL
+	,@FilterToTransTime		DATETIME = NULL
+	,@FilterFromBetId		BIGINT = NULL
+	,@FilterToBetId			BIGINT = NULL
+	,@FilterBy				TINYINT = 1
+	,@SingleCount			INT = NULL
+	,@MainParlayCount		INT = NULL
+	,@MinSingleTransId		BIGINT = NULL
+	,@MaxSingleTransId		BIGINT = NULL
+	,@MinMainParlayTransId	BIGINT = NULL
+	,@MaxMainParlayTransId	BIGINT = NULL
+	,@VoidFromTime			DATETIME = NULL
+	,@VoidToTime			DATETIME = NULL
+	,@LiveScores			NVARCHAR(300) = NULL
 	,@IsCheckedHomeTeam		BIT = 0
 	,@IsCheckedAwayTeam		BIT = 0
 	,@SubIssueTypeId		TINYINT = NULL
@@ -33,7 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@ToDate				DATETIME = NULL
 	,@IsVoidVIPMember		BIT = 0
 	,@TypeAccept			VARCHAR(MAX) = NULL
-	,@LogInfoXml			XML = NULL
+	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -71,9 +71,9 @@ AS
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 
 	Param's explanation:
-		@LogInfoXml: 
+		@WrongScoreInfo: 
 		<root>
-			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" FilterFromBetId="3" FilterToBetId ="4" FilterBy="0" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores="" IsCheckedHomeTeam="" IsCheckedAwayTeam="" TypeAccept =""/>
+			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore=""/>
 		</root>
 	
 */
@@ -104,6 +104,7 @@ BEGIN
 			,@moveBetDay 		 SMALLDATETIME
 			,@FromWinlostDate    DATETIME
 			,@LogDataContent	 VARCHAR(MAX)
+			,@WrongScoreInfoXML	XML = NULL
 
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
@@ -142,7 +143,44 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	IF  @IssueTypeId IN (1,10,3)
+	IF  @IssueTypeId IN (3) --WC
+	BEGIN
+		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
+		INSERT INTO #tblGetLogInfo( 
+			   RequestID				
+			  ,MatchID				
+			  ,FilterFromTransTime	
+			  ,FilterToTransTime							
+			  ,SingleCount			
+			  ,MainParlayCount		
+			  ,MinSingleTransId		
+			  ,MaxSingleTransId		
+			  ,MinMainParlayTransId	
+			  ,MaxMainParlayTransId	
+			  ,VoidFromTime			
+			  ,VoidToTime
+			  ,LiveHomeScore
+			  ,LiveAwayScore				
+			)
+
+		SELECT t.c.value('@RequestID','INT') AS RequestId
+			  ,t.c.value('@MatchID','INT') AS MatchID
+			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+			  ,t.c.value('@SingleCount','INT') AS SingleCount
+			  ,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+			  ,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+			  ,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+			  ,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+			  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+			  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+			  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+			  ,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
+			  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
+		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
+	END
+	ELSE IF @IssueTypeId IN (1,10)
 	BEGIN
 		INSERT INTO #tblGetLogInfo( 
 			   RequestID				
@@ -159,38 +197,14 @@ BEGIN
 			  ,MinMainParlayTransId	
 			  ,MaxMainParlayTransId	
 			  ,VoidFromTime			
-			  ,VoidToTime
-			  ,LiveHomeScore
-			  ,LiveAwayScore				
+			  ,VoidToTime				
 			  ,LiveScores				
 			  ,IsCheckedHomeTeam		
 			  ,IsCheckedAwayTeam		
-			  ,TypeAccept
+			 -- ,TypeAccept
 			)
-
-		SELECT t.c.value('@RequestID','INT') AS RequestId
-			  ,t.c.value('@MatchID','INT') AS MatchID
-			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-			  ,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
-			  ,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
-			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
-			  ,t.c.value('@SingleCount','INT') AS SingleCount
-			  ,t.c.value('@MainParlayCount','INT') AS MainParlayCount
-			  ,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
-			  ,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
-			  ,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
-			  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
-			  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
-			  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			  ,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
-			  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
-			  ,t.c.value('@LiveScores','NVARCHAR(300)') AS LiveScores
-			  ,t.c.value('@IsCheckedHomeTeam','BIT') AS IsCheckedHomeTeam
-			  ,t.c.value('@IsCheckedAwayTeam','BIT') AS IsCheckedAwayTeam
-			  ,t.c.value('@TypeAccept','VARCHAR(50)') AS TypeAccept
-		FROM @LogInfoXml.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@LogInfoXml = NULL))
+		SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
+			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam--, @TypeAccept
 	END
 
 	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB,AB(RealMember)

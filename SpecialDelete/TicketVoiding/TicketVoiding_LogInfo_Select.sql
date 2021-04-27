@@ -921,18 +921,8 @@ BEGIN
 				,@MatchId
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
-			OUTER APPLY (
-							SELECT TOP 1 rs.TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-							WHERE rs.TransId = b.transid
-								AND rs.MatchId = @MatchId
-								AND r.ActionId NOT IN (2)
-								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-											ELSE 1 END
-					)tmp
 		WHERE	b.matchid = @matchid
-				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
+				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 				AND b.bettype NOT IN (805, 806, 9, 29)			
@@ -1621,7 +1611,7 @@ BEGIN
 		RETURN;
 	END
 
-	IF @IssueTypeId IN (1, 10)
+	IF @IssueTypeId IN (1, 10, 3)
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
 			,@MainParlayCount = SUM(MainParlayCount)
