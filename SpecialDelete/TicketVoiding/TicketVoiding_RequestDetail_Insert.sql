@@ -201,10 +201,10 @@ BEGIN
 			  ,LiveScores				
 			  ,IsCheckedHomeTeam		
 			  ,IsCheckedAwayTeam		
-			 -- ,TypeAccept
+			  ,TypeAccept
 			)
 		SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam--, @TypeAccept
+			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
 	END
 
 	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB,AB(RealMember)

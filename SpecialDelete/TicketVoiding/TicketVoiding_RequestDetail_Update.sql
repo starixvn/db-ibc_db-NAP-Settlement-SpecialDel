@@ -276,10 +276,10 @@ BEGIN
 				  ,LiveScores				
 				  ,IsCheckedHomeTeam		
 				  ,IsCheckedAwayTeam		
-				  --,TypeAccept
+				  ,TypeAccept
 				)
 			SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-				, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam--, @TypeAccept
+				, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
 		END
 
 		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, IsCheckedHomeTeam, IsCheckedAwayTeam, TypeAccept)
@@ -846,6 +846,7 @@ BEGIN
 
 	END
 		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedHomeTeam <> @IsCheckedHomeTeam
+		BEGIN
 			SET @LogDataContent += 'Old IsCheckedHomeTeam: '+ CAST(@OldIsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(@IsCheckedHomeTeam AS VARCHAR(10))
 		END
 		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedAwayTeam <> @IsCheckedAwayTeam
@@ -855,6 +856,7 @@ BEGIN
 		IF @OldTypeAccept <> @TypeAccept
 		BEGIN
 			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', New TypeAccept: ' + @TypeAccept
+		END
 	ELSE IF @IssueTypeId = 13
 	BEGIN
 		IF @OldUserNames <> @UserNames
