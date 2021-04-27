@@ -18,6 +18,7 @@ AS
 		- 20201019@Charles: Rearrange position of OU Time Machine [143744]
 		- 20200813@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20210302@July: Integrate Cricket AIO [Redmine:#150075] 
+		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
     Parameters Explanation:    
     
@@ -467,6 +468,9 @@ RETURN (
 	--Integrate for Time Machine OU bettype [143032]
 	UNION ALL SELECT 228,'FT',0
 
+	--Integrate for Time Machine HDP bettype [153433]
+	UNION ALL SELECT 229,'FT',0
+
 	--Integrate new Bet Types of Cricket AIO [150075]
 	UNION ALL SELECT 9400,'FT',0
 	UNION ALL SELECT 9401,'FT',0
@@ -586,4 +590,5 @@ RETURN (
 	UNION ALL SELECT 9605,'FT',0
 	UNION ALL SELECT 9606,'FT',0
 	)
+
 GO

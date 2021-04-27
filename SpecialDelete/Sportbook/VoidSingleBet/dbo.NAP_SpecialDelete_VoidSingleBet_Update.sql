@@ -108,6 +108,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -619,8 +620,8 @@ BEGIN
 			,ISNULL(b.betid, 0) AS FilterGoal
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 			,b.hdp1 AS FilterHdp1
-			,b.hdp2 AS FilterHdp2
-			,b.oddsspread AS FilterOddsSpread
+			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
+			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 			,b.actual_stake AS ActualStake
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
@@ -735,8 +736,8 @@ BEGIN
 			,ISNULL(b.betid, 0) AS FilterGoal
 			,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 			,b.hdp1 AS FilterHdp1
-			,b.hdp2 AS FilterHdp2
-			,b.oddsspread AS FilterOddsSpread
+			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
+			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 			,b.actual_stake AS ActualStake
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
@@ -798,9 +799,9 @@ BEGIN
 				bm.betteam AS SubBetTeam,
 				bm.bettype AS SubBetType,
 				bm.hdp1 AS SubHdp1,
-				bm.hdp2 AS SubHdp2,
+				CASE WHEN bm.bettype = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2, --646: Match Handicap & Total
 				bm.odds As SubOdds,
-				bm.oddsspread AS SubOddsSpread
+				CASE WHEN bm.bettype = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread -- 229:SABA HDP Time Machine
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE
@@ -912,9 +913,9 @@ BEGIN
 				RIGHT(bm.SubBetCheck, 2) AS FilterGame,
 				bm.SubHdp1 + bm.SubHdp2 AS FilterValue,
 				bm.SubHdp1 AS FilterHdp1,
-				bm.SubHdp2 AS FilterHdp2,
+				CASE WHEN b.bettype = 646 THEN ABS(bm.SubHdp2) ELSE bm.SubHdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
-				bm.SubOddsSpread AS FilterOddsSpread,
+				CASE WHEN b.bettype = 229 THEN ABS(bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake
 			FROM #BetDeletem bm WITH (NOLOCK)

@@ -10,11 +10,12 @@ AS
     DB: DBTXN/bodb02; DBPRO/bodb02
     Revisions:
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
     Parameters Explanation: 
 		GroupId:
 			+ 1: Fast Market
-			+ 2: Fast Market 2 (bettype 228)
+			+ 2: Fast Market 2 (bettype 228, 229)
     
 */
 
@@ -32,6 +33,7 @@ RETURN (
 	
 	--Fast Market 2
 	UNION ALL SELECT 228,2
+	UNION ALL SELECT 229,2
 	
 )
 GO

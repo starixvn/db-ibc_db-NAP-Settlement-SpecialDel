@@ -31,12 +31,14 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		 
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON	
+	DECLARE @ValueDefault SMALLMONEY = 9999.00
 
 	CREATE TABLE #SpecialDeleteBets (
 		GroupID               BIGINT,
@@ -343,12 +345,12 @@ BEGIN
 				 , cte.[Set]
 				 , cte.Game
 				 , cte.BetOption
-				 , CAST(CASE WHEN (cte.Id NOT BETWEEN 221 AND 228) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
-							ELSE 9999.00 END AS SMALLMONEY) AS [Value]
+				 , CAST(CASE WHEN (cte.GroupId IS NULL) AND (cte.Id NOT IN (479, 481)) THEN cte.[Value]
+							ELSE @ValueDefault END AS SMALLMONEY) AS [Value]
 				 , cte.ValueHdp1
 		 		 , cte.ValueHdp2
-				 , CAST(CASE WHEN (cte.Id BETWEEN 221 AND 228) OR (cte.Id IN (479, 481)) THEN cte.[Value]
-							ELSE 9999.00 END AS SMALLMONEY) AS TimeInterval
+				 , CAST(CASE WHEN (cte.GroupId IN (1,2)) OR (cte.Id IN (479, 481)) THEN cte.[Value]
+							ELSE @ValueDefault END AS SMALLMONEY) AS TimeInterval
 				 , cte.Goal
 				 , cte.OddsSpread
 			FROM (
@@ -357,21 +359,27 @@ BEGIN
 					 , cte.[Set]
 					 , cte.Game
 					 , bop.val AS BetOption
-					 , CAST(CASE WHEN v.val = 'ALL' THEN 9999.00 
+					 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault 
 								ELSE v.val END AS SMALLMONEY) AS [Value]
-					 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN 9999.00 
+					 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
 							ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
-					 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN 9999.00 
+					 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 								ELSE cte.Goal END AS BIGINT) AS Goal
-					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN 9999.00 
+					 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+					 ,f.GroupId
 				FROM #tblBetType cte
 					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 					 CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
+					 OUTER APPLY (
+									SELECT GroupId
+									FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+									WHERE Bettype = cte.Id
+								)f
 			) cte	
 			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -486,12 +494,12 @@ BEGIN
 					,RIGHT(b.betid, 2) AS FilterGame
 					,b.hdp1 + b.hdp2 AS FilterValue
 					,b.hdp1 AS FilterHdp1
-					,b.hdp2 AS FilterHdp2
+					,CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 					,ISNULL(b.betid, 0) AS FilterGoal
 					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 					,b.hdp1 AS FilterTimeInterval
 					,b.statusID AS mainstatusid
-					,b.oddsspread AS FilterOddsSpread
+					,CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread --229:SABA HDP Time Machine
 					,b.actual_stake AS ActualStake
 					,b.matchid
 			FROM	bettrans b WITH (NOLOCK)	
@@ -615,10 +623,10 @@ BEGIN
 						,RIGHT(sub.betcheck, 2) AS FilterGame
 						,sub.hdp1 + sub.hdp2 AS FilterValue
 						,sub.hdp1 AS FilterHdp1
-						,sub.hdp2 AS FilterHdp2
+						,CASE WHEN tp.id = 646 THEN ABS(sub.hdp2) ELSE sub.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 						,ISNULL(sub.betcheck, 0) AS FilterGoal
 						,main.statusID AS mainstatusid
-						,sub.oddsspread AS FilterOddsSpread
+						,CASE WHEN tp.id = 229 THEN ABS(sub.oddsspread) ELSE sub.oddsspread END AS FilterOddsSpread --229:SABA HDP Time Machine
 						,main.ExtraInfo
 						,main.actual_stake AS ActualStake
 						,sub.matchid
