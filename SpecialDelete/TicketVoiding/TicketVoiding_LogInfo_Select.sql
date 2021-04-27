@@ -1866,24 +1866,6 @@ BEGIN
 					WHERE Bettype = t.Bettype
 			)f
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-
-		SET @MatchProcessXML = (
-			SELECT DISTINCT t.matchid "@MatchId"
-				,CASE 
-					WHEN f.GroupId IS NULL THEN 1 --SB
-					WHEN f.GroupId = 1 THEN 6 -- Fast Market
-					WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-					ELSE 0
-					END AS "@KeyID"
-			FROM #SpecialDeleteBets t
-				OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
-				)f
-			WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-			FOR XML PATH('r'), ROOT('root')
-			)
 	END
 	ELSE
 	BEGIN
@@ -1909,28 +1891,29 @@ BEGIN
 					AND t.liveawayscore = v.liveawayscore
 				GROUP BY t.livehomescore, t.liveawayscore
 			)tmp
-
-		
-		UPDATE @Validation 
-		SET MatchProcessXML = (
-			SELECT DISTINCT t.matchid "@MatchId"
-				,CASE 
-					WHEN f.GroupId IS NULL THEN 1 --SB
-					WHEN f.GroupId = 1 THEN 6 -- Fast Market
-					WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-					ELSE 0
-					END AS "@KeyID"
-			FROM #SpecialDeleteBets t
-				OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
-				)f
-			WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-				AND t.livehomescore = livehomescore AND t.liveawayscore = liveawayscore
-			FOR XML PATH('r'), ROOT('root')
-			)
 	END
+
+	SET @MatchProcessXML = (
+		SELECT DISTINCT t.matchid "@MatchId"
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS "@KeyID"
+		FROM #SpecialDeleteBets t
+			OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = t.Bettype
+			)f
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+		FOR XML PATH('r'), ROOT('root')
+		)
+
+	--WC
+	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML
+
 
 	--Error Table
 	IF @IssueTypeId <> 3
