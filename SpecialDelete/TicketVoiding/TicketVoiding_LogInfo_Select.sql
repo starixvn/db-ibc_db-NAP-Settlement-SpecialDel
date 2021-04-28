@@ -1843,9 +1843,9 @@ BEGIN
 	
 	IF @IssueTypeId = 3
 	BEGIN
-		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN l.SingleCount = 0 AND l.MainParlayCount = 0 THEN 1 ELSE 0 END
+		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN (l.SingleCount = 0 AND l.MainParlayCount = 0) OR (l.SingleCount IS NULL AND l.MainParlayCount IS NULL) THEN 1 ELSE 0 END
 		FROM @Validation v
-			CROSS APPLY( 
+			OUTER APPLY( 
 				SELECT SUM(SingleCount) AS SingleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 				FROM #logInfo
