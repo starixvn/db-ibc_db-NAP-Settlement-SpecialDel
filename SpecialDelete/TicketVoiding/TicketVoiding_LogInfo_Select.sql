@@ -1685,6 +1685,7 @@ BEGIN
 
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + ' - ' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
+				,rd.IssueDetail AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SingleCount

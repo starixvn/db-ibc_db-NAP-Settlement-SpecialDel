@@ -160,7 +160,8 @@ BEGIN
 			  ,VoidFromTime			
 			  ,VoidToTime
 			  ,LiveHomeScore
-			  ,LiveAwayScore				
+			  ,LiveAwayScore
+			  ,LiveScores --ActualScore for WC
 			)
 
 		SELECT @RequestId AS RequestId
@@ -177,6 +178,7 @@ BEGIN
 			  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			  ,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 			  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
+			  ,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
