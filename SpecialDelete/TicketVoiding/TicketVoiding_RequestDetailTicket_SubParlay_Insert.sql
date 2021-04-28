@@ -322,8 +322,8 @@ BEGIN
 			  ,LiveAwayScore				
 			)
 
-		SELECT t.c.value('@RequestID','INT') AS RequestId
-			  ,t.c.value('@MatchID','INT') AS MatchID
+		SELECT @RequestId AS RequestId
+			  ,@MatchId AS MatchID
 			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
 			  ,t.c.value('@SingleCount','INT') AS SingleCount
