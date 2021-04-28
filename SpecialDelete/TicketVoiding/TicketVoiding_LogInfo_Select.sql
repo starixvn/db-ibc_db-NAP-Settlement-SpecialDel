@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select_xtest]
 (	
 	@MatchId              INT
 	,@RequestId			  INT = 0
@@ -843,6 +843,12 @@ BEGIN
 		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 		
+		
+		--Init Validation
+		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores)
+		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+		FROM #WrongScores
+		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
 				GroupID			
@@ -1072,11 +1078,6 @@ BEGIN
 									AND sub.liveawayscore = LiveAwayScore
 									AND sub.transdate BETWEEN FilterFromTime AND FilterToTime)
 		END
-
-		--Init Validation
-		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores)
-		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
-		FROM #SpecialDeleteBets
 		
 	END
 
