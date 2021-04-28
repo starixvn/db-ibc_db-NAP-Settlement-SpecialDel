@@ -81,6 +81,7 @@ BEGIN
 				,srecommend,mrecommend,recommend
 				,Amount NetWinLoss
 			FROM #temp_result 
+			WHERE Amount >= 1000
 			
 		END
 
