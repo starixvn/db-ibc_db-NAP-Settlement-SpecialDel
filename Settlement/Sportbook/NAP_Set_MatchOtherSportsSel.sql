@@ -70,7 +70,7 @@ BEGIN
 			,@strEarlyBettypes	VARCHAR(MAX)
 			,@strResourceIds	VARCHAR(MAX)
 			,@matchidList		VARCHAR(MAX) = ''
-
+			,@isCheckIntervalOver BIT = 0
 
 	DECLARE @tmpLeagueIds  TABLE (LeagueId INT)
 	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT)
@@ -154,6 +154,9 @@ BEGIN
 				,@MatchStatus = ''
 				,@LeagueIds = ''
 	END
+
+	IF @MatchStatus LIKE '%9%'
+	SELECT @isCheckIntervalOver = 1
 	
 	INSERT INTO @tmpSporttypes(Sporttype)
 	SELECT	DISTINCT val
@@ -343,6 +346,10 @@ BEGIN
 					WHERE matchid = m.matchid
 				)ap
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
+				AND 1 =  CASE 
+							WHEN @isCheckIntervalOver = 1 AND m.sporttype IN (2,5,9,43,50)	THEN 1
+							ELSE 0
+						  END
 				AND (@Remark = 0 OR @Remark & m.SettlementStatus > 0)
 				AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 				AND EXISTS (
@@ -493,7 +500,7 @@ BEGIN
 			ON m.matchid = t.ParentId
 	WHERE t.IsRunningBettypeSingle = 1
 
-	IF (@MatchStatus LIKE '%9%' AND EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds m WHERE m.sporttype IN (2,5,9,43,50)	)) --interval Over
+	IF (@isCheckIntervalOver = 1) --interval Over
 	BEGIN
 		
 		CREATE TABLE #RunningInterval ( MatchId INT, SportType TINYINT, ResourceId VARCHAR(20))
@@ -543,7 +550,7 @@ BEGIN
 								AND i.ResourceId = sp.ResourceID
 			
 					) b
-		 DELETE FROM #tmpMatchIds WHERE  sporttype IN (2, 5, 9, 43, 50) AND IsExistsRunningInterval = 0
+		 DELETE FROM #tmpMatchIds WHERE IsExistsRunningInterval = 0
 	END
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
