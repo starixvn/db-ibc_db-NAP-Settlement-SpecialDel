@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="vnSAS" isFunction="0"></info>*/
-CREATE PROC Task_LuckyDraw3rd_Freebets_Insert
+ALTER PROC Task_LuckyDraw3rd_Freebets_Insert
 AS
 /*
 	Created: Helen
@@ -18,7 +18,8 @@ BEGIN
 			, @winlostdate DATETIME 
 			, @IsTicket14 BIT = 0
 
-	CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
+	CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )
+	CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, Amount MONEY)			
 	-- Input param value here
 	SELECT  @Sporttype = 150
 	
@@ -28,14 +29,12 @@ BEGIN
 	IF DATENAME(dw,@winlostdate) = 'Saturday'
 	BEGIN
 						
-		CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, Amount MONEY)
-				
 		SET @RoundID = 1 + ISNULL((SELECT MAX(roundID) 
 							FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 							WHERE sporttype = @Sporttype
 							),0) 
 		
-		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend,Amount )
+		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, Amount )
 		SELECT b.custid
 			,b.srecommend,b.mrecommend,b.recommend
 			, SUM (b.stake) AS Amount
@@ -120,7 +119,7 @@ BEGIN
 			,NULL ShowBannerEndDate
 			,0 StatusId
 			,c.srecommend,c.mrecommend,c.recommend
-			,-1000000
+			,1000000
 		FROM #testAccount s 
 			INNER JOIN custdb.dbo.Customer c WITH (NOLOCK) ON s.username = c.username
 	
