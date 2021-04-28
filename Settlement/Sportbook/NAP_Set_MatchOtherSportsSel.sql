@@ -155,7 +155,7 @@ BEGIN
 				,@LeagueIds = ''
 	END
 
-	IF @MatchStatus LIKE '%9%'
+	IF @MatchStatus = '9'
 	SELECT @isCheckIntervalOver = 1
 	
 	INSERT INTO @tmpSporttypes(Sporttype)
@@ -346,10 +346,11 @@ BEGIN
 					WHERE matchid = m.matchid
 				)ap
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
-				AND 1 =  CASE 
-							WHEN @isCheckIntervalOver = 1 AND m.sporttype IN (2,5,9,43,50)	THEN 1
-							ELSE 0
-						  END
+				AND 
+					( 
+						( @isCheckIntervalOver = 1 AND m.sporttype IN (2,5,9,43,50)	) 
+						OR @isCheckIntervalOver = 0
+					)
 				AND (@Remark = 0 OR @Remark & m.SettlementStatus > 0)
 				AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 				AND EXISTS (
