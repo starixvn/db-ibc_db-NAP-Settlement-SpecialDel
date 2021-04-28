@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+		- 20210428@Helen: Deposit - Adjust Free Bets based on Turnover [Redmine: #154287]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -27,17 +28,18 @@ BEGIN
 	IF DATENAME(dw,@winlostdate) = 'Saturday'
 	BEGIN
 						
-		CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, NetWinLoss MONEY)
+		CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, Amount MONEY)
 				
 		SET @RoundID = 1 + ISNULL((SELECT MAX(roundID) 
 							FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 							WHERE sporttype = @Sporttype
 							),0) 
 		
-		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
+		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend,Amount )
 		SELECT b.custid
 			,b.srecommend,b.mrecommend,b.recommend
-			,SUM (winlost - actual_stake) NetWinLoss
+			, SUM (b.stake) AS Amount
+			--,SUM (winlost - actual_stake) NetWinLoss
 		FROM bettrans b WITH (NOLOCK) 
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
 			INNER  JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -59,27 +61,28 @@ BEGIN
 					END	 
 		GROUP BY b.custid,b.srecommend,b.mrecommend,b.recommend				
 		
-		IF EXISTS (SELECT TOP (1) 1 FROM #temp_result WHERE NetWinLoss < 0 )
+		IF EXISTS (SELECT TOP (1) 1 FROM #temp_result)
 		BEGIN				
 			INSERT INTO LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 			SELECT @Sporttype Sporttype
 				, @RoundID AS RoundID
 				,custid
 				,CASE 
-					WHEN ABS(NetWinLoss) >= 500 AND ABS(NetWinLoss) < 1000 THEN 2
-					WHEN ABS(NetWinLoss) >= 1000 AND ABS(NetWinLoss) < 5000 THEN 4
-					WHEN ABS(NetWinLoss) >= 5000 AND ABS(NetWinLoss) < 8000 THEN 6
-					WHEN ABS(NetWinLoss) >= 8000 AND ABS(NetWinLoss) < 10000 THEN 8
-					WHEN ABS(NetWinLoss) >= 10000 THEN 10
+					WHEN Amount >= 1000 AND Amount < 3000 THEN 1
+					WHEN Amount >= 3000 AND Amount < 5000 THEN 2
+					WHEN Amount >= 5000 AND Amount < 7000 THEN 3
+					WHEN Amount >= 7000 AND Amount < 9000 THEN 4
+					WHEN Amount >= 9000 AND Amount < 10000 THEN 5
+					WHEN Amount >= 10000 THEN 6
 				END AS FreeSpinCount
 				,GETDATE() CreatedDate
 				,NULL SentDate
 				,NULL ShowBannerEndDate
 				,0 StatusId
 				,srecommend,mrecommend,recommend
-				,NetWinLoss
+				,Amount NetWinLoss
 			FROM #temp_result 
-			WHERE NetWinLoss < 0 AND ABS(NetWinLoss) >= 500
+			
 		END
 
 		INSERT INTO #testAccount (username,FreeSpinCount)
