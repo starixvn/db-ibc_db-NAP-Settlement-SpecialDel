@@ -28,6 +28,7 @@ AS
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210319@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210420@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 
 	Param's explanation:	
 	
@@ -69,7 +70,7 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,8,9,10,11,15) -- DA,EKO,WKO,RC,AB,AB(Real Member)
+	IF @IssueTypeId IN (1,8,9,10,11,15,3) -- DA,EKO,WKO,RC,AB,AB(Real Member),WC
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -92,7 +93,10 @@ BEGIN
 				,rd.IsCheckedHomeTeam
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,rd.TransIds AS SettingTime 
+				,rd.TransIds AS SettingTime
+				,rd.LiveHomeScore
+				,rd.LiveAwayScore
+				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
