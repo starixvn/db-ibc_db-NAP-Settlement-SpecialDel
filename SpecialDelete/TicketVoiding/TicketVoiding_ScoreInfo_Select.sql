@@ -20,8 +20,8 @@ BEGIN
 	SET NOCOUNT ON 
 
 	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
-		,MIN(b.transdate) AS FromTime
-		,MAX(b.transdate) AS ToTime
+		,MIN(b.transdate) AS FilterFromTransTime
+		,MAX(b.transdate) AS FilterToTransTime
 	FROM dbo.bettrans b WITH (NOLOCK)
 	WHERE b.matchid = @MatchId
 		AND b.betfrom <> 'p'
@@ -34,8 +34,8 @@ BEGIN
 
 	UNION ALL
 	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
-		,MIN(b.transdate) AS FromTime
-		,MAX(b.transdate) AS ToTime
+		,MIN(b.transdate) AS FilterFromTransTime
+		,MAX(b.transdate) AS FilterToTransTime
 	FROM dbo.bettransm b WITH (NOLOCK)
 	WHERE b.matchid = @MatchId
 		AND b.betfrom <> 'p'
