@@ -94,8 +94,7 @@ BEGIN
 				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime
-				,rd.LiveHomeScore
-				,rd.LiveAwayScore
+				,CAST(rd.livehomescore AS VARCHAR(2)) + ' - ' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
