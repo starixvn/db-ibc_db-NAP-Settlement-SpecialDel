@@ -32,6 +32,8 @@ AS
 			- 20210107@Kathy: Support settle determined [Readmine:#147141]
 			- 20210225@Kathy: Wrong Water break validation  [Readmine:#150682]
 			- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+			- 20210428@Kathy: - Allow to settle directly for bettype 228 [Redmine:#153155]
+							  - Check SP is in deployment 
 			
 	Param's Explanation:
 		- @Result: 
@@ -69,7 +71,7 @@ BEGIN
 			,@sporttype		INT
 			,@leagueid		INT
 			,@sqlCommand	NVARCHAR(MAX)
-			,@procName		NVARCHAR(128)
+			,@procName		NVARCHAR(128) = OBJECT_NAME(@@PROCID)
 			,@xmlData		XML
 			,@subErrMsg		VARCHAR(MAX) = ''
 			,@AutoSetting	TINYINT
@@ -90,6 +92,9 @@ BEGIN
 			,@BetOptionAway_2nd VARCHAR(50)
 
 			,@IsFailed BIT = 0
+			
+			,@WaitingTime VARCHAR(10)
+			,@IsWaiting BIT = 0
 			
 	DECLARE @tblData TABLE (
 		bettype					SMALLINT
@@ -127,6 +132,24 @@ BEGIN
 		,Value					TINYINT
 	)
 	
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
+
 	SELECT	@matchcode = m.matchcode
 			,@sporttype = m.sporttype
 			,@leagueid = m.leagueid
@@ -266,8 +289,6 @@ BEGIN
 						WHERE	t.ResourceId = '22800'
 								AND 1 = CASE
 										WHEN t.Value NOT IN (4,5) AND t.Position < @minSelectedPosition THEN 1 
-										WHEN t.Value IN (4,5) AND t.Position > @maxSelectedPosition THEN 1 
-										WHEN t.Value IN (4,5) AND  t.Position BETWEEN @minSelectedPosition AND @maxSelectedPosition THEN 1 
 										ELSE 0
 									END
 			)
@@ -631,7 +652,7 @@ BEGIN
 					SELECT bettype '@Id'
 						,(SELECT Position '@p'
 								,BetOption '@r'
-								,CASE WHEN @IsSettleDetermined = 1 AND r.bettype <> 229 THEN 1 ELSE NULL END AS '@s'
+								,CASE WHEN r.bettype = 229 THEN 0 ELSE @IsSettleDetermined END AS '@s'
 								,CASE WHEN r.bettype IN (228, 229) THEN 1 ELSE NULL END AS '@i' -- HasInjuryTime
 							FROM @tblData WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
 					FROM @tblData r
@@ -675,7 +696,6 @@ BEGIN
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
-			,@procName = OBJECT_NAME(@@PROCID)
 			,@sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @Results = ''' + CONVERT(VARCHAR(MAX), @Results) + ''''
