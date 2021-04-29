@@ -376,12 +376,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,w.scores AS WrongScores
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -426,12 +426,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,w.scores AS WrongScores
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -476,12 +476,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,w.scores AS WrongScores
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
