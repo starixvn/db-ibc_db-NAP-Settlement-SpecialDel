@@ -173,11 +173,9 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @ActionId IN (4,6,7) THEN 1
-					ELSE CASE WHEN @IssueTypeId NOT IN (11,15) OR (@IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 0 ) THEN 0
-							  WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3
-							  ELSE 0
-						 END
+			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 AND @ActionId IN (1,4,6,7) THEN 3 -- Void ticket VIP Member
+				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
+				   ELSE 0
 				END
 			, @FilterFromTransTime
 			, @FilterToTransTime
