@@ -179,6 +179,7 @@ BEGIN
 			, IsCheckedHomeTeam	BIT 
 			, IsCheckedAwayTeam	BIT
 			, TypeAccept VARCHAR(50)
+			, ActualScore VARCHAR(50)
 			)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
@@ -217,72 +218,31 @@ BEGIN
 								END
 		WHERE	RequestId = @RequestId
 	END
-	ELSE IF @IssueTypeId IN (1,10,3) -- Danger Accept, Red Card, Wrong Score
+	ELSE IF @IssueTypeId IN (1,10) -- Danger Accept, Red Card
 	BEGIN
-		IF @IssueTypeId IN (3)
-		BEGIN
-			SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
-			INSERT INTO #tblGetLogInfo( 
-				   RequestID				
-				  ,MatchID				
-				  ,FilterFromTransTime	
-				  ,FilterToTransTime					
-				  ,SingleCount			
-				  ,MainParlayCount		
-				  ,MinSingleTransId		
-				  ,MaxSingleTransId		
-				  ,MinMainParlayTransId	
-				  ,MaxMainParlayTransId	
-				  ,VoidFromTime			
-				  ,VoidToTime
-				  ,LiveHomeScore
-				  ,LiveAwayScore
-				  ,LiveScores --ActualScore for WC
-				)
-			SELECT @RequestId AS RequestId
-					,@MatchId AS MatchID
-				  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-				  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-				  ,t.c.value('@SingleCount','INT') AS SingleCount
-				  ,t.c.value('@MainParlayCount','INT') AS MainParlayCount
-				  ,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
-				  ,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
-				  ,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
-				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
-				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
-				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				  ,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
-				  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
-				  ,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
-			FROM @WrongScoreInfoXML.nodes('root/r') t(c)
-			OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #tblGetLogInfo( 
-				   RequestID				
-				  ,MatchID				
-				  ,FilterFromTransTime	
-				  ,FilterToTransTime		
-				  ,FilterFromBetId		
-				  ,FilterToBetId			
-				  ,FilterBy				
-				  ,SingleCount			
-				  ,MainParlayCount		
-				  ,MinSingleTransId		
-				  ,MaxSingleTransId		
-				  ,MinMainParlayTransId	
-				  ,MaxMainParlayTransId	
-				  ,VoidFromTime			
-				  ,VoidToTime				
-				  ,LiveScores				
-				  ,IsCheckedHomeTeam		
-				  ,IsCheckedAwayTeam		
-				  ,TypeAccept
-				)
-			SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-				, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
-		END
+		INSERT INTO #tblGetLogInfo( 
+				RequestID				
+				,MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime		
+				,FilterFromBetId		
+				,FilterToBetId			
+				,FilterBy				
+				,SingleCount			
+				,MainParlayCount		
+				,MinSingleTransId		
+				,MaxSingleTransId		
+				,MinMainParlayTransId	
+				,MaxMainParlayTransId	
+				,VoidFromTime			
+				,VoidToTime				
+				,LiveScores				
+				,IsCheckedHomeTeam		
+				,IsCheckedAwayTeam		
+				,TypeAccept
+			)
+		SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
+			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
 
 		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, IsCheckedHomeTeam, IsCheckedAwayTeam, TypeAccept)
 		SELECT RequestId
@@ -302,13 +262,7 @@ BEGIN
 		WHERE RequestId = @RequestId AND MatchId = @MatchId
 
 		UPDATE	r
-		SET	  @OldActualScore = r.IssueDetail
-			-- @OldFilterFromTransTime = FilterFromTransTime
-			--, @OldFilterToTransTime = FilterToTransTime
-			--, @OldFilterFromBetId = FilterFromBetId
-			--, @OldFilterToBetId = FilterToBetId
-			--, @OldFilterBy = FilterBy
-			, FilterFromTransTime = l.FilterFromTransTime
+		SET	  FilterFromTransTime = l.FilterFromTransTime
 			, FilterToTransTime = l.FilterToTransTime
 			, FilterFromBetId = l.FilterFromBetId
 			, FilterToBetId = l.FilterToBetId
@@ -329,9 +283,87 @@ BEGIN
 			, TransIds = l.TypeAccept
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
-		WHERE 1 = CASE WHEN @IssueTypeId IN (1,10) THEN 1 
-					   WHEN @IssueTypeId = 3 AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore THEN 1
-					   ELSE 0 END
+	END
+	ELSE IF @IssueTypeId = 3 --WrongScore
+	BEGIN
+		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
+		INSERT INTO #tblGetLogInfo( 
+				RequestID				
+				,MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime					
+				,SingleCount			
+				,MainParlayCount		
+				,MinSingleTransId		
+				,MaxSingleTransId		
+				,MinMainParlayTransId	
+				,MaxMainParlayTransId	
+				,VoidFromTime			
+				,VoidToTime
+				,LiveHomeScore
+				,LiveAwayScore
+				,LiveScores --ActualScore for WC
+			)
+		SELECT @RequestId AS RequestId
+				,@MatchId AS MatchID
+				,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+				,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+				,t.c.value('@SingleCount','INT') AS SingleCount
+				,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+				,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+				,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+				,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+				,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+				,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+				,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+				,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
+				,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
+				,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
+		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
+
+		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, IsCheckedHomeTeam, IsCheckedAwayTeam, TypeAccept, ActualScore)
+		SELECT RequestId
+			 , MatchId
+			 , FilterFromTransTime
+			 , FilterToTransTime
+			 , FilterFromBetId
+			 , FilterToBetId
+			 , FilterBy
+			 , LiveHomeScore
+			 , LiveAwayScore
+			 , IssueDetail
+			 , IsCheckedHomeTeam
+			 , IsCheckedAwayTeam
+			 , TransIds
+			 , IssueDetail
+		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
+		WHERE RequestId = @RequestId AND MatchId = @MatchId
+
+		
+		DELETE rd
+		FROM dbo.TicketVoiding_RequestDetail rd
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+		WHERE rd.matchid = @MatchId AND rd.RequestId = @RequestId AND t.RequestID IS NULL
+
+		UPDATE	r
+		SET	  @OldActualScore = r.IssueDetail
+			, FilterFromTransTime = l.FilterFromTransTime
+			, FilterToTransTime = l.FilterToTransTime
+			, SingleCount = l.SingleCount
+			, MainParlayCount = l.MainParlayCount
+			, MinSingleTransId = l.MinSingleTransId
+			, MaxSingleTransId = l.MaxSingleTransId
+			, MinMainParlayTransId = l.MinMainParlayTransId
+			, MaxMainParlayTransId = l.MaxMainParlayTransId
+			, VoidFromTime = l.VoidFromTime
+			, VoidToTime = l.VoidToTime
+			, LiveHomeScore = l.LiveHomeScore
+			, LiveAwayScore = l.LiveAwayScore
+			, IssueDetail = l.LiveScores
+		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore 
+
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
