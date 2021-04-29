@@ -21,6 +21,7 @@ AS
 		- 20161116@Kathy: Fast Market [Redmine:#56367]
 		- 20170113@Kathy: Enhancement for Fast Market [Redmine:#69951]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
 	Param's Explanation:
 		@Product: BetRadar
@@ -73,7 +74,7 @@ BEGIN
 	BEGIN
 		DECLARE @tblResultDetail TABLE (
 			bettype		SMALLINT	
-			,Position	TINYINT	
+			,DisplayPosition VARCHAR(10)
 		)
 		
 		DECLARE @resultString VARCHAR(MAX) = ''
@@ -92,17 +93,22 @@ BEGIN
 		;WITH TmpData AS (
 			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 				,X.C.value('@Position','TINYINT') as Position
-				,X.C.value('@Result','TINYINT') as BetOption
 			FROM @xmlData.nodes('/BetTypes/BetType') AS T(C)
 				CROSS APPLY
 					C.nodes('Item') AS X(C)
 		)
-		INSERT INTO @tblResultDetail (bettype, Position)
+		INSERT INTO @tblResultDetail (bettype, DisplayPosition)
 		SELECT	bettype
-				,Position
+				,CASE 
+					WHEN bettype = 229 AND Position = 45 THEN '44+'
+					WHEN bettype = 229 AND Position > 45 THEN CAST(Position -1 AS VARCHAR)
+					ELSE CAST(Position AS VARCHAR)
+				END
 		FROM TmpData
 		
-		SELECT @resultString = @resultString + 'Bettype: ' + cast(bettype as varchar) + '; Interval: ' + STUFF((SELECT ',' + CAST(position as varchar) FROM @tblResultDetail where bettype = t.bettype FOR xml path('')),1,1,'') +'</br>' 
+		SELECT @resultString = @resultString 
+			+ 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
+			+ '; Interval: ' + STUFF((SELECT	',' + DisplayPosition FROM @tblResultDetail r WHERE	r.bettype = t.bettype FOR XML PATH('')),1,1,'') +'</br>' 
 		FROM @tblResultDetail t
 		GROUP BY bettype
 		

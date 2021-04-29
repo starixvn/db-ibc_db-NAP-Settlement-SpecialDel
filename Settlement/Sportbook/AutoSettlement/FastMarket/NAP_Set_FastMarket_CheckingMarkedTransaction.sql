@@ -13,6 +13,7 @@ AS
     Revisions:
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
     Param's Explanation:
 		@Results
@@ -52,7 +53,7 @@ BEGIN
 		WHERE	b.matchid = @MatchID
 				AND b.statusID = 0	
 				AND 1 = CASE
-							WHEN b.bettype <> 228 
+							WHEN b.bettype NOT IN (228, 229)
 								THEN CASE 
 										WHEN b.hdp1 = bt.Position THEN 1
 										ELSE 0

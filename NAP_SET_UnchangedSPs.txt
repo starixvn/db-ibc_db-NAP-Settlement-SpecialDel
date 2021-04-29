@@ -1,2 +1,4 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
+Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
+Settlement\Sportbook\NAP_Set_MatchSel.sql

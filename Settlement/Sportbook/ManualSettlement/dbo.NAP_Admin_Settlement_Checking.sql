@@ -39,6 +39,7 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -226,7 +227,7 @@ BEGIN
 				,@ResultStatus1st		VARCHAR(50)	= ''		
 				,@ResultStatus2nd		VARCHAR(50) = ''
 
-		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT, BetOption TINYINT, AccumulatedScore INT, IsSettleDetermined BIT)
+		DECLARE @tblBettype TABLE (bettype SMALLINT, position TINYINT, BetOption TINYINT, AccumulatedScore INT, IsSettleDetermined BIT, HasInjuryTime BIT DEFAULT(0))
 
 		DECLARE @tblResultDetail TABLE (
 				ResourceId	VARCHAR(20)
@@ -246,11 +247,12 @@ BEGIN
 		
 		SET @xml = CONVERT(XML,@xmlData)
 
-		INSERT INTO @tblBettype (bettype, position, BetOption, IsSettleDetermined)
+		INSERT INTO @tblBettype (bettype, position, BetOption, IsSettleDetermined, HasInjuryTime)
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@p','TINYINT') as Position
 			,X.C.value('@r','TINYINT') as BetOption
 			,X.C.value('@s','BIT') as IsSettleDetermined
+			,ISNULL(X.C.value('@i','BIT'),0) as HasInjuryTime
 		FROM @xml.nodes('/r/b') AS T(C)
 			CROSS APPLY
 				C.nodes('r') AS X(C)
@@ -273,16 +275,16 @@ BEGIN
 
 				INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
 				SELECT	t.ResourceId
-						,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
-									FROM	@tblBettype	
-									WHERE	ResourceId = t.ResourceId 
-											AND position <= 45
+						,STUFF ((SELECT	',' + CAST(bt.position AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+									FROM	@tblBettype	bt
+									WHERE	bt.bettype = 228
+											AND bt.position <= 45
 									FOR XML PATH ('')
 							),1,1,'') strPosHome
-						,STUFF ((SELECT	',' + CAST((position - 46) AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
-									FROM	@tblBettype	
-									WHERE	ResourceId = t.ResourceId
-											AND position >= 46
+						,STUFF ((SELECT	',' + CAST((bt.position - 46) AS VARCHAR(200)) + '|' + CAST(@ResultStatus AS VARCHAR(1))
+									FROM	@tblBettype	bt
+									WHERE	bt.bettype = 228
+											AND bt.position >= 46
 									FOR XML PATH ('')
 							),1,1,'') strPosAway
 				FROM	@tblResultDetail t
@@ -290,16 +292,16 @@ BEGIN
 
 				INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
 				SELECT	t.ResourceId
-						,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
-									FROM	@tblBettype	
-									WHERE	ResourceId = t.ResourceId
-											AND position <= 45
+						,STUFF ((SELECT	',' + CAST(bt.position AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
+									FROM	@tblBettype	bt
+									WHERE	bt.bettype = 228
+											AND bt.position <= 45
 									FOR XML PATH ('')
 							),1,1,'') strBetOptionHome
-						,STUFF ((SELECT	',' + CAST((position - 46) AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
-									FROM	@tblBettype	
-									WHERE	ResourceId = t.ResourceId
-											AND position >= 46
+						,STUFF ((SELECT	',' + CAST((bt.position - 46) AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
+									FROM	@tblBettype	bt
+									WHERE	bt.bettype = 228
+											AND bt.position >= 46
 									FOR XML PATH ('')
 							),1,1,'') strBetOptionAway
 				FROM	@tblResultDetail t
@@ -429,9 +431,20 @@ BEGIN
 					FROM	dbo.bettrans b WITH(NOLOCK)
 						INNER JOIN @tblBettype t
 							ON	b.bettype = t.bettype
-								AND b.hdp1 = t.position
 					WHERE	b.matchid = @matchid
 							AND b.bettype <> 228
+							AND 1 = CASE
+										WHEN t.HasInjuryTime = 0
+											THEN CASE 
+													WHEN b.hdp1 = t.Position THEN 1
+													ELSE 0
+												END
+										ELSE CASE
+												WHEN t.Position < 45 AND b.hdp1 = t.Position THEN 1
+												WHEN t.Position > 45 AND b.hdp1 = t.Position - 1 THEN 1
+												ELSE 0
+											END
+									END
 							AND (b.statusID = 1 -- waiting status
 							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
 		)

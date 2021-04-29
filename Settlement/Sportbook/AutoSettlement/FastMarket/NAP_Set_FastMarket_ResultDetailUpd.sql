@@ -21,6 +21,7 @@ AS
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
 	Param's Explanation:
 		- @Results: 
@@ -54,18 +55,20 @@ AS
 */
 BEGIN	
 	SET NOCOUNT ON
+	
 	-- In this sesion, Home value means the result in 1st of match, Away value means the result in 2nd of match (not home/away team)
 	DECLARE @xmlData				XML
 			,@ResultStatus			TINYINT
 			,@xmlEventCounter		XML
 			,@xmlSpecialSession		XML
-			
+		
 	DECLARE @tblData TABLE (
 		ResourceId				VARCHAR(20) -- 22X00
 		,ResourceId_BetOption	VARCHAR(20) -- 22X01
 		,position				TINYINT
 		,betOption				TINYINT
 		,IsSettleDetermined		BIT
+		,HasInjuryTime			BIT DEFAULT(0)
 	)
 
 	DECLARE @tblDataEventCounter TABLE(
@@ -105,16 +108,18 @@ BEGIN
 			,X.C.value('@p','TINYINT') as Position
 			,X.C.value('@r','TINYINT') as BetOption
 			,X.C.value('@s','TINYINT') as IsSettleDetermined
+			,X.C.value('@i','BIT') as HasInjuryTime
 		FROM @xmlData.nodes('/r/b') AS T(C)
 			CROSS APPLY
 				C.nodes('r') AS X(C)
 	)
-	INSERT INTO @tblData (ResourceId, ResourceId_BetOption, position, betOption, IsSettleDetermined)
+	INSERT INTO @tblData (ResourceId, ResourceId_BetOption, position, betOption, IsSettleDetermined, HasInjuryTime)
 	SELECT	CAST(bettype * 100 AS VARCHAR(20)) ResourceId -- 22X00
-			,CAST(bettype * 100 + 1 AS VARCHAR(20)) ResourceId -- 22X01
+			,CASE WHEN bettype = 229 THEN '22901H' ELSE CAST(bettype * 100 + 1 AS VARCHAR(20)) END ResourceId_BetOption -- 22X01
 			,Position
 			,ISNULL(betOption,0)
 			,ISNULL(IsSettleDetermined,0)
+			,ISNULL(HasInjuryTime, 0)
 	FROM	TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
 
@@ -175,13 +180,13 @@ BEGIN
 						,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CASE WHEN IsSettleDetermined = 1 THEN CAST(7 AS VARCHAR(1)) ELSE CAST(@ResultStatus AS VARCHAR(1)) END
 									FROM	@tblData	
 									WHERE	ResourceId = t.ResourceId 
-											AND position <= CASE WHEN t.ResourceId = '22800' THEN 45 ELSE 44 END
+											AND position <= CASE WHEN HasInjuryTime = 1 THEN 45 ELSE 44 END
 									FOR XML PATH ('')
 							),1,1,'') strPosHome
-						,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CASE WHEN IsSettleDetermined = 1 THEN CAST(7 AS VARCHAR(1)) ELSE CAST(@ResultStatus AS VARCHAR(1)) END
+						,STUFF ((SELECT	',' + CAST(position - CASE WHEN HasInjuryTime = 1 THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CASE WHEN IsSettleDetermined = 1 THEN CAST(7 AS VARCHAR(1)) ELSE CAST(@ResultStatus AS VARCHAR(1)) END
 									FROM	@tblData	
 									WHERE	ResourceId = t.ResourceId
-											AND position >= CASE WHEN t.ResourceId = '22800' THEN 46 ELSE 45 END
+											AND position >= CASE WHEN HasInjuryTime = 1 THEN 46 ELSE 45 END
 									FOR XML PATH ('')
 							),1,1,'') strPosAway
 				FROM	dbo.ResultDetail t WITH(ROWLOCK)
@@ -263,30 +268,51 @@ BEGIN
 					-- betoption
 					INSERT INTO dbo.ResultDetail (MatchId, ResourceId, HomeValue, AwayValue, CreateBy, CreateDate, LastModifyBy, LastModifyDate)
 					SELECT	@matchId, t.ResourceId_BetOption
-							,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
-							,CASE WHEN t.ResourceId_BetOption = '22801' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+							,CASE WHEN t.ResourceId_BetOption LIKE '22[8-9]01%' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
+							,CASE WHEN t.ResourceId_BetOption LIKE '22[8-9]01%' THEN REPLICATE('0', 50) ELSE REPLICATE(CHAR('0'), 50) END
 							,@AdminId, GETDATE(), @AdminId, GETDATE()
-					FROM	@tblData t
+					FROM	(SELECT ResourceId_BetOption
+							 FROM	@tblData t
+							 UNION ALL
+							 SELECT '22901A' AS ResourceId_BetOption
+							 FROM	@tblData
+							 WHERE ResourceId_BetOption = '22901H'
+						) t
 					WHERE	NOT EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetail WITH(NOLOCK) WHERE MatchId = @matchid AND t.ResourceId_BetOption = ResourceId)
 					GROUP BY t.ResourceId_BetOption
 
+					;WITH cteData
+					AS(
+						SELECT	ResourceId_BetOption
+								,CASE WHEN ResourceId_BetOption = '22901H' THEN t.betOption%10 ELSE t.betOption END AS betOption
+								,t.position
+								,t.HasInjuryTime
+						FROM	@tblData t
+						UNION ALL
+						SELECT	'22901A' AS ResourceId_BetOption
+								,t.betOption/10 AS betOption
+								,t.position
+								,t.HasInjuryTime
+						FROM	@tblData t
+						WHERE ResourceId_BetOption = '22901H'	
+					)
 					INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
 					SELECT	t.ResourceId
 							,STUFF ((SELECT	',' + CAST(position AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
-										FROM	@tblData	
+										FROM	cteData 
 										WHERE	ResourceId_BetOption = t.ResourceId
-												AND position <= CASE WHEN t.ResourceId = '22801' THEN 45 ELSE 44 END
+												AND position <= CASE WHEN HasInjuryTime = 1 THEN 45 ELSE 44 END
 										FOR XML PATH ('')
 								),1,1,'') strBetOptionHome
-							,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
-										FROM	@tblData	
+							,STUFF ((SELECT	',' + CAST(position - CASE WHEN t.ResourceId LIKE '22[8-9]01%' THEN 46 ELSE 45 END AS VARCHAR(200)) + '|' + CAST(betOption AS VARCHAR(200))
+										FROM	cteData 	
 										WHERE	ResourceId_BetOption = t.ResourceId
-												AND position >= CASE WHEN t.ResourceId = '22801' THEN 46 ELSE 45 END
+												AND position >= CASE WHEN HasInjuryTime = 1 THEN 46 ELSE 45 END
 										FOR XML PATH ('')
 								),1,1,'') strBetOptionAway
 					FROM	dbo.ResultDetail t WITH(ROWLOCK)
 					WHERE	t.MatchId = @matchid
-							AND t.ResourceId LIKE '22_01'
+							AND (t.ResourceId LIKE '22_01' OR t.ResourceId IN ('22901H', '22901A'))
 
 					/*
 						(ResouceId: 22X01) Result of each interval of bettype
@@ -302,9 +328,9 @@ BEGIN
 						INNER JOIN @tblPosition p 
 							ON	r.MatchId = @matchid
 								AND r.ResourceId = p.ResourceId
-					WHERE	r.ResourceId LIKE '22_01' AND r.ResourceId NOT IN ('22801')
+					WHERE	r.ResourceId LIKE '22[1-7]01' 
 			
-					-- update 228
+					-- update 228, 229
 					UPDATE r 
 						SET HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END
 							,AwayValue = CASE WHEN ISNULL(p.strPosAway,'') <> '' THEN dbo.f_Set_SetChars(v.AwayValue, p.strPosAway) ELSE r.AwayValue END
@@ -317,7 +343,9 @@ BEGIN
 						INNER JOIN @tblPosition p 
 							ON	r.MatchId = @matchid
 								AND r.ResourceId = p.ResourceId
-					WHERE r.ResourceId = '22801'
+					WHERE	r.ResourceId = '22801'
+							OR r.ResourceId IN ('22901H', '22901A')
+					
 				END
 			END	
 		END

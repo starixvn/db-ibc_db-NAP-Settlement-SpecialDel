@@ -31,6 +31,7 @@ AS
 		- 20200928@Helen: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201106@Kathy: Add "Water Break" Concept to Fast Markets [Readmine:#143573]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
+		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -84,15 +85,22 @@ BEGIN
 				,@LogEventCounter	VARCHAR(MAX) = ''
 				,@BetOption1st VARCHAR(50)
 				,@BetOption2nd VARCHAR(50)
+				,@BetOptionHome_1st VARCHAR(50)
+				,@BetOptionHome_2nd VARCHAR(50)
+				,@BetOptionAway_1st VARCHAR(50)
+				,@BetOptionAway_2nd VARCHAR(50)
 				,@ResultStatus1st VARCHAR(50)				
 				,@ResultStatus2nd VARCHAR(50)
 				,@isExistFM BIT = 1
 				,@isExistFM2 BIT = 0
 
 	DECLARE @tblAccumulatedScore TABLE (
-		Position TINYINT
-		,BetOption TINYINT
-		,AccumulatedScore INT
+		bettype					SMALLINT
+		,Position				TINYINT
+		,BetOption				TINYINT
+		,AccumulatedScore		INT -- 228
+		,AccumulatedHomeScore	INT -- 229
+		,AccumulatedAwayScore	INT -- 229
 	)
 	
 	--START Balance tables	
@@ -107,6 +115,8 @@ BEGIN
 		,Position			TINYINT
 		,BetOption			TINYINT
 		,AccumulatedScore	INT
+		,AccumulatedHomeScore	INT
+		,AccumulatedAwayScore	INT
 	)
 
 	CREATE TABLE #tblEventCounter (
@@ -175,13 +185,13 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType BETWEEN 221 AND 227)
 		SET @isExistFM = 1
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType IN (228,229))
 		SET @isExistFM2 = 1
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT DISTINCT @MatchId
 			,CASE 
-				WHEN BetType = 228 THEN 7
+				WHEN BetType IN (228,229) THEN 7
 				ELSE 6 -- 221-->227
 			END AS KeyId
 	FROM	#tblResultDetail
@@ -275,8 +285,8 @@ BEGIN
 					INNER JOIN cteBetOption bo
 						ON rs.Position = bo.Position
 			)
-			INSERT INTO @tblAccumulatedScore (Position, BetOption, AccumulatedScore)
-			SELECT c1.Position, c1.BetOption, c2.BetOption
+			INSERT INTO @tblAccumulatedScore (bettype, Position, BetOption, AccumulatedScore)
+			SELECT 228, c1.Position, c1.BetOption, c2.BetOption
 			FROM cteResult c1
 				INNER JOIN cteResutStatus crs
 					ON c1.Position = crs.Position
@@ -291,22 +301,125 @@ BEGIN
 					,BetOption = a.BetOption
 			FROM	#tblResultDetail r
 				INNER JOIN @tblAccumulatedScore a
-					ON	r.BetType = 228
+					ON	r.BetType = a.bettype
 						AND r.Position = a.Position
+			WHERE r.BetType = 228
+		END				
+	END		
 
-			SET @Results = CAST((
+	-- 229
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 229)
+	BEGIN
+		IF @Action = 'CAL' 
+		BEGIN
+			SELECT	@BetOptionHome_1st = MAX(CASE WHEN ResourceId = '22901H' THEN HomeValue ELSE '' END)
+					,@BetOptionHome_2nd = MAX (CASE WHEN ResourceId = '22901H' THEN AwayValue ELSE '' END)
+					,@BetOptionAway_1st = MAX(CASE WHEN ResourceId = '22901A' THEN HomeValue ELSE '' END)
+					,@BetOptionAway_2nd = MAX (CASE WHEN ResourceId = '22901A' THEN AwayValue ELSE '' END)
+					,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22900' THEN HomeValue ELSE '' END)
+					,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22900' THEN AwayValue ELSE '' END)
+			FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
+			WHERE	MatchId = @MatchId 
+					AND ResourceId LIKE '2290%'
+			GROUP BY MatchId
+		END		
+		
+		SELECT 	@BetOptionHome_1st = ISNULL(@BetOptionHome_1st, REPLICATE('0',50))
+				,@BetOptionHome_2nd = ISNULL(@BetOptionHome_2nd, REPLICATE('0',50))
+				,@BetOptionAway_1st = ISNULL(@BetOptionAway_1st, REPLICATE('0',50))
+				,@BetOptionAway_2nd = ISNULL(@BetOptionAway_2nd, REPLICATE('0',50))
+				,@BetOptionHome_2nd = ISNULL(@BetOptionHome_2nd, REPLICATE('0',50))
+				,@ResultStatus1st = ISNULL(@ResultStatus1st, REPLICATE('0',50))
+				,@ResultStatus2nd = ISNULL(@ResultStatus2nd, REPLICATE('0',50))
+				
+		BEGIN
+			;WITH cteBetOptionHome
+			AS
+			(
+				SELECT	f.pos AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOptionHome_1st) f
+				WHERE	f.pos < 46 
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOptionHome_2nd) f
+				WHERE	f.pos < 45 
+			)
+			,cteBetOptionAway
+			AS
+			(
+				SELECT	f.pos AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOptionAway_1st) f
+				WHERE	f.pos < 46
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS BetOption
+				FROM	dbo.f_Set_GetChars(@BetOptionAway_2nd) f
+				WHERE	f.pos < 45
+			)
+			,cteResutStatus
+			AS (
+				SELECT	f.pos AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
+				WHERE	f.pos < 46 
+				UNION ALL
+				SELECT	f.pos + 46 AS Position, f.ResultStatus AS ResultStatus
+				FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
+				WHERE	f.pos < 45
+			)
+			,cteResult
+			AS (
+				SELECT rs.Position
+					,CASE WHEN rs.ResultStatus IN (4,5) THEN boh.BetOption ELSE 0 END AS BetOptionHome
+					,CASE WHEN rs.ResultStatus IN (4,5) THEN boa.BetOption ELSE 0 END AS BetOptionAway
+				FROM cteResutStatus rs
+					INNER JOIN cteBetOptionHome boh
+						ON rs.Position = boh.Position
+					INNER JOIN cteBetOptionAway boa
+						ON rs.Position = boa.Position
+
+			)
+			INSERT INTO @tblAccumulatedScore (bettype, Position, betoption, AccumulatedHomeScore, AccumulatedAwayScore)
+			SELECT 229, c1.Position, c1.BetOptionHome + c1.BetOptionAway*10, cH.AccumulatedHomeScore, cA.AccumulatedAwayScore
+			FROM cteResult c1
+				INNER JOIN cteResutStatus crs
+					ON c1.Position = crs.Position
+				CROSS APPLY (
+					SELECT	ISNULL(SUM(c2.BetOptionHome), 0) as AccumulatedHomeScore
+					FROM	cteResult c2
+					WHERE	c2.Position <= c1.Position
+				) cH
+				CROSS APPLY (
+					SELECT	ISNULL(SUM(c3.BetOptionAway), 0) as AccumulatedAwayScore
+					FROM	cteResult c3
+					WHERE	c3.Position <= c1.Position
+				) cA
+				
+			UPDATE r 
+				SET AccumulatedHomeScore = a.AccumulatedHomeScore
+					,AccumulatedAwayScore = a.AccumulatedAwayScore					
+			FROM	#tblResultDetail r
+				INNER JOIN @tblAccumulatedScore a
+					ON	r.BetType = a.bettype
+						AND r.Position = a.Position
+			WHERE r.BetType = 229
+		END				
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType IN (228, 229))
+		SET @Results = CAST((
 				SELECT bettype '@Id'
 					,(SELECT Position '@p'
 							,BetOption '@r'
 							,CASE WHEN BetType = 228 THEN AccumulatedScore ELSE NULL END '@a'
+							,CASE WHEN BetType = 229 THEN AccumulatedHomeScore ELSE NULL END '@ah'
+							,CASE WHEN BetType = 229 THEN AccumulatedAwayScore ELSE NULL END '@aa'
 							,@IsSettleDetermined AS '@s'
+							,CASE WHEN r.BetType IN (228, 229) THEN 1 ELSE NULL END AS '@i' -- HasInjuryTime
 						FROM #tblResultDetail WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
 				FROM #tblResultDetail r
 				GROUP BY r.bettype
 				FOR XML PATH('b'), ROOT ('r'), TYPE
 			) AS VARCHAR(MAX))	
-		END				
-	END		
+
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
@@ -407,9 +520,45 @@ BEGIN
 	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @logdata
 	
 	SET @LogResult = CONVERT(VARCHAR(MAX),(SELECT BetType '@Id'
-		, STUFF((SELECT ',' + CAST(Position AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') AS 'Item/@Position'
-		, CASE WHEN @Action = 'CAL' THEN STUFF((SELECT ',' + CAST(BetOption AS VARCHAR(3)) FROM #tblResultDetail WHERE BetType = r.BetType FOR XML PATH ('')),1,1,'') END AS 'Item/@Result'
-		
+		,MIN(r.position) AS 'Item/@MinPosition'
+		,MAX(r.position) AS 'Item/@MaxPosition'
+		, STUFF((SELECT ',' + CAST(t.Position AS VARCHAR(3)) 
+				 FROM (
+					SELECT	t.BetType, t.Position
+					FROM	#tblResultDetail t
+					WHERE	1 = CASE 
+									WHEN t.bettype = 229 AND t.BetOption = 0 THEN 0
+									ELSE 1
+								END									 
+					UNION
+					SELECT	a.bettype, a.Position
+					FROM	 @tblAccumulatedScore a
+					WHERE	a.bettype = 229
+							AND a.bettype = r.BetType
+							AND a.BetOption > 0
+					) t
+				 WHERE BetType = r.BetType 
+				 ORDER BY t.Position
+				 FOR XML PATH ('')),1,1,''
+			) AS 'Item/@Position'
+		, CASE WHEN @Action = 'CAL' THEN STUFF((SELECT ',' + CAST(t.BetOption AS VARCHAR(3)) 
+												FROM (
+													SELECT	t.bettype, t.BetOption, t.Position
+													FROM	#tblResultDetail t
+													WHERE	1 = CASE 
+																	WHEN t.bettype = 229 AND t.BetOption = 0 THEN 0
+																	ELSE 1
+																END	
+													UNION
+													SELECT	a.bettype, a.BetOption, a.Position
+													FROM	@tblAccumulatedScore a
+													WHERE	a.bettype = 229
+															AND a.bettype = r.BetType
+															AND a.BetOption > 0
+												) t WHERE	t.BetType = r.BetType 
+													ORDER BY t.Position
+													FOR XML PATH ('')),1,1,''
+											) END AS 'Item/@Result'
 	FROM #tblResultDetail r
 	GROUP BY BetType
 	FOR XML PATH('BetType'), ROOT ('BetTypes'), TYPE))
