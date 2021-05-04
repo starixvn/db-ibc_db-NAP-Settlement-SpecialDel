@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns
+ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns_UAT2
 (
 	 @MatchId INT   
 	,@UserId INT 
@@ -17,6 +17,7 @@ AS
     
     Revisions:            
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210504@Louisa: Save Cricket results [Redmine:#154472]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -79,6 +80,10 @@ BEGIN
 						,0										AS IsChanged
 				FROM	@xmlSources.nodes('/Sources/Source') AS T(C)
 
+				IF (@Sporttype = 50)
+				BEGIN
+
+				END
 
 				IF ISNULL( @OutsideSources, '' ) <> '' --- OutsideSources score have changed by user
 					BEGIN
@@ -120,7 +125,8 @@ BEGIN
 													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  = pgm.PGId
 												WHERE pgm.SourceId		= 1001	
 													AND pgm.GameType	= 0
-													AND plmo.LeagueId	= @LeagueId)
+													AND plmo.LeagueId	= @LeagueId
+													AND @Sporttype <> 50 )
 					BEGIN				
 						EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Init Source 1001 and mapping with GameType and League if 1001 does not exists
 							@LeagueId		= @LeagueId
