@@ -19,7 +19,7 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
+	SELECT CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
 		,MIN(b.transdate) AS FilterFromTransTime
 		,MAX(b.transdate) AS FilterToTransTime
 	FROM dbo.bettrans b WITH (NOLOCK)
@@ -30,10 +30,10 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0
 				ELSE 1 END
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
+	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	UNION ALL
-	SELECT CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
+	SELECT CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS WrongScore
 		,MIN(b.transdate) AS FilterFromTransTime
 		,MAX(b.transdate) AS FilterToTransTime
 	FROM dbo.bettransm b WITH (NOLOCK)
@@ -42,7 +42,7 @@ BEGIN
 		AND b.statusID NOT IN (101, 102, 103)
 		AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0
 				ELSE 1 END
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
+	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
 END
 GO

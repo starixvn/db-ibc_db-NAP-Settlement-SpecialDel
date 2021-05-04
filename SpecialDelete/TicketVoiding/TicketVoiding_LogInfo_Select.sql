@@ -846,7 +846,7 @@ BEGIN
 		
 		--Init Validation
 		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores)
-		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 		FROM #WrongScores
 		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
@@ -1522,7 +1522,7 @@ BEGIN
 	--Data Section
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 	SELECT @MatchId AS MatchId
-		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
+		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(CASE WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 1 THEN b.transdate
 				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
@@ -1544,8 +1544,8 @@ BEGIN
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
-	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
-	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2))
+	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
+	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -1564,7 +1564,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+			SELECT CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 				,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
 				,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
 				,ISNULL(IsInValidTotalTickets,0) AS IsInValidTotalTickets
@@ -1588,7 +1588,7 @@ BEGIN
 		BEGIN
 			SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 				,r.RequestId
-				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+				,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 			FROM #TransidInRequest r
 		END
 
@@ -1684,7 +1684,7 @@ BEGIN
 			GROUP BY b.livehomescore, b.liveawayscore
 
 			SELECT rd.MatchId
-				,CAST(rd.livehomescore AS VARCHAR(2)) + ' - ' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
+				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
 				,rd.IssueDetail AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
@@ -1739,7 +1739,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+				SELECT CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
 					,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
 					,@IsInValidTotalTickets AS IsInValidTotalTickets
@@ -1776,10 +1776,10 @@ BEGIN
 						WHERE (RequestId = r.RequestId) 
 						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 						,1,2,'') AS TransIds
-						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+						,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 					FROM #TransidInRequest r
 					GROUP BY r.RequestId
-						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+						,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2))
 				END
 			END
 			ELSE
@@ -1794,7 +1794,7 @@ BEGIN
 				BEGIN
 					SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 						,r.RequestId
-						,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+						,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 					FROM #TransidInRequest r
 				END
 			END
@@ -1932,7 +1932,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+		SELECT CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
 			,ISNULL(IsInvalidLiveScore,0) AS IsInvalidLiveScore
 			,ISNULL(IsInValidTotalTickets, 0) AS IsInValidTotalTickets
@@ -1971,10 +1971,10 @@ BEGIN
 				WHERE (RequestId = r.RequestId) 
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
-				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+				,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 			FROM #TransidInRequest r
 			GROUP BY r.RequestId
-				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2))
+				,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2))
 		END
 	END
 	ELSE
@@ -1989,7 +1989,7 @@ BEGIN
 		BEGIN
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
 				,r.RequestId
-				,CAST(livehomescore AS VARCHAR(2)) + ' - ' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
+				,CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 			FROM #TransidInRequest r
 		END
 	END
