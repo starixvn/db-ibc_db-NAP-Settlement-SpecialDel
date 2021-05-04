@@ -374,8 +374,8 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND t.ActionId IN (4,6,7) THEN 1 --Auto void Instant & 5m &10m, void VIP
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP + normal member
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7) THEN 1 --Auto void Instant & 5m &10m, void VIP + normal member
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId <> 13 AND t.RequestType = 1 AND vip.CustID IS NULL THEN 1 -- Void Instant Request
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
@@ -400,8 +400,8 @@ BEGIN
 					 ) AS vip
 	WHERE 1 = CASE 
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND vip.CustID IS NOT NULL AND t.ActionId IN (4,6,7) THEN 0 
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7) THEN 0 
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END
