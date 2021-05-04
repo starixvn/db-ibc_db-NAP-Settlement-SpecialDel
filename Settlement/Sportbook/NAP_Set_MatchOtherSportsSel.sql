@@ -98,7 +98,7 @@ BEGIN
 		,SettlementStatusId TINYINT
 	)
 
-	CREATE TABLE #ConfirmedResources ( MatchId INT, SportType TINYINT, ResourceId VARCHAR(20))
+	CREATE TABLE #ConfirmedResources ( MatchId INT, ResourceId VARCHAR(20))
 
 	CREATE TABLE #tmpMatchInfo (
 		matchid							INT
@@ -396,32 +396,32 @@ BEGIN
 
 			SELECT @strMatchIds = @strMatchIds + CAST(m.MatchId AS VARCHAR(20)) + ','
 			FROM	#tmpMatchInfo m
-			WHERE m.sporttype IN (2,5,9,43,59)
+			WHERE m.sporttype IN (2,5,9,43,50)
 
 			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
 			FROM (
 				SELECT DISTINCT f.ResourceID
 				FROM #tmpMatchInfo m
 					CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
-				WHERE m.sporttype IN (2,5,9,43,59)
+				WHERE m.sporttype IN (2,5,9,43,50)
 			)f
 
-			SELECT @strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)	
-				 ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+			SELECT @strMatchIds = CASE WHEN @strResourceIds = '' THEN '0' ELSE LEFT(@strMatchIds, LEN(@strMatchIds) - 1) END 	
+				 ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN '''''' ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
 
-			SET	@remoteQuery = N'SELECT r.ResourceId ,r.MatchId
+			SET	@remoteQuery = N'SELECT r.MatchId, r.ResourceId 
 							FROM 
-								( SELECT  r.ResourceId , r.MatchId
+								( SELECT  r.MatchId, r.ResourceId 
 								FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 								WHERE r.SettlementStatusID = 0
 									AND r.ResultStatusID = 3				
 								UNION ALL
-								SELECT r.ResourceId ,r.MatchId
+								SELECT r.MatchId, r.ResourceId 
 								FROM DBPRO.bodb02.dbo.ResultDetailES r WITH(NOLOCK)
 								WHERE r.SettlementStatusID = 0
 									AND r.ResultStatusID = 3			
 								UNION ALL
-								SELECT r.ResourceId ,r.MatchId
+								SELECT r.MatchId, r.ResourceId 
 								FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
 								WHERE r.SettlementStatusID = 0
 									AND r.ResultStatusID = 3
@@ -429,7 +429,7 @@ BEGIN
 							WHERE r.MatchId IN ('+@strMatchIds+')
 							AND r.ResourceId IN ('+@strResourceIds+')'
 
-			INSERT INTO #ConfirmedResources ( MatchId, SportType, ResourceId )
+			INSERT INTO #ConfirmedResources ( MatchId, ResourceId )
 			EXECUTE	sys.sp_executesql @remoteQuery 
 
 			 UPDATE m SET IsExistsRunningInterval = 1 
@@ -439,7 +439,7 @@ BEGIN
 									INNER JOIN	 #ConfirmedResources r ON r.matchid = b.MatchId
 									INNER JOIN dbo.SettlementSpecialBettypeProfile sp  WITH(NOLOCK)
 									ON b.bettype = sp.BetType AND (sp.Betid = 0 OR sp.BetID = b.BetID)
-								WHERE sp.SportType = r.SportType
+								WHERE sp.SportType = m.SportType
 									AND sp.SettleType ='MNL'
 									AND r.ResourceId = sp.ResourceID
 			
@@ -514,7 +514,7 @@ BEGIN
 									ELSE 1
 									END
 							AND 1 = CASE
-										WHEN s.Id NOT IN (3,4,6,7) THEN 1
+										WHEN s.Id NOT IN (3,4,6,7,9) THEN 1
 										WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
 										WHEN s.Id = 4 AND ISNULL(m.calculate,0) = 0 
 													  AND ISNULL(m.calrefund,0) = 0
