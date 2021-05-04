@@ -34,6 +34,7 @@ AS
 		- 20210401@Max: [TVS] EC2020 Preparation [Redmine: #151103]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210427@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210504@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		 
 	Param's explanation:	
 		
@@ -317,7 +318,7 @@ BEGIN
 			  	
 					
 	END
-	ELSE IF @IssueTypeId IN (1, 10) -- Danger Accept, Red Card
+	ELSE IF @IssueTypeId IN (1, 10, 3) -- Danger Accept, Red Card, WrongScore
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
