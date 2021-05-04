@@ -442,9 +442,8 @@ BEGIN
 								WHERE sp.SportType = m.SportType
 									AND sp.SettleType ='MNL'
 									AND r.ResourceId = sp.ResourceID
-			
+									AND m.matchid = b.MatchId
 						) b
-			 WHERE  m.matchid = b.MatchId
 		END
 
 		INSERT INTO #tmpMatchIds(matchid
