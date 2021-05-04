@@ -160,7 +160,7 @@ BEGIN
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
-				,RequestType = CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 AND @ActionId IN (1,4,6,7) THEN 3 -- Void ticket VIP Member
+				,RequestType = CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
 								    WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
 								    ELSE 0
 								END
