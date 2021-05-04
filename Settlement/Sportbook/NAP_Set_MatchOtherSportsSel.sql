@@ -404,6 +404,7 @@ BEGIN
 				FROM #tmpMatchInfo m
 					CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
 				WHERE m.sporttype IN (2,5,9,43,50)
+					AND f.ResourceID <> '00'
 			)f
 
 			SELECT @strMatchIds = CASE WHEN @strResourceIds = '' THEN '0' ELSE LEFT(@strMatchIds, LEN(@strMatchIds) - 1) END 	
