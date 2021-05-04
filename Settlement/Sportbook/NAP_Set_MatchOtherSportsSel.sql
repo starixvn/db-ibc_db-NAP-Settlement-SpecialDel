@@ -98,6 +98,40 @@ BEGIN
 		,SettlementStatusId TINYINT
 	)
 
+	CREATE TABLE #ConfirmedResources ( MatchId INT, SportType TINYINT, ResourceId VARCHAR(20))
+
+	CREATE TABLE #tmpMatchInfo (
+		matchid							INT
+		,matchcode						NVARCHAR(50)
+		,leagueid						INT
+		,sporttype						SMALLINT
+		,kickofftime					DATETIME
+		,homeid							INT
+		,awayid							INT		
+		,hthomescore 					INT
+		,htawayscore 					INT
+		,finalhomescore					INT
+		,finalawayscore					INT
+		,eventstatus					NVARCHAR(50)
+		,IsNeutral						BIT
+		,betstatus						NVARCHAR(50)
+		,suspenderhalftime				NVARCHAR(50)
+		,suspenderfulltime				NVARCHAR(50)
+		,autosetting					TINYINT
+		,autosettingforleague			TINYINT
+		,settlementstatus				TINYINT
+		,childmatchtype					TINYINT
+		,calculate						BIT
+		,multiple						BIT
+		,refund							BIT
+		,calrefund						BIT
+		,IsHTCal						BIT
+		,IsExistsRunningInterval		BIT DEFAULT (0) --Apply for Basketball, Tennis, Badminton, E-sports, Cricket
+		,StatusId						TINYINT
+		,IsPending						BIT DEFAULT (0)
+		,ConfirmFT						INT
+	)
+
 	CREATE TABLE #tmpMatchIds (
 		matchid							INT
 		,matchcode						NVARCHAR(50)
@@ -140,7 +174,6 @@ BEGIN
 		,AutoPayoutStatus				TINYINT
 		,IsExistsRunningInterval		BIT DEFAULT (0) --Apply for Basketball, Tennis, Badminton, E-sports, Cricket
 		,IsPending						BIT DEFAULT (0)
-		,ConfirmFT						INT
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -273,15 +306,16 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO #tmpMatchIds(matchid
+		INSERT INTO #tmpMatchInfo(
+			 matchid
 			,matchcode
 			,leagueid
 			,sporttype
 			,kickofftime
 			,homeid
 			,awayid
-			,halftimehomescore
-			,halftimeawayscore
+			,hthomescore
+			,htawayscore
 			,finalhomescore
 			,finalawayscore
 			,eventstatus
@@ -293,13 +327,13 @@ BEGIN
 			,autosettingforleague
 			,settlementstatus
 			,childmatchtype
-			,IsCalculated
-			,IsMultiCaled
-			,IsRefund
-			,IsCalRefund
-			,IsHalfTimeCal
-			,AutoPayoutStatus
-			,IsPending
+			,calculate
+			,multiple
+			,refund
+			,calrefund
+			,IsHTCal
+			,StatusId
+			,isPending
 			,ConfirmFT
 		)
 		SELECT	m.matchid
@@ -357,74 +391,145 @@ BEGIN
 		IF (@isCheckIntervalOver = 1) --interval Over
 		BEGIN
 		
-			CREATE TABLE #RunningInterval ( MatchId INT, SportType TINYINT, ResourceId VARCHAR(20))
+			SELECT @strMatchIds = ''
+			SELECT @strResourceIds = ''
 
-			INSERT INTO #RunningInterval ( MatchId, SportType, ResourceId )
-			SELECT    MatchId , SportType, ResourceId
-			FROM  #tmpMatchIds m
-				CROSS APPLY (SELECT r.ResourceId 
-							FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-							WHERE r.SettlementStatusID = 0
-								AND r.ResultStatusID = 3
-								AND r.ResourceID IN ('Q1','Q2','Q3','Q4','01','02','03','04','05')
-								AND r.MatchId = m.matchid
-								AND m.sporttype IN (2, 5)
-												
-							UNION ALL
-							SELECT r.ResourceId 
-							FROM DBPRO.bodb02.dbo.ResultDetailES r WITH(NOLOCK)
-							WHERE r.SettlementStatusID = 0
-								AND r.ResultStatusID = 3
-								AND r.ResourceID IN ('M1','M2','M3','M4','M5','M6','M7','M8','M9')
-								AND r.MatchId = m.matchid
-								AND m.sporttype = 43
-												
-							UNION ALL
-							SELECT r.ResourceId 
-							FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
-							WHERE r.SettlementStatusID = 0
-								AND r.ResultStatusID = 3
-								AND r.ResourceID IN ('0101','0102','0103','0104','0105','H1','A1','H2','A2')
-								AND r.MatchId = m.matchid
-								AND m.sporttype IN( 9, 50)
-							)r
+			SELECT @strMatchIds = @strMatchIds + CAST(m.MatchId AS VARCHAR(20)) + ','
+			FROM	#tmpMatchInfo m
+			WHERE m.sporttype IN (2,5,9,43,59)
+
+			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
+			FROM (
+				SELECT DISTINCT f.ResourceID
+				FROM #tmpMatchInfo m
+					CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
+				WHERE m.sporttype IN (2,5,9,43,59)
+			)f
+
+			SELECT @strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)	
+				 ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+
+			SET	@remoteQuery = N'SELECT r.ResourceId ,r.MatchId
+							FROM 
+								( SELECT  r.ResourceId , r.MatchId
+								FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+								WHERE r.SettlementStatusID = 0
+									AND r.ResultStatusID = 3				
+								UNION ALL
+								SELECT r.ResourceId ,r.MatchId
+								FROM DBPRO.bodb02.dbo.ResultDetailES r WITH(NOLOCK)
+								WHERE r.SettlementStatusID = 0
+									AND r.ResultStatusID = 3			
+								UNION ALL
+								SELECT r.ResourceId ,r.MatchId
+								FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+								WHERE r.SettlementStatusID = 0
+									AND r.ResultStatusID = 3
+								) r 
+							WHERE r.MatchId IN ('+@strMatchIds+')
+							AND r.ResourceId IN ('+@strResourceIds+')'
+
+			INSERT INTO #ConfirmedResources ( MatchId, SportType, ResourceId )
+			EXECUTE	sys.sp_executesql @remoteQuery 
 
 			 UPDATE m SET IsExistsRunningInterval = 1 
-			 FROM #tmpMatchIds m
-				INNER JOIN	 #RunningInterval i ON m.matchid = i.MatchId
-				CROSS APPLY ( SELECT TOP 1 i.MatchId
+			 FROM #tmpMatchInfo m			
+				CROSS APPLY ( SELECT TOP 1 b.MatchId
 								FROM dbo.bettrans b WITH(NOLOCK)
+									INNER JOIN	 #ConfirmedResources r ON r.matchid = b.MatchId
 									INNER JOIN dbo.SettlementSpecialBettypeProfile sp  WITH(NOLOCK)
 									ON b.bettype = sp.BetType AND (sp.Betid = 0 OR sp.BetID = b.BetID)
-								WHERE sp.SportType = i.SportType
+								WHERE sp.SportType = r.SportType
 									AND sp.SettleType ='MNL'
-									AND i.MatchId = b.matchid
-									AND i.ResourceId = sp.ResourceID
+									AND r.ResourceId = sp.ResourceID
 			
 						) b
-			 DELETE FROM #tmpMatchIds WHERE @MatchStatus = '9' AND IsExistsRunningInterval = 0 --only filter by interval Over
+			 WHERE  m.matchid = b.MatchId
 		END
 
-		DELETE m FROM #tmpMatchIds m WHERE NOT EXISTS (
+		INSERT INTO #tmpMatchIds(matchid
+			,matchcode
+			,leagueid
+			,sporttype
+			,kickofftime
+			,homeid
+			,awayid
+			,halftimehomescore
+			,halftimeawayscore
+			,finalhomescore
+			,finalawayscore
+			,eventstatus
+			,IsNeutral
+			,betstatus
+			,suspenderhalftime
+			,suspenderfulltime
+			,autosetting
+			,autosettingforleague
+			,settlementstatus
+			,childmatchtype
+			,IsCalculated
+			,IsMultiCaled
+			,IsRefund
+			,IsCalRefund
+			,IsHalfTimeCal
+			,AutoPayoutStatus
+			,IsPending
+		)
+		SELECT	m.matchid
+				,m.matchcode
+				,m.LeagueId
+				,m.sporttype
+				,m.kickofftime
+				,m.homeid
+				,m.awayid
+				,m.hthomescore
+				,m.htawayscore
+				,m.finalhomescore
+				,m.finalawayscore				
+				,m.eventstatus
+				,m.IsNeutral
+				,m.betstatus
+				,m.suspenderhalftime
+				,m.suspenderfulltime
+				,m.AutoSetting
+				,m.AutoSettingForLeague
+				,m.SettlementStatus
+				,m.ChildMatchType
+				,m.calculate
+				,m.multiple
+				,m.refund
+				,m.calrefund
+				,m.IsHTCal
+				,m.StatusId
+				,m.isPending
+		FROM	#tmpMatchInfo m WITH(NOLOCK)	
+		WHERE	EXISTS (
 					SELECT TOP 1 1
 					FROM	@tmpMatchStatus s
-					WHERE	1 = CASE WHEN s.Id  = 0 THEN 1
-									 WHEN s.id IN (1,2,5,6,8 ) AND m.eventstatus = s.EventStatus THEN 1
-									 WHEN s.Id = 3  AND m.eventstatus = s.EventStatus AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
-									 WHEN s.Id = 4 AND ISNULL(m.IsCalculated,0) = 0 
-									 				AND ISNULL(m.IsCalRefund,0) = 0
-									 				AND m.eventstatus IN ( 'running', 'closed')
-									 				THEN CASE WHEN m.ConfirmFT > 0 THEN 1
-									 						ELSE  CASE WHEN  DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
-									 									ELSE 0 
-									 								END
-									 					END
-									 WHEN s.Id = 6  AND m.eventstatus = s.EventStatus AND m.betstatus NOT LIKE '%Refund%' THEN 1
-									 WHEN s.Id = 7 AND m.betstatus LIKE '%Refund%' THEN 1
-									 WHEN s.id = 9 AND m.IsExistsRunningInterval = 1 THEN 1								
-									 ELSE 0
-									 END
-								)
+					WHERE	m.eventstatus = CASE 
+												WHEN s.Id IN (0, 7, 4, 9) THEN m.eventstatus
+												ELSE s.EventStatus
+											END
+							AND 1 = CASE WHEN @MatchStatus = '9' AND m.IsExistsRunningInterval = 0 THEN 0
+									ELSE 1
+									END
+							AND 1 = CASE
+										WHEN s.Id NOT IN (3,4,6,7) THEN 1
+										WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
+										WHEN s.Id = 4 AND ISNULL(m.calculate,0) = 0 
+													  AND ISNULL(m.calrefund,0) = 0
+													  AND m.eventstatus IN ( 'running', 'closed')
+													  THEN CASE WHEN m.ConfirmFT > 0 THEN 1
+																ELSE  CASE WHEN  DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
+																			ELSE 0 
+																	  END
+															END
+										WHEN s.Id = 6 AND m.betstatus NOT LIKE '%Refund%' THEN 1
+										WHEN s.Id = 7 AND m.betstatus LIKE '%Refund%' THEN 1
+										WHEN s.Id = 9 AND m.IsExistsRunningInterval = 1 THEN 1									
+										ELSE 0
+									END
+				)
 	END
 
 	;WITH singlequeue 
