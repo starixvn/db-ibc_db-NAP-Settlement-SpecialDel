@@ -24,6 +24,7 @@ AS
 			- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 			- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 			- 20210324@Louisa: Enhancement MultiSports page [Redmine:#151545]
+			- 20210428@Louisa: Filter for Interval Over [Redmine: #143442]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -442,8 +443,11 @@ BEGIN
 									ON b.bettype = sp.BetType AND (sp.Betid = 0 OR sp.BetID = b.BetID)
 								WHERE sp.SportType = m.SportType
 									AND sp.SettleType ='MNL'
-									AND r.ResourceId = sp.ResourceID
+									AND sp.ResourceID = CASE WHEN r.ResourceId = 'OT' THEN '00' ELSE r.ResourceId END
 									AND m.matchid = b.MatchId
+									AND 1 = CASE WHEN sp.SportType = 2 AND sp.ResourceID = '01' THEN 0
+											ELSE 1
+											END
 						) b
 		END
 
