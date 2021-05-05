@@ -149,9 +149,10 @@ BEGIN
 						SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
 						FROM    @tmpAllResult sr
 						) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
-					WHEN MATCHED  AND ResultStatusID = 3 THEN 
+					WHEN MATCHED  AND ResultStatusID NOT IN (2,5) THEN 
 							UPDATE SET HomeValue		= SOURCE.HomeValue
 									  ,AwayValue        = SOURCE.AwayValue
+									  ,ResultStatusId	= 3
 									  ,LastModifyDate   = GETDATE()
 									  ,LastModifyBy     = @UserId
 					WHEN NOT MATCHED BY TARGET THEN
