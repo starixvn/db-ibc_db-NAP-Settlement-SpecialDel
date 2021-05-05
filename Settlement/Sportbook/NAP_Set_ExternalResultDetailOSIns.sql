@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns_UAT2
+ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns
 (
 	 @MatchId INT   
 	,@UserId INT 
@@ -80,11 +80,6 @@ BEGIN
 						,0										AS IsChanged
 				FROM	@xmlSources.nodes('/Sources/Source') AS T(C)
 
-				IF (@Sporttype = 50)
-				BEGIN
-
-				END
-
 				IF ISNULL( @OutsideSources, '' ) <> '' --- OutsideSources score have changed by user
 					BEGIN
 						SET @xmlOutsideSources = CAST (@OutsideSources AS XML)
@@ -135,6 +130,35 @@ BEGIN
 							,@ErrMsg		=	@ErrMsg			
 					END
 
+				IF (@Sporttype = 50)
+				BEGIN
+					
+					IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOS ro  WITH(NOLOCK) 
+								INNER JOIN @tmpAllResult r 
+									ON ro.MatchID = @MatchId AND  ro.ResourceID = r.ResourceId
+								WHERE ro.ResultStatusId IN (2,5)
+							)
+					BEGIN
+						SELECT @ErrCode	 = 1001051
+								,@ErrMsg = 'WARNING! Cannot continue due to selected results are settled.'
+						RETURN
+					END					
+
+					MERGE dbo.ResultDetailOS TARGET
+					USING (
+						SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+						FROM    @tmpAllResult sr
+						) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
+					WHEN MATCHED  AND ResultStatusID = 3 THEN 
+							UPDATE SET HomeValue		= SOURCE.HomeValue
+									  ,AwayValue        = SOURCE.AwayValue
+									  ,LastModifyDate   = GETDATE()
+									  ,LastModifyBy     = @UserId
+					WHEN NOT MATCHED BY TARGET THEN
+						INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
+						VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 3, 0, GETDATE(), GETDATE(), @UserId, @UserId);
+				END
+
 			END
 
 			
@@ -144,10 +168,12 @@ BEGIN
 							+ STUFF(
 									 (
 										 SELECT '' 
-												+ CASE l1.SourceId 
-								  						WHEN 0 THEN ''
+												+ CASE l1.SourceId
+														WHEN 0 THEN ''
 								  						ELSE CAST( l1.SourceId AS varchar(5)	)
-												  END	+'('+ l1.HomeValue + '-'+ l1.AwayValue + ')'
+												  END	+'('+ l1.HomeValue 
+															+  CASE WHEN ISNULL(l1.AwayValue,'') = '' THEN '' ELSE '-'+ l1.AwayValue END
+															+ ')'
 								  
 										 FROM @tmpAllResult as l1 
 										 WHERE l1.ResourceId = l2.ResourceId
