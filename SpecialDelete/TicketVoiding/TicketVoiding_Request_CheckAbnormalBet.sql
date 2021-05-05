@@ -37,6 +37,7 @@ AS
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 
 
 	Param's Explanation:
@@ -127,6 +128,7 @@ BEGIN
 		,liveindicator BIT
 		,matchid INT
 		,sporttype SMALLINT
+		,betfrom NVARCHAR(1)
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -197,6 +199,7 @@ BEGIN
 		,liveindicator
 		,matchid
 		,sporttype
+		,betfrom
 		)
 	SELECT b.transid
 		,CASE 
@@ -211,6 +214,7 @@ BEGIN
 		,b.liveindicator
 		,@MatchId
 		,m.sporttype
+		,b.betfrom
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
@@ -236,6 +240,7 @@ BEGIN
 				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
 					ELSE 0 END)
 		OR bt.bettype IS NULL
+		OR t.betfrom ='p'
 		
 	-- invalid transId
 	;WITH t_invalid

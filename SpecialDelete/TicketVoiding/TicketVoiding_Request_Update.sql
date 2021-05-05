@@ -52,6 +52,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistBB				BIT           = 0
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
+	,@IsConfirmCalculator   BIT			  = 0
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -70,6 +71,7 @@ AS
 		- 20210301@July: TVS - Wrong parlay count when edited request [Redmine: #150887]
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210412@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -197,7 +199,7 @@ BEGIN
 			,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
 			,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
 			,@SubIssueTypeId = @SubIssueTypeId		
-			,@IsConfirmCalculator = 0 
+			,@IsConfirmCalculator = @IsConfirmCalculator
 			,@UserNames	= @UserNames				
 			,@ProductIds = @ProductIds			
 			,@StatusIds	= @StatusIds				
@@ -248,7 +250,7 @@ BEGIN
 			,@IP = @IP					
 			,@ActionId = @ActionId				
 			,@FilterFromTransTime = @VoidFromTime	
-			,@FilterToTransTime	= @VoidToTime		
+			,@FilterToTransTime = @VoidToTime		
 			,@FilterBy = @FilterBy				
 	END
 

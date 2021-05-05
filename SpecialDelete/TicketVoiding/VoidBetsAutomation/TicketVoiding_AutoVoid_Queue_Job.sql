@@ -17,6 +17,7 @@ AS
 		- 20201211@July: [TVS] - Enhance TVS Queue data storage - [Redmine: #146805]
 		- 20201220@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210308@Max: [TVS] Auto void before KO time [Redmine: #150522]
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		
 	Param's explanation:	
 	
@@ -87,7 +88,7 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
-	WHERE req.IssueTypeId = 11 AND q.StatusId = 0 
+	WHERE req.IssueTypeId IN (11,15) AND q.StatusId = 0 
 			AND q.RequestId = 0 AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 		
 	UPDATE q

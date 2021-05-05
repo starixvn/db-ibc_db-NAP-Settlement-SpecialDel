@@ -66,6 +66,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 
 	Param's explanation:	
 	
@@ -112,7 +113,7 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB
+	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB,AB(RealMember)
 	BEGIN
 		-- get match info
 		SELECT	@LeagueId = leagueid
@@ -172,11 +173,9 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @ActionId IN (4,6,7) THEN 1
-					ELSE CASE WHEN @IssueTypeId <> 11 OR (@IssueTypeId = 11 AND @IsVoidVIPMember = 0) THEN 0
-							  WHEN @IssueTypeId = 11 AND @IsVoidVIPMember = 1 THEN 3
-							  ELSE 0
-						 END
+			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
+				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
+				   ELSE 0
 				END
 			, @FilterFromTransTime
 			, @FilterToTransTime
@@ -438,7 +437,7 @@ BEGIN
 		END
 	END
 	-- Insert queue for auto void
-	IF @IssueTypeId = 11 AND @Sporttype <= 99
+	IF @IssueTypeId IN (11,15) AND @Sporttype <= 99
 	BEGIN
 		-- mark ticket and not take note
 		IF @ActionId <>2
