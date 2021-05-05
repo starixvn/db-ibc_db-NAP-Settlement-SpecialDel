@@ -1,3 +1,2 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1.sql
-Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
-Settlement\Sportbook\NAP_Set_MatchSel.sql
+Settlement\Sportbook\NAP_Set_ProviderGameTypeMapping.sql
+Settlement\Sportbook\NAP_Set_ProviderGameTypeMappingSel.sql
