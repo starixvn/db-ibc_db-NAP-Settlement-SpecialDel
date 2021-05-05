@@ -6,6 +6,15 @@ ALTER PROC Task_LuckyDraw3rd_Freebets_Select
 	,@StatusId TINYINT = 0
 )
 AS
+/*
+	Created: Helen
+	Date: 20210319
+	Task: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+	DB: DBTRANS/bodb02
+	
+	Revisions:
+		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+*/
 BEGIN
 	
 	DECLARE @currentDate DATE
