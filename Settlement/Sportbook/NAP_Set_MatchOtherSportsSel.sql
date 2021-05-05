@@ -443,7 +443,7 @@ BEGIN
 									ON b.bettype = sp.BetType AND (sp.Betid = 0 OR sp.BetID = b.BetID)
 								WHERE sp.SportType = m.SportType
 									AND sp.SettleType ='MNL'
-									AND sp.ResourceID = CASE WHEN r.ResourceId = 'OT' THEN '00' ELSE r.ResourceId END
+									AND sp.ResourceID = r.ResourceId
 									AND m.matchid = b.MatchId
 									AND 1 = CASE WHEN sp.SportType = 2 AND sp.ResourceID = '01' THEN 0
 											ELSE 1
