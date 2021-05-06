@@ -37,6 +37,7 @@ AS
 		- 20201216@Louisa: Auto Refund ET & PEN match [Redmine:#145597]
 		- 20210201@Louisa: Add NOLOCK [Redmine:#149787]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		
 	Param's Explanation:
@@ -59,6 +60,8 @@ BEGIN
 		, @strHTBettypes				VARCHAR(MAX)
 		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
+		, @sporttype                    SMALLINT
+		, @matchcode					NVARCHAR(50)
 		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -69,9 +72,10 @@ BEGIN
 		
 	SELECT @start					= CURRENT_TIMESTAMP
 		, @TicketCount				= 0
-		, @ActionID					= CASE @Action
+		, @ActionID					= CASE  @Action
 										WHEN 'CAL-FT'	THEN 158
 										WHEN 'CAL-HT'	THEN 157
+										WHEN 'CAL'		THEN 100
 										END
  
 	IF @@ROWCOUNT = 0
@@ -116,7 +120,7 @@ BEGIN
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (2, 4) -- inclued FGLG bettype -- #106901
  
-	IF @Action = 'CAL-HT'
+	IF @Action IN ('CAL-HT', 'CAL')
 	BEGIN
 		SELECT @TicketCount = COUNT(1)
 		FROM dbo.bettrans b WITH(NOLOCK)
@@ -124,14 +128,21 @@ BEGIN
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 1
 					 ELSE 0	END
 	END
-	ELSE IF @Action = 'CAL-FT'
+	IF @Action IN ('CAL-FT', 'CAL')
 	BEGIN
-		SELECT @TicketCount = COUNT(1)
+		SELECT @TicketCount = @TicketCount + COUNT(1)
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE b.matchid = @matchid
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strFTBettypes + ',') > 0 THEN 1
 					 ELSE 0	END
 	END
+
+
+	SELECT @eventstatus = m.eventstatus
+		, @matchcode = m.matchcode
+		, @sporttype = m.sporttype
+	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+	WHERE m.matchid = @matchid
  
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
@@ -146,7 +157,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= 1
+		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
 		
@@ -171,14 +182,13 @@ BEGIN
 		SCORE : Only Save Score -- not use
 		UNDO : Unsettle the match  -- not use
 		*/
- 
-		SELECT @eventstatus = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								   WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-								ELSE m.eventstatus END
-			, @FTDone = CASE WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
+
+		SELECT @eventstatus = CASE WHEN @action = 'CAL'  THEN N'completed'
+									WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+								ELSE @eventstatus END
+			, @FTDone = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN 0
 						ELSE @FTDone END
-		FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
-		WHERE m.matchid = @matchid
  
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
 			, @MatchID					= @matchid
@@ -193,26 +203,40 @@ BEGIN
 			, @HTDone					= @HTDone
 			, @creator					= @creator
  
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
-			, @MatchID			= @MatchID
-			, @fth 				= @fth
-			, @fta 				= @fta
-			, @hth 				= @hth
-			, @hta 				= @hta
-			, @Action			= @Action
-			, @creator			= @creator
-			, @ResourceResult	= @ResourceResult
+		IF @sporttype = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
+				, @MatchID			= @MatchID
+				, @fth 				= @fth
+				, @fta 				= @fta
+				, @hth 				= @hth
+				, @hta 				= @hta
+				, @Action			= @Action
+				, @creator			= @creator
+				, @ResourceResult	= @ResourceResult
+		END
 		
-		EXEC dbo.NAP_Admin_Settlement_3_profile
-			@matchId = @matchid
-			,@action	= @action
+		IF @sporttype = 1
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_3_profile
+				@matchId = @matchid
+				,@action	= @action
 			,@ActionID	= @ActionID
-			,@IsReSettledTickets = @IsReSettledTickets
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT
 
-		IF @ErrCode <> 0
-			RETURN
+			IF @ErrCode <> 0
+				RETURN
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_3
+				@matchid            = @matchid
+				,@mode                = @action    
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@creator = @creator
+		END
 			
 		IF @eventstatus = 'completed'
 		BEGIN
@@ -228,6 +252,7 @@ BEGIN
 		DECLARE @TypeId TINYINT
 		SET @TypeId = CASE @Action WHEN 'CAL-HT' THEN 1
 									WHEN 'CAL-FT' THEN 2
+									WHEN 'CAL'		THEN 2
 						ELSE -1	END --not supported
 		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
@@ -245,7 +270,7 @@ BEGIN
 		)
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 		= @matchId
-			, @sportType 	= 1
+			, @sportType 	= @sporttype
 			, @Action		= @Action
 			, @Mode 		= 2
 		
@@ -282,7 +307,7 @@ BEGIN
 	)
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 		= @matchId
-		, @sportType 	= 1
+		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
  
@@ -310,12 +335,10 @@ BEGIN
 
 	IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
 	BEGIN
-			DECLARE @sporttype	INT
-					, @LeagueGroupID	SMALLINT
+			DECLARE @LeagueGroupID	SMALLINT
 					, @ChildMatchIds	VARCHAR(500)
 
-			SELECT	@sporttype = m.sporttype
-					, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+			SELECT	@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
 			FROM dbo.Match m WITH(NOLOCK)
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
@@ -346,7 +369,7 @@ BEGIN
 									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
 									ELSE ''
 								END
-							+ 'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> '
+							+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END
 							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 

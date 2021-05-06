@@ -19,6 +19,7 @@ AS
 		- 20180801@Kathy: delete all scores haven't been confirmed yet in ProviderResultDetail when off setting [Redmine:#86964]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -78,7 +79,6 @@ BEGIN
 		SELECT TOP 1 1 
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId 
-			AND sporttype = 1 
 			AND 1 = CASE 
 					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
 					WHEN @AutoType = 2 AND eventstatus NOT IN ('running', 'closed', 'Refund HT') THEN 1

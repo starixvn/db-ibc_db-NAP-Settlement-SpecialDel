@@ -35,17 +35,13 @@ AS
 		- 20190919@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types - Removed @IsExcludeCorner [Redmine:#115232]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 
     Param's Explanation:
         
 */
 BEGIN
     SET NOCOUNT ON
-    
-	IF @Action = 'CAL'
-	BEGIN
-		RETURN --not supported
-	END
 
     DECLARE	@matchcode				NVARCHAR(50)
 			,@sporttype				INT
@@ -60,14 +56,17 @@ BEGIN
 			
 	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
 								WHEN @Action = 'CAL-FT' THEN 2
+								WHEN @Action = 'CAL' THEN 2
 								ELSE 0 
 							END, 
 			@HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
 								WHEN @Action = 'CAL-FT' THEN @FullTimeHome
+								WHEN @Action = 'CAL' THEN @FullTimeHome
 								ELSE 0 
 							END,
 			@AwayValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeAway 
 								WHEN @Action = 'CAL-FT' THEN @FullTimeAway
+								WHEN @Action = 'CAL' THEN @FullTimeAway
 								ELSE 0 
 							END
 
@@ -83,6 +82,7 @@ BEGIN
 		INNER JOIN DBPRO.bodb02.dbo.League l WITH (NOLOCK)
 			ON m.leagueid = l.leagueid
     WHERE m.matchid = @MatchId
+	
 	
 	IF @@ROWCOUNT = 0
     BEGIN
@@ -110,7 +110,7 @@ BEGIN
 				WHERE matchid = @matchid
 					AND 1 = CASE 
 								WHEN resourceId = '00' AND @Action = 'CAL-FT' THEN 1
-								WHEN resourceId = '01' AND @Action = 'CAL-HT' THEN 1
+								WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
 								ELSE 0
 							END
 					AND resultStatusId = 5 -- completed (manual)
@@ -121,6 +121,14 @@ BEGIN
 
         RETURN
 	END
+	IF @sporttype = 18 AND EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.match_remark WITH (NOLOCK) WHERE calculate = 1 AND matchid = @MatchId)
+	BEGIN
+		SELECT @ErrCode = 1001018
+			, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
+
+        RETURN
+	END
+
     IF EXISTS (SELECT TOP 1 1
 				FROM dbo.Single_Calculate_Queue WITH (NOLOCK)
 				WHERE matchid = @matchid
@@ -167,7 +175,7 @@ BEGIN
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE
-								WHEN @Action = 'CAL-FT' THEN 1
+								WHEN @Action IN ('CAL-FT', 'CAL') THEN 1
 								ELSE NULL
 							END
 							
