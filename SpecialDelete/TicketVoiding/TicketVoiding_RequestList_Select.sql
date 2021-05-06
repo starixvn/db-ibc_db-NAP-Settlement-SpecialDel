@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IsExcludeTest BIT				= 1
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
-	,@SubIssueType  VARCHAR(100)	= NULL
+	,@SubIssueType  VARCHAR(MAX)	= NULL
 )
 AS
 /*	Created by: Kathy
