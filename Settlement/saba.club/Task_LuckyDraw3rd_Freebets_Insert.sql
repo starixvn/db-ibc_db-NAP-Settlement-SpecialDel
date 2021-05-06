@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="vnSAS" isFunction="0"></info>*/
-CREATE PROC Task_LuckyDraw3rd_Freebets_Insert
+ALTER PROC Task_LuckyDraw3rd_Freebets_Insert
 AS
 /*
 	Created: Helen
@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+		- 20210428@Helen: Deposit - Adjust Free Bets based on Turnover [Redmine: #154287]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -17,7 +18,8 @@ BEGIN
 			, @winlostdate DATETIME 
 			, @IsTicket14 BIT = 0
 
-	CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )			
+	CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )
+	CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, Amount MONEY)			
 	-- Input param value here
 	SELECT  @Sporttype = 150
 	
@@ -27,17 +29,16 @@ BEGIN
 	IF DATENAME(dw,@winlostdate) = 'Saturday'
 	BEGIN
 						
-		CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, NetWinLoss MONEY)
-				
 		SET @RoundID = 1 + ISNULL((SELECT MAX(roundID) 
 							FROM dbo.LuckyDraw3rd WITH (NOLOCK) 
 							WHERE sporttype = @Sporttype
 							),0) 
 		
-		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, NetWinLoss)
+		INSERT INTO #temp_result (CustID, srecommend, mrecommend, recommend, Amount )
 		SELECT b.custid
 			,b.srecommend,b.mrecommend,b.recommend
-			,SUM (winlost - actual_stake) NetWinLoss
+			, SUM (b.stake) AS Amount
+			--,SUM (winlost - actual_stake) NetWinLoss
 		FROM bettrans b WITH (NOLOCK) 
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid 
 			INNER  JOIN dbo.league l WITH (NOLOCK) ON m.leagueID = l.leagueID 
@@ -59,27 +60,29 @@ BEGIN
 					END	 
 		GROUP BY b.custid,b.srecommend,b.mrecommend,b.recommend				
 		
-		IF EXISTS (SELECT TOP (1) 1 FROM #temp_result WHERE NetWinLoss < 0 )
+		IF EXISTS (SELECT TOP (1) 1 FROM #temp_result)
 		BEGIN				
 			INSERT INTO LuckyDraw3rd (Sporttype, RoundID, CustID, FreeSpinCount, CreatedDate, SentDate, ShowBannerEndDate, StatusId, srecommend, mrecommend, recommend, NetWinLoss)
 			SELECT @Sporttype Sporttype
 				, @RoundID AS RoundID
 				,custid
 				,CASE 
-					WHEN ABS(NetWinLoss) >= 500 AND ABS(NetWinLoss) < 1000 THEN 2
-					WHEN ABS(NetWinLoss) >= 1000 AND ABS(NetWinLoss) < 5000 THEN 4
-					WHEN ABS(NetWinLoss) >= 5000 AND ABS(NetWinLoss) < 8000 THEN 6
-					WHEN ABS(NetWinLoss) >= 8000 AND ABS(NetWinLoss) < 10000 THEN 8
-					WHEN ABS(NetWinLoss) >= 10000 THEN 10
+					WHEN Amount >= 1000 AND Amount < 3000 THEN 1
+					WHEN Amount >= 3000 AND Amount < 5000 THEN 2
+					WHEN Amount >= 5000 AND Amount < 7000 THEN 3
+					WHEN Amount >= 7000 AND Amount < 9000 THEN 4
+					WHEN Amount >= 9000 AND Amount < 10000 THEN 5
+					WHEN Amount >= 10000 THEN 6
 				END AS FreeSpinCount
 				,GETDATE() CreatedDate
 				,NULL SentDate
 				,NULL ShowBannerEndDate
 				,0 StatusId
 				,srecommend,mrecommend,recommend
-				,NetWinLoss
+				,Amount NetWinLoss
 			FROM #temp_result 
-			WHERE NetWinLoss < 0 AND ABS(NetWinLoss) >= 500
+			WHERE Amount >= 1000
+			
 		END
 
 		INSERT INTO #testAccount (username,FreeSpinCount)
@@ -117,7 +120,7 @@ BEGIN
 			,NULL ShowBannerEndDate
 			,0 StatusId
 			,c.srecommend,c.mrecommend,c.recommend
-			,-1000000
+			,1000000
 		FROM #testAccount s 
 			INNER JOIN custdb.dbo.Customer c WITH (NOLOCK) ON s.username = c.username
 	
