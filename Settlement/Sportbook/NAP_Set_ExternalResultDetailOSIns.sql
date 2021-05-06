@@ -18,6 +18,7 @@ AS
     Revisions:            
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210504@Louisa: Save Cricket results [Redmine:#154472]
+		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -120,8 +121,7 @@ BEGIN
 													INNER JOIN ProviderGameTypeMapping pgm WITH(NOLOCK)  ON plmo.PGId  = pgm.PGId
 												WHERE pgm.SourceId		= 1001	
 													AND pgm.GameType	= 0
-													AND plmo.LeagueId	= @LeagueId
-													AND @Sporttype <> 50 )
+													AND plmo.LeagueId	= @LeagueId)
 					BEGIN				
 						EXEC dbo.NAP_Set_OutsideSourceByLeagueIns --- Init Source 1001 and mapping with GameType and League if 1001 does not exists
 							@LeagueId		= @LeagueId
@@ -129,36 +129,6 @@ BEGIN
 							,@ErrCode		=	@ErrCode			
 							,@ErrMsg		=	@ErrMsg			
 					END
-
-				IF (@Sporttype = 50)
-				BEGIN
-					
-					IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOS ro  WITH(NOLOCK) 
-								INNER JOIN @tmpAllResult r 
-									ON ro.MatchID = @MatchId AND  ro.ResourceID = r.ResourceId
-								WHERE ro.ResultStatusId IN (2,5)
-							)
-					BEGIN
-						SELECT @ErrCode	 = 1001051
-								,@ErrMsg = 'WARNING! Cannot continue due to selected results are settled.'
-						RETURN
-					END					
-
-					MERGE dbo.ResultDetailOS TARGET
-					USING (
-						SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
-						FROM    @tmpAllResult sr
-						) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
-					WHEN MATCHED  AND ResultStatusID NOT IN (2,5) THEN 
-							UPDATE SET HomeValue		= SOURCE.HomeValue
-									  ,AwayValue        = SOURCE.AwayValue
-									  ,ResultStatusId	= 3
-									  ,LastModifyDate   = GETDATE()
-									  ,LastModifyBy     = @UserId
-					WHEN NOT MATCHED BY TARGET THEN
-						INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-						VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 3, 0, GETDATE(), GETDATE(), @UserId, @UserId);
-				END
 
 			END
 
