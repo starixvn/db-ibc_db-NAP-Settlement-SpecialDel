@@ -21,7 +21,7 @@ AS
 		- 20201204@Charles: Return matchid from result [Redmine: #145719]
 		- 20210104@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210226@Max: TVS - SP Time Out [Redmine: #150723]
-		- 20210405@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
+		- 20210504@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
 	
 	Param's explanation:	
 		
@@ -30,7 +30,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @isITAdmin BIT
-		, @IsITSupportCreatedRequest BIT
+		   ,@IsITSupportCreatedRequest BIT
+		   ,@query NVARCHAR(MAX) = ''
+		   ,@ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpTicket (
 		TransId			BIGINT
@@ -362,8 +364,6 @@ BEGIN
 	END	
 
 	--get list VIP Account
-	DECLARE 	@query NVARCHAR(MAX) = ''
-			,@ExecuteSQL NVARCHAR(MAX) = ''
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	SELECT  @query = N''		
 	SELECT	@query = @query + N'SELECT Custid 
