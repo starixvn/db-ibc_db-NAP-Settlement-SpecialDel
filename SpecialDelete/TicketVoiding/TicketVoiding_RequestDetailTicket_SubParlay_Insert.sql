@@ -354,6 +354,7 @@ BEGIN
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
+			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 THEN 0 ELSE 1 END
 			AND EXISTS (SELECT TOP 1 1 
 								FROM #tblGetLogInfo
 								WHERE matchid = @MatchId

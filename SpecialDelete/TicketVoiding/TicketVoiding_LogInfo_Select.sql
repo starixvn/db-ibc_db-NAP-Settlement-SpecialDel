@@ -948,13 +948,13 @@ BEGIN
 				AND b.bettype NOT IN (805, 806, 9, 29)			
 				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'
+				AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0 ELSE 1 END
 				AND EXISTS (SELECT TOP 1 1 
 								FROM #WrongScores
 								WHERE matchid = @MatchId
 									AND b.livehomescore = LiveHomeScore
 									AND b.liveawayscore = LiveAwayScore
-									AND b.transdate BETWEEN FilterFromTime AND FilterToTime
-									AND 1 = CASE WHEN livehomescore = 0 AND liveawayscore = 0 AND b.liveindicator = 0 THEN 0 ELSE 1 END)
+									AND b.transdate BETWEEN FilterFromTime AND FilterToTime)
 				
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
