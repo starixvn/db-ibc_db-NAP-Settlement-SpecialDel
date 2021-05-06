@@ -953,7 +953,8 @@ BEGIN
 								WHERE matchid = @MatchId
 									AND b.livehomescore = LiveHomeScore
 									AND b.liveawayscore = LiveAwayScore
-									AND b.transdate BETWEEN FilterFromTime AND FilterToTime)
+									AND b.transdate BETWEEN FilterFromTime AND FilterToTime
+									AND 1 = CASE WHEN livehomescore = 0 AND liveawayscore = 0 AND b.liveindicator = 0 THEN 0 ELSE 1 END)
 				
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
