@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
 	,@IP				VARCHAR(50)
-
+	,@BypassCheckingProcess TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
@@ -23,6 +23,7 @@ AS
 		- 20191113@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
+		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		
 	Param's explanation:	
 		
@@ -126,38 +127,41 @@ BEGIN
 		RETURN
 	END
 
-	SET @Retry = 0
-	SET @Success = 0
-	
-	WHILE @Retry < 3 AND @Success = 0
+	IF @BypassCheckingProcess = 0
 	BEGIN
-		SET @Success = 1
-
-		EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay   = 1  
-		, @avaiableProcess  = @avaiableProcess OUTPUT  
-		, @ErrCode   = @ErrCode OUTPUT  
-		, @ErrMsg   = @ErrMsg OUTPUT  
-
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		SET @Retry = 0
+		SET @Success = 0
+	
+		WHILE @Retry < 3 AND @Success = 0
 		BEGIN
-			SET @Retry = @Retry + 1
-			SET @Success = 0
+			SET @Success = 1
 
-			WAITFOR DELAY '00:00:20'
-		END
+			EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay   = 1  
+			, @avaiableProcess  = @avaiableProcess OUTPUT  
+			, @ErrCode   = @ErrCode OUTPUT  
+			, @ErrMsg   = @ErrMsg OUTPUT  
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN
+				SET @Retry = @Retry + 1
+				SET @Success = 0
+
+				WAITFOR DELAY '00:00:20'
+			END
 				
-	END
+		END
 	
-	IF @Success = 0 
-	BEGIN
-		SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
-		FROM	@tmpInputTransId
+		IF @Success = 0 
+		BEGIN
+			SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
+			FROM	@tmpInputTransId
 
-		--For update queue
-		SELECT @ErrCode = 101
+			--For update queue
+			SELECT @ErrCode = 101
 
-		RETURN
+			RETURN
+		END
 	END
 
 	SET @FailedTransIds = ''
@@ -281,10 +285,11 @@ BEGIN
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-	EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay  = 1  
-		, @IsReleased  = 1 
-
+	IF @BypassCheckingProcess IN (0,1) 
+		EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay  = 1  
+			, @IsReleased  = 1 
+	
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'
