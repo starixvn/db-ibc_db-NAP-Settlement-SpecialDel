@@ -279,12 +279,12 @@ BEGIN
 	FROM 
 	(
 		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
-		FROM	dbo.bettrans b WITH(NOLOCK)					
-		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId)
-				AND	1 = CASE 
-							WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
-							ELSE 1
-						END		
+		FROM	dbo.bettrans b WITH(NOLOCK)
+			LEFT JOIN dbo.translog tl WITH(NOLOCK)
+				ON	b.refno = tl.translogid
+					AND b.matchid = tl.eventID						
+		WHERE	b.custid IN (SELECT custid FROM #BetDelete)
+				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
 		FROM	dbo.translog tl WITH(NOLOCK)
