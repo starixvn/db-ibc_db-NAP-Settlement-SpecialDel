@@ -26,6 +26,10 @@ BEGIN
 
     DECLARE @tmpResult TABLE (requestid INT) 
 
+	DECLARE @FromDate_tmp DATETIME, @ToDate_tmp DATETIME
+
+	SELECT @FromDate_tmp = @FromDate, @ToDate_tmp = @ToDate
+
     IF EXISTS (SELECT TOP 1 1 
                FROM   ticketvoiding_requestdetail rd WITH(NOLOCK) 
                WHERE  matchid IN ( 9, 29, 2799 )) 
@@ -35,7 +39,7 @@ BEGIN
             SELECT s.requestid
             FROM   dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid 
-            WHERE  s.matchid IN ( 9, 29, 2799 ) AND b.winlostdate BETWEEN @FromDate AND @ToDate 
+            WHERE  s.matchid IN ( 9, 29, 2799 ) AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
             
 			--BETTRANS14
@@ -44,7 +48,7 @@ BEGIN
             FROM   dbo.ticketvoiding_requestdetailticket_single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
             WHERE  s.matchid IN ( 9, 29, 2799 ) 
-                    AND b14.winlostdate BETWEEN @FromDate AND @ToDate 
+                    AND b14.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
       END 
 	
@@ -56,7 +60,7 @@ BEGIN
                                   SELECT o14.orid, o14.eventdate 
                                   FROM   dbo.outright14 o14 WITH(NOLOCK))o 
                               ON rd.matchid = o.orid 
-               WHERE  o.eventdate BETWEEN @FromDate AND @ToDate) 
+               WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp ) 
       BEGIN 
           INSERT INTO @tmpResult (requestid) 
           SELECT rd.requestid
@@ -69,7 +73,7 @@ BEGIN
                              SELECT o14.orid, o14.eventdate 
                              FROM   dbo.outright14 o14 WITH(NOLOCK))o 
                          ON rd.matchid = o.orid 
-          WHERE  o.eventdate BETWEEN @FromDate AND @ToDate 
+          WHERE  o.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
           GROUP  BY rd.requestid, r.IssueTypeId
       END 
 	
@@ -77,13 +81,13 @@ BEGIN
     SELECT rd.requestid
     FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK) ON rd.matchid = m.matchid 
-	WHERE m.eventdate BETWEEN @FromDate AND @ToDate 						
+	WHERE m.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 						
     GROUP  BY rd.requestid
 	UNION ALL
 	SELECT rd.requestid
     FROM   ticketvoiding_requestdetail rd WITH(NOLOCK)
 			INNER JOIN dbo.match14 m14 WITH(NOLOCK) ON rd.matchid = m14.matchid 
-	WHERE m14.eventdate BETWEEN @FromDate AND @ToDate 						
+	WHERE m14.eventdate BETWEEN @FromDate_tmp AND @ToDate_tmp 					
     GROUP  BY rd.requestid
     
 	SELECT DISTINCT requestid
