@@ -14,7 +14,7 @@ INSERT INTO #Result (transid, bettype, sporttype)
 SELECT b.transid, b.bettype, m.sporttype
 FROM bettrans b WITH (NOLOCK)
 	INNER JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid
-	INNER JOIN zzzbettrans z WITH (NOLOCK) ON b.transid = z.transid --and z.VoidingHistoryId is not NULL
+	INNER JOIN zzzbettrans z WITH (NOLOCK) ON b.transid = z.transid 
 	INNER JOIN TicketVoiding_VoidedTransaction v WITH (NOLOCK) ON b.transid = v.TransId
 WHERE b.currency <> 20
 	AND b.ExtraInfo NOT LIKE '%ab="1"%'
