@@ -37,6 +37,7 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210402@July: TVS - Auto void before KO time with 2 new action - [Redmine: #150522]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
 
 	Param's explanation:	
 		
@@ -1278,7 +1279,7 @@ BEGIN
 			EXEC dbo.TicketVoiding_Admin_VoidingTransId 
 				@TransIds = @xmlTransId
 				,@UserId = @UserId
-				,@IssueTypeId = @IssueTypeId
+				,@IssueTypeId = 11
 				
 			SET @xmlTransId = ''	 
 			
