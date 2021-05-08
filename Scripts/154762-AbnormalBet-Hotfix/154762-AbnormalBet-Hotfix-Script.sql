@@ -37,7 +37,9 @@ BEGIN
 	
 	IF @@ROWCOUNT = 0
 		BREAK
-		
+	
+	SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)
+	
 	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 	
 	UPDATE b
