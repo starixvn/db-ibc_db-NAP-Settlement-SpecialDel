@@ -46,6 +46,7 @@ AS
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -71,8 +72,6 @@ BEGIN
 			,@UserName		      VARCHAR(100) = NULL
 			,@MarkedTransIds	  VARCHAR(MAX) = NULL
 			,@RemoveTransIds	  VARCHAR(MAX) = ''
-			,@IsCheckedHomeTeam   BIT = 0
-			,@IsCheckedAwayTeam   BIT = 0
 			,@moveBetDay14 		  SMALLDATETIME
 			,@moveBetDay 		  SMALLDATETIME
 			,@IsSB				  BIT = 0
@@ -200,10 +199,6 @@ BEGIN
 
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
-		SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
-				,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
-		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
-		WHERE RequestId= @RequestId
 
 		INSERT INTO #TransidInRequest (TransId)
 		SELECT tmp.transid
@@ -231,6 +226,7 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.matchid = @MatchId
+			 AND b.betfrom <> 'P'
 			 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
 						  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 						  WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
@@ -239,13 +235,13 @@ BEGIN
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
-			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-									  WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-									  WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-									  ELSE 0 END
-							END)
-			AND b.betfrom <> 'P'
+			AND 1 = CASE WHEN @IssueTypeId = 10 THEN 1
+						ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+								  WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+								  ELSE 1
+							  END
+					END
+			
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

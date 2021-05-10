@@ -29,6 +29,7 @@ AS
 		- 20210319@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210420@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:	
 	
@@ -90,8 +91,6 @@ BEGIN
 				,rd.FilterFromBetId
 				,rd.FilterToBetId
 				,rd.FilterBy
-				,rd.IsCheckedHomeTeam
-				,rd.IsCheckedAwayTeam
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore

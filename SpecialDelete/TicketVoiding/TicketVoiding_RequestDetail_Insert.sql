@@ -23,8 +23,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@VoidFromTime			DATETIME = NULL
 	,@VoidToTime			DATETIME = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT = 0
-	,@IsCheckedAwayTeam		BIT = 0
 	,@SubIssueTypeId		TINYINT = NULL
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50) = NULL
@@ -70,6 +68,7 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -288,8 +287,6 @@ BEGIN
 			, LiveHomeScore
 			, LiveAwayScore
 			, IssueDetail
-			, IsCheckedHomeTeam
-			, IsCheckedAwayTeam
 			, TransIds
 			)
 		SELECT @RequestId
@@ -315,8 +312,6 @@ BEGIN
 			, l.LiveHomeScore
 			, l.LiveAwayScore
 			, l.LiveScores
-			, l.IsCheckedHomeTeam
-			, l.IsCheckedAwayTeam
 			, l.TypeAccept
 		FROM #tblGetLogInfo l
 	END

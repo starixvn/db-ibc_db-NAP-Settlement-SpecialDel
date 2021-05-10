@@ -23,8 +23,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@VoidFromTime			DATETIME = NULL
 	,@VoidToTime			DATETIME = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT = 0
-	,@IsCheckedAwayTeam		BIT = 0
 	,@SubIssueTypeId		TINYINT = NULL
 	,@IsConfirmCalculator   BIT = 0
 	,@UserNames				VARCHAR(MAX) = NULL
@@ -75,6 +73,7 @@ AS
 		- 20210413@Max: [TVS] SP tuning for EC20 - P1 [Redmine: #152817]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -125,9 +124,7 @@ BEGIN
 			,@IsNonSport			 BIT = 0
 			,@moveBetDay14 			 SMALLDATETIME
 			,@moveBetDay 			 SMALLDATETIME
-			,@FromWinlostDate        DATETIME
-			,@OldIsCheckedHomeTeam	 BIT = 0
-			,@OldIsCheckedAwayTeam	 BIT = 0	
+			,@FromWinlostDate        DATETIME	
 			,@OldActualScore		 NVARCHAR(300) = NULL
 			,@NewActualScore		 NVARCHAR(300) = NULL
 			,@OldTypeAccept			 VARCHAR(MAX) = NULL

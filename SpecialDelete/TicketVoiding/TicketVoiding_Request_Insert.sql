@@ -30,8 +30,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@VoidFromTime			DATETIME	  = NULL
 	,@VoidToTime			DATETIME	  = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT			  = 0
-	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)	  = NULL
 	,@StatusIds				VARCHAR(50)	  = NULL
@@ -69,6 +67,7 @@ AS
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210528@Max: Fix bug insert ticket [Redmine: #155598]
+		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -167,9 +166,7 @@ BEGIN
 				,@MaxMainParlayTransId = @MaxMainParlayTransId	
 				,@VoidFromTime = @VoidFromTime			
 				,@VoidToTime = @VoidToTime			
-				,@LiveScores = @LiveScores			
-				,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
-				,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
+				,@LiveScores = @LiveScores					
 				,@SubIssueTypeId = @SubIssueTypeId	
 				,@UserNames	= @UserNames				
 				,@ProductIds = @ProductIds			

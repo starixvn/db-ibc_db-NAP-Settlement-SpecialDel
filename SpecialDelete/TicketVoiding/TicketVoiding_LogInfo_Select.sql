@@ -12,8 +12,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@SubIssueTypeId	  INT = NULL
-	,@IsCheckedHomeTeam   BIT = 0
-	,@IsCheckedAwayTeam   BIT = 0
 	,@KickOffTime		  DATETIME = NULL
 	,@WrongScoreInfo	  VARCHAR(MAX) = ''
 )
@@ -40,9 +38,9 @@ AS
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
+		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 	
 	Param's explanation:
-		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
 		+ @WrongScoreInfo:
 		<root>
 			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" />
@@ -383,12 +381,12 @@ BEGIN
 							WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
-				AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-									  WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-									  WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-									  ELSE 0 END
-							END)
+				AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
+							 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+									   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+								       ELSE 1
+							      END
+						END
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
@@ -497,12 +495,12 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				        AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-										   WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-										   WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-										   ELSE 0 END
-							END)
+					AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
+								 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+								           WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+									  ELSE 1
+								 END
+							END
 		END 
 
 	END
@@ -1230,14 +1228,12 @@ BEGIN
 			WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
-				AND 1 = CASE WHEN @IssueTypeId IN (1,10)   
-									AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-											 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-													   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-													   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-													   ELSE 0 END
-									END) THEN 1 
-								ELSE 1 END
+				AND 1 = CASE WHEN @IssueTypeId IN (8,9,10) THEN 1
+							 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+									   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+								       ELSE 1
+								  END
+						END
 		END  			    				    					    				    					    	
 	END
 				
@@ -1340,15 +1336,13 @@ BEGIN
 					AND sub911.matchid = @matchid
 	WHERE 1 = CASE WHEN @ActionId <>2 AND sub911.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
-					ELSE 0 END							
-			AND 1 = CASE WHEN @IssueTypeId IN (1,10)
-							AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-									ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-										WHEN @IsCheckedAwayTeam = 1 AND main.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-										WHEN @IsCheckedHomeTeam = 1 AND main.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-										ELSE 0 END
-								END) THEN 1 
-						ELSE 1 END	
+					ELSE 0 END								
+		AND 1 = CASE WHEN @IssueTypeId IN (8,9,10) THEN 1
+					 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND main.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+							   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND main.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+							   ELSE 1
+					 END
+				END
 	-- get cash-out member bet tickets	
 	INSERT INTO #SpecialDeleteBets(
 				GroupID			
@@ -1456,13 +1450,12 @@ BEGIN
 								AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 												WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												ELSE 0 END
-								AND 1 = CASE WHEN @IssueTypeId IN (1,10) AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-															 ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-																	   WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-																	   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-																	   ELSE 0 END
-															END) THEN 1 
-											ELSE 1 END
+								AND 1 = CASE WHEN @IssueTypeId IN (8,9,10) THEN 1
+											 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
+													   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+														ELSE 1
+												  END
+										END
 						) AS b
 	WHERE sub911.bettype = 911
 	
