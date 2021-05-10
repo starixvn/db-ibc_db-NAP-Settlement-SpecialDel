@@ -98,7 +98,7 @@ BEGIN
 	FROM dbo.match14 WITH(NOLOCK)
 	
 	SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
-			, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			, @FromWinlostDate 	= CASE WHEN @FromWinlostDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromWinlostDate END
 			
 	IF @ToDate IS NULL
 	BEGIN
