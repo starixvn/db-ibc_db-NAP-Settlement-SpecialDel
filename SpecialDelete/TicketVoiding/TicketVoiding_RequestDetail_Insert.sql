@@ -143,7 +143,36 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	IF  @IssueTypeId IN (3) --WC
+	-- get match info
+	SELECT	@LeagueId = leagueid
+			,@HomeId = homeid
+			,@AwayId = awayid
+			,@Sporttype = sporttype
+	FROM	dbo.match WITH(NOLOCK)
+	WHERE	matchid = @MatchId
+
+	IF @IssueTypeId IN (11,15) --AB,AB(RealMember)
+	BEGIN
+		INSERT INTO #transIdTemp (transid)
+		SELECT DISTINCT val 
+		FROM dbo.f_SplitString(@TransIds, ',')
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
+	
+		SET @IsCalQueue = ( SELECT TOP (1) 1
+								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+								WHERE StatusId IN (1,2,4) AND matchid = @MatchId  AND RequestId = 0
+								)
+	
+		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+			SET @IsTransidProcessed = 1
+	END
+	ELSE IF  @IssueTypeId IN (3) --WC
 	BEGIN
 		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
 		INSERT INTO #tblGetLogInfo( 
@@ -209,35 +238,31 @@ BEGIN
 			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
 	END
 
-	IF @IssueTypeId <> 13 --DA,EKO,WKO,RC,AB,AB(RealMember)
+	IF @IssueTypeId IN (8,9,11,15) --EKO,WKO,AB,AB(RealMember)
 	BEGIN
-		-- get match info
-		SELECT	@LeagueId = leagueid
-				,@HomeId = homeid
-				,@AwayId = awayid
-				,@Sporttype = sporttype
-		FROM	dbo.match WITH(NOLOCK)
-		WHERE	matchid = @MatchId
-
-		INSERT INTO #transIdTemp (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
-
-		INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
-		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
-		FROM #transIdTemp t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
-	
-		SET @IsCalQueue = ( SELECT TOP (1) 1
-								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-								WHERE StatusId IN (1,2,4) AND matchid = @MatchId  AND RequestId = 0
-								)
-	
-		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
-			SET @IsTransidProcessed = 1
-
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, KickOffTime
+			, RequestType
+		)
+		SELECT @RequestId
+			, @MatchId
+			, @LeagueId
+			, @HomeId
+			, @AwayId
+			, @KickOffTime
+			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
+				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
+				   ELSE 0
+				END
+	END
+	ELSE IF @IssueTypeId IN (1,10,3) --DA,RC,WC
+	BEGIN
+		
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
 			RequestId
 			, MatchId
@@ -272,10 +297,7 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
-				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
-				   ELSE 0
-				END
+			, 0
 			, l.FilterFromTransTime
 			, l.FilterToTransTime
 			, l.FilterFromBetId
@@ -297,7 +319,7 @@ BEGIN
 			, l.TypeAccept
 		FROM #tblGetLogInfo l
 	END
-	ELSE --AC
+	ELSE IF @IssueTypeId = 13 --AC
 	BEGIN 
 		-- Get info match belong to username
 			SELECT @moveBetDay14 = MAX(winlostdate) 
@@ -620,26 +642,8 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-							/*	+  (CASE
-									WHEN @KickOffTime IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
-									WHEN @TransIds IS NOT NULL THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds
-									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy IN(1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21) + ', TypeAccept: ' + @TypeAccept
-									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy IN (1,2) THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CONVERT(VARCHAR(30), @FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), @FilterToTransTime, 21)
-										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(10)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10)) + ', TypeAccept: ' + @TypeAccept
-									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId NOT IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20)) + ', TypeAccept: ' + @TypeAccept
-									WHEN @IssueTypeId IN (1, 10) AND @SubIssueTypeId IN (1,2) AND  @FilterBy = 0 THEN ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', From: ' + CAST(@FilterFromBetId AS VARCHAR(20)) + ', To: ' + CAST(@FilterToBetId AS VARCHAR(20))
-										+ ',IsCheckedHomeTeam: '+ CAST(@IsCheckedHomeTeam AS VARCHAR(10)) + ', IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10)) + ', TypeAccept: ' + @TypeAccept
-									-- IssueTypeId = 13
-									WHEN @IssueTypeId = 13 THEN ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
-																+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
-																+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
-																+ ', From Date: '+ CONVERT(VARCHAR(10), @FromDate, 23)
-																+ ', To Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CONVERT(VARCHAR(10), @ToDate, 23) ELSE 'NULL' END
-													
-									ELSE ''
-								END)*/
-								+ @LogDataContent
-								AS '@LogData'
+							+ @LogDataContent
+						AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 
