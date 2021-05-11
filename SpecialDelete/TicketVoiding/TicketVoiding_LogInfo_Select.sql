@@ -35,6 +35,7 @@ AS
 		- 20201102@Max: TVS - Enhance for Danger Accept - Phase 4 - Show LogInfo when voided [Redmine: #143091]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210322@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210510@Max: [TVS] Danger Accept/Red Card Enhancement - Search and save not same log info [Redmine: #154772]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -1239,15 +1240,15 @@ BEGIN
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId)
 	SELECT @MatchId AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + ' - ' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
-		,MIN(CASE WHEN @FilterBy = 1 THEN b.transdate
-				  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-				  WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-				  ELSE  b.transdate END
+		,MIN(CASE WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 1 THEN b.transdate
+				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+				  END
 			) AS VoidFromTime
-		,MAX(CASE WHEN @FilterBy = 1 THEN b.transdate
-				  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-				  WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-				  ELSE  b.transdate END
+		,MAX(CASE WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 1 THEN b.transdate
+				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+				  WHEN ISNULL(b.betdaqid,-1) NOT IN (1) AND @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+				  END
 			) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = 1 THEN b.transid ELSE NULL END) AS CashOutCount
