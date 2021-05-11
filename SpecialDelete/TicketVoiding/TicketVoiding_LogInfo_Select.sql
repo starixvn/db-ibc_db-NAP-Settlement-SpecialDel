@@ -1226,7 +1226,7 @@ BEGIN
 													   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 													   ELSE 0 END
 									END) THEN 1 
-								 WHEN @IssueTypeId IN (8,9) THEN 1 ELSE 0 END
+								ELSE 1 END
 		END  			    				    					    				    					    	
 	END
 				
@@ -1337,8 +1337,7 @@ BEGIN
 										WHEN @IsCheckedHomeTeam = 1 AND main.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 										ELSE 0 END
 								END) THEN 1 
-						WHEN @IssueTypeId IN (8,9) THEN 1 
-						ELSE 0 END		
+						ELSE 1 END	
 	-- get cash-out member bet tickets	
 	INSERT INTO #SpecialDeleteBets(
 				GroupID			
@@ -1452,7 +1451,7 @@ BEGIN
 																	   WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
 																	   ELSE 0 END
 															END) THEN 1 
-											WHEN @IssueTypeId IN (8,9) THEN 1 ELSE 0 END
+											ELSE 1 END
 						) AS b
 	WHERE sub911.bettype = 911
 	
