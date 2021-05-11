@@ -869,28 +869,16 @@ BEGIN
 																		ELSE '' END
 			   + CASE WHEN  l.FilterBy <> 0 AND r.FilterToTransTime <> l.FilterToTransTime THEN ' Old To Transdate: ' + CONVERT(VARCHAR(30), r.FilterToTransTime, 21) + ' New To Transdate: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 																		ELSE '' END
-			   + CASE WHEN @SubIssueTypeId IN (1,2) AND r.IsCheckedHomeTeam <> l.IsCheckedHomeTeam THEN 'Old IsCheckedHomeTeam: '+ CAST(r.IsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(l.IsCheckedHomeTeam AS VARCHAR(10))
+			   + CASE WHEN @SubIssueTypeId IN (1,2) AND r.IsCheckedHomeTeam <> l.IsCheckedHomeTeam THEN ' Old IsCheckedHomeTeam: '+ CAST(r.IsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(l.IsCheckedHomeTeam AS VARCHAR(10))
 																		ELSE '' END
-			   + CASE WHEN @SubIssueTypeId IN (1,2) AND r.IsCheckedAwayTeam <> l.IsCheckedAwayTeam THEN 'Old IsCheckedAwayTeam: '+ CAST(r.IsCheckedAwayTeam AS VARCHAR(10)) + ', New IsCheckedAwayTeam: ' + CAST(l.IsCheckedAwayTeam AS VARCHAR(10))
+			   + CASE WHEN @SubIssueTypeId IN (1,2) AND r.IsCheckedAwayTeam <> l.IsCheckedAwayTeam THEN ' Old IsCheckedAwayTeam: '+ CAST(r.IsCheckedAwayTeam AS VARCHAR(10)) + ', New IsCheckedAwayTeam: ' + CAST(l.IsCheckedAwayTeam AS VARCHAR(10))
 																		ELSE '' END
-			   + CASE WHEN @IssueTypeId = 1 AND r.TypeAccept <> l.TypeAccept THEN 'Old TypeAccept: '+ r.TypeAccept + ', New TypeAccept: ' + l.TypeAccept 
+			   + CASE WHEN @IssueTypeId = 1 AND r.TypeAccept <> l.TypeAccept THEN ' Old TypeAccept: '+ r.TypeAccept + ', New TypeAccept: ' + l.TypeAccept 
 																		ELSE '' END
 		FROM #tblOldResulDetail r
 			INNER JOIN #tblGetLogInfo l ON r.RequestId = l.RequestID AND r.MatchId = l.MatchID
 
 	END
-		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedHomeTeam <> @IsCheckedHomeTeam
-		BEGIN
-			SET @LogDataContent += 'Old IsCheckedHomeTeam: '+ CAST(@OldIsCheckedHomeTeam AS VARCHAR(10)) + ', New IsCheckedHomeTeam: ' + CAST(@IsCheckedHomeTeam AS VARCHAR(10))
-		END
-		IF  @SubIssueTypeId IN (1, 2) AND @OldIsCheckedAwayTeam <> @IsCheckedAwayTeam
-		BEGIN
-			SET @LogDataContent += 'Old IsCheckedAwayTeam: '+ CAST(@OldIsCheckedAwayTeam AS VARCHAR(10)) + ', New IsCheckedAwayTeam: ' + CAST(@IsCheckedAwayTeam AS VARCHAR(10))
-		END
-		IF @OldTypeAccept <> @TypeAccept
-		BEGIN
-			SET @LogDataContent += 'Old TypeAccept: '+ @OldTypeAccept + ', New TypeAccept: ' + @TypeAccept
-		END
 	ELSE IF @IssueTypeId = 13
 	BEGIN
 		IF @OldUserNames <> @UserNames
@@ -925,30 +913,26 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 3
 	BEGIN
-
+	
 		SELECT @NewActualScore = l.LiveScores
 		FROM #tblGetLogInfo l
 
-		SET @LogDataContent += ' Old Actual Score: ' + @OldActualScore + ' New Actual Score: '+ @NewActualScore +', Wrong Score: ' 
-		SELECT @LogDataContent += + CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
-								  + CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
-								  + CASE WHEN r.FilterFromTransTime <> l.FilterFromTransTime THEN ' Old From Time: ' + CONVERT(VARCHAR(30), r.FilterFromTransTime, 21) + ' New From Time: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21)
-																							 ELSE '' END
-								  + CASE WHEN r.FilterToTransTime <> l.FilterToTransTime THEN ' Old To Time: ' + CONVERT(VARCHAR(30), r.FilterToTransTime, 21) + ' New To Time: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
-																						 ELSE '' END
-								  +'); '
-								 
+		SET @LogDataContent +=  CASE WHEN @OldActualScore <> @NewActualScore THEN ' Old Actual Score: ' + @OldActualScore + ' New Actual Score: '+ @NewActualScore  +' ,' ELSE '' END
+								+ 'Old Wrong Score: ' 
+		SELECT @LogDataContent += CAST(r.LiveHomeScore AS VARCHAR(5)) +'-'
+								+ CAST(r.LiveAwayScore AS VARCHAR(5))+' ('
+								+'From Time: ' + CONVERT(VARCHAR(30), r.FilterFromTransTime, 21)
+								+' To Time: ' + CONVERT(VARCHAR(30), r.FilterToTransTime, 21) +'), '
 		FROM #tblOldResulDetail r
-			INNER JOIN #tblGetLogInfo l ON r.RequestId = l.RequestID AND r.MatchId = l.MatchID
-		WHERE r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
+
+		SET @LogDataContent += 'New Wrong Score: ' 
+		SELECT @LogDataContent += CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
+							+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
+							+'From Time: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21)
+							+' To Time: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) +'), '
+		FROM #tblGetLogInfo l
 	END
-	/* 9001
-	MatchId: 99002244, Actual Score: 2-0, Wrong Score: 1-1 ( From Time: 2021-04-12 04:47:25.263 To Time: 2021-04-12 04:47:25.263); 1-0 ( From Time: 2021-04-12 04:47:25.263 To Time: 2021-04-12 04:47:25.263)
-	*/
-	/*
-	Old Actual Score: 1-0 New Actual Score: 1-1, Wrong Score: 1-1 ( Old From Time: 2021-04-12 04:47:25.263 New From Time: 2021-04-12 04:47:25.263 - Old To Time: 2021-04-12 04:47:25.263 New To Time: 2021-04-12 04:47:25.263)
-															; 1-0 ( Old From Time: 2021-04-12 04:47:25.263 New From Time: 2021-04-12 04:47:25.263 - Old To Time: 2021-04-12 04:47:25.263 New To Time: 2021-04-12 04:47:25.263); 
-	*/
+
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'

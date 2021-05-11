@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@IsCheckedHomeTeam   BIT = 0
 	,@IsCheckedAwayTeam   BIT = 0
 	,@KickOffTime		  DATETIME = NULL
-	,@WrongScoreInfo			VARCHAR(MAX) = ''
+	,@WrongScoreInfo	  VARCHAR(MAX) = ''
 )
 AS
 /*	
@@ -890,6 +890,7 @@ BEGIN
 				,IsMarked
 				,LiveIndicator
 				,matchid
+				,StatusId
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -939,6 +940,7 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,@MatchId
+				,b.statusID
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE	b.matchid = @matchid
@@ -1011,6 +1013,7 @@ BEGIN
 					,IsMarked
 					,LiveIndicator
 					,matchid
+					,StatusId
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -1050,6 +1053,7 @@ BEGIN
 					,0
 					,sub.liveindicator
 					,@MatchId
+					,main.statusID
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
