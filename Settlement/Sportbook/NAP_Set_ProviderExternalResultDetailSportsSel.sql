@@ -14,13 +14,14 @@ AS
     Revisions:            
 		- 20201110@Louisa: get provider result - 13 Sports: 1,2,3,4,5,6,8,9,18,19,24,25,43 [Redmine:#144486]
 		- 20201118@Louisa: allow query by In-house MatchId
+		- 20210504@Louisa: Intergration Result for Cricket - Weverdat [Redmine:#154493]
 		
 */
 BEGIN
 	
 	SELECT @Sporttype  = ISNULL( @Sporttype, 0 )
 
-	IF @Sporttype  IN ( 5,9 ) ---- Tennis, Badminton
+	IF @Sporttype  IN ( 5,9,50 ) ---- Tennis, Badminton, Cricket
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSSel
 			@MatchId3rd	= @MatchId3rd
@@ -36,7 +37,7 @@ BEGIN
 			,@SourceId	= @SourceId
 	END
 
-	ELSE IF @Sporttype IN ( 1,2,3,4,6,8,18,19,24,25 ) ----Soccer + Others
+	ELSE IF @Sporttype IN ( 1,2,3,4,6,8,18,19,24,25 ) ----Soccer + ( 1,2,3,4,6,8,18,19,24,25 )
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailSel
 			@MatchId3rd	= @MatchId3rd
