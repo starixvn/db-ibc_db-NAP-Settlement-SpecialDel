@@ -1058,17 +1058,7 @@ BEGIN
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
-					OUTER APPLY (
-							SELECT TOP 1 rs.TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-								INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
-							WHERE rs.TransId = sub.transid
-								AND rs.MatchId = @MatchId
-								AND r.ActionId NOT IN (2)
-								AND 1= CASE WHEN @RequestId <> 0 AND rs.RequestId = @RequestId THEN 0
-										ELSE 1 END
-						)tmp
-			WHERE 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) AND tmp.TransId IS NULL THEN 1
+			WHERE 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 								WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
 					AND sub.betfrom <> 'P'
