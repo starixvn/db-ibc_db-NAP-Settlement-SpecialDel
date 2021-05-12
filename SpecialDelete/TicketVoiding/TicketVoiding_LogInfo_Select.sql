@@ -125,7 +125,8 @@ BEGIN
 			IsMarked              BIT,
 			LiveIndicator		  BIT,
 			StatusId			  TINYINT,
-			checktime			  DATETIME
+			checktime			  DATETIME,
+			accepttype			  TINYINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -152,6 +153,8 @@ BEGIN
 		,MaxSingleTransId BIGINT
 		,MinMainParlayTransId BIGINT
 		,MaxMainParlayTransId BIGINT
+		,HighLightTransId BIGINT
+		,AcceptType	TINYINT
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT)
@@ -159,6 +162,7 @@ BEGIN
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, livehomescore SMALLINT, liveawayscore SMALLINT)
 	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @tblHighlightTransId TABLE (MatchId INT, TransId BIGINT, AcceptType TINYINT)
 	DECLARE @Validation AS TABLE (
 			livehomescore SMALLINT
 			,liveawayscore SMALLINT
@@ -256,6 +260,8 @@ BEGIN
 					,l.MaxSingleTransId
 					,l.MinMainParlayTransId
 					,l.MaxMainParlayTransId
+					,l.HighLightTransId
+					,l.AcceptType
 				FROM #logInfo l
 
 				RETURN;
@@ -317,6 +323,7 @@ BEGIN
 				,matchid
 				,StatusId
 				,checktime
+				,accepttype
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -368,9 +375,17 @@ BEGIN
 				,@MatchId
 				,b.statusID
 				,b.checktime
+				,CASE 
+							WHEN b.checktime IS NULL THEN 1 --Auto Accept
+							ELSE CASE 
+									  WHEN b.checktime = DATEADD(SECOND,ISNULL(bi.LiveBetAcceptTime,0) + ISNULL(bi.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+									  ELSE 3 --Pending Accept
+								 END
+						END AS accepttype
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		WHERE	b.matchid = @matchid
 				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -439,6 +454,7 @@ BEGIN
 					,matchid
 					,StatusId
 					,checktime
+					,accepttype
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -480,6 +496,13 @@ BEGIN
 					,@MatchId
 					,main.statusID
 					,sub.checktime
+					,CASE 
+							WHEN sub.checktime IS NULL THEN 1 --Auto Accept
+							ELSE CASE 
+									  WHEN sub.checktime = DATEADD(SECOND,ISNULL(sub.LiveBetAcceptTime,0) + ISNULL(sub.SecAcceptTime,0), sub.transdate) THEN 2 --Second Accept
+									  ELSE 3 --Pending Accept
+								 END
+					 END AS accepttype
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
@@ -499,7 +522,7 @@ BEGIN
 								 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
 								           WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
 									  ELSE 1
-								 END
+									  END
 							END
 		END 
 
@@ -1341,7 +1364,7 @@ BEGIN
 					 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND main.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
 							   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND main.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
 							   ELSE 1
-					 END
+					      END
 				END
 	-- get cash-out member bet tickets	
 	INSERT INTO #SpecialDeleteBets(
@@ -1453,7 +1476,7 @@ BEGIN
 								AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
 											 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
 													   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
-														ELSE 1
+													   ELSE 1
 												  END
 										END
 						) AS b
@@ -1550,6 +1573,27 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
+
+	--Highlight Min TransId (based on the acceptance type of the ticket)
+	IF @IssueTypeId = 1 AND @IsShowLogOnly = 0
+	BEGIN
+		UPDATE l
+		SET l.HighLightTransId = b.transid
+		   ,l.AcceptType = b.accepttype
+		FROM #logInfo l
+		INNER JOIN #SpecialDeleteBets b ON l.MatchId = b.matchid
+		CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
+								 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+								 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+								 ELSE  b.transdate END AS VoidTime
+		)act
+		WHERE l.VoidFromTime = act.VoidTime
+			AND b.transid = (CASE WHEN l.MinSingleTransId IS NOT NULL AND l.MinMainParlayTransId IS NOT NULL THEN l.MinSingleTransId
+								  WHEN l.MinSingleTransId IS NOT NULL THEN l.MinSingleTransId
+								  WHEN l.MinMainParlayTransId IS NOT NULL THEN l.MinMainParlayTransId
+								  END
+						 )
+	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -1652,6 +1696,65 @@ BEGIN
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
 
+		--Highlight Min TransId (based on the acceptance type of the ticket)
+		IF @IssueTypeId = 1
+		BEGIN
+
+			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
+			BEGIN
+				INSERT INTO @tblHighlightTransId(MatchId, TransId, AcceptType)
+				SELECT rd.MatchId, B.transid , CASE 
+										WHEN b.checktime IS NULL THEN 1 --Auto Accept
+										ELSE CASE 
+												  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+												  ELSE 3 --Pending Accept
+											 END
+									END AS AcceptType
+				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+					CROSS APPLY (
+							SELECT b.matchid, b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
+							FROM dbo.bettrans b WITH(NOLOCK) 
+								LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
+							WHERE b.matchid = @MatchId
+							AND rd.MatchId = b.matchid AND rd.MinSingleTransId = b.transid
+					)b 
+					CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
+											 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+											 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+											 END AS VoidTime
+								)act
+				WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+			END
+			
+			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
+			BEGIN
+				INSERT INTO @tblHighlightTransId(MatchId, TransId, AcceptType)
+				SELECT rd.MatchId, s.MainTransId , CASE 
+									WHEN b.checktime IS NULL THEN 1 --Auto Accept
+									ELSE CASE 
+											  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+											  ELSE 3 --Pending Accept
+										 END
+								END AS AcceptType
+				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
+				CROSS APPLY  (
+							SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
+							FROM dbo.bettransm bm WITH(NOLOCK)
+							WHERE bm.matchid = @MatchId
+							AND rd.MatchId = bm.matchid AND s.TransId = bm.transid
+						)b
+				CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
+										 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+										 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+										 END AS VoidTime
+								)act
+				WHERE rd.VoidFromTime = act.VoidTime
+					AND rd.RequestId = @RequestId AND rd.MatchId = @MatchId
+			END
+			
+		END
+
 			SELECT rd.MatchId
 				,rd.IssueDetail AS LiveScores
 				,rd.VoidFromTime
@@ -1664,6 +1767,8 @@ BEGIN
 				,rd.MaxSingleTransId
 				,rd.MinMainParlayTransId
 				,rd.MaxMainParlayTransId
+		        	,h.TransId AS HighLightTransId
+		        	,h.AcceptType
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			  OUTER APPLY (
 						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
@@ -1671,6 +1776,16 @@ BEGIN
 						WHERE RequestId = rd.RequestId	
 							AND MatchId = rd.MatchId
 				) c
+		  OUTER APPLY (
+				 SELECT  h.MatchId, h.TransId, h.AcceptType
+				 FROM @tblHighlightTransId h
+				 WHERE rd.MatchId = h.matchId
+				 AND h.transid = (CASE WHEN rd.MinSingleTransId IS NOT NULL AND rd.MinMainParlayTransId IS NOT NULL THEN rd.MinSingleTransId
+									   WHEN rd.MinSingleTransId IS NOT NULL THEN rd.MinSingleTransId
+									   WHEN rd.MinMainParlayTransId IS NOT NULL THEN rd.MinMainParlayTransId
+									   END
+								 )
+				 )h
 			WHERE rd.RequestId = @RequestId
 		END
 		ELSE
@@ -1821,6 +1936,8 @@ BEGIN
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
 					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+				,MIN(HighLightTransId) AS HighLightTransId
+				,MIN(AcceptType) AS AcceptType
 				FROM #logInfo
 				GROUP BY MatchId
 			END
@@ -2016,6 +2133,8 @@ BEGIN
 			,MAX(MaxSingleTransId) AS MaxSingleTransId
 			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
+		,MIN(HighLightTransId) AS HighLightTransId
+		,MIN(AcceptType) AS AcceptType
 		FROM #logInfo
 		GROUP BY MatchId
 	END
