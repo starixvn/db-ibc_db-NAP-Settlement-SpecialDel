@@ -31,6 +31,7 @@ AS
 		- 20201021@July: [TVS] - Wrong Red Card [Redmine: #140951]
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
+		- 20210401@Max: [TVS] EC2020 Preparation [Redmine: #151103]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210427@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		 
@@ -509,6 +510,7 @@ BEGIN
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE transid = b.transid
+								AND matchid = b.matchid
 								AND RequestId = @RequestId
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
@@ -641,6 +643,7 @@ BEGIN
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = sub.transid
+										AND matchid = sub.matchid
 										AND RequestId = @RequestId
 							) ts
 				WHERE	sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -834,6 +837,7 @@ BEGIN
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE transid = b.transid
+								AND matchid = b.matchid
 								AND RequestId = @RequestId
 					) ts
 			WHERE	b.matchid = @matchid
@@ -945,6 +949,7 @@ BEGIN
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = sub.transid
+										AND matchid = sub.matchid
 										AND RequestId = @RequestId
 							) ts
 				WHERE	sub.statusID NOT IN (101, 102, 103) -- reject, void, refund

@@ -108,6 +108,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
+		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 
 	Param's Explanation: Special bet delete option
@@ -448,13 +449,11 @@ BEGIN
 				)f
 		WHERE b.matchid = @matchid 
 	 
+		-- Tuning EC2021
 		SELECT TOP 1 @isExistParlay = 1  
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-		WHERE b.matchid = 29  
-			AND b.bettype = 29   
-			AND bm.matchid  = @matchid  
+		WHERE bm.matchid  = @matchid  
 	END 
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
@@ -504,10 +503,7 @@ BEGIN
 	IF EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t
 					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-				WHERE b.matchid = 29  
-					AND b.bettype = 29   
-					AND bm.matchid  <> @matchid  
+				WHERE bm.matchid  <> @matchid  
 			)
 	BEGIN
 		SELECT	@ErrCode = 99
@@ -2135,7 +2131,7 @@ BEGIN
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-		 
+
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch	= @isExistSingle

@@ -41,6 +41,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210413@Max: [TVS] SP tuning for EC20 - P1 [Redmine: #152817]
 	
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -73,7 +74,8 @@ BEGIN
 			,@IsSaba			  BIT = 0
 			,@IsNonSport		  BIT = 0
 			,@IsLockMatch		  BIT = 0 -- 0: nolock, 1: lock match
-			,@FromWinlostDate     DATETIME	
+			,@FromWinlostDate     DATETIME
+			,@RequestDetailId_DA  INT
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -216,11 +218,13 @@ BEGIN
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
-		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #DangerAccept_SingleTickets tp WHERE rdt.TransId=tp.transid)
-												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
-												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
+												INNER JOIN MarkedTransaction mt WITH(NOLOCK) ON mt.TransId = rdt.transid AND mt.MatchId = rdt.MatchId
+												LEFT JOIN #DangerAccept_SingleTickets tp ON rdt.TransId=tp.transid
+												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											WHERE tp.TransId IS NULL
+												  AND tr.TransId is NULL
 												  AND rdt.RequestId=@RequestId
 											FOR XML PATH('')
 										), 1,1,'')
@@ -232,28 +236,45 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN
-			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
-			WHERE RequestId = @RequestId
+			SET @RequestDetailID_DA = (SELECT id FROM TicketVoiding_RequestDetail (NOLOCK) WHERE RequestId = @RequestId)
+			
+			DELETE s
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s
+				LEFT JOIN #DangerAccept_SingleTickets t ON s.transid = t.transid AND t.matchid = @MatchId
+			WHERE s.matchid = @MatchId AND s.RequestId = @RequestId AND t.transid IS NULL
+			
+			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+			SELECT @RequestId
+				, @IssueTypeId
+				, @SubIssueTypeId
+				, t.TransId
+				, t.MatchId
+				, @RequestDetailID_DA AS RequestDetailId
+			FROM #DangerAccept_SingleTickets t
+				LEFT JOIN TicketVoiding_RequestDetailTicket_Single st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId
+			WHERE st.transid IS NULL
 		END
-
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-		SELECT @RequestId
-			, @IssueTypeId
-			, @SubIssueTypeId
-			, t.TransId
-			, t.MatchId
-			, rd.Id AS RequestDetailId
-		FROM #DangerAccept_SingleTickets t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-			OUTER APPLY (
-								SELECT TOP 1 rs.TransId
-								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-								WHERE rs.TransId = t.transid
-									AND rs.MatchId = @MatchId
-									AND r.ActionId NOT IN (2)
-						)tmp
-		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
+		ELSE
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+			SELECT @RequestId
+				, @IssueTypeId
+				, @SubIssueTypeId
+				, t.TransId
+				, t.MatchId
+				, rd.Id AS RequestDetailId
+			FROM #DangerAccept_SingleTickets t
+				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
+				OUTER APPLY (
+									SELECT TOP 1 rs.TransId
+									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+									WHERE rs.TransId = t.transid
+										AND rs.MatchId = @MatchId
+										AND r.ActionId NOT IN (2)
+							)tmp
+			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
+		END
 
 		IF @ActionId <> 2
 		BEGIN
