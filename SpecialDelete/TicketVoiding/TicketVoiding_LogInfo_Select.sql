@@ -1065,7 +1065,7 @@ BEGIN
 					AND main.matchid = 29
 					AND main.bettype = 29
 					AND main.liveindicator = 0
-					AND main.statusID NOT IN (101, 102, 103)
+					AND main.statusID NOT IN (102, 103)
 					AND EXISTS (SELECT TOP 1 1 
 								FROM #WrongScores
 								WHERE matchid = @MatchId
