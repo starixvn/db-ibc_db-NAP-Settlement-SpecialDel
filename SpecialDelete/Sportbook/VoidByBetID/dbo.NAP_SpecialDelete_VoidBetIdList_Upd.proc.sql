@@ -89,6 +89,7 @@ AS
 	  - 20201126@Charles: God of fortune [Redmine: #146053]
 	  - 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 	  - 20210107@Charles: Return extra oddsid column in results [Redmine: #143666]
+	  - 20210505@July: Show VIP status on void email [Redmine: #153157]
 
 	 Param's Explanation:   
 	*/
@@ -118,6 +119,8 @@ BEGIN
 			,@Lucky3TransIDs			VARCHAR(MAX)
 			,@Lucky3Matches				VARCHAR(MAX) = ''
 			,@isExistFM2				BIT = 0
+			,@query				NVARCHAR(MAX) = ''
+			,@ExecuteSQL		NVARCHAR(MAX) = ''
 			
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 	
@@ -2690,7 +2693,17 @@ BEGIN
 					+ ' IP: ' + CAST(@IP AS VARCHAR(15)) 
 					+ ' reason: ' + @reason  + ' - -' + @ReasonSC
 	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData 
-	
+
+	--get list VIP Account
+	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+							FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+							'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+	INSERT INTO @VIPAccount_tmp(CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 	-- CHECK IT GROUP or NOT ?   
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 	
@@ -2800,6 +2813,7 @@ BEGIN
 						END
 			ELSE CAST(0 AS BIT)
 		END AS IsInstantSettlementTicket
+		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 	FROM	#BetDelete b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
@@ -2808,7 +2822,8 @@ BEGIN
 		LEFT JOIN #CTE_CustInfo ag WITH(NOLOCK) ON b.recommend = ag.custid
 		LEFT JOIN #CTE_CustInfo ma WITH(NOLOCK) ON b.mrecommend = ma.custid
 		LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON b.srecommend = su.custid
-		LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON b.srecommend = s.custid			
+		LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON b.srecommend = s.custid
+		LEFT JOIN @VIPAccount_tmp vip ON b.custid = vip.CustID			
 	ORDER BY ISNULL(b.MainTransId, b.transid)
 		   , CASE 
 				WHEN b.BonusID IS NOT NULL

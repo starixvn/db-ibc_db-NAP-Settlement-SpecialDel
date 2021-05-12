@@ -21,6 +21,7 @@ AS
 		- 20201204@Charles: Return matchid from result [Redmine: #145719]
 		- 20210104@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210226@Max: TVS - SP Time Out [Redmine: #150723]
+		- 20210504@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
 	
 	Param's explanation:	
 		
@@ -29,7 +30,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @isITAdmin BIT
-		, @IsITSupportCreatedRequest BIT
+		   ,@IsITSupportCreatedRequest BIT
+		   ,@query NVARCHAR(MAX) = ''
+		   ,@ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpTicket (
 		TransId			BIGINT
@@ -360,6 +363,15 @@ BEGIN
 		WHERE	main.wallettype = 1
 	END	
 
+	--get list VIP Account
+	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+								'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+	INSERT INTO @VIPAccount_tmp(CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
 	SELECT	t.homeid
 			,t.awayId
@@ -452,12 +464,14 @@ BEGIN
 				ELSE CAST(0 AS BIT)
 			END AS IsInstantSettlementTicket
 			,t.IsCashOutMemberTicket
+			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
 		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK) ON ag.custid = t.recommend 
 		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend
-		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend 	
+		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend
+		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
 	ORDER BY ISNULL(t.MainTransId, t.transid)
 		   , CASE 
 				WHEN t.BonusID IS NOT NULL
