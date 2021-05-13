@@ -368,7 +368,7 @@ BEGIN
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
-												INNER JOIN MarkedTransaction mt WITH(NOLOCK) ON mt.TransId = rdt.transid AND mt.MatchId = rdt.MatchId
+												INNER JOIN MarkedTransaction mt WITH(NOLOCK) ON mt.TransId = rdt.MainTransId AND mt.MatchId = rdt.MatchId
 												LEFT JOIN #DangerAccept_SubParlayTickets tp ON rdt.TransId=tp.transid
 												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
 											WHERE tp.TransId IS NULL
