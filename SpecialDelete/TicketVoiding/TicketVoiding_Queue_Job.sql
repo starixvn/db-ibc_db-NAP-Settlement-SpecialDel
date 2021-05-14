@@ -12,6 +12,7 @@ AS
 		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 		- 20210326@Max: [TVS] Enhance void queue and service integration [Redmine: #152053]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
+		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 	
 	Param's explanation:	
 		
@@ -117,7 +118,7 @@ BEGIN
 			SELECT TOP 1 RequestId, QueueId, MatchId, VoidingTypeId, TransIds, UserId, IP, IsFinished
 			FROM	@tmpQueue
 			WHERE	IsFinished = 0
-			ORDER BY CASE WHEN @IssueTypeId IN (1,10) THEN VoidingTypeId ELSE 1 END DESC
+			ORDER BY CASE WHEN @IssueTypeId IN (1,10,3) THEN VoidingTypeId ELSE 1 END DESC
 		)
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
@@ -155,7 +156,7 @@ BEGIN
 			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
 		END
 
-		IF @IssueTypeId IN (1,10) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
+		IF @IssueTypeId IN (1,10,3) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
 		BEGIN
 			EXEC dbo.TicketVoiding_Request_CheckingProcess
 				@VoidingHistoryId = @VoidingHistoryId
@@ -240,7 +241,7 @@ BEGIN
 			SELECT	@QueueId
 			FROM	@tmpQueue
 			WHERE	QueueId = CASE 
-								WHEN @IssueTypeId IN (1,10) AND @StatusId = 3 THEN QueueId
+								WHEN @IssueTypeId IN (1,10,3) AND @StatusId = 3 THEN QueueId
 								ELSE @QueueId
 							END
 		END
