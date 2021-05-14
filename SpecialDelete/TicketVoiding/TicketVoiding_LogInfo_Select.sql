@@ -154,7 +154,7 @@ BEGIN
 		,MinMainParlayTransId BIGINT
 		,MaxMainParlayTransId BIGINT
 		,HighLightTransId BIGINT
-		,AcceptType	TINYINT
+		,HighlightAcceptType TINYINT
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT)
@@ -261,7 +261,7 @@ BEGIN
 					,l.MinMainParlayTransId
 					,l.MaxMainParlayTransId
 					,l.HighLightTransId
-					,l.AcceptType
+					,l.HighlightAcceptType
 				FROM #logInfo l
 
 				RETURN;
@@ -1579,7 +1579,7 @@ BEGIN
 	BEGIN
 		UPDATE l
 		SET l.HighLightTransId = b.transid
-		   ,l.AcceptType = b.accepttype
+		   ,l.HighlightAcceptType = b.accepttype
 		FROM #logInfo l
 		INNER JOIN #SpecialDeleteBets b ON l.MatchId = b.matchid
 		CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
@@ -1702,7 +1702,7 @@ BEGIN
 
 			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
 			BEGIN
-				INSERT INTO @tblHighlightTransId(MatchId, TransId, AcceptType)
+				INSERT INTO @tblHighlightTransId (MatchId, TransId, AcceptType)
 				SELECT rd.MatchId, B.transid , CASE 
 										WHEN b.checktime IS NULL THEN 1 --Auto Accept
 										ELSE CASE 
@@ -1728,7 +1728,7 @@ BEGIN
 			
 			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
 			BEGIN
-				INSERT INTO @tblHighlightTransId(MatchId, TransId, AcceptType)
+				INSERT INTO @tblHighlightTransId (MatchId, TransId, AcceptType)
 				SELECT rd.MatchId, s.MainTransId , CASE 
 									WHEN b.checktime IS NULL THEN 1 --Auto Accept
 									ELSE CASE 
@@ -1767,8 +1767,8 @@ BEGIN
 				,rd.MaxSingleTransId
 				,rd.MinMainParlayTransId
 				,rd.MaxMainParlayTransId
-		        	,h.TransId AS HighLightTransId
-		        	,h.AcceptType
+				,h.HighLightTransId
+				,h.HighlightAcceptType
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			  OUTER APPLY (
 						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
@@ -1777,7 +1777,7 @@ BEGIN
 							AND MatchId = rd.MatchId
 				) c
 		  OUTER APPLY (
-				 SELECT  h.MatchId, h.TransId, h.AcceptType
+				 SELECT  h.MatchId, h.TransId AS HighLightTransId , h.AcceptType AS HighlightAcceptType
 				 FROM @tblHighlightTransId h
 				 WHERE rd.MatchId = h.matchId
 				 AND h.transid = (CASE WHEN rd.MinSingleTransId IS NOT NULL AND rd.MinMainParlayTransId IS NOT NULL THEN rd.MinSingleTransId
@@ -1937,7 +1937,7 @@ BEGIN
 					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
 				,MIN(HighLightTransId) AS HighLightTransId
-				,MIN(AcceptType) AS AcceptType
+				,MIN(HighlightAcceptType) AS HighlightAcceptType
 				FROM #logInfo
 				GROUP BY MatchId
 			END
@@ -2134,7 +2134,7 @@ BEGIN
 			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
 		,MIN(HighLightTransId) AS HighLightTransId
-		,MIN(AcceptType) AS AcceptType
+		,MIN(HighlightAcceptType) AS HighlightAcceptType
 		FROM #logInfo
 		GROUP BY MatchId
 	END
