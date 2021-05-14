@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	 @AdminId			INT				
 	,@MatchId			INT
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsReSettledTickets BIT			= 1
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
+	,@IsAuto			BIT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -25,6 +26,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -39,13 +41,33 @@ BEGIN
 			,@sporttype				INT
 			,@leagueid				INT
 			,@sqlCommand			NVARCHAR(MAX)
-			,@procName				NVARCHAR(50)
+			,@procName				SYSNAME	= OBJECT_NAME(@@procid)
 			,@IsExistNetPosition	BIT = 0		
 			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
 			,@IsEarly				BIT
+			,@WaitingTime			VARCHAR(10)
+			,@IsWaiting				BIT = 0
 
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
 
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
 								  
@@ -113,13 +135,13 @@ BEGIN
 
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
-			,@procName		= OBJECT_NAME(@@procid)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResources) + ''''
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets)
+															+ ', @IsAuto = ' + CONVERT(NVARCHAR(1), @IsAuto)
 															+ ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
                                                                                      ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
 															+  CASE 
@@ -163,7 +185,8 @@ BEGIN
 			,@IP			= @IP
 	END
 	
-	IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
+		OR @IsAuto = 1 -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand

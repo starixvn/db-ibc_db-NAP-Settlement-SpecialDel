@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@ErrMsg 			NVARCHAR(200)	= '' OUTPUT
 	,@SelectedResources VARCHAR(MAX)
 	,@IsReSettledTickets BIT			= 1
+	,@IsAuto			BIT				= 0
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 AS
@@ -31,6 +32,7 @@ AS
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -73,7 +75,9 @@ BEGIN
 			,@SelectedQuarter 	VARCHAR(50) = NULL
 			,@ParentMatchId		INT
 			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
-
+			,@procName			SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime		VARCHAR(10)
+			,@IsWaiting			BIT = 0
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -91,6 +95,25 @@ BEGIN
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 
 	----------------------------------------------------------------------------------------------------------------------
+
+	-- Check SP is in deployment
+	IF @IsAuto = 1
+	BEGIN
+		EXEC dbo.NAP_Set_SPDeploymentInfo 
+			@SPName = @procName
+			,@WaitingTime = @WaitingTime OUTPUT
+			,@IsWaiting = @IsWaiting OUTPUT
+
+		IF @IsWaiting = 1
+		BEGIN
+			WAITFOR DELAY @WaitingTime
+			
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Failed due to system is in deployment, please wait a few seconds until the process is completed and try again.'
+
+			RETURN
+		END
+	END
 
   	SELECT  @start = CURRENT_TIMESTAMP
 		   ,@ActionID = CASE

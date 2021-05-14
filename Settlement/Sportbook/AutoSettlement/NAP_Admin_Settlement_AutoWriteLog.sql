@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Intg" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Intg,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_AutoWriteLog] 
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
@@ -23,11 +23,13 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		
 	Param's Explanation:
 		@Product: BetRadar
 				  FastMarket
 				  BetBuilder
+				  PinGoal
 				  
 		For FastMarket: 
 			@Result = '<BetTypes>
@@ -64,14 +66,7 @@ BEGIN
 						 ELSE 144
 					END
 	
-	IF @Product = 'BetRadar'
-	BEGIN
-		SELECT	@Remark = 'NAP:ResourceIDs:' + @ResourceIDs +  ' <br/> ' 
-							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-							+ 'Action:' + @Action +  ' <br/> ' 
-							+ @Remark
-	END
-	ELSE IF @Product = 'FastMarket'
+	IF @Product = 'FastMarket'
 	BEGIN
 		DECLARE @tblResultDetail TABLE (
 			bettype		SMALLINT	
@@ -164,7 +159,13 @@ BEGIN
 								WHEN @totalSettledMarketIDs <= @maxResultShowed THEN '<br/>Settled MarketIDs: ' + @Remark 
 								ELSE '<br/> Total Settled MarketIDs:' + CAST(@totalSettledMarketIDs AS VARCHAR) END
 	END
-
+	ELSE
+	BEGIN
+		SELECT	@Remark = 'NAP:ResourceIDs:' + @ResourceIDs +  ' <br/> ' 
+							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+							+ 'Action:' + @Action +  ' <br/> ' 
+							+ @Remark
+	END
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			,@matchid = @matchid

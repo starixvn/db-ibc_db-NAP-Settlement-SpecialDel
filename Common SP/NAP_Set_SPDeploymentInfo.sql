@@ -25,6 +25,13 @@ BEGIN
 	---1.Auto FM Settlement
 	INSERT INTO @tmpSPInfo (SPName, WaitingTime, IsWaiting)
 	SELECT 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push', @WaitingTime, 0	
+	
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_Profile_Push', @WaitingTime, 0	
+	
+	-- Auto PinGoal
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 0	
 
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
