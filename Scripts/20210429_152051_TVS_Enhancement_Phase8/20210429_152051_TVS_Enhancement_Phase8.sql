@@ -6,12 +6,8 @@
 */
 
 --dbo.TicketVoiding_SubIssueType
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Goal - All' WHERE SubIssueTypeId = 1
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Corner - All' WHERE SubIssueTypeId = 2
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Booking - All' WHERE SubIssueTypeId = 3
 UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Red Card/VAR Red Card - Home' WHERE SubIssueTypeId = 4
 UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Red Card/VAR Red Card - Away' WHERE SubIssueTypeId = 5
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Next Corner - All' WHERE SubIssueTypeId = 26
 
 SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType ON
 
@@ -20,11 +16,11 @@ INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssu
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (57, 1, 'Pen Goal/VAR Pen Goal - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (58, 1, 'Pen Goal/VAR Pen Goal - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (59, 1, 'Pen Goal/VAR Pen Goal - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (59, 1, 'Pen Goal/VAR Pen Goal')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (60, 1, 'Betradar/FC Goal - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (61, 1, 'Betradar/FC Goal - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (62, 1, 'Betradar/FC Goal - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (62, 1, 'Betradar/FC Goal')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (63, 1, '2YC (Red card) - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (64, 1, '2YC (Red card) - Away')
@@ -49,25 +45,25 @@ INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssu
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (77, 1, 'Main Goal Kick - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (78, 1, 'Main Goal Kick - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (79, 1, 'Main Goal Kick - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (79, 1, 'Main Goal Kick')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (80, 1, 'Next Goal Kick - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (81, 1, 'Next Goal Kick - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (82, 1, 'Next Goal Kick - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (82, 1, 'Next Goal Kick')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (83, 1, 'Goal/PEN (1st & 2nd mark) - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (84, 1, 'Goal/PEN (1st & 2nd mark) - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (85, 1, 'Goal/PEN (1st & 2nd mark) - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (85, 1, 'Goal/PEN (1st & 2nd mark)')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (86, 1, 'HT/FT (Futsal)')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (87, 1, '* Goal/PEN Foul (OBS) - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (88, 1, '* Goal/PEN Foul (OBS) - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (89, 1, '* Goal/PEN Foul (OBS) - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (89, 1, '* Goal/PEN Foul (OBS)')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (90, 1, '* Goal/PEN Foul (not allowance) - Home')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (91, 1, '* Goal/PEN Foul (not allowance) - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (92, 1, '* Goal/PEN Foul (not allowance) - All')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (92, 1, '* Goal/PEN Foul (not allowance)')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (93, 1, 'HT/FT (Virtual)')
 
@@ -75,7 +71,6 @@ SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType OFF
 GO
 
 -------dbo.TicketVoiding_MessageTemplate
-SET IDENTITY_INSERT dbo.TicketVoiding_MessageTemplate ON
 --HT/FT (Real Soccer)
 INSERT INTO dbo.TicketVoiding_MessageTemplate(TemplateId,MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
 VALUES ( 39
@@ -127,8 +122,6 @@ VALUES ( 45
 		,N'请注意:[{{Sport type}}] 由于赛事已结束, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}} 只作废受影响的注单. 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 		)
 
-SET IDENTITY_INSERT dbo.TicketVoiding_MessageTemplate OFF
-
 -------dbo.TicketVoiding_MessageTemplateSetting
 --No.1,2,3
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (1,1,55)
@@ -176,9 +169,9 @@ INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIs
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (9999,NULL,71)
 --No.10
 
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (33,1,72)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (3,1,72)
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (9999,NULL,72)
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (33,1,73)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (3,1,73)
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId,Sporttype,SubIssueTypeId) VALUES (9999,NULL,73)
 --No.11
 
@@ -251,7 +244,7 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEng
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,66,'Danger Accept In Away Red Card',N'客队红牌危险时段中误被接受')
 --No.7
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,67,'Match Had Been Completed ',N'')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,67,'Match Had Been Completed ',N'由于赛事已结束')
 --No.8
 
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,68,'Danger Accept In Corner',N'在有角球的危险时段中误被接受')
@@ -266,19 +259,19 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEng
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,73,'Danger Accept In Booking',N'有罚牌的危险时段中误被接受')
 --No.11
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,74,'Danger Accept In Booking',N'有罚牌的危险时段中误被接受')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,75,'Danger Accept In Booking',N'有罚牌的危险时段中误被接受')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,76,'Danger Accept In Booking',N'有罚牌的危险时段中误被接受')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,74,'Booking has been completed',N'罚牌赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,75,'Booking has been completed',N'罚牌赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,76,'Booking has been completed',N'罚牌赛事已结束')
 --No.12
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,77,'Danger Accept In Goal Kick',N'')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,78,'Danger Accept In Goal Kick',N'')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,79,'Danger Accept In Goal Kick',N'')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,77,'Danger Accept In Goal Kick',N'由于注单在有龙门球的危险时段中误被接受')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,78,'Danger Accept In Goal Kick',N'由于注单在有龙门球的危险时段中误被接受')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,79,'Danger Accept In Goal Kick',N'由于注单在有龙门球的危险时段中误被接受')
 --No.13
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,80,'Danger Accept In Goal Kick',N'')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,81,'Danger Accept In Goal Kick',N'')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,82,'Danger Accept In Goal Kick',N'')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,80,'Goal Kick has been completed',N'龙门球赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,81,'Goal Kick has been completed',N'龙门球赛事已结束')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,82,'Goal Kick has been completed',N'龙门球赛事已结束')
 --No.14
 
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,83,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
@@ -286,7 +279,7 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEng
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,85,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
 --No.15
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,86,'Match Had Been Completed ',N'')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,86,'Match Had Been Completed ',N'由于赛事已结束')
 --No.16
 
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,87,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
@@ -297,4 +290,4 @@ INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEng
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,91,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,92,'Danger Accept In Goal',N'有进球的危险时段中误被接受')
 --No.18
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,93,'Match Had Been Completed ',N'')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,93,'Match Had Been Completed ',N'由于赛事已结束')
