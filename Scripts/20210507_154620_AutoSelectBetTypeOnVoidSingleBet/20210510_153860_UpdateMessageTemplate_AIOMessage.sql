@@ -5,6 +5,8 @@
 	DB: DBTXN-bodb02
 */
 
+USE bodb02
+GO
 
 UPDATE dbo.TicketVoiding_MessageTemplate 
 SET 
