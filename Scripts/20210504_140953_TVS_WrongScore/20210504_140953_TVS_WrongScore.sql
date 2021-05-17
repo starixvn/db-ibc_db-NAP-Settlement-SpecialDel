@@ -5,5 +5,5 @@
 	DB: DBTXN-bodb02
 */
 
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (1,7,N'Soccer - Wrong Score',N'足球 - 由于比分显示错误')
-INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (1,35,N'Soccer - Wrong Score',N'足球 - 由于比分显示错误')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (1,7,N'Wrong Score',N'由于比分显示错误')
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (1,35,N'Wrong Score',N'由于比分显示错误')
