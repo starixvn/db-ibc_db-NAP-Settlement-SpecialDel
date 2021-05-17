@@ -54,13 +54,13 @@ INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssu
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (78, 1, 'HT/FT (Futsal)')
 
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (79, 1, '* Goal/PEN Foul (OBS) - Home')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (80, 1, '* Goal/PEN Foul (OBS) - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (81, 1, '* Goal/PEN Foul (OBS)')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (79, 1, 'Goal/PEN Foul (OBS) - Home')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (80, 1, 'Goal/PEN Foul (OBS) - Away')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (81, 1, 'Goal/PEN Foul (OBS)')
 
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (82, 1, '* Goal/PEN Foul (not allowance) - Home')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (83, 1, '* Goal/PEN Foul (not allowance) - Away')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (84, 1, '* Goal/PEN Foul (not allowance)')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (82, 1, 'Goal/PEN Foul (not allowance) - Home')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (83, 1, 'Goal/PEN Foul (not allowance) - Away')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (84, 1, 'Goal/PEN Foul (not allowance)')
 
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (85, 1, 'HT/FT (Virtual)')
 
