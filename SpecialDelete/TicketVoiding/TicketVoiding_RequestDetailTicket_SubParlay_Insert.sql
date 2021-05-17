@@ -145,7 +145,7 @@ BEGIN
 			,TypeAccept				VARCHAR(50)
 			)
 
-	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
@@ -434,8 +434,8 @@ BEGIN
 					
 				UPDATE TOP(2000) t
 					SET isFinish = 1
-				OUTPUT DELETED.TransId, DELETED.StatusId					
-				INTO @tmpTransIDBatch(TransId, StatusId)
+				OUTPUT DELETED.TransId, DELETED.StatusId, DELETED.MatchId, DELETED.MainTransId				
+				INTO @tmpTransIDBatch(TransId, StatusId, MatchId, MainTransId)
 				FROM #DangerAccept_SubParlayTickets t 
 				WHERE isFinish IS NULL
 					AND t.Matchid = @matchid
@@ -445,7 +445,7 @@ BEGIN
 				SELECT @UnMarkedTransIds = STUFF(
 					(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 					FROM @tmpTransIDBatch tp
-					WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+					WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.MainTransId AND mt.MatchId = tp.MatchId)
 						AND  tp.StatusId IN (0, 1) 
 					GROUP BY TransId for XML PATH('')), 1, 1, ''
 					)
