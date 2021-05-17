@@ -188,8 +188,8 @@ BEGIN
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-						 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,83,87,90) AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1 --IsCheckedHomeTeam
-								   WHEN @SubIssueTypeId IN (56,58,61,69,71,84,88,91) AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 --IsCheckedAwayTeam
+						 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 --IsCheckedHomeTeam
+								   WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND sub.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 --IsCheckedAwayTeam
 								   ELSE 1
 							  END
 					END
