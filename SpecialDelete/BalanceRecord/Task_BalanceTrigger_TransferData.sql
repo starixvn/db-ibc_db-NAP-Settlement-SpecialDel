@@ -1,4 +1,4 @@
-/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBBAH-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Task_BalanceTrigger_TransferData]
 	@Size INT = 500
 AS
@@ -9,7 +9,7 @@ AS
 	Revision:
 		- 20200922@Kathy: Add column matchid, statusid, SettlementType, smawinlost, smacomm [Redmine:#138552]
 		- 20201122@Kathy: Add column modds [Redmine:#138552]
-		- 20210512@Kathy: Insert data to new table if ticket is re-settled [Redmine:#154732]
+		- 20210512@Kathy: Insert data to new table when ticket is settled [Redmine:#154732]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -88,11 +88,12 @@ BEGIN
 				WHERE RowID = @cRowID
 		END
 
-		INSERT INTO dbo.SettlementHistory (TransId, MatchId, SettlementType, Winlost, StatusId)
-		SELECT	TransId, MatchId, SettlementType, Winlost, StatusId
+		INSERT INTO dbo.SettlementHistory (TransId, MatchId, SettlementType, Winlost, StatusId, BalanceChanged)
+		SELECT	TransId, MatchId, SettlementType, Winlost, StatusId, b.BalanceChanged
 		FROM	dbo.BalanceTrigger b WITH (ROWLOCK)
 		WHERE	b.RowID = @cRowID
-				AND SettlementType > 1
+				AND b.ActionID <> 10 -- bet insert
+				AND b.SettlementType <> 1
 
 		DELETE FROM dbo.BalanceTrigger WITH (ROWLOCK)
 		WHERE RowID = @cRowID

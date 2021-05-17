@@ -13,6 +13,7 @@ CREATE TABLE [dbo].[SettlementHistory](
 	[SettlementType] [tinyint] NULL,
 	[Winlost] [money] NULL,
 	[StatusId] [tinyint] NULL,
+	[BalanceChanged] [money] NULL,
 	[CreatedDate] [datetime] NULL
 ) ON [Others_table]
 GO
@@ -24,5 +25,11 @@ GO
 CREATE CLUSTERED INDEX [CIX_SettlementHistory_MatchId] ON [dbo].[SettlementHistory]
 (
 	[MatchId] ASC
+) ON [Others_index]
+GO
+
+CREATE NONCLUSTERED INDEX [IX_SettlementHistory_CreatedDate] ON [dbo].[SettlementHistory]
+(
+	[CreatedDate] ASC
 ) ON [Others_index]
 GO
