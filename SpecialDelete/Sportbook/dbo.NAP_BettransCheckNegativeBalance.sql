@@ -24,6 +24,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
 		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
+		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -71,11 +72,12 @@ BEGIN
 	)
 	
 	DECLARE @tmpAffectedCustId TABLE (CustId INT)
+	DECLARE @movebetdate SMALLDATETIME
 
 	INSERT INTO @tmpTransId(transid)
 	SELECT val FROM dbo.f_SplitString(@TransIds, ',')
 	OPTION (maxrecursion 0)
-	
+
 	INSERT INTO #BetDelete(
 			transid
 			,custid
@@ -273,6 +275,9 @@ BEGIN
 	SELECT	DISTINCT custid
 	FROM	#BetDelete
 
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+
 	-- calculate sum of members' balance on bettrans tables
 	INSERT INTO @tmpCurrentBalance(custid, username, balance)
 	SELECT b.custid, b.Username, SUM(b.balance)
@@ -285,6 +290,11 @@ BEGIN
 					AND b.matchid = tl.eventID						
 		WHERE	b.custid IN (SELECT custid FROM #BetDelete)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
+				AND 1 = CASE
+							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
+							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
+							ELSE 1
+						END
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
 		FROM	dbo.translog tl WITH(NOLOCK)
@@ -332,7 +342,8 @@ BEGIN
 		SELECT t.custid, SUM(t.winlost - t.actual_stake + t.playercomm) AS balance
 		FROM (
 			SELECT b.custid, b.winlost, b.actual_stake, b.playercomm
-			FROM #BetDelete b			
+			FROM #BetDelete b
+			
 			
 			UNION ALL
 			SELECT b.custid, b.winlost, b.actual_stake, -b.playercomm

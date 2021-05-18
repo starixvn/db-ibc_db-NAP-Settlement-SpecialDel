@@ -12,6 +12,7 @@ AS
 		- 20161026@Kent: Check negative balance after recovering voided Parlay tickets [Redmine:#65531]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
+		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -27,9 +28,13 @@ BEGIN
 	)	
 	
 	DECLARE @BalNetPositionTmp TABLE(CustId INT, Balance MONEY)	
+	DECLARE @movebetdate SMALLDATETIME
 	
 	INSERT INTO @CustList(custid)
-	SELECT val FROM dbo.strSplit(@CustIds, ',')		  	
+	SELECT val FROM dbo.strSplit(@CustIds, ',')
+	
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
 	;WITH CustomerList
 	AS
@@ -41,6 +46,11 @@ BEGIN
 					AND b.matchid = tl.eventID
 		WHERE	b.custid IN (SELECT custid FROM @CustList)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))
+				AND 1 = CASE
+							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
+							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
+							ELSE 1
+						END
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, 0, tl.actual_stake, 0
 		FROM	dbo.translog tl WITH(NOLOCK)
