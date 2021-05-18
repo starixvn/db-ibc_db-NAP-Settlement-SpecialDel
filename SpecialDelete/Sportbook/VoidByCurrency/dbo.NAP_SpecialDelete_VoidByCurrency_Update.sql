@@ -52,6 +52,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
+		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		
 	Param's Explanation:
 */
@@ -2185,25 +2186,6 @@ BEGIN
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @NegativeBalanceCustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
-		-------> Update odds
-		UPDATE odds  
-		SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-			   ELSE 0 END )  
-		,awaytotal = awaytotal - (CASE WHEN b.betteam = 'a' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-					  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-				ELSE 0 END)  
-		FROM #SpecialDeleteBets_Single AS bd
-			INNER JOIN dbo.bettrans b WITH (NOLOCK)
-				ON bd.TransID  = b.transid
-			INNER JOIN dbo.odds o WITH (ROWLOCK,UPDLOCK)   
-				ON o.matchid = b.matchid 
-				   AND o.oddsid = b.oddsid  
-				   AND b.matchid = @MatchID			
-			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid  
-			INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) ON c.currency = e.exchangeid	
-		WHERE bd.Bettype IN (1,3,7,8)
 			 
 		-------> Release process
 		EXEC dbo.NAP_Admin_CheckingProcess
