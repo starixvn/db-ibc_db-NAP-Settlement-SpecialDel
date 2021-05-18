@@ -33,6 +33,7 @@ AS
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -78,6 +79,7 @@ BEGIN
 			,@procName			SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime		VARCHAR(10)
 			,@IsWaiting			BIT = 0
+			,@LeagueGroupID		SMALLINT = 0
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -132,14 +134,16 @@ BEGIN
 						END
 
   	--get info of match
-  	SELECT @fth			= finalhomescore
-		  ,@fta			= finalawayscore
-		  ,@hth			= hthomescore
-		  ,@hta			= htawayscore
-		  ,@sportType	= sportType
-		  ,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
-  	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  	WHERE   matchid = @matchid
+  	SELECT @fth			= m.finalhomescore
+		  ,@fta			= m.finalawayscore
+		  ,@hth			= m.hthomescore
+		  ,@hta			= m.htawayscore
+		  ,@sportType	= m.sportType
+		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+		  ,@LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
+  	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
+		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
+  	WHERE   m.matchid = @matchid
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -386,7 +390,11 @@ BEGIN
 					,@hth = sr.HomeValue
 					,@hta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE sr.ResourceID = '01' AND @sportType = 2
+  		WHERE sr.ResourceID = '01' 
+			AND 1 = CASE WHEN @sportType = 2 THEN 1
+						 WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
+						 ELSE 0
+						 END
 
 		IF @existsHTRound = 1
 		BEGIN
