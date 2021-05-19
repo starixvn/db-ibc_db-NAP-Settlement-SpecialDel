@@ -12,6 +12,7 @@ AS
 
 	Revisions:		
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's Explanation:		
 		
@@ -48,7 +49,9 @@ BEGIN
 		FROM	@tmpMatchId t
 		WHERE	EXISTS (SELECT TOP 1 1 FROM @tmpMoveBetsDay mb WHERE t.EventDate = mb.MoveBetsDay)
 
-		SELECT @ErrCode = 1001030
+		IF ISNULL(@MovingMatchIds, '') <> ''
+			SELECT	@ErrCode = 1001030
+					,@ErrMsg = 'Cannot proceed as during move-bet progress. Please contact Starix IT for further support!'
 	END
 
 

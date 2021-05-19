@@ -14,6 +14,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
    
     Parameters Explanation:        
     
@@ -23,14 +24,14 @@ AS
 */
 RETURN
 (
-	SELECT Sporttype
+	SELECT Sporttype, IsMergedParlay
 	FROM
 	(
-		SELECT CONVERT(SMALLINT, 43) AS Sporttype
-		UNION ALL SELECT 9 --Badminton
-		UNION ALL SELECT 5 --Tennis
-		UNION ALL SELECT 2 --Basketball
-		UNION ALL SELECT 50 --Cricket
+		SELECT CONVERT(SMALLINT, 43) AS Sporttype, CONVERT( BIT, 1) AS IsMergedParlay 
+		UNION ALL SELECT 9, 1 --Badminton
+		UNION ALL SELECT 5, 1 --Tennis
+		UNION ALL SELECT 2, 1 --Basketball
+		UNION ALL SELECT 50, 1 --Cricket
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

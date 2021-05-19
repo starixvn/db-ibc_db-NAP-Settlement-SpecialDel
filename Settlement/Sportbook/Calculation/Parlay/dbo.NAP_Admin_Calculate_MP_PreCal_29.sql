@@ -23,6 +23,7 @@ AS
 		- 20210305@Kathy: Generate combination of ticket by main match of cricket [Redmine:#148870] 
 		- 20210415@Helen: Performance Tuning for EC 2021 [Redmine:#151143]
 		- 20210601@louisa: Performance Tuning for EC 2021 [Redmine:#151143]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -216,12 +217,13 @@ BEGIN
 			,pd.serial
 			,b.eventdate
 			,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
-			,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID <> 102 THEN 1 ELSE 0 END) as loseCnt
+			,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID NOT IN (102, 0) THEN 1 ELSE 0 END) as loseCnt
 			,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
 			,MAX(pd.winlostdate) as matchdate_max
 			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
 			,CAST(dbo.PRODUCT(
 				CASE WHEN pd.statusid = 102 THEN 1
+					WHEN pd.statusid = 0 THEN 1
 					ELSE
 						CASE pd.statuswinlost
 							WHEN 0 THEN 1 -- draw

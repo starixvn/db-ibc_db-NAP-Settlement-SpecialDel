@@ -211,7 +211,15 @@ BEGIN
     BEGIN
         EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
             , @matchdate = @matchdate
-            , @action = @Mode
+            , @action = @mode
+            , @strTransIds = @strTransIds
+    END
+
+	IF (@Mode IN ('profile'))
+    BEGIN
+        EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
+            , @matchdate = @matchdate
+            , @action = @action
             , @strTransIds = @strTransIds
     END
 	
