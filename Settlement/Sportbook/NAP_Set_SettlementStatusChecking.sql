@@ -17,6 +17,7 @@ AS
 		- 20200724@Kathy: Prevent Refund Wrong Match by Checking Settlement Status [Redmine:#136390]
 		- 20200819@Kathy: Allow to Refund a postponed match without checking Refund flag [Redmine:#139903]
 		- 20201123@Kathy: Not Allow to refund determined match (Fast market) [Redmine:#143573]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
 		
 	Parameters Explanation:    
@@ -29,12 +30,22 @@ BEGIN
 	
 	DECLARE @SettlementStatus TINYINT
 			,@EventStatus NVARCHAR(50)
+			,@LeagueId INT
+			,@LeagueGroupId INT
 
 	SELECT	@SettlementStatus = m.SettlementStatus
 			,@EventStatus = m.eventstatus
+			,@LeagueId = m.leagueid
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
+
+	SELECT	@LeagueGroupId = ISNULL(LeagueGroupID, 0)
+	FROM	dbo.League WITH(NOLOCK)
+	WHERE	leagueid = @LeagueId
 	
+	IF @LeagueGroupId = 113 -- skip check refund flag for PinGoal
+		RETURN
+
 	IF @SettlementStatus & 32 > 0 OR (@Action = 'REFUND' AND @EventStatus = 'Postponed')
 	BEGIN
 		IF @Action LIKE 'CAL%' 

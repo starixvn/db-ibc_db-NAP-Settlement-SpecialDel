@@ -40,6 +40,7 @@ BEGIN
 	DECLARE	 @matchcode				NVARCHAR(50)
 			,@sporttype				INT
 			,@leagueid				INT
+			,@LeagueGroupId			INT
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				SYSNAME	= OBJECT_NAME(@@procid)
 			,@IsExistNetPosition	BIT = 0		
@@ -81,6 +82,17 @@ BEGIN
 	BEGIN
 		SELECT	 @ErrCode	= 1001001
 				,@ErrMsg	= 'Match does not exist!'
+		RETURN
+	END
+	
+	SELECT	@LeagueGroupId = LeagueGroupID
+	FROM	dbo.League l WITH(NOLOCK)
+	WHERE	l.leagueid = @leagueid
+
+	IF @LeagueGroupId <> 113 AND @IsAuto = 1
+	BEGIN
+		SELECT	 @ErrCode	= 1001052
+				,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
 		RETURN
 	END
 

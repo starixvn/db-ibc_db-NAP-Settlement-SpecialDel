@@ -62,6 +62,7 @@ AS
 		- 20201209@Kathy: Add 10 Upcoming Sports for OS [Redmine:#145816]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20201208@Louisa: Child match: get ET and PEN matches [Redmine:#145597]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
 */
 BEGIN
@@ -562,6 +563,7 @@ BEGIN
 		,ISNULL(match.AutoSetting, ISNULL(l.AutoSetting,0)) AS AutoSetting
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
+		,l.LeagueGroupID 
 		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
