@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20190823@Kathy: recover single ticket [Redmine:#115376]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's explanation:	
 		
@@ -37,8 +38,8 @@ BEGIN
 			,@FromDate			SMALLDATETIME    
 			,@ToDate			SMALLDATETIME
 	
-	SELECT @moveBetDay = MAX(eventdate) 
-	FROM dbo.match14 WITH(NOLOCK)
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
 	
 	SELECT @FromDate	= CONVERT(VARCHAR(10), DATEADD(d, -6, GETDATE()), 102)
 		, @ToDate 		= @moveBetDay

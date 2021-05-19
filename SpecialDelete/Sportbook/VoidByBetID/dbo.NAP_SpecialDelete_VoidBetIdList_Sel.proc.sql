@@ -60,7 +60,7 @@ AS;
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
-		- 20210625@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -78,8 +78,8 @@ BEGIN
 	
 	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay14 	SMALLDATETIME,
-		@moveBetDay 	SMALLDATETIME,
+	DECLARE @movebetdate SMALLDATETIME,
+		@maxdate 	DATETIME = '9999-01-01',
 		@IsSB BIT = 0,
 		@IsParlay BIT = 0,
 		@IsBB BIT = 0,
@@ -90,23 +90,17 @@ BEGIN
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	
-	/*
-	SELECT @moveBetDay14 = MAX(winlostdate) 
-	FROM dbo.bettrans14 WITH(NOLOCK)
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	
+	SELECT @FromDate	= ISNULL(@FromDate, @movebetdate)
+		, @FromDate 	= CASE WHEN @FromDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromDate END
 
-	SELECT @moveBetDay = MAX(winlostdate) 
-	FROM dbo.bettrans WITH(NOLOCK)
-	*/
 	
-	SELECT @moveBetDay14 = MAX(eventdate) 
-	FROM dbo.match14 WITH(NOLOCK)
-	
-	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-			, @FromDate = CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-			
 	IF @ToDate IS NULL
 	BEGIN
-		SET @ToDate = DATEADD(yy,2, GETDATE())
+		
+		SET @ToDate = @maxdate
 	END
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	

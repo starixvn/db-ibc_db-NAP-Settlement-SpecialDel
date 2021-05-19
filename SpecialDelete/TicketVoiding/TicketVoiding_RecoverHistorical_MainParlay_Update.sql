@@ -13,6 +13,8 @@ AS
 	
 	Revisions: 
 		- 20190823@Kathy: recover main parlay ticket [Redmine:#115376]
+		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+
 	
 	Param's explanation:	
 		
@@ -31,8 +33,8 @@ BEGIN
 			,@ToDate			DATETIME
 			,@avaiableProcess BIT
 	
-	SELECT @moveBetDay = MAX(eventdate) 
-	FROM dbo.match14 WITH(NOLOCK)
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
 	
 	SELECT @FromDate	= DATEADD(d, -6, GETDATE())
 		, @ToDate 		= @moveBetDay
