@@ -32,6 +32,7 @@ AS
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -408,6 +409,21 @@ BEGIN
 	
 	IF @procName LIKE '%_xtest' or @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
 	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = '0')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
+		BEGIN
+			UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+					SET VValue = 1
+			WHERE VName = 'isCalculatingParlay'
+					
+		END
+		ELSE
+		BEGIN
+			SELECT	@ErrCode = 1000000
+				,@ErrMsg = 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'
+			RETURN	
+		END
+
 		BEGIN TRY
 			EXEC [NAP_Admin_Settlement_Refund_MP] @matchid = @matchid
 				,@creator 	= @AdminId
@@ -418,13 +434,18 @@ BEGIN
 		END TRY
 
 		BEGIN CATCH
-			SET @ErrMsg = ERROR_MESSAGE()
+			SELECT @ErrMsg = ERROR_MESSAGE()
+					,@ErrCode = @@ERROR
 		END CATCH
+
+		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+			SET VValue = 0
+		WHERE VName = 'isCalculatingParlay'
 	END
 	ELSE
 	BEGIN		
-		INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action)
-		SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @mode
+		INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype)
+		SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @mode, @sporttype
 	END
 END
 GO 

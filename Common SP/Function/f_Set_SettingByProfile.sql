@@ -15,6 +15,7 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
    
     Parameters Explanation:        
     
@@ -28,15 +29,15 @@ AS
 */
 RETURN
 (
-	SELECT Sporttype, ResultTable
+	SELECT Sporttype, ResultTable, IsMergedParlay
 	FROM
 	(
-		SELECT CONVERT(SMALLINT, 43) AS Sporttype, CONVERT(TINYINT, 3) AS ResultTable
-		UNION ALL SELECT 9,	 2	--Badminton
-		UNION ALL SELECT 5,	 1	--Tennis
-		UNION ALL SELECT 2,	 1	--Basketball
-		UNION ALL SELECT 50, 2	--Cricket
-		UNION ALL SELECT 45, 2	--Beach Volleyball
+		SELECT CONVERT(SMALLINT, 43) AS Sporttype, CONVERT(TINYINT, 3) AS ResultTable, CONVERT( BIT, 1) AS IsMergedParlay
+		UNION ALL SELECT 9,	 2, 1	--Badminton
+		UNION ALL SELECT 5,	 1, 1	--Tennis
+		UNION ALL SELECT 2,	 1, 1	--Basketball
+		UNION ALL SELECT 50, 2, 1	--Cricket
+		UNION ALL SELECT 45, 2, 1	--Beach Volleyball
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

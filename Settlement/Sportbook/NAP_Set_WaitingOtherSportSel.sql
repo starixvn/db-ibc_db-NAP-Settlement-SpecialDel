@@ -14,6 +14,7 @@ AS
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's explanation:  
 		
@@ -83,6 +84,7 @@ BEGIN
 		,IsExistRunningTicket			BIT DEFAULT(0)
 
 		,AutoPayoutStatus				TINYINT
+		,IsMergedParlay					BIT DEFAULT(0)
 	)
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT, Sporttype SMALLINT)
 	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
@@ -111,22 +113,24 @@ BEGIN
 	EXECUTE sys.sp_executesql @remoteQuery
 
 	;WITH singlequeue AS (
-		SELECT	matchid, MIN(IsCalculating) AS IsCalculatingSingle
+		SELECT	matchid, MIN(IsCalculating) AS IsCalculating, MAX(IsCalculating) AS IsCalculatingParlay
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE()) 
+				OR s.IsCalculating IN (0,1,100)
 		GROUP BY matchid
 	), parlayqueue AS (
-		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculatingMP
+		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculating, 0 AS IsCalculatingParlay
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
+				OR p.IsCalculating IN (0,1)
 		GROUP BY p.matchid
 	)
 	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP, Sporttype)
 	SELECT q.matchid, q.IsCalculatingSingle, q.IsCalculatingMP, m.sporttype
 	FROM (
 		SELECT	ISNULL(s.matchid, p.matchid) AS matchid
-				,s.IsCalculatingSingle
-				,p.IsCalculatingMP
+				,CASE WHEN s.IsCalculatingParlay > 3 AND s.IsCalculating NOT IN (0,1) THEN s.IsCalculatingParlay ELSE s.IsCalculating END AS IsCalculatingSingle
+				,p.IsCalculating AS IsCalculatingMP
 		FROM	singlequeue s
 			FULL OUTER JOIN parlayqueue p
 				ON	s.matchid = p.matchid
@@ -181,6 +185,7 @@ BEGIN
 		,suspenderhalftime
 		,suspenderfulltime
 		,AutoPayoutStatus
+		,IsMergedParlay
 	)
 	SELECT DISTINCT	m.matchid
 			,m.sporttype
@@ -209,6 +214,7 @@ BEGIN
 				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 			END
 			,q.AutoPayoutStatus
+			,f.IsMergedParlay
 	FROM  dbo.match m WITH(NOLOCK)
 		INNER JOIN @tmpLeagueIds tl
 			ON	m.leagueid = tl.LeagueId
@@ -218,12 +224,16 @@ BEGIN
 			ON	m.matchid = mr.matchid
 		INNER JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
+		OUTER APPLY(
+				SELECT	f.IsMergedParlay
+				FROM	dbo.f_Set_SettingByProfile (m.sporttype) f
+			)f
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
-	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId)
-	SELECT	m.matchid, m.ParentId
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay BIT DEFAULT(0))
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay)
+	SELECT	m.matchid, m.ParentId, t.IsMergedParlay
 	FROM	@tmpMatchIds t
 		CROSS APPLY (
 			SELECT	m.matchid, m.ParentId
@@ -232,7 +242,7 @@ BEGIN
 					AND m.ChildMatchType = 200
 					AND m.ParentID = t.matchid
 		)m
-	UNION ALL SELECT m.matchid, m.matchid FROM @tmpMatchIds m
+	UNION ALL SELECT m.matchid, m.matchid, m.IsMergedParlay FROM @tmpMatchIds m
 	
 	INSERT INTO @tmpBettypeStatus(MatchId, isExistSingle, isRunningSingle, isWaitingSingle, isExistParlay, isRunningParlay, isWaitingParlay)
 	SELECT	m.ParentId
@@ -357,22 +367,42 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		UPDATE m 
-			SET IsExistRunningTicket = 1
+			SET IsExistRunningTicket = t.IsExistRunningTicket
 		FROM	@tmpMatchCompleted m
 			CROSS APPLY (
-				SELECT	tmp.ParentId
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN #tmpAllParentChildMatch tmp ON b.MatchId = tmp.MatchId
+				SELECT 1 AS IsExistRunningTicket
+				FROM (
+						SELECT	tmp.ParentId, b.transid, tmp.MatchId
+						FROM	dbo.bettrans b WITH(NOLOCK)
+							INNER JOIN #tmpAllParentChildMatch tmp 
+								ON	b.MatchId = tmp.MatchId
+						WHERE	b.matchid = m.MatchId
+								AND b.statusID = 0
+								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
+								AND b.bettype <> 38 -- BetBuilder
+						UNION ALL
+						SELECT	tmp.ParentId, b.transid, tmp.MatchId
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+							INNER JOIN #tmpAllParentChildMatch tmp
+								ON	bm.matchid = tmp.MatchId
+							INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
+								ON	b.matchid = 29
+									AND b.bettype = 29
+									AND b.refno = bm.refno
+						WHERE	bm.matchid = m.MatchId
+								AND bm.statusID = 0
+								AND tmp.IsMergedParlay = 1
+					) b
 					OUTER APPLY (
-							SELECT TOP 1 mt.transId
-							FROM	#tmpMarkedTransaction mt 
-							WHERE b.transid = mt.TransId
-						)mt
-				WHERE	tmp.ParentId = m.matchid
-						AND b.statusID = 0
-						AND mt.transId IS NULL
-				GROUP BY tmp.ParentId
-			)b
+						SELECT TOP 1 mt.transId
+						FROM	#tmpMarkedTransaction mt 
+						WHERE	b.transid = mt.TransId
+								AND b.MatchId = mt.matchId
+								
+					)mt
+				WHERE	mt.transId IS NULL
+				GROUP BY b.ParentId
+			) t
 
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
@@ -436,8 +466,8 @@ BEGIN
 			,CASE
 				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 AND (tmp.childmatchtype = 202 OR me.MatchId IS NOT NULL ) THEN 'No Ticket'
 				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
-				WHEN tmp.IsRunningEarlyBettypesSingle = 1 THEN 'Running'
-				WHEN tmp.IsWaitingEarlyBettypesSingle = 1 THEN 'Waiting'
+				WHEN tmp.IsRunningEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsRunningEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Running'
+				WHEN tmp.IsWaitingEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsWaitingEarlyBettypesSingle ELSE 0 END) > 0 THEN 'Waiting'
 				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsRunningEarlyBettypesParlay = 1 THEN 'Parlay Running'
 				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
 				ELSE 'Completed'

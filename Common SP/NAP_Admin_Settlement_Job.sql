@@ -14,11 +14,14 @@ AS
 	Revision:
 		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
 		- 20201019@Louisa: Implement for 11 Jobs
-
+		- 20210514@Kathy: settle parlay ticket : add more job [Redmine:#154737]
+		
 */
 /*
-	--1.Single Settlement:		'bodb02 : NAP Single Settlement'
-
+	--1.Single Settlement:		'bodb02 : NAP Single Settlement - Job 1'
+								'bodb02 : NAP Single Settlement - Job 2'
+								'bodb02 : NAP Single Settlement - Job 3'
+					
 	--2.Parlay Settlement:		'bodb02 : NAP Parlay Settlement'
 
 	--3.Single Settlement 3rd:	'bodb02 : NAP Single Settlement 3rd'
@@ -74,8 +77,14 @@ BEGIN
 			SET @interval  =  GETDATE()
 		END
 	
-		IF(@Jobname = 'bodb02 : NAP Single Settlement')
-			EXEC NAP_Admin_Settlement_SB_Job
+		IF(@Jobname = 'bodb02 : NAP Single Settlement - Job 1')
+			EXEC NAP_Admin_Settlement_SB_Job @GroupId = 1
+		
+		ELSE IF(@Jobname = 'bodb02 : NAP Single Settlement - Job 2')
+			EXEC NAP_Admin_Settlement_SB_Job @GroupId = 2
+			
+		ELSE IF(@Jobname = 'bodb02 : NAP Single Settlement - Job 3')
+			EXEC NAP_Admin_Settlement_SB_Job @GroupId = 3
 
 		ELSE IF (@Jobname = 'bodb02 : NAP Parlay Settlement')
 			EXEC [dbo].[NAP_Admin_Settlement_MP_Job]

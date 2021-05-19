@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_EarlySettlement_CheckingMarkedTransaction]
 	,@isExistMarkedTicket	BIT = 0 			OUTPUT
 	,@ErrCode				INT = 0 			OUTPUT
 	,@ErrMsg				VARCHAR(MAX) = '' 	OUTPUT
+	,@IsMergedParlay		BIT = 0
 AS
 /*    
 	Creator: Kathy
@@ -18,7 +19,8 @@ AS
 		- 20190702@Kathy: PH AIO phase 4 [Redmine:#115232]
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
-		
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
 */ 
@@ -69,9 +71,36 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
 	)
 	BEGIN
-		SELECT @isExistMarkedTicket = 1
-				,@ErrCode = 1001032
-				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
+		SET @isExistMarkedTicket = 1
+				
 	END
+	ELSE IF @IsMergedParlay = 1
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						CROSS APPLY (
+							SELECT TOP 1 b.refno
+									,b.statusID
+									,b.matchid
+							FROM	dbo.bettrans b WITH(NOLOCK)
+							WHERE	b.transid = mt.TransId
+									AND b.matchid = 29
+						) b							
+						CROSS APPLY (
+							SELECT TOP 1 bm.transid
+							FROM	dbo.bettransm bm WITH(NOLOCK)
+							WHERE	bm.matchid = mt.matchid
+									AND bm.refno = b.refno
+									AND bm.statusID = 0
+									AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = bm.bettype AND (t.BetId = 0 OR t.BetId = bm.betcheck))
+						)bm
+					WHERE	mt.MatchId = @MatchID
+		)
+			SET @isExistMarkedTicket = 1
+	END
+
+	IF @isExistMarkedTicket = 1
+		SELECT	@ErrCode = 1001032
+				,@ErrMsg = 'ERROR! Cannot proceed due to marked tickets. Please unmark them and try again.'
 END
 GO

@@ -17,6 +17,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
     Param's Explanation:
         
@@ -27,28 +28,29 @@ BEGIN
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
 		
-	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY)		
+	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	
-	INSERT INTO #parlayTicket (transid, refno, statusId, modds)
+	INSERT INTO #parlayTicket (transid, refno, statusId, modds, IsMarked)
 	SELECT T.C.value('./@t', 'BIGINT') 			AS transid
 			,T.C.value('./@r', 'BIGINT') 		AS refno
 			,T.C.value('./@s', 'TINYINT') 		AS statusId
 			,T.C.value('./@m', 'SMALLMONEY') 	AS modds
+			,T.C.value('./@im', 'BIT') 	AS IsMarked
 	FROM @xmlParlayTicket.nodes('/b') AS T(C)
 	OPTION (OPTIMIZE FOR (@xmlParlayTicket = NULL ))
 	
 	IF(@@ROWCOUNT = 0) RETURN
 	
 	--CALCULATE PROCESS
-	IF (@action IN ('ABANDONED', 'REFUND'))
+	IF @action = 'ABANDONED'  OR @Action LIKE 'REFUND%'
 	BEGIN
 		--UPDATE bettransm
 		UPDATE bm
 		SET 
-			@IsUpd_Void = CASE WHEN bm.statusID = 102 THEN 0 ELSE 1 END
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.IsMarked = 1 THEN 0 ELSE 1 END
 			,winlostdate = CASE 
 								WHEN @IsUpd_Void = 0 THEN winlostdate 
 								ELSE @matchdate
@@ -88,7 +90,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
-		
+
 		--UPDATE BetParlayDetail
 		UPDATE pd 
 		SET winlostdate 	= @matchdate
@@ -101,13 +103,13 @@ BEGIN
 		WHERE r.statusid NOT IN (102)
 			
 	END
-	
-	IF (@action IN ('CAL'))
+
+	IF @action LIKE 'CAL%'
 	BEGIN
 		--UPDATE bettransm
 		UPDATE bm
 		SET 
-			@IsUpd_Void = CASE WHEN bm.statusID = 102 THEN 0 ELSE 1 END
+			@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.IsMarked = 1 THEN 0 ELSE 1 END
 			,ruben = CASE 
 						WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE CASE 
@@ -155,7 +157,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
-		
+	
 		--UPDATE BetParlayDetail
 		UPDATE pd 
 		SET winlostdate 	= @matchdate
@@ -168,7 +170,7 @@ BEGIN
 		WHERE r.statusId NOT IN (102)	
 	END
 	
-	IF (@action IN ('UNDO'))
+	IF @action LIKE 'UNDO%'
 	BEGIN
 		 --update bettransm
 	    UPDATE bm

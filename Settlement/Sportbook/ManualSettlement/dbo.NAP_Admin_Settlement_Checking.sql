@@ -40,6 +40,7 @@ AS
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -63,7 +64,8 @@ BEGIN
 		,@Sporttype					SMALLINT
 		,@isSettingByProfile		BIT
 		,@handle					INT
-		,@IsSettleDetermined BIT
+		,@IsSettleDetermined		BIT
+		,@IsMergedParlay			BIT
     
 	
 	DECLARE	@tmpResourceIDs TABLE(
@@ -76,15 +78,16 @@ BEGIN
 			,@isExistWaitingTicket = 0
 			,@isSettingByProfile = 0
 			,@IsSettleDetermined = 0
-    
+			,@IsMergedParlay = 0
+
     SELECT	@Sporttype = sporttype
     FROM	dbo.[match] WITH (NOLOCK)
     WHERE	matchid = @matchid
     
-    IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
-    BEGIN
-	    SET @isSettingByProfile = 1
-	END
+	SELECT	@isSettingByProfile = 1
+			,@IsMergedParlay = IsMergedParlay
+	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
+
 	
 	IF @Mode IN ('CAL', 'REFUND')
 	BEGIN	
@@ -115,8 +118,22 @@ BEGIN
 					   					FROM @tmpResourceIDs t
 					   					WHERE t.Bettype = b.Bettype AND (t.BetID = 0 OR t.BetID = b.BetID)
 					   					)
-					)	
+					)
 				SELECT @isExistWaitingTicket = 1
+			ELSE IF @IsMergedParlay = 1
+			BEGIN
+				IF EXISTS (SELECT TOP 1 1
+					   FROM dbo.bettransm bm WITH(NOLOCK)
+					   WHERE bm.matchid = @matchid
+					   		AND (bm.statusID = 1 -- waiting status
+								OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,@currentdate) > @currentdate ))
+							AND EXISTS (SELECT 1 
+					   					FROM @tmpResourceIDs t
+					   					WHERE t.Bettype = bm.Bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+					   					)
+					)
+				SELECT @isExistWaitingTicket = 1
+			END
 		END
 		ELSE
 		BEGIN

@@ -17,6 +17,7 @@ AS
 		- 20200903@Kathy: backup data of single_calculate_queue & parlay_calculate_queue to DBLOG [Redmine:#138281]
 		- 20210426@Kathy: Remove Old Command Logs of Settlement by Profile [Redmine:#153976]
 	    - 20210706@Louisa: Letstalk message [Redmine:#157540]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	 Param's Explanation:  
     
@@ -153,6 +154,16 @@ BEGIN
 		WHERE	CreatedDate < @Date
 
 		IF @@ROWCOUNT < 1000
+			BREAK
+	END
+
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP (1000)
+		FROM	dbo.ParlayLockingHistory WITH(ROWLOCK, UPDLOCK)
+		WHERE	CreatedDate < @date
+
+		IF @@rowcount < 1000
 			BREAK
 	END
 

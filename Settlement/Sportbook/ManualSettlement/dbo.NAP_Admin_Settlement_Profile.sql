@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+	,@KeyId				INT				= 0 
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -40,6 +41,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -86,6 +88,9 @@ BEGIN
 			,@WaitingTime		VARCHAR(10)
 			,@IsWaiting			BIT = 0
 			,@LeagueGroupID		SMALLINT = 0
+			,@matchLog			INT 
+			,@IsMergedParlay	BIT = 0
+			,@SelectedResourceParlay VARCHAR(MAX) = ''
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -98,7 +103,7 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20)
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
@@ -134,7 +139,7 @@ BEGIN
 						  ELSE 0
 					   END
 		   ,@SkipBalanceUpdate	 = 0
-
+	
   	--get info of match
   	SELECT @fth			= m.finalhomescore
 		  ,@fta			= m.finalawayscore
@@ -148,6 +153,9 @@ BEGIN
   	WHERE   m.matchid = @matchid
 
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
+
+	SELECT	@IsMergedParlay = IsMergedParlay
+	FROM	dbo.f_Set_SettingByProfile(@sportType)
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -188,6 +196,7 @@ BEGIN
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch			= 1
+		  , @SPName				= @procName
 		  , @avaiableProcess 	= @avaiableProcess OUTPUT
 		  , @ErrCode			= @ErrCode OUTPUT
 		  , @ErrMsg				= @ErrMsg OUTPUT
@@ -218,6 +227,7 @@ BEGIN
 
 		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
 			@MatchID = @MatchID
+			,@IsMergedParlay = @IsMergedParlay
 			,@ResourceIds = @ResourceIds
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
@@ -311,21 +321,25 @@ BEGIN
 					AND SettlementStatusID = 4
 					AND ResultStatusID = 5
 		END
-
-		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
-		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
+		
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType, RefResourceId)
+		SELECT DISTINCT tbl.ResourceID, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE ISNULL(AwayValue,'') END, 
 				sp.BetType, sp.BetID, sp.pfID, sp.RoundID, sp.OrdNo, 
-				CASE WHEN tbl.ResourceID = '70400' THEN 1 ELSE sd.isFinal END, 
-				CASE WHEN tbl.ResourceID = '70400' THEN 'FT' ELSE sd.RoundName END, 
-				sp.GroupType, sp.OddsType
+				sd.isFinal, 
+				sd.RoundName, 
+				sp.GroupType, sp.OddsType,
+				sp.RefResourceId
 		FROM @tmpResourcesWeb tbl
 			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
-			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sp.ResourceID = sd.ResourceID
-		WHERE sp.SportType = @SportType
+			OUTER APPLY (
+				SELECT	sd.RoundName, sd.isFinal
+				FROM	dbo.f_Set_MajorRound(sp.SportType) sd
+				WHERE	sd.ResourceID = ISNULL(sp.RefResourceId,sp.ResourceID)
+			)sd
+		WHERE	sp.SportType = @SportType
 		-----------------------------------------------------END parse XML----------------------------------------------------------------------
-
 		SELECT   @SelectedRID   = (SELECT Bettype   AS '@bt'
 											 ,BetID	AS '@b'
 									  FROM @tmpSelectedRID
@@ -340,7 +354,7 @@ BEGIN
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 			FROM @tmpSelectedRID t
-			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
+			WHERE t.BetType IN (2, 3) AND @sportType IN (5, 9) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT 
@@ -367,7 +381,6 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
-
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
@@ -571,12 +584,6 @@ BEGIN
 							,@Sporttype			= @Sporttype
 							,@creator 			= @creator
 							
-			EXEC dbo.NAP_Admin_Settlement_MP
-							@matchid			= @matchid
-							,@creator			= @creator
-							,@action			= 'UNDO'
-							,@SelectedResources = @SelectedResources
-							,@IP				= @IP
 			IF @existsFinalRound = 1
 			BEGIN
 				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
@@ -684,7 +691,6 @@ BEGIN
 		  RETURN
 	END CATCH
 
-
 	SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custid)
 	FROM @BalanceWalletAfter a
 		INNER JOIN @BalanceWalletBefore b 
@@ -695,7 +701,15 @@ BEGIN
 				AND a.bonusId		= b.bonusId
 	WHERE a.balance <> b.balance
 	
-	
+	SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+											,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
+											,bettype AS '@Bettype'
+											,pfid	AS '@pfId'
+											,HomeValue AS '@Home'
+											,AwayValue AS '@Away'
+									FROM	@tmpSelectedRID
+									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+
 	-------------------------------------------------------------
 	---					  WRITE LOG						---
 	---------------------------VVVV------------------------------
@@ -751,7 +765,6 @@ BEGIN
 									ELSE ' Selected:' 
 								END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog)) 
-	
 	SELECT @logdata = CASE WHEN @sportType = 50 AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
@@ -759,7 +772,6 @@ BEGIN
 							+ ' Result: ' + @SelectedResources + '<br/> '
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
-						   
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ CASE
@@ -770,17 +782,17 @@ BEGIN
 						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-				
-				
-				
+					
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @creator
 				,@Doing = @logdata
 	
+	SET @matchLog = @MatchID
+
 	
 	IF @ParentMatchId IS NOT NULL ---Cricket
 	BEGIN
-		SELECT  @MatchId =  @ParentMatchId
+			SELECT  @matchLog =  @ParentMatchId
 				,@fth	= finalhomescore
 				,@fta	= finalawayscore
   		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
@@ -796,7 +808,7 @@ BEGIN
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@userid				= @creator
-				,@matchid			= @MatchID
+				,@matchid			= @matchLog
 				,@actionid			= @ActionID
 				,@finalhomescore	= @fth
 				,@finalawayscore	= @fta
@@ -810,7 +822,7 @@ BEGIN
 		SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
 		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@UserID				= @creator
-				,@MatchID			= @matchid
+				,@MatchID			= @matchLog
 				,@actionid			= @actionid
 				,@finalhomescore	= @fth
 				,@finalawayscore	= @fta
@@ -827,5 +839,27 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
+	
+	IF @IsMergedParlay = 1
+	BEGIN
+		-- update single_Calculate_queue
+		UPDATE	s 
+			SET IsCalculating = 100 -- start to calculate parlay
+		FROM	dbo.Single_Calculate_Queue s WITH(ROWLOCK, UPDLOCK)
+		WHERE	s.keyid = @KeyId
+				AND s.IsCalculating = 1
+
+		-- Settle parlay
+		EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+			 @creator			= @creator
+			,@MatchID			= @MatchId
+			,@Action		  	= @Action
+			,@IP	 			= @Ip
+			,@SelectedResources = @SelectedResourceParlay
+			,@IsReSettledTickets = @IsReSettledTickets
+
+			,@ErrCode			= @ErrCode OUTPUT
+			,@ErrMsg 			= @ErrMsg OUTPUT
+	END
 END
 GO

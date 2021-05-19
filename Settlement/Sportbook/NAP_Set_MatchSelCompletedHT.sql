@@ -44,6 +44,7 @@ AS
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200904@Louisa: Get external score [Redmine:#139979]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		
 */
 BEGIN
@@ -54,6 +55,7 @@ BEGIN
 	DECLARE @HTOverStartMins INT, @HTOverEndMins INT, @matchidList varchar(MAX) = ''
 
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
+			, @IsMergedParlay BIT = 0
 	
 	SELECT @LeagueID = CASE WHEN @isReLoad = 1 THEN ISNULL(@LeagueID, 0) 
 						ELSE 0	END -- reload partial; search on LeagueID, not reload: get all leagues
@@ -80,6 +82,10 @@ BEGIN
 	DECLARE @BetStatus TABLE (matchid INT, betcount BIGINT,cntFGLG INT,cntHTFGLG INT)
 	
 	DECLARE @SqlQuery VARCHAR(4000)
+
+	SELECT	@IsMergedParlay = IsMergedParlay 
+	FROM	dbo.f_Set_SettingByProfile(@sporttype)
+
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
 	SELECT *
@@ -150,6 +156,22 @@ BEGIN
 	GROUP BY b.matchid
 	OPTION (OPTIMIZE FOR (@n = 1))	
 
+	IF @IsMergedParlay = 1
+	BEGIN
+		MERGE	@BetStatus AS TARGET
+		USING (
+			SELECT t.matchid, COUNT(1) parlaycount
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				INNER JOIN @DataTmp t
+					ON bm.matchid = t.MatchId
+			GROUP BY t.matchid
+		) AS SOURCE
+			ON TARGET.MatchId = SOURCE.MatchId
+		WHEN MATCHED THEN UPDATE SET betcount = TARGET.betcount + SOURCE.parlaycount
+		WHEN NOT MATCHED BY TARGET THEN 
+			INSERT (matchid,betcount,cntFGLG,cntHTFGLG) VALUES (SOURCE.MatchId, SOURCE.parlaycount, 0, 0);	
+	END
+
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
@@ -169,18 +191,32 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		UPDATE	mk 
-			SET  IsExistMarkedTicket = 1
+			SET  IsExistMarkedTicket = CASE WHEN m.HasMarkedSingle + m.HasMarkedParlay > 0 THEN 1 ELSE 0 END
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
 				SELECT	mt.matchId
+						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
+						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
 				FROM	#tmpMarkedTransaction mt
 					CROSS APPLY (
-						SELECT	TOP (1) b.transid
+						SELECT	TOP (1) b.transid, b.refno, b.matchid, b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
-								AND b.statusID = 0
-								AND b.matchid <> 29
 					) b
+					OUTER APPLY (
+						SELECT TOP 1 1 IsParlay
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+						WHERE	bm.refno = b.refno
+								AND bm.statusid = 0
+								AND b.matchid = 29
+								AND bm.matchid = mt.matchId
+								AND @IsMergedParlay = 1
+					)bm
+				WHERE	1 = CASE
+								WHEN b.matchid <> 29 AND b.statusID = 0 THEN 1
+								WHEN b.matchid = 29 AND bm.IsParlay = 1 THEN 1
+								ELSE 0
+							END
 				GROUP BY mt.matchid
 			) m
 				ON m.matchid = mk.MatchId

@@ -16,6 +16,7 @@ AS
 	Revisions:		
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20210701@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's Explanation:		
 		

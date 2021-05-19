@@ -31,6 +31,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -53,6 +54,8 @@ BEGIN
 			,@IsEarly				BIT
 			,@WaitingTime			VARCHAR(10)
 			,@IsWaiting				BIT = 0
+			,@IsMergedParlay		BIT = 0
+			,@KeyId					INT
 
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
@@ -141,12 +144,7 @@ BEGIN
 			FROM Single_Calculate_Queue s WITH (NOLOCK)
 			WHERE s.matchid = @matchid 
 			AND s.IsCalculating IN (0, 1)
-			) OR EXISTS (
-			SELECT 1
-			FROM Parlay_Calculate_Queue p WITH (NOLOCK)
-			WHERE p.matchid = @matchid 
-			AND p.IsCalculating IN (0, 1)
-			)
+			) 
 	BEGIN
 		SELECT	 @ErrCode = 1001003
 				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
@@ -184,6 +182,25 @@ BEGIN
 		SELECT  @ErrCode = @ErrCode
 			   ,@ErrMsg	 = @ErrMsg
 		RETURN
+	END
+
+	SELECT	@IsMergedParlay = IsMergedParlay
+	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
+
+	-- check movebet day
+	IF @IsMergedParlay = 1
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
+			@MatchIds =  @MatchId 
+			,@ErrCode = @ErrCode
+			,@ErrMsg = @ErrMsg
+		IF @ErrCode <> 0
+		BEGIN
+			SELECT @ErrCode
+					,@ErrMsg
+
+			RETURN
+		END
 	END
 
 	SELECT	 @ErrCode		= 0
@@ -273,7 +290,7 @@ BEGIN
 			)
 		SELECT @MatchId
 			,@matchcode
-			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
+			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 99 END
 			,@leagueid
 			,@sporttype
 			,@AdminId
@@ -281,6 +298,15 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+		
+		SET @KeyId = SCOPE_IDENTITY()
+
+		UPDATE s 
+			SET sqlCommand = @sqlCommand + ', @KeyId = ' + CAST(keyid AS VARCHAR)
+				,IsCalculating = 0
+		FROM	dbo.Single_Calculate_Queue s WITH(ROWLOCK, UPDLOCK)
+		WHERE	keyid = @KeyId
+				AND IsCalculating = 99
 
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand
