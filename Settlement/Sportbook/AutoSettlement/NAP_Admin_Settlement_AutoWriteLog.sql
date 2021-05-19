@@ -24,6 +24,7 @@ AS
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210518@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		
 	Param's Explanation:
 		@Product: BetRadar
@@ -47,7 +48,10 @@ AS
 					            <rsc m="4"/>
 					            <rsc m="5"/>
 					         </Resources>'
-
+		For PinGoal:
+			@ResourceIDs =  '<Resources>
+								<Resource Id="00" Home="1" Away="3" />
+							</Resources>'
 		
 */
 BEGIN
@@ -158,6 +162,36 @@ BEGIN
 						+ CASE  WHEN @totalSettledMarketIDs = 0 THEN ''
 								WHEN @totalSettledMarketIDs <= @maxResultShowed THEN '<br/>Settled MarketIDs: ' + @Remark 
 								ELSE '<br/> Total Settled MarketIDs:' + CAST(@totalSettledMarketIDs AS VARCHAR) END
+	END
+	ELSE IF @Product = 'PinGoal'
+	BEGIN
+		DECLARE @resultPinGoal VARCHAR(MAX) = ''
+				,@xmlstr XML
+		
+		SET @xmlstr = CAST(@ResourceIDs AS XML)
+
+		;WITH TmpData AS (
+			SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceID
+				  ,T.C.value('@Home', 'VARCHAR(50)') AS Home
+				  ,T.C.value('@Away', 'VARCHAR(50)') AS Away
+			FROM @xmlstr.nodes('/Resources/Resource') AS T(C)
+		)
+		
+		SELECT @resultPinGoal = @resultPinGoal + ',' + ResourceID	
+								+ CASE WHEN ISNULL(Home,'') <> '' AND ISNULL(Away,'') <> '' 
+									   THEN '(' + Home + '-' + Away + ')'
+									   ELSE '' END
+		FROM TmpData
+
+
+		SELECT @resultPinGoal = STUFF(@resultPinGoal, 1, 1, '')
+
+		SELECT	@Remark = 'NAP:ResourceIDs:' + @resultPinGoal +  ' <br/> ' 
+							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+							+ ' Action:' + @Action +  ' <br/> ' 
+							+ @Remark
+
+
 	END
 	ELSE
 	BEGIN
