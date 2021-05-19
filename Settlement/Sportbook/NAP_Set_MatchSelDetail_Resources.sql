@@ -186,20 +186,20 @@ BEGIN
 			FROM (	SELECT DISTINCT bt.bettype, bt.betid
 					FROM	dbo.bettrans bt WITH (NOLOCK)
 					WHERE	bt.matchid = @matchid
-							AND (bt.bettype = 603 OR bt.bettype BETWEEN 627 AND 644)
+							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 627 AND 644)
 							AND bt.statusID NOT IN (101, 102) --void/reject
 					UNION ALL
 					SELECT DISTINCT btm.bettype, btm.betcheck
 					FROM	dbo.bettransm btm WITH (NOLOCK)
 					WHERE	btm.matchid = @matchid
-							AND (btm.bettype = 603 OR btm.bettype BETWEEN 627 AND 644)
+							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 627 AND 644)
 							AND btm.statusID	NOT IN (101, 102) --void/reject
 				)bt
 				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			WHERE	(sp.Betid = 0 OR sp.BetID = bt.BetID)
 				AND sp.sporttype = @SportType
 				AND (sp.Settletype = @SettleType)	
-			GROUP BY CASE WHEN bt.bettype = 603 THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END
+			GROUP BY CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END
 		END
 	END
 	
