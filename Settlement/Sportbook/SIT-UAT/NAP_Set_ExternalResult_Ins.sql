@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE NAP_Set_ExternalResult_Ins
+ALTER PROCEDURE NAP_Set_ExternalResult_Ins
 (
 @MatchId3rd	INT = 0
 ,@MatchId	INT = 0
@@ -17,6 +17,7 @@ AS
     
     Revisions:   
 		- 20201206@Louisa: Support QC Insert data Test for SBO result [Redmine:#146239]
+		- 20210519@Louisa: Support QC Insert data Test for Weverdat result [Redmine:#153915]
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -33,36 +34,49 @@ AS
 */
 BEGIN
 	
-	DECLARE @Sporttype SMALLINT
-	SELECT  @Sporttype = m.Sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
+	DECLARE @Sporttype SMALLINT, @IsLeagueTest BIT
+
+	SELECT  @Sporttype = m.Sporttype 
+			,@IsLeagueTest = ISNULL(l.isTest,0)
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK) 
+			ON m.leagueid = l.leagueid
+	WHERE m.matchid  = @MatchId
 
 	IF  ISNULL(@Sporttype,0) = 0 
 	BEGIN
 		SELECT @ErrMsg = N'Invalid sport type or match'
+		RETURN
+	END
+
+	IF  @IsLeagueTest = 0 
+	BEGIN
+		SELECT @ErrMsg = N'The League does not belong league test'
+		RETURN
 	END
 
 	BEGIN TRY
-		IF @Sporttype IN ( 5,9) ---- Tennis, Badminton
-									BEGIN
-		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
-		@MatchId3rd = @MatchId3rd
-		,@MatchId	= @MatchId
-		,@SourceId	= @SourceId
-		,@Resources = @Resources
-		,@UserId	= @UserId
-	END
+		IF @Sporttype IN ( 5,9,50) ---- Tennis, Badminton, Cricket
+		BEGIN
+			EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
+			@MatchId3rd = @MatchId3rd
+			,@MatchId	= @MatchId
+			,@SourceId	= @SourceId
+			,@Resources = @Resources
+			,@UserId	= @UserId
+		END
 
 		ELSE IF @Sporttype = 43 ---E-Sports
-									BEGIN
+		BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESIns
-		@MatchId3rd = @MatchId3rd
-		,@MatchId	= @MatchId
-		,@SourceId	= @SourceId
-		,@Resources = @Resources
-		,@UserId	= @UserId
-	END
+			@MatchId3rd = @MatchId3rd
+			,@MatchId	= @MatchId
+			,@SourceId	= @SourceId
+			,@Resources = @Resources
+			,@UserId	= @UserId
+		END
 
-		ELSE ---IF @Sporttype IN (1,2,3,4,6,8,18,19,24,25) 
+		ELSE IF @Sporttype IN (1,2,3,4,6,8,18,19,24,25) 
 		BEGIN
 			EXEC dbo.NAP_Set_ProviderExternalResultDetailIns
 			@MatchId3rd = @MatchId3rd
@@ -80,4 +94,3 @@ BEGIN
 	END CATCH
 END
 GO
-
