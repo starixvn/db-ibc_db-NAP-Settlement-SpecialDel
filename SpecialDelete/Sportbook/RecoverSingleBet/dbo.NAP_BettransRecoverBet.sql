@@ -62,6 +62,8 @@ AS
 		- 20191209@Charles: Add Column SportType to output tables [124675]
 		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+
 	Param's Explanation:
 */
 BEGIN
@@ -1728,63 +1730,7 @@ BEGIN
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		  @BalanceWalletBefore	= @tblBeforeBalance
 		, @BalanceWalletAfter	= @tblAfterBalance
-		, @ActionId				= 0
-			
-		
-	IF EXISTS (
-	       SELECT TOP 1 1
-	       FROM   #tblTransInfo t
-	       WHERE  t.bettype IN (1, 3, 7, 8)
-	   )
-	BEGIN
-	    DECLARE @Total TABLE (
-	                oddsid INT,
-	                matchid BIGINT,
-	                HomeTotal MONEY,
-	                AwayTotal MONEY
-	            )
-	    
-	    INSERT INTO @Total
-	    SELECT b.oddsid,
-	           b.matchid,
-	           SUM(
-	               CASE 
-	                    WHEN b.betteam = 'h' THEN (
-	                             CASE 
-	                                  WHEN ABS(b.odds) > 1 THEN ABS(b.odds)
-	                                  ELSE 1
-	                             END * b.stake * e.actualrate * (1 -b.tpositiontaking)
-	                         )
-	                    ELSE 0
-	               END
-	           )     homeTotal,
-	           SUM(
-	               CASE 
-	                    WHEN b.betteam = 'a' THEN (CASE WHEN ABS(b.odds) > 1 THEN ABS(b.odds) ELSE 1 END) 
-	                         * b.stake * e.actualrate * (1 -b.tpositiontaking)
-	                    ELSE 0
-	               END
-	           )     awayTotal
-	    FROM   bettrans b WITH(NOLOCK)
-	           INNER JOIN custDB.dbo.exchange e WITH(NOLOCK)
-	                ON  b.currency = e.exchangeid
-	    WHERE  b.bettype IN (1, 3, 7, 8)
-	           AND b.ruben = 0
-	           AND b.oddsid <> 0
-	           AND b.matchid IN (SELECT t.matchid
-	                             FROM   #tblTransInfo t)
-	    GROUP BY
-	           b.oddsid,
-	           b.matchid
-	    
-	    UPDATE odds WITH(UPDLOCK, ROWLOCK)
-	    SET    hometotal     = t.HomeTotal,
-	           awaytotal     = t.AwayTotal
-	    FROM   odds o
-	           INNER JOIN @Total t
-	                ON  o.oddsid = t.oddsid
-	                AND o.matchid = t.matchid
-	END
+		, @ActionId				= 0		
 	
 	---- list ticket: match is completed
 	select	t.transid AS inputtransid,

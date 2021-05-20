@@ -110,6 +110,7 @@ AS
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1978,24 +1979,6 @@ BEGIN
 						AND b.[Status] IN ('Accept', 'Confirm')
 		END				
 		
-		--------
-		-- update totalbets
-		DECLARE @Total TABLE (oddsid INT, HomeTotal MONEY, AwayTotal MONEY)
-		INSERT INTO @Total
-			SELECT oddsid,
-				SUM(CASE WHEN betteam='h' THEN (CASE WHEN ABS(odds) > 1 THEN ABS(odds) 
-						 ELSE 1 END * b.stake * e.actualrate * (1-b.tpositiontaking)) ELSE 0 END) homeTotal,
-				SUM(CASE WHEN betteam='a' THEN (CASE WHEN ABS(odds) > 1 THEN ABS(odds) 
-						 ELSE 1 END * b.stake * e.actualrate * (1-b.tpositiontaking)) ELSE 0 END) awayTotal
-			FROM dbo.bettrans b WITH (nolock)
-				INNER JOIN custDB.dbo.exchange e WITH (nolock) ON b.currency = e.exchangeid
-			WHERE bettype IN (1,3,7,8) AND ruben = 0 AND oddsid <> 0 AND matchid = @MatchId
-			GROUP BY oddsid
-
-		UPDATE odds WITH (rowlock, updlock)
-		SET hometotal = t.HomeTotal, awaytotal = t.AwayTotal
-		FROM @Total t WHERE odds.oddsid = t.oddsid AND odds.matchid = @MatchId
-
 		-- Update Parlay Tickets
 		IF EXISTS (SELECT 1 FROM #BetDeletem)
 		BEGIN

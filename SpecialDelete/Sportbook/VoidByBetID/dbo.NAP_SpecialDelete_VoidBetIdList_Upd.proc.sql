@@ -90,6 +90,7 @@ AS
 	  - 20201214@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 	  - 20210107@Charles: Return extra oddsid column in results [Redmine: #143666]
 	  - 20210505@July: Show VIP status on void email [Redmine: #153157]
+	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 
 	 Param's Explanation:   
 	*/
@@ -2632,29 +2633,7 @@ BEGIN
 		WHERE	Increased = 1
 		
 		DROP TABLE #balanceGameChange
-	END
-	
-	----ODDS
-	UPDATE odds  
-	SET hometotal = hometotal - (CASE WHEN b.betteam = 'h' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-				  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-		   ELSE 0 END )  
-	,awaytotal = awaytotal - (CASE WHEN b.betteam = 'a' THEN CASE WHEN abs(b.odds) > 1 THEN b.stake * e.actualrate * abs(b.odds) * (1 - b.tpositiontaking)  
-				  ELSE b.stake * e.actualrate * (1 - b.tpositiontaking) END  
-			ELSE 0 END)  
-	FROM dbo.odds o WITH (ROWLOCK,UPDLOCK)  
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) 
-			ON o.matchid = b.matchid AND o.oddsid = b.oddsid  
-		INNER JOIN #tblMatch tm ON b.matchid = tm.matchid
-		INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid  
-		INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) ON c.currency = e.exchangeid  
-		
-	WHERE EXISTS ( 
-			SELECT TOP 1 1   
-			FROM #BetDelete AS bd
-			WHERE bd.TransID  = b.transid
-				AND bd.Bettype IN (1,3,7,8)				
-	   )  
+	END  
 	
 	------ releasing SD process
 	--CleanUP:

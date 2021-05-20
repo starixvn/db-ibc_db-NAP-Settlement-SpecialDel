@@ -101,7 +101,7 @@ Revisions:
 	- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	- 20201126@Charles: God of fortune [Redmine: #146053]
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
-
+	- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -2288,44 +2288,6 @@ BEGIN
 				, @BalanceWalletAfter	= @afterUpd
 				, @ActionId				= 0	
 
-		-- update totalbets
-		DECLARE @Total TABLE (  
-			oddsid INT  
-			,HomeTotal MONEY  
-			,AwayTotal MONEY  
-		)  
-
-		INSERT INTO @Total  
-		SELECT oddsid  
-		,SUM(CASE   
-		 WHEN betteam = 'h' THEN (CASE   
-		   WHEN ABS(odds) > 1 THEN ABS(odds)  
-		   ELSE 1 END * b.stake * e.actualrate * (1 - b.tpositiontaking)  
-		   )  
-		 ELSE 0  
-		 END) homeTotal  
-		,SUM(CASE   
-		 WHEN betteam = 'a' THEN (CASE   
-		   WHEN ABS(odds) > 1 THEN ABS(odds)  
-		   ELSE 1 END * b.stake * e.actualrate * (1 - b.tpositiontaking)  
-		   )  
-		 ELSE 0  
-		 END) awayTotal  
-		FROM dbo.bettrans AS b WITH (NOLOCK)  
-		INNER JOIN custDB.dbo.exchange AS e WITH (NOLOCK) ON b.currency = e.exchangeid  
-		WHERE bettype IN (1, 3, 7, 8)  
-		AND ruben = 0  
-		AND oddsid <> 0  
-		AND matchid = @matchid  
-		GROUP BY oddsid  
-
-		UPDATE odds WITH (ROWLOCK, UPDLOCK)  
-		SET hometotal = t.HomeTotal  
-		,awaytotal = t.AwayTotal  
-		FROM @Total t  
-		WHERE odds.oddsid = t.oddsid  
-		AND odds.matchid = @matchid  
-		
 		--UPDATE Mix and System parlay
 		IF EXISTS (  
 			SELECT 1  
