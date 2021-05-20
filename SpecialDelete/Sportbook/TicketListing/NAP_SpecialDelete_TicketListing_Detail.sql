@@ -133,61 +133,43 @@ BEGIN
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tblSettlementHistory ( transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT)
-	DECLARE @tblRemoveTransid TABLE (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
 
 	IF (@IsReSettled = 1)
 	BEGIN 
 		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.settlementhistory WITH(NOLOCK) WHERE MatchId = @MatchId)
 		BEGIN
-			INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber)
-			SELECT  transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged
+			INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber, RN_settle)
+			SELECT transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged
 					, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CreatedDate DESC) Rownumber
+					, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
 			FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
 			WHERE Matchid = @MatchId
-
-			IF EXISTS( SELECT TOP 1 1 FROM #tblsettlementhistory WHERE Rownumber = 1 AND SettlementType IN (0,4))
-			BEGIN
-				INSERT INTO @tblRemoveTransid
-				SELECT transid
-				FROM #tblsettlementhistory
-				WHERE Rownumber = 1 AND SettlementType IN (0,4)
-
-				DELETE b
-				FROM #tblsettlementhistory b 
-				INNER JOIN @tblRemoveTransid r ON b.transid = r.transid
-			END
-
-			IF EXISTS( SELECT TOP 1 1 FROM #tblsettlementhistory WHERE Rownumber > 1 AND SettlementType <> 0)
-			BEGIN
-				DELETE b
-				FROM #tblSettlementHistory b 
-				OUTER APPLY (
-							SELECT bt.transid, MAX(bt.CreatedDate) MaxCreatedDate --get settle before
-							FROM #tblSettlementHistory bt
-							WHERE b.transid = bt.transid
-								AND Rownumber > 1 AND SettlementType <> 0
-							GROUP BY transid
-				)m
-				WHERE b.CreatedDate <= m.MaxCreatedDate
-			END
+			ORDER BY CreatedDate DESC
 
 			INSERT INTO #tmpAffectTickets(Transid)
 			SELECT bt.transid
 			FROM #tblSettlementHistory bt
 			OUTER APPLY ( 
-				SELECT  br.SettlementType, SUM(BalanceChanged) AS sumbalance 
-				FROM #tblSettlementHistory br 
-				WHERE  bt.transid = br.transid
-						AND br.CreatedDate < bt.CreatedDate
-						AND br.SettlementType = 0
-				GROUP BY SettlementType
-					
+				SELECT  bt1.SettlementType, bt1.Rownumber --get settle before
+				FROM #tblsettlementhistory bt1 
+				WHERE  bt.transid = bt1.transid
+						AND bt1.RN_settle = 2 
 			)bt1 
+			OUTER APPLY ( 
+				SELECT  bt2.SettlementType, SUM(bt2.BalanceChanged) sumbalance 
+				FROM #tblsettlementhistory bt2
+				WHERE  bt.transid = bt2.transid
+						AND 1 = CASE WHEN bt1.Rownumber IS NOT NULL AND  bt2.Rownumber > 1 and bt2.Rownumber < bt1.Rownumber THEN 1
+								WHEN bt1.Rownumber IS NULL AND bt2.Rownumber > 1 THEN 1
+								ELSE 0  
+							END
+				GROUP BY bt2.SettlementType
+			)bt2
 			WHERE bt.Rownumber = 1 
 			AND 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
-						 WHEN bt.SettlementType = 2 AND bt.BalanceChanged + bt1.sumbalance <> 0 THEN 1
-						 ELSE 0 
+						 WHEN bt.SettlementType = 2 AND bt.BalanceChanged + bt2.sumbalance <> 0 THEN 1
+						 ELSE 0
 					END
 		END
 	END
