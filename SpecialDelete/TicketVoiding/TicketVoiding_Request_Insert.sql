@@ -50,6 +50,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistBB				BIT           = 0
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
+	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -66,6 +67,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
+		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -73,8 +75,11 @@ AS
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
-
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		@LogInfoXml: 
+		<root>
+			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
+		</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -85,6 +90,7 @@ BEGIN
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
 			,@avaiableProcess	BIT
+			,@WrongScoreInfoXML XML = NULL
 			
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
@@ -122,6 +128,15 @@ BEGIN
 		BEGIN
 			RETURN;
 		END;
+	END
+
+	IF @IssueTypeId IN (3) --WC
+	BEGIN
+		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
+		SELECT @SingleCount = t.c.value('@SingleCount','INT')
+			  ,@MainParlayCount = t.c.value('@MainParlayCount','INT')
+		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
 
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
@@ -162,8 +177,9 @@ BEGIN
 				,@ToDate = @ToDate
 				,@IsVoidVIPMember = @IsVoidVIPMember
 				,@TypeAccept = @TypeAccept
+				,@WrongScoreInfo = @WrongScoreInfo
 	
-	IF (@IssueTypeId NOT IN (1,10) OR (@IssueTypeId IN (1,10) AND @SingleCount > 0))
+	IF (@IssueTypeId IN(8,9,11,13,15) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
@@ -186,9 +202,10 @@ BEGIN
 				,@StatusIds = @StatusIds			
 				,@FromDate = @FromDate			
 				,@ToDate = @ToDate
+				,@WrongScoreInfo = @WrongScoreInfo
 	END
 
-	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10) AND @MainParlayCount > 0))
+	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3) AND @MainParlayCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
@@ -204,7 +221,8 @@ BEGIN
 				,@ActionId = @ActionId				
 				,@FilterFromTransTime = @VoidFromTime	
 				,@FilterToTransTime	= @VoidToTime		
-				,@FilterBy = @FilterBy				
+				,@FilterBy = @FilterBy
+				,@WrongScoreInfo = @WrongScoreInfo						
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0

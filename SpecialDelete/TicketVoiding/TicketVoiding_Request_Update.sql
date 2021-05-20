@@ -53,6 +53,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@IsConfirmCalculator   BIT			  = 0
+	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -72,6 +73,7 @@ AS
 		- 20210302@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210412@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -80,6 +82,10 @@ AS
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		+ @WrongScoreInfo:
+		<root>
+			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
+		</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -207,6 +213,7 @@ BEGIN
 			,@ToDate = @ToDate
 			,@IsVoidVIPMember = @IsVoidVIPMember
 			,@TypeAccept = @TypeAccept		
+			,@WrongScoreInfo = @WrongScoreInfo				
 			,@ErrMsg = @ErrMsg	OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
@@ -234,8 +241,9 @@ BEGIN
 			,@StatusIds = @StatusIds			
 			,@FromDate = @FromDate			
 			,@ToDate = @ToDate
+			,@WrongScoreInfo = @WrongScoreInfo
 	
-	IF @IssueTypeId IN (1,8,9,10)
+	IF @IssueTypeId IN (1,8,9,10,3)
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 			@RequestId = @RequestId		
@@ -251,7 +259,8 @@ BEGIN
 			,@ActionId = @ActionId				
 			,@FilterFromTransTime = @VoidFromTime	
 			,@FilterToTransTime = @VoidToTime		
-			,@FilterBy = @FilterBy				
+			,@FilterBy = @FilterBy
+			,@WrongScoreInfo = @WrongScoreInfo				
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0

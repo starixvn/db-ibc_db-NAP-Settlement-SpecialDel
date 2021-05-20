@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IsExcludeTest BIT				= 1
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
-	,@SubIssueType  VARCHAR(100)	= NULL
+	,@SubIssueType  VARCHAR(MAX)	= NULL
 )
 AS
 /*	Created by: Kathy
@@ -35,6 +35,7 @@ AS
 		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 
 	Param's explanation:	
 		@Status: 
@@ -92,6 +93,7 @@ BEGIN
 		,FromWinlostDate DATETIME
 		,ToWinlostDate	DATETIME
 		,TotalUserName	INT
+		,WrongScores	VARCHAR(MAX)
 	)
 	CREATE CLUSTERED INDEX CIX_tmpResult_RequestId ON #tmpResult (RequestId)
 
@@ -355,8 +357,7 @@ BEGIN
 	----------------------------- End of EventDate Processing ------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-		
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -375,11 +376,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -389,6 +391,12 @@ BEGIN
 						GROUP BY RequestID
 						)m
 				ON r.RequestId = m.RequestID
+			OUTER APPLY(
+						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
+						FOR XML PATH('')
+						)w (scores)
 		WHERE	r.RequestId = @RequestId
 					   		
 	END
@@ -399,7 +407,7 @@ BEGIN
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.MatchId = @MatchId
 
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -418,11 +426,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -438,11 +447,17 @@ BEGIN
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
+			OUTER APPLY(
+						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
+						FOR XML PATH('')
+						)w (scores)
 		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName)
+		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
 				,r.SubIssueTypeId
 				,r.ActionId
@@ -461,11 +476,12 @@ BEGIN
 				,rd.TransIds
 				,r.IssueTypeId
 				,rd.FilterBy
-				,rd.VoidFromTime
-				,rd.VoidToTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
+				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
+				,STUFF(w.scores,1,1,'') AS WrongScores
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -479,6 +495,12 @@ BEGIN
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = r.SubIssueTypeId
+			OUTER APPLY(
+						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
+						FOR XML PATH('')
+						)w (scores)
 		WHERE ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
@@ -581,6 +603,7 @@ BEGIN
 			,t.FromWinlostDate
 			,t.ToWinlostDate
 			,t.TotalUserName --no.of accounts
+			,t.WrongScores 
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
