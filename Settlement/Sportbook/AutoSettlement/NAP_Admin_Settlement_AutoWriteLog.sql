@@ -22,6 +22,7 @@ AS
 		- 20170113@Kathy: Enhancement for Fast Market [Redmine:#69951]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		
 	Param's Explanation:
 		@Product: BetRadar
@@ -100,8 +101,8 @@ BEGIN
 		INSERT INTO @tblResultDetail (bettype, DisplayPosition)
 		SELECT	bettype
 				,CASE 
-					WHEN bettype = 229 AND Position = 45 THEN '44+'
-					WHEN bettype = 229 AND Position > 45 THEN CAST(Position -1 AS VARCHAR)
+					WHEN bettype IN (228,229) AND Position = 45 THEN '44+'
+					WHEN bettype IN (228,229) AND Position > 45 THEN CAST(Position -1 AS VARCHAR)
 					ELSE CAST(Position AS VARCHAR)
 				END
 		FROM TmpData

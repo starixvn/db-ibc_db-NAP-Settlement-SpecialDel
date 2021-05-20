@@ -1,2 +1,1 @@
-Settlement\Sportbook\NAP_Set_ProviderGameTypeMapping.sql
-Settlement\Sportbook\NAP_Set_ProviderGameTypeMappingSel.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql

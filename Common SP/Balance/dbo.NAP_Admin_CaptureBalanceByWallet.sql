@@ -26,6 +26,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -68,13 +69,26 @@ BEGIN
 		, @minBettype		SMALLINT
 		, @maxBettype		SMALLINT
 		, @handle			INT
-				
+	
+		, @maxSelectedPosition INT 
+		, @maxSelectedTotalGoal INT = 0
+		, @totalChangedScore INT = 0
+		, @maxSelectedTotalGoalBeforeReCAL INT = 0
+
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, groupId SMALLINT, GroupName VARCHAR(50))
 	DECLARE @tmpResourceIdsBasketBall TABLE (ResourceId VARCHAR(20), bettype SMALLINT)
     DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT)
     DECLARE @matchid_tmp INT
-	                         
+	DECLARE @TmpFMData AS TABLE (
+		bettype					SMALLINT
+		,Position				TINYINT
+		,BetOption				TINYINT
+		,OldAccumulatedScore	INT -- 228
+		,AccumulatedScore		INT -- 228
+		,HasInjuryTime			BIT DEFAULT(0)
+	)
 
+	CREATE TABLE #tmpFMTransId (TransId BIGINT)
 	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 	
@@ -342,17 +356,110 @@ BEGIN
 		END
 		ELSE IF (@Mode = 7) -- Fast Market
 		BEGIN
-			SELECT @matchid AS matchid
-				, custid
-				,@balanceType AS balanceType
-				, WalletType
-				, BonusID
-				, balance 
-			FROM dbo.f_Set_GetBalanceFastMarket (
-				@MatchId
-				, @Action
-				, @xmlFMResults
-			)
+			INSERT INTO @TmpFMData (bettype, Position, BetOption, OldAccumulatedScore, AccumulatedScore, HasInjuryTime)
+			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
+				,X.C.value('@p','TINYINT') as Position
+				,X.C.value('@r','TINYINT') as BetOption
+				,X.C.value('@oa','INT') as OldAccumulatedScore
+				,X.C.value('@a','INT') as AccumulatedScore
+				,ISNULL(X.C.value('@i','BIT'), 0) AS HasInjuryTime
+			FROM @xmlFMResults.nodes('/r/b') AS T(C)
+				CROSS APPLY
+					C.nodes('r') AS X(C)
+			OPTION ( OPTIMIZE FOR ( @xmlFMResults = NULL ) )	
+
+			IF EXISTS (SELECT TOP 1 1 FROM @TmpFMData WHERE bettype = 228)
+			BEGIN
+				SELECT TOP 1 @maxSelectedTotalGoal = AccumulatedScore
+							,@maxSelectedPosition = Position
+							,@maxSelectedTotalGoalBeforeReCAL = OldAccumulatedScore
+				FROM  @TmpFMData 
+				WHERE bettype = 228
+				ORDER BY Position DESC
+
+				SELECT	@totalChangedScore = SUM(BetOption)
+				FROM	@TmpFMData
+				WHERE	bettype = 228
+			END
+	
+			INSERT INTO #tmpFMTransId(TransId)
+			SELECT b.transid
+			FROM dbo.bettrans b WITH (ROWLOCK)
+				INNER JOIN @TmpFMData t
+					ON t.bettype = b.bettype		
+			WHERE b.matchid	= @matchid	
+				AND b.statusID NOT IN (101)
+				AND 1 = CASE
+							WHEN t.HasInjuryTime = 0
+								THEN CASE 
+										WHEN b.hdp1 = t.Position THEN 1
+										ELSE 0
+									END
+							ELSE CASE
+									WHEN t.Position < 45 AND b.hdp1 = t.Position THEN 1
+									WHEN t.Position > 45 AND b.hdp1 = t.Position - 1 THEN 1
+									ELSE 0
+								END
+						END
+				AND 1 = CASE
+							WHEN b.bettype <> 228 THEN 1
+							WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) < @maxSelectedTotalGoal - @totalChangedScore THEN 0
+							ELSE 1
+						END
+
+			IF @Action IN ('CAL', 'UNDO') AND EXISTS (SELECT TOP 1 1 FROM @TmpFMData WHERE bettype = 228)  
+			BEGIN
+				;WITH ctePreviousSettledTransId
+				AS(
+					SELECT	b.transid
+					FROM	dbo.bettrans b WITH(NOLOCK)
+					WHERE	b.matchid = @matchid
+							AND b.bettype = 228
+							AND b.statusID NOT IN (101)
+							AND @action = 'CAL'
+							AND 1 = CASE
+										WHEN @maxSelectedPosition < 45 AND b.hdp1 > @maxSelectedPosition THEN 1
+										WHEN @maxSelectedPosition >= 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
+										ELSE 0
+									END
+							AND @maxSelectedTotalGoalBeforeReCAL > (b.oddsspread + 0.25)  
+				)
+				INSERT INTO #tmpFMTransId(transid)
+				SELECT	ISNULL(b.transid, c.transid) AS transid
+				FROM ( 
+					SELECT	b.transid
+					FROM	dbo.bettrans b WITH(NOLOCK)
+					WHERE	b.matchid = @matchid
+							AND b.bettype = 228
+							AND b.statusID NOT IN (101)
+							AND 1 = CASE
+										WHEN @maxSelectedPosition < 45 AND b.hdp1 > @maxSelectedPosition THEN 1
+										WHEN @maxSelectedPosition >= 45 AND b.hdp1 >= @maxSelectedPosition THEN 1
+										ELSE 0
+									END
+							AND 1 = CASE 
+										WHEN @action = 'CAL' AND @maxSelectedTotalGoal > (b.oddsspread + 0.25)  THEN 1
+										WHEN @action = 'UNDO' AND (b.oddsspread + 0.25) <= @maxSelectedTotalGoal AND (b.oddsspread + 0.25) >= @maxSelectedTotalGoal - @totalChangedScore THEN 1
+										ELSE 0
+									END
+				) b
+					FULL JOIN ctePreviousSettledTransId c
+						ON b.transid = c.transid
+			END
+
+			SELECT	@MatchId AS matchid
+					,b.custid
+					,@balanceType AS balanceType
+					,ISNULL(b.WalletType, 2) AS WalletType -- Cash Wallet as default
+					,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusID
+					,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+			FROM	#tmpFMTransId t
+				INNER JOIN dbo.bettrans b WITH(ROWLOCK)
+					ON t.TransId = b.transid
+			GROUP BY b.custid
+					,ISNULL(b.WalletType, 2)
+					,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END
+
 		END
 	END
 END
