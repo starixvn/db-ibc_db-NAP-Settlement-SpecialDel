@@ -24,6 +24,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 
 	Param's explanation:	
 	
@@ -125,7 +126,7 @@ BEGIN
 			WHERE b.statusID = 0 AND mt_tmp.TransId IS NULL
 					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 					AND ISNULL(m_auto.[Enabled],1) = 1
-					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108)
+					AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108,113)
 					
 			OPTION (MAXDOP 1)
 			
