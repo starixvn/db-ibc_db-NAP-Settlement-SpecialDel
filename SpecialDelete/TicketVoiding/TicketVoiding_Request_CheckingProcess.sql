@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20210402@Kathy: Create new SP [Redmine:#152581]
+		- 20210524@July: Lock TempVariableNumber due to duplicate voiding requestid inserted from web special delete [Redmine:#155575]
 		
 	
 	Param's explanation:	
@@ -31,7 +32,10 @@ BEGIN
 			,@starttime			DATETIME
 
 	DECLARE @tmpMatchTransIds TABLE (MatchId INT, TransIds VARCHAR(MAX))
+	DECLARE @tmpMatchTransIdsParlay TABLE (MatchId INT, TransIds VARCHAR(MAX))
 	DECLARE @tmpInputTransId TABLE (MatchId INT, TransId BIGINT)
+	DECLARE @tmpInputTransIdParlay TABLE (MatchId INT, TransId BIGINT)
+
 	DECLARE @tmpKeyId TABLE (
 		MatchId	INT
 		,KeyId		TINYINT
@@ -47,6 +51,12 @@ BEGIN
 	WHERE	q.VoidingHistoryId = @VoidingHistoryId 
 			AND q.voidingtypeId = 1 -- single
 
+	INSERT INTO @tmpMatchTransIdsParlay (MatchId, TransIds)
+	SELECT	q.MatchId, q.TransIds
+	FROM	dbo.TicketVoiding_Queue q WITH (NOLOCK)	
+	WHERE	q.VoidingHistoryId = @VoidingHistoryId 
+			AND q.voidingtypeId = 2 -- parlay
+
 	INSERT INTO @tmpInputTransId (MatchId, TransId)
 	SELECT	t.MatchId, f.TransId AS TransId
 	FROM	@tmpMatchTransIds t 
@@ -55,6 +65,16 @@ BEGIN
 				FROM	dbo.f_SplitString(t.TransIds, ',')
 			)f
 	OPTION (maxrecursion 0)
+
+	INSERT INTO @tmpInputTransIdParlay (MatchId, TransId)
+	SELECT	t.MatchId, f.TransId AS TransId
+	FROM	@tmpMatchTransIdsParlay t 
+		CROSS APPLY (
+				SELECT	val AS TransId
+				FROM	dbo.f_SplitString(t.TransIds, ',')
+			)f
+	OPTION (maxrecursion 0)
+
 
 	INSERT INTO @tmpKeyId (MatchId, KeyID)
 	SELECT	t.matchid
@@ -74,6 +94,7 @@ BEGIN
 				FROM	dbo.f_TVS_CheckingProcessGroupBettypes() f
 				WHERE	f.Bettype = b.bettype
 			)f
+	WHERE statusId <> 102
 	GROUP BY t.matchid
 			,CASE 
 				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
@@ -88,7 +109,15 @@ BEGIN
 
 	IF EXISTS (SELECT * FROM dbo.TicketVoiding_Queue WITH(NOLOCK) WHERE VoidingHistoryId = @VoidingHistoryId AND VoidingTypeId = 2)
 				OR EXISTS (SELECT TOP 1 1 FROM @tmpKeyId WHERE MatchId = 29)
-		SET @isExistParlay = 1
+	BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpInputTransIdParlay p
+								  INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON p.TransId = bm.transid
+								WHERE  bm.statusID <> 102
+				  )
+		BEGIN
+			SET @isExistParlay = 1
+		END
+	END
 	
 	SET @starttime = getdate()
 	WHILE (1 =1)
