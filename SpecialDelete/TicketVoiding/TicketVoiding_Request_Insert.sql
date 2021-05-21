@@ -76,10 +76,10 @@ AS
 
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
-		@LogInfoXml: 
-		<root>
-			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
-		</root>
+		+ @WrongScoreInfo: 
+			<root>
+				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
+			</root>
 */
 BEGIN
 	SET NOCOUNT ON

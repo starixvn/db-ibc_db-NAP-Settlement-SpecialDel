@@ -75,7 +75,7 @@ AS
 		<root>
 			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore=""/>
 		</root>
-	
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -132,8 +132,6 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,IsCheckedHomeTeam		BIT 
-			,IsCheckedAwayTeam		BIT 
 			,TypeAccept				VARCHAR(50)
 			)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
@@ -229,13 +227,11 @@ BEGIN
 			  ,MaxMainParlayTransId	
 			  ,VoidFromTime			
 			  ,VoidToTime				
-			  ,LiveScores				
-			  ,IsCheckedHomeTeam		
-			  ,IsCheckedAwayTeam		
+			  ,LiveScores					
 			  ,TypeAccept
 			)
 		SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @IsCheckedHomeTeam, @IsCheckedAwayTeam, @TypeAccept
+			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @TypeAccept
 	END
 
 	IF @IssueTypeId IN (8,9,11,15) --EKO,WKO,AB,AB(RealMember)
@@ -596,9 +592,6 @@ BEGIN
 		SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
 							   + ', From: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
 							   + ', To: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
-							   + CASE WHEN @SubIssueTypeId IN (1,2) THEN + ', IsCheckedHomeTeam: '+ CAST(l.IsCheckedHomeTeam AS VARCHAR(5)) 
-																		  + ', IsCheckedAwayTeam: '+ CAST(l.IsCheckedAwayTeam AS VARCHAR(5))
-									  ELSE '' END
 							   + CASE WHEN @IssueTypeId = 1 THEN ', TypeAccept: ' + l.TypeAccept ELSE '' END
 								FROM #tblGetLogInfo l
 	END
