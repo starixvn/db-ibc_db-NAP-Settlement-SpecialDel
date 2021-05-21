@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20210402@Kathy: Create new SP [Redmine:#152581]
+		- 20210524@July: Lock TempVariableNumber due to duplicate voiding requestid inserted from web special delete [Redmine:#155575]
 		
 	
 	Param's explanation:	
@@ -74,6 +75,7 @@ BEGIN
 				FROM	dbo.f_TVS_CheckingProcessGroupBettypes() f
 				WHERE	f.Bettype = b.bettype
 			)f
+	WHERE statusId <> 102
 	GROUP BY t.matchid
 			,CASE 
 				WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
