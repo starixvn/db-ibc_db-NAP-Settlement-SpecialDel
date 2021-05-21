@@ -33,6 +33,7 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210524@July: TVS - Check parlay count = 0 [Redmine:#155575]
 	
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -235,7 +236,7 @@ BEGIN
 								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
 									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId
 								WHERE rs.TransId = t.transid
-									AND rs.MatchId = @MatchId AND rs.RequestId = @RequestId
+									AND rs.MatchId = @MatchId
 									AND r.ActionId NOT IN (2)
 							)tmp
 		WHERE rd.RequestId = @RequestId 
@@ -302,7 +303,7 @@ BEGIN
 		END
 
 	END
-	IF @IssueTypeId IN (3)
+	ELSE IF @IssueTypeId IN (3)
 	BEGIN
 		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
 		INSERT INTO #tblGetLogInfo( 

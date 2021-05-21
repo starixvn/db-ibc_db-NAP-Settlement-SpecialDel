@@ -111,9 +111,8 @@ BEGIN
 				OR EXISTS (SELECT TOP 1 1 FROM @tmpKeyId WHERE MatchId = 29)
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM @tmpInputTransIdParlay p
-								  INNER JOIN dbo.bettrans b WITH(NOLOCK) ON p.TransId = b.transid
-								  INNER HASH JOIN dbo.bettransm bm WITH(NOLOCK) ON b.refno = bm.refno
-								WHERE  b.MatchId = 29 AND bm.statusID <> 102
+								  INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON p.TransId = bm.transid
+								WHERE  bm.statusID <> 102
 				  )
 		BEGIN
 			SET @isExistParlay = 1
