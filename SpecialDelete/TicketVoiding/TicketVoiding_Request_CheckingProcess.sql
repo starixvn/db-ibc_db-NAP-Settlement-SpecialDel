@@ -32,7 +32,10 @@ BEGIN
 			,@starttime			DATETIME
 
 	DECLARE @tmpMatchTransIds TABLE (MatchId INT, TransIds VARCHAR(MAX))
+	DECLARE @tmpMatchTransIdsParlay TABLE (MatchId INT, TransIds VARCHAR(MAX))
 	DECLARE @tmpInputTransId TABLE (MatchId INT, TransId BIGINT)
+	DECLARE @tmpInputTransIdParlay TABLE (MatchId INT, TransId BIGINT)
+
 	DECLARE @tmpKeyId TABLE (
 		MatchId	INT
 		,KeyId		TINYINT
@@ -48,6 +51,12 @@ BEGIN
 	WHERE	q.VoidingHistoryId = @VoidingHistoryId 
 			AND q.voidingtypeId = 1 -- single
 
+	INSERT INTO @tmpMatchTransIdsParlay (MatchId, TransIds)
+	SELECT	q.MatchId, q.TransIds
+	FROM	dbo.TicketVoiding_Queue q WITH (NOLOCK)	
+	WHERE	q.VoidingHistoryId = @VoidingHistoryId 
+			AND q.voidingtypeId = 2 -- parlay
+
 	INSERT INTO @tmpInputTransId (MatchId, TransId)
 	SELECT	t.MatchId, f.TransId AS TransId
 	FROM	@tmpMatchTransIds t 
@@ -56,6 +65,16 @@ BEGIN
 				FROM	dbo.f_SplitString(t.TransIds, ',')
 			)f
 	OPTION (maxrecursion 0)
+
+	INSERT INTO @tmpInputTransIdParlay (MatchId, TransId)
+	SELECT	t.MatchId, f.TransId AS TransId
+	FROM	@tmpMatchTransIdsParlay t 
+		CROSS APPLY (
+				SELECT	val AS TransId
+				FROM	dbo.f_SplitString(t.TransIds, ',')
+			)f
+	OPTION (maxrecursion 0)
+
 
 	INSERT INTO @tmpKeyId (MatchId, KeyID)
 	SELECT	t.matchid
@@ -90,7 +109,16 @@ BEGIN
 
 	IF EXISTS (SELECT * FROM dbo.TicketVoiding_Queue WITH(NOLOCK) WHERE VoidingHistoryId = @VoidingHistoryId AND VoidingTypeId = 2)
 				OR EXISTS (SELECT TOP 1 1 FROM @tmpKeyId WHERE MatchId = 29)
-		SET @isExistParlay = 1
+	BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpInputTransIdParlay p
+								  INNER JOIN dbo.bettrans b WITH(NOLOCK) ON p.TransId = b.transid
+								  INNER HASH JOIN dbo.bettransm bm WITH(NOLOCK) ON b.refno = bm.refno
+								WHERE  b.MatchId = 29 AND bm.statusID <> 102
+				  )
+		BEGIN
+			SET @isExistParlay = 1
+		END
+	END
 	
 	SET @starttime = getdate()
 	WHILE (1 =1)
