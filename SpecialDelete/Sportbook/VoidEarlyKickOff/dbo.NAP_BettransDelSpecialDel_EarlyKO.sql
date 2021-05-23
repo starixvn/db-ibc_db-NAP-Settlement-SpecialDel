@@ -102,6 +102,7 @@ Revisions:
 	- 20201126@Charles: God of fortune [Redmine: #146053]
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 	- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+	- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -489,6 +490,14 @@ BEGIN
 					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
 				WHERE matchid <> @MatchId
 			)
+		OR EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+				WHERE b.matchid = 29  
+					AND b.bettype = 29   
+					AND bm.matchid  <> @matchid  
+			)
 	BEGIN
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Some tickets not found.'
@@ -504,30 +513,6 @@ BEGIN
 
 		RETURN
 	END
-	--Parlay
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransIds t
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-				WHERE b.matchid = 29  
-					AND b.bettype = 29   
-					AND bm.matchid  <> @matchid  
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'Some tickets not found.'
-
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			  @isExistParlay = @isExistParlay  
-			, @isExistMG	 = @isExistMG  
-			, @isExistFM	 = @isExistFM  
-			, @isExistMatch	 = @isExistMatch  
-			, @isExistBB	 = @isExistBB
-			, @isExistFM2	 = @isExistFM2
-			, @IsReleased  	 = 1
-
-		RETURN
-	END 
 
 	------------------***** Insert all data into #BetDelete,#BetmDelete *****------------------    
 	INSERT INTO #BetDelete (  
@@ -1090,10 +1075,12 @@ BEGIN
 
 		------ releasing SD process  
 		EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay  = @isExistParlay  
+				@isExistParlay	= @isExistParlay  
 				, @isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
 				, @IsReleased  	= 1  
 		
 		------ releasing cash-out process
