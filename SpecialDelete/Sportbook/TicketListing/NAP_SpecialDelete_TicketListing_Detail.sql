@@ -146,7 +146,6 @@ BEGIN
 					, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
 			FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
 			WHERE Matchid = @MatchId
-			ORDER BY CreatedDate DESC
 
 			INSERT INTO #tmpAffectTickets(Transid)
 			SELECT bt.transid
