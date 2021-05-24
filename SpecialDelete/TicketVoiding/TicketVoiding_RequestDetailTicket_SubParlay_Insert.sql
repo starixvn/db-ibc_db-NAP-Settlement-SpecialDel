@@ -34,6 +34,7 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210524@July: TVS - Check parlay count = 0 [Redmine:#155575]
+		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 	
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -345,17 +346,27 @@ BEGIN
 			, sub.statusID
 			, @MatchId
 			, main.transid
-			, sub.livehomescore
-			, sub.liveawayscore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE sub.livehomescore END AS livehomescore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE sub.liveawayscore END AS liveawayscore
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.BetType
+			CROSS APPLY (
+				SELECT t.LiveHomeScore, t.LiveAwayScore
+				FROM #tblGetLogInfo t
+				WHERE matchid = @MatchId
+					AND 1 = CASE WHEN sub.livehomescore = LiveHomeScore AND sub.liveawayscore = LiveAwayScore AND sub.transdate BETWEEN VoidFromTime AND VoidToTime THEN 1
+								WHEN sub.transdate BETWEEN VoidFromTime AND VoidToTime AND f.GroupName = '2H' THEN 1
+							ELSE 0 END	
+					AND main.transid BETWEEN MinMainParlayTransId AND MaxMainParlayTransId
+			)s
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
-			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 THEN 0 ELSE 1 END
+			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND EXISTS (SELECT TOP 1 1 
 								FROM #tblGetLogInfo
 								WHERE matchid = @MatchId
