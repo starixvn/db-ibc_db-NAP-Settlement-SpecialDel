@@ -367,13 +367,6 @@ BEGIN
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-			AND EXISTS (SELECT TOP 1 1 
-								FROM #tblGetLogInfo
-								WHERE matchid = @MatchId
-									AND sub.livehomescore = LiveHomeScore
-									AND sub.liveawayscore = LiveAwayScore
-									AND sub.transdate BETWEEN VoidFromTime AND VoidToTime
-									AND main.transid BETWEEN MinMainParlayTransId AND MaxMainParlayTransId)
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
@@ -410,9 +403,16 @@ BEGIN
 				, rd.Id AS RequestDetailId
 				, t.MainTransId
 			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.MatchId = t.MatchId AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				LEFT JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId
-			WHERE st.transid IS NULL
+				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+				OUTER APPLY (
+									SELECT TOP 1 rs.TransId
+									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+									WHERE rs.TransId = t.transid
+										AND rs.MatchId = @MatchId
+										AND r.ActionId NOT IN (2)
+							)tmp
+			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 		END
 		ELSE
 		BEGIN
