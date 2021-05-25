@@ -162,7 +162,7 @@ BEGIN
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, livehomescore SMALLINT, liveawayscore SMALLINT)
 	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblHighlightTransId TABLE (MatchId INT, TransId BIGINT, AcceptType TINYINT)
+	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @Validation AS TABLE (
 			livehomescore SMALLINT
 			,liveawayscore SMALLINT
@@ -397,8 +397,10 @@ BEGIN
 							WHEN @FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
 							ELSE 0 END
 				AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-							 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND b.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 
-									   WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND b.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 
+							 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+									   WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+									   WHEN @SubIssueTypeId IN (56,58,61,69,71,76) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									   WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
 								       WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 									   ELSE 0
 							      END
@@ -520,8 +522,10 @@ BEGIN
 							WHEN @FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN @FilterFromTransTime AND @FilterToTransTime
 					AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-								 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 
-										   WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND sub.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 
+								 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1 
+										   WHEN @SubIssueTypeId IN (68,70) AND sub.bettype NOT IN (483,485) THEN 1
+									       WHEN @SubIssueTypeId IN (56,58,61,69,71,76) AND sub.bettype NOT IN (401,403,407,461,463) THEN 1
+									       WHEN @SubIssueTypeId IN (69,71) AND sub.bettype NOT IN (482,484) THEN 1
 									       WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 									       ELSE 0
 									  END
@@ -1254,8 +1258,10 @@ BEGIN
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 				AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-							  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND b.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 
-									    WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND b.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 
+							  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+									    WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+									    WHEN @SubIssueTypeId IN (56,58,61,69,71,76) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									    WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
 								        WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 									    ELSE 0
 								  END
@@ -1364,10 +1370,12 @@ BEGIN
 					WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END								
 		AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-					 ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND main.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 
-							   WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND main.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 
-							   WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-							   ELSE 0
+					  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND main.bettype NOT IN (402,404,409,462,464) THEN 1 
+								WHEN @SubIssueTypeId IN (68,70) AND main.bettype NOT IN (483,485) THEN 1
+								WHEN @SubIssueTypeId IN (56,58,61,69,71,76) AND main.bettype NOT IN (401,403,407,461,463) THEN 1
+								WHEN @SubIssueTypeId IN (69,71) AND main.bettype NOT IN (482,484) THEN 1
+								WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+							    ELSE 0
 					      END
 				END
 	-- get cash-out member bet tickets	
@@ -1478,10 +1486,12 @@ BEGIN
 												WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												ELSE 0 END
 								AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-											  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,68,70,75,79,82) AND b.bettype NOT IN (402,404,409,462,464,483,485) THEN 1 
-														WHEN @SubIssueTypeId IN (56,58,61,69,71,76,80,83) AND b.bettype NOT IN (401,403,407,461,463,482,484) THEN 1 
-													    WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-														ELSE 0
+											   ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+														 WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+									                     WHEN @SubIssueTypeId IN (56,58,61,69,71,76) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									                     WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
+													     WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+														 ELSE 0
 												  END
 										END
 						) AS b
@@ -1590,14 +1600,13 @@ BEGIN
 		CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
 								 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-								 ELSE  b.transdate END AS VoidTime
+								 END AS VoidTime
 		)act
-		WHERE l.VoidFromTime = act.VoidTime
-			AND b.transid = (CASE WHEN l.MinSingleTransId IS NOT NULL AND l.MinMainParlayTransId IS NOT NULL THEN l.MinSingleTransId
-								  WHEN l.MinSingleTransId IS NOT NULL THEN l.MinSingleTransId
-								  WHEN l.MinMainParlayTransId IS NOT NULL THEN l.MinMainParlayTransId
-								  END
-						 )
+		WHERE l.VoidFromTime = act.VoidTime 
+			AND 1 = (CASE WHEN l.MinSingleTransId IS NOT NULL AND b.transid = l.MinSingleTransId  THEN 1
+						  WHEN l.MinMainParlayTransId IS NOT NULL AND b.transid = l.MinMainParlayTransId THEN 1
+						END
+					)
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
@@ -1707,14 +1716,14 @@ BEGIN
 
 			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
 			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, TransId, AcceptType)
+				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
 				SELECT rd.MatchId, B.transid , CASE 
 										WHEN b.checktime IS NULL THEN 1 --Auto Accept
 										ELSE CASE 
 												  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 												  ELSE 3 --Pending Accept
 											 END
-									END AS AcceptType
+									END AS AcceptType, rd.VoidFromTime
 				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 					CROSS APPLY (
 							SELECT b.matchid, b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
@@ -1733,14 +1742,14 @@ BEGIN
 			
 			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
 			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, TransId, AcceptType)
+				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
 				SELECT rd.MatchId, s.MainTransId , CASE 
 									WHEN b.checktime IS NULL THEN 1 --Auto Accept
 									ELSE CASE 
 											  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 											  ELSE 3 --Pending Accept
 										 END
-								END AS AcceptType
+								END AS AcceptType, rd.VoidFromTime
 				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
 				CROSS APPLY  (
@@ -1781,16 +1790,17 @@ BEGIN
 						WHERE RequestId = rd.RequestId	
 							AND MatchId = rd.MatchId
 				) c
-		  OUTER APPLY (
-				 SELECT  h.MatchId, h.TransId AS HighLightTransId , h.AcceptType AS HighlightAcceptType
-				 FROM @tblHighlightTransId h
-				 WHERE rd.MatchId = h.matchId
-				 AND h.transid = (CASE WHEN rd.MinSingleTransId IS NOT NULL AND rd.MinMainParlayTransId IS NOT NULL THEN rd.MinSingleTransId
-									   WHEN rd.MinSingleTransId IS NOT NULL THEN rd.MinSingleTransId
-									   WHEN rd.MinMainParlayTransId IS NOT NULL THEN rd.MinMainParlayTransId
-									   END
-								 )
-				 )h
+			   OUTER APPLY (
+						 SELECT  MatchId, Transid AS HighLightTransId , AcceptType AS HighlightAcceptType
+						 FROM @tblHighlightTransId
+						 WHERE matchId = rd.MatchId
+							AND rd.VoidFromTime = VoidTime
+							AND 1 = (CASE WHEN rd.MinSingleTransId IS NOT NULL AND rd.MinSingleTransId = TransId THEN 1
+										  WHEN rd.MinMainParlayTransId IS NOT NULL AND rd.MinMainParlayTransId = TransId THEN 1
+										  END
+									)
+
+					)h
 			WHERE rd.RequestId = @RequestId
 		END
 		ELSE
