@@ -6,6 +6,7 @@ ALTER PROCEDURE NAP_Set_ExternalResultDetailOSIns
 	,@OutsideSources	VARCHAR(MAX)
 	,@Sources			VARCHAR(MAX) =''
 	,@IP				varchar(15)	 =''
+	,@IsTrader			BIT			 = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 )
@@ -40,6 +41,9 @@ AS
 								<Source SourceId= "1002" ResourceId = "01" HomeValue="2" AwayValue="4"/>
 						</Sources>
 
+		@IsTrader: 1-Trader
+				   0-Keyscore
+
 		If it's Final Result, SourceId= ""
 */
 
@@ -49,7 +53,7 @@ BEGIN
 	DECLARE  @Sporttype	TINYINT
 			,@LeagueId	INT
 			,@handle	INT
-			,@ActionID  INT = 81016 ---Save Score
+			,@ActionID  INT
 			,@Remark	VARCHAR(MAX)
 			,@xmlSources XML 
 			,@xmlOutsideSources XML
@@ -66,6 +70,8 @@ BEGIN
 		  ,@LeagueId  = m.leagueid
 	FROM dbo.Match m WITH(NOLOCK)
 	WHERE m.MatchId = @MatchId
+
+	SELECT @ActionID =  CASE WHEN ISNULL(@IsTrader,0) = 1 THEN 81027 ELSE 81016 END
 	
 	BEGIN TRY
 		IF ISNULL(@Sources,'') <> '' -- record all scores to write log
