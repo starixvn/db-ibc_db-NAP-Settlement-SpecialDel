@@ -715,7 +715,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ CASE
-							WHEN @sportType IN (43, 5 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN (43, 5, 50 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 

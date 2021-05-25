@@ -11,6 +11,7 @@ AS
     Revisions:            
 		- 20201202@Louisa: SBO Result for 8 sports:3,4,6,8,9,18,24,25  [Redmine:#146239]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 
 	Param's explanation:
 		
@@ -47,7 +48,7 @@ BEGIN
 		WHERE	rn = 1
 	END
 
-	ELSE IF (@SportType = 5)
+	ELSE IF (	@SportType IN (5,50)	)
 	BEGIN
 		INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
 		EXEC [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]
