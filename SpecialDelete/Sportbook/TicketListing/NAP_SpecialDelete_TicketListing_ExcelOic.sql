@@ -48,6 +48,7 @@ AS
 		- 20200923@July: TVS - Resettled Affected Tickets [Redmine: #138552]
 		- 20201202@Max: Tuning SP [Redmine: #146485]
 		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
+		- 20210517@July: Enhance performance of Ticket Listing function [Redmine: #154732]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -142,39 +143,47 @@ BEGIN
 
 	DECLARE @SportType SMALLINT = NULL
 	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
-	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 
-	CREATE TABLE #BalanceRecord_tmp (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, RowID BIGINT, Rownumber INT)
+	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
+	CREATE CLUSTERED INDEX IDX_tblSettlementHistory_transid ON #tblSettlementHistory (transid)
+
 	IF (@IsReSettled = 1)
 	BEGIN 
-		WITH CTEBalanceRecord AS (
-			SELECT transid,winlost,StatusId,RowID,SettlementType
-			FROM bodb02.dbo.BalanceRecord WITH(NOLOCK)
+		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.settlementhistory WITH(NOLOCK) WHERE MatchId = @MatchId)
+		BEGIN
+			INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber, RN_settle)
+			SELECT transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged
+					, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CreatedDate DESC) Rownumber
+					, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
+			FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
 			WHERE Matchid = @MatchId
-			UNION ALL
-			SELECT transid,winlost,StatusId,RowID,SettlementType
-			FROM BalanceRecord.dbo.BalanceRecord_bk WITH(NOLOCK)
-			WHERE Matchid = @MatchId
-		)
-		INSERT INTO #BalanceRecord_tmp (transid , winlost , StatusId , SettlementType , RowID , Rownumber)
-		SELECT transid,winlost,StatusId,SettlementType,RowID 
-				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY RowID DESC ) Rownumber
-		FROM CTEBalanceRecord
 
-		INSERT INTO #tmpAffectTickets(Transid)
-		SELECT bt.transid
-		FROM #BalanceRecord_tmp bt
-		CROSS APPLY ( 
-			SELECT TOP 1 winlost,StatusId,SettlementType,RowID -- get re-settle before
-			FROM #BalanceRecord_tmp br
-			WHERE  bt.transid = br.transid 
-					AND br.SettlementType <> 0 
-					AND br.RowID <bt.RowID
-		)bt1 
-		WHERE bt.Rownumber = 1 
-		AND  1 = CASE WHEN bt.SettlementType = 3 THEN 1 
-					  WHEN bt.SettlementType = 2 AND  (bt.winlost <> bt1.winlost OR bt.StatusId <> bt1.StatusId) THEN 1
-					  ELSE 0 END
+			INSERT INTO #tmpAffectTickets(Transid)
+			SELECT bt.transid
+			FROM #tblSettlementHistory bt
+			OUTER APPLY ( 
+				SELECT  bt1.SettlementType, bt1.Rownumber --get settle before
+				FROM #tblsettlementhistory bt1 
+				WHERE  bt.transid = bt1.transid
+						AND bt1.RN_settle = 2 
+			)bt1 
+			OUTER APPLY ( 
+				SELECT  bt2.SettlementType, SUM(bt2.BalanceChanged) sumbalance 
+				FROM #tblsettlementhistory bt2
+				WHERE  bt.transid = bt2.transid
+						AND 1 = CASE WHEN bt1.Rownumber IS NOT NULL AND  bt2.Rownumber > 1 and bt2.Rownumber < bt1.Rownumber THEN 1
+									 WHEN bt1.Rownumber IS NULL AND bt2.Rownumber > 1 THEN 1
+									 ELSE 0  
+								END
+				GROUP BY bt2.SettlementType
+			)bt2
+			WHERE bt.Rownumber = 1 
+			AND 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
+						 WHEN bt.SettlementType = 2 AND bt.BalanceChanged + bt2.sumbalance <> 0 THEN 1
+						 ELSE 0
+					END
+		END
 	END
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
 	IF @Type <> 0 SELECT @LiveType = 2
@@ -578,6 +587,6 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType
-	DROP TABLE #BalanceRecord_tmp
+	DROP TABLE #tblSettlementHistory
 	DROP TABLE #tmpAffectTickets
 END
