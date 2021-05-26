@@ -1079,6 +1079,7 @@ BEGIN
 					AND main.bettype = 29
 					AND main.liveindicator = 0
 					AND main.statusID NOT IN (102, 103)
+					AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 		END
 		
 	END
