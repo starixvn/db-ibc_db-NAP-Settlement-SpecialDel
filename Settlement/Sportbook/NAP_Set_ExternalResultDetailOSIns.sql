@@ -59,12 +59,12 @@ BEGIN
 			,@xmlOutsideSources XML
 
 	DECLARE @tmpAllResult TABLE (
-												SourceId SMALLINT
-												, ResourceId VARCHAR(20)
-												, HomeValue	VARCHAR(50)
-												, AwayValue	VARCHAR(50)
-												, IsChanged BIT
-											)
+									SourceId SMALLINT
+									, ResourceId VARCHAR(20)
+									, HomeValue	VARCHAR(50)
+									, AwayValue	VARCHAR(50)
+									, IsChanged BIT
+								)
 
 	SELECT @Sporttype = m.sporttype
 		  ,@LeagueId  = m.leagueid
@@ -119,10 +119,25 @@ BEGIN
 					,@UserId
 				FROM @tmpAllResult	 r	
 				WHERE r.IsChanged = 1
+					AND r.SourceId  <> 100 ----[Redmine:#153915]
 
-				----This block code supports Keyscore save data by themself until they can get data from Admin Site and Weverdat
-				IF EXISTS (SELECT TOP 1 1 FROM  @tmpAllResult r WHERE r.SourceId = 100 AND @Sporttype = 50 AND r.IsChanged = 1) 
+				----This block code supports Keyscore save data by themself until they can get data from Admin Site and Weverdat ----[Redmine:#153915]
+				IF @Sporttype = 50 
 				BEGIN
+					
+					IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOS r WITH(ROWLOCK)
+								INNER JOIN @tmpAllResult tmp 
+									ON r.MatchID = @MatchId AND  r.ResourceID = tmp.ResourceId
+								WHERE r.ResultStatusId IN (2,5)
+									AND tmp.SourceId = 100
+									AND tmp.IsChanged = 1
+								)
+					BEGIN
+						SELECT @ErrCode	 = 1001051
+								,@ErrMsg = 'WARNING! Cannot continue due to selected results are settled.'
+						RETURN
+					END	
+
 					MERGE dbo.ResultDetailOS TARGET
 					USING (
 							SELECT  r.ResourceId, r.HomeValue, r.AwayValue
@@ -132,15 +147,38 @@ BEGIN
 						) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid							
 					WHEN MATCHED  AND ResultStatusID NOT IN (2,5) THEN 
 							UPDATE SET HomeValue		= SOURCE.HomeValue
-										,AwayValue        = SOURCE.AwayValue
+										,AwayValue      = SOURCE.AwayValue
 										,ResultStatusId	= 3
-										,LastModifyDate   = GETDATE()
-										,LastModifyBy     = @UserId
+										,LastModifyDate = GETDATE()
+										,LastModifyBy   = @UserId
 					WHEN NOT MATCHED BY TARGET THEN
 						INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 						VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, 3, 0, GETDATE(), GETDATE(), @UserId, @UserId);
-				END
 
+
+					INSERT INTO dbo.ProviderExternalResultDetailOS 	(
+						MatchId3rd
+						,MatchId
+						,SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,CreateBy
+						,LastModifyBy
+					)
+					SELECT 0
+						,@MatchId
+						,r.SourceId
+						,r.ResourceId
+						,r.HomeValue
+						,r.AwayValue
+						,@UserId
+						,@UserId
+					FROM @tmpAllResult	 r
+					WHERE r.SourceId = 100
+							AND r.IsChanged = 1
+				END
+				-----------------------------------------------------------------------------------------------------------------------------
 			END
 
 
@@ -167,8 +205,8 @@ BEGIN
 							+ STUFF(
 									 (
 										 SELECT '' 
-												+ CASE l1.SourceId
-														WHEN 0 THEN ''
+												+ CASE  WHEN l1.SourceId = 0 THEN ''
+														WHEN l1.SourceId = 100 AND @IsTrader = 1 THEN ''
 								  						ELSE CAST( l1.SourceId AS VARCHAR(5)	)
 												  END	
 												+ '('
