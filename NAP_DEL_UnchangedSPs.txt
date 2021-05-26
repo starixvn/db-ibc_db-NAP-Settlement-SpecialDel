@@ -1,5 +1,6 @@
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
+SpecialDelete\TicketVoiding\TicketVoiding_Request_Insert.sql
 SpecialDelete\TicketVoiding\TicketVoiding_Request_Update.sql
+
 
 
 

@@ -44,7 +44,8 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210413@Max: [TVS] SP tuning for EC20 - P1 [Redmine: #152817]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
-	
+		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
 						1 - by Trans time
@@ -500,7 +501,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
 			)ml
 			OUTER APPLY (
 				SELECT TOP 1 m.sporttype 

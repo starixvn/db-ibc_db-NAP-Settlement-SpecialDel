@@ -20,7 +20,8 @@ AS
 		- 20210222@July: Hotfix - AC Duplicated customer getting of add request validation [Redmine: #150382]
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
-	
+		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+
 	Param's Explanation:
 */
 BEGIN
@@ -207,7 +208,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
 			)ml
 			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			OUTER APPLY (
@@ -258,7 +259,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
 			)ml
 			OUTER APPLY (
 				SELECT TOP 1 m.sporttype 

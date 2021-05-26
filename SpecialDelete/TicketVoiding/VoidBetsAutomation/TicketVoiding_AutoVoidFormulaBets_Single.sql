@@ -21,6 +21,7 @@ AS
 		- 20200518@Max: [TVS] Apply new policy into Void Abnormal Bet rules - [Redmine: #134269]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - Exclude Saba from all sport - [Redmine: #135574]
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
+		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 
 	Param's explanation:	
 		
@@ -153,7 +154,7 @@ BEGIN
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE eventdate = @eventdate
-		AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108)
+		AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108,113)
 		AND m.sporttype < 99
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
