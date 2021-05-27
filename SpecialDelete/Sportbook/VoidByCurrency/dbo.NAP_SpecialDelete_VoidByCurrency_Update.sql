@@ -53,12 +53,38 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidByCurrency_Update @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
+				+ ',@LicenseeNames = ' + CONVERT(NVARCHAR(MAX), @LicenseeNames) 
+				+ ',@CurrencyIDs = ' + CONVERT(NVARCHAR(MAX), @CurrencyIDs)
+				+ ',@TransIDs = ' + CONVERT(NVARCHAR(MAX), @TransIDs)
+				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
+				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+				+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
+				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
+				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
+				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	SELECT @ErrorCode = 0
 		 , @ErrorMsg = ''  
 		 , @InvalidTransIds = ''
@@ -1430,6 +1456,7 @@ BEGIN
 				, @IsExistParlay	= @IsExistParlay
 				, @isExistBB		= @isExistBB
 				, @isExistFM2		= @isExistFM2
+				, @spName			= @spName
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
 				, @ErrMsg			= @ErrorMsg OUTPUT
@@ -2337,6 +2364,16 @@ BEGIN
 
 		RETURN				
 	END CATCH		
+	
+	-- Write useraction log	
+	BEGIN TRY
+                
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchID, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
 			
 	SET NOCOUNT OFF
 

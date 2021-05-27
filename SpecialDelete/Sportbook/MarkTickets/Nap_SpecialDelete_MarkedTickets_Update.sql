@@ -30,9 +30,34 @@ AS
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+
 */
 BEGIN
      SET NOCOUNT ON;
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+				+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
+				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+				+ ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId)
+				+ ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId)
+				+ ',@IsLockMatch = ' + CONVERT(NVARCHAR(50), @IsLockMatch)
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH 
 
 	DECLARE @xmlLog VARCHAR(MAX)
 			,@LogData VARCHAR(MAX) = '';
@@ -325,6 +350,7 @@ BEGIN
 			,@isExistParlay = @IsExistParlay
 			,@IsExistFM = @IsExistFM
 			,@IsExistFM2 = @IsExistFM2
+			,@spName = @spName
 			,@avaiableProcess = @avaiableProcess OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT;
@@ -421,6 +447,16 @@ BEGIN
 		m.IsNeutral
 	FROM #Match b
 		LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+	
+	-- Write useraction log	
+	BEGIN TRY
+                
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #TransIds;
 	DROP TABLE #Match;

@@ -112,6 +112,7 @@ AS
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -146,6 +147,40 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidSingleBet_Update @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
+					+ ',@FromTransId = ' + CONVERT(NVARCHAR(50), @FromTransId) 
+					+ ',@ToTransId = ' + CONVERT(NVARCHAR(50), @ToTransId)
+					+ ',@Bet = ' + @Bet
+					+ ',@TimeType = ' + CONVERT(NVARCHAR(50), @TimeType)
+					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ' + CONVERT(NVARCHAR(50), @FromTransdate) END
+					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ' + CONVERT(NVARCHAR(50), @ToTransdate) END
+					+ ',@LiveIndicator = ' + CONVERT(NVARCHAR(50), @LiveIndicator)
+					+ CASE WHEN @LiveHomeScore IS NULL THEN '' ELSE ',@LiveHomeScore = ' + CONVERT(NVARCHAR(50), @LiveHomeScore) END
+					+ CASE WHEN @LiveAwayScore IS NULL THEN '' ELSE ',@LiveAwayScore = ' + CONVERT(NVARCHAR(50), @LiveAwayScore) END
+					+ ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes)
+					+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+					+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
+					+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
+					+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+					+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
+					+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
+					+ ',@SecondAcceptFlag = ' + CONVERT(NVARCHAR(50), @SecondAcceptFlag)
+					+ ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE @isITAdmin			BIT = 0
 			,@isExistParlay		BIT = 0
 			,@isExistBT			BIT = 0
@@ -471,6 +506,7 @@ BEGIN
 		,@isExistMatch		= @isExistSingle
 		,@isExistFM			= @isExistFM
 		,@isExistFM2		= @isExistFM2
+		,@spName			= @spName
 		,@avaiableProcess 	= @avaiableProcess OUTPUT
 		,@ErrCode			= @ErrCode OUTPUT
 		,@ErrMsg			= @ErrMsg OUTPUT
@@ -2253,8 +2289,18 @@ BEGIN
 					ELSE al.transid
 				 END
 		DROP TABLE #CTE_CustInfo
-	END		
+	END	
 	
+	-- Write useraction log	
+	BEGIN TRY
+                
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblBettype
 	DROP TABLE #tblTransIds
 	DROP TABLE #tblTransIdSolds

@@ -103,6 +103,7 @@ Revisions:
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 	- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
+	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -122,6 +123,31 @@ Param's Explanation: Special bet delete option
 */  
 BEGIN  
 	SET NOCOUNT ON 		 
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
+				+ ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate) 
+				+ ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes)
+				+ ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
+				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+				+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
+				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
+				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
+				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DECLARE @eventdate		DATETIME 
 			,@LogData		NVARCHAR(500)     
@@ -470,10 +496,11 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay		= @isExistParlay  
 		, @isExistMG		= @isExistMG  
-		, @isExistFM  = @isExistFM  
+		, @isExistFM		= @isExistFM  
 		, @isExistMatch		= @isExistMatch  
 		, @isExistBB		= @isExistBB
 		, @isExistFM2		= @isExistFM2
+		, @spName			= @spName
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode			= @ErrCode OUTPUT  
 		, @ErrMsg			= @ErrMsg OUTPUT  
@@ -2695,6 +2722,17 @@ BEGIN
 				AND b.[Status] IN ('Accept', 'Confirm')  
 		END  
 	END  
+
+	-- Write useraction log 
+	BEGIN TRY
+                
+                INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+                VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMatchProcess  
 	DROP TABLE #BetDelete  
 	DROP TABLE #BetmDelete  

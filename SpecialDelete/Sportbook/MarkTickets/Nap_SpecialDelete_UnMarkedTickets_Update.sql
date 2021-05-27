@@ -32,9 +32,35 @@ AS
 		- 20200817@Max: Add Mark/Unmark process to servicebroker [Redmine: #139340]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+
 */
 BEGIN
      SET NOCOUNT ON;
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
+				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+				+ ',@MarkType = ' + CONVERT(NVARCHAR(50), @MarkType)
+				+ ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId)
+				+ ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId)
+				+ ',@IsLockMatch = ' + CONVERT(NVARCHAR(50), @IsLockMatch)
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH 
 
 	DECLARE @xmlLog VARCHAR(MAX)
 		,@LogData VARCHAR(MAX) = '';
@@ -362,6 +388,7 @@ BEGIN
 			,@isExistParlay = @IsExistParlay
 			,@IsExistFM = @IsExistFM
 			,@IsExistFM2 = @IsExistFM2
+			,@spName = @spName
 			,@avaiableProcess = @avaiableProcess OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT;
@@ -458,6 +485,16 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
 	,@functionName = 'TicketVoiding'
 	,@MessageType = 'MessageType_TicketVoiding_Log';
+
+	-- Write useraction log	
+	BEGIN TRY
+                
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #Tickets;
 	DROP TABLE #Cashout911Tickets;

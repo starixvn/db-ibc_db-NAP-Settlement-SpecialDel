@@ -91,12 +91,42 @@ AS
 	  - 20210107@Charles: Return extra oddsid column in results [Redmine: #143666]
 	  - 20210505@July: Show VIP status on void email [Redmine: #153157]
 	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+	  - 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 	 Param's Explanation:   
 	*/
 BEGIN
 	SET NOCOUNT ON	
-	
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+			
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) 
+				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
+				+ ',@Password = ' + CONVERT(NVARCHAR(50), @Password)
+				+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
+				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
+				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
+				+ ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet)
+				+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ' + CONVERT(NVARCHAR(50), @FilterUserName)
+				+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ' + CONVERT(NVARCHAR(50), @Products) 
+				+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ' + CONVERT(NVARCHAR(50), @StatusIds) 
+				+ CASE WHEN @FromDate IS NULL THEN '' ELSE '@FromDate = ' + CONVERT(NVARCHAR(50), @FromDate)
+				+ CASE WHEN @ToDate IS NULL THEN '' ELSE '@ToDate = ' + CONVERT(NVARCHAR(50), @ToDate)
+				
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+			
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE	@LogData					NVARCHAR(500) = ''
 			,@isITAdmin					BIT = 0
 			,@winlostdate				DATETIME
@@ -921,6 +951,7 @@ BEGIN
 		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @isExistFM2				= @isExistFM2
+		, @spName					= @spName
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT
@@ -2831,6 +2862,16 @@ BEGIN
 			ON tl.translogid = tmp.refno
 	WHERE tmp.Bettype BETWEEN 801 AND 806  
 		
+	-- Write useraction log	
+	BEGIN TRY
+                
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+                
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #BTTransActive
 	DROP TABLE #balanceGameBefore
