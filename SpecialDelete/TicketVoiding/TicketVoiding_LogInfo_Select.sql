@@ -946,7 +946,7 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 			CROSS APPLY (
-				SELECT TOP(1) LiveHomeScore, LiveAwayScore
+				SELECT LiveHomeScore, LiveAwayScore
 				FROM #WrongScores c
 				WHERE matchid = @MatchId
 					AND 1 = CASE WHEN b.livehomescore = LiveHomeScore AND b.liveawayscore = LiveAwayScore AND b.transdate BETWEEN FilterFromTime AND FilterToTime THEN 1
