@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20210422@Max: Create new SP [Redmine: #140953]
+		- 20210527@Max: Exclude 2H ticket from get score & time range [Redmine: #155598]
 	
 	Param's explanation:
 		
@@ -28,6 +29,7 @@ BEGIN
 			,MIN(b.transdate) AS FilterFromTransTime
 			,MAX(b.transdate) AS FilterToTransTime
 		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		WHERE b.matchid = @MatchId
 			AND b.betfrom <> 'p'
 			AND b.statusID NOT IN (101, 102, 103)
@@ -35,6 +37,7 @@ BEGIN
 			AND b.bettype NOT BETWEEN 901 AND 920
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0
 					ELSE 1 END
+			AND f.GroupName <> '2H'
 		GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
 		UNION ALL
@@ -42,11 +45,13 @@ BEGIN
 			,MIN(b.transdate) AS FilterFromTransTime
 			,MAX(b.transdate) AS FilterToTransTime
 		FROM dbo.bettransm b WITH (NOLOCK)
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 		WHERE b.matchid = @MatchId
 			AND b.betfrom <> 'p'
 			AND b.statusID NOT IN (101, 102, 103)
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0
 					ELSE 1 END
+			AND f.GroupName <> '2H'
 		GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 	)sc
 	GROUP BY sc.WrongScore
