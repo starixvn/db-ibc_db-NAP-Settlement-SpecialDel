@@ -34,6 +34,7 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210524@July: TVS - Check parlay count = 0 [Redmine:#155575]
+		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 	
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -345,24 +346,27 @@ BEGIN
 			, sub.statusID
 			, @MatchId
 			, main.transid
-			, sub.livehomescore
-			, sub.liveawayscore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE sub.livehomescore END AS livehomescore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE sub.liveawayscore END AS liveawayscore
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.BetType
+			CROSS APPLY (
+				SELECT TOP(1) t.LiveHomeScore, t.LiveAwayScore
+				FROM #tblGetLogInfo t
+				WHERE matchid = @MatchId
+					AND 1 = CASE WHEN sub.livehomescore = LiveHomeScore AND sub.liveawayscore = LiveAwayScore AND sub.transdate BETWEEN VoidFromTime AND VoidToTime THEN 1
+								WHEN sub.transdate BETWEEN VoidFromTime AND VoidToTime AND f.GroupName = '2H' THEN 1
+							ELSE 0 END	
+					AND main.transid BETWEEN MinMainParlayTransId AND MaxMainParlayTransId
+			)s
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
-			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 THEN 0 ELSE 1 END
-			AND EXISTS (SELECT TOP 1 1 
-								FROM #tblGetLogInfo
-								WHERE matchid = @MatchId
-									AND sub.livehomescore = LiveHomeScore
-									AND sub.liveawayscore = LiveAwayScore
-									AND sub.transdate BETWEEN VoidFromTime AND VoidToTime
-									AND main.transid BETWEEN MinMainParlayTransId AND MaxMainParlayTransId)
+			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
@@ -399,9 +403,16 @@ BEGIN
 				, rd.Id AS RequestDetailId
 				, t.MainTransId
 			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.MatchId = t.MatchId AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				LEFT JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId
-			WHERE st.transid IS NULL
+				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+				OUTER APPLY (
+									SELECT TOP 1 rs.TransId
+									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+									WHERE rs.TransId = t.transid
+										AND rs.MatchId = @MatchId
+										AND r.ActionId NOT IN (2)
+							)tmp
+			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 		END
 		ELSE
 		BEGIN

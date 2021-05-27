@@ -38,6 +38,7 @@ AS
 		- 20210322@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210510@Max: [TVS] Danger Accept/Red Card Enhancement - Search and save not same log info [Redmine: #154772]
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
+		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -910,8 +911,8 @@ BEGIN
 				,b.betcheck AS SubBetcheck
 				,b.hdp1
 				,b.hdp2
-				,b.livehomescore
-				,b.liveawayscore
+				,CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE b.livehomescore END AS livehomescore
+				,CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE b.liveawayscore END AS liveawayscore
 				,b.creator
 				,b.stake
 				,b.CurrencyName
@@ -942,7 +943,16 @@ BEGIN
 				,@MatchId
 				,b.statusID
 		FROM	bettrans b WITH (NOLOCK)	
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
+			CROSS APPLY (
+				SELECT LiveHomeScore, LiveAwayScore
+				FROM #WrongScores c
+				WHERE matchid = @MatchId
+					AND 1 = CASE WHEN b.livehomescore = LiveHomeScore AND b.liveawayscore = LiveAwayScore AND b.transdate BETWEEN FilterFromTime AND FilterToTime THEN 1
+								WHEN b.transdate BETWEEN FilterFromTime AND FilterToTime AND f.GroupName = '2H' THEN 1
+							ELSE 0 END	
+			)s
 		WHERE	b.matchid = @matchid
 				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -950,13 +960,7 @@ BEGIN
 				AND b.bettype NOT IN (805, 806, 9, 29)			
 				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'
-				AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0 ELSE 1 END
-				AND EXISTS (SELECT TOP 1 1 
-								FROM #WrongScores
-								WHERE matchid = @MatchId
-									AND b.livehomescore = LiveHomeScore
-									AND b.liveawayscore = LiveAwayScore
-									AND b.transdate BETWEEN FilterFromTime AND FilterToTime)
+				AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 				
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
@@ -1035,8 +1039,8 @@ BEGIN
 					,sub.hdp2
 					,main.hdp1
 					,main.hdp2
-					,sub.livehomescore
-					,sub.liveawayscore
+					,CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE sub.livehomescore END AS livehomescore
+					,CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE sub.liveawayscore END AS liveawayscore
 					,main.creator
 					,main.stake
 					,main.currencyname				
@@ -1058,6 +1062,15 @@ BEGIN
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
 							AND sub.matchid = @matchid
+					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.bettype
+					CROSS APPLY (
+						SELECT TOP(1) LiveHomeScore, LiveAwayScore
+						FROM #WrongScores c
+						WHERE matchid = @MatchId
+							AND 1 = CASE WHEN sub.livehomescore = LiveHomeScore AND sub.liveawayscore = LiveAwayScore AND sub.transdate BETWEEN FilterFromTime AND FilterToTime THEN 1
+										WHEN sub.transdate BETWEEN FilterFromTime AND FilterToTime AND f.GroupName = '2H' THEN 1
+									ELSE 0 END	
+					)s
 			WHERE 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 								WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
@@ -1066,12 +1079,7 @@ BEGIN
 					AND main.bettype = 29
 					AND main.liveindicator = 0
 					AND main.statusID NOT IN (102, 103)
-					AND EXISTS (SELECT TOP 1 1 
-								FROM #WrongScores
-								WHERE matchid = @MatchId
-									AND sub.livehomescore = LiveHomeScore
-									AND sub.liveawayscore = LiveAwayScore
-									AND sub.transdate BETWEEN FilterFromTime AND FilterToTime)
+					AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 		END
 		
 	END

@@ -44,6 +44,7 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210413@Max: [TVS] SP tuning for EC20 - P1 [Redmine: #152817]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 
 	Param's explanation:
@@ -1050,23 +1051,26 @@ BEGIN
 		SELECT b.transid
 			, b.statusID
 			, @MatchId
-			, b.livehomescore
-			, b.liveawayscore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE b.livehomescore END AS livehomescore
+			, CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE b.liveawayscore END AS liveawayscore
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.BetType
+			CROSS APPLY (
+				SELECT TOP(1) t.LiveHomeScore, t.LiveAwayScore 
+				FROM #tblGetLogInfo t
+				WHERE matchid = @MatchId
+					AND 1 = CASE WHEN b.livehomescore = LiveHomeScore AND b.liveawayscore = LiveAwayScore AND b.transdate BETWEEN VoidFromTime AND VoidToTime THEN 1
+								WHEN b.transdate BETWEEN VoidFromTime AND VoidToTime AND f.GroupName = '2H' THEN 1
+							ELSE 0 END	
+					AND b.transid BETWEEN MinSingleTransId AND MaxSingleTransId
+			)s
 		WHERE b.matchid = @MatchId
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
 			AND b.betfrom <> 'P'
-			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 THEN 0 ELSE 1 END
-			AND EXISTS (SELECT TOP 1 1 
-								FROM #tblGetLogInfo
-								WHERE matchid = @MatchId
-									AND b.livehomescore = LiveHomeScore
-									AND b.liveawayscore = LiveAwayScore
-									AND b.transdate BETWEEN VoidFromTime AND VoidToTime
-									AND b.transid BETWEEN MinSingleTransId AND MaxSingleTransId)
+			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
@@ -1102,9 +1106,16 @@ BEGIN
 				, t.MatchId
 				, rd.Id AS RequestDetailId
 			FROM #DangerAccept_SingleTickets t
-				INNER JOIN TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.MatchId = t.MatchId AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				LEFT JOIN TicketVoiding_RequestDetailTicket_Single st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId
-			WHERE st.transid IS NULL
+				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+				OUTER APPLY (
+									SELECT TOP 1 rs.TransId
+									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+									WHERE rs.TransId = t.transid
+										AND rs.MatchId = @MatchId
+										AND r.ActionId NOT IN (2)
+							)tmp
+			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 		END
 		ELSE
 		BEGIN
