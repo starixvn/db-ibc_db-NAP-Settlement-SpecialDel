@@ -38,6 +38,7 @@ AS
 		- 20210402@July: TVS - Auto void before KO time with 2 new action - [Redmine: #150522]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 	Param's explanation:	
 		
@@ -56,19 +57,18 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
-			,@LeagueGroupID		INT
-						
+			,@LeagueGroupID		INT		
 			,@LeagueId			INT
 			,@HomeId			INT
 			,@AwayId			INT
 			,@KickOffTime	DATETIME	
-			
 			,@query NVARCHAR(MAX) = ''
 			,@ExecuteSQL NVARCHAR(MAX) = ''
 			,@IsActiveVoidWinning BIT = 0
 			,@VoidDataXML       XML = NULL
 			,@RequestDetailId	INT
-			
+			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
@@ -661,6 +661,7 @@ BEGIN
 		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @isExistFM2				= @isExistFM2
+		, @spName					= @spName
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT

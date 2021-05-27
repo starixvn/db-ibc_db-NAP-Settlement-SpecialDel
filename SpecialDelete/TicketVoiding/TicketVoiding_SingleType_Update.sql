@@ -34,7 +34,7 @@ AS
 		- 20210208@Max: [TVS] Enhance performance of void abnormal account [Redmine: #150204]
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
-
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	
 	Param's explanation:	
 		
@@ -47,6 +47,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
+			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -381,6 +382,7 @@ BEGIN
 					, @isExistBB				= @isExistBB
 					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 					, @isExistFM2				= @isExistFM2
+					, @spName					= @spName
 					, @avaiableProcess 			= @avaiableProcess OUTPUT
 					, @ErrCode					= @ErrCode OUTPUT
 					, @ErrMsg					= @ErrMsg OUTPUT
