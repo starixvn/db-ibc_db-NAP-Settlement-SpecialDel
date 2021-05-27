@@ -354,7 +354,7 @@ BEGIN
 								AND sub.matchid = @matchid
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.BetType
 			CROSS APPLY (
-				SELECT t.LiveHomeScore, t.LiveAwayScore
+				SELECT TOP(1) t.LiveHomeScore, t.LiveAwayScore
 				FROM #tblGetLogInfo t
 				WHERE matchid = @MatchId
 					AND 1 = CASE WHEN sub.livehomescore = LiveHomeScore AND sub.liveawayscore = LiveAwayScore AND sub.transdate BETWEEN VoidFromTime AND VoidToTime THEN 1
