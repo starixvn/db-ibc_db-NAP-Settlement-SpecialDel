@@ -105,8 +105,7 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) 
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd @TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) 
 				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
 				+ ',@Password = ' + CONVERT(NVARCHAR(50), @Password)
 				+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
@@ -114,11 +113,11 @@ BEGIN
 				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
 				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
 				+ ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet)
-				+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ' + CONVERT(NVARCHAR(50), @FilterUserName)
-				+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ' + CONVERT(NVARCHAR(50), @Products) 
-				+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ' + CONVERT(NVARCHAR(50), @StatusIds) 
-				+ CASE WHEN @FromDate IS NULL THEN '' ELSE '@FromDate = ' + CONVERT(NVARCHAR(50), @FromDate)
-				+ CASE WHEN @ToDate IS NULL THEN '' ELSE '@ToDate = ' + CONVERT(NVARCHAR(50), @ToDate)
+				+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ' + CONVERT(NVARCHAR(50), @FilterUserName) END
+				+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ' + CONVERT(NVARCHAR(50), @Products) END
+				+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ' + CONVERT(NVARCHAR(50), @StatusIds) END
+				+ CASE WHEN @FromDate IS NULL THEN '' ELSE '@FromDate = ' + CONVERT(NVARCHAR(50), @FromDate) END
+				+ CASE WHEN @ToDate IS NULL THEN '' ELSE '@ToDate = ' + CONVERT(NVARCHAR(50), @ToDate) END
 				
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)

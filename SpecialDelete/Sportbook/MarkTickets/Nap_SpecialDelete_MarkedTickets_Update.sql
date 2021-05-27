@@ -43,8 +43,7 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
 				+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
 				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
 				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
