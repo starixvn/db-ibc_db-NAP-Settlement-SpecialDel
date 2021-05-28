@@ -176,7 +176,6 @@ BEGIN
 		
 		SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
 				,@isExistMG = CASE WHEN KeyID = 3 THEN 1 ELSE 0 END
-				,@isExistMG = CASE WHEN KeyID = 3 THEN 1 ELSE 0 END
 				,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
 				,@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 				,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
