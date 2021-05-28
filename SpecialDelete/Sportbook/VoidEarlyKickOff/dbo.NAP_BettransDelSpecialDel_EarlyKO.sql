@@ -132,7 +132,7 @@ BEGIN
 	BEGIN TRY
 			
 			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
-				+ ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate) 
+				+ ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate, 21) 
 				+ ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes)
 				+ ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
 				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)

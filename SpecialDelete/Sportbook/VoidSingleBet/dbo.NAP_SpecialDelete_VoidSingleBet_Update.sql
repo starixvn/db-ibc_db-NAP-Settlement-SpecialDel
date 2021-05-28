@@ -159,8 +159,8 @@ BEGIN
 					+ ',@ToTransId = ' + CONVERT(NVARCHAR(50), @ToTransId)
 					+ ',@Bet = ' + @Bet
 					+ ',@TimeType = ' + CONVERT(NVARCHAR(50), @TimeType)
-					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ' + CONVERT(NVARCHAR(50), @FromTransdate) END
-					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ' + CONVERT(NVARCHAR(50), @ToTransdate) END
+					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ' + CONVERT(NVARCHAR(50), @FromTransdate, 21) END
+					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ' + CONVERT(NVARCHAR(50), @ToTransdate, 21) END
 					+ ',@LiveIndicator = ' + CONVERT(NVARCHAR(50), @LiveIndicator)
 					+ CASE WHEN @LiveHomeScore IS NULL THEN '' ELSE ',@LiveHomeScore = ' + CONVERT(NVARCHAR(50), @LiveHomeScore) END
 					+ CASE WHEN @LiveAwayScore IS NULL THEN '' ELSE ',@LiveAwayScore = ' + CONVERT(NVARCHAR(50), @LiveAwayScore) END
