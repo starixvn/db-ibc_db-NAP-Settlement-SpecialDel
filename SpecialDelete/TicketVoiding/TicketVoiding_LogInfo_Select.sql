@@ -39,6 +39,7 @@ AS
 		- 20210510@Max: [TVS] Danger Accept/Red Card Enhancement - Search and save not same log info [Redmine: #154772]
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
+		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
 	
 	Param's explanation:
 		+ SubIssueTypeId in (1,2) will show IsCheckedHomeTeam, IsCheckedAwayTeam
@@ -843,6 +844,14 @@ BEGIN
 				,T.C.value('./@FilterToTransTime', 'datetime')
 		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
+
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE pt.ProductID = 1 -- Sportsbook
+			AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 		
 		
 		--Init Validation
@@ -942,7 +951,8 @@ BEGIN
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
-		FROM	bettrans b WITH (NOLOCK)	
+		FROM	bettrans b WITH (NOLOCK)
+			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 			CROSS APPLY (
@@ -957,8 +967,6 @@ BEGIN
 				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
-				AND b.bettype NOT IN (805, 806, 9, 29)			
-				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'
 				AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 				
@@ -1071,6 +1079,7 @@ BEGIN
 										WHEN sub.transdate BETWEEN FilterFromTime AND FilterToTime AND f.GroupName = '2H' THEN 1
 									ELSE 0 END	
 					)s
+					INNER JOIN @bettype_tmp bt ON bt.bettype = sub.bettype
 			WHERE 1= CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 								WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
