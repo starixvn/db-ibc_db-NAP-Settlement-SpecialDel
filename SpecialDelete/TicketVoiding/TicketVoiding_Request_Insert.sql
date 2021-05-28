@@ -68,6 +68,7 @@ AS
 		- 20210219@July: TVS - Abnormal Bet - Exclude Customer Class - [Redmine: #147176]
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210528@Max: Fix bug insert ticket [Redmine: #155598]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -133,8 +134,8 @@ BEGIN
 	IF @IssueTypeId IN (3) --WC
 	BEGIN
 		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
-		SELECT @SingleCount = t.c.value('@SingleCount','INT')
-			  ,@MainParlayCount = t.c.value('@MainParlayCount','INT')
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
