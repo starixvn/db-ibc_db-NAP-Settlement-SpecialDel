@@ -52,6 +52,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@IsConfirmCalculator   BIT			  = 0
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -73,6 +74,7 @@ AS
 		- 20210412@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -83,6 +85,10 @@ AS
 		+ @WrongScoreInfo:
 			<root>
 				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
+			</root>
+		+ @DangerAcceptInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
 			</root>
 */
 BEGIN
@@ -154,7 +160,7 @@ BEGIN
 
 	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 		SET @OldActionId = ActionId
-			,@OldSubIssueTypeId = SubIssueTypeId
+			--,@OldSubIssueTypeId = SubIssueTypeId
 			,@OldCheckedBy = CheckedBy
 			,@OldSportType = Sporttype
 			,@OldMistakenBy = MistakenBy
@@ -209,7 +215,8 @@ BEGIN
 			,@ToDate = @ToDate
 			,@IsVoidVIPMember = @IsVoidVIPMember
 			,@TypeAccept = @TypeAccept		
-			,@WrongScoreInfo = @WrongScoreInfo				
+			,@WrongScoreInfo = @WrongScoreInfo	
+			,@DangerAcceptedInfo = @DangerAcceptedInfo
 			,@ErrMsg = @ErrMsg	OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
@@ -238,6 +245,7 @@ BEGIN
 			,@FromDate = @FromDate			
 			,@ToDate = @ToDate
 			,@WrongScoreInfo = @WrongScoreInfo
+			,@DangerAcceptedInfo = @DangerAcceptedInfo
 	
 	IF @IssueTypeId IN (1,8,9,10,3)
 	BEGIN
@@ -256,7 +264,8 @@ BEGIN
 			,@FilterFromTransTime = @VoidFromTime	
 			,@FilterToTransTime = @VoidToTime		
 			,@FilterBy = @FilterBy
-			,@WrongScoreInfo = @WrongScoreInfo				
+			,@WrongScoreInfo = @WrongScoreInfo
+			,@DangerAcceptedInfo = @DangerAcceptedInfo
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
@@ -309,7 +318,6 @@ BEGIN
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ CASE WHEN @SportType IS NOT NULL AND (ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0)) THEN ' Old SportType: ' + CAST(@OldSportType AS VARCHAR(20)) + ' New SportType: ' + CAST(@SportType AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN @SubIssueTypeId IS NOT NULL AND (ISNULL(@SubIssueTypeId, 0) <> ISNULL(@OldSubIssueTypeId, 0)) THEN ', Old SubIssueTypeId: ' + CAST(@OldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ' Old CheckedBy: ' + CASE WHEN @OldCheckedBy IS NULL THEN 'NULL' ELSE CAST(@OldCheckedBy AS VARCHAR(20)) END
 								+ ' New CheckedBy: ' + CASE WHEN @CheckedBy IS NULL THEN 'NULL' ELSE CAST(@CheckedBy AS VARCHAR(20)) END ELSE '' END

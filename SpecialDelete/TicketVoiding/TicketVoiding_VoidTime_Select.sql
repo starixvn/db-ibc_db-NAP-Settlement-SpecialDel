@@ -1,17 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidTime_Select]
 (	
-	 @MatchId             INT
-	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime	  DATETIME = NULL
-	,@FilterBy			  TINYINT = 1
-	,@IssueTypeId		  INT = 1
-	,@SubIssueTypeId	  INT = NULL
-	,@AATime			  TINYINT 
-	,@PATime			  TINYINT 
-	,@SATime			  TINYINT 
-	,@VoidFromTime		  DATETIME = NULL OUTPUT
-	,@VoidToTime		  DATETIME = NULL OUTPUT	
+	 @GetVoidTimeInfo	VARCHAR(MAX) = ''	
 )
 AS 
 /*	
@@ -23,34 +13,102 @@ AS
 	Revisions:
 		- 20210329@July: Create new SP [Redmine: #150459]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210526@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:
+		+ GetVoidTimeInfo:
+			<root>
+				<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId="" AATime="" PATime="" SATime=""/>
+			</root>
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @MinAccept			TINYINT = 0	
+	DECLARE @MinAccept			TINYINT		= 0	
+		, @GetVoidTimeInfoXML	XML			= NULL
+		, @VoidFromTime			DATETIME	= NULL
+		, @VoidToTime			DATETIME	= NULL
+		, @MatchId				INT			= 0
+		, @FilterFromTransTime	DATETIME	= NULL
+		, @FilterToTransTime	DATETIME	= NULL
+		, @FilterBy				TINYINT		= 1
+		, @SubIssueTypeId		INT			= NULL
+		, @AATime				TINYINT		= 0 
+		, @PATime				TINYINT		= 0
+		, @SATime				TINYINT		= 0
+
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @Match_VoidTime AS TABLE (MatchId INT, VoidFromTime DATETIME, VoidToTime DATETIME)
 
-	SELECT 	@VoidFromTime = NULL, @VoidToTime = NULL
+	CREATE TABLE #Match_Filter (
+		MatchId INT
+		, FilterFromTransTime DATETIME
+		, FilterToTransTime DATETIME
+		, FilterBy TINYINT
+		, SubIssueTypeId SMALLINT
+		, AATime TINYINT
+		, PATime TINYINT
+		, SATime TINYINT
+		, isFinish BIT
+	)
 
-	IF @IssueTypeId = 1 -- Danger Accept
+	SET @GetVoidTimeInfoXML = CONVERT(XML, @GetVoidTimeInfo)
+	INSERT INTO #Match_Filter(MatchId, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime)
+	SELECT T.C.value('./@MatchId', 'INT')
+		,T.C.value('./@FilterFromTransTime', 'DATETIME')
+		,T.C.value('./@FilterToTransTime', 'DATETIME')
+		,T.C.value('./@FilterBy', 'TINYINT')
+		,T.C.value('./@SubIssueTypeId', 'SMALLINT')
+		,T.C.value('./@AATime', 'TINYINT')
+		,T.C.value('./@PATime', 'TINYINT')
+		,T.C.value('./@SATime', 'TINYINT')
+	FROM @GetVoidTimeInfoXML.nodes('/root/r') AS T(C)
+	OPTION (OPTIMIZE FOR (@GetVoidTimeInfoXML = NULL ))
+
+	INSERT INTO @bettype_tmp (bettype)
+	SELECT DISTINCT pt.bettype
+	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+	WHERE pt.ProductID = 1 -- Sportsbook
+		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
+		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
+		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+
+	WHILE (1=1)
 	BEGIN
+		SELECT @MinAccept				= 0	
+			, @VoidFromTime				= NULL
+			, @VoidToTime				= NULL
+			, @MatchId					= 0
+			, @FilterFromTransTime		= NULL
+			, @FilterToTransTime		= NULL
+			, @FilterBy					= 1
+			, @SubIssueTypeId			= NULL
+			, @AATime					= 0 
+			, @PATime					= 0
+			, @SATime					= 0
+
+		UPDATE TOP(1) m SET
+			m.isFinish = 1
+			,@MatchId = m.MatchId
+			,@FilterFromTransTime = m.FilterFromTransTime
+			,@FilterToTransTime = m.FilterToTransTime
+			,@FilterBy = m.FilterBy
+			,@SubIssueTypeId = m.SubIssueTypeId
+			,@AATime = m.AATime
+			,@PATime = m.PATime
+			,@SATime = m.SATime
+		FROM #Match_Filter m
+		WHERE m.isFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK;
+		
 		SELECT @MinAccept = @AATime
 
 		IF @MinAccept > @PATime SET @MinAccept = @PATime
 		IF @MinAccept > @SATime SET @MinAccept = @SATime
 
 		SELECT @VoidFromTime = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
-			   
-		INSERT INTO @bettype_tmp (bettype)
-		SELECT DISTINCT pt.bettype
-		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE pt.ProductID = 1 -- Sportsbook
-			AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
-			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
 		SELECT @VoidFromTime = MIN(CASE WHEN act.FromDate >= DATEADD (SECOND,CASE WHEN act.AcceptType = 1 THEN @AATime
 																				  WHEN act.AcceptType = 2 THEN @SATime
@@ -101,8 +159,13 @@ BEGIN
 			SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
 		END
 
-		SELECT @VoidFromTime AS VoidFromTime
-			  ,@VoidToTime AS VoidToTime
+		INSERT INTO @Match_VoidTime (MatchId, VoidFromTime, VoidToTime)
+		SELECT @MatchId, @VoidFromTime, @VoidToTime
 	END
+
+	SELECT MatchId, VoidFromTime, VoidToTime
+	FROM @Match_VoidTime
+
+	DROP TABLE #Match_Filter
 END
 GO

@@ -36,6 +36,7 @@ AS
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:	
 		@Status: 
@@ -359,7 +360,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -409,7 +410,7 @@ BEGIN
 
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -446,7 +447,7 @@ BEGIN
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
-				ON sub.SubIssueTypeId = r.SubIssueTypeId
+				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
 						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -459,7 +460,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, FilterBy, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -494,7 +495,7 @@ BEGIN
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
-				ON sub.SubIssueTypeId = r.SubIssueTypeId
+				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
 						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)

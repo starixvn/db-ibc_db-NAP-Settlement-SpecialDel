@@ -30,6 +30,7 @@ AS
 		- 20210420@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:	
 	
@@ -41,7 +42,7 @@ BEGIN
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
-			,r.SubIssueTypeId
+			--,r.SubIssueTypeId
 			,r.ActionId
 			,r.MistakenBy
 			,r.DecidedBy
@@ -97,6 +98,7 @@ BEGIN
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
+				,rd.SubIssueTypeId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
