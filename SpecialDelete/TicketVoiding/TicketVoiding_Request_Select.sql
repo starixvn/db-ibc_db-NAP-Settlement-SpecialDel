@@ -124,6 +124,7 @@ BEGIN
 				,rd.TicketStatusIds AS StatusIds 
 				,rd.FromWinlostDate AS FromDate 
 				,rd.ToWinlostDate AS ToDate
+				,rd.SubIssueTypeId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.RequestId = @RequestId
 	END
