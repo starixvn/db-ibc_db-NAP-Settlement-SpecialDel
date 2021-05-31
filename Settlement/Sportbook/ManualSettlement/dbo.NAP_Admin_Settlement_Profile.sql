@@ -32,6 +32,7 @@ AS
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
@@ -715,7 +716,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ CASE
-							WHEN @sportType IN (43, 5 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN (43, 5, 50 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
