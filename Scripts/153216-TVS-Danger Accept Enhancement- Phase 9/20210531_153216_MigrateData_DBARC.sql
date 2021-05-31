@@ -5,7 +5,7 @@
 	DB: DBARC-bodb_archive
 */
 
-USE bodb02
+USE bodb_Archive
 GO
 
 WHILE (1=1)
