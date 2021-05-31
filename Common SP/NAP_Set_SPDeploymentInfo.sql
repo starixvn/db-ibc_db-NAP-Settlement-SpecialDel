@@ -35,7 +35,7 @@ BEGIN
 	
 	-- Auto PinGoal
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 0	
+	SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 1	
 
 	-- Bitcoin
 	UNION ALL
