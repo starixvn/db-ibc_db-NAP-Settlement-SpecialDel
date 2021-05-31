@@ -280,7 +280,7 @@ BEGIN
 				, t.MatchId
 				, @RequestDetailID_DA AS RequestDetailId
 			FROM #DangerAccept_SingleTickets t
-				LEFT JOIN TicketVoiding_RequestDetailTicket_Single st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId
+				LEFT JOIN TicketVoiding_RequestDetailTicket_Single st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId AND st.RequestId = @RequestId
 			WHERE st.transid IS NULL
 		END
 		ELSE
