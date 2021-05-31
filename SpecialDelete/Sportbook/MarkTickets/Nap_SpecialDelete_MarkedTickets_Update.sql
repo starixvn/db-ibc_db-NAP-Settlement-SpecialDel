@@ -42,19 +42,20 @@ BEGIN
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 	SET @ID =  NEWID()
 	BEGIN TRY
-			
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN		
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(100), @UserName) END
-				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
 				+ CASE WHEN @IsLockMatch IS NULL THEN '' ELSE ',@IsLockMatch = ' + CONVERT(NVARCHAR(50), @IsLockMatch) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
-			
+		END	
 	END TRY
 	BEGIN CATCH
 	END CATCH 
@@ -450,10 +451,11 @@ BEGIN
 	
 	-- Write useraction log	
 	BEGIN TRY
-                
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
             INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
             VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
-                
+        END        
 	END TRY
 	BEGIN CATCH
 	END CATCH

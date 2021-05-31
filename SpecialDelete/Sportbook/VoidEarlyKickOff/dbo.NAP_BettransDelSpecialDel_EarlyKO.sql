@@ -130,22 +130,23 @@ BEGIN
 			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 	SET @ID =  NEWID()
 	BEGIN TRY
-			
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN		
 			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO '
 				+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
-				+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate, 21) END
-				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes) END
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) END
+				+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ''' + CONVERT(NVARCHAR(50), @KickOffDate, 21) +'''' END
+				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) +'''' END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) +'''' END
 				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
-				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword) END
-				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason) END
-				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC) END
-				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) +'''' END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) +'''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) +'''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) +'''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) +'''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
-			
+		END	
 	END TRY
 	BEGIN CATCH
 	END CATCH
@@ -2726,10 +2727,11 @@ BEGIN
 
 	-- Write useraction log 
 	BEGIN TRY
-                
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
                 INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
                 VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
-                
+        END       
 	END TRY
 	BEGIN CATCH
 	END CATCH
