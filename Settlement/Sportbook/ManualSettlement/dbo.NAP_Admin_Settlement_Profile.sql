@@ -32,6 +32,7 @@ AS
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
