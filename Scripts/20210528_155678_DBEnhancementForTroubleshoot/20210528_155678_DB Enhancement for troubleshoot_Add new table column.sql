@@ -24,3 +24,5 @@ CREATE NONCLUSTERED INDEX IDX_TVS_UserActionLog_CreatedDate ON TVS_UserActionLog
 ALTER TABLE TempVariableNumber
 ADD SPName VARCHAR(500);
 
+ALTER TABLE TempVariableNumberHistory
+ADD SPName VARCHAR(500);
