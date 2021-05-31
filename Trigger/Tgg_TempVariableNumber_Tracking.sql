@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
 ALTER TRIGGER [dbo].[Tgg_TempVariableNumber_Tracking] ON [dbo].[TempVariableNumber] 
 AFTER INSERT, DELETE
 AS
