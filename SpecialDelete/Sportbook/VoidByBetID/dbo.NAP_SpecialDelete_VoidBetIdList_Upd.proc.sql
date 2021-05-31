@@ -107,10 +107,11 @@ BEGIN
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN
 			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @TransIdSolds IS NULL THEN '' ELSE ',@TransIdSolds = ''' + CONVERT(NVARCHAR(MAX), @TransIdSolds) + '''' END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
 				+ CASE WHEN @Password IS NULL THEN '' ELSE ',@Password = ''' + CONVERT(NVARCHAR(50), @Password) + '''' END
-				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
 				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END

@@ -73,6 +73,7 @@ BEGIN
 				+ CASE WHEN @LicenseeNames IS NULL THEN '' ELSE ',@LicenseeNames = ''' + CONVERT(NVARCHAR(MAX), @LicenseeNames) + '''' END
 				+ CASE WHEN @CurrencyIDs IS NULL THEN '' ELSE ',@CurrencyIDs = ''' + CONVERT(NVARCHAR(MAX), @CurrencyIDs) + '''' END
 				+ CASE WHEN @TransIDs IS NULL THEN '' ELSE ',@TransIDs = ''' + CONVERT(NVARCHAR(MAX), @TransIDs) + '''' END
+				+ CASE WHEN @SoldTransIds IS NULL THEN '' ELSE ',@SoldTransIds = ''' + CONVERT(NVARCHAR(MAX), @SoldTransIds) + '''' END
 				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
 				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) + '''' END

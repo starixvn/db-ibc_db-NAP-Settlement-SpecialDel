@@ -45,8 +45,8 @@ BEGIN
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN		
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
-				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END

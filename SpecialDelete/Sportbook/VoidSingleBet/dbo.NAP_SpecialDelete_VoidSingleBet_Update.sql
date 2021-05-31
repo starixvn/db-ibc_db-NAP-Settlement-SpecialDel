@@ -175,6 +175,7 @@ BEGIN
 					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
 					+ CASE WHEN @SecondAcceptFlag IS NULL THEN '' ELSE ',@SecondAcceptFlag = ' + CONVERT(NVARCHAR(50), @SecondAcceptFlag) END
 					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+					+ CASE WHEN @TransIdSolds IS NULL THEN '' ELSE ',@TransIdSolds = ''' + CONVERT(NVARCHAR(MAX), @TransIdSolds) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
