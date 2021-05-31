@@ -105,14 +105,15 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd @TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) 
-				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
-				+ ',@Password = ' + CONVERT(NVARCHAR(50), @Password)
-				+ ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId)
-				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
-				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
-				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
-				+ ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet)
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
+				+ CASE WHEN @Password IS NULL THEN '' ELSE ',@Password = ' + CONVERT(NVARCHAR(50), @Password) END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason) END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC) END
+				+ CASE WHEN @IsAbnormalBet IS NULL THEN '' ELSE ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet) END
 				+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ' + CONVERT(NVARCHAR(50), @FilterUserName) END
 				+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ' + CONVERT(NVARCHAR(50), @Products) END
 				+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ' + CONVERT(NVARCHAR(50), @StatusIds) END

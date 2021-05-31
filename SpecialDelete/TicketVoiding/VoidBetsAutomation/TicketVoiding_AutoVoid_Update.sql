@@ -360,9 +360,10 @@ BEGIN
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102
 
-	IF @@ROWCOUNT <> 0
+	SET @Void_cnt = @@ROWCOUNT
+
+	IF @Void_cnt <> 0
 		SET @isExistMG = 1
-		SET @Void_cnt = @@ROWCOUNT
 
 
 	INSERT INTO @tmpInputTransId_VOID (TransId, RequestID, IssueTypeId, DecidedBy, Winlostdate, StatusId)

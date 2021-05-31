@@ -67,16 +67,17 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidByCurrency_Update @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
-				+ ',@LicenseeNames = ' + CONVERT(NVARCHAR(MAX), @LicenseeNames) 
-				+ ',@CurrencyIDs = ' + CONVERT(NVARCHAR(MAX), @CurrencyIDs)
-				+ ',@TransIDs = ' + CONVERT(NVARCHAR(MAX), @TransIDs)
-				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
-				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
-				+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
-				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
-				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
-				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidByCurrency_Update '
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @LicenseeNames IS NULL THEN '' ELSE ',@LicenseeNames = ' + CONVERT(NVARCHAR(MAX), @LicenseeNames) END
+				+ CASE WHEN @CurrencyIDs IS NULL THEN '' ELSE ',@CurrencyIDs = ' + CONVERT(NVARCHAR(MAX), @CurrencyIDs) END
+				+ CASE WHEN @TransIDs IS NULL THEN '' ELSE ',@TransIDs = ' + CONVERT(NVARCHAR(MAX), @TransIDs) END
+				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword) END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason) END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)

@@ -154,25 +154,26 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidSingleBet_Update @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
-					+ ',@FromTransId = ' + CONVERT(NVARCHAR(50), @FromTransId) 
-					+ ',@ToTransId = ' + CONVERT(NVARCHAR(50), @ToTransId)
-					+ ',@Bet = ' + @Bet
-					+ ',@TimeType = ' + CONVERT(NVARCHAR(50), @TimeType)
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidSingleBet_Update '
+					+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @FromTransId IS NULL THEN '' ELSE ',@FromTransId = ' + CONVERT(NVARCHAR(50), @FromTransId) END
+					+ CASE WHEN @ToTransId IS NULL THEN '' ELSE ',@ToTransId = ' + CONVERT(NVARCHAR(50), @ToTransId) END
+					+ CASE WHEN @Bet IS NULL THEN '' ELSE ',@Bet = ' + @Bet END
+					+ CASE WHEN @TimeType IS NULL THEN '' ELSE ',@TimeType = ' + CONVERT(NVARCHAR(50), @TimeType) END
 					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ' + CONVERT(NVARCHAR(50), @FromTransdate, 21) END
 					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ' + CONVERT(NVARCHAR(50), @ToTransdate, 21) END
-					+ ',@LiveIndicator = ' + CONVERT(NVARCHAR(50), @LiveIndicator)
+					+ CASE WHEN @LiveIndicator IS NULL THEN '' ELSE ',@LiveIndicator = ' + CONVERT(NVARCHAR(50), @LiveIndicator) END
 					+ CASE WHEN @LiveHomeScore IS NULL THEN '' ELSE ',@LiveHomeScore = ' + CONVERT(NVARCHAR(50), @LiveHomeScore) END
 					+ CASE WHEN @LiveAwayScore IS NULL THEN '' ELSE ',@LiveAwayScore = ' + CONVERT(NVARCHAR(50), @LiveAwayScore) END
-					+ ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes)
-					+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
-					+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
-					+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
-					+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
-					+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
-					+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
-					+ ',@SecondAcceptFlag = ' + CONVERT(NVARCHAR(50), @SecondAcceptFlag)
-					+ ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
+					+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes) END
+					+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
+					+ CASE WHEN @UserPassword IS NULL THEN ''ELSE ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword) END
+					+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
+					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason) END
+					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC) END
+					+ CASE WHEN @SecondAcceptFlag IS NULL THEN '' ELSE ',@SecondAcceptFlag = ' + CONVERT(NVARCHAR(50), @SecondAcceptFlag) END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)

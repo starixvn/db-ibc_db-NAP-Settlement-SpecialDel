@@ -131,16 +131,17 @@ BEGIN
 	SET @ID =  NEWID()
 	BEGIN TRY
 			
-			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO @MatchId = ' + CONVERT(NVARCHAR(50), @MatchId)
-				+ ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate, 21) 
-				+ ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes)
-				+ ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds)
-				+ ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID)
-				+ ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName)
-				+ ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword)
-				+ ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason)
-				+ ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC)
-				+ ',@IP = ' + CONVERT(NVARCHAR(50), @IP)
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO '
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ' + CONVERT(NVARCHAR(50), @KickOffDate, 21) END
+				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ' + CONVERT(NVARCHAR(MAX), @BetTypes) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ' + CONVERT(NVARCHAR(MAX), @TransIds) END
+				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ' + CONVERT(NVARCHAR(50), @UserPassword) END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ' + CONVERT(NVARCHAR(500), @Reason) END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ' + CONVERT(NVARCHAR(500), @ReasonSC) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ' + CONVERT(NVARCHAR(50), @IP) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
