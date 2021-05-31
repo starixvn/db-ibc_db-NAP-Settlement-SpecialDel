@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@ErrMsg 			NVARCHAR(200)	= '' OUTPUT
 	,@SelectedResources VARCHAR(MAX)
 	,@IsReSettledTickets BIT			= 1
+	,@IsAuto			BIT				= 0
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 AS
@@ -31,6 +32,8 @@ AS
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -73,7 +76,10 @@ BEGIN
 			,@SelectedQuarter 	VARCHAR(50) = NULL
 			,@ParentMatchId		INT
 			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
-
+			,@procName			SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime		VARCHAR(10)
+			,@IsWaiting			BIT = 0
+			,@LeagueGroupID		SMALLINT = 0
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -92,6 +98,25 @@ BEGIN
 
 	----------------------------------------------------------------------------------------------------------------------
 
+	-- Check SP is in deployment
+	IF @IsAuto = 1
+	BEGIN
+		EXEC dbo.NAP_Set_SPDeploymentInfo 
+			@SPName = @procName
+			,@WaitingTime = @WaitingTime OUTPUT
+			,@IsWaiting = @IsWaiting OUTPUT
+
+		IF @IsWaiting = 1
+		BEGIN
+			WAITFOR DELAY @WaitingTime
+			
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Failed due to system is in deployment, please wait a few seconds until the process is completed and try again.'
+
+			RETURN
+		END
+	END
+
   	SELECT  @start = CURRENT_TIMESTAMP
 		   ,@ActionID = CASE
 						  WHEN @Action = 'CAL' THEN 100
@@ -109,14 +134,16 @@ BEGIN
 						END
 
   	--get info of match
-  	SELECT @fth			= finalhomescore
-		  ,@fta			= finalawayscore
-		  ,@hth			= hthomescore
-		  ,@hta			= htawayscore
-		  ,@sportType	= sportType
-		  ,@ParentMatchId = CASE WHEN ChildMatchType = 200 AND ParentID IS NOT NULL AND sporttype = 50 THEN ParentID ELSE NULL END
-  	FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  	WHERE   matchid = @matchid
+  	SELECT @fth			= m.finalhomescore
+		  ,@fta			= m.finalawayscore
+		  ,@hth			= m.hthomescore
+		  ,@hta			= m.htawayscore
+		  ,@sportType	= m.sportType
+		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+		  ,@LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
+  	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
+		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
+  	WHERE   m.matchid = @matchid
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -205,6 +232,8 @@ BEGIN
 				ON s.RefResourceId = t.ResourceID
 		WHERE	s.SportType = @sportType
 				AND s.RefResourceId IS NOT NULL
+				AND 1 = CASE WHEN @LeagueGroupID = 113 AND @sportType = 1 THEN 0
+						ELSE 1 END
 		
 		IF @DummyResourceIds <> ''
 		BEGIN
@@ -363,7 +392,11 @@ BEGIN
 					,@hth = sr.HomeValue
 					,@hta = sr.AwayValue
   		FROM @tmpSelectedRID sr
-  		WHERE sr.ResourceID = '01' AND @sportType = 2
+  		WHERE sr.ResourceID = '01' 
+			AND 1 = CASE WHEN @sportType = 2 THEN 1
+						 WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
+						 ELSE 0
+						 END
 
 		IF @existsHTRound = 1
 		BEGIN

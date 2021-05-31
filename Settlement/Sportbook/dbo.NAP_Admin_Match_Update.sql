@@ -61,6 +61,7 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		
     Parameters Explanation:
 
@@ -547,7 +548,7 @@ BEGIN
                 ,settletime     = GETDATE()
             WHERE matchid = @matchid
         END
-        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (2,5)
+        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (1,2,5)
         BEGIN
 			IF (@IsHTRound = 1 OR @Sporttype <> 2) AND @Action = 'UNDO'
 				SELECT	@HTHome = -1

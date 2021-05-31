@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Intg" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Intg,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_AutoWriteLog] 
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
@@ -23,11 +23,14 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
+		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210518@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		
 	Param's Explanation:
 		@Product: BetRadar
 				  FastMarket
 				  BetBuilder
+				  PinGoal
 				  
 		For FastMarket: 
 			@Result = '<BetTypes>
@@ -45,7 +48,10 @@ AS
 					            <rsc m="4"/>
 					            <rsc m="5"/>
 					         </Resources>'
-
+		For PinGoal:
+			@ResourceIDs =  '<Resources>
+								<Resource Id="00" Home="1" Away="3" />
+							</Resources>'
 		
 */
 BEGIN
@@ -64,14 +70,7 @@ BEGIN
 						 ELSE 144
 					END
 	
-	IF @Product = 'BetRadar'
-	BEGIN
-		SELECT	@Remark = 'NAP:ResourceIDs:' + @ResourceIDs +  ' <br/> ' 
-							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-							+ 'Action:' + @Action +  ' <br/> ' 
-							+ @Remark
-	END
-	ELSE IF @Product = 'FastMarket'
+	IF @Product = 'FastMarket'
 	BEGIN
 		DECLARE @tblResultDetail TABLE (
 			bettype		SMALLINT	
@@ -164,7 +163,43 @@ BEGIN
 								WHEN @totalSettledMarketIDs <= @maxResultShowed THEN '<br/>Settled MarketIDs: ' + @Remark 
 								ELSE '<br/> Total Settled MarketIDs:' + CAST(@totalSettledMarketIDs AS VARCHAR) END
 	END
+	ELSE IF @Product = 'PinGoal'
+	BEGIN
+		DECLARE @resultPinGoal VARCHAR(MAX) = ''
+				,@xmlstr XML
+		
+		SET @xmlstr = CAST(@ResourceIDs AS XML)
 
+		;WITH TmpData AS (
+			SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceID
+				  ,T.C.value('@Home', 'VARCHAR(50)') AS Home
+				  ,T.C.value('@Away', 'VARCHAR(50)') AS Away
+			FROM @xmlstr.nodes('/Resources/Resource') AS T(C)
+		)
+		
+		SELECT @resultPinGoal = @resultPinGoal + ',' + ResourceID	
+								+ CASE WHEN ISNULL(Home,'') <> '' AND ISNULL(Away,'') <> '' 
+									   THEN '(' + Home + '-' + Away + ')'
+									   ELSE '' END
+		FROM TmpData
+
+
+		SELECT @resultPinGoal = STUFF(@resultPinGoal, 1, 1, '')
+
+		SELECT	@Remark = 'NAP:ResourceIDs:' + @resultPinGoal +  ' <br/> ' 
+							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+							+ ' Action:' + @Action +  ' <br/> ' 
+							+ @Remark
+
+
+	END
+	ELSE
+	BEGIN
+		SELECT	@Remark = 'NAP:ResourceIDs:' + @ResourceIDs +  ' <br/> ' 
+							+ 'IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+							+ 'Action:' + @Action +  ' <br/> ' 
+							+ @Remark
+	END
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			,@matchid = @matchid
