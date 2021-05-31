@@ -7,7 +7,6 @@
 USE bodb02
 GO
 
-
 --dbo.TicketVoiding_SubIssueType
 UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Corner' WHERE SubIssueTypeId = 2
 UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Booking' WHERE SubIssueTypeId = 3
