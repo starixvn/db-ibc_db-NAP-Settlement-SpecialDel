@@ -12,7 +12,6 @@
 USE bodb02
 GO
 
-BEGIN
 
 	UPDATE sp
 	SET  sp.SettleType = 'EAR'
@@ -20,4 +19,29 @@ BEGIN
 	WHERE sp.SportType = 2
 	AND sp.BetType IN ( 605, 617 )
 
-END
+GO
+
+	IF OBJECT_ID ('tempdb..#tmp613' ) IS NOT NULL
+	BEGIN	
+		DROP TABLE #tmp613
+	END
+
+	CREATE TABLE #tmp613  (RoundID	VARCHAR(10), MaxOrd SMALLINT)
+
+	INSERT INTO #tmp613 (RoundID, MaxOrd)
+		 SELECT  DISTINCT  sp.RoundID
+				, MAX(sp.OrdNo) OVER(PARTITION BY sp.RoundId) AS MaxOrd
+		 FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+		 WHERE sp.sporttype = 2
+			 AND sp.settletype = 'EAR'
+			 AND sp.bettype IN (613)
+	  
+	
+	UPDATE dbo.SettlementSpecialBettypeProfile
+	SET  OrdNo = #tmp613.MaxOrd + 1
+	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+		INNER JOIN #tmp613  ON sp.RoundID = #tmp613.RoundID
+	WHERE sp.sporttype = 2
+	AND sp.settletype = 'EAR'
+	AND sp.bettype IN (617)
+
