@@ -48,9 +48,6 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
-			,@rowcnt_input INT = 0
-			,@rowcnt_inserted INT = 0
-			,@Dup_cnt	INT = 0
 
 	SET @ServerName = @@SERVERNAME
 
@@ -120,7 +117,6 @@ BEGIN
 		FROM	dbo.bettrans WITH(NOLOCK)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
-		SET @rowcnt_input = @@ROWCOUNT
 		
 		-- Remove duplicate transid if page split occurs
 		;WITH cteDuplicateTransId
@@ -138,7 +134,6 @@ BEGIN
 		FROM	cteDuplicateTransId
 		WHERE	rn > 1
 
-		SET @Dup_cnt = @@ROWCOUNT
 
 		-- Create index after remove duplicate rows
 		CREATE UNIQUE CLUSTERED INDEX CIX_tempBettrans_refno ON #temp_bettrans (refno)
@@ -147,58 +142,54 @@ BEGIN
 			SET inserted = 1
 		FROM #temp_bettrans t
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)			
-		SET @rowcnt_inserted = @@ROWCOUNT
 		
-		IF @rowcnt_inserted <> @rowcnt_input - @Dup_cnt
-		BEGIN
-			;WITH 
-				_source AS (
-					SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
-						,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
-						,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-						,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.mainmatch) --RN			
-					FROM #temp_bettrans b
-						CROSS APPLY
-							(
-								SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
-									,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
-									,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
-									,CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE bm.matchid END AS mainmatch
-								FROM	dbo.bettransm bm WITH(ROWLOCK)	
-									INNER JOIN dbo.match m WITH (NOLOCK)
-										ON	bm.matchid = m.matchid
-								WHERE	bm.refno = b.refno
-										AND m.sporttype BETWEEN 1 AND 99											
-							) bm
-					WHERE	b.inserted = 0 
-				),
-				ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
-			--	
-			INSERT INTO dbo.BetParlayDetail (
-				RefNo, Serial, transid, winlostdate, statuswinlost, statusid
-				,matchid, bettype, stake, odds, betteam, hdp1
-				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-			)
-			SELECT p.RefNo, rc.Serial, transid, winlostdate, statuswinlost, statusid
-				,matchid, bettype, ps.SetStake, odds, betteam, hdp1
-				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-			FROM _source p
-				INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
-				INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
-				INNER JOIN ParlayStake ps ON ps.refno = p.refno AND ps.RN = rc.R
+		;WITH 
+			_source AS (
+				SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
+					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
+					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
+					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.mainmatch) --RN			
+				FROM #temp_bettrans b
+					CROSS APPLY
+						(
+							SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
+								,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
+								,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
+								,CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE bm.matchid END AS mainmatch
+							FROM	dbo.bettransm bm WITH(ROWLOCK)	
+								INNER JOIN dbo.match m WITH (NOLOCK)
+									ON	bm.matchid = m.matchid
+							WHERE	bm.refno = b.refno
+									AND m.sporttype BETWEEN 1 AND 99											
+						) bm
+				WHERE	b.inserted = 0 
+			),
+			ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
+		--	
+		INSERT INTO dbo.BetParlayDetail (
+			RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+			,matchid, bettype, stake, odds, betteam, hdp1
+			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+		)
+		SELECT p.RefNo, rc.Serial, transid, winlostdate, statuswinlost, statusid
+			,matchid, bettype, ps.SetStake, odds, betteam, hdp1
+			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+		FROM _source p
+			INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
+			INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
+			INNER JOIN ParlayStake ps ON ps.refno = p.refno AND ps.RN = rc.R
 				
-			INSERT INTO dbo.BetParlayResult (
-				RefNo, Serial, transid, winlostdate, statusid, Stake
-				,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
-				,playercomm, comm, acomm, scomm
-			)
-			SELECT DISTINCT b.RefNo, r.Serial, 0, b.winlostdate, 0, r.stake
-				,0, 0, 0, 0, 0, 0
-				,0, 0, 0, 0
-			FROM #temp_bettrans b
-				INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
-			WHERE b.inserted = 0 -- only insert the row not yet insert to that table
-		END	
+		INSERT INTO dbo.BetParlayResult (
+			RefNo, Serial, transid, winlostdate, statusid, Stake
+			,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
+			,playercomm, comm, acomm, scomm
+		)
+		SELECT DISTINCT b.RefNo, r.Serial, 0, b.winlostdate, 0, r.stake
+			,0, 0, 0, 0, 0, 0
+			,0, 0, 0, 0
+		FROM #temp_bettrans b
+			INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
+		WHERE b.inserted = 0 -- only insert the row not yet insert to that table
 		
 	END
 	-----------------------
