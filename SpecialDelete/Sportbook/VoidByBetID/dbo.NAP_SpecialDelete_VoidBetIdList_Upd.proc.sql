@@ -91,12 +91,44 @@ AS
 	  - 20210107@Charles: Return extra oddsid column in results [Redmine: #143666]
 	  - 20210505@July: Show VIP status on void email [Redmine: #153157]
 	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+	  - 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 	 Param's Explanation:   
 	*/
 BEGIN
 	SET NOCOUNT ON	
-	
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @TransIdSolds IS NULL THEN '' ELSE ',@TransIdSolds = ''' + CONVERT(NVARCHAR(MAX), @TransIdSolds) + '''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+				+ CASE WHEN @Password IS NULL THEN '' ELSE ',@Password = ''' + CONVERT(NVARCHAR(50), @Password) + '''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+				+ CASE WHEN @IsAbnormalBet IS NULL THEN '' ELSE ',@IsAbnormalBet = ' + CONVERT(NVARCHAR(50), @IsAbnormalBet) END
+				+ CASE WHEN @FilterUserName IS NULL THEN '' ELSE '@FilterUserName = ''' + CONVERT(NVARCHAR(50), @FilterUserName) + '''' END
+				+ CASE WHEN @Products IS NULL THEN '' ELSE '@Products = ''' + CONVERT(NVARCHAR(50), @Products) + '''' END
+				+ CASE WHEN @StatusIds IS NULL THEN '' ELSE '@StatusIds = ''' + CONVERT(NVARCHAR(50), @StatusIds) + '''' END
+				+ CASE WHEN @FromDate IS NULL THEN '' ELSE '@FromDate = ''' + CONVERT(NVARCHAR(50), @FromDate) + ''''  END
+				+ CASE WHEN @ToDate IS NULL THEN '' ELSE '@ToDate = ''' + CONVERT(NVARCHAR(50), @ToDate) + ''''  END
+				
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE	@LogData					NVARCHAR(500) = ''
 			,@isITAdmin					BIT = 0
 			,@winlostdate				DATETIME
@@ -921,6 +953,7 @@ BEGIN
 		, @isExistBB				= @isExistBB
 		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @isExistFM2				= @isExistFM2
+		, @spName					= @spName
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT
@@ -2831,6 +2864,17 @@ BEGIN
 			ON tl.translogid = tmp.refno
 	WHERE tmp.Bettype BETWEEN 801 AND 806  
 		
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #BTTransActive
 	DROP TABLE #balanceGameBefore

@@ -103,6 +103,7 @@ Revisions:
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 	- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
+	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -122,6 +123,34 @@ Param's Explanation: Special bet delete option
 */  
 BEGIN  
 	SET NOCOUNT ON 		 
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN		
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO '
+				+ CASE WHEN @UserID IS NULL THEN '' ELSE '@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ''' + CONVERT(NVARCHAR(50), @KickOffDate, 21) +'''' END
+				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) +'''' END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) +'''' END
+				+ CASE WHEN @TransIdSolds IS NULL THEN '' ELSE ',@TransIdSolds = ''' + CONVERT(NVARCHAR(MAX), @TransIdSolds) +'''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) +'''' END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) +'''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) +'''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) +'''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) +'''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DECLARE @eventdate		DATETIME 
 			,@LogData		NVARCHAR(500)     
@@ -470,10 +499,11 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess  
 		@isExistParlay		= @isExistParlay  
 		, @isExistMG		= @isExistMG  
-		, @isExistFM  = @isExistFM  
+		, @isExistFM		= @isExistFM  
 		, @isExistMatch		= @isExistMatch  
 		, @isExistBB		= @isExistBB
 		, @isExistFM2		= @isExistFM2
+		, @spName			= @spName
 		, @avaiableProcess  = @avaiableProcess OUTPUT  
 		, @ErrCode			= @ErrCode OUTPUT  
 		, @ErrMsg			= @ErrMsg OUTPUT  
@@ -2695,6 +2725,18 @@ BEGIN
 				AND b.[Status] IN ('Accept', 'Confirm')  
 		END  
 	END  
+
+	-- Write useraction log 
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
+                INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+                VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+        END       
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMatchProcess  
 	DROP TABLE #BetDelete  
 	DROP TABLE #BetmDelete  

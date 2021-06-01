@@ -53,12 +53,41 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidByCurrency_Update '
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @LicenseeNames IS NULL THEN '' ELSE ',@LicenseeNames = ''' + CONVERT(NVARCHAR(MAX), @LicenseeNames) + '''' END
+				+ CASE WHEN @CurrencyIDs IS NULL THEN '' ELSE ',@CurrencyIDs = ''' + CONVERT(NVARCHAR(MAX), @CurrencyIDs) + '''' END
+				+ CASE WHEN @TransIDs IS NULL THEN '' ELSE ',@TransIDs = ''' + CONVERT(NVARCHAR(MAX), @TransIDs) + '''' END
+				+ CASE WHEN @SoldTransIds IS NULL THEN '' ELSE ',@SoldTransIds = ''' + CONVERT(NVARCHAR(MAX), @SoldTransIds) + '''' END
+				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) + '''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	SELECT @ErrorCode = 0
 		 , @ErrorMsg = ''  
 		 , @InvalidTransIds = ''
@@ -1430,6 +1459,7 @@ BEGIN
 				, @IsExistParlay	= @IsExistParlay
 				, @isExistBB		= @isExistBB
 				, @isExistFM2		= @isExistFM2
+				, @spName			= @spName
 				, @avaiableProcess 	= @AvaiableProcess OUTPUT
 				, @ErrCode			= @ErrorCode OUTPUT
 				, @ErrMsg			= @ErrorMsg OUTPUT
@@ -2337,6 +2367,17 @@ BEGIN
 
 		RETURN				
 	END CATCH		
+	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN     
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchID, GETDATE(),@SubmittedDate)
+		END      
+	END TRY
+	BEGIN CATCH
+	END CATCH
 			
 	SET NOCOUNT OFF
 

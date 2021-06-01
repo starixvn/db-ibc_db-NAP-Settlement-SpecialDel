@@ -30,9 +30,35 @@ AS
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+
 */
 BEGIN
      SET NOCOUNT ON;
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN		
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
+				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
+				+ CASE WHEN @IsLockMatch IS NULL THEN '' ELSE ',@IsLockMatch = ' + CONVERT(NVARCHAR(50), @IsLockMatch) END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
 
 	DECLARE @xmlLog VARCHAR(MAX)
 			,@LogData VARCHAR(MAX) = '';
@@ -325,6 +351,7 @@ BEGIN
 			,@isExistParlay = @IsExistParlay
 			,@IsExistFM = @IsExistFM
 			,@IsExistFM2 = @IsExistFM2
+			,@spName = @spName
 			,@avaiableProcess = @avaiableProcess OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT;
@@ -421,6 +448,17 @@ BEGIN
 		m.IsNeutral
 	FROM #Match b
 		LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #TransIds;
 	DROP TABLE #Match;

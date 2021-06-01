@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20210402@Kathy: Create new SP [Redmine:#152581]
 		- 20210524@July: Lock TempVariableNumber due to duplicate voiding requestid inserted from web special delete [Redmine:#155575]
+		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		
 	
 	Param's explanation:	
@@ -27,9 +28,9 @@ BEGIN
 			,@isExistMatch		BIT = 0
 			,@isExistBB			BIT = 0
 			,@isExistFM2		BIT = 0
-
 			,@availableProcess	BIT  = 0
 			,@starttime			DATETIME
+			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @tmpMatchTransIds TABLE (MatchId INT, TransIds VARCHAR(MAX))
 	DECLARE @tmpMatchTransIdsParlay TABLE (MatchId INT, TransIds VARCHAR(MAX))
@@ -175,7 +176,6 @@ BEGIN
 		
 		SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
 				,@isExistMG = CASE WHEN KeyID = 3 THEN 1 ELSE 0 END
-				,@isExistMG = CASE WHEN KeyID = 3 THEN 1 ELSE 0 END
 				,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
 				,@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
 				,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
@@ -187,6 +187,7 @@ BEGIN
 			, @isExistMatch				= @isExistMatch
 			, @isExistBB				= @isExistBB
 			, @isExistFM2				= @isExistFM2
+			, @spName					= @spName
 			, @avaiableProcess 			= @availableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT

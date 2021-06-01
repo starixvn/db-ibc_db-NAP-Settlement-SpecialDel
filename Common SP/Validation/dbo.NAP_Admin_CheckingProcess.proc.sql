@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
 	, @IsExistFM2				BIT = 0
+	, @spName					VARCHAR(500) = ''
 	, @AvaiableProcess			BIT = 0 OUTPUT
 	, @ErrCode					INT = 0 OUTPUT
 	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
@@ -28,8 +29,9 @@ AS
 	- 20170530@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 	- 20190404@Kathy: New keyId for Fast Market [Redmine:#106823]
 	- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-	 - 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
-	
+	- 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+
  Param's Explanation:   
  
  Dependences:
@@ -172,8 +174,8 @@ BEGIN
 			END
 			BEGIN TRY
 					
-				INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, KeyValue2) 
-				SELECT DISTINCT KeyID, matchid, KeyValue2
+				INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, KeyValue2, SPName) 
+				SELECT DISTINCT KeyID, matchid, KeyValue2, @spName 
 				FROM #tblMatchProcessKeyValue2
 				WHERE KeyID > 0
 				
@@ -216,8 +218,8 @@ BEGIN
 			BEGIN
 				BEGIN TRY	
 					
-					INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) 
-					SELECT DISTINCT KeyID, matchid
+					INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue, SPName) 
+					SELECT DISTINCT KeyID, matchid, @spName
 					FROM #tblMatchProcess
 					WHERE KeyID > 0
 					
