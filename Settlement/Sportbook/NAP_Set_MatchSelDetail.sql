@@ -63,6 +63,7 @@ AS
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20201208@Louisa: Child match: get ET and PEN matches [Redmine:#145597]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 
 */
 BEGIN
@@ -197,21 +198,21 @@ BEGIN
 			,0 InRunningParlay,0 WaitingParlay_cnt, 0 betcountParlay
 			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
 			
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet1
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet2
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet3
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet4
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet1
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet2
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet3
+			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet4
 			,MAX(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet5		
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' THEN 1 ELSE 0 END) AS BetCountSet1
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' THEN 1 ELSE 0 END) AS BetCountSet2
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' THEN 1 ELSE 0 END) AS BetCountSet3
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' THEN 1 ELSE 0 END) AS BetCountSet4
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' THEN 1 ELSE 0 END) AS BetCountSet1
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' THEN 1 ELSE 0 END) AS BetCountSet2
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' THEN 1 ELSE 0 END) AS BetCountSet3
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' THEN 1 ELSE 0 END) AS BetCountSet4
 			,SUM(CASE WHEN CAST(betid AS VARCHAR(20)) LIKE '805%' THEN 1 ELSE 0 END) AS BetCountSet5
 
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet1
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet2
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet3
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 617)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet4
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet1
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet2
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet3
+			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet4
 			,SUM(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet5
 	FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (
@@ -579,93 +580,6 @@ BEGIN
     WHERE match.matchid = @matchid
 
    -- Get TENNIS, CORNER, BASKETBALL RESULT 
-	IF @sporttype = 2
-	BEGIN
-		DECLARE @tmpSingleBettype TABLE (ResourceId VARCHAR(50))
-		DECLARE @tmpParlayBettype TABLE (ResourceId VARCHAR(50))
-		
-		INSERT INTO @tmpSingleBettype (ResourceId)
-		SELECT	CAST(b.bettype AS VARCHAR) 
-				+ CASE 
-					WHEN b.bettype = 617 THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
-					ELSE ''
-				END AS ResourceId
-		FROM	dbo.bettrans b WITH (NOLOCK)
-		WHERE	b.matchid = @MatchId
-				AND b.bettype IN (605, 617)
-				AND b.statusId NOT IN (101, 102)
-		GROUP BY b.bettype 
-				,CASE 
-					WHEN b.bettype = 617 THEN SUBSTRING(CAST(b.betid AS VARCHAR),2,3)
-					ELSE ''
-				END
-		
-		INSERT INTO @tmpParlayBettype (ResourceId)
-		SELECT	CAST(bm.bettype AS VARCHAR) 
-				+ CASE 
-					WHEN bm.bettype = 617 THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
-					ELSE ''
-				END AS ResourceId
-		FROM	dbo.bettransm bm WITH (NOLOCK)
-		WHERE	bm.matchid = @MatchId		
-				AND bm.bettype IN (605, 617)
-				AND bm.statusId NOT IN (101, 102)
-		GROUP BY bm.bettype
-				,CASE 
-					WHEN bm.bettype = 617 THEN SUBSTRING(CAST(bm.betcheck AS VARCHAR),2,3)
-					ELSE ''
-				END
-		
-		;WITH cteResultDetail
-		AS (
-			SELECT	matchid
-					, 0 AS SourceId
-					, '' AS SourceName
-					, ResourceId
-					, HomeValue
-					, AwayValue
-					, ResultStatusID
-					, SettlementStatusID
-			FROM	DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
-			WHERE	MatchId = @MatchId
-		)
-		SELECT	@matchId AS MatchId
-				,COALESCE(r.ResourceId, s.ResourceId, p.ResourceId) AS ResourceId
-				,ISNULL(r.HomeValue, t.HomeValue) AS HomeValue
-				,ISNULL(r.AwayValue, t.AwayValue) AS AwayValue
-				,ISNULL(r.ResultStatusID, t.ResultStatusID) AS ResultStatusID
-				,ISNULL(r.SettlementStatusID, t.SettlementStatusID) AS SettlementStatusID			
-		FROM	@tmpSingleBettype s
-			FULL JOIN @tmpParlayBettype p
-				ON	s.ResourceId = p.ResourceId
-			FULL JOIN (
-				SELECT	matchid
-						, ResourceId
-						, HomeValue
-						, AwayValue
-						, ResultStatusID
-						, SettlementStatusID
-				FROM	cteResultDetail
-				WHERE	( ResourceId IN ('00','01', 'OT')
-							OR ResourceId LIKE 'Q[1-4]'
-						)
-			) r
-				ON	ISNULL(s.ResourceId,p.ResourceId) = r.ResourceId
-			LEFT JOIN (
-				SELECT	matchid
-						, ResourceId
-						, HomeValue
-						, AwayValue
-						, ResultStatusID
-						, SettlementStatusID
-				FROM	cteResultDetail 
-				WHERE	(ResourceId = '605'
-							OR ResourceId LIKE '6170[1-4]'
-						)
-			) t
-				ON	COALESCE(r.ResourceId, s.ResourceId, p.ResourceId) = t.ResourceId
-	END
-	ELSE
 	BEGIN
 		DECLARE @matchidList  VARCHAR(MAX) = CAST(@MatchId AS VARCHAR )
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel @matchidList = @matchidList
