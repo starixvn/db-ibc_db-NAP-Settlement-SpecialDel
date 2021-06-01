@@ -133,7 +133,7 @@ BEGIN
 			LiveIndicator		  BIT,
 			StatusId			  TINYINT,
 			checktime			  DATETIME,
-			accepttype			  TINYINT
+			accepttype			  TINYINT,
 			SubIssueTypeId		SMALLINT
 	)
 
