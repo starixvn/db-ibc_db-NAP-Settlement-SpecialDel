@@ -11,7 +11,7 @@ AS
     Revisions:            
 		- 20200908@Louisa: get latest LSports result [Redmine:#139979]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
-		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
 
 	Param's Explanation:
 		
@@ -48,7 +48,9 @@ BEGIN
 		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
 				,p.SourceId
 				,p.ResourceId
-				,p.ProviderExternalId				,p.HomeValue				,p.AwayValue
+				,p.ProviderExternalId
+				,p.HomeValue
+				,p.AwayValue
 		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
 		WHERE	@SportType = 2
 			AND p.MatchId = @MatchId	

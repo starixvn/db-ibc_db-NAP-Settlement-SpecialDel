@@ -30,6 +30,7 @@ AS
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -263,8 +264,7 @@ BEGIN
 			SELECT c.matchid
 					,c.ParentId
 					,CASE 
-						WHEN f.ResourceID IN('70400','605')
-							OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+						WHEN f.ResourceID = '70400' THEN '00' 
 						WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
 						ELSE f.ResourceID 
 					END AS ResourceID
@@ -275,8 +275,7 @@ BEGIN
 			WHERE (f.Betid = 0 OR CAST(f.Betid AS NVARCHAR(50)) = c.Betcheck)
 			GROUP BY c.matchid, c.ParentId
 				,CASE 
-					WHEN f.ResourceID IN('70400','605')
-						OR f.ResourceID LIKE '6170[1-4]' THEN '00' 
+					WHEN f.ResourceID = '70400' THEN '00' 
 					WHEN f.RefResourceId IS NOT NULL THEN f.RefResourceId
 					ELSE f.ResourceID 
 				END

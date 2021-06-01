@@ -12,7 +12,7 @@ AS
 		- 20201202@Louisa: SBO Result for 8 sports:3,4,6,8,9,18,24,25  [Redmine:#146239]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
-		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
 
 	Param's explanation:
 		
