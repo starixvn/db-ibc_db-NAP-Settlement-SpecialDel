@@ -21,7 +21,8 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
 		- 20210305@Kathy: Generate combination of ticket by main match of cricket [Redmine:#148870] 
-		- 20210415@Helen: Performance Tuning for EC 2021 [Redmine:#151143] 
+		- 20210415@Helen: Performance Tuning for EC 2021 [Redmine:#151143]
+		- 20210601@louisa: Performance Tuning for EC 2021 [Redmine:#151143]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -49,6 +50,7 @@ BEGIN
 			,@AllowExec	BIT
 			,@rowcnt_input INT = 0
 			,@rowcnt_inserted INT = 0
+			,@Dup_cnt	INT = 0
 
 	SET @ServerName = @@SERVERNAME
 
@@ -136,6 +138,8 @@ BEGIN
 		FROM	cteDuplicateTransId
 		WHERE	rn > 1
 
+		SET @Dup_cnt = @@ROWCOUNT
+
 		-- Create index after remove duplicate rows
 		CREATE UNIQUE CLUSTERED INDEX CIX_tempBettrans_refno ON #temp_bettrans (refno)
 
@@ -145,7 +149,7 @@ BEGIN
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)			
 		SET @rowcnt_inserted = @@ROWCOUNT
 		
-		IF @rowcnt_inserted <> @rowcnt_input
+		IF @rowcnt_inserted <> @rowcnt_input - @Dup_cnt
 		BEGIN
 			;WITH 
 				_source AS (
