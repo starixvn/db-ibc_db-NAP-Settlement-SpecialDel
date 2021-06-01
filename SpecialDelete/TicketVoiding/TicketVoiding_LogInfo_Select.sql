@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select_UAT2]
 (	
 	@MatchId              INT = 0
 	,@RequestId			  INT = 0
@@ -488,8 +488,8 @@ BEGIN
 		IF EXISTS (
 				SELECT 1
 				FROM dbo.bettransm AS bm WITH (NOLOCK)
-				WHERE bm.matchid = @matchid
-					AND 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+					INNER JOIN #DangerAccept d ON d.MatchId = bm.matchid
+				WHERE 1 = CASE WHEN @ActionId <>2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 								 WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
 								 ELSE 0 END
 					AND bm.betfrom <> 'P'
@@ -586,10 +586,10 @@ BEGIN
 								 END
 					 END AS accepttype
 					 ,d.SubIssueTypeId
-			FROM	dbo.bettransm sub WITH (NOLOCK)				
+			FROM	#DangerAccept d
+					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
-						ON	main.refno = sub.refno				
-					INNER JOIN #DangerAccept d ON d.MatchId = sub.matchid
+						ON	main.refno = sub.refno 
 			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						   WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 						   ELSE 0 END
