@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 ( 
 	@RequestId	INT
 	,@MatchId   INT = 0
+	,@IsGetMatchOnly BIT = 0
 )
 AS;
 /*	Created by: Kathy
@@ -18,6 +19,7 @@ AS;
 		- 20201127@Charles: God of fortune [Redmine: #146053]
 		- 20201216@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210201@July: TVS - Archive process for Abnormal Account [Redmine: #149776]
+		- 20210601@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		
 	Param's explanation:	
 		
@@ -34,6 +36,14 @@ BEGIN
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId 
 		AND (rd.MatchId = @MatchId OR @MatchId = 0)
+
+	IF @IsGetMatchOnly = 1 --Get list match only for web
+	BEGIN
+		SELECT MatchId
+		FROM #TmpMatch
+
+		RETURN;
+	END
 
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
