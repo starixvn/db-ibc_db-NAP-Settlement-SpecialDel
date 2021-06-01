@@ -32,8 +32,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@VoidFromTime			DATETIME	  = NULL
 	,@VoidToTime			DATETIME	  = NULL
 	,@LiveScores			NVARCHAR(300) = NULL
-	,@IsCheckedHomeTeam		BIT			  = 0
-	,@IsCheckedAwayTeam		BIT			  = 0
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)	  = NULL
 	,@StatusIds				VARCHAR(50)	  = NULL
@@ -74,18 +72,18 @@ AS
 		- 20210318@July: TVS - Danger Accept/Red Card Enhancement - Phase 7 [Redmine: #150459]
 		- 20210412@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
-						 2 - Suspender
+						   2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
-
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
 		+ @WrongScoreInfo:
-		<root>
-			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
-		</root>
+			<root>
+				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
+			</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -201,9 +199,7 @@ BEGIN
 			,@MaxMainParlayTransId = @MaxMainParlayTransId
 			,@VoidFromTime = @VoidFromTime			
 			,@VoidToTime = @VoidToTime			
-			,@LiveScores = @LiveScores			
-			,@IsCheckedHomeTeam	= @IsCheckedHomeTeam		
-			,@IsCheckedAwayTeam	= @IsCheckedAwayTeam		
+			,@LiveScores = @LiveScores					
 			,@SubIssueTypeId = @SubIssueTypeId		
 			,@IsConfirmCalculator = @IsConfirmCalculator
 			,@UserNames	= @UserNames				

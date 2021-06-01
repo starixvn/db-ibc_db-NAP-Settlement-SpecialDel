@@ -33,8 +33,9 @@ AS
 		- 20201106@July: [TVS] - Abnormal Account + Check lock match before add request [Redmine: #143666]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
-		- 20210524@July: TVS - Check parlay count = 0 [Redmine:#155575]
+		- 20210521@July: TVS - Check parlay count = 0 [Redmine:#155575]
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
+		- 20210525@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 	
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -50,8 +51,6 @@ BEGIN
 			,@UserName			  VARCHAR(100) = NULL
 			,@MarkedTransIds	  VARCHAR(MAX) = NULL
 			,@RemoveTransIds	  VARCHAR(MAX) = ''
-			,@IsCheckedHomeTeam	  BIT = 0
-			,@IsCheckedAwayTeam	  BIT = 0
 			,@IsLockMatch		  BIT = 0
 			,@WrongScoreInfoXML XML = NULL
 
@@ -142,8 +141,6 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,IsCheckedHomeTeam		BIT 
-			,IsCheckedAwayTeam		BIT 
 			,TypeAccept				VARCHAR(50)
 			)
 
@@ -157,11 +154,6 @@ BEGIN
 	BEGIN
 		RETURN;
 	END
-
-	SELECT  @IsCheckedHomeTeam  = ISNULL(IsCheckedHomeTeam,0)
-		   ,@IsCheckedAwayTeam  = ISNULL(IsCheckedAwayTeam,0)
-	FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) 
-	WHERE RequestId= @RequestId
 
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT tmp.transid
@@ -192,13 +184,16 @@ BEGIN
 			AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 						 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
-			AND (1= CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-							ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-									  WHEN @IsCheckedAwayTeam = 1 AND sub.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-									  WHEN @IsCheckedHomeTeam = 1 AND sub.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-									  ELSE 0 END
-							END)
 			AND sub.betfrom <> 'P'
+			AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
+						  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1 
+									WHEN @SubIssueTypeId IN (68,70) AND sub.bettype NOT IN (483,485) THEN 1
+									WHEN @SubIssueTypeId IN (56,58,61,76,80,83) AND sub.bettype NOT IN (401,403,407,461,463) THEN 1
+									WHEN @SubIssueTypeId IN (69,71) AND sub.bettype NOT IN (482,484) THEN 1
+									WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+								    ELSE 0
+							  END
+					END
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

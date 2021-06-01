@@ -7,8 +7,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidTime_Select]
 	,@FilterBy			  TINYINT = 1
 	,@IssueTypeId		  INT = 1
 	,@SubIssueTypeId	  INT = NULL
-	,@IsCheckedHomeTeam   BIT = 0
-	,@IsCheckedAwayTeam   BIT = 0
 	,@AATime			  TINYINT 
 	,@PATime			  TINYINT 
 	,@SATime			  TINYINT 
@@ -23,7 +21,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20210329@July: Create new SP [Redmine: #150459] 
+		- 20210329@July: Create new SP [Redmine: #150459]
+		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 
 	Param's explanation:
 		
@@ -89,13 +88,13 @@ BEGIN
 		)act
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE act.FromDate BETWEEN @VoidFromTime AND @FilterToTransTime
-			AND (1 = CASE WHEN @SubIssueTypeId NOT IN (1,2) THEN 1
-						ELSE CASE WHEN (@IsCheckedHomeTeam = 0 AND @IsCheckedAwayTeam = 0) OR (@IsCheckedHomeTeam = 1 AND @IsCheckedAwayTeam = 1) THEN 1
-										WHEN @IsCheckedAwayTeam = 1 AND b.bettype NOT IN (401,403,407,482,484,461,463) THEN 1 
-										WHEN @IsCheckedHomeTeam = 1 AND b.bettype NOT IN (402,404,409,483,485,462,464) THEN 1
-										ELSE 0 END
-						END
-			  )
+			AND 1 =  CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+						  WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+						  WHEN @SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+						  WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1 
+						  WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+						  ELSE 0
+					 END
 
 		IF @VoidFromTime IS NULL
 		BEGIN
