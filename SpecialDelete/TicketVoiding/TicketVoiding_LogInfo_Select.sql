@@ -1841,121 +1841,62 @@ BEGIN
 							 WHERE bettype = b.bettype)
 			GROUP BY b.matchid
 
-		--Highlight Min TransId (based on the acceptance type of the ticket)
-		IF @IssueTypeId = 1
-		BEGIN
-
-			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
+			--Highlight Min TransId (based on the acceptance type of the ticket)
+			IF @IssueTypeId = 1
 			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
-				SELECT rd.MatchId, B.transid , CASE 
+
+				IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
+				BEGIN
+					INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
+					SELECT rd.MatchId, B.transid , CASE 
+											WHEN b.checktime IS NULL THEN 1 --Auto Accept
+											ELSE CASE 
+													  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+													  ELSE 3 --Pending Accept
+												 END
+										END AS AcceptType, rd.VoidFromTime
+					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+						CROSS APPLY (
+								SELECT b.matchid, b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
+								FROM dbo.bettrans b WITH(NOLOCK) 
+									LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
+								WHERE rd.MatchId = b.matchid AND rd.MinSingleTransId = b.transid
+						)b 
+						CROSS APPLY (SELECT CASE WHEN rd.FilterBy = 1 THEN b.transdate
+												 WHEN rd.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+												 WHEN rd.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+												 END AS VoidTime
+									)act
+					WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId
+				END
+			
+				IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
+				BEGIN
+					INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
+					SELECT rd.MatchId, s.MainTransId , CASE 
 										WHEN b.checktime IS NULL THEN 1 --Auto Accept
 										ELSE CASE 
 												  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 												  ELSE 3 --Pending Accept
 											 END
 									END AS AcceptType, rd.VoidFromTime
-				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					CROSS APPLY (
-							SELECT b.matchid, b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
-							FROM dbo.bettrans b WITH(NOLOCK) 
-								LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
-							WHERE rd.MatchId = b.matchid AND rd.MinSingleTransId = b.transid
-					)b 
+					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
+					CROSS APPLY  (
+								SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
+								FROM dbo.bettransm bm WITH(NOLOCK)
+								WHERE rd.MatchId = bm.matchid AND s.TransId = bm.transid
+							)b
 					CROSS APPLY (SELECT CASE WHEN rd.FilterBy = 1 THEN b.transdate
 											 WHEN rd.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 											 WHEN rd.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 											 END AS VoidTime
-								)act
-				WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId
-			END
+									)act
+					WHERE rd.VoidFromTime = act.VoidTime
+						AND rd.RequestId = @RequestId
+				END
 			
-			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
-			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
-				SELECT rd.MatchId, s.MainTransId , CASE 
-									WHEN b.checktime IS NULL THEN 1 --Auto Accept
-									ELSE CASE 
-											  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
-											  ELSE 3 --Pending Accept
-										 END
-								END AS AcceptType, rd.VoidFromTime
-				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
-				CROSS APPLY  (
-							SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
-							FROM dbo.bettransm bm WITH(NOLOCK)
-							WHERE rd.MatchId = bm.matchid AND s.TransId = bm.transid
-						)b
-				CROSS APPLY (SELECT CASE WHEN rd.FilterBy = 1 THEN b.transdate
-										 WHEN rd.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-										 WHEN rd.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-										 END AS VoidTime
-								)act
-				WHERE rd.VoidFromTime = act.VoidTime
-					AND rd.RequestId = @RequestId
 			END
-			
-		END
-
-		--Highlight Min TransId (based on the acceptance type of the ticket)
-		IF @IssueTypeId = 1
-		BEGIN
-
-			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
-			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
-				SELECT rd.MatchId, B.transid , CASE 
-										WHEN b.checktime IS NULL THEN 1 --Auto Accept
-										ELSE CASE 
-												  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
-												  ELSE 3 --Pending Accept
-											 END
-									END AS AcceptType, rd.VoidFromTime
-				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					CROSS APPLY (
-							SELECT b.matchid, b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
-							FROM dbo.bettrans b WITH(NOLOCK) 
-								LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
-							WHERE b.matchid = @MatchId
-							AND rd.MatchId = b.matchid AND rd.MinSingleTransId = b.transid
-					)b 
-					CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
-											 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-											 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-											 END AS VoidTime
-								)act
-				WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId AND rd.MatchId = @MatchId
-			END
-			
-			IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
-			BEGIN
-				INSERT INTO @tblHighlightTransId (MatchId, Transid, AcceptType, VoidTime)
-				SELECT rd.MatchId, s.MainTransId , CASE 
-									WHEN b.checktime IS NULL THEN 1 --Auto Accept
-									ELSE CASE 
-											  WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
-											  ELSE 3 --Pending Accept
-										 END
-								END AS AcceptType, rd.VoidFromTime
-				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
-				CROSS APPLY  (
-							SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
-							FROM dbo.bettransm bm WITH(NOLOCK)
-							WHERE bm.matchid = @MatchId
-							AND rd.MatchId = bm.matchid AND s.TransId = bm.transid
-						)b
-				CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
-										 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-										 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-										 END AS VoidTime
-								)act
-				WHERE rd.VoidFromTime = act.VoidTime
-					AND rd.RequestId = @RequestId AND rd.MatchId = @MatchId
-			END
-			
-		END
 
 			SELECT rd.MatchId
 				,rd.IssueDetail AS LiveScores
