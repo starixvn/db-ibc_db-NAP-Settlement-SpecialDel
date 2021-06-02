@@ -219,14 +219,14 @@ BEGIN
 				, sub.matchid
 				, main.transid
 				, l.SubIssueTypeId
-			FROM dbo.bettransm sub WITH (NOLOCK)
-				INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
-								ON	main.refno = sub.refno				
-				INNER JOIN #tblGetLogInfo l ON l.MatchID = sub.matchid
-			WHERE 1 = CASE WHEN l.FilterBy IN (0,1) AND main.transid BETWEEN l.MinMainParlayTransId AND l.MaxMainParlayTransId THEN 1
-							WHEN l.FilterBy = 2 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN l.FilterFromTransTime AND l.FilterToTransTime THEN 1
-							WHEN l.FilterBy = 2 AND sub.checktime IS NULL AND sub.transdate BETWEEN l.FilterFromTransTime AND l.FilterToTransTime THEN 1
-							ELSE 0 END
+			FROM #tblGetLogInfo l
+				INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = l.MatchId
+				INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON main.refno = sub.refno 
+			WHERE CASE WHEN l.FilterBy IN (0,1) THEN sub.transdate
+							WHEN l.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+							WHEN l.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+							END BETWEEN l.VoidFromTime AND l.VoidToTime
+				AND main.transid BETWEEN l.MinMainParlayTransId AND l.MaxMainParlayTransId
 				AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 							 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
@@ -297,49 +297,27 @@ BEGIN
 			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
 				LEFT JOIN #DangerAccept_SubParlayTickets t ON s.transid = t.transid AND t.matchid = s.MatchId
 			WHERE s.RequestId = @RequestId AND t.transid IS NULL
+		END
 
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, t.SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-				, t.MainTransId
-			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId 
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = t.MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE tmp.TransId IS NULL
-		END
-		ELSE
-		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, t.SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-				, t.MainTransId
-			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId 
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = t.MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE tmp.TransId IS NULL
-		END
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, t.SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+			, t.MainTransId
+		FROM #DangerAccept_SubParlayTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId 
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = t.MatchId
+									AND r.ActionId NOT IN (2)
+						)tmp
+		WHERE tmp.TransId IS NULL
 		
 		--Mark Ticket
 		IF @ActionId <>2

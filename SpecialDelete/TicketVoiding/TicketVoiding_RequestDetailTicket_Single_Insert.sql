@@ -271,11 +271,11 @@ BEGIN
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid 
 			WHERE b.betfrom <> 'P'
-				AND 1 = CASE WHEN t.FilterBy IN (0,1) AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId THEN 1
-							WHEN t.FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN t.FilterFromTransTime AND t.FilterToTransTime THEN 1
-							WHEN t.FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN t.FilterFromTransTime AND t.FilterToTransTime THEN 1
-							ELSE 0 
-							END
+				AND CASE WHEN t.FilterBy IN (0,1) THEN b.transdate
+						WHEN t.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+						WHEN t.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+						END BETWEEN t.VoidFromTime AND t.VoidToTime 
+				AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
 				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 								WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 								ELSE 0 END
@@ -347,47 +347,26 @@ BEGIN
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s
 				LEFT JOIN #DangerAccept_SingleTickets t ON s.transid = t.transid AND t.matchid = s.MatchId
 			WHERE s.RequestId = @RequestId AND t.transid IS NULL
-			
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, t.SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId  
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = t.MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE tmp.TransId IS NULL
 		END
-		ELSE
-		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, t.SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId  
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = t.MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE tmp.TransId IS NULL
-		END
+
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, t.SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+		FROM #DangerAccept_SingleTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId  
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = t.MatchId
+									AND r.ActionId NOT IN (2)
+						)tmp
+		WHERE tmp.TransId IS NULL
 
 		IF @ActionId <> 2
 		BEGIN
@@ -402,7 +381,6 @@ BEGIN
 				INTO @tmpTransIDBatch(TransId, StatusId)
 				FROM #DangerAccept_SingleTickets t 
 				WHERE isFinish IS NULL
-					AND t.Matchid = @matchid
 				
 				IF @@ROWCOUNT = 0 BREAK
 				
