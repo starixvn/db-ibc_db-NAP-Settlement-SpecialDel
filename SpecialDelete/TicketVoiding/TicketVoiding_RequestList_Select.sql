@@ -64,6 +64,7 @@ BEGIN
 		,TotalSingle		INT
 		,TotalCashOut		INT
 		,TotalParlay		INT
+		,MatchId			INT
 	)
 
 	CREATE TABLE #tmpResult (
@@ -528,6 +529,7 @@ BEGIN
 	UPDATE vh 
 		SET TotalSingle =	t.TotalVoidedSingle
 			,TotalCashOut = t.TotalVoidedCashOut
+			, MatchId = t.matchid
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
@@ -536,25 +538,28 @@ BEGIN
 							WHEN z.bettype = 911 THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
-					,0 AS TotalVoidedCashOut 
+					,0 AS TotalVoidedCashOut
+					,z.matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, z.matchid
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-		
+			
 	--parlay
 	UPDATE vh
 		SET TotalParlay = TotalVoidedParlay
+			,MatchId = t.matchid
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
+					,zm.matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, zm.matchid
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -568,7 +573,7 @@ BEGIN
 					,SUM(vh.TotalCashOut) AS TotalCashOut
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId
+			WHERE	vh.RequestId = t.RequestId AND vh.MatchId = t.MatchId
 		) vh
 
 	--Return Data
