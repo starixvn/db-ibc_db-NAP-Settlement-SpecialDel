@@ -507,7 +507,7 @@ BEGIN
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
-	SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
