@@ -2039,7 +2039,8 @@ BEGIN
 						STUFF((
 						SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 						FROM #TransidInRequest
-						WHERE (RequestId = r.RequestId) 
+						WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
+						ORDER BY TransId
 						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 						,1,2,'') AS TransIds
 						,MatchId
@@ -2291,7 +2292,8 @@ BEGIN
 				STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
+				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
+				ORDER BY TransId
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,MatchId
