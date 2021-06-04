@@ -5,7 +5,7 @@
     DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20210521@Louisa: Insert SettlementSpecialBettypeProfile for Cricket Phase 1.2 ( 33 bettypes) [Redmine:#154811]
+		- 20210521@Louisa: Insert SettlementSpecialBettypeProfile for Cricket Phase 1.2 ( 33 bettypes- 31 early + 2 main) [Redmine:#154811]
 */
 
 USE bodb02
@@ -17,62 +17,59 @@ GO
 
 IF OBJECT_ID ('tempdb..#Cricket_Early_Bettype' ) IS NOT NULL
 	BEGIN	
-		DROP TABLE #Cricket_Bettypes 
+		DROP TABLE #Cricket_Early_Bettype
 	END
 
-CREATE TABLE #Cricket_Bettypes (
+CREATE TABLE #Cricket_Early_Bettype (
 	pfID SMALLINT
 	, BetType SMALLINT
 	, BetID VARCHAR(6)
 	, ResourceID	VARCHAR(20)
-	, Prefix VARCHAR(20)
+	, Prefix VARCHAR(25)
 	, SettleType	CHAR(3)
-	, RangeID TINYINT
+	, RangeID SMALLINT
 )
 GO
 
----- 
-INSERT INTO  #Cricket_Bettypes (pfID  , BetType  , 	BetID  , 	ResourceID	 , Prefix , SettleType , RangeID)
-
-		  SELECT 100	,9434	,'8XXX'		,94341001	,'94341XXX' , 'EAR'	,10		--Home Wicket X Method of Dismissal	X={1 - 10}	
-UNION ALL SELECT 100	,9435	,'8XXX'		,94351001	,'94351XXX' , 'EAR'	,10		--Away Wicket X Method of Dismissal	X={1 - 10}	
-UNION ALL SELECT 100	,9436	,'8XXX'		,94341001	,'94341XXX' , 'EAR'	,10		--Home 1st Inns Wicket X Method of Dismissal	X={1 - 10}	
-UNION ALL SELECT 100	,9437	,'8XXX'		,94351001	,'94351XXX' , 'EAR'	,10		--Away 1st Inns Wicket X Method of Dismissal 	X={1 - 10}	
-UNION ALL SELECT 100	,9438	,'8XXX'		,94342001	,'94342XXX' , 'EAR'	,10		--Home 2nd Inns Wicket X Method of Dismissal 	X={1 - 10}	
-UNION ALL SELECT 100	,9439	,'8XXX'		,94352001	,'94352XXX' , 'EAR'	,10		--Away 2nd Inns Wicket X Method of Dismissal 	X={1 - 10}	
-UNION ALL SELECT 3		,9446	,'0'		,9446		,'9446'		, 'EAR'	,0		--Match Fours		
-UNION ALL SELECT 3		,9447	,'0'		,9447		,'9447'		, 'EAR'	,0		--Match Sixes		
-UNION ALL SELECT 3		,9449	,'0'		,9449		,'9449'		, 'EAR'	,0		--Match Wickets		
-UNION ALL SELECT 3		,9450	,'0'		,9450		,'9450'		, 'EAR'	,0		--Match Extras		
-UNION ALL SELECT 3		,9452	,'0'		,9452		,'9452'		, 'EAR'	,0		--Highest Individual Score		
-UNION ALL SELECT 3		,9453	,'0'		,9453		,'9453'		, 'EAR'	,0		--Highest Over Score		
-UNION ALL SELECT 3		,9454	,'0'		,94541		,'94541'	, 'EAR'	,0		--Home Inns Fours		
-UNION ALL SELECT 3		,9455	,'0'		,94551		,'94551'	, 'EAR'	,0		--Away Inns Fours		
-UNION ALL SELECT 3		,9460	,'0'		,94601		,'94601'	, 'EAR'	,0		--Home Inns Sixes		
-UNION ALL SELECT 3		,9461	,'0'		,94611		,'94611'	, 'EAR'	,0		--Away Inns Sixes
-
-UNION ALL SELECT 2		,9527	,'0'		,9446		,'9446'		, 'EAR'	,0		--Match Fours OE			
-UNION ALL SELECT 2		,9528	,'0'		,9447		,'9447'		, 'EAR'	,0		--Match Sixes OE			
-UNION ALL SELECT 2		,9530	,'0'		,9450		,'9450'		, 'EAR'	,0		--Match Extras OE			
-UNION ALL SELECT 2		,9532	,'0'		,94541		,'94541'	, 'EAR'	,0		--Home Inns Fours OE			
-UNION ALL SELECT 2		,9533	,'0'		,94551		,'94551'	, 'EAR'	,0		--Away Inns Fours OE
-
-UNION ALL SELECT ?		,9442	,'0'		,9442		,'9442'		,'EAR'	,0		--Highest Opening Partnership
-UNION ALL SELECT ?		,9443	,'0'		,9443		,'9443'		,'EAR'	,0		--Highest Score in Over 1
-
-UNION ALL SELECT ?		,9607	,'94841X'		,?		,'94841X'	, 'EAR'	,0		--Home Over X Runs
-UNION ALL SELECT ?		,9608	,'94851X'		,?		,'94851X'	, 'EAR'	,0		--Away Over X Runs
-UNION ALL SELECT ?		,9609	,'94901XY'		,?		,'94901XY'	, 'EAR'	,0		--Home 1st Inns Over X Runs
-UNION ALL SELECT ?		,9610	,'94911XY'		,?		,'94911XY'	, 'EAR'	,0		--Away 1st Inns Over X Runs
-UNION ALL SELECT ?		,9611	,'94902XY'		,?		,'94902XY'	, 'EAR'	,0		--Home 2nd Inns Over X Runs
-UNION ALL SELECT ?		,9612	,'94912XY'		,?		,'94912XY'	, 'EAR'	,0		--Away 2nd Inns Over X Runs
-UNION ALL SELECT ?		,9613	,'94901XY'		,?		,'94901XY'	, 'EAR'	,0		--Home Over X Ball Y Runs
-UNION ALL SELECT ?		,9614	,'94911XY'		,?		,'94911XY'	, 'EAR'	,0		--Away Over X Ball Y Runs
-
+---- 31 rows
+INSERT INTO  #Cricket_Early_Bettype
+				(pfID ,BetType ,BetID  ,ResourceID	 ,Prefix	,SettleType ,RangeID)
+				 								
+		  SELECT 100  ,9434	   ,'8XXX'	 ,94341001	 ,'94341'	,'EAR'	,10		--Home Wicket X Method of Dismissal			--[001-010]				
+UNION ALL SELECT 100  ,9435	   ,'8XXX'	 ,94351001	 ,'94351'	,'EAR'	,10		--Away Wicket X Method of Dismissal			--[001-010]		
+UNION ALL SELECT 100  ,9436	   ,'8XXX'	 ,94341001	 ,'94341'	,'EAR'	,10		--Home 1st Inns Wicket X Method of Dismissa	--[001-010]			
+UNION ALL SELECT 100  ,9437	   ,'8XXX'	 ,94351001	 ,'94351'	,'EAR'	,10		--Away 1st Inns Wicket X Method of Dismissa	--[001-010]			
+UNION ALL SELECT 100  ,9438	   ,'8XXX'	 ,94342001	 ,'94342'	,'EAR'	,10		--Home 2nd Inns Wicket X Method of Dismissa	--[001-010]			
+UNION ALL SELECT 100  ,9439	   ,'8XXX'	 ,94352001	 ,'94352'	,'EAR'	,10		--Away 2nd Inns Wicket X Method of Dismissa --[001-010]				
+UNION ALL SELECT 100  ,9442	   ,'0'		 ,9442		 ,'9442'	,'EAR' ,0		--Highest Opening Partnership							
+UNION ALL SELECT 100  ,9443	   ,'0'		 ,9443		 ,'9443'	,'EAR' ,0		--Highest Score in Over 1								
+UNION ALL SELECT 3	  ,9446	   ,'0'		 ,9446		 ,'9446'	,'EAR' ,0		--Match Fours											
+UNION ALL SELECT 3	  ,9447	   ,'0'		 ,9447		 ,'9447'	,'EAR' ,0		--Match Sixes											
+UNION ALL SELECT 3	  ,9449	   ,'0'		 ,9449		 ,'9449'	,'EAR' ,0		--Match Wickets										
+UNION ALL SELECT 3	  ,9450	   ,'0'		 ,9450		 ,'9450'	,'EAR' ,0		--Match Extras										
+UNION ALL SELECT 3	  ,9452	   ,'0'		 ,9452		 ,'9452'	,'EAR' ,0		--Highest Individual Score							
+UNION ALL SELECT 3	  ,9453	   ,'0'		 ,9453		 ,'9453'	,'EAR' ,0		--Highest Over Score									
+UNION ALL SELECT 3	  ,9454	   ,'0'		 ,94541		 ,'94541'	,'EAR' ,0		--Home Inns Fours										
+UNION ALL SELECT 3	  ,9455	   ,'0'		 ,94551		 ,'94551'	,'EAR' ,0		--Away Inns Fours										
+UNION ALL SELECT 3	  ,9460	   ,'0'		 ,94601		 ,'94601'	,'EAR' ,0		--Home Inns Sixes										
+UNION ALL SELECT 3	  ,9461	   ,'0'		 ,94611		 ,'94611'	,'EAR' ,0		--Away Inns Sixes										
+UNION ALL SELECT 2	  ,9527	   ,'0'		 ,9446		 ,'9446'	,'EAR' ,0		--Match Fours OE										
+UNION ALL SELECT 2	  ,9528	   ,'0'		 ,9447		 ,'9447'	,'EAR' ,0		--Match Sixes OE										
+UNION ALL SELECT 2	  ,9530	   ,'0'		 ,9450		 ,'9450'	,'EAR' ,0		--Match Extras OE										
+UNION ALL SELECT 2	  ,9532	   ,'0'		 ,94541		 ,'94541'	,'EAR' ,0		--Home Inns Fours OE									
+UNION ALL SELECT 2	  ,9533	   ,'0'		 ,94551		 ,'94551'	,'EAR' ,0		--Away Inns Fours OE										
+UNION ALL SELECT 3	  ,9607	   ,'8XXX'	 ,94841001	 ,'94841'	,'EAR' ,200	--Home Over X Runs			--[001-200]									
+UNION ALL SELECT 3	  ,9608	   ,'8XXX'	 ,94851001	 ,'94851'	,'EAR' ,200	--Away Over X Runs			--[001-200]							
+UNION ALL SELECT 3	  ,9609	   ,'8XXX'	 ,94841001	 ,'94841'	,'EAR' ,200	--Home 1st Inns Over X Runs	--[001-200]							
+UNION ALL SELECT 3	  ,9610	   ,'8XXX'	 ,94851001	 ,'94851'	,'EAR' ,200	--Away 1st Inns Over X Runs	--[001-200]							
+UNION ALL SELECT 3	  ,9611	   ,'8XXX'	 ,94842001	 ,'94842'	,'EAR' ,200	--Home 2nd Inns Over X Runs	--[001-200]							
+UNION ALL SELECT 3	  ,9612	   ,'8XXX'	 ,94852001	 ,'94852'	,'EAR' ,200	--Away 2nd Inns Over X Runs	--[001-200]							
+UNION ALL SELECT 3	  ,9613	   ,'8XXXYY' ,9490100101 ,'94901'	,'EAR' ,20006--Home Over X Ball Y Runs --[001-200][01-06]											
+UNION ALL SELECT 3	  ,9614	   ,'8XXXYY' ,9491100101 ,'94911'	,'EAR' ,20006	--Away Over X Ball Y Runs --[001-200][01-06]											
+----------------------------------------------------------------------------------------------------------------------------
 
 
-
-
+---1200 + 2400 + 60 + 17 = 3677
 GO
 ---------------------------------------------------------
 -- Step 2: Generate ResourceID
@@ -87,10 +84,10 @@ IF OBJECT_ID ('tempdb..#Number' ) IS NOT NULL
 	SET IDENTITY_INSERT  #Number OFF
 GO
 	INSERT INTO  #Number   DEFAULT VALUES
-	GO 20006
+	GO 200
 GO
 
-	UPDATE #Number SET Suffix =  RIGHT ( '0000' + CAST(  Num AS VARCHAR), 5)
+	UPDATE #Number SET Suffix =  RIGHT ( '00' + CAST(  Num AS VARCHAR), 3)
 GO
 
 
@@ -109,7 +106,7 @@ IF OBJECT_ID ('tempdb..#Generate_ResourceID' ) IS NOT NULL
 GO
 
 	--- Bettypes do not belong to Over XXX
-	--- 3 rows
+	--- 17 bettype-17 rows
 	INSERT INTO #Generate_ResourceID 
 		(  pfID  , BetType  , 	BetID  , 	ResourceID	 , SettleType	 )
 	SELECT pfID  , BetType  , 	BetID  , 	ResourceID	 , SettleType 
@@ -118,48 +115,87 @@ GO
 
 GO
 	 
-	--- Bettype on Over XXX
-	--- 4800 rows
-	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )
-		SELECT pfID,	BetType 	
-				, '8' + RIGHT(b.Suffix, 3) 
-				, LEFT(a.Prefix,5) + RIGHT(b.Suffix, 3) 
-				, SettleType
-		FROM	#Cricket_Early_Bettype a, #Number b
-		WHERE a.RangeID = 200 
-			AND Prefix LIKE '%XXX'
-			AND b.Num <= 200
-
-GO
-
-	-- Bettype on Wicket XX
-	--- 120 rows
-	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID,	SettleType	)
-	SELECT pfID  , BetType  
-			, '8' + RIGHT(b.Suffix, 3)  
-			, LEFT(a.Prefix,5) + RIGHT(b.Suffix, 3)   
+	--- Bettype on Wicket XXX
+	--- 60 rows
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix AS Betid
+			,Prefix + b.Suffix as ResourceId
 			, SettleType
-	FROM #Cricket_Early_Bettype a, #Number b
-	WHERE a.RangeID = 10 
-		AND Prefix LIKE '%XXX'
-		AND b.Num <= 10
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 10
+			AND b.Num <= 10
 
 GO
-
-	-- Bettype on Over XXX Ball YY
-	-- 4800 rows
-	INSERT INTO  #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID,	SettleType	)
-	SELECT pfID  , BetType  
-		, '8' + RIGHT(b.Suffix, 5)  
-		, LEFT(a.Prefix,5) + RIGHT(b.Suffix, 5) 
-		, SettleType
-	FROM #Cricket_Early_Bettype a, #Number b
-	WHERE a.RangeID = 200
-		AND a.Prefix LIKE '%YY'
-		AND b.Suffix LIKE '[0-2][0-9][0-9][0][1-6]'
-		AND b.Suffix NOT IN (  00001, 00002, 00003, 00004, 00005, 00006)
-
+	--- Bettype on Over XXX
+	--- 1200 rows
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix AS Betid
+			,Prefix + b.Suffix AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 200 --001-200
 GO
+
+	--- Bettype on Over XXX Ball YY
+	--- 2400 rows
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '01' AS Betid
+			,Prefix + b.Suffix + '01' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '02' AS Betid
+			,Prefix + b.Suffix + '02' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '03' AS Betid
+			,Prefix + b.Suffix + '03' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '04' AS Betid
+			,Prefix + b.Suffix + '04' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '05' AS Betid
+			,Prefix + b.Suffix + '05' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
+	INSERT INTO #Generate_ResourceID  (pfID,	BetType,	BetID,	ResourceID, SettleType	  )	
+	SELECT pfID	
+			,BetType 	
+			, '8' + b.Suffix + '06' AS Betid
+			,Prefix + b.Suffix + '06' AS ResourceId
+			, SettleType
+		FROM	#Cricket_Early_Bettype a, #Number b
+		WHERE a.RangeID = 20006
+
 
 ------------------------------------------------------------------------------------------------------------------
 -- Step 3: Insert new generated ResourceID into dbo.SettlementSpecialBettypeProfile (Early bettype)
@@ -206,7 +242,7 @@ GO
 				  ,OddsType
 				)
 			VALUES 
-	 ( 3	 ,50	,9604		,0		,'00'		,'MNL'		,'FT', 99 ,'0' , 1 )
-	,( 2	 ,50	,9605		,0		,'00'		,'MNL'		,'FT', 99 ,'0' , 1 )
+	 ( 3	 ,50	,9604		,0		,'00'		,'MNL'		,'FT', 99 ,'0' , 1 ) --Over/Under (dec)
+	,( 2	 ,50	,9605		,0		,'00'		,'MNL'		,'FT', 99 ,'0' , 1 ) --Odd/Even (dec)
 
 GO 
