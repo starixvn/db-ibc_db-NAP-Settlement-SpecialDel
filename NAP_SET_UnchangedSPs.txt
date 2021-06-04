@@ -20,3 +20,4 @@ Settlement\Sportbook\NAP_Set_MatchOtherSportsSel.sql
 Settlement\Sportbook\NAP_Set_WaitingOtherSportSel.sql
 Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
 
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
