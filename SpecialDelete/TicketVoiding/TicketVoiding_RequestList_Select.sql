@@ -574,7 +574,7 @@ BEGIN
 					,SUM(vh.TotalCashOut) AS TotalCashOut
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR t.MatchId IS NULL)
+			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId IS NULL)
 		) vh
 
 	--Return Data
