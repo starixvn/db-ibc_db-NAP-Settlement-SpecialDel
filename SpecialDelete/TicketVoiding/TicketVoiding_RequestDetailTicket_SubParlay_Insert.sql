@@ -293,10 +293,8 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN
-			DELETE s
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
-				LEFT JOIN #DangerAccept_SubParlayTickets t ON s.transid = t.transid AND t.matchid = s.MatchId
-			WHERE s.RequestId = @RequestId AND t.transid IS NULL
+			DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
+			WHERE RequestId = @RequestId
 		END
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
@@ -475,53 +473,29 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN			
-			DELETE s
-			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
-				LEFT JOIN #DangerAccept_SubParlayTickets t ON s.transid = t.transid AND t.matchid = @MatchId
-			WHERE s.matchid = @MatchId AND s.RequestId = @RequestId AND t.transid IS NULL
-			
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-				, t.MainTransId
-			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = @MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
+			DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
+			WHERE RequestId = @RequestId
 		END
-		ELSE
-		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-				, t.MainTransId
-			FROM #DangerAccept_SubParlayTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = @MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
-		END
+	
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, @SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+			, t.MainTransId
+		FROM #DangerAccept_SubParlayTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = @MatchId
+									AND r.ActionId NOT IN (2)
+						)tmp
+		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 
 		IF @ActionId <> 2
 		BEGIN

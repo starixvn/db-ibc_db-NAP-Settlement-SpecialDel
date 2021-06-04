@@ -645,7 +645,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC
+	ORDER BY t.RequestId DESC, t.MatchId
 	
 	DROP TABLE #tmpResult
 	
