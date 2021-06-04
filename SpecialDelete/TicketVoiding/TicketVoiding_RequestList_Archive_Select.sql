@@ -464,9 +464,10 @@ BEGIN
 					ORDER BY VoidingHistory DESC 
 					)l
 		OUTER APPLY (
-					SELECT TOP 1 matchcode
+					SELECT matchcode
 					FROM dbo.match_bk WITH (NOLOCK)
 					WHERE matchid = t.MatchId
+						AND t.IssueTypeId = 1
 			)m
 
 		WHERE 1 = CASE 
@@ -477,7 +478,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC, m.matchcode
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult
 	

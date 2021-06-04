@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select_UAT2]
 (
 	 @RequestIdXml	XML				= NULL
 	,@MatchId		INT				= NULL
@@ -637,9 +637,15 @@ BEGIN
 					ORDER BY VoidingHistory DESC 
 					)l
 		OUTER APPLY (
-					SELECT TOP 1 matchcode
-					FROM dbo.match WITH (NOLOCK)
-					WHERE matchid = t.MatchId
+					SELECT	m.matchcode
+					FROM	dbo.match m WITH(NOLOCK)
+					WHERE	m.matchid = t.MatchId
+						AND t.IssueTypeId = 1
+					UNION
+					SELECT	m.matchcode
+					FROM	dbo.match14 m WITH(NOLOCK)
+					WHERE	m.matchid = t.matchid
+						AND t.IssueTypeId = 1
 			)m
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
@@ -649,7 +655,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC, m.matchcode
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult
 	

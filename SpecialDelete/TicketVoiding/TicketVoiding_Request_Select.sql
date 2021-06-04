@@ -101,11 +101,11 @@ BEGIN
 				,rd.SubIssueTypeId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode
 				FROM	dbo.match m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 				UNION
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime, m.matchcode
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 			) m
@@ -115,6 +115,7 @@ BEGIN
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
+		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 	END
 	ELSE IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN
