@@ -49,6 +49,7 @@ BEGIN
 		,TotalCashOut		INT
 		,TotalParlay		INT
 		,MatchId			INT
+		,IssueTypeId		INT
 	)
 
 	CREATE TABLE #tmpResult (
@@ -336,8 +337,8 @@ BEGIN
 		WHERE ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -369,11 +370,11 @@ BEGIN
 							ELSE 0 END
 						) AS TotalVoidedSingle
 					,0 AS TotalVoidedCashOut 
-					,z.matchid
+					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, z.matchid
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 		
@@ -385,11 +386,11 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
-					,zm.matchid
+					,CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, zm.matchid
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
