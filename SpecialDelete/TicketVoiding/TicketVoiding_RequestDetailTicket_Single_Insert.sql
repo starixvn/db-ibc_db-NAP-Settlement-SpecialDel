@@ -194,6 +194,7 @@ BEGIN
 			,TypeAccept				VARCHAR(50)
 			,SubIssueTypeId			SMALLINT
 			)
+	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT)
 
 	-- Check edit request after voided
 	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
@@ -357,7 +358,6 @@ BEGIN
 			END
 		END
 
-		CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT)
 		INSERT INTO #TransId_tmp (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			, @IssueTypeId
