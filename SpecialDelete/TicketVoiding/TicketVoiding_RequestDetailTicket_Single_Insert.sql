@@ -157,6 +157,8 @@ BEGIN
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
 	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, SubIssueTypeId SMALLINT)
+	CREATE INDEX IX_TransId ON #DangerAccept_SingleTickets(TransId)
+
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
@@ -343,12 +345,20 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN
-			DELETE s
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s
-			WHERE s.RequestId = @RequestId
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP(4500) s 
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s
+				WHERE s.RequestId = @RequestId
+
+				IF @@ROWCOUNT < 4500 BREAK
+
+				WAITFOR DELAY '00:00:00.100'
+			END
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT)
+		INSERT INTO #TransId_tmp (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
 		SELECT @RequestId
 			, @IssueTypeId
 			, t.SubIssueTypeId
@@ -366,6 +376,23 @@ BEGIN
 									AND r.ActionId NOT IN (2)
 						)tmp
 		WHERE tmp.TransId IS NULL
+		
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(4500) d
+			OUTPUT DELETED.RequestId
+				, DELETED.IssueTypeId
+				, DELETED.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, DELETED.RequestDetailId
+			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+			FROM #TransId_tmp d
+
+			IF @@ROWCOUNT < 4500 BREAK
+			
+			WAITFOR DELAY '00:00:00.180'
+		END
 
 		IF @ActionId <> 2
 		BEGIN
@@ -1807,4 +1834,5 @@ BEGIN
 	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #transIdTemp
 	DROP TABLE #tblGetLogInfo
+	DROP TABLE #TransId_tmp
 END

@@ -124,6 +124,8 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, SubIssueTypeId SMALLINT)
+	CREATE INDEX IX_TransId ON #DangerAccept_SubParlayTickets(TransId)
+
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -293,11 +295,20 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN
-			DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
-			WHERE RequestId = @RequestId
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP(4500) s 
+				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
+				WHERE s.RequestId = @RequestId
+
+				IF @@ROWCOUNT < 4500 BREAK
+
+				WAITFOR DELAY '00:00:00.100'
+			END
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
+		CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, MainTransId BIGINT)
+		INSERT INTO #TransId_tmp(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
 		SELECT @RequestId
 			, @IssueTypeId
 			, t.SubIssueTypeId
@@ -316,6 +327,24 @@ BEGIN
 									AND r.ActionId NOT IN (2)
 						)tmp
 		WHERE tmp.TransId IS NULL
+
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(4500) d
+			OUTPUT DELETED.RequestId
+				, DELETED.IssueTypeId
+				, DELETED.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, DELETED.RequestDetailId
+				, DELETED.MainTransId
+			INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId)
+			FROM #TransId_tmp d
+
+			IF @@ROWCOUNT < 4500 BREAK
+			
+			WAITFOR DELAY '00:00:00.180'
+		END
 		
 		--Mark Ticket
 		IF @ActionId <>2
@@ -694,5 +723,6 @@ BEGIN
 	DROP TABLE #DangerAccept_SubParlayTickets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tblGetLogInfo
+	DROP TABLE #TransId_tmp 
 END
 GO
