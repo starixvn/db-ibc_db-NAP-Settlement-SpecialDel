@@ -28,13 +28,15 @@ BEGIN
 
 	CREATE TABLE #tmpResult (
 		 RequestId		INT
+		,MatchId		INT
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
 		,TotalSingle	INT
 		,TotalParlay	INT
 	)
-	INSERT INTO #tmpResult(RequestId, IssueTypeId)
+	INSERT INTO #tmpResult(RequestId, MatchId, IssueTypeId)
 		SELECT DISTINCT r.RequestId
+				,rd.MatchId
 				,r.IssueTypeId
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -105,6 +107,7 @@ BEGIN
 	
 	--Return Data
 	SELECT	 t.RequestId
+			,MatchId
 			,v.Username AS LastPerformedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
