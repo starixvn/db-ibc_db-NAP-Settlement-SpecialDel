@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 		
 		- 20201229@Zane: Create new SP [Redmine:#145719]
+		- 20210607@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:
 		
@@ -24,6 +25,8 @@ BEGIN
 		,VoidedBy			INT
 		,TotalSingle		INT
 		,TotalParlay		INT
+		,IssueTypeid		TINYINT
+		,MatchId			INT
 	)
 
 	CREATE TABLE #tmpResult (
@@ -43,8 +46,8 @@ BEGIN
 				ON r.RequestId = rd.RequestId
 		WHERE	r.RequestId = @RequestId
 		
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
-	SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeid)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -65,6 +68,7 @@ BEGIN
 	-- single
 	UPDATE vh 
 		SET TotalSingle =	t.TotalVoidedSingle
+			,MatchId = t.MatchId
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
@@ -73,24 +77,27 @@ BEGIN
 							WHEN z.bettype = 911 THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
+					,CASE WHEN IssueTypeId = 1 THEN z.MatchId ELSE NULL END AS MatchId
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN IssueTypeId = 1 THEN z.MatchId ELSE NULL END
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 		
 	--parlay
 	UPDATE vh
 		SET TotalParlay = TotalVoidedParlay
+			,MatchId = t.MatchId
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
+					,CASE WHEN vh.IssueTypeid = 1 THEN zm.matchid ELSE NULL END AS MatchId
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeid = 1 THEN zm.matchid ELSE NULL END
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -102,7 +109,7 @@ BEGIN
 			SELECT	SUM(vh.TotalSingle) AS TotalSingle
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId
+			WHERE	vh.RequestId = t.RequestId AND (t.MatchId = vh.MatchId OR vh.MatchId IS NULL)
 		) vh
 	
 	--Return Data
