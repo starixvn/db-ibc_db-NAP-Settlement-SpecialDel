@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestInfo_Select]
 (
 	@RequestId		INT				= NULL
+	,@VoidingHistoryId	INT = 0
 )
 AS
 /*	Created by: Zane
@@ -47,13 +48,9 @@ BEGIN
 		WHERE	r.RequestId = @RequestId
 		
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeid)
-	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
+	SELECT vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
 	FROM	#tmpResult t
-		CROSS APPLY (
-			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
-			FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-			WHERE	vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
-		) vh
+		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON vh.RequestId = t.RequestId AND vh.VoidingHistoryId = @VoidingHistoryId
 		
 	UPDATE	t 
 		SET LastVoidedBy = vh.LastVoidedBy
