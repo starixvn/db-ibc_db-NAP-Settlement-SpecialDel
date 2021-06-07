@@ -91,7 +91,7 @@ GO
 	CREATE TABLE #NewOrd (NewOrd SMALLINT, ResourceID VARCHAR(50), BetType SMALLINT )
 
 	INSERT INTO #NewOrd (NewOrd, ResourceID, BetType )
-	SELECT	ROW_NUMBER() OVER(PARTITION BY ord.ResourceRank ORDER BY ord.Ord, ord.ResourceID, p.BetType 	) + ord.ResourceRank AS NewOrd
+	SELECT	ROW_NUMBER() OVER(PARTITION BY ord.ResourceRank ORDER BY ord.ResourceRank, ord.Ord, p.betid, ord.ResourceID, p.BetType 	) + ord.ResourceRank AS NewOrd
 			, p.ResourceID
 			, p.BetType
 	FROM dbo.SettlementSpecialBettypeProfile p WITH(NOLOCK)
