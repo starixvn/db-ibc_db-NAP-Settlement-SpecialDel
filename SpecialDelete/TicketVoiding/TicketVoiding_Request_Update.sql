@@ -310,6 +310,13 @@ BEGIN
 				
 	END
 
+	--For Auto Void Instant
+	BEGIN
+		UPDATE q SET q.StatusId = 0
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
+		WHERE q.RequestId = @RequestId AND q.StatusId = 99
+	END
+
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+queu/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 (
 	@RequestId				INT
@@ -788,7 +788,7 @@ BEGIN
 		IF @ActionId = 4 AND EXISTS (SELECT TOP 1 1 FROM #TempMatch)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-			SELECT @RequestId, m.MatchId, 'VoidInstant', 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			SELECT @RequestId, m.MatchId, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
 			FROM #TempMatch m
 		END
 	END
@@ -913,7 +913,7 @@ BEGIN
 											  WHEN @ActionId = 4 THEN 'VoidInstant'
 											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
 											  ELSE 'VoidInstant10m' END -- @ActionId = 7
-			, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
 
