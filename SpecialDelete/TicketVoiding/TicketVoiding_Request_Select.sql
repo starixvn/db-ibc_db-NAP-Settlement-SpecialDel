@@ -99,13 +99,14 @@ BEGIN
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
+				,m.IsNeutral
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 				UNION
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime, m.matchcode
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 			) m

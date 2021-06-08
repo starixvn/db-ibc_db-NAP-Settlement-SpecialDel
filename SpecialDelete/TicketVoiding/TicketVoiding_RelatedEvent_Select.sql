@@ -17,6 +17,7 @@ AS
 		- 20200828@Charles: Get linked matches of main match [Redmine: #140339]
 		- 20200921@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201113@Charles: Danger Accept/Red Card Enhancement - Phase 5 [Redmine: #145102]
+		- 20210608@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 	
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -39,11 +40,11 @@ BEGIN
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 1 AS MatchType
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.ParentID = @MatchId
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 2 AS MatchType
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
 		ORDER BY matchcode
@@ -52,7 +53,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, 0 AS MatchType
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
