@@ -1545,8 +1545,8 @@ BEGIN
 							SELECT rp.TransId, b.transid AS MainTransId, RequestId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
 								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-							WHERE rp.TransId = t.transid
+								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+							WHERE rp.TransId = t.SubTransid
 								AND rp.MatchId = t.matchid
 					)tmp
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
