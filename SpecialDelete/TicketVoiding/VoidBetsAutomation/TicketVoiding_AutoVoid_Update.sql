@@ -318,13 +318,13 @@ BEGIN
 				
 				
 				-- Create new request here
-				INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
-				SELECT @Sporttype, 38, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
+				INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+				SELECT @Sporttype, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
 
 				SET @RequestId = SCOPE_IDENTITY()
 			
-				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType)
-				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 
+				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType, SubIssueTypeId)
+				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 , 38
 				
 				SET @RequestDetailId = SCOPE_IDENTITY()
 
