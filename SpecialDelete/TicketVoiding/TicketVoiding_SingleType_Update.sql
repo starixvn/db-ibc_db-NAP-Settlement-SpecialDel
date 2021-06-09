@@ -35,8 +35,10 @@ AS
 		- 20210225@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+		- 20210601@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
 	
 	Param's explanation:	
+		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
 		
 */      
 BEGIN
@@ -112,6 +114,7 @@ BEGIN
 		,sporttype			SMALLINT
 		,matchid			INT
 		,oddsid				INT
+		,winlostdate		SMALLDATETIME
 		,isFinish			BIT
 	)
 
@@ -160,7 +163,7 @@ BEGIN
 		FROM	dbo.f_SplitString(@TransIds, ',')
 		OPTION (maxrecursion 0)
 	END
-	ELSE
+	ELSE --13
 	BEGIN
 		INSERT INTO #tblMatch_TransIds (matchid, transids)
 		SELECT	q.MatchId, q.TransIds
@@ -186,9 +189,10 @@ BEGIN
 								AND q.VoidingHistoryId = @VoidingHistoryId
 						FOR XML PATH('')),1,1,'')
 
-	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid)
+	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, winlostdate)
 	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
 		, tl.eventID
+		, tl.winlostdate
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
@@ -197,7 +201,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -210,6 +214,7 @@ BEGIN
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			,b.matchid, b.oddsid
+			,b.winlostdate
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -229,6 +234,22 @@ BEGIN
 				,@ErrMsg = 'No ticket found.'				
 
 		RETURN
+	END
+
+	IF @IssueTypeId = 13 --Abnormal Account
+	BEGIN
+		DECLARE @MinWinlostdate SMALLDATETIME, @MaxWinlostdate SMALLDATETIME
+
+		SELECT @MinWinlostdate = MIN(winlostdate)
+		      ,@MaxWinlostdate = MAX(winlostdate)
+		FROM #tmpTransId 
+
+		UPDATE dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
+		SET MinWinlostdate = @MinWinlostdate
+		   ,MaxWinlostdate = @MaxWinlostdate
+		WHERE RequestId = @RequestId 
+			AND VoidingHistoryId = @VoidingHistoryId
+
 	END
 
 	-- UPDATE eventtype = 1

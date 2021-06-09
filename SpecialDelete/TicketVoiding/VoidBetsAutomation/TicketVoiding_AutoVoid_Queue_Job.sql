@@ -18,7 +18,8 @@ AS
 		- 20201220@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210308@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
-		
+		- 20210608@Max: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
+
 	Param's explanation:	
 	
 	--[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY')
@@ -133,7 +134,7 @@ BEGIN
 	SELECT q.QueueId, q.matchid, q.RequestId, q.sporttype
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
+		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 		OUTER APPLY (
 				SELECT TOP 1 ActionId
 				FROM dbo.TicketVoiding_Request WITH (NOLOCK)
@@ -141,10 +142,10 @@ BEGIN
 			)r
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
-					WHEN q.RequestId > 0 AND r.ActionId IN (1,4) THEN 1
-					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1
-					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1
-					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1
+					WHEN q.RequestId > 0 AND r.ActionId IN (1,4) THEN 1 --Void Instant Abnormal Bet, AB, AA
+					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
+					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
+					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
 				ELSE 0 END
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
 	ORDER BY q.Action DESC, Starttime

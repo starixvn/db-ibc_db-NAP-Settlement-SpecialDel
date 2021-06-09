@@ -39,6 +39,7 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+		- 20210106@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175] 
 
 	Param's explanation:	
 		
@@ -98,7 +99,7 @@ BEGIN
 			,@Lucky3Matches				VARCHAR(MAX) = ''
 	
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
-	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT)
+	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT, MinWinlostdate DATETIME, MaxWinlostdate DATETIME)
 	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
@@ -317,13 +318,13 @@ BEGIN
 				
 				
 				-- Create new request here
-				INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
-				SELECT @Sporttype, 38, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
+				INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+				SELECT @Sporttype, 1, NULL, NULL, 'Abnormal Data Investigate', NULL, NULL, @UserId, @UserId, @IsTest, 11
 
 				SET @RequestId = SCOPE_IDENTITY()
 			
-				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType)
-				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 
+				INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId, KickOffTime,RequestType, SubIssueTypeId)
+				SELECT @RequestId, @MatchId, @LeagueId, @HomeId, @AwayId, @KickOffTime, 2 , 38
 				
 				SET @RequestDetailId = SCOPE_IDENTITY()
 
@@ -733,9 +734,13 @@ BEGIN
 	END	
 	
 	-- Capture request and its void tickets to insert voidingHistory
-	INSERT INTO @AutoVoid_ValidRequest (RequestID, IssueTypeId, Transids)			
-	SELECT DISTINCT RequestID, r.IssueTypeId,  STUFF(tmp.Transids,1,1,'') AS Transids
-	FROM (SELECT DISTINCT RequestID,IssueTypeId FROM @tmpInputTransId_VOID ) AS r
+	INSERT INTO @AutoVoid_ValidRequest (RequestID, IssueTypeId, Transids, MinWinlostdate, MaxWinlostdate)			
+	SELECT DISTINCT r.RequestID, r.IssueTypeId, STUFF(tmp.Transids,1,1,'') AS Transids, r.MinWinlostdate, r.MaxWinlostdate
+	FROM(
+		  SELECT DISTINCT RequestID, IssueTypeId, MIN (Winlostdate) AS MinWinlostdate, MAX( Winlostdate) AS MaxWinlostdate
+		  FROM @tmpInputTransId_VOID
+		  GROUP BY RequestID, IssueTypeId 
+		) AS r
 		CROSS APPLY (SELECT ',' + CAST(v.transid AS VARCHAR(50))
 					FROM @tmpInputTransId_VOID v
 					WHERE v.RequestID = r.RequestID
@@ -1201,7 +1206,7 @@ BEGIN
 							)
 		
 		-- Insert Voiding History first
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData)
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData, MinWinlostdate, MaxWinlostdate)
 		OUTPUT INSERTED.RequestID
 				,INSERTED.VoidingHistoryId
 		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
@@ -1210,6 +1215,8 @@ BEGIN
 				, 1
 				,CASE WHEN IssueTypeId IN (11,15) THEN TransIds ELSE NULL END
 				,@VoidDataXML
+				,CASE WHEN IssueTypeId = 13 THEN MinWinlostdate ELSE NULL END
+				,CASE WHEN IssueTypeId = 13 THEN MaxWinlostdate ELSE NULL END
 		FROM @AutoVoid_ValidRequest
 
 		UPDATE v SET v.IssueTypeId = r.IssueTypeId
