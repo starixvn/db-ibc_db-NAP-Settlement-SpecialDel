@@ -22,6 +22,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
 )
 AS
 /*	
@@ -47,6 +48,7 @@ AS
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210525@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -84,6 +86,7 @@ BEGIN
 			,@FromWinlostDate     DATETIME
 			,@RequestDetailId_DA  INT
 			,@WrongScoreInfoXML XML = NULL
+			,@DangerAcceptedInfoXML		XML  = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -153,7 +156,9 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
-	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT)
+	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, SubIssueTypeId SMALLINT)
+	CREATE INDEX IX_TransId ON #DangerAccept_SingleTickets(TransId)
+
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT)
@@ -187,7 +192,9 @@ BEGIN
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(50)
+			,SubIssueTypeId			SMALLINT
 			)
+	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT)
 
 	-- Check edit request after voided
 	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
@@ -197,18 +204,6 @@ BEGIN
 
 	IF @IssueTypeId IN (1, 10)
 	BEGIN
-
-		INSERT INTO #TransidInRequest (TransId)
-		SELECT tmp.transid
-		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-			CROSS APPLY (
-						SELECT TransId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-						WHERE RequestId = req.RequestId
-					) AS tmp
-		WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
-
 		INSERT INTO @bettype_tmp (bettype)
 		SELECT DISTINCT pt.bettype
 		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -217,33 +212,119 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
-		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId)
-		SELECT b.transid
-			, b.statusID
-			, @MatchId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-		WHERE b.matchid = @MatchId
-			 AND b.betfrom <> 'P'
-			 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
-						  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-						  WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-						  ELSE 0 
-						  END
-			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						 ELSE 0 END
-			AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-						  ELSE CASE WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
-									   WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-									   WHEN @SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
-									   WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
-									   WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+		IF @IssueTypeId = 1
+		BEGIN
+			SET @DangerAcceptedInfoXML = CONVERT(XML, @DangerAcceptedInfo)
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,LiveScores					
+					,TypeAccept
+					,SubIssueTypeId
+				)
+			SELECT @RequestId AS RequestId
+					,t.c.value('@MatchId','INT') AS MatchID
+					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+					,t.c.value('@FilterBy','TINYINT') AS FilterBy
+					,t.c.value('@SingleCount','INT') AS SingleCount
+					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+					,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+					,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+					,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+					,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' AS TypeAccept
+					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
+
+			INSERT INTO #TransidInRequest (TransId)
+			SELECT tmp.transid
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+				CROSS APPLY (
+							SELECT TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE RequestId = req.RequestId
+						) AS tmp
+				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
+			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
+
+			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId)
+			SELECT b.transid
+				, b.statusID
+				, b.matchid
+				, t.SubIssueTypeId
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid 
+			WHERE b.betfrom <> 'P'
+				AND CASE WHEN t.FilterBy IN (0,1) THEN b.transdate
+						WHEN t.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+						WHEN t.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+						END BETWEEN t.VoidFromTime AND t.VoidToTime 
+				AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
+				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+								WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+				AND 1 = CASE WHEN t.SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+									   WHEN t.SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+									   WHEN t.SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									   WHEN t.SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
+									   WHEN t.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 								       ELSE 0
 							  END
-					END
-			
+		END
+		ELSE
+		BEGIN
+			INSERT INTO #TransidInRequest (TransId)
+			SELECT tmp.transid
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+				INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+				CROSS APPLY (
+							SELECT TransId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+							WHERE RequestId = req.RequestId
+						) AS tmp
+			WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
+			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId)
+			SELECT b.transid
+				, b.statusID
+				, @MatchId
+				, @SubIssueTypeId
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			WHERE b.matchid = @MatchId
+				 AND b.betfrom <> 'P'
+				 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
+							  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+							  WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
+							  ELSE 0 
+							  END
+				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							 ELSE 0 END
+		END
+							  
+					
+			
+			
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
@@ -265,44 +346,52 @@ BEGIN
 
 		IF @IsEditRequest = 1
 		BEGIN
-			SET @RequestDetailID_DA = (SELECT id FROM TicketVoiding_RequestDetail (NOLOCK) WHERE RequestId = @RequestId)
-			
-			DELETE s
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single s
-				LEFT JOIN #DangerAccept_SingleTickets t ON s.transid = t.transid AND t.matchid = @MatchId
-			WHERE s.matchid = @MatchId AND s.RequestId = @RequestId AND t.transid IS NULL
-			
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, @RequestDetailID_DA AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				LEFT JOIN TicketVoiding_RequestDetailTicket_Single st WITH (NOLOCK) ON st.transid = t.transid AND st.matchid = @MatchId AND st.RequestId = @RequestId
-			WHERE st.transid IS NULL
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP(4500) s 
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s
+				WHERE s.RequestId = @RequestId
+
+				IF @@ROWCOUNT < 4500 BREAK
+
+				WAITFOR DELAY '00:00:00.100'
+			END
 		END
-		ELSE
+
+		INSERT INTO #TransId_tmp (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, t.SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+		FROM #DangerAccept_SingleTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId  
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = t.MatchId
+									AND r.ActionId NOT IN (2)
+						)tmp
+		WHERE tmp.TransId IS NULL
+		
+		WHILE (1=1)
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = @MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
+			DELETE TOP(4500) d
+			OUTPUT DELETED.RequestId
+				, DELETED.IssueTypeId
+				, DELETED.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, DELETED.RequestDetailId
+			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+			FROM #TransId_tmp d
+
+			IF @@ROWCOUNT < 4500 BREAK
+			
+			WAITFOR DELAY '00:00:00.180'
 		END
 
 		IF @ActionId <> 2
@@ -318,7 +407,6 @@ BEGIN
 				INTO @tmpTransIDBatch(TransId, StatusId)
 				FROM #DangerAccept_SingleTickets t 
 				WHERE isFinish IS NULL
-					AND t.Matchid = @matchid
 				
 				IF @@ROWCOUNT = 0 BREAK
 				
@@ -1092,49 +1180,27 @@ BEGIN
 		BEGIN			
 			DELETE s
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s
-				LEFT JOIN #DangerAccept_SingleTickets t ON s.transid = t.transid AND t.matchid = @MatchId
-			WHERE s.matchid = @MatchId AND s.RequestId = @RequestId AND t.transid IS NULL
-			
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = @MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
+			WHERE s.matchid = @MatchId AND s.RequestId = @RequestId		
 		END
-		ELSE
-		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-			SELECT @RequestId
-				, @IssueTypeId
-				, @SubIssueTypeId
-				, t.TransId
-				, t.MatchId
-				, rd.Id AS RequestDetailId
-			FROM #DangerAccept_SingleTickets t
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
-				OUTER APPLY (
-									SELECT TOP 1 rs.TransId
-									FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-										INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
-									WHERE rs.TransId = t.transid
-										AND rs.MatchId = @MatchId
-										AND r.ActionId NOT IN (2)
-							)tmp
-			WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
-		END
+
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		SELECT @RequestId
+			, @IssueTypeId
+			, @SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+		FROM #DangerAccept_SingleTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = @MatchId
+									AND r.ActionId NOT IN (2)
+						)tmp
+		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 
 		IF @ActionId <> 2
 		BEGIN
@@ -1767,4 +1833,6 @@ BEGIN
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #InputValidCustid_tmp
 	DROP TABLE #transIdTemp
+	DROP TABLE #tblGetLogInfo
+	DROP TABLE #TransId_tmp
 END

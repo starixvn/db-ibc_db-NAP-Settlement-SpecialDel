@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@IsVoidVIPMember		BIT = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0  OUTPUT
 	,@FailedTransIds		VARCHAR(MAX) = NULL	OUTPUT
@@ -74,12 +75,17 @@ AS
 		- 20210427@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:
 		@WrongScoreInfo: 
 		<root>
 			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
 		</root>
+		@DangerAcceptInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+			</root>
 	
 */
 BEGIN
@@ -124,6 +130,8 @@ BEGIN
 			,@NewActualScore		 NVARCHAR(300) = NULL
 			,@OldTypeAccept			 VARCHAR(MAX) = NULL
 			,@WrongScoreInfoXML XML = NULL
+			,@OldSubIssueTypeId		SMALLINT
+			,@DangerAcceptedInfoXML		XML  = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
@@ -155,6 +163,7 @@ BEGIN
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(MAX)
+			,SubIssueTypeId			SMALLINT
 		)
 	CREATE TABLE #tblOldResulDetail (
 			  RequestId INT
@@ -169,6 +178,7 @@ BEGIN
 			, IssueDetail VARCHAR(MAX)
 			, TypeAccept VARCHAR(50)
 			, ActualScore VARCHAR(50)
+			, SubIssueTypeId SMALLINT
 			)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
@@ -205,33 +215,80 @@ BEGIN
 								    WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
 								    ELSE 0
 								END
+				,@OldSubIssueTypeId = SubIssueTypeId
+				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IssueTypeId IN (1,10) -- Danger Accept, Red Card
 	BEGIN
-		INSERT INTO #tblGetLogInfo( 
-				RequestID				
-				,MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime		
-				,FilterFromBetId		
-				,FilterToBetId			
-				,FilterBy				
-				,SingleCount			
-				,MainParlayCount		
-				,MinSingleTransId		
-				,MaxSingleTransId		
-				,MinMainParlayTransId	
-				,MaxMainParlayTransId	
-				,VoidFromTime			
-				,VoidToTime				
-				,LiveScores					
-				,TypeAccept
-			)
-		SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-			, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @TypeAccept
+		IF @IssueTypeId = 1
+		BEGIN
+			SET @DangerAcceptedInfoXML = CONVERT(XML, @DangerAcceptedInfo)
+			INSERT INTO #tblGetLogInfo( 
+				   RequestID				
+				  ,MatchID				
+				  ,FilterFromTransTime	
+				  ,FilterToTransTime			
+				  ,FilterBy				
+				  ,SingleCount			
+				  ,MainParlayCount		
+				  ,MinSingleTransId		
+				  ,MaxSingleTransId		
+				  ,MinMainParlayTransId	
+				  ,MaxMainParlayTransId	
+				  ,VoidFromTime			
+				  ,VoidToTime				
+				  ,LiveScores					
+				  ,TypeAccept
+				  ,SubIssueTypeId
+				)
+			SELECT @RequestId AS RequestId
+				  ,t.c.value('@MatchId','INT') AS MatchID
+				  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+				  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+				  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				  ,t.c.value('@SingleCount','INT') AS SingleCount
+				  ,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+				  ,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+				  ,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+				  ,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' AS TypeAccept
+				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
+		END
+		ELSE
+		BEGIN
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime		
+					,FilterFromBetId		
+					,FilterToBetId			
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,LiveScores					
+					,TypeAccept
+					,SubIssueTypeId
+				)
+			SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
+				, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @TypeAccept, @SubIssueTypeId
+		END
 
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept)
+		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, SubIssueTypeId)
 		SELECT RequestId
 			 , MatchId
 			 , FilterFromTransTime
@@ -243,9 +300,15 @@ BEGIN
 			 , LiveAwayScore
 			 , IssueDetail
 			 , TransIds
+			 , SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
-		WHERE RequestId = @RequestId AND MatchId = @MatchId
+		WHERE RequestId = @RequestId
 
+		DELETE rd
+		FROM dbo.TicketVoiding_RequestDetail rd
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID
+		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
+		
 		UPDATE	r
 		SET	  FilterFromTransTime = l.FilterFromTransTime
 			, FilterToTransTime = l.FilterToTransTime
@@ -264,8 +327,66 @@ BEGIN
 			, LiveAwayScore = l.LiveAwayScore
 			, IssueDetail = l.LiveScores
 			, TransIds = l.TypeAccept
+			, SubIssueTypeId = l.SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
+
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, KickOffTime
+			, RequestType
+			, FilterFromTransTime
+			, FilterToTransTime
+			, FilterFromBetId
+			, FilterToBetId
+			, FilterBy
+			, SingleCount
+			, MainParlayCount
+			, MinSingleTransId
+			, MaxSingleTransId
+			, MinMainParlayTransId
+			, MaxMainParlayTransId
+			, VoidFromTime
+			, VoidToTime
+			, LiveHomeScore
+			, LiveAwayScore
+			, IssueDetail
+			, TransIds
+			, SubIssueTypeId 
+			)
+		SELECT @RequestId
+			, l.MatchID
+			, m.leagueid
+			, m.homeid
+			, m.awayid
+			, m.kickofftime
+			, 0
+			, l.FilterFromTransTime
+			, l.FilterToTransTime
+			, l.FilterFromBetId
+			, l.FilterToBetId
+			, l.FilterBy
+			, l.SingleCount
+			, l.MainParlayCount
+			, l.MinSingleTransId
+			, l.MaxSingleTransId
+			, l.MinMainParlayTransId
+			, l.MaxMainParlayTransId
+			, l.VoidFromTime
+			, l.VoidToTime
+			, l.LiveHomeScore
+			, l.LiveAwayScore
+			, l.LiveScores
+			, l.TypeAccept
+			, l.SubIssueTypeId
+		FROM #tblGetLogInfo l
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
+			LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
+		WHERE rd.RequestId IS NULL
 	END
 	ELSE IF @IssueTypeId = 3 --WrongScore
 	BEGIN
@@ -305,7 +426,7 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, ActualScore)
+		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, ActualScore, SubIssueTypeId)
 		SELECT RequestId
 			 , MatchId
 			 , FilterFromTransTime
@@ -318,6 +439,7 @@ BEGIN
 			 , IssueDetail
 			 , TransIds
 			 , IssueDetail
+			 , SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
 		WHERE RequestId = @RequestId AND MatchId = @MatchId
 
@@ -342,6 +464,7 @@ BEGIN
 			, LiveHomeScore = l.LiveHomeScore
 			, LiveAwayScore = l.LiveAwayScore
 			, IssueDetail = l.LiveScores
+			, SubIssueTypeId = @SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore 
 
@@ -578,6 +701,7 @@ BEGIN
 				, @OldToDate	 = ToWinlostDate
 				, @OldProductIds = ProductIds
 				, @OldStatusIds  = TicketStatusIds
+				, @OldSubIssueTypeId = SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK)
 		WHERE RequestId = @RequestId 
 
@@ -613,6 +737,7 @@ BEGIN
 					, HomeId
 					, AwayId
 					, RequestType
+					, SubIssueTypeId
 				)
 				SELECT @RequestId
 					, e.MatchID
@@ -620,6 +745,7 @@ BEGIN
 					, ISNULL(m.homeid, 0) 
 					, ISNULL(m.awayid, 0) 
 					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
 					LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
 				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
@@ -634,6 +760,7 @@ BEGIN
 					, HomeId
 					, AwayId
 					, RequestType
+					, SubIssueTypeId
 				)
 				SELECT @RequestId
 					, e.MatchID
@@ -641,6 +768,7 @@ BEGIN
 					, m.teamid
 					, 0
 					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
 					INNER JOIN dbo.outright m WITH(NOLOCK) ON e.MatchID = m.orid
 				WHERE e.IsFlag = 1	AND e.IsOutright = 1		
@@ -653,13 +781,14 @@ BEGIN
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
 				, RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				, SubIssueTypeId = @SubIssueTypeId
 		WHERE	RequestId = @RequestId
 
 		-- Insert queue for auto void
 		IF @ActionId = 4 AND EXISTS (SELECT TOP 1 1 FROM #TempMatch)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-			SELECT @RequestId, m.MatchId, 'VoidInstant', 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			SELECT @RequestId, m.MatchId, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
 			FROM #TempMatch m
 		END
 	END
@@ -668,6 +797,7 @@ BEGIN
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET	@OldKickOffTime = KickOffTime
 				,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
+				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 		WHERE	RequestId = @RequestId
 				AND MatchId = @MatchId
 	END
@@ -783,7 +913,7 @@ BEGIN
 											  WHEN @ActionId = 4 THEN 'VoidInstant'
 											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
 											  ELSE 'VoidInstant10m' END -- @ActionId = 7
-			, 0, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
 
@@ -803,19 +933,20 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId IN (1, 10)
 	BEGIN
-
-		SELECT @LogDataContent +=
-				CASE WHEN r.FilterBy <> l.FilterBy AND l.FilterBy <> 0 THEN ' Old FilterBy: ' + CAST(r.FilterBy AS VARCHAR(10)) + ' New FilterBy: ' + CAST(l.FilterBy AS VARCHAR(10)) 
-																			+', From: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) + ', To: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
-																		ELSE '' END
-			   + CASE WHEN l.FilterBy <> 0 AND r.FilterFromTransTime <> l.FilterFromTransTime THEN ' Old From Transdate: ' + CONVERT(VARCHAR(30), r.FilterFromTransTime, 21) + ' New From Transdate: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
-																		ELSE '' END
-			   + CASE WHEN  l.FilterBy <> 0 AND r.FilterToTransTime <> l.FilterToTransTime THEN ' Old To Transdate: ' + CONVERT(VARCHAR(30), r.FilterToTransTime, 21) + ' New To Transdate: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
-																		ELSE '' END
-			   + CASE WHEN @IssueTypeId = 1 AND r.TypeAccept <> l.TypeAccept THEN ' Old TypeAccept: '+ r.TypeAccept + ', New TypeAccept: ' + l.TypeAccept 
-																		ELSE '' END
-		FROM #tblOldResulDetail r
-			INNER JOIN #tblGetLogInfo l ON r.RequestId = l.RequestID AND r.MatchId = l.MatchID
+		SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
+							   + ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
+							   + ', FilterFrom: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
+							   + ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
+							   + ', SingleCount: ' + CAST(l.SingleCount AS VARCHAR(20))
+							   + ', MainParlayCount: ' + CAST(l.MainParlayCount AS VARCHAR(20))
+							   + ', MinSingleTransId: ' + CAST(l.MinSingleTransId AS VARCHAR(20))
+							   + ', MaxSingleTransId: '+ CAST(l.MaxSingleTransId AS VARCHAR(20))
+							   + ', MinMainParlayTransId: ' + CAST(l.MinMainParlayTransId AS VARCHAR(20))
+					           + ', MaxMainParlayTransId: ' + CAST(l.MaxMainParlayTransId AS VARCHAR(20))
+							   + ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
+							   + ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
+							   + CASE WHEN @IssueTypeId = 1 THEN ', TypeAccept: ' + l.TypeAccept ELSE '' END
+		FROM #tblGetLogInfo l
 
 	END
 	ELSE IF @IssueTypeId = 13

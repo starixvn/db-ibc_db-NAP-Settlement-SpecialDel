@@ -30,6 +30,7 @@ AS
 		- 20210420@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:	
 	
@@ -41,7 +42,7 @@ BEGIN
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
-			,r.SubIssueTypeId
+			--,r.SubIssueTypeId
 			,r.ActionId
 			,r.MistakenBy
 			,r.DecidedBy
@@ -97,13 +98,15 @@ BEGIN
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
+				,rd.SubIssueTypeId
+				,m.IsNeutral
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 				UNION
-				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime
+				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.globalshowtime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match14 m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid
 			) m
@@ -113,6 +116,7 @@ BEGIN
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
+		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 	END
 	ELSE IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN
@@ -122,6 +126,7 @@ BEGIN
 				,rd.TicketStatusIds AS StatusIds 
 				,rd.FromWinlostDate AS FromDate 
 				,rd.ToWinlostDate AS ToDate
+				,rd.SubIssueTypeId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		WHERE	rd.RequestId = @RequestId
 	END

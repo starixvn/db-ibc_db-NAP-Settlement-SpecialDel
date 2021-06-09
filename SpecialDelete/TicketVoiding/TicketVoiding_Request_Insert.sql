@@ -49,6 +49,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
+	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -68,6 +69,7 @@ AS
 		- 20210420@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210528@Max: Fix bug insert ticket [Redmine: #155598]
 		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
+		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -80,6 +82,10 @@ AS
 			<root>
 				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
 			</root>
+		+ @DangerAcceptInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+			</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -91,6 +97,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@avaiableProcess	BIT
 			,@WrongScoreInfoXML XML = NULL
+			,@DangerAcceptedInfoXML	XML = NULL
 			
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
@@ -138,9 +145,17 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
+	IF @IssueTypeId = 1
+	BEGIN
+		SET @DangerAcceptedInfoXML = CONVERT(xml, @DangerAcceptedInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
+	END
 
-	INSERT INTO dbo.TicketVoiding_Request (Sporttype, SubIssueTypeId, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
-	SELECT @Sporttype, @SubIssueTypeId, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
+	INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
+	SELECT @Sporttype, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
 
 	SET @RequestId = SCOPE_IDENTITY()
 
@@ -176,6 +191,7 @@ BEGIN
 				,@IsVoidVIPMember = @IsVoidVIPMember
 				,@TypeAccept = @TypeAccept
 				,@WrongScoreInfo = @WrongScoreInfo
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
 	
 	IF (@IssueTypeId IN(8,9,11,13,15) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
 	BEGIN
@@ -201,6 +217,7 @@ BEGIN
 				,@FromDate = @FromDate			
 				,@ToDate = @ToDate
 				,@WrongScoreInfo = @WrongScoreInfo
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
 	END
 
 	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3) AND @MainParlayCount > 0))
@@ -220,7 +237,8 @@ BEGIN
 				,@FilterFromTransTime = @VoidFromTime	
 				,@FilterToTransTime	= @VoidToTime		
 				,@FilterBy = @FilterBy
-				,@WrongScoreInfo = @WrongScoreInfo						
+				,@WrongScoreInfo = @WrongScoreInfo
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
 	END
 
 	IF @IsExistSingle <> 0 OR @IsExistParlay <> 0 OR @IsExistFM <> 0 OR @IsExistFM2 <> 0 OR @IsExistMG <> 0
@@ -249,6 +267,13 @@ BEGIN
 				,T.C.value('@Type', 'TINYINT') AS OperatorTypeId
 		FROM	@Operators.nodes('/r') AS T(C)
 	END
+
+	--For Auto Void Instant
+	BEGIN
+		UPDATE q SET q.StatusId = 0
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
+		WHERE q.RequestId = @RequestId AND q.StatusId = 99
+	END
 	
 	-- Write Log
 	SET @EndTime = GETDATE()
@@ -257,9 +282,8 @@ BEGIN
 							,@UserId AS '@UserId'							
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
-								+ CASE WHEN @Sporttype IS NOT NULL THEN ' Sporttype: ' + CAST(@Sporttype AS VARCHAR(20)) ELSE '' END
+								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
-								+ CASE WHEN @SubIssueTypeId IS NOT NULL THEN ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) ELSE '' END
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
 								+ CASE WHEN @IssueTypeId <> 13 THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END

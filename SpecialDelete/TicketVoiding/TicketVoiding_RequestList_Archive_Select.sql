@@ -21,6 +21,7 @@ AS
 		- 20210202@July: Modify process for abnormal Account [Redmine:#149776]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
+		- 20210602@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 
 	Param's explanation:	
 		@Status: 
@@ -47,6 +48,8 @@ BEGIN
 		,TotalSingle		INT
 		,TotalCashOut		INT
 		,TotalParlay		INT
+		,MatchId			INT
+		,IssueTypeId		INT
 	)
 
 	CREATE TABLE #tmpResult (
@@ -192,7 +195,7 @@ BEGIN
 	BEGIN
 	INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -241,7 +244,7 @@ BEGIN
 
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -277,7 +280,7 @@ BEGIN
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
-				ON sub.SubIssueTypeId = r.SubIssueTypeId
+				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
 						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
@@ -290,7 +293,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpResult(RequestId, SubIssueTypeId, ActionId, CreatedDate, UserId, MistakenBy, DecidedBy, CheckedBy, MatchId, Sporttype, LeagueId, HomeId, AwayId, KickOffTime, EventDate, TransIds, IssueTypeId, VoidFromTime, VoidToTime, FromWinlostDate, ToWinlostDate, TotalUserName, WrongScores)
 		SELECT	DISTINCT r.RequestId
-				,r.SubIssueTypeId
+				,rd.SubIssueTypeId
 				,r.ActionId
 				,r.CreatedDate
 				,r.UserId
@@ -324,7 +327,7 @@ BEGIN
 			INNER JOIN @tmpIssueType tmp 
 				ON tmp.IssueTypeId = r.IssueTypeId
 			INNER JOIN @SubIssueType_tmp sub
-				ON sub.SubIssueTypeId = r.SubIssueTypeId
+				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
 						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
@@ -334,8 +337,8 @@ BEGIN
 		WHERE ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
 	END
 
-	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy)
-	SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
+	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId)
+	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	vh.RequestId, vh.VoidingHistoryId, vh.UserId
@@ -357,6 +360,7 @@ BEGIN
 	UPDATE vh 
 		SET TotalSingle =	t.TotalVoidedSingle
 			,TotalCashOut = t.TotalVoidedCashOut
+			,MatchId = t.matchid
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
@@ -366,24 +370,27 @@ BEGIN
 							ELSE 0 END
 						) AS TotalVoidedSingle
 					,0 AS TotalVoidedCashOut 
+					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 		
 	--parlay
 	UPDATE vh
 		SET TotalParlay = TotalVoidedParlay
+			,MatchId = t.matchid
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
+					,CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -397,7 +404,7 @@ BEGIN
 					,SUM(vh.TotalCashOut) AS TotalCashOut
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId
+			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId IS NULL)
 		) vh
 
 	--Return Data
@@ -457,6 +464,12 @@ BEGIN
 					WHERE s.RequestId = t.RequestID
 					ORDER BY VoidingHistory DESC 
 					)l
+		OUTER APPLY (
+					SELECT matchcode
+					FROM dbo.match_bk WITH (NOLOCK)
+					WHERE matchid = t.MatchId
+						AND t.IssueTypeId = 1
+			)m
 
 		WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
@@ -466,7 +479,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId = 1 THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult
 	
