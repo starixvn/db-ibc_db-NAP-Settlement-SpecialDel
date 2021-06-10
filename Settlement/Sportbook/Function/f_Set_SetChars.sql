@@ -15,6 +15,7 @@ AS
 		- 20180227@Kathy: Integrate Fast Market Phase 2 [Redmine:#90632]
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20201123@Kathy: Add option maxrecursion [Redmine:#143573]
+		- 20200610@Helen: fix issue happen on AWS [Redmine:#156734]
 	        
 	Param's Explanation:    
 		@strPosChar: Pos|Char
@@ -35,12 +36,12 @@ BEGIN
 	FROM	cteResult c        
 		LEFT JOIN (       
 			SELECT	CAST(SUBSTRING(val, 1,CHARINDEX('|',val) - 1) AS TINYINT) AS pos    
-					,SUBSTRING(val,CHARINDEX('|',val)+1,LEN(val)) AS betoption   
+					,CAST(SUBSTRING(val,CHARINDEX('|',val)+1,LEN(val)) AS VARCHAR(10)) AS betoption 
 			FROM	dbo.f_SplitString(@strPosChar, ',')      
 		) t      
 		ON	c.rn = t.pos      
 	ORDER BY c.rn   
-	option (maxrecursion 0)	
+	OPTION (maxrecursion 0)	
 
 	RETURN @result  
 END  
