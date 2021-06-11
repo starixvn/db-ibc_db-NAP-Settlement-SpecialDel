@@ -41,8 +41,13 @@ AS
 		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
 		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210526@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210611@Max: [TVS] Hotfix Highlight Min TransId [Redmine: #156832]
 	
 	Param's explanation:
+		+@Filterby:
+			- 0: By BetId (Hide on UI, not use)
+			- 1: By Transdate
+			- 2: By Checktime
 		+ @WrongScoreInfo:
 		<root>
 			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" />
@@ -1878,6 +1883,7 @@ BEGIN
 		RETURN;
 	END
 
+	--For case no ticket valid
 	IF @IssueTypeId IN (1, 10, 3)
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
@@ -2049,7 +2055,7 @@ BEGIN
 								 FROM #logInfo lg 
 								 WHERE l.matchid = lg.matchid
 								 ) AS Voidtime
-					CROSS APPLY (SELECT TOP 1 b.transid AS HighLightTransId
+					OUTER APPLY (SELECT TOP 1 b.transid AS HighLightTransId
 									 ,b.accepttype HighlightAcceptType
 								FROM #SpecialDeleteBets b 
 										CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
@@ -2360,7 +2366,7 @@ BEGIN
 							FROM #logInfo lg 
 							WHERE l.matchid = lg.matchid
 							) AS Voidtime
-			CROSS APPLY (SELECT TOP 1 b.transid AS HighLightTransId
+			OUTER APPLY (SELECT TOP 1 b.transid AS HighLightTransId
 								,b.accepttype HighlightAcceptType
 						FROM #SpecialDeleteBets b 
 								CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
