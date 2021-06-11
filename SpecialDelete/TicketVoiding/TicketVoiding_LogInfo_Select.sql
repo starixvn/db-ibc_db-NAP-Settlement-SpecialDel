@@ -1879,6 +1879,7 @@ BEGIN
 		RETURN;
 	END
 
+	--For case no ticket valid
 	IF @IssueTypeId IN (1, 10, 3)
 	BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
