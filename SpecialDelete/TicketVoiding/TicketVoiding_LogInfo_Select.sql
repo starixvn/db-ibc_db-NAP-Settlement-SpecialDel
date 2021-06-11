@@ -44,6 +44,10 @@ AS
 		- 20210611@Max: [TVS] Hotfix Highlight Min TransId [Redmine: #156832]
 	
 	Param's explanation:
+		+@Filterby:
+			- 0: By BetId (Hide on UI, not use)
+			- 1: By Transdate
+			- 2: By Checktime
 		+ @WrongScoreInfo:
 		<root>
 			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" />
