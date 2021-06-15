@@ -36,6 +36,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -293,6 +294,17 @@ BEGIN
 					AND ResultStatusID = 5
 		END
 
+		ELSE IF @sportType = 45 AND  @Action = 'CAL' AND EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
+		BEGIN
+			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
+					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
+			FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
+			WHERE MatchID = @MatchID 
+					AND ResourceID IN ('0101','0102','0103')
+					AND SettlementStatusID = 4
+					AND ResultStatusID = 5
+		END
+
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
@@ -316,12 +328,12 @@ BEGIN
   		IF @Action LIKE 'CAL%'
   		BEGIN
 
-			--Bettype 2,3: using match score or total point, badminton only
+			--Bettype 2,3: using match score or total point
 			UPDATE t
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 			FROM @tmpSelectedRID t
-			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
+			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9, 45) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT 

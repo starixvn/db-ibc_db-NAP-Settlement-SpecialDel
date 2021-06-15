@@ -26,6 +26,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
     Param's Explanation: 
     
@@ -86,7 +87,7 @@ BEGIN
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
-	   SET @ResultStatusID      = CASE WHEN @Sporttype IN (2,5,9,43,50) THEN 4 ELSE 0 END
+	   SET @ResultStatusID      = CASE WHEN @Sporttype IN (2,5,9,43,45,50) THEN 4 ELSE 0 END
        SET @SettlementStatusID  = 0     -- Initial
     END 
     ELSE IF @action = 'REFUND'
@@ -128,8 +129,8 @@ BEGIN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
     END
-	--Insert and update ResultDetailOS - Badminton, Cricket
-    ELSE IF @Sporttype IN (9, 50)
+	--Insert and update ResultDetailOS - Badminton, Cricket, Beach Volleyball
+    ELSE IF @Sporttype IN (9, 45, 50)
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (

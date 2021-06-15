@@ -14,6 +14,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
    
     Parameters Explanation:        
     
@@ -31,6 +32,7 @@ RETURN
 		UNION ALL SELECT 5 --Tennis
 		UNION ALL SELECT 2 --Basketball
 		UNION ALL SELECT 50 --Cricket
+		UNION ALL SELECT 45 --Beach Volleyball
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

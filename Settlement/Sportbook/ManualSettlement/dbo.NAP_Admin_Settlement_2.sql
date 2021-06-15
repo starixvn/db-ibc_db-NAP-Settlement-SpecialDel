@@ -26,6 +26,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -83,7 +84,7 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailES  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE IF @Sporttype IN ( 9, 50 )
+		ELSE IF @Sporttype IN ( 9, 45, 50 )
 			SELECT	ResourceId 
 					,ISNULL(HomeValue, '' ) AS HomeValue
 					,ISNULL(AwayValue, '') AS AwayValue
@@ -114,7 +115,7 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE IF @Sporttype IN ( 9, 50 )
+		ELSE IF @Sporttype IN ( 9, 45, 50 )
 		BEGIN
 			SELECT	ResourceId
 					,ISNULL(HomeValue,'') AS HomeValue

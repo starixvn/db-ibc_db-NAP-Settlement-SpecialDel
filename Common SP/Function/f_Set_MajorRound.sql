@@ -16,6 +16,7 @@ AS
 		- 20200805@July:  add resourceid of soccer [Redmine:#138475]
 		- 20200908@Louisa: add FT and HT for Soccer [Redmine:#139979]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
    
     Parameters Explanation:        
     
@@ -76,6 +77,11 @@ RETURN
 		UNION ALL SELECT 50, '02' , 'H2', 'H2', 'SP', 0, 3
 		UNION ALL SELECT 50, '02' , 'A2', 'A2', 'SP', 0, 4
 		UNION ALL SELECT 50, '00' , 'FT', '00', 'FT', 1, 99
+
+		UNION ALL SELECT 45, '801', '1S', '0101', 'SP', 0, 1
+		UNION ALL SELECT 45, '802', '2S', '0102', 'SP', 0, 2
+		UNION ALL SELECT 45, '803', '3S', '0103', 'SP', 0, 3
+		UNION ALL SELECT 45, '00' , 'FT', '00', 'FT', 1, 99
 
 		
     ) AS tbl

@@ -13,6 +13,7 @@ AS
     Revisions:            
 		- 20201211@Max: Support to Re-calculate Settled Tickets [Redmine: #145669]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
 */
 BEGIN
@@ -32,8 +33,8 @@ BEGIN
 		WHERE rs.matchid = @matchid
 	END
 	
-	---Badminton AIO,  Cricket AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType IN ( 9 , 50)
+	---Badminton AIO, Beach Volleyball, Cricket AIO - get data from dbo.ResultDetailOS
+	ELSE IF @SportType IN ( 9, 45, 50)
 	BEGIN
 		SELECT rs.ResourceID
 	    		,rs.HomeValue
