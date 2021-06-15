@@ -10,7 +10,7 @@
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200803@July: Edit sporttype in (1,2) --1: soccer, 2:basketball
-		- 20210615@Louisa: [Redmine:#]		
+		- 20210615@Louisa: Turning SP [Redmine:#156987]	
 		
 	Param's Explanation:	
 		
