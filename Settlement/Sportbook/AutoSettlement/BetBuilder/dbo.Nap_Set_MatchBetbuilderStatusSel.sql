@@ -10,7 +10,7 @@
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200803@July: Edit sporttype in (1,2) --1: soccer, 2:basketball
-		- 20210615@Louisa: Tuning SP [Redmine:#156987]	
+		- 20210615@Louisa: Move SP from DBTXN-bodb02 to DBACC-bodb02 + Tuning SP [Redmine:#156987]	
 		
 	Param's Explanation:	
 		
