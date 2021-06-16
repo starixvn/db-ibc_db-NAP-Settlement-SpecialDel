@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 (	
 	@MatchId INT
-	,@Livehomescrore SMALLINT = NULL	
+	,@Livehomescore SMALLINT = NULL	
 	,@Liveawayscore SMALLINT = NULL
 )
 AS
