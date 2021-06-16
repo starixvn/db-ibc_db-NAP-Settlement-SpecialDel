@@ -699,6 +699,15 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
+	IF @sportType = 45
+	BEGIN
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, RoundName)
+		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName 
+		FROM @tmpResourcesWeb r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.ResourceID IN ('0101','0102','0103')
+	END
+
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
