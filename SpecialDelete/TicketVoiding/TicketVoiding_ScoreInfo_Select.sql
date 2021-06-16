@@ -37,9 +37,9 @@ BEGIN
 	ORDER BY md.id
 
 	SELECT w1.ScoreId
-		, w1.Score
-		, CASE WHEN w1.ScoreId = 1 THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTime
-		, DATEADD(MS, -100, w2.updatetime) AS FilterToTime
+		, ISNULL(w1.Score, '0-0') AS WrongScore
+		, CASE WHEN w1.ScoreId = 1 THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
+		, DATEADD(MS, -100, w2.updatetime) AS FilterToTransTime
 		, w1.IsActive
 	FROM #WrongScore w1
 		LEFT JOIN #WrongScore w2 ON w2.ScoreId = w1.ScoreId + 1
