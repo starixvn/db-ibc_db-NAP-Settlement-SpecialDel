@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@SelectedRID      VARCHAR(MAX)       = NULL
  ,@creator          INT                = 0 
  ,@Sporttype		SMALLINT
-
+ ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 
 AS 
 /*
@@ -50,7 +50,7 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusID TINYINT)
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
@@ -84,6 +84,15 @@ BEGIN
     BEGIN
        SET @SettlementStatusID 	= 4
        SET @ResultStatusID 		= 5
+
+	    IF @IsDirectly = 1 AND @Sporttype IN (2, 5, 9, 43, 45) ---settle Directly FT only
+		BEGIN
+			INSERT INTO @tblSelectedRID (ResourceID, HomeValue, AwayValue, SettlementStatusID )
+			SELECT sd.ResourceID, '', '', 0
+			FROM  dbo.f_Set_MajorRound(@Sporttype) sd
+			WHERE sd.isFinal = 0 AND sd.RoundName NOT IN ('HT', 'OT')
+		END
+
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
@@ -107,21 +116,20 @@ BEGIN
         SET @SettlementStatusID = 4
         SET @ResultStatusID = 5
     END
-     
     
     --Insert and update ResultDetail
     IF @Sporttype = 43
     BEGIN
 	    MERGE dbo.ResultDetailES TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = @SettlementStatusID
+	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID,@SettlementStatusID)
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
@@ -134,14 +142,14 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = @SettlementStatusID
+	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID, @SettlementStatusID)
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	    WHEN NOT MATCHED BY TARGET THEN
@@ -152,14 +160,14 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = @SettlementStatusID
+	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID,@SettlementStatusID)
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	

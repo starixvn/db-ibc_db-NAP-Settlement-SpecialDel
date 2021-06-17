@@ -27,7 +27,9 @@ BEGIN
         ,mr.BestOfMap
 		,m.betstatus
 		,mr.IsHTCal AS isHalftimeCal
-		,m.sporttype 
+		,m.sporttype
+		,m.eventstatus
+		,mr.ConfirmFT
      FROM dbo.[match] m WITH (NOLOCK)
      	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
      WHERE m.matchid = @matchid

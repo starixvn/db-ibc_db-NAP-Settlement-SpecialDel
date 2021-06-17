@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@IsAuto			BIT				= 0
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
+	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -226,6 +227,7 @@ BEGIN
 						,@creator				= @creator
 						,@Sporttype				= @Sporttype
 						,@SelectedRID   		= @SelectedResources
+						,@IsDirectly			= @IsDirectly
 		END
 
 		-----------------------------------------add more info-----------------------------------------
