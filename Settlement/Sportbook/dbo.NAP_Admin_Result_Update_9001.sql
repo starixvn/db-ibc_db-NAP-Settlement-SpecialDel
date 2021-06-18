@@ -50,7 +50,7 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusID TINYINT)
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusID TINYINT, IsDummy BIT DEFAULT(0) )
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
@@ -87,8 +87,8 @@ BEGIN
 
 	    IF @IsDirectly = 1 AND @Sporttype IN (2, 5, 9, 43, 45) ---settle Directly FT only
 		BEGIN
-			INSERT INTO @tblSelectedRID (ResourceID, HomeValue, AwayValue, SettlementStatusID )
-			SELECT sd.ResourceID, '', '', 0
+			INSERT INTO @tblSelectedRID (ResourceID, HomeValue, AwayValue, SettlementStatusID, IsDummy )
+			SELECT sd.ResourceID, '', '', 0 , 1
 			FROM  dbo.f_Set_MajorRound(@Sporttype) sd
 			WHERE sd.isFinal = 0 AND sd.RoundName NOT IN ('HT', 'OT')
 		END
@@ -122,7 +122,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetailES TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -133,7 +133,7 @@ BEGIN
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
     END
@@ -142,7 +142,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -152,7 +152,7 @@ BEGIN
 	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID, @SettlementStatusID)
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
     END 
@@ -160,7 +160,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -171,7 +171,7 @@ BEGIN
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
 
