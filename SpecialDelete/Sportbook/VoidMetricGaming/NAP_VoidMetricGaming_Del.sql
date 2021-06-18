@@ -42,7 +42,8 @@ AS
 			  - 20181004@Alan: Add new column SettlementStatus [102423]
 			  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 			  - 20201022@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
-			  
+			  - 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's Explanation:
 
 
@@ -53,7 +54,8 @@ BEGIN
 	DECLARE @LogData	NVARCHAR(500)
 			,@Remark	VARCHAR(500)		
 			,@avaiableProcess BIT = 0
-	
+			,@Movebetdate	  DATETIME
+
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 				
 	-- Check password	
@@ -133,9 +135,22 @@ BEGIN
 	INSERT INTO @tblBettype(bettype)
 	SELECT val FROM dbo.strSplit(@BetTypes, '^')
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
+	DECLARE @SettlementStatus TINYINT = NULL, @Eventdate DATETIME
+	SELECT @SettlementStatus = m.SettlementStatus 
+		  ,@Eventdate = m.eventdate
+	FROM dbo.match m WHERE m.matchid = @MatchId
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF @Eventdate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 100
+			 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END
+
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
 
 	BEGIN TRY

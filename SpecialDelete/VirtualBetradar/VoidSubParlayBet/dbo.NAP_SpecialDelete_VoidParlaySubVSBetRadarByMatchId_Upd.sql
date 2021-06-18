@@ -26,6 +26,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181207@Alan: Support Chinese Email [105976]
 		- 20200929@Zane: Show Operator ID into void email notification - Fix bug cannot show bettype and deposit name [#141126]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -37,7 +38,8 @@ BEGIN
 		  , @LogData					NVARCHAR(500) 
 		  , @isITAdmin					BIT = 0		  
 		  , @CustIds					VARCHAR(MAX) = ''
-		  
+		  , @Movebetdate				DATETIME
+
 	DECLARE @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)
 		  , @IgnoreList					VARCHAR(200)		  		  		  
@@ -133,7 +135,23 @@ BEGIN
 
 			RETURN
 		END			
-		
+
+		--> get match info
+		SELECT @matchdate = eventdate				 
+		FROM dbo.match (NOLOCK)
+		WHERE matchid = @MatchId
+
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+		IF @matchdate <= @Movebetdate
+		BEGIN
+			SELECT @ErrCode = 100
+				 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+			RETURN	
+		END
+
 		--> Search Tickets
 		INSERT INTO #BetDelete
 				(Stake
@@ -265,12 +283,7 @@ BEGIN
 		FROM bettrans b WITH (ROWLOCK) 
 				INNER JOIN #BetDelete t 
 						ON	b.transid = t.TransId					 	  
-		GROUP BY b.CustID
-			
-		--> get match info
-		SELECT @matchdate = eventdate				 
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchId
+		GROUP BY b.CustID			
 			
 		--> Insert zzzbettransm				
 		INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   

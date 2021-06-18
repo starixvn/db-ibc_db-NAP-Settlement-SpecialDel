@@ -3,16 +3,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidOutright_Update]
 	  @OutrightID			INT
 	, @FromTransId			BIGINT
 	, @ToTransId			BIGINT
-	
     , @UserName 			NVARCHAR(50)
     , @UserPassword			NVARCHAR(50)
     , @UserID				INT
     , @IP					VARCHAR(15)		= ''
     , @Reason				NVARCHAR(500)	= ''
 	, @ReasonSC				NVARCHAR(500)	= ''
-    
 	, @TransIds				VARCHAR(MAX)	= ''	 
-		
 	, @ErrMsg				NVARCHAR(200)	= ''	OUTPUT
     , @ErrCode				INT				= 0		OUTPUT    
 
@@ -29,7 +26,8 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20201021@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
-		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+				
 	Param's Explanation: Special bet delete option		
 	*/
 BEGIN
@@ -37,7 +35,7 @@ BEGIN
 	
 	DECLARE  @isITAdmin			BIT = 0					
 			,@avaiableProcess	BIT = 0						
-	
+		    ,@Movebetdate		DATETIME
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)		
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
@@ -69,7 +67,9 @@ BEGIN
 		Handicap1 MONEY,
 		Handicap2 MONEY,
 		BetTypeId SMALLINT,
-		WinLost MONEY
+		WinLost MONEY,
+		Matchid INT,
+		Eventdate DATETIME
 	)							
 	
 	DECLARE  @KeyID			INT			
@@ -159,7 +159,10 @@ BEGIN
 		 Handicap1,
 		 Handicap2,
 		 BetTypeId,
-		 WinLost)
+		 WinLost,
+		 Matchid,
+		 Eventdate
+		 )
 	SELECT 
 		b.transid,
 		b.custid, 
@@ -186,7 +189,9 @@ BEGIN
 		b.hdp1 AS Handicap1,
 		b.hdp2 AS Handicap2,
 		b.bettype AS BetTypeId,
-		b.winlost - b.actual_stake AS WinLost
+		b.winlost - b.actual_stake AS WinLost,
+		b.matchid AS Matchid,
+		o.EventDate AS Eventdate
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		 INNER JOIN custDB.dbo.customer sa WITH (NOLOCK) ON b.srecommend = sa.custid			
@@ -203,7 +208,22 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@CountTransId = 1))					
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------												
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 		
+	IF EXISTS ( SELECT TOP 1 1 FROM #BetDelete WHERE Eventdate <= @Movebetdate )
+	BEGIN
+		SELECT @ErrCode = 100
+			  ,@ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		------ releasing SD process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			  @isExistOutright 	= 1			
+			, @IsReleased		= 1		
+
+		RETURN	
+	END
+			
 	 --check no data
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)
 	BEGIN				

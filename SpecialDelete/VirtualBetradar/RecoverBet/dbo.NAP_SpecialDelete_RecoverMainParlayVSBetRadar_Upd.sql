@@ -20,6 +20,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -33,7 +34,8 @@ BEGIN
 		  , @LogData					NVARCHAR(500)
 		  , @before_yesterday			DATETIME
 		  , @CustIds					VARCHAR(MAX) = ''			  		  	    
-	
+		  , @Movebetdate				DATETIME
+
 	DECLARE @IgnoreList					VARCHAR(200)  = ''
 		  , @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)  = ''	
@@ -83,7 +85,6 @@ BEGIN
 		LeagueId			INT,
 		matchcode			NVARCHAR(50),
 		modds				SMALLMONEY,
-		
 		SubStatus			NVARCHAR(10),
 		SubTransId			BIGINT,
 		SubBetCheck			NVARCHAR(50),
@@ -93,8 +94,7 @@ BEGIN
 		SubHdp2				SMALLMONEY,
 		SubOdds				MONEY,
 		SubCustId			INT,
-		SubTransdesc		NVARCHAR(2000),
-				
+		SubTransdesc		NVARCHAR(2000),	
 		BetFrom				NVARCHAR(1),
 		matchid				INT				
 	)
@@ -164,8 +164,7 @@ BEGIN
 				srecommend,
 				CustId,	
 				creator,
-				modds,					
-					
+				modds,						
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -175,9 +174,10 @@ BEGIN
 				SubHdp2,
 				SubOdds,
 				SubTransdesc,
-					
 				betfrom,
-				matchid)
+				matchid,
+				eventdate
+			)
 		SELECT  z.Stake,
 				NULL AS AwayId,
 				z.BetCheck,
@@ -207,8 +207,7 @@ BEGIN
 				b.srecommend,
 				b.CustId,
 				z.creator,
-				b.modds,						
-					
+				b.modds,							
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -218,9 +217,9 @@ BEGIN
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				NULL AS SubTransdesc,
-					
 				b.betfrom,
-				b.matchid
+				b.matchid,
+				b.winlostdate AS eventdate -- parlay eventdate: get winlostdate
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 				INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						ON	z.transid = b.transid
@@ -237,6 +236,17 @@ BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
 
 			RETURN
+		END
+		
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE eventdate <= @Movebetdate )
+		BEGIN
+			SELECT @ErrCode = 100
+				 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+			RETURN	
 		END
 			
 		--> Check Concurrency
