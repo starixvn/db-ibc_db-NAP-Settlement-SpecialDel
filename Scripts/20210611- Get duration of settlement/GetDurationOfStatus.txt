@@ -1,0 +1,33 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/  
+/*
+	Created: 20210611@Kathy
+	DB: DBTXN.bodb02
+	Task: Get duration
+	
+*/
+USE bodb02
+GO
+
+DECLARE @matchid INT = 0		
+
+SELECT	DATEADD(ms,duration, execTime) endtime, Starttime, Action, *
+FROM	dbo.single_calculate_queue WITH(NOLOCK)
+WHERE	matchid = @matchid
+		AND Action IN ('CAL-HT', 'CAL-FT')
+
+DECLARE @Action VARCHAR(20) = 'CAL-FT'
+		,@starttime DATETIME = '' -- CAL-HT, CAL-FT
+		,@endtime DATETIME = ''
+	
+;WITH cte
+AS(		 
+	SELECT	createddate
+			,CAST(SUBSTRING(SqlCommand,charindex('@modds',sqlcommand) + 9, charindex('@CalledByBrokerService', SqlCommand) - (charindex('@modds',sqlcommand) + 11)) AS MONEY) modds
+	FROM	dbo.SingleSettlementTrace WITH(NOLOCK)
+	WHERE	matchid = @matchid
+			AND SqlCommand LIKE  '%@action = ''' + @Action + '''%'
+			AND CreatedDate BETWEEN @starttime AND @endtime
+)
+SELECT	DATEDIFF(ms, MIN(createddate), Max(createddate)	) AS Duration
+FROM	cte
+WHERE	modds >=0
