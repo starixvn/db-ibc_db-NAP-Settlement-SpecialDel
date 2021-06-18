@@ -158,8 +158,7 @@ BEGIN
               BonusID               INT,
               MainTransId           BIGINT,
 			  IsMarked			 	BIT,
-			  ActualStake			MONEY,
-			  eventdate				DATETIME
+			  ActualStake			MONEY
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -691,7 +690,6 @@ BEGIN
 			,sporttype 	= m.sporttype
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
-			,eventdate  = m.eventdate
 		FROM #Data d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
@@ -708,7 +706,6 @@ BEGIN
 			,leagueid 	= odds.leagueid
 			,sporttype 	= l.sporttype
 			,showtime	= ''
-			,eventdate = odds.eventdate
 		FROM #Data d
 			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 			ON	d.matchid = odds.orid
@@ -726,7 +723,6 @@ BEGIN
 			,leagueid 	= r.leagueid
 			,sporttype 	= r.sporttype
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
-			,eventdate = o.EventDate
 		FROM #Data d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
@@ -745,12 +741,6 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #data WHERE bettype IN (9,29,2799)))
-	BEGIN
-		UPDATE #Data
-		SET eventdate = winlostdate
-		WHERE bettype IN (9, 29, 2799)	
-	END
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #Data
@@ -1156,15 +1146,6 @@ BEGIN
 
 	-- invalid trans
 	SELECT @InvalidTransIds = '', @MovedTransIds = ''
-
-	/*Modify the way to get move bet date*/
-	DECLARE @Movebetdate DATETIME
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-
-	SELECT @MovedTransIds =  @MovedTransIds + ',' + CAST( m.transid AS VARCHAR(100))
-							FROM #Data m
-							WHERE m.eventdate < = @Movebetdate
-
 	;WITH t_invalid AS
 	(
 		SELECT	transid
