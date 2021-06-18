@@ -116,6 +116,7 @@ AS
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		- 20210714@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
+		- 20210727@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -196,6 +197,8 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@avaiableProcess	BIT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
+			,@Movebetdate		DATETIME
+			,@Eventdate			DATETIME
 
 	DECLARE @session			NVARCHAR(50)	
 	DECLARE @CustIds			VARCHAR(MAX) = ''
@@ -344,6 +347,20 @@ BEGIN
 		 , @InvalidTransIds = ''
 	
 	SET @session = CAST (NEWID() AS NVARCHAR(50))
+	DECLARE @SettlementStatus TINYINT = NULL
+	SELECT @SettlementStatus = m.SettlementStatus
+		   ,@Eventdate = m.eventdate 
+	FROM dbo.match m WHERE m.matchid = @MatchId
+
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	IF @Eventdate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 100
+		     , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END	
 			
 	-- Check password	
 	IF NOT EXISTS (SELECT 1
@@ -440,8 +457,6 @@ BEGIN
 	FROM CTE_ParsedBettypes cte		 		
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
 	
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'

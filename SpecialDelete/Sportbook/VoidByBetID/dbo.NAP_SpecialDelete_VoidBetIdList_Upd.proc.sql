@@ -93,6 +93,7 @@ AS
 	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	  - 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	  - 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
+	  - 20210625@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	  
 	 Param's Explanation:   
 	*/
@@ -153,11 +154,12 @@ BEGIN
 			,@Lucky3TransIDs			VARCHAR(MAX)
 			,@Lucky3Matches				VARCHAR(MAX) = ''
 			,@isExistFM2				BIT = 0
-			,@query				NVARCHAR(MAX) = ''
-			,@ExecuteSQL		NVARCHAR(MAX) = ''
-			
-	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
-	
+			,@query						NVARCHAR(MAX) = ''
+			,@ExecuteSQL				NVARCHAR(MAX) = ''
+			,@Movebetdate				DATETIME
+
+	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))							
+		
 	SELECT @InvalidTransIds		= '' 
 		, @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -803,6 +805,24 @@ BEGIN
 		WHERE	Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1 -- Not allowed to settle the running Live CS bet   
 	END  
 	
+	/*Modify the way to get move bet date*/
+	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype IN (9,29,2799)))
+	BEGIN
+		UPDATE #BetDelete
+		SET eventdate = winlostdate
+		WHERE bettype IN (9, 29, 2799)	
+	END
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE eventdate <= @Movebetdate)
+	BEGIN
+		SELECT @ErrCode = 100
+		     , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END
+
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid

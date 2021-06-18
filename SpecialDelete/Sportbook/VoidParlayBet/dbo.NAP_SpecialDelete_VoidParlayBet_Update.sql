@@ -50,6 +50,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -74,6 +75,8 @@ BEGIN
 			,@CustIds			VARCHAR(MAX) = ''
 			,@CountSubTransId	INT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
+			,@Movebetdate		DATETIME
+			,@Eventdate			DATETIME
 
 	SET @NegativeBalanceUsers = ''
 
@@ -132,7 +135,18 @@ BEGIN
 		
 		RETURN  
 	END  
-  
+	
+	/*Modify the way to get move bet date*/
+	SELECT @Eventdate = m.eventdate FROM dbo.match m WHERE m.matchid = @MatchId
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	IF @Eventdate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 100
+		     , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END	
  -----------   
  
 	-- Parse xml @BetTypes

@@ -63,6 +63,7 @@ AS
 		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 */
@@ -80,6 +81,7 @@ BEGIN
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 			,@isExistFM2		BIT = 0
+			,@Movebetdate		DATETIME    
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
@@ -135,6 +137,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT		
 		,MainTransId	BIGINT
+		,eventdate		DATETIME
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -393,6 +396,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,eventdate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -432,6 +436,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,o.eventdate
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -1020,7 +1025,23 @@ BEGIN
 		
 		RETURN
 	END
-	
+
+	/*Modify the way to get move bet date*/
+	UPDATE t
+	SET t.eventdate = m.eventdate
+	FROM #tblTransInfo t
+	INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #tblTransInfo WHERE eventdate <= @Movebetdate )
+	BEGIN
+		SELECT @ErrCode = 100
+		     , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END
+
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 

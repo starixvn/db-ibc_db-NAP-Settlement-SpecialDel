@@ -40,6 +40,7 @@ AS
         - 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
     Param's Explanation:  
     @Mode:   
@@ -59,12 +60,15 @@ BEGIN
 
     IF @mode in (0, 2, 4, 9) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
-        DECLARE @Sporttype INT    
+        DECLARE @Sporttype    INT 
+		       ,@Eventdate	  DATETIME
+			   ,@Movebetdate  DATETIME    
         
         SET @Sporttype = 0
         
-        SELECT @Sporttype = sporttype
-        FROM match WITH (NOLOCK)
+        SELECT @Sporttype = sporttype 
+			  ,@Eventdate = eventdate
+        FROM dbo.match WITH (NOLOCK)
         WHERE matchid = @MatchID
         
         IF (@Mode = 9 AND @Sporttype = 50) OR ((@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160))
@@ -73,6 +77,19 @@ BEGIN
             SET @ErrMsg ='Invalid match' 
             RETURN
         END 
+
+		IF @Mode IN (0,4)
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+			IF @Eventdate <= @Movebetdate
+			BEGIN
+				SET @ErrCode = 100
+				SET @ErrMsg ='Match is under Movebet process, could not void/recover ticket.' 
+				RETURN
+			END
+		END
+
     END
     
     CREATE TABLE #TmpBettype (

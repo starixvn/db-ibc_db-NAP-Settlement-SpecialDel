@@ -19,7 +19,8 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180406@Helen: add filter by bettype for sport 181->185 to avoid the same value in table VSOutright (orid) and bettrans (oddsid) [Redmind:93183]
-		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's Explanation:			
 		- @TicketType:		
 		'Single': Single ticket
@@ -33,6 +34,7 @@ BEGIN
 	SET NOCOUNT ON	
 	
 	DECLARE @before_yesterday DATETIME
+		   ,@Movebetdate	  DATETIME
 	
 	CREATE TABLE #RecoverBet
 	(
@@ -67,7 +69,6 @@ BEGIN
 		LeagueId		INT,
 		matchcode		NVARCHAR(50),
 		modds			SMALLMONEY,
-		
 		SubStatus		NVARCHAR(10),
 		SubTransId		BIGINT,
 		SubBetCheck		NVARCHAR(50),
@@ -76,7 +77,9 @@ BEGIN
 		SubHdp1			SMALLMONEY,
 		SubHdp2			SMALLMONEY,
 		SubOdds			MONEY,
-		SubTransdesc	NVARCHAR(2000)		
+		SubTransdesc	NVARCHAR(2000),
+		matchid			INT,
+		eventdate		DATETIME	
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -127,7 +130,6 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -136,7 +138,10 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				matchid,
+				eventdate
+		)
 		SELECT  z.Stake,
 				m.AwayId,
 				z.BetCheck,
@@ -168,7 +173,6 @@ BEGIN
 				m.leagueid,
 				NULL AS matchcode,
 				b.modds,
-				
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -177,7 +181,9 @@ BEGIN
 				NULL AS SubHdp1,
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
-				NULL AS SubTransdesc
+				NULL AS SubTransdesc,
+				z.matchid AS matchid,
+				m.eventdate AS eventdate
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -227,7 +233,6 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -236,7 +241,10 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				matchid,
+				eventdate
+		)
 		SELECT  z.Stake,
 				0 AS AwayId,
 				z.BetCheck,
@@ -268,7 +276,6 @@ BEGIN
 				r.LeagueID,
 				CONVERT(NVARCHAR(50), o.RacerNum) AS matchcode,
 				b.modds,
-				
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -277,7 +284,9 @@ BEGIN
 				NULL AS SubHdp1,
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
-				NULL AS SubTransdesc
+				NULL AS SubTransdesc,
+				z.matchid AS matchid,
+				o.EventDate AS eventdate
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -293,7 +302,14 @@ BEGIN
 		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		  				  			  				
 		  AND b.bettype IN (1231,1232,1233,1237,1238)		
 		  
-		--> build @InvalidTransIds, @MovedTransIds				
+		--> build @InvalidTransIds, @MovedTransIds	
+		
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		SELECT @MovedTransIds =  @MovedTransIds + ',' + CAST( b.transid AS VARCHAR(100))
+							FROM #RecoverBet b
+							WHERE b.eventdate < = @Movebetdate
+										
 		;WITH t_invalid AS
 		(
 			SELECT	t.transid
@@ -357,7 +373,6 @@ BEGIN
 				mrecommend,
 				CustId,
 				modds,				
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -366,7 +381,10 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				matchid,
+				eventdate
+		)
 		SELECT  z.Stake,
 				NULL AS AwayId,
 				z.BetCheck,
@@ -395,7 +413,6 @@ BEGIN
 				b.mrecommend,
 				b.CustId,
 				b.modds,				
-				
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -404,7 +421,9 @@ BEGIN
 				NULL AS SubHdp1,
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
-				NULL AS SubTransdesc
+				NULL AS SubTransdesc,
+				z.matchid AS matchid,
+				z.winlostdate AS eventdate -- parlay eventdate: get winlostdate
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -416,7 +435,14 @@ BEGIN
 		  AND z.matchid = 2799
 		  AND z.bettype = 2799		  
 		
-		--> build @InvalidTransIds, @MovedTransIds				
+		--> build @InvalidTransIds, @MovedTransIds		
+		
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		SELECT @MovedTransIds =  @MovedTransIds + ',' + CAST( b.transid AS VARCHAR(100))
+							FROM #RecoverBet b
+							WHERE b.eventdate < = @Movebetdate
+									
 		;WITH t_invalid AS
 		(
 			SELECT	t.transid
@@ -482,7 +508,6 @@ BEGIN
 				showtime,
 				LeagueId,
 				modds,
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -491,7 +516,10 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc)
+				SubTransdesc,
+				matchid,
+				eventdate
+		)
 		SELECT  b.Stake,
 				m.AwayId,
 				b.BetCheck,
@@ -522,7 +550,6 @@ BEGIN
 				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
 				m.leagueid,
 				b.modds,
-				
 				bm.Status AS SubStatus,
 				bm.TransId AS SubTransId,
 				bm.BetCheck AS SubBetCheck,
@@ -531,7 +558,9 @@ BEGIN
 				bm.Hdp1 AS SubHdp1,
 				bm.Hdp2 AS SubHdp2,
 				bm.Odds AS SubOdds,
-				bm.transdesc AS SubTransdesc
+				bm.transdesc AS SubTransdesc,
+				@MatchId AS matchid,
+				m.eventdate AS eventdate
 		FROM dbo.bettrans b WITH (NOLOCK)
 			 INNER JOIN bettransm bm WITH (NOLOCK)
 					 ON b.refno = bm.refno			 			
@@ -557,6 +586,13 @@ BEGIN
 									
 			5/ transid not in bettrans OR subtransid not in bettransm  => isMoved = 0 (not real ticket)
 		*/
+
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		SELECT @MovedTransIds =  @MovedTransIds + ',' + CAST( b.transid AS VARCHAR(100))
+							FROM #RecoverBet b
+							WHERE b.eventdate < = @Movebetdate
+									
 		;WITH t_invalid AS
 		(
 			SELECT t.transid

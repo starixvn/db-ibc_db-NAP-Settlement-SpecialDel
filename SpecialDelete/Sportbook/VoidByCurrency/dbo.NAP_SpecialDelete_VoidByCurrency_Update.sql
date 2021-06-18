@@ -54,7 +54,8 @@ AS
 		- 20201211@Charles: TVS - Enhance letstalk notification for settled tickets [Redmine: #145103]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
-		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's Explanation:
 */
 BEGIN
@@ -96,10 +97,24 @@ BEGIN
 	DECLARE @NegativeBalanceCustIds		VARCHAR(MAX) = ''
 	SET @NegativeBalanceUsers = ''
 	DECLARE @SettlementStatus TINYINT = NULL
-			,@GlobalShowTime SMALLDATETIME
+		   ,@GlobalShowTime   SMALLDATETIME
+		   ,@Movebetdate	  DATETIME
+		   ,@Eventdate		  DATETIME
+
 	SELECT @SettlementStatus = m.SettlementStatus
-			,@GlobalShowTime = m.GlobalShowTime
+		  ,@GlobalShowTime = m.GlobalShowTime
+		  ,@Eventdate = m.eventdate
 	FROM dbo.match m WHERE m.matchid = @MatchId
+
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	IF @Eventdate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 100
+		     , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+
+		RETURN	
+	END	
 
 	DECLARE @MBCGroup_Name		VARCHAR(50) = 'MBC Group'
 		  , @789y_Name			VARCHAR(50) = '789y'	
