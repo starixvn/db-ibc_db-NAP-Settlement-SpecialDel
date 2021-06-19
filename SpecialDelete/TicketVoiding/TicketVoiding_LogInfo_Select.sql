@@ -1560,13 +1560,11 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest t WHERE t.Refno IS NOT NULL)
 			BEGIN
-			
 				UPDATE   t
-				  SET MainTransId = 1
+				  SET MainTransId = b.transid
 				FROM   #TransidInRequest  t
-				  INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+				  INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
 				WHERE t.Refno IS NOT NULL
-				
 			END
 			
 		END
