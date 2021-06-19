@@ -42,6 +42,7 @@ AS
 		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210526@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210611@Max: [TVS] Hotfix Highlight Min TransId [Redmine: #156832]
+		- 20210619@Helen: SP Tuning [Redmine: #157249]
 	
 	Param's explanation:
 		+@Filterby:
@@ -172,7 +173,7 @@ BEGIN
 		,HighlightAcceptType TINYINT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT, MatchId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, livehomescore SMALLINT, liveawayscore SMALLINT, MatchId INT, Refno BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, livehomescore SMALLINT, liveawayscore SMALLINT)
 	CREATE TABLE #WrongScores (MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
@@ -1538,25 +1539,37 @@ BEGIN
 		END
 		ELSE IF @IssueTypeId = 1
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId,Refno)
+			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid,tmp.Refno
 			FROM #SpecialDeleteBets t
 				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId, RequestId
+							SELECT rs.TransId, rs.TransId AS MainTransId, RequestId, NULL AS Refno
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.TransId = t.transid
 								AND rs.MatchId = t.MatchId
 							UNION ALL
-							SELECT rp.TransId, b.transid AS MainTransId, RequestId
+							SELECT rp.TransId, 0 AS MainTransId, RequestId, bm.refno
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
 								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
+								--INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno AND b.matchid = 29 AND b.bettype = 29
 							WHERE rp.TransId = t.SubTransid
 								AND rp.MatchId = t.matchid
 					)tmp
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 			WHERE r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
+			
+			IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest t WHERE t.Refno IS NOT NULL)
+			BEGIN
+			
+				UPDATE   t
+				  SET MainTransId = 1
+				FROM   #TransidInRequest  t
+				  INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+				WHERE t.Refno IS NOT NULL
+				
+			END
+			
 		END
 		ELSE
 		BEGIN
