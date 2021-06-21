@@ -31,6 +31,7 @@ AS
 		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:	
 	
@@ -100,6 +101,7 @@ BEGIN
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
 				,m.IsNeutral
+				,CASE WHEN @IssueTypeId = 3 THEN rd.Id ELSE NULL END AS ScoreId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

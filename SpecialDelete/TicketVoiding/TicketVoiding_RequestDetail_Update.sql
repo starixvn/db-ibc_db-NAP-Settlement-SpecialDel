@@ -76,6 +76,7 @@ AS
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -446,7 +447,11 @@ BEGIN
 		
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
-			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID 
+				AND rd.LiveHomeScore = t.LiveHomeScore 
+				AND rd.LiveAwayScore = t.LiveAwayScore
+				AND rd.FilterFromTransTime = t.FilterFromTransTime
+				AND rd.FilterToTransTime = t.FilterToTransTime
 		WHERE rd.matchid = @MatchId AND rd.RequestId = @RequestId AND t.RequestID IS NULL
 
 		UPDATE	r
@@ -466,7 +471,9 @@ BEGIN
 			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = @SubIssueTypeId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore 
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
+														AND r.FilterFromTransTime = l.FilterFromTransTime
+														AND r.FilterToTransTime = l.FilterToTransTime
 
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account

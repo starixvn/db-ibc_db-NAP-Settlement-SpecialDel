@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
 	,@SubIssueType  VARCHAR(MAX)	= NULL
+	,@RequestId		INT				= NULL
 )
 AS
 /*	Created by: Zane
@@ -22,6 +23,7 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210602@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
 
 	Param's explanation:	
 		@Status: 
@@ -35,9 +37,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@FilteredBy			TINYINT,
-			@NumberofRequestId	INT,
-			@RequestId			INT
+	DECLARE	@FilteredBy			TINYINT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -85,7 +85,6 @@ BEGIN
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
-	DECLARE @RequestId_tmp TABlE (RequestId INT)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
 	SELECT DISTINCT val AS IssueTypeId
@@ -101,34 +100,23 @@ BEGIN
 	IF @RequestIdXml IS NOT NULL
 	BEGIN
 		-- Parse xml @RequestId
-		INSERT INTO @RequestId_tmp(RequestId)
+		INSERT INTO @tmpRequest(RequestId)
 		SELECT t.c.value('@Id','INT') AS RequestId
 		FROM @RequestIdXml.nodes('RequestId') t(c)
 		OPTION (OPTIMIZE FOR (@RequestIdXml = NULL))
-
-		SELECT @NumberofRequestId = COUNT(RequestId)
-		FROM @RequestId_tmp
-
-		IF @NumberofRequestId = 1
-		BEGIN
-			SELECT @RequestId = RequestId 
-			FROM @RequestId_tmp
-		END
 	END
 
 	SELECT	@FilteredBy = CASE
-								WHEN @RequestIdXml IS NULL THEN 2 -- MatchId
-								ELSE
-									CASE 
-										WHEN @NumberofRequestId = 1 THEN 1 -- RequestId
-										ELSE 3 -- Fromdate, Todate
-									END
+								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
+								WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
+								WHEN @RequestIdXml IS NOT NULL THEN 3 -- Fromdate, Todate
+
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
-										LEFT JOIN @RequestId_tmp r 
+										LEFT JOIN @tmpRequest r 
 											ON rd.RequestId = r.RequestId 
 								   WHERE matchid IN (9, 29, 2799)
 								   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
@@ -144,7 +132,7 @@ BEGIN
 					ON rd.RequestId = s.RequestId AND rd.MatchId = s.MatchId
 				INNER JOIN dbo.bettrans_bk bk WITH(NOLOCK) 
 					ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
-				LEFT JOIN @RequestId_tmp r 
+				LEFT JOIN @tmpRequest r 
 					ON rd.RequestId = r.RequestId 
 			WHERE rd.matchid IN (9, 29, 2799)
 			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
@@ -156,7 +144,7 @@ BEGIN
 		IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
 					FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK) 
 						INNER JOIN dbo.outright_bk o WITH(NOLOCK) ON rd.MatchId = o.orid
-						LEFT JOIN @RequestId_tmp r ON rd.RequestId = r.RequestId 
+						LEFT JOIN @tmpRequest r ON rd.RequestId = r.RequestId 
 					WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 								   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 								   WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
@@ -168,7 +156,7 @@ BEGIN
 			FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 				INNER JOIN dbo.outright_bk o WITH(NOLOCK) 
 					ON rd.MatchId = o.orid
-				LEFT JOIN @RequestId_tmp r 
+				LEFT JOIN @tmpRequest r 
 					ON rd.RequestId = r.RequestId 
 			WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 						   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
@@ -183,7 +171,7 @@ BEGIN
 	FROM TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 		INNER JOIN dbo.match_bk m WITH(NOLOCK) 
 			ON rd.MatchId = m.matchid
-		LEFT JOIN @RequestId_tmp r 
+		LEFT JOIN @tmpRequest r 
 			ON rd.RequestId = r.RequestId 
 	WHERE 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 				   WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
