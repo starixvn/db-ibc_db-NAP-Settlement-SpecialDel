@@ -137,7 +137,7 @@ BEGIN
 			checktime			  DATETIME,
 			accepttype			  TINYINT,
 			SubIssueTypeId		SMALLINT,
-			ScoreId				TINYINT
+			ScoreId				INT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -148,7 +148,7 @@ BEGIN
 			IsMarked BIT,
 			MatchId	INT,
 			SubIssueTypeId SMALLINT,
-			ScoreId		TINYINT
+			ScoreId		INT
 	)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
@@ -169,13 +169,13 @@ BEGIN
 		,MaxMainParlayTransId BIGINT
 		,HighLightTransId BIGINT
 		,HighlightAcceptType TINYINT
-		,ScoreId				TINYINT
+		,ScoreId				INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId TINYINT, Refno BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, Refno BIGINT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME)
-	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, ScoreId TINYINT)
-	CREATE TABLE #WrongScores (ScoreId TINYINT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
+	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, OriginalBetType SMALLINT, IsCOTicket BIT, ScoreId INT)
+	CREATE TABLE #WrongScores (ScoreId INT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	CREATE TABLE #FilterInfo (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterBy	TINYINT, SubIssueTypeId SMALLINT)
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -197,7 +197,7 @@ BEGIN
 			,MatchId INT
 			,ScoreId TINYINT
 		)
-	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId TINYINT, RequestId INT, MatchId INT)
+	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
 
 	IF @IssueTypeId = 1
 	BEGIN
@@ -876,7 +876,7 @@ BEGIN
 				,T.C.value('./@LiveAwayScore', 'smallint')
 				,T.C.value('./@FilterFromTransTime', 'datetime')
 				,T.C.value('./@FilterToTransTime', 'datetime')
-				,T.C.value('./@ScoreId', 'tinyint')
+				,T.C.value('./@ScoreId', 'int')
 		FROM	@WrongScoreInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
