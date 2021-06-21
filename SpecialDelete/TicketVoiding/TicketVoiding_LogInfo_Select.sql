@@ -195,7 +195,7 @@ BEGIN
 			,MatchProcessXML		  XML 
 			,LiveScores NVARCHAR(300)
 			,MatchId INT
-			,ScoreId TINYINT
+			,ScoreId INT
 		)
 	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
 
