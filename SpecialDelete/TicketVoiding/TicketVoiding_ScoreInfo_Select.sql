@@ -34,10 +34,11 @@ BEGIN
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = md.matchid
 	WHERE md.matchid = @MatchId
 		AND md.ModeId IN (1,2,3,4)
+		AND md.Score IS NOT NULL
 	ORDER BY md.id
 
 	SELECT w1.ScoreId
-		, ISNULL(w1.Score, '0-0') AS WrongScore
+		, w1.Score AS WrongScore
 		, CASE WHEN w1.ScoreId = 1 THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
 		, DATEADD(MS, -100, w2.updatetime) AS FilterToTransTime
 		, w1.IsActive
