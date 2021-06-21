@@ -27,6 +27,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:		
 		
@@ -515,12 +516,12 @@ BEGIN
 		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
 		
-		IF @SportType = 50
+		IF @SportType IN ( 45, 50 )
 		BEGIN
 			SELECT @hthomescore = NULL
 				  ,@htawayscore = NULL
 
-			IF @ParentMatchId IS NOT NULL
+			IF @ParentMatchId IS NOT NULL --- Cricket
 			BEGIN
 				SELECT  @MatchId =  @ParentMatchId
 						,@fthomescore = finalhomescore 

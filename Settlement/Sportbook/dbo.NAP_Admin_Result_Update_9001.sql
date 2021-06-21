@@ -50,7 +50,7 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusID TINYINT, IsDummy BIT DEFAULT(0) )
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
@@ -84,15 +84,6 @@ BEGIN
     BEGIN
        SET @SettlementStatusID 	= 4
        SET @ResultStatusID 		= 5
-
-	    IF @IsDirectly = 1 AND @Sporttype IN (2, 5, 9, 43, 45) ---settle Directly FT only
-		BEGIN
-			INSERT INTO @tblSelectedRID (ResourceID, HomeValue, AwayValue, SettlementStatusID, IsDummy )
-			SELECT sd.ResourceID, '', '', 0 , 1
-			FROM  dbo.f_Set_MajorRound(@Sporttype) sd
-			WHERE sd.isFinal = 0 AND sd.RoundName NOT IN ('HT', 'OT')
-		END
-
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
@@ -122,58 +113,88 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetailES TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID,@SettlementStatusID)
+	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
+	    WHEN NOT MATCHED BY TARGET THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+		FROM dbo.ResultDetailES r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
     END
 	--Insert and update ResultDetailOS - Badminton, Cricket, Beach Volleyball
     ELSE IF @Sporttype IN (9, 45, 50)
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID, @SettlementStatusID)
+	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
+	    WHEN NOT MATCHED BY TARGET THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+		FROM dbo.ResultDetailOS r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
     END 
     ELSE 
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.SettlementStatusID, sr.IsDummy
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
 	        UPDATE SET HomeValue     = SOURCE.HomeValue
 	            ,AwayValue           = SOURCE.AwayValue
 	            ,ResultStatusID      = @ResultStatusID
-	            ,SettlementStatusID  = ISNULL(SOURCE.SettlementStatusID,@SettlementStatusID)
+	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET AND SOURCE.IsDummy = 0 THEN
+	    WHEN NOT MATCHED BY TARGET THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+		
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+		FROM dbo.ResultDetail r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
 
 		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
 		BEGIN

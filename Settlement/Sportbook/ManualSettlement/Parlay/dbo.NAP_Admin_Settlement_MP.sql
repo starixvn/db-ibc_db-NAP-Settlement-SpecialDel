@@ -42,6 +42,7 @@ AS
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -510,12 +511,12 @@ BEGIN
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
-		IF @SportType = 50
+		IF @SportType IN ( 45, 50 )
 		BEGIN
 			SELECT @hthomescore	= NULL  
 				,@htawayscore	= NULL
 
-			IF @ParentMatchId IS NOT NULL
+			IF @ParentMatchId IS NOT NULL ---Cricket
 			BEGIN
 				SELECT  @matchid		= @ParentMatchId
 					   ,@finalhomescore = finalhomescore 

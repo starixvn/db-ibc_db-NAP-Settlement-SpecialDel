@@ -25,12 +25,11 @@ GO
 				  ,OrdNo
 				  ,RoundID
 				  ,OddsType
-				  ,RefResourceId
 				)
 			VALUES 
-			 ( 1	,45 ,1	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ,NULL ) --Handicap		
-			,( 2	,45 ,2	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ,'00' ) --Odd/Even (Settle on TotalPoint)		
-			,( 3	,45 ,3	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ,'00' ) --Over/Under (Settle on TotalPoint)					
-			,( 20	,45 ,20	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ,NULL ) --Moneyline		
+			 ( 10	,45 ,1	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ) --Handicap		
+			,( 2	,45 ,2	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ) --Odd/Even (Settle on TotalPoint)		
+			,( 3	,45 ,3	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ) --Over/Under (Settle on TotalPoint)					
+			,( 20	,45 ,20	,0 ,'00' ,'MNL' ,'FT', 99 ,0 , NULL ) --Moneyline		
 
 GO

@@ -99,7 +99,7 @@ BEGIN
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-
+	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	----------------------------------------------------------------------------------------------------------------------
 
 	-- Check SP is in deployment
@@ -688,9 +688,13 @@ BEGIN
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
 	
+	INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, BetType, BetID, OrdNo, RoundName )
+	SELECT ResourceID, HomeValue, AwayValue, BetType, BetID, OrdNo, RoundName
+	FROM @tmpSelectedRID
+
 	IF @ParentMatchId IS NOT NULL 
 	BEGIN
-		DELETE FROM @tmpSelectedRID
+		DELETE FROM @tmpGetLog
 		WHERE ResourceID NOT IN (
 			SELECT sp.ResourceID 
 			FROM dbo.bettrans bt WITH(NOLOCK)
@@ -701,10 +705,10 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
-	IF @sportType = 45
+	IF @sportType = 45 ---for Log Only
 	BEGIN
-		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, RoundName)
-		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName 
+		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
+		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
 		FROM @tmpResourcesWeb r
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 		WHERE r.ResourceID IN ('0101','0102','0103')
@@ -717,7 +721,7 @@ BEGIN
 				 ELSE '' END
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
-		  	FROM @tmpSelectedRID sr
+		  	FROM @tmpGetLog sr
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	ORDER BY OrdNo
@@ -754,12 +758,12 @@ BEGIN
 				@UserID = @creator
 				,@Doing = @logdata
 	
-	IF @sportType = 50
+	IF @sportType IN ( 45, 50 )
 	BEGIN
 		SELECT @hth	= NULL
 				,@hta = NULL
 
-		IF @ParentMatchId IS NOT NULL
+		IF @ParentMatchId IS NOT NULL ---Cricket
 		BEGIN
 			SELECT  @MatchId =  @ParentMatchId
 					,@fth	= finalhomescore
