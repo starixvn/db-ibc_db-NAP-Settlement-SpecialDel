@@ -2,8 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 (	
 	@MatchId INT
-	,@Livehomescore SMALLINT = NULL	
-	,@Liveawayscore SMALLINT = NULL
+	,@FilterFromTransTime DATETIME = NULL
 )
 AS
 /*	
@@ -24,6 +23,7 @@ BEGIN
 	SELECT MAX(ISNULL(b.checktime, b.transdate)) AS LastTime
 	FROM dbo.bettrans b WITH (NOLOCK)
 	WHERE b.matchid = @MatchId
+		AND ISNULL(b.checktime, b.transdate) > @FilterFromTransTime
 
 END
 GO
