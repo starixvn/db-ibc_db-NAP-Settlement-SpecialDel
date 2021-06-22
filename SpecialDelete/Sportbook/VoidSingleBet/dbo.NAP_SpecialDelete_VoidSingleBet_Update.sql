@@ -1291,7 +1291,7 @@ BEGIN
 				,sub.WinLost - sub.actual_stake AS WinLost
 				,tmpmain.ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)
-				INNER HASH JOIN #BetDelete tmpmain 
+				INNER JOIN #BetDelete tmpmain 
 					ON	sub.refno = tmpmain.transid						
 						AND tmpmain.betdaqid = 0
 						AND tmpmain.extrainfo is null			
@@ -1303,7 +1303,7 @@ BEGIN
 			INSERT INTO @tblCustBT902( custid )
 			SELECT sub902.custid
 			FROM dbo.bettrans sub902 WITH (NOLOCK)
-				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK) ON	sub902.refno = tmpmain.transid
+				INNER JOIN #BetDelete tmpmain with(NOLOCK) ON	sub902.refno = tmpmain.transid
 						
 			WHERE sub902.matchid 		= @matchid
 				AND sub902.bettype 		= 902
@@ -1571,7 +1571,7 @@ BEGIN
 					sub.winlost, sub.livehomescore, sub.liveawayscore, sub.liveindicator, sub.betteam, sub.creator , sub.refno, 
 					sub.winlostdate, sub.betfrom, sub.betcheck, sub.checktime, sub.matchid, sub.bettype
 			FROM	dbo.bettrans sub WITH (nolock)
-				INNER HASH JOIN #BetDelete tmpmain ON sub.refno = tmpmain.transid AND sub.matchid = @matchid
+				INNER JOIN #BetDelete tmpmain ON sub.refno = tmpmain.transid AND sub.matchid = @matchid
 			WHERE	sub.bettype IN (901, 902, 903)
 					AND tmpmain.betdaqid = 0
 					AND tmpmain.extrainfo is null
@@ -1636,7 +1636,7 @@ BEGIN
 				  , 2 AS WalletType -- bet trade sub tickets always bet from cash wallet
 				  , sub.winlost, sub.actual_stake, sub.playercomm
 			FROM	dbo.bettrans sub WITH (NOLOCK)
-				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK)
+				INNER JOIN #BetDelete tmpmain with(NOLOCK)
 					ON	sub.refno = tmpmain.transid
 						AND sub.bettype BETWEEN 901 AND 910
 						AND tmpmain.betdaqid = 0
@@ -1715,7 +1715,7 @@ BEGIN
 					,statusID		= 102 
 					,status			= 'VOID'      
 			FROM	dbo.bettrans sub WITH (ROWLOCK, UPDLOCK)
-			INNER HASH JOIN #BetDelete tmpmain 
+			INNER JOIN #BetDelete tmpmain 
 				ON	tmpmain.transid = sub.refno
 					AND sub.bettype IN (901, 902, 903)
 					AND tmpmain.betdaqid = 0
@@ -1804,7 +1804,7 @@ BEGIN
 				  , 2 AS WalletType -- bet trade sub tickets always bet from cash wallet
 				  , sub.winlost, sub.actual_stake, sub.playercomm
 			FROM	dbo.bettrans sub WITH (NOLOCK)
-				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK)
+				INNER JOIN #BetDelete tmpmain with(NOLOCK)
 					ON	sub.refno = tmpmain.transid
 						AND sub.bettype BETWEEN 901 AND 910
 						AND tmpmain.betdaqid = 0

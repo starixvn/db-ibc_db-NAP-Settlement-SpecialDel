@@ -981,7 +981,7 @@ BEGIN
 	OUTPUT INSERTED.SoldId
 	INTO #tblSoldTicket(transid)
 	FROM #SpecialDeleteBets main 
-		INNER HASH JOIN dbo.bettrans sub WITH (NOLOCK)
+		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
 			ON	main.transid = sub.refno
 				AND main.betdaqid = 0 -- main ticket is BTrade
 				AND main.extrainfo is null -- main ticket is BTrade
@@ -1066,7 +1066,7 @@ BEGIN
 			,IsMarked
 			,main.ActualStake
 	FROM	#SpecialDeleteBets main
-		INNER HASH JOIN dbo.bettrans sub WITH (NOLOCK)
+		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
 			ON	main.transid = sub.refno
 				AND main.betdaqid = 0 -- main ticket is BTrade
 				AND main.extrainfo is null -- main ticket is BTrade
