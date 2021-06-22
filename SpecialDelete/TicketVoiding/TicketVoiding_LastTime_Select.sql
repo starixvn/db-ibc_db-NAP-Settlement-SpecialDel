@@ -19,11 +19,16 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	DECLARE @LastTime  DATETIME
 
-	SELECT MAX(ISNULL(b.checktime, b.transdate)) AS LastTime
-	FROM dbo.bettrans b WITH (NOLOCK)
-	WHERE b.matchid = @MatchId
-		AND ISNULL(b.checktime, b.transdate) > @FilterFromTransTime
+	SELECT @LastTime = (
+					SELECT MAX(ISNULL(b.checktime, b.transdate))
+					FROM dbo.bettrans b WITH (NOLOCK)
+					WHERE b.matchid = @MatchId
+						AND ISNULL(b.checktime, b.transdate) > @FilterFromTransTime
+				)
+
+	SELECT ISNULL(@LastTime, @FilterFromTransTime) AS LastTime
 
 END
 GO
