@@ -1287,8 +1287,8 @@ BEGIN
 				,sub.BonusID
 				,tmpmain.transid AS MainTransId
 				,tmpmain.actual_stake
-		FROM dbo.bettrans sub WITH(NOLOCK)
-			 INNER JOIN #BetDelete tmpmain
+		FROM #BetDelete tmpmain
+			 INNER HASH JOIN dbo.bettrans sub WITH(NOLOCK)
 					 ON	sub.refno = tmpmain.transid
 						AND sub.matchid = tmpmain.matchid	
 						AND sub.custid = tmpmain.custid						
@@ -1426,7 +1426,7 @@ BEGIN
 			 , sub_912_913.refno
 			 , sub_912_913.betid
 		FROM #CashOutTransActive sub911
-			INNER JOIN dbo.bettrans sub_912_913 WITH(NOLOCK)					
+			INNER HASH JOIN dbo.bettrans sub_912_913 WITH(NOLOCK)					
 					ON sub911.transId = sub_912_913.refno						
 					   AND sub911.matchid = sub_912_913.matchid					   					
 					   AND sub_912_913.bettype IN (912,913)
@@ -1593,7 +1593,7 @@ BEGIN
 			,tmpmain.grouptransid 	= main.transid
 			
 		FROM #BetDelete tmpmain
-			INNER JOIN dbo.bettrans main WITH(NOLOCK) 
+			INNER HASH JOIN dbo.bettrans main WITH(NOLOCK) 
 				ON	main.custid = tmpmain.custid
 					AND main.refno = tmpmain.refno 
 					AND main.matchid = tmpmain.matchid

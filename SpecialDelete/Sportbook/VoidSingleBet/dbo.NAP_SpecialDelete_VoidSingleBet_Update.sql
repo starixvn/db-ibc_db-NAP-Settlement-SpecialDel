@@ -1516,7 +1516,7 @@ BEGIN
 			INSERT INTO #CashOutSubTicket(transid, bettype, OriginalBetType, MainCashoutId, matchid, MainTransId)															
 			SELECT sub_912_913.transid, sub_912_913.bettype, sub911.OriginalBetType, sub911.MainCashoutId, sub911.matchid, sub911.MainTransId
 			FROM #CashOutSubTicket sub911
-				 INNER JOIN dbo.bettrans sub_912_913 (nolock)
+				 INNER HASH JOIN dbo.bettrans sub_912_913 (nolock)
 						 ON sub911.transid = sub_912_913.refno
 							AND sub911.matchid = sub_912_913.matchid						    
 							AND sub_912_913.bettype IN (912,913) 
@@ -1571,7 +1571,7 @@ BEGIN
 					sub.winlost, sub.livehomescore, sub.liveawayscore, sub.liveindicator, sub.betteam, sub.creator , sub.refno, 
 					sub.winlostdate, sub.betfrom, sub.betcheck, sub.checktime, sub.matchid, sub.bettype
 			FROM	dbo.bettrans sub WITH (nolock)
-				INNER JOIN #BetDelete tmpmain ON sub.refno = tmpmain.transid AND sub.matchid = @matchid
+				INNER HASH JOIN #BetDelete tmpmain ON sub.refno = tmpmain.transid AND sub.matchid = @matchid
 			WHERE	sub.bettype IN (901, 902, 903)
 					AND tmpmain.betdaqid = 0
 					AND tmpmain.extrainfo is null
@@ -1715,7 +1715,7 @@ BEGIN
 					,statusID		= 102 
 					,status			= 'VOID'      
 			FROM	dbo.bettrans sub WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #BetDelete tmpmain 
+			INNER HASH JOIN #BetDelete tmpmain 
 				ON	tmpmain.transid = sub.refno
 					AND sub.bettype IN (901, 902, 903)
 					AND tmpmain.betdaqid = 0
