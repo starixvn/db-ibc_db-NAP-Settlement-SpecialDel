@@ -113,6 +113,7 @@ AS
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1290,7 +1291,7 @@ BEGIN
 				,sub.WinLost - sub.actual_stake AS WinLost
 				,tmpmain.ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)
-				INNER JOIN #BetDelete tmpmain 
+				INNER HASH JOIN #BetDelete tmpmain 
 					ON	sub.refno = tmpmain.transid						
 						AND tmpmain.betdaqid = 0
 						AND tmpmain.extrainfo is null			
@@ -1302,7 +1303,7 @@ BEGIN
 			INSERT INTO @tblCustBT902( custid )
 			SELECT sub902.custid
 			FROM dbo.bettrans sub902 WITH (NOLOCK)
-				INNER JOIN #BetDelete tmpmain with(NOLOCK) ON	sub902.refno = tmpmain.transid
+				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK) ON	sub902.refno = tmpmain.transid
 						
 			WHERE sub902.matchid 		= @matchid
 				AND sub902.bettype 		= 902
@@ -1410,7 +1411,7 @@ BEGIN
 					,sub.WinLost - sub.actual_stake AS WinLost
 					,tmpmain.ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)
-				INNER JOIN #BetDelete tmpmain 
+				INNER HASH JOIN #BetDelete tmpmain 
 					ON	sub.refno = tmpmain.transid	
 						AND sub.custid = tmpmain.custid					
 						AND tmpmain.betdaqid = 0
@@ -1503,48 +1504,12 @@ BEGIN
 					,b.WinLost - b.actual_stake AS WinLost
 					,b.actual_stake AS ActualStake
 			FROM #BetDelete sub911
-			 CROSS APPLY (
-							  SELECT b.transid
-									,b.custid
-									,b.recommend
-									,b.mrecommend
-									,b.srecommend
-									,b.betfrom
-									,b.statusID
-									,b.STATUS
-									,b.SecAcceptFlag
-									,b.creator								
-									,b.hdp1
-									,b.hdp2
-									,b.bettype
-									,b.betteam
-									,b.betcheck
-									,b.odds
-									,b.oddsspread
-									,b.oddstype
-									,b.transdate
-									,b.checktime
-									,b.liveindicator
-									,b.livehomescore
-									,b.liveawayscore
-									,b.stake
-									,b.CurrencyName
-									,b.betid
-									,b.betdaqid
-									,b.refno
-									,b.ExtraInfo
-									,b.awinlost
-									,b.WalletType
-									,b.RefCode
-									,b.BonusID
-									,b.WinLost
-									,b.actual_stake
-							  FROM dbo.bettrans b WITH (NOLOCK)
-							  WHERE b.refno = sub911.transid
+			 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK)
+							  ON b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
+								AND b.matchid = @MatchId
 								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-						 ) AS b
 			WHERE sub911.bettype = 911	
 			
 			-- insert 912,913
@@ -1555,6 +1520,7 @@ BEGIN
 						 ON sub911.transid = sub_912_913.refno
 							AND sub911.matchid = sub_912_913.matchid						    
 							AND sub_912_913.bettype IN (912,913) 
+							AND sub_912_913.matchid = @MatchId
 							AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT
 			
 			-- insert custCashOut912
@@ -1670,7 +1636,7 @@ BEGIN
 				  , 2 AS WalletType -- bet trade sub tickets always bet from cash wallet
 				  , sub.winlost, sub.actual_stake, sub.playercomm
 			FROM	dbo.bettrans sub WITH (NOLOCK)
-				INNER JOIN #BetDelete tmpmain with(NOLOCK)
+				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK)
 					ON	sub.refno = tmpmain.transid
 						AND sub.bettype BETWEEN 901 AND 910
 						AND tmpmain.betdaqid = 0
@@ -1838,7 +1804,7 @@ BEGIN
 				  , 2 AS WalletType -- bet trade sub tickets always bet from cash wallet
 				  , sub.winlost, sub.actual_stake, sub.playercomm
 			FROM	dbo.bettrans sub WITH (NOLOCK)
-				INNER JOIN #BetDelete tmpmain with(NOLOCK)
+				INNER HASH JOIN #BetDelete tmpmain with(NOLOCK)
 					ON	sub.refno = tmpmain.transid
 						AND sub.bettype BETWEEN 901 AND 910
 						AND tmpmain.betdaqid = 0

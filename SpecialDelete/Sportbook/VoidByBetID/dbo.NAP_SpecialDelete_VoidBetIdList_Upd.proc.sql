@@ -92,7 +92,8 @@ AS
 	  - 20210505@July: Show VIP status on void email [Redmine: #153157]
 	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	  - 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
-
+	  - 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
+	  
 	 Param's Explanation:   
 	*/
 BEGIN
@@ -1411,53 +1412,10 @@ BEGIN
 				,sub911.MainTransId
 				,b.actual_stake
 		FROM #BetDelete sub911
-			 CROSS APPLY (
-							  SELECT b.transid
-							  		,b.matchid
-									,b.bettype
-									,b.betid
-									,b.stake
-									,b.odds
-									,b.oddsspread
-									,b.refno
-									,b.betfrom
-									,b.statusID
-									,b.betdaqid
-									,b.winlostdate
-									,b.status
-									,b.oddstype
-									,b.transdate
-									,b.betteam
-									,b.betcheck
-									,b.hdp1
-									,b.hdp2
-									,b.livehomescore
-									,b.liveawayscore
-									,b.liveindicator
-									,b.winlost
-									,b.actual_stake
-									,b.playercomm
-									,b.currency
-									,b.transdesc
-									,b.custid
-									,b.creator
-									,b.recommend
-									,b.mrecommend
-									,b.srecommend				
-									,b.oddsid
-									,b.ExtraInfo
-									,b.awinlost
-									,b.modds
-									,b.CurrencyName
-									,b.WalletType
-									,b.RefCode
-									,b.BonusID
-							  FROM dbo.bettrans b WITH (NOLOCK)
-							  WHERE b.refno = sub911.transid
+			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
 								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-						 ) AS b
 		WHERE sub911.bettype = 911		 
 		
 		--Insert multiple cash-out transaction (912,913)

@@ -59,6 +59,7 @@ AS;
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -862,7 +863,7 @@ BEGIN
 				,main.IsMarked
 				,main.ActualStake
 		FROM #Data main
-			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
+			 INNER HASH JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
 						AND sub911.matchid = main.matchid	
 						AND sub911.custid = main.custid	
@@ -987,51 +988,10 @@ BEGIN
 				,sub911.IsMarked
 				,b.actual_stake AS ActualStake
 		FROM #Data sub911
-			 CROSS APPLY (
-							  SELECT b.bettype
-									,b.transid
-									,b.BetID
-									,b.refno			
-									,b.hdp1
-									,b.hdp2
-									,b.odds
-									,b.oddsspread
-									,b.OddsType
-									,b.STATUS
-									,b.SecAcceptFlag
-									,b.checktime
-									,b.comstatus
-									,b.stake				
-									,b.transdate
-									,b.betteam
-									,b.betcheck
-									,b.liveindicator
-									,b.modds
-									,b.custid
-									,b.livehomescore
-									,b.liveawayscore				
-									,b.betfrom
-									,b.matchid				
-									,b.winlost
-									,b.actual_stake
-									,b.playercomm				
-									,b.winlostdate
-									,b.transdesc
-									,b.betdaqid
-									,b.username
-									,b.recommend				
-									,b.oddsid
-									,b.ExtraInfo
-									,b.CurrencyName
-									,b.WalletType
-									,b.RefCode
-									,b.BonusID
-							  FROM dbo.bettrans b WITH (NOLOCK)
-							  WHERE b.refno = sub911.transid
+			 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
 								AND b.statusID NOT IN (101, 102, 103) --REJECT, VOID, REFUND
-						 ) AS b
 		WHERE sub911.bettype = 911
 	END				     
 		
