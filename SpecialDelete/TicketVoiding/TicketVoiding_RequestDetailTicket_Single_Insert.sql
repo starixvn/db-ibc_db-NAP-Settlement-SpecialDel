@@ -1190,7 +1190,7 @@ BEGIN
 			, t.MatchId
 			, rd.Id AS RequestDetailId
 		FROM #DangerAccept_SingleTickets t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidFromTime = t.VoidToTime
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
 			OUTER APPLY (
 								SELECT TOP 1 rs.TransId
 								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)

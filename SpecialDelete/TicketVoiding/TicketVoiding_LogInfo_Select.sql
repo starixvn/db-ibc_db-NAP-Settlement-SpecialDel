@@ -868,6 +868,7 @@ BEGIN
 	END
 	IF @IssueTypeId = 3 AND @WrongScoreInfo <> '' --Wrong Score
 	BEGIN
+		SET @FilterBy = 2
 		SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
 		
 		INSERT INTO #WrongScores(MatchId, LiveHomeScore, LiveAwayScore, FilterFromTime, FilterToTime, ScoreId)
@@ -937,6 +938,7 @@ BEGIN
 				,matchid
 				,StatusId
 				,ScoreId
+				,checktime
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -988,6 +990,7 @@ BEGIN
 				,@MatchId
 				,b.statusID
 				,s.ScoreId
+				,b.checktime
 		FROM	bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -1060,6 +1063,7 @@ BEGIN
 					,matchid
 					,StatusId
 					,ScoreId
+					,checktime
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -1101,6 +1105,7 @@ BEGIN
 					,@MatchId
 					,main.statusID
 					,s.ScoreId
+					,sub.checktime
 			FROM	dbo.bettransm sub WITH (NOLOCK)				
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 						ON	main.refno = sub.refno				
