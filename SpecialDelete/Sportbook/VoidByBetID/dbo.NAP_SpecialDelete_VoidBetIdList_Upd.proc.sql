@@ -206,7 +206,7 @@ BEGIN
 		betid				BIGINT,
 		IsFinish			BIT
 	) -- store 911,912,913
-	
+	CREATE TABLE #temp_Cashout (ID INT IDENTITY(1,1), matchid INT)
 	-- store invalid BT transid
 	DECLARE @tblInvalidTrans TABLE (transid BIGINT) 
 	DECLARE @tblCustBT902 TABLE (custid INT, matchid INT) --store BT's custid 	
@@ -1149,7 +1149,6 @@ BEGIN
 	IF (@isExistCashOut = 1)
 	BEGIN
 		-- get sub ticket of Cash-out (911) and cash-out member bet tickets
-		CREATE TABLE #temp_Cashout (ID INT IDENTITY(1,1), matchid INT)
 		INSERT INTO #temp_Cashout (matchid)
 		SELECT DISTINCT matchid
 		FROM #BetDelete
@@ -1461,7 +1460,7 @@ BEGIN
 			WHERE IsCashOutMemberTicket = 1	AND matchid = @matchid_cashout
 			
 			SET @start = @start + 1
-											
+		END								
 	END
 	
 	--Insert ticket of MGSL in translog: 801,803,804,805,806 
@@ -1616,7 +1615,7 @@ BEGIN
 			,tmpmain.grouptransid 	= main.transid
 			
 		FROM #BetDelete tmpmain
-			INNER HASH JOIN dbo.bettrans main WITH(NOLOCK) 
+			INNER JOIN dbo.bettrans main WITH(NOLOCK) 
 				ON	main.custid = tmpmain.custid
 					AND main.refno = tmpmain.refno 
 					AND main.matchid = tmpmain.matchid
@@ -2868,8 +2867,7 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #tblCashOutProcess
 	DROP TABLE #Lucky3Matches
-
-	
+	DROP TABLE #temp_Cashout
 	RETURN
 END
 GO
