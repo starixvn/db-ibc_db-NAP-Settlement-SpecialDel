@@ -183,7 +183,6 @@ BEGIN
 			,IsTest = ISNULL(@IsTest, IsTest)
 			,Sporttype =  ISNULL(@SportType, Sporttype)
 			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
-			,LastModifiedDate = GETDATE()
 	WHERE	RequestId = @RequestId
 
 	EXEC dbo.TicketVoiding_RequestDetail_Update
