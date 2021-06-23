@@ -53,7 +53,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@Movebetdate		DATETIME
-			,@CountMatchId		INT
+			,@MatchId_cnt		INT = 0
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -120,6 +120,7 @@ BEGIN
 		,matchid			INT
 		,oddsid				INT
 		,winlostdate		SMALLDATETIME
+		,eventdate			DATETIME
 		,isFinish			BIT
 	)
 
@@ -241,51 +242,6 @@ BEGIN
 		RETURN
 	END
 
-	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-	INSERT INTO @tmpMatchMovebet (MatchId, Eventdate)
-	SELECT DISTINCT t.MatchId, m.eventdate
-	FROM #tmpTransId t
-		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
-	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE MatchId IN (9,29,2799))
-	BEGIN
-		UPDATE m
-		SET m.Eventdate = t.winlostdate
-		FROM @tmpMatchMovebet m
-			CROSS APPLY ( SELECT DISTINCT winlostdate
-						  FROM #tmpTransId t
-						  WHERE m.MatchId = t.matchid
-						)t
-		WHERE m.MatchId IN (9,29,2799)	
-	END
-
-	SELECT @CountMatchId = COUNT (MatchId)
-	FROM @tmpMatchMovebet t
-
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE Eventdate <= @Movebetdate)
-	BEGIN
-		IF @CountMatchId = 1
-		BEGIN
-			SELECT	@ErrCode = 99
-				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-			RETURN
-		END	
-		ELSE
-		BEGIN
-			 SELECT @MatchIDMoveBet = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-							  FROM @tmpMatchMovebet m
-							  WHERE eventdate <= @Movebetdate
-							  FOR XML PATH ('')
-							),1,1,'')
-		 	
-			 DELETE t
-			 FROM #tmpTransId t
-				INNER JOIN @tmpMatchMovebet m 
-				ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
-		END
-	END
-
 	IF @IssueTypeId = 13 --Abnormal Account
 	BEGIN
 		DECLARE @MinWinlostdate SMALLDATETIME, @MaxWinlostdate SMALLDATETIME
@@ -307,6 +263,7 @@ BEGIN
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
+			,eventdate = m.eventdate
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -320,6 +277,7 @@ BEGIN
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
+			,eventdate = o.eventdate
 		FROM	#tmpTransId b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -333,7 +291,8 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
-		SET sporttype 	= r.sporttype	
+		SET sporttype 	= r.sporttype
+			,eventdate = o.EventDate	
 		FROM	#tmpTransId b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -361,6 +320,50 @@ BEGIN
 			OR bettype = 500 /*charge comm*/
 		) 
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	INSERT INTO @tmpMatchMovebet (MatchId, Eventdate)
+	SELECT DISTINCT t.MatchId, t.eventdate
+	FROM #tmpTransId t
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE MatchId IN (9,29,2799))
+	BEGIN
+		UPDATE m
+		SET m.Eventdate = t.winlostdate
+		FROM @tmpMatchMovebet m
+			CROSS APPLY ( SELECT DISTINCT winlostdate
+						  FROM #tmpTransId t
+						  WHERE m.MatchId = t.matchid
+						)t
+		WHERE m.MatchId IN (9,29,2799)	
+	END
+
+	SELECT @MatchId_cnt = COUNT (MatchId)
+	FROM @tmpMatchMovebet t
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE Eventdate <= @Movebetdate)
+	BEGIN
+		IF @MatchId_cnt = 1
+		BEGIN
+			SELECT	@ErrCode = 99
+				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+			RETURN
+		END	
+		ELSE
+		BEGIN
+			 SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+										FROM @tmpMatchMovebet m
+										WHERE eventdate <= @Movebetdate
+										FOR XML PATH ('')
+										),1,1,'')
+		 	
+			 DELETE t
+			 FROM #tmpTransId t
+				INNER JOIN @tmpMatchMovebet m 
+				ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
+		END
+	END
+
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid

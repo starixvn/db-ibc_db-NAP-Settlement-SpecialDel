@@ -19,6 +19,7 @@ AS
 		- 20210308@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210608@Max: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's explanation:	
 	
@@ -61,9 +62,10 @@ BEGIN
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
-	
-	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
+			,@MoveBetMatchIds	VARCHAR(MAX)
 
+	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
+	DECLARE @tmpMatchMoveBet_update TABLE (MatchId	INT)
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
 	DECLARE @Subject	NVARCHAR(500) = ''
@@ -182,6 +184,7 @@ BEGIN
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@VoidingHistoryIds = @VoidingHistoryIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 			
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -234,6 +237,29 @@ BEGIN
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
 		END
+		
+		IF @MoveBetMatchIds IS NOT NULL
+		BEGIN
+			SELECT	@StatusId= 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
+
+			INSERT INTO @tmpMatchMoveBet_update(MatchId)
+			SELECT	val AS MatchId
+			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
+			OPTION (maxrecursion 0)
+
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
+				,StatusId = @StatusId
+				,ErrMsg = @ErrMsg
+			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
+				INNER JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+			WHERE q.RequestId  = @RequestId
+
+			UPDATE s WITH (ROWLOCK, UPDLOCK)
+			SET s.statusID = 3
+			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
+				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
+		END	
 			
 	END
 
