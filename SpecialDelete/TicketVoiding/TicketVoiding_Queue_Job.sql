@@ -13,6 +13,7 @@ AS
 		- 20210326@Max: [TVS] Enhance void queue and service integration [Redmine: #152053]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's explanation:	
 		
@@ -30,7 +31,6 @@ BEGIN
 			,@IP				VARCHAR(50)
 			,@StatusId			TINYINT
 			,@sessionID			INT = 0
-
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@FailedTransIds	VARCHAR(MAX)
@@ -40,11 +40,11 @@ BEGIN
 			,@Status_Single TINYINT
 			,@IsNoTicketFound BIT = 1
 			,@IsExistError BIT = 0
-
 			,@BypassCheckingProcess TINYINT = 0
 			,@RetryTime INT = 120
 			,@ExecTime DATETIME
 			,@ErrMsgLockMatch VARCHAR(300) = '1000000'
+			,@MoveBetMatchIds VARCHAR(MAX) 
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -64,6 +64,10 @@ BEGIN
 
 	DECLARE @tmpQueue_update TABLE (
 		QueueId	INT
+	)
+
+	DECLARE @tmpMatchMoveBet_update TABLE (
+		MatchId	INT
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -213,6 +217,7 @@ BEGIN
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 				,@QueueIds = @QueueIds OUTPUT
+				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 
 		END TRY
 		BEGIN CATCH
@@ -256,6 +261,24 @@ BEGIN
 		WHERE 1 = CASE WHEN @IssueTypeId = 13 AND EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId) THEN 1
 						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
 					ELSE 0 END
+		
+		IF @MoveBetMatchIds IS NOT NULL
+		BEGIN
+			SELECT @StatusId = 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
+
+			INSERT INTO @tmpMatchMoveBet_update(MatchId)
+			SELECT	val AS MatchId
+			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
+			OPTION (maxrecursion 0)
+
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
+				,StatusId = @StatusId
+				,ErrMsg = @ErrMsg
+			FROM dbo.TicketVoiding_Queue q
+				INNER JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+			WHERE q.RequestId = @RequestId AND q.VoidingHistoryId = @VoidingHistoryId
+		END
 
 		IF @StatusId = 3
 			SET @IsExistError = 1

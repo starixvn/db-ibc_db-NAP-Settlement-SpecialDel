@@ -24,7 +24,8 @@ AS
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
-		
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's explanation:	
 		
 */
@@ -36,6 +37,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
+			,@Movebetdate		DATETIME
 
 	DECLARE @avaiableProcess BIT
 			,@MatchDate DATETIME
@@ -126,6 +128,15 @@ BEGIN
 
 		RETURN
 	END
+
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	IF @MatchDate <= @Movebetdate
+	BEGIN
+			SELECT	@ErrCode = 99
+				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+			RETURN
+	END	
 
 	IF @BypassCheckingProcess = 0
 	BEGIN

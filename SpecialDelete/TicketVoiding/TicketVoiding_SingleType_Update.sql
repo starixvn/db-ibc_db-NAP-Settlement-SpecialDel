@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 	,@QueueIds			VARCHAR(MAX)	= NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 
 AS
 /*	Created by: Kathy
@@ -36,7 +37,8 @@ AS
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210601@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
-	
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
 		
@@ -50,6 +52,8 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@Movebetdate		DATETIME
+			,@CountMatchId		INT
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -90,6 +94,7 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT, matchid INT)
+	DECLARE @tmpMatchMovebet TABLE (MatchId INT, Eventdate DATETIME)
 						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -234,6 +239,51 @@ BEGIN
 				,@ErrMsg = 'No ticket found.'				
 
 		RETURN
+	END
+
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	INSERT INTO @tmpMatchMovebet (MatchId, Eventdate)
+	SELECT DISTINCT t.MatchId, m.eventdate
+	FROM #tmpTransId t
+		INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
+	
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE MatchId IN (9,29,2799))
+	BEGIN
+		UPDATE m
+		SET m.Eventdate = t.winlostdate
+		FROM @tmpMatchMovebet m
+			CROSS APPLY ( SELECT DISTINCT winlostdate
+						  FROM #tmpTransId t
+						  WHERE m.MatchId = t.matchid
+						)t
+		WHERE m.MatchId IN (9,29,2799)	
+	END
+
+	SELECT @CountMatchId = COUNT (MatchId)
+	FROM @tmpMatchMovebet t
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE Eventdate <= @Movebetdate)
+	BEGIN
+		IF @CountMatchId = 1
+		BEGIN
+			SELECT	@ErrCode = 99
+				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+			RETURN
+		END	
+		ELSE
+		BEGIN
+			 SELECT @MatchIDMoveBet = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+							  FROM @tmpMatchMovebet m
+							  WHERE eventdate <= @Movebetdate
+							  FOR XML PATH ('')
+							),1,1,'')
+		 	
+			 DELETE t
+			 FROM #tmpTransId t
+				INNER JOIN @tmpMatchMovebet m 
+				ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
+		END
 	END
 
 	IF @IssueTypeId = 13 --Abnormal Account
