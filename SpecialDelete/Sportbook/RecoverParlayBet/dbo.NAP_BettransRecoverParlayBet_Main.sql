@@ -140,7 +140,7 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tblRecoverBet WHERE winlostdate <= @Movebetdate)
 		BEGIN
-				------ release Parlay procesee	
+			------ release Parlay procesee	
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
 					@IsExistParlay = 1			
 				  , @IsReleased	= 1	
@@ -148,7 +148,7 @@ BEGIN
 			SELECT @ErrCode = 100
 				 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
 
-		RETURN		  		
+			RETURN		  		
 		END
 
 		INSERT INTO @tblNoResettleTransIds (transid)
