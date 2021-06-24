@@ -79,8 +79,6 @@ BEGIN
 	
 	DECLARE @moveBetDay14 	SMALLDATETIME,
 		@moveBetDay 	SMALLDATETIME,
-		@moveBetDay_outright SMALLDATETIME,
-		@moveBetDay14_outright SMALLDATETIME,
 		@IsSB BIT = 0,
 		@IsParlay BIT = 0,
 		@IsBB BIT = 0,
@@ -102,23 +100,15 @@ BEGIN
 	SELECT @moveBetDay14 = MAX(eventdate) 
 	FROM dbo.match14 WITH(NOLOCK)
 	
-	SELECT @moveBetDay14_outright = MAX(eventdate) 
-	FROM dbo.outright14 WITH(NOLOCK)
-	
-	SET @moveBetDay14 = CASE WHEN @moveBetDay14 >= @moveBetDay14_outright THEN @moveBetDay14_outright ELSE @moveBetDay14 END
-	
 	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-			, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			, @FromDate = CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
 			
 	IF @ToDate IS NULL
 	BEGIN
 		SELECT @moveBetDay = MAX(eventdate) 
 		FROM dbo.match WITH(NOLOCK)
 		
-		SELECT @moveBetDay_outright = MAX(eventdate)
-		FROM dbo.outright WITH (NOLOCK)	
-		
-		SET @ToDate = CASE WHEN @moveBetDay <= @moveBetDay_outright THEN @moveBetDay_outright ELSE @moveBetDay END
+		SET @ToDate = @moveBetDay
 	END
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
