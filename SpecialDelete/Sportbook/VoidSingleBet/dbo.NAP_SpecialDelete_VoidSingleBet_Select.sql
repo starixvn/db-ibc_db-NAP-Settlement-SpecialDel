@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select]
     @SettledType      VARCHAR(100) = 'All',
     @SecondAcceptFlag TINYINT      = 0
 )
-AS;
+AS
 /*
     Created by: Kathy
 	Date: 
@@ -81,6 +81,7 @@ AS;
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -769,7 +770,7 @@ BEGIN
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
-				INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 		END
 	END
 
@@ -1155,7 +1156,7 @@ BEGIN
 			,main.IsMarked
 			,main.ActualStake
 	FROM dbo.bettrans sub911 WITH (NOLOCK)
-		 INNER JOIN #SpecialDeleteBets main
+		 INNER HASH JOIN #SpecialDeleteBets main
 				ON	sub911.refno = main.transid	
 					AND sub911.custid = main.custid
 					AND main.betdaqid = 0
@@ -1244,45 +1245,12 @@ BEGIN
 			sub911.IsMarked,
 			b.actual_stake AS ActualStake
 	FROM #SpecialDeleteBets sub911
-		 CROSS APPLY (	SELECT 	b.transid,
-		 						b.custid,			
-								b.odds,  
-								b.oddsspread,
-								b.OddsType,  
-								b.transdate,
-								b.checktime,
-								b.bettype,
-								b.betteam,
-								b.betcheck,
-								b.hdp1,
-								b.hdp2,
-								b.liveindicator,
-								b.livehomescore,
-								b.liveawayscore,
-								b.creator,
-								b.stake,
-								b.CurrencyName, 			
-								b.status,
-								b.srecommend,
-								b.mrecommend,
-								b.recommend,
-								b.SecAcceptFlag,
-								b.betid,
-								b.betdaqid,
-								b.refno,			
-								b.statusID,
-								b.ExtraInfo,
-								b.WalletType,
-								b.RefCode,
-								b.BonusID,
-								b.WinLost,
-								b.actual_stake
-						FROM dbo.bettrans b WITH (NOLOCK)
-						WHERE b.refno = sub911.transid
+		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON
+						b.refno = sub911.transid
 						AND b.matchid = sub911.matchid
 						AND b.bettype = sub911.OriginalBetType
+						AND b.matchid = @MatchId
 						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
-					) AS b	
 	WHERE sub911.bettype = 911
 	
 	-- update username/creatorname column, Isdeposit

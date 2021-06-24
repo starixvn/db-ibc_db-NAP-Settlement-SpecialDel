@@ -59,6 +59,7 @@ AS;
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -88,15 +89,24 @@ BEGIN
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	
+	/*
 	SELECT @moveBetDay14 = MAX(winlostdate) 
 	FROM dbo.bettrans14 WITH(NOLOCK)
 
 	SELECT @moveBetDay = MAX(winlostdate) 
 	FROM dbo.bettrans WITH(NOLOCK)
+	*/
+	
+	SELECT @moveBetDay14 = MAX(eventdate) 
+	FROM dbo.match14 WITH(NOLOCK)
 	
 	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-		, @FromDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-		, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+			, @FromDate = CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
+			
+	IF @ToDate IS NULL
+	BEGIN
+		SET @ToDate = DATEADD(yy,2, GETDATE())
+	END
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
 	
@@ -166,6 +176,7 @@ BEGIN
 
 	CREATE INDEX IX_Data_RefCode ON #Data(RefCode)			
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
+	CREATE TABLE #temp_Cashout (ID INT IDENTITY(1,1), matchid INT)
 	
 	CREATE TABLE #CustId (CustId INT)
 	
@@ -753,286 +764,264 @@ BEGIN
 		DELETE FROM #Data WHERE betdaqid = 0 AND extrainfo IS NULL
 	END
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
-	IF(EXISTS (SELECT TOP 1 1 
-			   FROM #Data 
-			   WHERE betdaqid = 0 
-			     AND charindex ('p25',extrainfo)> 0	))
+	INSERT INTO #temp_Cashout (matchid)
+	SELECT DISTINCT matchid
+	FROM #Data
+	WHERE betdaqid = 0 AND CHARINDEX ('p25',extrainfo)> 0
+
+	IF @@ROWCOUNT > 0
 	BEGIN
-		-- get sub ticket of Cash-out (911)	
-		INSERT INTO #Data(
-			GroupID			
-			,bettype
-			,OriginalBetType		
-			,transid		
-			,betid			
-			,refno		
-			,hdp1			
-			,hdp2			
-			,odds	
-			,oddsspread			
-			,finalodds		
-			,finalodds2		
-			,OddsType		
-			,STATUS			
-			,comstatus		
-			,stake								
-			,transdate		
-			,betteam		
-			,betcheck		
-			,liveindicator	
-			,modds			
-			,custid						
-			,livehomescore	
-			,liveawayscore					
-			,betfrom		
-			,matchid					
-			,winlost		
-			,commission					
-			,winlostdate	
-			,TransDesc		
-			,betdaqid
-			,username
-			,recommend
-			,matchcode
-			,homeid
-			,awayid
-			,leagueid
-			,sporttype
-			,IsNeutral
-			,showtime
-			,ExtraInfo
-			,MainCashoutId
-			,IsHideComm
-			,CurrencyName
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,IsMarked
-			,ActualStake
-		)
-		SELECT  sub911.transid
-				,sub911.bettype
-				,main.bettype AS OriginalBetType
-				,sub911.transid
-				,main.bettype AS betid
-				,sub911.refno
-				,main.hdp1
-				,main.hdp2
-				,main.odds
-				,main.oddsspread
-				,main.finalodds
-				,main.finalodds2
-				,main.OddsType
-				,'Cash out'
-				,main.comstatus
-				,sub911.stake			
-				,sub911.transdate
-				,main.betteam
-				,main.betcheck
-				,main.liveindicator
-				,main.modds
-				,sub911.custid
-				,main.livehomescore
-				,main.liveawayscore
-				,main.betfrom
-				,main.matchid
-				,sub911.winlost - sub911.actual_stake
-				,main.commission
-				,main.winlostdate
-				,main.TransDesc
-				,sub911.betdaqid
-				,sub911.username
-				,sub911.recommend
-				,main.matchcode
-				,main.homeid
-				,main.awayid
-				,main.leagueid
-				,main.sporttype
-				,main.IsNeutral
-				,main.showtime
-				,sub911.ExtraInfo
-				,main.transid AS MainCashoutId
-				,1 AS IsHideComm
-				,sub911.CurrencyName
-				,sub911.WalletType
-				,sub911.RefCode
-				,sub911.BonusID
-				,main.transid AS MainTransId
-				,main.IsMarked
-				,main.ActualStake
-		FROM #Data main
-			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
-					 ON main.transid = sub911.refno
-						AND sub911.matchid = main.matchid	
-						AND sub911.custid = main.custid	
-						AND main.betdaqid = 0
-						AND charindex ('p25',main.extrainfo)> 0	
-						AND sub911.bettype = 911			 
-		WHERE sub911.statusID IN (111,112,113,103) --WON/LOSE/DRAW/REFUND								 						
+		DECLARE @start INT = 1, @end INT, @matchid_cashout INT 
 		
-		-- get cash-out member bet tickets
-		INSERT INTO #Data (
-			GroupID			
-			,bettype
-			,OriginalBetType		
-			,transid		
-			,betid			
-			,refno		
-			,hdp1			
-			,hdp2			
-			,odds
-			,oddsspread			
-			,finalodds		
-			,finalodds2		
-			,OddsType		
-			,STATUS			
-			,comstatus		
-			,stake							
-			,transdate		
-			,betteam		
-			,betcheck		
-			,liveindicator	
-			,modds			
-			,custid						
-			,livehomescore	
-			,liveawayscore					
-			,betfrom		
-			,matchid					
-			,winlost		
-			,commission					
-			,winlostdate	
-			,TransDesc		
-			,betdaqid
-			,username
-			,recommend			
-			,oddsid
-			,ExtraInfo
-			,IsCashOutMemberTicket
-			,MainCashoutId
-			,matchcode
-			,homeid
-			,awayid
-			,leagueid
-			,sporttype
-			,IsNeutral
-			,showtime	
-			,IsHideComm	
-			,CurrencyName	
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,IsMarked
-			,ActualStake	
-		)
-		SELECT  sub911.transid AS GroupId
-				,b.bettype
-				,sub911.OriginalBetType
-				,b.transid
-				,isnull(b.BetID, 0) AS BetID
-				,b.refno			
-				,b.hdp1
-				,b.hdp2
-				,b.odds
-				,b.oddsspread
-				,0 finalodds
-				,0 finalodds2
-				,b.OddsType
-				,CASE 
-					WHEN b.STATUS = 'running'
-						AND IsNull(b.SecAcceptFlag, 0) = 1
-						AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					ELSE b.STATUS
-					END AS STATUS
-				,CASE 
-					WHEN b.comstatus = '1' THEN 1
-					ELSE 0
-					END AS comstatus
-				,b.stake				
-				,b.transdate
-				,b.betteam
-				,b.betcheck
-				,b.liveindicator
-				,b.modds
-				,b.custid
-				,b.livehomescore
-				,b.liveawayscore				
-				,b.betfrom
-				,b.matchid				
-				,(b.winlost - b.actual_stake) winlost
-				,b.playercomm AS commission				
-				,b.winlostdate
-				,b.transdesc
-				,b.betdaqid
-				,b.username
-				,b.recommend				
-				,b.oddsid
-				,b.ExtraInfo
-				,1 AS IsCashOutMemberTicket
-				,sub911.MainCashoutId
-				,sub911.matchcode
-				,sub911.homeid
-				,sub911.awayid
-				,sub911.leagueid
-				,sub911.sporttype
-				,sub911.IsNeutral
-				,sub911.showtime
-				,1 AS IsHideComm
-				,b.CurrencyName
-				,b.WalletType
-				,b.RefCode
-				,b.BonusID
-				,sub911.MainTransId
-				,sub911.IsMarked
-				,b.actual_stake AS ActualStake
-		FROM #Data sub911
-			 CROSS APPLY (
-							  SELECT b.bettype
-									,b.transid
-									,b.BetID
-									,b.refno			
-									,b.hdp1
-									,b.hdp2
-									,b.odds
-									,b.oddsspread
-									,b.OddsType
-									,b.STATUS
-									,b.SecAcceptFlag
-									,b.checktime
-									,b.comstatus
-									,b.stake				
-									,b.transdate
-									,b.betteam
-									,b.betcheck
-									,b.liveindicator
-									,b.modds
-									,b.custid
-									,b.livehomescore
-									,b.liveawayscore				
-									,b.betfrom
-									,b.matchid				
-									,b.winlost
-									,b.actual_stake
-									,b.playercomm				
-									,b.winlostdate
-									,b.transdesc
-									,b.betdaqid
-									,b.username
-									,b.recommend				
-									,b.oddsid
-									,b.ExtraInfo
-									,b.CurrencyName
-									,b.WalletType
-									,b.RefCode
-									,b.BonusID
-							  FROM dbo.bettrans b WITH (NOLOCK)
-							  WHERE b.refno = sub911.transid
-								AND b.matchid = sub911.matchid
-								AND b.bettype = sub911.OriginalBetType
-								AND b.statusID NOT IN (101, 102, 103) --REJECT, VOID, REFUND
-						 ) AS b
-		WHERE sub911.bettype = 911
+		SET @end = (SELECT MAX(ID) FROM #temp_Cashout)
+
+		WHILE (@start <= @end)
+		BEGIN
+
+			SELECT @matchid_cashout = matchid FROM #temp_Cashout WHERE ID = @start
+
+			IF @@ROWCOUNT = 0 
+				BREAK
+			-- get sub ticket of Cash-out (911)	
+			INSERT INTO #Data(
+				GroupID			
+				,bettype
+				,OriginalBetType		
+				,transid		
+				,betid			
+				,refno		
+				,hdp1			
+				,hdp2			
+				,odds	
+				,oddsspread			
+				,finalodds		
+				,finalodds2		
+				,OddsType		
+				,STATUS			
+				,comstatus		
+				,stake								
+				,transdate		
+				,betteam		
+				,betcheck		
+				,liveindicator	
+				,modds			
+				,custid						
+				,livehomescore	
+				,liveawayscore					
+				,betfrom		
+				,matchid					
+				,winlost		
+				,commission					
+				,winlostdate	
+				,TransDesc		
+				,betdaqid
+				,username
+				,recommend
+				,matchcode
+				,homeid
+				,awayid
+				,leagueid
+				,sporttype
+				,IsNeutral
+				,showtime
+				,ExtraInfo
+				,MainCashoutId
+				,IsHideComm
+				,CurrencyName
+				,WalletType
+				,RefCode
+				,BonusID
+				,MainTransId
+				,IsMarked
+				,ActualStake
+			)
+			SELECT  sub911.transid
+					,sub911.bettype
+					,main.bettype AS OriginalBetType
+					,sub911.transid
+					,main.bettype AS betid
+					,sub911.refno
+					,main.hdp1
+					,main.hdp2
+					,main.odds
+					,main.oddsspread
+					,main.finalodds
+					,main.finalodds2
+					,main.OddsType
+					,'Cash out'
+					,main.comstatus
+					,sub911.stake			
+					,sub911.transdate
+					,main.betteam
+					,main.betcheck
+					,main.liveindicator
+					,main.modds
+					,sub911.custid
+					,main.livehomescore
+					,main.liveawayscore
+					,main.betfrom
+					,main.matchid
+					,sub911.winlost - sub911.actual_stake
+					,main.commission
+					,main.winlostdate
+					,main.TransDesc
+					,sub911.betdaqid
+					,sub911.username
+					,sub911.recommend
+					,main.matchcode
+					,main.homeid
+					,main.awayid
+					,main.leagueid
+					,main.sporttype
+					,main.IsNeutral
+					,main.showtime
+					,sub911.ExtraInfo
+					,main.transid AS MainCashoutId
+					,1 AS IsHideComm
+					,sub911.CurrencyName
+					,sub911.WalletType
+					,sub911.RefCode
+					,sub911.BonusID
+					,main.transid AS MainTransId
+					,main.IsMarked
+					,main.ActualStake
+			FROM #Data main
+				 INNER HASH JOIN dbo.bettrans sub911 WITH(NOLOCK)
+						 ON main.transid = sub911.refno
+							AND sub911.matchid = main.matchid	
+							AND sub911.custid = main.custid	
+							AND main.betdaqid = 0
+							AND charindex ('p25',main.extrainfo)> 0	
+							AND sub911.bettype = 911
+							AND sub911.matchid = @matchid_cashout			 
+			WHERE main.matchid = @matchid_cashout AND sub911.statusID IN (111,112,113,103) --WON/LOSE/DRAW/REFUND								 						
+			
+			-- get cash-out member bet tickets
+			INSERT INTO #Data (
+				GroupID			
+				,bettype
+				,OriginalBetType		
+				,transid		
+				,betid			
+				,refno		
+				,hdp1			
+				,hdp2			
+				,odds
+				,oddsspread			
+				,finalodds		
+				,finalodds2		
+				,OddsType		
+				,STATUS			
+				,comstatus		
+				,stake							
+				,transdate		
+				,betteam		
+				,betcheck		
+				,liveindicator	
+				,modds			
+				,custid						
+				,livehomescore	
+				,liveawayscore					
+				,betfrom		
+				,matchid					
+				,winlost		
+				,commission					
+				,winlostdate	
+				,TransDesc		
+				,betdaqid
+				,username
+				,recommend			
+				,oddsid
+				,ExtraInfo
+				,IsCashOutMemberTicket
+				,MainCashoutId
+				,matchcode
+				,homeid
+				,awayid
+				,leagueid
+				,sporttype
+				,IsNeutral
+				,showtime	
+				,IsHideComm	
+				,CurrencyName	
+				,WalletType
+				,RefCode
+				,BonusID
+				,MainTransId
+				,IsMarked
+				,ActualStake	
+			)
+			SELECT  sub911.transid AS GroupId
+					,b.bettype
+					,sub911.OriginalBetType
+					,b.transid
+					,isnull(b.BetID, 0) AS BetID
+					,b.refno			
+					,b.hdp1
+					,b.hdp2
+					,b.odds
+					,b.oddsspread
+					,0 finalodds
+					,0 finalodds2
+					,b.OddsType
+					,CASE 
+						WHEN b.STATUS = 'running'
+							AND IsNull(b.SecAcceptFlag, 0) = 1
+							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+						ELSE b.STATUS
+						END AS STATUS
+					,CASE 
+						WHEN b.comstatus = '1' THEN 1
+						ELSE 0
+						END AS comstatus
+					,b.stake				
+					,b.transdate
+					,b.betteam
+					,b.betcheck
+					,b.liveindicator
+					,b.modds
+					,b.custid
+					,b.livehomescore
+					,b.liveawayscore				
+					,b.betfrom
+					,b.matchid				
+					,(b.winlost - b.actual_stake) winlost
+					,b.playercomm AS commission				
+					,b.winlostdate
+					,b.transdesc
+					,b.betdaqid
+					,b.username
+					,b.recommend				
+					,b.oddsid
+					,b.ExtraInfo
+					,1 AS IsCashOutMemberTicket
+					,sub911.MainCashoutId
+					,sub911.matchcode
+					,sub911.homeid
+					,sub911.awayid
+					,sub911.leagueid
+					,sub911.sporttype
+					,sub911.IsNeutral
+					,sub911.showtime
+					,1 AS IsHideComm
+					,b.CurrencyName
+					,b.WalletType
+					,b.RefCode
+					,b.BonusID
+					,sub911.MainTransId
+					,sub911.IsMarked
+					,b.actual_stake AS ActualStake
+			FROM #Data sub911
+				 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = sub911.transid
+									AND b.matchid = sub911.matchid
+									AND b.bettype = sub911.OriginalBetType
+									AND b.statusID NOT IN (101, 102, 103) --REJECT, VOID, REFUND
+									AND b.matchid = @matchid_cashout
+			WHERE sub911.matchid = @matchid_cashout AND sub911.bettype = 911
+			
+			SET @start = @start + 1
+		END	
+			
 	END				     
 		
 	-- UPDATE SiteNam
