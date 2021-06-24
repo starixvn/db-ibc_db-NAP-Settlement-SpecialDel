@@ -105,10 +105,7 @@ BEGIN
 			
 	IF @ToDate IS NULL
 	BEGIN
-		SELECT @moveBetDay = MAX(eventdate) 
-		FROM dbo.match WITH(NOLOCK)
-		
-		SET @ToDate = @moveBetDay
+		SET @ToDate = DATEADD(yy,2, GETDATE())
 	END
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
