@@ -251,35 +251,47 @@ BEGIN
 							END
 		END
 
-		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
-				,StatusId = @StatusId
-				,ErrMsg = CASE WHEN q.QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END
-				,FailedTransIds = @FailedTransIds
-				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
-		FROM	dbo.TicketVoiding_Queue q
-		WHERE 1 = CASE WHEN @IssueTypeId = 13 AND EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId) THEN 1
-						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
-					ELSE 0 END
-		
+		DECLARE @statusid_1 tinyint, @errmsg_1 varchar(300)
 		IF @MoveBetMatchIds IS NOT NULL
 		BEGIN
-			SELECT @StatusId = 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
+			SELECT @statusid_1 = 3, @errmsg_1 = 'Could not void some tickets due to Movebet process.'
 
 			INSERT INTO @tmpMatchMoveBet_update(MatchId)
 			SELECT	val AS MatchId
 			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
 			OPTION (maxrecursion 0)
+		END
+		IF @IssueTypeId = 13 -- Abnormal account 
+		BEGIN
+			
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
+				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @statusid_1 END
+				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
+							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @errmsg_1 						
+							   ELSE ErrMsg END
+				,FailedTransIds = @FailedTransIds
+				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
+			FROM	dbo.TicketVoiding_Queue q
+			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+			WHERE EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId)  
+		END
+		ELSE
+		BEGIN
 
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
-				,StatusId = @StatusId
-				,ErrMsg = @ErrMsg
-			FROM dbo.TicketVoiding_Queue q
-				INNER JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
-			WHERE q.RequestId = @RequestId AND q.VoidingHistoryId = @VoidingHistoryId
+			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
+				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @statusid_1 END
+				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
+							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @errmsg_1						
+							   ELSE ErrMsg END
+				,FailedTransIds = @FailedTransIds
+				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
+			FROM	dbo.TicketVoiding_Queue q
+			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+			WHERE q.QueueId = @QueueId 
 		END
-
+		
 		IF @StatusId = 3
 			SET @IsExistError = 1
 

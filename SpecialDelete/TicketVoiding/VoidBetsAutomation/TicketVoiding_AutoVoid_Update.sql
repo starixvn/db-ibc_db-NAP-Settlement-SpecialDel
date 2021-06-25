@@ -114,7 +114,7 @@ BEGIN
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
-	DECLARE @tmpMatchMovebet TABLE (MatchId INT, Eventdate DATETIME)
+	DECLARE @tmpMatch TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @tmpCustCashOut TABLE (CustId INT)		
 	DECLARE @tmpCustCashOut_VOID TABLE (CustId INT)
 	DECLARE @tmpCustCashOut_Recalculate TABLE (CustId INT)
@@ -167,6 +167,7 @@ BEGIN
 		,matchid			INT
 		,oddsid				INT
 		,eventdate			DATETIME
+		,winlostdate		DATETIME
 	)
 	
 	DECLARE @tmpTransIDBatch TABLE (
@@ -455,7 +456,7 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid)
+	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -466,7 +467,7 @@ BEGIN
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -555,6 +556,20 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
+	IF EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId_VOID_RequestID
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
+
+	IF EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId_Recalculate
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
+
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
@@ -572,7 +587,6 @@ BEGIN
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
-
 
 	-- remove un-supported sports & bettype
 	DELETE bd
@@ -1250,7 +1264,7 @@ BEGIN
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 		
-	INSERT INTO @tmpMatchMovebet (MatchId, Eventdate)
+	INSERT INTO @tmpMatch (MatchId, Eventdate)
 	SELECT DISTINCT t.MatchId, t.eventdate
 	FROM (
 			SELECT t.matchid, t.eventdate
@@ -1260,29 +1274,22 @@ BEGIN
 			FROM #tmpTransId_Recalculate r
 		 )t
 	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE MatchId IN (9,29,2799))
-	BEGIN
-		UPDATE m
-		SET m.Eventdate = t.winlostdate
-		FROM @tmpMatchMovebet m
-			CROSS APPLY ( SELECT DISTINCT winlostdate
-						  FROM #tmpTransId_VOID_RequestID t
-						  WHERE m.MatchId = t.matchid
-						)t
-		WHERE m.MatchId IN (9,29,2799)	
-	END
-
 	SELECT @MatchId_cnt = COUNT(MatchId)
-	FROM @tmpMatchMovebet t
+	FROM @tmpMatch t
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchMovebet WHERE Eventdate <= @Movebetdate)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch WHERE Eventdate <= @Movebetdate)
 	BEGIN
-		IF @MatchId_cnt = 1
-		BEGIN
-			SELECT	@ErrCode = 99
-				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-			
-			EXEC dbo.NAP_Admin_CheckingProcess
+		DECLARE @tblMatchProcess_1 TABLE (matchid INT, KeyID TINYINT)
+		DECLARE @tblCashOutProcess_1 TABLE (transid BIGINT)
+
+		DELETE 
+		FROM #tblMatchProcess
+		OUTPUT	DELETED.matchid, DELETED.KeyID
+		INTO  @tblMatchProcess_1 (matchid, KeyID)
+		WHERE matchid NOT IN (SELECT 1 FROM @tmpMatch WHERE Eventdate <= @Movebetdate)
+
+		------ releasing process
+		EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistParlay 				= @isExistParlay
 				, @isExistOutright 			= @isExistOutright
 				, @isExistMG				= @isExistMG
@@ -1295,29 +1302,55 @@ BEGIN
 				, @isExistFM2				= @isExistFM2
 				, @IsReleased				= 1
 
-			-------> releasing cash-out process
+		DELETE #tblMatchProcess
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT matchid, KeyID FROM @tblMatchProcess_1
+
+		IF EXISTS (SELECT TOP 1 1 
+				FROM #tmpTransId_VOID_RequestID t	
+				WHERE	t.TicketType = 3 AND eventdate <= @Movebetdate)
+		BEGIN		
+		  	DELETE 
+			FROM #tblCashOutProcess
+			OUTPUT	DELETED.transid
+			INTO  @tblCashOutProcess_1 (transid)
+			WHERE transid NOT IN (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND Eventdate <= @Movebetdate)
+
+			------ releasing cash-out process
 			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-					@Mode = 'Original'
-				  , @Action = 'Void'
-				  , @IsReleased = 1 
+				@Mode = 'Original'
+				,@Action = 'Void'
+				,@IsReleased = 1
+			
+			DELETE #tblCashOutProcess
+			INSERT INTO #tblCashOutProcess(transid)
+			SELECT transid FROM @tblCashOutProcess_1
+			
+		END
+
+		IF @MatchId_cnt = 1
+		BEGIN
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
 
 			RETURN
 		END	
 		ELSE
 		BEGIN
-			 SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-							  FROM @tmpMatchMovebet m
-							  WHERE eventdate <= @Movebetdate
-							  FOR XML PATH ('')
+				SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+								FROM @tmpMatch m
+								WHERE eventdate <= @Movebetdate
+								FOR XML PATH ('')
 							),1,1,'')
-			 DELETE t
-			 FROM #tmpTransId_VOID_RequestID t
-			 INNER JOIN @tmpMatchMovebet m 
+
+				DELETE t
+				FROM #tmpTransId_VOID_RequestID t
+					INNER JOIN @tmpMatch m 
 				ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
 				
-			 DELETE r
-			 FROM #tmpTransId_Recalculate r
-			 INNER JOIN @tmpMatchMovebet m 
+				DELETE r
+				FROM #tmpTransId_Recalculate r
+					INNER JOIN @tmpMatch m 
 				ON r.matchid = m.matchid  AND r.eventdate <= @Movebetdate	 	
 					 	 
 		END

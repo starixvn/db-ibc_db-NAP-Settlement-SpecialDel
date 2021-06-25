@@ -135,6 +135,12 @@ BEGIN
 	BEGIN
 			SELECT	@ErrCode = 99
 				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay   = 1  
+				, @avaiableProcess  = @avaiableProcess OUTPUT  
+				, @ErrCode   = @ErrCode OUTPUT  
+				, @ErrMsg   = @ErrMsg OUTPUT  
 			RETURN
 	END	
 
