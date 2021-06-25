@@ -101,7 +101,7 @@ BEGIN
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
 				,m.IsNeutral
-				,CASE WHEN @IssueTypeId = 3 THEN rd.Id ELSE NULL END AS ScoreId
+				,CASE WHEN @IssueTypeId = 3 THEN rd.TransIds ELSE NULL END AS ScoreId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

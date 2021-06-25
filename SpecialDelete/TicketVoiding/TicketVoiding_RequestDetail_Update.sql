@@ -165,6 +165,7 @@ BEGIN
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
+			,ScoreId				INT
 		)
 	CREATE TABLE #tblOldResulDetail (
 			  RequestId INT
@@ -408,6 +409,7 @@ BEGIN
 				,LiveHomeScore
 				,LiveAwayScore
 				,LiveScores --ActualScore for WC
+				,ScoreId
 			)
 		SELECT @RequestId AS RequestId
 				,@MatchId AS MatchID
@@ -424,6 +426,7 @@ BEGIN
 				,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 				,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
 				,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
+				,t.c.value('@ScoreId','INT') AS ScoreId
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 

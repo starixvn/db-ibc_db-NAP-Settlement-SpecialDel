@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_ScoreInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_ScoreInfo_Select_UAT2]
 (	
 	@MatchId              INT
 )
@@ -22,28 +22,34 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #WrongScore (ScoreId INT PRIMARY KEY IDENTITY(1,1), MatchId INT, Score VARCHAR(20), updatetime DATETIME, IsActive BIT, KickOffTime DATETIME)
+	CREATE TABLE #WrongScore (Id SMALLINT PRIMARY KEY IDENTITY(1,1), ScoreId INT, MatchId INT, Score VARCHAR(20), updatetime DATETIME, IsActive BIT, KickOffTime DATETIME)
 	
-	INSERT INTO #WrongScore (MatchId, Score, updatetime, IsActive, KickOffTime)
-	SELECT md.matchid
+	--init for first  score 0-0
+	INSERT INTO #WrongScore (ScoreId, MatchId, Score, updatetime, IsActive, KickOffTime)
+	SELECT 0, @MatchId, '0-0', NULL, 1, m.kickofftime
+	FROM dbo.match m WITH (NOLOCK)
+	WHERE m.matchid = @MatchId
+	
+	--getdate from table MatchReportDetail
+	INSERT INTO #WrongScore (ScoreId, MatchId, Score, updatetime, IsActive)
+	SELECT md.id 
+		, md.matchid
 		, md.Score
 		, md.updatetime
 		, md.IsActive
-		, m.kickofftime
 	FROM dbo.MatchReportDetail md WITH (NOLOCK)
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = md.matchid
 	WHERE md.matchid = @MatchId
 		AND md.ModeId IN (1,2,3,4)
 		AND md.Score IS NOT NULL
 	ORDER BY md.id
-
+	
 	SELECT w1.ScoreId
 		, w1.Score AS WrongScore
-		, CASE WHEN w1.ScoreId = 1 THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
+		, CASE WHEN w1.updatetime IS NULL THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
 		, DATEADD(MS, -100, w2.updatetime) AS FilterToTransTime
 		, w1.IsActive
 	FROM #WrongScore w1
-		LEFT JOIN #WrongScore w2 ON w2.ScoreId = w1.ScoreId + 1
+		LEFT JOIN #WrongScore w2 ON w2.Id = w1.Id + 1
 
 	DROP TABLE #WrongScore
 

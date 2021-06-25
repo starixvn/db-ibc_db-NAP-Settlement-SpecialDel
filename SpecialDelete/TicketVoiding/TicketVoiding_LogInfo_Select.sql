@@ -1716,7 +1716,7 @@ BEGIN
 
 		/*Get log info for Void Page*/
 		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket, ScoreId)
-		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN rd.Id ELSE NULL END AS ScoreId 
+		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN rd.TransIds ELSE NULL END AS ScoreId 
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND b.matchid = s.MatchId
@@ -1862,7 +1862,7 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO @InstantlySettleCount_tmp (transidCount, ScoreId, RequestId)
-			SELECT COUNT(s.TransId), rd.Id, @RequestId
+			SELECT COUNT(s.TransId), rd.TransIds, @RequestId
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH  (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
@@ -1872,7 +1872,7 @@ BEGIN
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
-			GROUP BY rd.Id
+			GROUP BY rd.TransIds
 
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
@@ -1887,17 +1887,17 @@ BEGIN
 				,rd.MaxSingleTransId
 				,rd.MinMainParlayTransId
 				,rd.MaxMainParlayTransId
-				,rd.Id AS ScoreId
+				,rd.TransIds AS ScoreId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				OUTER APPLY (
 						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
 						FROM #CashOuts
 						WHERE RequestId = rd.RequestId	
 							AND MatchId = rd.MatchId
-							AND ScoreId = rd.Id
+							AND ScoreId = rd.TransIds
 						GROUP BY ScoreId
 					) c
-				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = rd.Id
+				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = rd.TransIds
 			WHERE rd.RequestId = @RequestId
 		END
 

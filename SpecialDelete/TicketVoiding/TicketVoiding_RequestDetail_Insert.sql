@@ -71,6 +71,7 @@ AS
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -141,6 +142,7 @@ BEGIN
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(50)
 			,SubIssueTypeId			SMALLINT
+			,ScoreId				INT
 			)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -201,6 +203,7 @@ BEGIN
 			  ,LiveAwayScore
 			  ,LiveScores --ActualScore for WC
 			  ,SubIssueTypeId
+			  ,ScoreId
 			)
 
 		SELECT @RequestId AS RequestId
@@ -219,6 +222,7 @@ BEGIN
 			  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
 			  ,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
 			  ,@SubIssueTypeId
+			  ,t.c.value('@ScoreId','INT') AS ActualScore
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
@@ -369,7 +373,7 @@ BEGIN
 			, l.LiveHomeScore
 			, l.LiveAwayScore
 			, l.LiveScores
-			, l.TypeAccept
+			, CASE WHEN @IssueTypeId IN (1,10) THEN l.TypeAccept ELSE CONVERT(VARCHAR(50), l.ScoreId) END
 			, l.SubIssueTypeId
 		FROM #tblGetLogInfo l
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
