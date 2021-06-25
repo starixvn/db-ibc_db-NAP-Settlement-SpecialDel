@@ -473,6 +473,7 @@ BEGIN
 			, LiveAwayScore = l.LiveAwayScore
 			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = @SubIssueTypeId
+			, TransIds = l.ScoreId
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
 														AND r.FilterFromTransTime = l.FilterFromTransTime
