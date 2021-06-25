@@ -251,10 +251,10 @@ BEGIN
 							END
 		END
 
-		DECLARE @statusid_1 tinyint, @errmsg_1 varchar(300)
+		DECLARE @StatusMove TINYINT, @ErrMsgMove VARCHAR(300)
 		IF @MoveBetMatchIds IS NOT NULL
 		BEGIN
-			SELECT @statusid_1 = 3, @errmsg_1 = 'Could not void some tickets due to Movebet process.'
+			SELECT @StatusMove = 3, @ErrMsgMove = 'Could not void some tickets due to Movebet process.'
 
 			INSERT INTO @tmpMatchMoveBet_update(MatchId)
 			SELECT	val AS MatchId
@@ -266,9 +266,9 @@ BEGIN
 			
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
-				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @statusid_1 END
+				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @StatusMove END
 				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
-							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @errmsg_1 						
+							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @ErrMsgMove 						
 							   ELSE ErrMsg END
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
@@ -281,9 +281,9 @@ BEGIN
 
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
-				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @statusid_1 END
+				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @StatusMove END
 				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
-							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @errmsg_1						
+							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @ErrMsgMove						
 							   ELSE ErrMsg END
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
@@ -291,8 +291,8 @@ BEGIN
 			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 			WHERE q.QueueId = @QueueId 
 		END
-		
-		IF @StatusId = 3
+
+		IF @StatusId = 3 OR @StatusMove = 3
 			SET @IsExistError = 1
 
 		IF @ErrCode <> 100

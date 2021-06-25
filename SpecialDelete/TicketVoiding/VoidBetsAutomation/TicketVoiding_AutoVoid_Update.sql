@@ -114,7 +114,7 @@ BEGIN
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
-	DECLARE @tmpMatch TABLE (MatchId INT, Eventdate DATETIME)
+	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @tmpCustCashOut TABLE (CustId INT)		
 	DECLARE @tmpCustCashOut_VOID TABLE (CustId INT)
 	DECLARE @tmpCustCashOut_Recalculate TABLE (CustId INT)
@@ -1264,7 +1264,7 @@ BEGIN
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 		
-	INSERT INTO @tmpMatch (MatchId, Eventdate)
+	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
 	SELECT DISTINCT t.MatchId, t.eventdate
 	FROM (
 			SELECT t.matchid, t.eventdate
@@ -1275,9 +1275,9 @@ BEGIN
 		 )t
 	
 	SELECT @MatchId_cnt = COUNT(MatchId)
-	FROM @tmpMatch t
+	FROM @tmpMatch_Eventdate t
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch WHERE Eventdate <= @Movebetdate)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 	BEGIN
 		DECLARE @tblMatchProcess_1 TABLE (matchid INT, KeyID TINYINT)
 		DECLARE @tblCashOutProcess_1 TABLE (transid BIGINT)
@@ -1286,7 +1286,7 @@ BEGIN
 		FROM #tblMatchProcess
 		OUTPUT	DELETED.matchid, DELETED.KeyID
 		INTO  @tblMatchProcess_1 (matchid, KeyID)
-		WHERE matchid NOT IN (SELECT 1 FROM @tmpMatch WHERE Eventdate <= @Movebetdate)
+		WHERE matchid NOT IN (SELECT 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 
 		------ releasing process
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -1328,7 +1328,7 @@ BEGIN
 			
 		END
 
-		IF @MatchId_cnt = 1
+		IF (@MatchId_cnt = 1) OR (NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchProcess_1))
 		BEGIN
 			SELECT	@ErrCode = 99
 					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
@@ -1337,21 +1337,21 @@ BEGIN
 		END	
 		ELSE
 		BEGIN
-				SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-								FROM @tmpMatch m
-								WHERE eventdate <= @Movebetdate
-								FOR XML PATH ('')
-							),1,1,'')
+			SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+							FROM @tmpMatch_Eventdate m
+							WHERE eventdate <= @Movebetdate
+							FOR XML PATH ('')
+						),1,1,'')
 
-				DELETE t
-				FROM #tmpTransId_VOID_RequestID t
-					INNER JOIN @tmpMatch m 
-				ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
+			DELETE t
+			FROM #tmpTransId_VOID_RequestID t
+				INNER JOIN @tmpMatch_Eventdate m 
+			ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
 				
-				DELETE r
-				FROM #tmpTransId_Recalculate r
-					INNER JOIN @tmpMatch m 
-				ON r.matchid = m.matchid  AND r.eventdate <= @Movebetdate	 	
+			DELETE r
+			FROM #tmpTransId_Recalculate r
+				INNER JOIN @tmpMatch_Eventdate m 
+			ON r.matchid = m.matchid  AND r.eventdate <= @Movebetdate	 	
 					 	 
 		END
 	END

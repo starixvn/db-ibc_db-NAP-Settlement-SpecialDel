@@ -53,7 +53,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@Movebetdate		DATETIME
-			,@MatchId_cnt		INT = 0
+			,@MatchDate			DATETIME
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -168,6 +168,10 @@ BEGIN
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@TransIds, ',')
 		OPTION (maxrecursion 0)
+
+		SELECT 	@MatchDate = eventdate
+		FROM dbo.match WITH(NOLOCK)
+		WHERE matchid = @MatchId
 	END
 	ELSE --13
 	BEGIN
@@ -333,7 +337,7 @@ BEGIN
 	SELECT DISTINCT t.MatchId, t.eventdate
 	FROM #tmpTransId t
 
-	IF @IssueTypeId = 13
+	IF @IssueTypeId = 13 -- Abnormal account
 	BEGIN	
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 		BEGIN
@@ -353,6 +357,16 @@ BEGIN
 			END
 		END
 	END
+
+	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
+		OR (@IssueTypeId = 13 AND @MoveBetMatchIds IS NOT NULL AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
+	BEGIN   
+		BEGIN
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+			RETURN
+		END
+	END
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid
@@ -367,14 +381,7 @@ BEGIN
 
 	IF @BypassCheckingProcess = 0
 	BEGIN
-		--other #13,1,10,3
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
-		BEGIN
-			SELECT	@ErrCode = 99
-					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-			RETURN
-		END
-
+	
 		WHILE (1=1)
 		BEGIN
 			SET @MatchId_Retry = 0
@@ -612,11 +619,6 @@ BEGIN
 				ON	t.matchid = r.matchid
 					AND t.KeyID = r.KeyID
 		WHERE r.matchid IS NULL		
-		
-		DECLARE @MatchDate DATETIME
-		SELECT 	@MatchDate = eventdate
-		FROM dbo.match WITH(NOLOCK)
-		WHERE matchid = @MatchId
 
 		IF @MatchDate <= @Movebetdate
 		BEGIN
