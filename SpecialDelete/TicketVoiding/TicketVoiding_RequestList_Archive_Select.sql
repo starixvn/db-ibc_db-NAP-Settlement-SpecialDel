@@ -24,6 +24,7 @@ AS
 		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210602@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
+		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:	
 		@Status: 
@@ -197,7 +198,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -246,7 +247,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -295,7 +296,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime

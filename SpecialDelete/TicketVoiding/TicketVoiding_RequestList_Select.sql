@@ -364,7 +364,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId= 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -414,7 +414,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId= 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -464,7 +464,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId= 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
