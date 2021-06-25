@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_ScoreInfo_Select_UAT2]
+CREATE PROCEDURE [dbo].[TicketVoiding_ScoreInfo_Select]
 (	
 	@MatchId              INT
 )
