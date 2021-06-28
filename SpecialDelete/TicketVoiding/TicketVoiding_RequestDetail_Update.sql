@@ -530,7 +530,7 @@ BEGIN
 			, l.LiveAwayScore
 			, l.LiveScores
 			, CASE WHEN @IssueTypeId IN (1,10) THEN l.TypeAccept ELSE CONVERT(VARCHAR(50), l.ScoreId) END
-			, l.SubIssueTypeId
+			, @SubIssueTypeId
 		FROM #tblGetLogInfo l
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 			LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID 
