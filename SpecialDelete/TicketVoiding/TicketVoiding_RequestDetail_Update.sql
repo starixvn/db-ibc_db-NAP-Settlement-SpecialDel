@@ -479,6 +479,66 @@ BEGIN
 														AND r.FilterFromTransTime = l.FilterFromTransTime
 														AND r.FilterToTransTime = l.FilterToTransTime
 
+		INSERT INTO dbo.TicketVoiding_RequestDetail (
+			RequestId
+			, MatchId
+			, LeagueId
+			, HomeId
+			, AwayId
+			, KickOffTime
+			, RequestType
+			, FilterFromTransTime
+			, FilterToTransTime
+			, FilterFromBetId
+			, FilterToBetId
+			, FilterBy
+			, SingleCount
+			, MainParlayCount
+			, MinSingleTransId
+			, MaxSingleTransId
+			, MinMainParlayTransId
+			, MaxMainParlayTransId
+			, VoidFromTime
+			, VoidToTime
+			, LiveHomeScore
+			, LiveAwayScore
+			, IssueDetail
+			, TransIds
+			, SubIssueTypeId
+			)
+		SELECT @RequestId
+			, l.MatchID
+			, m.leagueid
+			, m.homeid
+			, m.awayid
+			, m.kickofftime
+			, 0
+			, l.FilterFromTransTime
+			, l.FilterToTransTime
+			, l.FilterFromBetId
+			, l.FilterToBetId
+			, l.FilterBy
+			, l.SingleCount
+			, l.MainParlayCount
+			, l.MinSingleTransId
+			, l.MaxSingleTransId
+			, l.MinMainParlayTransId
+			, l.MaxMainParlayTransId
+			, l.VoidFromTime
+			, l.VoidToTime
+			, l.LiveHomeScore
+			, l.LiveAwayScore
+			, l.LiveScores
+			, CASE WHEN @IssueTypeId IN (1,10) THEN l.TypeAccept ELSE CONVERT(VARCHAR(50), l.ScoreId) END
+			, l.SubIssueTypeId
+		FROM #tblGetLogInfo l
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
+			LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID 
+														AND rd.LiveHomeScore = l.LiveHomeScore AND rd.LiveAwayScore = l.LiveAwayScore
+														AND rd.FilterFromTransTime = l.FilterFromTransTime
+														AND rd.FilterToTransTime = l.FilterToTransTime
+		WHERE rd.RequestId IS NULL
+
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
