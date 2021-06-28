@@ -133,15 +133,17 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 	IF @MatchDate <= @Movebetdate
 	BEGIN
-			SELECT	@ErrCode = 99
-				   ,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-
+		IF @BypassCheckingProcess = 1
 			EXEC dbo.NAP_Admin_CheckingProcess  
 				@isExistParlay   = 1  
 				, @avaiableProcess  = @avaiableProcess OUTPUT  
 				, @ErrCode   = @ErrCode OUTPUT  
 				, @ErrMsg   = @ErrMsg OUTPUT  
-			RETURN
+
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+		RETURN
 	END	
 
 	IF @BypassCheckingProcess = 0

@@ -137,7 +137,7 @@ BEGIN
 	END  
 	
 	/*Modify the way to get move bet date*/
-	SELECT @Eventdate = m.eventdate FROM dbo.match m WHERE m.matchid = @MatchId
+	SELECT @Eventdate = eventdate FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchId
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 	IF @Eventdate <= @Movebetdate

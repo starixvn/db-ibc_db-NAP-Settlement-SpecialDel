@@ -253,6 +253,17 @@ BEGIN
 			AND main.betdaqid = 0
 			AND charindex ('p25',main.extrainfo)> 0
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
+	BEGIN
+		SELECT @ErrCode = 100
+			 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+				
+		RETURN
+	END
+
 	-- checking cash-out process
 	INSERT INTO #tblCashOutProcess(transid, refno)
 	SELECT transid, RefNo
@@ -280,23 +291,6 @@ BEGIN
 		IF @InvalidTransIds = ''		
 			SELECT @ErrMsg = 'No ticket found.'
 				 , @ErrCode  = 101
-		
-		------ releasing cash-out process
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = '911' 
-			  , @Action = 'Void'
-			  , @IsReleased = 1	
-		
-		RETURN
-	END
-
-	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-
-	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
-	BEGIN
-		SELECT @ErrCode = 100
-			 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
 		
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 

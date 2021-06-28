@@ -44,7 +44,10 @@ BEGIN
 			,@RetryTime INT = 120
 			,@ExecTime DATETIME
 			,@ErrMsgLockMatch VARCHAR(300) = '1000000'
-			,@MoveBetMatchIds VARCHAR(MAX) 
+
+	DECLARE @StatusMove TINYINT
+		   ,@ErrMsgMove VARCHAR(300)
+		   ,@MoveBetMatchIds VARCHAR(MAX) 
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -251,7 +254,6 @@ BEGIN
 							END
 		END
 
-		DECLARE @StatusMove TINYINT, @ErrMsgMove VARCHAR(300)
 		IF @MoveBetMatchIds IS NOT NULL
 		BEGIN
 			SELECT @StatusMove = 3, @ErrMsgMove = 'Could not void some tickets due to Movebet process.'
@@ -270,10 +272,10 @@ BEGIN
 				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
 							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @ErrMsgMove 						
 							   ELSE ErrMsg END
-				,FailedTransIds = @FailedTransIds
+				,FailedTransIds = CASE WHEN m.MatchId IS NOT NULL THEN q.TransIds ELSE @FailedTransIds END
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
 			FROM	dbo.TicketVoiding_Queue q
-			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+				LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 			WHERE EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId)  
 		END
 		ELSE

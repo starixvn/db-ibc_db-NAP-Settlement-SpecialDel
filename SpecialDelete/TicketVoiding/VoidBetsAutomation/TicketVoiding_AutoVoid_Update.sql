@@ -142,7 +142,6 @@ BEGIN
 		,sporttype			SMALLINT
 		,matchid			INT
 		,oddsid				INT
-		,eventdate			DATETIME
 		,winlostdate		DATETIME
 	)
 	
@@ -166,7 +165,6 @@ BEGIN
 		,sporttype			SMALLINT
 		,matchid			INT
 		,oddsid				INT
-		,eventdate			DATETIME
 		,winlostdate		DATETIME
 	)
 	
@@ -482,7 +480,6 @@ BEGIN
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
-		    ,eventdate  = m.eventdate
 		FROM	#tmpTransId_VOID_RequestID b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -494,7 +491,6 @@ BEGIN
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
-		   ,eventdate  = m.eventdate
 		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -507,7 +503,6 @@ BEGIN
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
-		   ,eventdate  = o.eventdate
 		FROM	#tmpTransId_VOID_RequestID b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -520,7 +515,6 @@ BEGIN
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
-		   ,eventdate  = o.eventdate
 		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -533,8 +527,7 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
-		SET sporttype 	= r.sporttype
-		   ,eventdate  = o.EventDate	
+		SET sporttype 	= r.sporttype	
 		FROM	#tmpTransId_VOID_RequestID b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -546,28 +539,13 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
-		SET sporttype 	= r.sporttype	
-		   ,eventdate  = o.EventDate	
+		SET sporttype 	= r.sporttype		
 		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
-	END
-
-	IF EXISTS (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE bettype IN (9,29,2799))
-	BEGIN
-		UPDATE #tmpTransId_VOID_RequestID
-		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799)	
-	END
-
-	IF EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (9,29,2799))
-	BEGIN
-		UPDATE #tmpTransId_Recalculate
-		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799)	
 	END
 
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
@@ -774,8 +752,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype, winlostdate)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype, main.winlostdate
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype
 		FROM	#tmpTransId_VOID_RequestID main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -786,8 +764,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype, winlostdate)
-		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype, sub911.winlostdate
+		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype)
+		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype
 		FROM	#tmpTransId_VOID_RequestID sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
@@ -1265,12 +1243,12 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 		
 	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
-	SELECT DISTINCT t.MatchId, t.eventdate
+	SELECT DISTINCT t.MatchId, t.winlostdate
 	FROM (
-			SELECT t.matchid, t.eventdate
+			SELECT t.matchid, t.winlostdate
 			FROM #tmpTransId_VOID_RequestID t
 			UNION ALL
-			SELECT r.matchid, r.eventdate
+			SELECT r.matchid, r.winlostdate
 			FROM #tmpTransId_Recalculate r
 		 )t
 	
@@ -1308,13 +1286,13 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 
 				FROM #tmpTransId_VOID_RequestID t	
-				WHERE	t.TicketType = 3 AND eventdate <= @Movebetdate)
+				WHERE	t.TicketType = 3 AND winlostdate <= @Movebetdate)
 		BEGIN		
 		  	DELETE 
 			FROM #tblCashOutProcess
 			OUTPUT	DELETED.transid
 			INTO  @tblCashOutProcess_1 (transid)
-			WHERE transid NOT IN (SELECT transid FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND Eventdate <= @Movebetdate)
+			WHERE transid NOT IN (SELECT transid FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND winlostdate <= @Movebetdate)
 
 			------ releasing cash-out process
 			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -1346,12 +1324,12 @@ BEGIN
 			DELETE t
 			FROM #tmpTransId_VOID_RequestID t
 				INNER JOIN @tmpMatch_Eventdate m 
-			ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
+			ON t.matchid = m.matchid  AND m.Eventdate <= @Movebetdate
 				
 			DELETE r
 			FROM #tmpTransId_Recalculate r
 				INNER JOIN @tmpMatch_Eventdate m 
-			ON r.matchid = m.matchid  AND r.eventdate <= @Movebetdate	 	
+			ON r.matchid = m.matchid  AND m.Eventdate <= @Movebetdate	 	
 					 	 
 		END
 	END
