@@ -14,6 +14,7 @@ AS
 		- 20210329@July: Create new SP [Redmine: #150459]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210526@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210628@Max: [TVS] Submit new allowance setting for Main Match [Redmine: #157226]
 
 	Param's explanation:
 		+ GetVoidTimeInfo:
@@ -125,10 +126,12 @@ BEGIN
 			FROM dbo.bettrans b WITH(NOLOCK) 
 				LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 			WHERE b.matchid = @MatchId
+				AND b.betfrom <> 'P'
 			UNION ALL
 			SELECT NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
 			FROM dbo.bettransm bm WITH(NOLOCK)
 			WHERE bm.matchid = @MatchId
+				AND bm.betfrom <> 'P'
 		)b
 		CROSS APPLY (
 				SELECT CASE 
