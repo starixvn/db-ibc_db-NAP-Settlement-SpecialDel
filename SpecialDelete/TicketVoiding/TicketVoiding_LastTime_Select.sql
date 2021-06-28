@@ -23,16 +23,34 @@ BEGIN
 	DECLARE @LastTime  DATETIME
 
 	SELECT @LastTime = (
-					SELECT MAX(ISNULL(b.checktime, b.transdate))
-					FROM dbo.bettrans b WITH (NOLOCK)
-						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
-					WHERE b.matchid = @MatchId
-						AND ISNULL(b.checktime, b.transdate) > @FilterFromTransTime
-						AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-								WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-						AND b.betfrom <> 'P'
-						AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+					SELECT MAX(LastTime)
+					FROM
+					(
+						SELECT MAX(ISNULL(b.checktime, b.transdate)) AS LastTime
+						FROM dbo.bettrans b WITH (NOLOCK)
+							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
+						WHERE b.matchid = @MatchId
+							AND ISNULL(b.checktime, b.transdate) > @FilterFromTransTime
+							AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+									WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+							AND b.betfrom <> 'P'
+							AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+
+						UNION ALL
+						SELECT MAX(ISNULL(bm.checktime, bm.transdate)) AS LastTime
+						FROM dbo.bettransm bm WITH (NOLOCK)
+							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
+							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = bm.bettype
+						WHERE bm.matchid = @MatchId
+							AND ISNULL(bm.checktime, bm.transdate) > @FilterFromTransTime
+							AND 1 = CASE WHEN @ActionId <> 2 AND bm.statusID NOT IN (101, 102, 103) THEN 1
+									WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+							AND bm.betfrom <> 'P'
+							AND b.statusID NOT IN (102, 103)
+							AND 1 = CASE WHEN b.livehomescore = 0 AND bm.liveawayscore = 0 AND bm.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+					)b
 				)
 
 	SELECT ISNULL(@LastTime, @FilterFromTransTime) AS LastTime
