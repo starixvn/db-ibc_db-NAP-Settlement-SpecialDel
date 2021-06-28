@@ -1286,7 +1286,7 @@ BEGIN
 		FROM #tblMatchProcess
 		OUTPUT	DELETED.matchid, DELETED.KeyID
 		INTO  @tblMatchProcess_1 (matchid, KeyID)
-		WHERE matchid NOT IN (SELECT 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
+		WHERE matchid NOT IN (SELECT matchid FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 
 		------ releasing process
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -1314,7 +1314,7 @@ BEGIN
 			FROM #tblCashOutProcess
 			OUTPUT	DELETED.transid
 			INTO  @tblCashOutProcess_1 (transid)
-			WHERE transid NOT IN (SELECT 1 FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND Eventdate <= @Movebetdate)
+			WHERE transid NOT IN (SELECT transid FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND Eventdate <= @Movebetdate)
 
 			------ releasing cash-out process
 			EXEC dbo.NAP_Admin_CheckingCashOutProcess 

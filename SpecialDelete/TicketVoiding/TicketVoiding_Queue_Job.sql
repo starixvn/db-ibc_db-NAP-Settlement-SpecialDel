@@ -281,14 +281,11 @@ BEGIN
 
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
-				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @StatusMove END
-				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
-							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @ErrMsgMove						
-							   ELSE ErrMsg END
+				,StatusId = @StatusId
+				,ErrMsg = CASE WHEN q.QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END
 				,FailedTransIds = @FailedTransIds
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
 			FROM	dbo.TicketVoiding_Queue q
-			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 			WHERE q.QueueId = @QueueId 
 		END
 

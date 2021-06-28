@@ -337,36 +337,27 @@ BEGIN
 	SELECT DISTINCT t.MatchId, t.eventdate
 	FROM #tmpTransId t
 
-	IF @IssueTypeId = 13 -- Abnormal account
+	IF @IssueTypeId = 13 AND EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 	BEGIN	
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
-		BEGIN
-			BEGIN
-				SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-										FROM @tmpMatch_Eventdate m
-										WHERE eventdate <= @Movebetdate
-										FOR XML PATH ('')
-										),1,1,'')
-		 	
-				END
-				
-				DELETE t
-				FROM #tmpTransId t
-					INNER JOIN @tmpMatch_Eventdate m 
-					ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
-			END
-		END
+		SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+								FROM @tmpMatch_Eventdate m
+								WHERE eventdate <= @Movebetdate
+								FOR XML PATH ('')
+								),1,1,'')
+		DELETE t
+		FROM #tmpTransId t
+			INNER JOIN @tmpMatch_Eventdate m 
+			ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
 	END
 
 	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
 		OR (@IssueTypeId = 13 AND @MoveBetMatchIds IS NOT NULL AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
 	BEGIN   
-		BEGIN
-			SELECT	@ErrCode = 99
-					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-			RETURN
-		END
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+		RETURN
 	END
+
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid
@@ -407,7 +398,7 @@ BEGIN
 					,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-					,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+					,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			FROM	#tmpTransId b
 				OUTER APPLY (
@@ -514,7 +505,7 @@ BEGIN
 						,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 						,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 						,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-						,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+						,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 						,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				FROM	#tmpTransId b
 					INNER JOIN #tblMatchProcess_Retry m ON m.matchid = b.matchid
