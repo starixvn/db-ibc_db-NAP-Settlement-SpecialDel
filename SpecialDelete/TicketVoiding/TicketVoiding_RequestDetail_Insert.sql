@@ -220,9 +220,9 @@ BEGIN
 			  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			  ,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 			  ,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
-			  ,t.c.value('@actualScore','VARCHAR(50)') AS ActualScore
+			  ,t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
 			  ,@SubIssueTypeId
-			  ,t.c.value('@ScoreId','INT') AS ActualScore
+			  ,t.c.value('@ScoreId','INT') AS ScoreId
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END

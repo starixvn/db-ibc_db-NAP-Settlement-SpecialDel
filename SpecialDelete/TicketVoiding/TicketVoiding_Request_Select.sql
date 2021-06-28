@@ -94,7 +94,7 @@ BEGIN
 				,rd.FilterToBetId
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,rd.TransIds AS SettingTime
+				,CASE WHEN @IssueTypeId = 3 THEN NULL ELSE rd.TransIds END AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
