@@ -269,8 +269,8 @@ BEGIN
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
 				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @StatusMove END
-				,ErrMsg = CASE WHEN q.QueueId = @QueueId AND m.MatchId IS NULL THEN @ErrMsg 
-							   WHEN q.QueueId = @QueueId AND m.MatchId IS NOT NULL THEN @ErrMsgMove 						
+				,ErrMsg = CASE WHEN m.MatchId IS NULL THEN @ErrMsg 
+							   WHEN m.MatchId IS NOT NULL THEN @ErrMsgMove 						
 							   ELSE ErrMsg END
 				,FailedTransIds = CASE WHEN m.MatchId IS NOT NULL THEN q.TransIds ELSE @FailedTransIds END
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END

@@ -351,7 +351,7 @@ BEGIN
 	END
 
 	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
-		OR (@IssueTypeId = 13 AND @MoveBetMatchIds IS NOT NULL AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
+		OR (@IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
 	BEGIN   
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
