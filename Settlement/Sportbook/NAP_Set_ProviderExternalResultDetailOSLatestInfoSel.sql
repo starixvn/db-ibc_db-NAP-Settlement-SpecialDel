@@ -92,7 +92,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 			SELECT 1001
-				, CASE WHEN @SportType = 5 THEN 'Into Site' ELSE 'Screenshot' END
+				, CASE WHEN @SportType = 5 THEN 'Info Site' ELSE 'Screenshot' END
 				,'n/a'
 				, 1
 		END
@@ -106,7 +106,7 @@ BEGIN
 		OR s.SourceId >= 1001
 				
 	SELECT	t.SourceId
-			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Into Site' ELSE t.SourceName END AS SourceName
+			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Info Site' ELSE t.SourceName END AS SourceName
 			,t.Remark
 			,t.ResourceId
 			,t.HomeValue
