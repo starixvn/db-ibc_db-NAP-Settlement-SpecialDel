@@ -939,6 +939,7 @@ BEGIN
 	SELECT	@FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(it.TransId AS VARCHAR(30)), CAST(it.TransId AS VARCHAR(30)))
 	FROM	@tmpInputTransId it
 	WHERE	NOT EXISTS (SELECT * FROM cteResult c WHERE c.TransId = it.TransId)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate m WHERE m.Eventdate <= @Movebetdate)
 
 	-- backup into zzzbettrans
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
