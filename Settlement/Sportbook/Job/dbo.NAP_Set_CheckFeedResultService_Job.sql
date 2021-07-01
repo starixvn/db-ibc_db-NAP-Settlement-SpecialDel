@@ -13,12 +13,13 @@ AS
 		- 20201002@Louisa: Exclude dbaadmin@starixsoft.com
 		- 20201009@Louisa: Change email domain to @starixvn.com [Redmine:#143284]
 		- 20201224@Louisa: Add Singz, Kid to recipients [Redmine:#111576]
+		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#]
 */
 BEGIN
 
 	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
 			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;singz.hsieh@onelab.tw;kid.shih@onelab.tw'
+			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;singz.hsieh@onelab.tw;kid.shih@onelab.tw;sean.lee@onelab.tw'
 			--LOCAL: N'dba_local@starixvn.com'
 			, @LastTime VARCHAR(200)
 			, @Check DATETIME
