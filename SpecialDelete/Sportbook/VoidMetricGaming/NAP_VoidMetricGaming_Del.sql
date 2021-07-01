@@ -145,8 +145,8 @@ BEGIN
 
 	IF @Eventdate <= @Movebetdate
 	BEGIN
-		SELECT @ErrCode = 100
-			 , @ErrMsg = 'Match is under Movebet process, could not void/recover ticket.'
+		SELECT @ErrCode = 99
+			 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
 
 		RETURN	
 	END

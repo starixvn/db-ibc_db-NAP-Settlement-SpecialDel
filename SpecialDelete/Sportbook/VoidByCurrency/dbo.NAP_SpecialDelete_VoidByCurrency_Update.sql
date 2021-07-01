@@ -110,8 +110,8 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 	IF @Eventdate <= @Movebetdate
 	BEGIN
-		SELECT @ErrorCode = 100
-		     , @ErrorMsg = 'Match is under Movebet process, could not void/recover ticket.'
+		SELECT @ErrorCode = 99
+		     , @ErrorMsg = 'Match is under Movebet process, could not void ticket.'
 
 		RETURN	
 	END	
