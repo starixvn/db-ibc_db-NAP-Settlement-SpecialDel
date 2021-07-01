@@ -13,7 +13,7 @@ AS
 		- 20201002@Louisa: Exclude dbaadmin@starixsoft.com
 		- 20201009@Louisa: Change email domain to @starixvn.com [Redmine:#143284]
 		- 20201224@Louisa: Add Singz, Kid to recipients [Redmine:#111576]
-		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#]
+		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#100002]
 */
 BEGIN
 
