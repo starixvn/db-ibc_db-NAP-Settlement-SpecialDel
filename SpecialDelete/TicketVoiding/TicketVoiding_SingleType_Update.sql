@@ -94,7 +94,7 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT, matchid INT)
-	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME, IsFinish BIT)
+	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)

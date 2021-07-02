@@ -107,8 +107,7 @@ BEGIN
 		BetFrom				NVARCHAR(1),
 		matchid				INT,
 		[Action]			VARCHAR(100),
-		TicketType			TINYINT, -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181
-		evendate			DATETIME
+		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181
 	)
 	
 	CREATE TABLE #ReCalMatchID_InspiredVS
@@ -219,8 +218,7 @@ BEGIN
 				SubTransdesc,
 				BetFrom,
 				matchid,					
-				TicketType,
-				evendate
+				TicketType
 		)
 		SELECT  z.Stake,
 				m.AwayId,
@@ -272,8 +270,7 @@ BEGIN
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
 					ELSE NULL
-				END AS TicketType,
-				m.evendate
+				END AS TicketType
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -340,8 +337,7 @@ BEGIN
 				SubTransdesc,
 				BetFrom,
 				matchid,				
-				TicketType,
-				evendate
+				TicketType
 		)
 		SELECT  z.Stake,
 				0 AS AwayId,
@@ -389,8 +385,7 @@ BEGIN
 				NULL AS SubTransdesc,
 				b.betfrom,
 				b.matchid,			
-				3 AS TicketType, -- Inspired VS 181
-				o.EventDate AS eventdate
+				3 AS TicketType -- Inspired VS 181
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON	z.transid = b.transid

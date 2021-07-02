@@ -22,7 +22,8 @@ AS
 	DB: DBTXN/bodb02	    
 
 	Revisions:  		
-		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
+		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -58,7 +59,7 @@ BEGIN
 			@ReCalculatedMainTransIds = @ReCalculatedMainTransIds OUTPUT,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
 			@ErrMsg = @ErrMsg OUTPUT,
-			@ErrCode = @ErrMsg OUTPUT
+			@ErrCode = @ErrCode OUTPUT
 	END
 	ELSE IF @TicketType = 'Mix Parlay' AND @Type = 'Sub'			
 	BEGIN

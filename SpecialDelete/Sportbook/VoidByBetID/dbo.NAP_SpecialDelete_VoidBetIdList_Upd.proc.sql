@@ -302,6 +302,8 @@ BEGIN
 		NumberOf3rdPrize	INT DEFAULT(0)
 	)
 	
+	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
+
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
 		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
@@ -813,12 +815,24 @@ BEGIN
 		WHERE bettype IN (9, 29, 2799)	
 	END
 
+	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
+	SELECT DISTINCT MatchId, eventdate
+	FROM #BetDelete
+
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
-	IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE eventdate <= @Movebetdate)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE eventdate <= @Movebetdate)
 	BEGIN
-		SELECT @ErrCode = 99
-		     , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+		IF @FilterUserName IS NULL -- By Bet ID
+		BEGIN
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+		END
+		ELSE -- By Username
+		BEGIN
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try a new Date range and Search again.'
+		END
 
 		RETURN	
 	END
