@@ -695,7 +695,7 @@ BEGIN
 		FROM #tblGetLogInfo l
 
 		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
-								+', SubIssueTypeId: ' + @SubIssueTypeId
+								+', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 								+', Actual Score: ' + @actualscore
 								+', Wrong Score: ' 
 		SELECT @LogDataContent = @LogDataContent
