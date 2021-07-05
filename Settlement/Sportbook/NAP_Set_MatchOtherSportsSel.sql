@@ -193,8 +193,8 @@ BEGIN
 			,CASE
 				WHEN val = 1 THEN 'Closed'
 				WHEN val IN (2,3) THEN 'running'
-				WHEN val = 5 THEN 'Postponed'
-				WHEN val = 6 THEN 'Completed'
+				WHEN val = 4 THEN 'Postponed'
+				WHEN val = 5 THEN 'Completed'
 				ELSE ''
 			END	
 	FROM	dbo.f_SplitString(@MatchStatus, ',')
@@ -516,7 +516,7 @@ BEGIN
 						THEN CASE WHEN bt.bettype = confirm.bettype AND (bt.betID = 0 OR bt.betid = confirm.betid )
 									THEN 1
 									ELSE 0 END
-						ELSE 1 END IsExistRunningTicket ---running and not in marked
+						ELSE 1 END IsExistRunningTicket
 			FROM @tmpAllMatchOverStatus m
 				CROSS APPLY (
 					SELECT  b.matchid
@@ -615,16 +615,18 @@ BEGIN
 					GROUP BY mt.matchid
 				) m
 					ON m.matchId = mk.MatchId
-
-			UPDATE m 
-				SET IsExistMarkedTicket = t.IsExistMarkedTicket
-					,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
-			FROM	#tmpMatchIds m
-				INNER JOIN @tmpMatchMarked t
-					ON m.matchid = t.MatchId
 		END
 	END
 
+	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatchMarked WHERE IsExistMarkedTicket = 1 OR IsExistMarkedTicketParlay = 1)
+	BEGIN
+		UPDATE m 
+		SET IsExistMarkedTicket = t.IsExistMarkedTicket
+			,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
+		FROM	#tmpMatchIds m
+			INNER JOIN @tmpMatchMarked t
+				ON m.matchid = t.MatchId
+	END
 
 	;WITH singlequeue 
 	AS(
