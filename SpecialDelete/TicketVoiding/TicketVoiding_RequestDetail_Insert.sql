@@ -694,7 +694,8 @@ BEGIN
 		SELECT @actualscore = l.LiveScores
 		FROM #tblGetLogInfo l
 
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
+		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
+								+', SubIssueTypeId: ' + @SubIssueTypeId
 								+', Actual Score: ' + @actualscore
 								+', Wrong Score: ' 
 		SELECT @LogDataContent = @LogDataContent

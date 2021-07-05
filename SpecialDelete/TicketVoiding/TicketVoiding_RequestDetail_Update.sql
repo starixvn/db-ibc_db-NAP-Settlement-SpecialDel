@@ -429,24 +429,6 @@ BEGIN
 				,t.c.value('@ScoreId','INT') AS ScoreId
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
-
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, ActualScore, SubIssueTypeId)
-		SELECT RequestId
-			 , MatchId
-			 , FilterFromTransTime
-			 , FilterToTransTime
-			 , FilterFromBetId
-			 , FilterToBetId
-			 , FilterBy
-			 , LiveHomeScore
-			 , LiveAwayScore
-			 , IssueDetail
-			 , TransIds
-			 , IssueDetail
-			 , SubIssueTypeId
-		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
-		WHERE RequestId = @RequestId AND MatchId = @MatchId
-
 		
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
@@ -1055,22 +1037,20 @@ BEGIN
 	ELSE IF @IssueTypeId = 3
 	BEGIN
 	
-		SELECT @NewActualScore = l.LiveScores
+		DECLARE @actualscore varchar(5)
+
+		SELECT @actualscore = l.LiveScores
 		FROM #tblGetLogInfo l
 
-		SET @LogDataContent +=  CASE WHEN @OldActualScore <> @NewActualScore THEN ' Old Actual Score: ' + @OldActualScore + ' New Actual Score: '+ @NewActualScore  +' ,' ELSE '' END
-								+ 'Old Wrong Score: ' 
-		SELECT @LogDataContent += CAST(r.LiveHomeScore AS VARCHAR(5)) +'-'
-								+ CAST(r.LiveAwayScore AS VARCHAR(5))+' ('
-								+'From Time: ' + CONVERT(VARCHAR(30), r.FilterFromTransTime, 21)
-								+' To Time: ' + CONVERT(VARCHAR(30), r.FilterToTransTime, 21) +'), '
-		FROM #tblOldResulDetail r
-
-		SET @LogDataContent += 'New Wrong Score: ' 
-		SELECT @LogDataContent += CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
-							+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
-							+'From Time: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21)
-							+' To Time: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) +'), '
+		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
+								+', SubIssueTypeId: ' + @SubIssueTypeId
+								+', Actual Score: ' + @actualscore
+								+', Wrong Score: ' 
+		SELECT @LogDataContent = @LogDataContent
+								+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
+								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
+								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
+								+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
 		FROM #tblGetLogInfo l
 	END
 
