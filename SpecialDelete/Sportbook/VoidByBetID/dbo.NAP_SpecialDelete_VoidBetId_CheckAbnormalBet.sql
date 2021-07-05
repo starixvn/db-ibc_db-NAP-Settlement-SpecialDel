@@ -12,6 +12,7 @@ AS
 	Revisions:  
 		- 20190625@Raymond.Le: Create new SP [Redmine: #115583]
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
+		- 20210705@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -21,9 +22,19 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE @InvalidTransIds VARCHAR(MAX) = ''
-	,@MovedTransIds VARCHAR(MAX) = ''
-	,@DifferentMatchTransIds VARCHAR(MAX) = '' 
-	,@InvalidMatchId VARCHAR(200) = '' 
+		   ,@MovedTransIds VARCHAR(MAX) = ''
+		   ,@DifferentMatchTransIds VARCHAR(MAX) = '' 
+		   ,@InvalidMatchId VARCHAR(200) = '' 
+		   ,@MovebetDate DATETIME
+		   ,@MatchDate DATETIME
+	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+
+	SELECT @MatchDate = eventdate
+	FROM dbo.match WITH(NOLOCK)
+	WHERE matchid = @MatchId
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
 	-- check valid match id
 	IF NOT EXISTS (
@@ -89,6 +100,15 @@ BEGIN
 		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 		AND b.bettype NOT IN (38) -- Bet Builder
 		AND b.statusID NOT IN (101, 102)
+	
+	IF @MatchDate <= @MovebetDate
+	BEGIN
+		DELETE 
+		FROM #validTransId
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE  isInMatch = 1
+	END
 		
 	-- invalid transId
 	;WITH t_invalid
@@ -97,9 +117,13 @@ BEGIN
 			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
 		FROM #transIdTemp AS TEMP
 			OUTER APPLY (
-			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-			FROM dbo.bettrans14 WITH (NOLOCK)
-			WHERE transid = TEMP.transid
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM dbo.bettrans14 WITH (NOLOCK)
+				WHERE transid = TEMP.transid
+				UNION ALL
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM @tmpTransIdMoveBet m  
+				WHERE m.transid = TEMP.transid
 			) bm
 		WHERE NOT EXISTS (
 				SELECT 1
