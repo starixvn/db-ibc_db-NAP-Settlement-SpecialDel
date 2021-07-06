@@ -45,7 +45,7 @@ BEGIN
 	FROM	@tmpMatchId t
 	WHERE	t.EventDate <= @Movebetdate
 
-
+	IF @MovingMatchIds <> '' SET @ErrCode = 1001030
 
 END
 GO
