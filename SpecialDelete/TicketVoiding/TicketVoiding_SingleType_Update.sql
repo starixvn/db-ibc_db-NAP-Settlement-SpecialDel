@@ -347,7 +347,7 @@ BEGIN
 		DELETE t
 		FROM #tmpTransId t
 			INNER JOIN @tmpMatch_Eventdate m 
-			ON t.matchid = m.matchid  AND m.eventdate <= @Movebetdate
+			ON t.matchid = m.matchid  AND t.eventdate <= @Movebetdate
 	END
 
 	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
