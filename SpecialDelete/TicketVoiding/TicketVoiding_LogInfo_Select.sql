@@ -1580,8 +1580,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, ScoreId)
-			SELECT tmp.transid, rd.RequestId, tmp.MainTransId, t.ScoreId
+			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, ScoreId, MatchId)
+			SELECT tmp.transid, rd.RequestId, tmp.MainTransId, t.ScoreId, @MatchId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
 				CROSS APPLY (
