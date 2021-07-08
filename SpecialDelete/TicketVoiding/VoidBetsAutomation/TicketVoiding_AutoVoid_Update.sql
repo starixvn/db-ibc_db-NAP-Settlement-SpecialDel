@@ -1324,12 +1324,12 @@ BEGIN
 			DELETE t
 			FROM #tmpTransId_VOID_RequestID t
 				INNER JOIN @tmpMatch_Eventdate m 
-			ON t.matchid = m.matchid  AND t.Eventdate <= @Movebetdate
+			ON t.matchid = m.matchid  AND t.winlostdate <= @Movebetdate
 				
 			DELETE r
 			FROM #tmpTransId_Recalculate r
 				INNER JOIN @tmpMatch_Eventdate m 
-			ON r.matchid = m.matchid  AND r.Eventdate <= @Movebetdate	 	
+			ON r.matchid = m.matchid  AND r.winlostdate <= @Movebetdate	 	
 					 	 
 		END
 	END

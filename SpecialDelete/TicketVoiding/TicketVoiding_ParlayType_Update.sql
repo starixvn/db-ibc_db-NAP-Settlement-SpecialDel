@@ -137,10 +137,8 @@ BEGIN
 	BEGIN
 		IF @BypassCheckingProcess = 1
 			EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay   = 1  
-				, @avaiableProcess  = @avaiableProcess OUTPUT  
-				, @ErrCode   = @ErrCode OUTPUT  
-				, @ErrMsg   = @ErrMsg OUTPUT  
+				@isExistParlay  = 1  
+			   ,@IsReleased  = 1 
 
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
