@@ -94,7 +94,7 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT, matchid INT)
-	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
 						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -333,21 +333,24 @@ BEGIN
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
-	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
-	SELECT DISTINCT t.MatchId, t.eventdate
-	FROM #tmpTransId t
-
-	IF @IssueTypeId = 13 AND EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
+	IF @IssueTypeId = 13 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @Movebetdate)
 	BEGIN	
-		SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-								FROM @tmpMatch_Eventdate m
-								WHERE eventdate <= @Movebetdate
-								FOR XML PATH ('')
-								),1,1,'')
-		DELETE t
-		FROM #tmpTransId t
-			INNER JOIN @tmpMatch_Eventdate m 
-			ON t.matchid = m.matchid  AND t.eventdate <= @Movebetdate
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	DELETED.matchid, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE eventdate <= @Movebetdate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
 	END
 
 	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
@@ -947,7 +950,9 @@ BEGIN
 	SELECT	@FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(it.TransId AS VARCHAR(30)), CAST(it.TransId AS VARCHAR(30)))
 	FROM	@tmpInputTransId it
 	WHERE	NOT EXISTS (SELECT * FROM cteResult c WHERE c.TransId = it.TransId)
-			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate m WHERE m.Eventdate <= @Movebetdate)
+			AND 1 = CASE WHEN @IssueTypeId <> 13 THEN 1 
+						 WHEN @IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId_MoveBet m WHERE m.TransId = it.TransId) THEN 1
+						 ELSE 0 END
 
 	-- backup into zzzbettrans
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2

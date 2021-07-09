@@ -47,7 +47,8 @@ BEGIN
 
 	DECLARE @StatusMove TINYINT
 		   ,@ErrMsgMove VARCHAR(300)
-		   ,@MoveBetMatchIds VARCHAR(MAX) 
+		   ,@MoveBetMatchIds VARCHAR(MAX) = NULL
+		   ,@MoveBetMatchIdsXML XML = NULL
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -71,6 +72,7 @@ BEGIN
 
 	DECLARE @tmpMatchMoveBet_update TABLE (
 		MatchId	INT
+	   ,TransIds VARCHAR(MAX)
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -239,7 +241,7 @@ BEGIN
 		IF @IssueTypeId = 13
 		BEGIN
 			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	val AS TransId
+			SELECT	val AS QueueId
 			FROM	dbo.f_SplitString(@QueueIds, ',')
 			OPTION (maxrecursion 0)
 		END
@@ -258,10 +260,12 @@ BEGIN
 		BEGIN
 			SELECT @StatusMove = 3, @ErrMsgMove = 'Could not void some tickets due to Movebet process.'
 
-			INSERT INTO @tmpMatchMoveBet_update(MatchId)
-			SELECT	val AS MatchId
-			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
-			OPTION (maxrecursion 0)
+			SET @MoveBetMatchIdsXML = CONVERT(XML, @MoveBetMatchIds)
+
+			INSERT INTO @tmpMatchMoveBet_update(MatchId, TransIds)
+			SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+					,T.C.value('@TransIds', 'VARCHAR(MAX)') AS TransIds
+			FROM @MoveBetMatchIdsXML.nodes('/root/r') as [T](C)
 		END
 		IF @IssueTypeId = 13 -- Abnormal account 
 		BEGIN
@@ -272,7 +276,9 @@ BEGIN
 				,ErrMsg = CASE WHEN m.MatchId IS NULL THEN @ErrMsg 
 							   WHEN m.MatchId IS NOT NULL THEN @ErrMsgMove 						
 							   ELSE ErrMsg END
-				,FailedTransIds = CASE WHEN m.MatchId IS NOT NULL THEN q.TransIds ELSE @FailedTransIds END
+				,FailedTransIds = CASE WHEN m.MatchId NOT IN (9,29,2799) THEN q.TransIds
+									   WHEN m.MatchId IN (9,29,2799) THEN m.TransIds
+									   ELSE @FailedTransIds END
 				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
 			FROM	dbo.TicketVoiding_Queue q
 				LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
