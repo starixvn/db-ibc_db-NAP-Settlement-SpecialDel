@@ -65,7 +65,7 @@ RETURN
 		UNION ALL SELECT 2, '01' , 'HT', '01', 'HT', 0, 3,	 1
 		UNION ALL SELECT 2, '803' , 'Q3', 'Q3', 'SP', 0, 4,	 0
 		UNION ALL SELECT 2, '804' , 'Q4', 'Q4', 'SP', 0, 5,	 0		
-		UNION ALL SELECT 2, '00' , 'OT', 'OT', 'FT', 0, 6,	 1
+		UNION ALL SELECT 2, '00' , 'OT', 'OT', 'FT', 0, 6,	 0
 		UNION ALL SELECT 2, '00' , 'FT', '00', 'FT', 1, 99,  1
 
 		UNION ALL SELECT 1, '01' , 'HT', '01', 'HT', 0, 1,	 0

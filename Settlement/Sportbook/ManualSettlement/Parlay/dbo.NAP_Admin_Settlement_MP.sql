@@ -511,20 +511,20 @@ BEGIN
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
-		IF @SportType IN ( 45, 50 )
+		IF @ParentMatchId IS NOT NULL ---Cricket
 		BEGIN
-			SELECT @hthomescore	= NULL  
-				,@htawayscore	= NULL
+			SELECT  @matchid		= @ParentMatchId
+					,@finalhomescore = finalhomescore 
+					,@finalawayscore = finalawayscore
+					,@betstatus		= betstatus
+			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+			WHERE	matchid = @ParentMatchId
+		END
 
-			IF @ParentMatchId IS NOT NULL ---Cricket
-			BEGIN
-				SELECT  @matchid		= @ParentMatchId
-					   ,@finalhomescore = finalhomescore 
-					   ,@finalawayscore = finalawayscore
-					   ,@betstatus		= betstatus
-				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-				WHERE	matchid = @ParentMatchId
-			END
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+		BEGIN
+			SELECT @hthomescore		= NULL
+					,@htawayscore	= NULL
 		END
 
 		BEGIN TRY

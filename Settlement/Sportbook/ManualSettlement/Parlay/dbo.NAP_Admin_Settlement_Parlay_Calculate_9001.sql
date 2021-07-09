@@ -22,7 +22,6 @@ AS
 			- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 			- 20200721@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
-			- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:		
 		
@@ -127,15 +126,6 @@ BEGIN
 		WHERE ResourceID IN ('01','02','03','04','05')
 				AND ssID = 4
 	END
-
-	ELSE IF @sportType = 45 AND EXISTS (SELECT 1 FROM @tempResource WHERE ResourceID = '00')
-	BEGIN
-		SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
-				@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
-		FROM @tempResource
-		WHERE ResourceID IN ('0101','0102','0103')
-				AND ssID = 4
-	END
 	
 	-- insert dummy resourceid
 	SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
@@ -189,7 +179,7 @@ BEGIN
 			SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 				AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 		FROM @tempResultDetail t
-		WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9, 45)
+		WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9)
 
 		INSERT INTO @tempRefno (refno, transid, modds)
 		SELECT bm.refno, bm.transid, m.modds

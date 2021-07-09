@@ -21,18 +21,22 @@ AS
     Example:
         SELECT * FROM dbo.[f_Set_SettingByProfile](43)
 		SELECT * FROM dbo.[f_Set_SettingByProfile](09)-- Badminton
+
+		Result = 1: ResultDetail
+				 2: ResultDetailOS
+				 3: ResultDetailES
 */
 RETURN
 (
-	SELECT Sporttype
+	SELECT Sporttype, ResultTable
 	FROM
 	(
-		SELECT CONVERT(SMALLINT, 43) AS Sporttype
-		UNION ALL SELECT 9 --Badminton
-		UNION ALL SELECT 5 --Tennis
-		UNION ALL SELECT 2 --Basketball
-		UNION ALL SELECT 50 --Cricket
-		UNION ALL SELECT 45 --Beach Volleyball
+		SELECT CONVERT(SMALLINT, 43) AS Sporttype, CONVERT(TINYINT, 3) AS ResultTable
+		UNION ALL SELECT 9,	 2	--Badminton
+		UNION ALL SELECT 5,	 1	--Tennis
+		UNION ALL SELECT 2,	 1	--Basketball
+		UNION ALL SELECT 50, 2	--Cricket
+		UNION ALL SELECT 45, 2	--Beach Volleyball
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

@@ -296,17 +296,6 @@ BEGIN
 					AND ResultStatusID = 5
 		END
 
-		ELSE IF @sportType = 45 AND  @Action = 'CAL' AND EXISTS (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
-		BEGIN
-			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
-					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
-			FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
-			WHERE MatchID = @MatchID 
-					AND ResourceID IN ('0101','0102','0103')
-					AND SettlementStatusID = 4
-					AND ResultStatusID = 5
-		END
-
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType)
 		SELECT DISTINCT CASE WHEN tbl.ResourceID = '70400' THEN '00' ELSE tbl.ResourceID END, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE ISNULL(HomeValue,'') END, 
@@ -335,7 +324,7 @@ BEGIN
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 			FROM @tmpSelectedRID t
-			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9, 45) 
+			WHERE t.BetType IN (2, 3) AND t.ResourceID = '00' AND @sportType IN (5, 9) 
 
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT 
@@ -758,19 +747,20 @@ BEGIN
 				@UserID = @creator
 				,@Doing = @logdata
 	
-	IF @sportType IN ( 45, 50 )
+	
+	IF @ParentMatchId IS NOT NULL ---Cricket
+	BEGIN
+		SELECT  @MatchId =  @ParentMatchId
+				,@fth	= finalhomescore
+				,@fta	= finalawayscore
+  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  		WHERE   matchid = @ParentMatchId
+	END
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
 	BEGIN
 		SELECT @hth	= NULL
 				,@hta = NULL
-
-		IF @ParentMatchId IS NOT NULL ---Cricket
-		BEGIN
-			SELECT  @MatchId =  @ParentMatchId
-					,@fth	= finalhomescore
-					,@fta	= finalawayscore
-  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  			WHERE   matchid = @ParentMatchId
-		END
 	END
 				
 	BEGIN TRY

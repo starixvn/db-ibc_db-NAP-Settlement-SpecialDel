@@ -18,10 +18,16 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	IF @SportType =0
+
+	DECLARE @ResultTable TINYINT = 0
+
+	IF @SportType = 0
         SELECT @SportType = SportType FROM dbo.match WITH (NOLOCK) WHERE matchID = @matchid
+
+	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile (@SportType) f
+
     ---return
-    IF @Sporttype = 43
+    IF @ResultTable = 3
     BEGIN
 	    SELECT rs.ResourceID
 	    		,rs.HomeValue
@@ -34,7 +40,7 @@ BEGIN
 	END
 	
 	---Badminton AIO, Beach Volleyball, Cricket AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType IN ( 9, 45, 50)
+	ELSE IF @ResultTable = 2
 	BEGIN
 		SELECT rs.ResourceID
 	    		,rs.HomeValue

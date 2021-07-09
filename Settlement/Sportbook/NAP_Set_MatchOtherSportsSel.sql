@@ -25,7 +25,6 @@ AS
 			- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 			- 20210324@Louisa: Enhancement MultiSports page [Redmine:#151545]
 			- 20210428@Louisa: Filter for Interval Over [Redmine: #143442]
-			- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -398,14 +397,14 @@ BEGIN
 
 			SELECT @strMatchIds = @strMatchIds + CAST(m.MatchId AS VARCHAR(20)) + ','
 			FROM	#tmpMatchInfo m
-			WHERE m.sporttype IN (2,5,9,43,45,50)
+			WHERE m.sporttype IN (2,5,9,43,50)
 
 			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
 			FROM (
 				SELECT DISTINCT f.ResourceID
 				FROM #tmpMatchInfo m
 					CROSS APPLY dbo.f_Set_MajorRound (m.sporttype) f
-				WHERE m.sporttype IN (2,5,9,43,45,50)
+				WHERE m.sporttype IN (2,5,9,43,50)
 					AND f.ResourceID <> '00'
 			)f
 
