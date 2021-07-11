@@ -17,6 +17,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
 		- 20201105@Charles: Fix show liveindicator for subparlay [143091]
+		- 20210707@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 	Explanation's Param:
 */
 BEGIN
@@ -229,7 +230,7 @@ SET NOCOUNT ON
 			,bm.hdp2 AS SubHdp2
 			,bm.odds As SubOdds
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+			INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE bm.statusID IN (0, 1) -- running, waiting
 		AND bm.matchid = @MatchId
@@ -429,7 +430,7 @@ SET NOCOUNT ON
 				,sub911.BonusID
 				,main.transid AS MainTransId
 		FROM #Tickets main
-			 INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
+			 INNER HASH JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					 ON main.transid = sub911.refno
 						AND sub911.matchid = main.matchid	
 						AND sub911.custid = main.custid	
@@ -510,45 +511,10 @@ SET NOCOUNT ON
 				,b.BonusID
 				,sub911.MainTransId
 		FROM #Tickets sub911
-			 CROSS APPLY (
-							  SELECT b.bettype
-								  ,b.transid
-								  ,b.matchid
-								  ,b.BetID
-								  ,b.refno
-								  ,b.hdp1
-								  ,b.hdp2
-								  ,b.odds
-								  ,b.oddsspread
-								  ,b.OddsType
-								  ,b.status
-								  ,b.SecAcceptFlag
-								  ,b.checktime
-								  ,b.stake
-								  ,b.transdate
-								  ,b.betteam
-								  ,b.betcheck
-								  ,b.liveindicator
-								  ,b.custid
-								  ,b.livehomescore
-								  ,b.liveawayscore
-								  ,b.winlost
-								  ,b.actual_stake
-								  ,b.transdesc
-								  ,b.betdaqid
-								  ,b.username
-								  ,b.recommend
-								  ,b.ExtraInfo
-								  ,b.CurrencyName
-								  ,b.WalletType
-								  ,b.RefCode
-								  ,b.BonusID
-								  ,b.currency
-							  FROM dbo.bettrans b WITH (NOLOCK)
-							  WHERE b.refno = sub911.transid
+			 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK)
+							  ON b.refno = sub911.transid
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
-						 ) AS b
 		WHERE sub911.bettype = 911
 	END
 
