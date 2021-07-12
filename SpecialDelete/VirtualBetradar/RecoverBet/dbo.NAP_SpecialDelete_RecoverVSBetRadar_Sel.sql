@@ -449,12 +449,12 @@ BEGIN
 					,CASE 
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
-									 WHERE b14.transid = t.transid) 
-								THEN 1
-						WHEN EXISTS (SELECT TOP 1 1 
+									 WHERE b14.transid = t.transid
+									 UNION ALL
+									 SELECT TOP 1 1 
 									 FROM @tmpTransIdMoveBet m
-									 WHERE m.TransId = t.transid) 
-								THEN 1 
+									 WHERE m.transid = t.transid)
+							THEN 1 
 						ELSE 0 
 					 END AS isMoved					
 			FROM	#tblTransIds t

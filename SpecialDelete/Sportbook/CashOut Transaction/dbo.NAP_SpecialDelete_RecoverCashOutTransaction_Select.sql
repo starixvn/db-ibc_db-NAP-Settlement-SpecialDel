@@ -318,15 +318,16 @@ BEGIN
 		(
 			SELECT	t.transid
 					,CASE 
-						WHEN EXISTS (SELECT TOP 1 1 
+						WHEN EXISTS (
+									 SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 									 WHERE b14.transid = t.transid
-									   AND b14.bettype = 911) 
-								THEN 1 
-						WHEN EXISTS (SELECT TOP 1 1 
+									   AND b14.bettype = 911
+									 UNION ALL
+									 SELECT TOP 1 1 
 									 FROM @tmpTransIdMoveBet m
 									 WHERE m.transid = t.transid)
-								THEN 1
+							THEN 1
 						ELSE 0 
 					 END AS isMoved					
 			FROM	#tblTransIds t
