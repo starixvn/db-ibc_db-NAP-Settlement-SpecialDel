@@ -23,6 +23,8 @@ AS
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20190920@Charles: Add filter transdate when search by MatchId [120586]		
 		- 20200930@Zane: TVS - Allow filter by Accept Time on Void Cash Out [Redmine:#142482]
+		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Explanation's Param:
 		@Option: 0 - by MatchId
 				 1 - by BetId(s)
@@ -64,11 +66,16 @@ BEGIN
 		LeagueId			INT,
 		SportTypeId			SMALLINT,
 		IsNeutral			BIT,
-		MatchCode			NVARCHAR(50)		
+		MatchCode			NVARCHAR(50),
+		EventDate			DATETIME		
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
-	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE  @Movebetdate	  DATETIME
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
 	CREATE TABLE #Durations (FromTransDate DATETIME, ToTransDate DATETIME)
 	
     -- Only parse xml @Durations if @Duration is not null and is not empty
@@ -118,7 +125,9 @@ BEGIN
 						LeagueId,
 						SportTypeId,
 						IsNeutral,
-						MatchCode)
+						MatchCode,
+						EventDate
+						)
 			SELECT 
 					main.BetId,
 					sub.TransId,
@@ -151,7 +160,8 @@ BEGIN
 					m.LeagueId,
 					m.sporttype AS SportTypeId,
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-					m.MatchCode
+					m.MatchCode,
+					m.EventDate
 			FROM	dbo.bettrans sub WITH(NOLOCK)
 				INNER JOIN dbo.bettrans main WITH(NOLOCK)
 					ON	main.transid = sub.refno
@@ -200,7 +210,9 @@ BEGIN
 							LeagueId,
 							SportTypeId,
 							IsNeutral,
-							MatchCode)
+							MatchCode,
+							EventDate
+						)
 			SELECT 
 					main.BetId,
 					sub.TransId,
@@ -233,7 +245,8 @@ BEGIN
 					m.LeagueId,
 					m.sporttype AS SportTypeId,
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-					m.MatchCode
+					m.MatchCode,
+					m.EventDate
 			FROM	dbo.bettrans sub WITH(NOLOCK)
 				INNER JOIN dbo.bettrans main WITH(NOLOCK)
 					ON	main.transid = sub.refno
@@ -292,7 +305,9 @@ BEGIN
 						LeagueId,
 						SportTypeId,
 						IsNeutral,
-						MatchCode)
+						MatchCode,
+						EventDate
+						)
 		SELECT 
 				main.BetId,
 				sub.TransId,
@@ -325,7 +340,8 @@ BEGIN
 				m.LeagueId,
 				m.sporttype AS SportTypeId,
 				ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-				m.MatchCode
+				m.MatchCode,
+				m.EventDate
 		FROM	dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN dbo.bettrans main WITH(NOLOCK)
 				ON	main.transid = sub.refno
@@ -338,8 +354,17 @@ BEGIN
 				AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
 				AND main.betdaqid = 0
 				AND charindex ('p25',main.extrainfo)> 0
+
+		IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)
+		BEGIN
+			DELETE 
+			FROM #SpecialDeleteBets
+				OUTPUT	DELETED.TransId
+				INTO @tmpTransIdMoveBet (TransId)
+			WHERE EventDate <= @MovebetDate
+		END
 	END				
-	
+
 	SELECT	d.BetId,
 			d.TransId,
 			d.BetType,
@@ -386,6 +411,10 @@ BEGIN
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 									 WHERE b14.transid = t.transid
 									   AND b14.bettype = 911) 
+								THEN 1 
+						WHEN EXISTS (SELECT TOP 1 1 
+									 FROM @tmpTransIdMoveBet m
+									 WHERE m.TransId = t.transid) 
 								THEN 1 
 						ELSE 0 
 					 END AS isMoved					

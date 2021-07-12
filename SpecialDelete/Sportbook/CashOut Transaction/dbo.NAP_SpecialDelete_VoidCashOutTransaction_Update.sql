@@ -258,8 +258,8 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
 	BEGIN
-		SELECT @ErrCode = 99
-			 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+		SELECT @ErrCode = 102
+			 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
 				
 		RETURN
 	END

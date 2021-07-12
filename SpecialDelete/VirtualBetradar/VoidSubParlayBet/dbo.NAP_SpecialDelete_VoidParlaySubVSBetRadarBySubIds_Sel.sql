@@ -13,7 +13,8 @@ AS
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
-		
+		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+				
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
 */
@@ -21,7 +22,8 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @SubTickets_Count INT
-	
+		   ,@Movebetdate	  DATETIME
+
 	CREATE TABLE #tblSubTransIds (SubTransId BIGINT PRIMARY KEY)
 	
 	CREATE TABLE #tmpBettransm
@@ -75,9 +77,12 @@ BEGIN
 		SubHdp2 SMALLMONEY,
 		SubOdds SMALLMONEY,
 		SubTransdesc NVARCHAR(1000),
-		matchid INT
+		matchid INT,
+		Winlostdate SMALLDATETIME
 	) 
-	
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
 	SELECT @InvalidTransIds = ''
 		 , @SubTickets_Count = 0
 	
@@ -156,7 +161,9 @@ BEGIN
            ,SubHdp2
            ,SubOdds
            ,SubTransdesc
-           ,matchid)
+           ,matchid
+		   ,Winlostdate
+		  )
 	SELECT b.Stake		  
 		  ,b.BetCheck
 		  ,b.BetId
@@ -191,7 +198,8 @@ BEGIN
 		  ,bm.Hdp2 AS SubHdp2
 		  ,bm.Odds AS SubOdds	
 		  ,bm.transdesc AS SubTransdesc
-		  ,bm.matchid			
+		  ,bm.matchid
+		  ,b.winlostdate			
 	FROM (SELECT TOP (@SubTickets_Count) * 
 		  FROM #tmpBettransm) bm
 		 INNER JOIN bettrans b WITH (NOLOCK) 
@@ -202,6 +210,11 @@ BEGIN
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			    	  								 	
 	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Winlostdate <= @MovebetDate)
+	BEGIN
+		DELETE FROM #tmpResult WHERE Winlostdate <= @MovebetDate
+	END
+
 	SELECT  t.Stake
 		   ,m.AwayId
 		   ,t.BetCheck
