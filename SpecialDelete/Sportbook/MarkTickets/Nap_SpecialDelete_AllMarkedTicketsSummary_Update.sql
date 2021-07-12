@@ -1,12 +1,13 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update] @Matches  XML           = NULL,
-                                                                         @UserId   INT           = 0,
-                                                                         @Username NVARCHAR(100) = N'',
-                                                                         @IP       VARCHAR(15)   = NULL,
-                                                                         @ErrMsg   NVARCHAR(200) = '' OUTPUT,
-                                                                         @ErrCode  INT           = 0 OUTPUT
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update] 
+(
+	@Matches  XML           = NULL,
+    @UserId   INT           = 0,
+    @Username NVARCHAR(100) = N'',
+    @IP       VARCHAR(15)   = NULL,
+    @ErrMsg   NVARCHAR(200) = '' OUTPUT,
+    @ErrCode  INT           = 0 OUTPUT
+)
 AS
 /*
     Created by: Alan
@@ -19,12 +20,34 @@ AS
 		- 20190606@Raymond.Le: Mark Tickets Enhancement - Phase 4, change write log for mark/unmark [114596]
 		- 20201604@Charles: Implement parlay tickets for Mark ticket [131670]
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
+		- 20210709@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		
 	Explanation's Param:
 	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
 */
 BEGIN
 	SET NOCOUNT ON;
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN		
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update '
+				+ CASE WHEN @Matches IS NULL THEN '' ELSE '@Matches = ''' + CONVERT(NVARCHAR(4000), @Matches) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	CREATE TABLE #Match (
 		MatchId INT
@@ -37,6 +60,25 @@ BEGIN
 		,MatchId INT
 		);
 
+	CREATE TABLE #Tickets
+					(TransId   BIGINT,
+					MatchId   INT,
+					BetType   SMALLINT,
+					IsParlay  BIT DEFAULT(0),
+					IsFinish	BIT
+					);
+
+	CREATE TABLE #tblMatchProcess 
+				(matchid INT,
+				KeyID   TINYINT
+				);
+
+	CREATE TABLE #tblMatchProcess_tmp
+				(matchid INT
+				,KeyID   TINYINT
+				,IsFinish	BIT
+				);
+
 	INSERT INTO #Match (
 		MatchId
 		,UserId
@@ -48,43 +90,143 @@ BEGIN
 	FROM @Matches.nodes('Matches/Match') XmlData(x)
 	OPTION (OPTIMIZE FOR (@Matches = NULL));
 
-	-- Delete transaction for single tickets
-	WHILE (0 = 0)
-	BEGIN
-		DELETE TOP (2000) m
-		OUTPUT DELETED.TransId
-			,DELETED.MatchId
-		INTO #MarkedTransactionDeleted(TransId, MatchId)
-		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = m.TransId AND b.MatchId = m.MatchId
+	-- Get tickets insert into transaction
+	INSERT INTO #Tickets (
+		TransId
+		,MatchId
+		,BetType
+		,IsParlay
+		)
+	SELECT m.TransId
+		,m.MatchId
+		,m.BetType
+		,CASE WHEN b.bettype = 29 THEN 1 ELSE NULL END
+	FROM dbo.MarkedTransaction m WITH (NOLOCK)
 		INNER JOIN #Match t ON t.MatchId = m.MatchId
 								AND t.UserId = m.UserId
 								AND m.CreatedDate = t.CreatedDate
-		WHERE b.statusID IN(0, 1);				
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid
+	
+	-- Check Lock Match
+	DECLARE @avaiableProcess BIT
+		,@IsExistSingle BIT = 0
+		,@IsExistParlay BIT = 0
+		,@IsExistFM BIT = 0
+		,@IsExistFM2 BIT = 0
 
-		IF @@ROWCOUNT = 0
-			BREAK;
-	END;
+	SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
+			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+	FROM #Tickets AS t
+		OUTER APPLY (
+				SELECT GroupId
+				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+				WHERE Bettype = t.Bettype
+		)f
+	WHERE t.IsParlay = 0;
 
-	-- Delete transaction for parlay tickets
-	WHILE (0 = 0)
+	SELECT TOP 1 @IsExistParlay = 1
+	FROM #Tickets AS t
+	WHERE t.IsParlay = 1
+
+	INSERT INTO #tblMatchProcess (
+		MatchId
+		,KeyID
+		)
+	SELECT DISTINCT MatchId
+		,CASE 
+			WHEN f.GroupId IS NULL THEN 1 --SB
+			WHEN f.GroupId = 1 THEN 6 -- Fast Market
+			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+			ELSE 0
+			END AS KeyID
+	FROM #Tickets t
+		OUTER APPLY (
+				SELECT GroupId
+				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+				WHERE Bettype = t.Bettype
+		)f
+
+	EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
+		,@isExistParlay = @IsExistParlay
+		,@IsExistFM = @IsExistFM
+		,@IsExistFM2 = @IsExistFM2
+		,@spName = @spName
+		,@avaiableProcess = @avaiableProcess OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT;
+
+	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 	BEGIN
-		DELETE TOP (2000) m
-		OUTPUT DELETED.TransId
-			,DELETED.MatchId
-		INTO #MarkedTransactionDeleted(TransId, MatchId)
-		FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.MatchId = m.MatchId
-		INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bm.refno = bt.refno AND bt.TransId = m.TransId
-		INNER JOIN #Match t ON t.MatchId = m.MatchId
-								AND t.UserId = m.UserId
-								AND m.CreatedDate = t.CreatedDate
-		WHERE bm.statusID IN(0, 1);				
-
-		IF @@ROWCOUNT = 0
-			BREAK;
+		RETURN;
 	END;
+	
+	-- Delete Transaction
+	DECLARE @TransIds_SB VARCHAR(MAX), @MatchId INT
 
+	INSERT INTO #tblMatchProcess_tmp (KeyID, matchid)
+	SELECT KeyID, matchid
+	FROM #tblMatchProcess
+
+	WHILE(1=1)
+	BEGIN
+		TRUNCATE TABLE #tblMatchProcess
+		SET @MatchId = NULL
+
+		UPDATE TOP (1) m SET m.IsFinish = 1, @MatchId = m.MatchId
+		FROM #tblMatchProcess_tmp m 
+		WHERE m.IsFinish IS NULL
+		
+		IF @@ROWCOUNT = 0 BREAK
+
+		WHILE (0=0)
+		BEGIN
+			DELETE #MarkedTransactionDeleted
+
+			UPDATE TOP (2000) t
+				SET t.IsFinish = 1
+			OUTPUT DELETED.TransId
+				,DELETED.MatchId
+			INTO #MarkedTransactionDeleted (TransId, MatchId)
+			FROM #Tickets t
+			WHERE t.IsFinish IS NULL
+				AND t.MatchId = @MatchId
+
+			IF @@ROWCOUNT = 0 BREAK	
+
+			SELECT @TransIds_SB = CAST((
+										SELECT m.TransId AS '@id'
+											,m.MatchId AS '@match'
+										FROM #MarkedTransactionDeleted m
+										FOR XML PATH('r')
+											,ROOT('root')
+											,TYPE
+									) AS VARCHAR(MAX));
+
+			EXEC dbo.TicketVoiding_Admin_VoidingTransId
+				@TransIds = @TransIds_SB,
+				@UserId = @UserId,
+				@CalledByBrokerService = 0,
+				@IsUseServiceBroker = 1,
+				@ActionType = 2
+		
+			SET @TransIds_SB = '' 
+		END
+
+		INSERT INTO #tblMatchProcess (KeyID, matchid)
+		SELECT KeyID, matchid
+		FROM #tblMatchProcess_tmp t
+		WHERE t.matchid = @MatchId
+
+		--Release Match
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistMatch = @IsExistSingle,
+			@isExistParlay = @IsExistParlay,
+			@IsExistFM = @IsExistFM,
+			@IsExistFM2 = @IsExistFM2,
+			@IsReleased = 1;
+	END
+	
 	SELECT b.MatchId
 		,m.HomeId
 		,m.AwayId
@@ -107,7 +249,7 @@ BEGIN
 					,m.MatchId AS '@MatchId'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
-							FROM #MarkedTransactionDeleted AS d
+							FROM #Tickets AS d
 							WHERE d.MatchId = m.MatchId
 							FOR XML PATH('')
 							), 1, 1, '') AS '@LogData'
@@ -123,6 +265,9 @@ BEGIN
 
 	DROP TABLE #Match;
 	DROP TABLE #MarkedTransactionDeleted;
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchProcess_tmp
+	DROP TABLE #Tickets
 
 	SET NOCOUNT OFF;
 END
