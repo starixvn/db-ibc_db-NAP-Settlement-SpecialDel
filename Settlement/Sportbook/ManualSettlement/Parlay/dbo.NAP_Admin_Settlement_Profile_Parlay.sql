@@ -70,7 +70,10 @@ BEGIN
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
-			,@ActionID = 81028 -- new action Id
+			,@ActionID = CASE 
+							WHEN @Action LIKE 'CAL%' THEN 81028 -- new action Id
+							WHEN @Action LIKE 'REFUND%' THEN 81029
+							WHEN @Action LIKE 'UNDO%' THEN 81030
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@session = CONVERT(NVARCHAR(50),NEWID())
 

@@ -27,6 +27,7 @@ WITH RECOMPILE
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210709@Kathy: Undo FT ticket [Redmine:#146737]
 
 	Param's Explanation: 
 */
@@ -140,6 +141,17 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET IsHTCal					= CASE WHEN ISNULL(@SelectedQuarter,'') LIKE '%FT%' THEN IsHTCal ELSE 0 END
 			,Calculate				= 0
+			,multiple				= 0
+			,calrefund				= 0
+			,refund					= 0
+			,isUndecided			= 0
+		WHERE matchid = @matchid 
+	END
+	
+	IF @command = 'UF' -- undo fulltime
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
+		SET Calculate				= 0
 			,multiple				= 0
 			,calrefund				= 0
 			,refund					= 0

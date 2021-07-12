@@ -38,7 +38,7 @@ AS
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
-
+		- 20210709@Kathy: Undo FT ticket [Redmine:#146737]
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
@@ -87,6 +87,7 @@ BEGIN
 			,@matchLog			INT 
 			,@IsMergedParlay	BIT = 0
 			,@SelectedResourceParlay VARCHAR(MAX) = ''
+			,@ChildMatchType	TINYINT
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -148,6 +149,7 @@ BEGIN
 		  ,@sportType	= m.sportType
 		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
 		  ,@LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
+		  ,@ChildMatchType = ChildMatchType 
   	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
 		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
   	WHERE   m.matchid = @matchid
@@ -515,7 +517,19 @@ BEGIN
 		END
 
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
-			
+		
+		-- CashOut Winlost Sharing
+
+		IF @sportType = 1 AND @Action = 'UNDO'
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 914)
+			BEGIN
+				EXEC dbo.NAP_Admin_Calculate_914
+					@MatchId = @matchid
+					,@Action = @Action
+			END	
+		END
+
 		-------------------------------------------------------------
 		---		 CAPTURE value BALANCE after settlement		---
 		---------------------------VVVV------------------------------
@@ -556,7 +570,6 @@ BEGIN
 		END-------------------end CAL
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
-
 			--update ResultDetail before settle Parlay
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
 							@action  			= 'UNDO'
@@ -564,14 +577,33 @@ BEGIN
 							,@SelectedRID   	= @SelectedResources
 							,@Sporttype			= @Sporttype
 							,@creator 			= @creator
-							
+
+			IF @Sporttype = 1 -- Soccer
+            BEGIN            
+				EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd --> undo ft?
+					@MatchId = @matchid
+					,@TypeId = NULL
+					,@StatusId = NULL 
+					,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
+
+            END
+			
 			IF @existsFinalRound = 1
 			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
-							@matchid			= @matchid
-							,@command			= 'U'
-							,@IsFinalRound		= @existsFinalRound
-							,@SelectedQuarter   = @SelectedQuarter
+				IF @Action = 'UNDO_FT'
+				BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
+						@matchid			= @matchid
+						,@command			= 'UF'
+				END
+				ELSE 
+				BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
+						@matchid			= @matchid
+						,@command			= 'U'
+						,@IsFinalRound		= @existsFinalRound
+						,@SelectedQuarter   = @SelectedQuarter
+				END
 			END
 			ELSE IF @existsHTRound = 1
 			BEGIN
@@ -592,7 +624,7 @@ BEGIN
 														
 			IF @existsFinalRound = 1
 			BEGIN
-				EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet
+				EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet --> undo ft?
 							@action				= 'UNDO'
 							,@matchid			= @matchid
 							,@IsFinalRound		= @existsFinalRound
@@ -793,7 +825,7 @@ BEGIN
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
 	
-	IF @IsMergedParlay = 1
+	IF @IsMergedParlay = 1 OR @Action = 'UNDO_FT'
 	BEGIN
 		-- update single_Calculate_queue
 		UPDATE	s 
@@ -801,6 +833,7 @@ BEGIN
 		FROM	dbo.Single_Calculate_Queue s WITH(ROWLOCK, UPDLOCK)
 		WHERE	s.keyid = @KeyId
 				AND s.IsCalculating = 1
+				AND @IsMergedParlay = 1
 
 		-- Settle parlay
 		EXEC dbo.NAP_Admin_Settlement_Profile_Parlay

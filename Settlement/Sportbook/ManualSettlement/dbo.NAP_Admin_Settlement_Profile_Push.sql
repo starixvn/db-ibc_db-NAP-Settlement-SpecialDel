@@ -28,6 +28,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210709@Kathy: Undo FT ticket [Redmine:#146737]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -52,6 +53,7 @@ BEGIN
 			,@IsWaiting				BIT = 0
 			,@IsMergedParlay		BIT = 0
 			,@KeyId					INT
+			,@IsSettingByProfile	BIT = 0
 
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
@@ -98,7 +100,20 @@ BEGIN
 				,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
 		RETURN
 	END
-
+	
+	IF @Action = 'UNDO_FT' AND @IsSettingByProfile = 0
+	BEGIN
+		SET @SelectedResources = CAST((
+			SELECT   ISNULL(RefResourceId,ResourceID) AS '@Id'
+			FROM	dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK)
+			WHERE	sp.sporttype = @sporttype
+					AND sp.Settletype = 'MNL'
+					AND GroupType IN ('FT', '2H')
+			GROUP BY ISNULL(RefResourceId,ResourceID)
+			FOR XML PATH ('Resource'), ROOT ('Resources'), TYPE
+			)AS VARCHAR(MAX))
+	END
+	
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @MatchId
 	,@SelectedResources = @SelectedResources
@@ -135,6 +150,7 @@ BEGIN
 		,@xmlData = @SelectedResources
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
+
 	IF @ErrCode <> 0
 	BEGIN
 		SELECT @ErrCode
@@ -144,6 +160,7 @@ BEGIN
 	END
 
 	SELECT	@IsMergedParlay = IsMergedParlay
+			,@IsSettingByProfile = 1
 	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
 
 	-- check movebet day
@@ -161,7 +178,7 @@ BEGIN
 			RETURN
 		END
 	END
-
+	
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
