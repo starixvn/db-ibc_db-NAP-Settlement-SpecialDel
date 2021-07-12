@@ -34,8 +34,8 @@ AS
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
-		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
