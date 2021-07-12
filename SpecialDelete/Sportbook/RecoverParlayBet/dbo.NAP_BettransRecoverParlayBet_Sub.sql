@@ -135,7 +135,8 @@ BEGIN
 	--> parse @MainTransIds
 	INSERT INTO @tblMainTransIds(transid)
 	SELECT ss.val AS transid
-	FROM dbo.strSplit(@MainTransIds, ',') ss
+	FROM dbo.f_SplitString(@MainTransIds, ',') ss
+	OPTION (maxrecursion 0)
 	
 	IF @@ROWCOUNT = 0
 	BEGIN		

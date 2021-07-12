@@ -601,14 +601,14 @@ BEGIN
 		(
 			SELECT t.transid
 				 , CASE
+						WHEN m.transid IS NOT NULL
+								THEN CAST(1 AS BIT) -- case 6
 						WHEN b.transid IS NOT NULL
 							 AND bm.transid IS NOT NULL
 								THEN CAST(0 AS BIT) -- case 1
 						WHEN b14.transid IS NOT NULL
 							 OR bm14.transid IS NOT NULL
-								THEN CAST(1 AS BIT) -- case 2 + 3 + 4	
-						WHEN m.transid IS NOT NULL
-								THEN CAST(1 AS BIT) -- case 6			
+								THEN CAST(1 AS BIT) -- case 2 + 3 + 4				
 						ELSE CAST(0 AS BIT) -- case 5 					
 				   END AS isMoved
 			FROM #tblTransIds t

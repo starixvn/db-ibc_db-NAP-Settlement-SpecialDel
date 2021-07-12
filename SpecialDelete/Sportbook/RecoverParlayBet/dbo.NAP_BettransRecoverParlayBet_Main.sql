@@ -92,8 +92,9 @@ BEGIN
 		--Transid which user input
 		INSERT INTO @tblTransIds
 		SELECT val
-		FROM dbo.strSplit(@TransIds, ',') 
-
+		FROM dbo.f_SplitString(@TransIds, ',') 
+		OPTION (maxrecursion 0)
+		
 		--Transid list is recovered
 		INSERT INTO #tblRecoverBet (
 					transid

@@ -57,7 +57,8 @@ BEGIN
 
 	INSERT INTO @tblTransIds
 	SELECT ss.val
-	FROM dbo.strSplit(@TransIds, ',') ss					
+	FROM dbo.f_SplitString(@TransIds, ',') ss	
+	OPTION (maxrecursion 0)				
 			
 	INSERT INTO @tblRecoverBet(			 							
 			custid
@@ -192,10 +193,11 @@ BEGIN
 					SELECT b14.transid
 					FROM dbo.bettrans14 b14 WITH (NOLOCK)
 					WHERE b14.transid = t.transid
-					UNION ALL
-					SELECT m.TransId
-					FROM @tmpTransIdMoveBet m  
-					WHERE m.TransId = t.transid
+					) THEN CAST(1 AS BIT)
+			WHEN t.transid IN (
+					SELECT m.transid
+					FROM @tmpTransIdMoveBet m
+					WHERE m.transid = t.transid
 					) THEN CAST(1 AS BIT)
 			ELSE CAST(0 AS BIT)
 			END AS isMoved
