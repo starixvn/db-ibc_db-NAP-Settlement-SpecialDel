@@ -1,13 +1,12 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE NAP_Set_LetstalkMessage_Insert
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+ALTER PROCEDURE NAP_Set_LetstalkMessage_Insert
 (
 	@MessageGroupId	TINYINT,
-	@MessageTypeId  TINYINT,
+	@MessageType	VARCHAR(100),
 	@MatchId		INT, 
-	@ActionId		INT				= 0,	
+	@ActionName		VARCHAR(512),		
 	@MessageContent	VARCHAR(MAX),
-	@UserID			INT, 		
-	@IP				VARCHAR(15)		= '',	
+	@UserID			INT,
 	@ErrCode		INT 			= 0	 OUTPUT,	
 	@ErrMsg			NVARCHAR(200) 	= '' OUTPUT
 )
@@ -15,7 +14,7 @@ AS
 /*
 	Created by: Louisa
 	Date: 20210706
-	Task: Insert Letstalk message [Redmine:#157540]
+	Task: Letstalk message [Redmine:#157540]
 	DB: DBTXN/bodb02
 
 	Revisions:
@@ -34,41 +33,29 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @ActionName		NVARCHAR(512) = ''
-
-	SELECT @ActionName =  l.ActionNameEN 
-	FROM dblog.bodb_customerlog.dbo.LogAction l WITH(NOLOCK)
-	WHERE l.ActionID = @ActionId
-
 	BEGIN TRY
 		INSERT INTO [dbo].[Settlement_LetstalkMessage]
 		(	
-			 MessageGroupId
-			,MessageTypeId		
+			MessageGroupId		
+			,MessageType
 			,MatchId		
-			,ActionId		
 			,ActionName		
-			,MessageContent	
-			,StatusId		
-			,CreateDate		
-			,CreateBy		
-			,LastModifyDate	
-			,LastModifyBy		
-			,IP
+			,MessageContent		
+			,StatusId
+			,CreatedDate		
+			,CreatedBy		
+			,LastModifiedDate
 		) 
 		SELECT	
 			@MessageGroupId
-			,@MessageTypeId
+			,@MessageType
 			,@MatchId
-			,@ActionId
-			,ISNULL(@ActionName,'')
+			,@ActionName
 			,@MessageContent
 			,0
 			,GETDATE()
 			,@UserID
 			,GETDATE()
-			,@UserID
-			,@IP
 
 	END TRY
 

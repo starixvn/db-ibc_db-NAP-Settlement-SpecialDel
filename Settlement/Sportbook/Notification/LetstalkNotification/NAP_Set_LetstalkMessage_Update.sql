@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE NAP_Set_LetstalkMessage_Update 
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+ALTER PROCEDURE NAP_Set_LetstalkMessage_Update
 (
 	@MessageId	INT
 )
@@ -7,11 +7,11 @@ AS
 /*
 	Created by: Louisa
 	Date: 20210706
-	Task: Update Letstalk message status [Redmine:#157540]
+	Task: Letstalk message [Redmine:#157540]
 	DB: DBTXN/bodb02
 
 	Revisions:
-		20210706@Louisa: Insert Letstalk message [Redmine:#157540]
+		20210706@Louisa: Update Letstalk message status [Redmine:#157540]
 
 	Param explanation:
 		@MessageGroupId 

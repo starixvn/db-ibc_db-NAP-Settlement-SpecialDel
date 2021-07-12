@@ -1,6 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE NAP_Set_LetstalkMessage_Select
-	@MessageGroupId TINYINT = 0
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+ALTER PROCEDURE NAP_Set_LetstalkMessage_Select
 AS
 /*
 	Created by: Louisa
@@ -9,7 +8,7 @@ AS
 	DB: DBTXN/bodb02
 
 	Revisions:
-		20210706@Louisa: Insert Letstalk message [Redmine:#157540]
+		20210706@Louisa: Letstalk message [Redmine:#157540]
 
 	Param explanation:
 		@MessageGroupId
@@ -19,12 +18,13 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
+	DECLARE @CheckTime DATETIME
+
+	SET @CheckTime =   DATEADD (HOUR, -2, GETDATE())
+
 	SELECT	lm.MessageId
-			,CASE lm.MessageGroupId 
-				WHEN 1 THEN 'Instant Settlement'
-				ELSE ''
-			 END AS MessageGroupName
-			,lm.ActionId
+			,lm.MessageGroupId
+			,MessageType
 			,lm.ActionName
 			,lm.MatchId
 			,m.LeagueId
@@ -32,12 +32,12 @@ BEGIN
 			,m.AwayId
 			,m.kickofftime
 			,lm.MessageContent
-			,lm.CreateDate
+			,ISNULL(l.isTest,0) AS IsTest
 	FROM [dbo].[Settlement_LetstalkMessage] lm WITH(NOLOCK)
-		INNER JOIN dbo.Match m WITH(NOLOCK) 
-			ON lm.MatchId = m.matchid
-	WHERE l.StatusId = 0
-		AND ( @MessageGroupId = 0 OR lm.MessageGroupId = @MessageGroupId)
+		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.MatchId = m.matchid
+		INNER JOIN dbo.League l WITH(NOLOCK) ON l.leagueid = m.leagueid
+	WHERE lm.StatusId = 0
+		AND lm.CreatedDate >= @CheckTime
 END
 GO
 
