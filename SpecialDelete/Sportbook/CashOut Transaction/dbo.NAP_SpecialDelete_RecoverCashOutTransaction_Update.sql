@@ -22,7 +22,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]		
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
-		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
+		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
 		
 	Param's Explanation:
 	
@@ -257,8 +257,8 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
 	BEGIN
-		SELECT @ErrCode = 100
-			 , @ErrMsg = 'Match is under Movebet process, could not recover ticket.'
+		SELECT @ErrCode = 102
+			 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
 		RETURN	
 	END

@@ -19,7 +19,8 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180406@Helen: add filter by bettype for sport 181->185 to avoid the same value in table VSOutright (orid) and bettrans (oddsid) [Redmind:93183]
-		
+		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+				
 	Param's Explanation:			
 		- @TicketType:		
 		'Single': Single ticket
@@ -33,6 +34,7 @@ BEGIN
 	SET NOCOUNT ON	
 	
 	DECLARE @before_yesterday DATETIME
+		   ,@Movebetdate	  DATETIME
 	
 	CREATE TABLE #RecoverBet
 	(
@@ -67,7 +69,7 @@ BEGIN
 		LeagueId		INT,
 		matchcode		NVARCHAR(50),
 		modds			SMALLMONEY,
-		
+		EventDate		DATETIME,
 		SubStatus		NVARCHAR(10),
 		SubTransId		BIGINT,
 		SubBetCheck		NVARCHAR(50),
@@ -80,7 +82,10 @@ BEGIN
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
-	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
 	--> parse @TransIds
 	INSERT INTO #tblTransIds (transid)
 	SELECT	t.val
@@ -127,7 +132,7 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
+				EventDate,
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -168,7 +173,7 @@ BEGIN
 				m.leagueid,
 				NULL AS matchcode,
 				b.modds,
-				
+				m.EventDate,
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -227,7 +232,7 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
+				EventDate,
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -268,7 +273,7 @@ BEGIN
 				r.LeagueID,
 				CONVERT(NVARCHAR(50), o.RacerNum) AS matchcode,
 				b.modds,
-				
+				o.EventDate,
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -293,6 +298,14 @@ BEGIN
 		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		  				  			  				
 		  AND b.bettype IN (1231,1232,1233,1237,1238)		
 		  
+		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
+		BEGIN
+			DELETE 
+			FROM #RecoverBet
+				OUTPUT	DELETED.TransId
+				INTO @tmpTransIdMoveBet (TransId)
+			WHERE EventDate <= @MovebetDate
+		END
 		--> build @InvalidTransIds, @MovedTransIds				
 		;WITH t_invalid AS
 		(
@@ -301,6 +314,10 @@ BEGIN
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 									 WHERE b14.transid = t.transid) 
+								THEN 1 
+						WHEN EXISTS (SELECT TOP 1 1 
+									 FROM @tmpTransIdMoveBet m
+									 WHERE m.TransId = t.transid) 
 								THEN 1 
 						ELSE 0 
 					 END AS isMoved					
@@ -357,7 +374,7 @@ BEGIN
 				mrecommend,
 				CustId,
 				modds,				
-				
+				EventDate,
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -395,7 +412,7 @@ BEGIN
 				b.mrecommend,
 				b.CustId,
 				b.modds,				
-				
+				b.winlostdate AS EventDate,
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -416,6 +433,15 @@ BEGIN
 		  AND z.matchid = 2799
 		  AND z.bettype = 2799		  
 		
+		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
+		BEGIN
+			DELETE 
+			FROM #RecoverBet
+				OUTPUT	DELETED.TransId
+				INTO @tmpTransIdMoveBet (TransId)
+			WHERE EventDate <= @MovebetDate
+		END
+
 		--> build @InvalidTransIds, @MovedTransIds				
 		;WITH t_invalid AS
 		(
@@ -424,6 +450,10 @@ BEGIN
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 									 WHERE b14.transid = t.transid) 
+								THEN 1
+						WHEN EXISTS (SELECT TOP 1 1 
+									 FROM @tmpTransIdMoveBet m
+									 WHERE m.TransId = t.transid) 
 								THEN 1 
 						ELSE 0 
 					 END AS isMoved					
@@ -482,7 +512,7 @@ BEGIN
 				showtime,
 				LeagueId,
 				modds,
-				
+				EventDate,
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -522,7 +552,7 @@ BEGIN
 				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
 				m.leagueid,
 				b.modds,
-				
+				m.EventDate,
 				bm.Status AS SubStatus,
 				bm.TransId AS SubTransId,
 				bm.BetCheck AS SubBetCheck,
@@ -545,7 +575,16 @@ BEGIN
 		  AND b.matchid = 2799
 		  AND bm.statusid = 102
 		  AND b.statusID NOT IN (101, 102) -- reject, void		  		  		
-		  						
+		 
+		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
+		BEGIN
+			DELETE 
+			FROM #RecoverBet
+				OUTPUT	DELETED.TransId
+				INTO @tmpTransIdMoveBet (TransId)
+			WHERE EventDate <= @MovebetDate
+		END 
+								
 		--> build @InvalidTransIds, @MovedTransIds		
 		/*
 		cases : 
@@ -556,6 +595,7 @@ BEGIN
 			4/ transid in bettrans, subtransid in bettransm14 => isMoved = 1
 									
 			5/ transid not in bettrans OR subtransid not in bettransm  => isMoved = 0 (not real ticket)
+			6/ transid belong to match are going to be moved => isMoved = 1
 		*/
 		;WITH t_invalid AS
 		(
@@ -566,7 +606,9 @@ BEGIN
 								THEN CAST(0 AS BIT) -- case 1
 						WHEN b14.transid IS NOT NULL
 							 OR bm14.transid IS NOT NULL
-								THEN CAST(1 AS BIT) -- case 2 + 3 + 4				
+								THEN CAST(1 AS BIT) -- case 2 + 3 + 4	
+						WHEN m.transid IS NOT NULL
+								THEN CAST(1 AS BIT) -- case 6			
 						ELSE CAST(0 AS BIT) -- case 5 					
 				   END AS isMoved
 			FROM #tblTransIds t
@@ -581,6 +623,8 @@ BEGIN
 				 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
 						ON ISNULL(b.refno, b14.refno) = bm14.refno
 						   AND bm14.matchid = @MatchId	
+				 LEFT JOIN @tmpTransIdMoveBet m
+						ON t.transid = m.transid
 			WHERE t.transid NOT IN (SELECT transid FROM #RecoverBet)
 		)
 		SELECT @InvalidTransIds = @InvalidTransIds +

@@ -602,8 +602,8 @@ BEGIN
 
 		IF EXISTS ( SELECT TOP 1 1 FROM #tblTransInfo WHERE winlostdate <= @Movebetdate )
 		BEGIN
-			SELECT @ErrCode = 100
-				 , @ErrMsg = 'Match is under Movebet process, could not recover ticket.'
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
 			RETURN	
 		END

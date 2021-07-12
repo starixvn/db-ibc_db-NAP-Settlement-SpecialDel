@@ -14,6 +14,7 @@ AS
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:			
 			- @BetType:
@@ -40,7 +41,7 @@ BEGIN
 		,SubAwayID				INT 
 		,SubSportType			SMALLINT 
 		,SubLeagueID			INT	
-				
+		,EventDate				DATETIME		
 		,custid					INT
 		,isdeposit				BIT
 		,mrecommend				INT
@@ -63,7 +64,9 @@ BEGIN
 		,ActualStake			MONEY
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE @MovebetDate DATETIME
+
 	INSERT INTO @tblTransIds
 	SELECT ss.val
 	FROM dbo.strSplit(@TransIds, ',') ss				
@@ -84,7 +87,7 @@ BEGIN
 			,SubAwayID
 			,SubSportType 
 			,SubLeagueID
-						
+			,EventDate			
 			,custid
 			,isdeposit
 			,mrecommend				
@@ -120,7 +123,7 @@ BEGIN
 			,m.awayid AS SubAwayID
 			,m.sporttype AS SubSportType 
 			,m.leagueid AS SubLeagueID				
-						
+			,m.eventdate AS EventDate			
 			,b.custid AS custid
 			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
 			,b.mrecommend AS mrecommend
@@ -159,6 +162,18 @@ BEGIN
 					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
 					ELSE 0
 				END	= 1													
+	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE EventDate <= @MovebetDate)
+	BEGIN
+		DELETE 
+		FROM @tblRecoverBet
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE EventDate <= @MovebetDate
+	END
 		
 	SELECT	t.SubTransID     
 			 ,t.SubBetCheck  
@@ -229,6 +244,7 @@ BEGIN
 		4/ transid in bettrans, subtransid in bettransm14 => isMoved = 1
 								
 		5/ transid not in bettrans OR subtransid not in bettransm  => isMoved = 0 (not real ticket)
+		6/ transid belong to match are going to be moved => isMoved = 1
 	*/
 	;WITH InvalidTransID AS
 	(
@@ -245,7 +261,9 @@ BEGIN
 						THEN CAST(0 AS BIT) -- case 1
 				WHEN b14.transid IS NOT NULL
 					 OR bm14.transid IS NOT NULL
-						THEN CAST(1 AS BIT) -- case 2 + 3 + 4				
+						THEN CAST(1 AS BIT) -- case 2 + 3 + 4
+				WHEN m.transid IS NOT NULL
+						THEN CAST(1 AS BIT) -- case 6					
 				ELSE CAST(0 AS BIT) -- case 5 					
 		   END AS isMoved
 	FROM InvalidTransID t
@@ -259,5 +277,7 @@ BEGIN
 				ON t.transid = b14.transid
 		 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
 				ON ISNULL(b.refno, b14.refno) = bm14.refno
-				   AND bm14.matchid = @MatchId		
+				   AND bm14.matchid = @MatchId
+		 LEFT JOIN @tmpTransIdMoveBet m
+				ON t.transid = m.transid		
 END
