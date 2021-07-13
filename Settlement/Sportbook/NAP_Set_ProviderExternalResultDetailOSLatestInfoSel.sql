@@ -11,6 +11,7 @@ AS
     Revisions:            
 		- 20200908@Louisa: get latest LSports result [Redmine:#139979]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
 
 	Param's Explanation:
 		
@@ -37,10 +38,22 @@ BEGIN
 				,p.SourceId
 				,p.ResourceId
 				,p.ProviderExternalId
-				, HomeValue
-				, AwayValue
+				,p.HomeValue
+				,p.AwayValue
 		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
-		WHERE	p.MatchId = @MatchId
+		WHERE	@SportType IN ( 5, 9, 50 )
+			AND p.MatchId = @MatchId
+
+		UNION ALL
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+				,p.SourceId
+				,p.ResourceId
+				,p.ProviderExternalId
+				,p.HomeValue
+				,p.AwayValue
+		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
+		WHERE	@SportType = 2
+			AND p.MatchId = @MatchId	
 	)
 
 	INSERT INTO @tmpLatestResult (SourceId,ResourceId, HomeValue, AwayValue)
@@ -79,7 +92,7 @@ BEGIN
 		BEGIN
 			INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 			SELECT 1001
-				, CASE WHEN @SportType = 5 THEN 'Into Site' ELSE 'Screenshot' END
+				, CASE WHEN @SportType = 5 THEN 'Info Site' ELSE 'Screenshot' END
 				,'n/a'
 				, 1
 		END
@@ -93,7 +106,7 @@ BEGIN
 		OR s.SourceId >= 1001
 				
 	SELECT	t.SourceId
-			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Into Site' ELSE t.SourceName END AS SourceName
+			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Info Site' ELSE t.SourceName END AS SourceName
 			,t.Remark
 			,t.ResourceId
 			,t.HomeValue

@@ -35,6 +35,7 @@ AS
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -51,9 +52,9 @@ BEGIN
 			,@fta				INT
 			,@hth				INT
 			,@hta				INT
-			,@ActionID		  INT
+			,@ActionID			INT
 			,@Remark			VARCHAR(500)
-			,@LogData		   NVARCHAR(300)
+			,@LogData			NVARCHAR(300)
 			,@avaiableProcess	BIT
 			,@xml				XML
 			,@strResourceIds	VARCHAR(MAX)
@@ -716,7 +717,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ CASE
-							WHEN @sportType IN (43, 5, 50 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN ( 2, 5, 9, 43 , 50 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 

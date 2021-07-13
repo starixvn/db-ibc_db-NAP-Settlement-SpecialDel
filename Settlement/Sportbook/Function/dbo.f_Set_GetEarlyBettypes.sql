@@ -17,6 +17,7 @@ AS
 		- 20200507@Kathy: Add new bettype for E-Sports [#132401]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 
     Parameters Explanation:    
    
@@ -24,12 +25,11 @@ AS
 
 RETURN (
 	SELECT CAST(604 AS SMALLINT) AS bettype
-	UNION ALL
-	SELECT 606
-	UNION ALL 
-	SELECT 607 
-	UNION ALL
-	SELECT 613	
+	UNION ALL SELECT 605 
+	UNION ALL SELECT 606
+	UNION ALL SELECT 607 
+	UNION ALL SELECT 613
+	UNION ALL SELECT 617	
 	UNION ALL SELECT 9002
 	UNION ALL SELECT 9003
 	UNION ALL SELECT 9004

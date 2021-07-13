@@ -12,6 +12,7 @@ AS
     Revisions:            
 		- 20200805@Louisa: get TOP 4 OutsideSource by LeagueId  [Redmine:#138656]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
 	
 	Param's Explanation:
 		PGId = 0: create new mapping for OutsideSource 1001
@@ -60,7 +61,7 @@ BEGIN
 			INSERT INTO	 #GameTypeMapping (PGId , SourceId, SourceName, Remark) 
 			SELECT	0 
 					, 1001
-					, CASE WHEN @Sporttype = 5 THEN 'Into Site' ELSE 'Screenshot' END
+					, CASE WHEN @Sporttype = 5 THEN 'Info Site' ELSE 'Screenshot' END
 					, 'n/a' 
 		END
 
@@ -70,7 +71,7 @@ BEGIN
 
 	SELECT
 		 ISNULL(plmo.PGId,gm.PGId) AS PGId
-		,CASE WHEN @Sporttype = 5 AND gm.SourceId = 1001 THEN 'Into Site' ELSE  gm.SourceName END AS SourceName
+		,CASE WHEN @Sporttype = 5 AND gm.SourceId = 1001 THEN 'Info Site' ELSE  gm.SourceName END AS SourceName
 		,gm.Remark
 		,ISNULL( OrderNo,1) OrderNo 
 	FROM #GameTypeMapping gm

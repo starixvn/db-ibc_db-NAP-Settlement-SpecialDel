@@ -20,6 +20,7 @@ AS
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210504@Louisa: Save Cricket results [Redmine:#154472]
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -120,6 +121,31 @@ BEGIN
 				FROM @tmpAllResult	 r	
 				WHERE r.IsChanged = 1
 					AND r.SourceId  <> 100 ----[Redmine:#153915]
+							AND @Sporttype IN ( 5, 9, 50 )
+
+
+
+						INSERT INTO dbo.ProviderExternalResultDetail	(
+							MatchId3rd
+							,MatchId
+							,SourceId
+							,ResourceId
+							,HomeValue
+							,AwayValue
+							,CreateBy
+							,LastModifyBy
+						)
+						SELECT 0
+							,@MatchId
+							,r.SourceId
+							,r.ResourceId
+							,r.HomeValue
+							,r.AwayValue
+							,@UserId
+							,@UserId
+						FROM @tmpAllResult	 r	
+						WHERE r.IsChanged = 1
+							AND @Sporttype = 2
 
 				----This block code supports Keyscore save data by themself until they can get data from Admin Site and Weverdat ----[Redmine:#153915]
 				IF @Sporttype = 50 

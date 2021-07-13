@@ -22,6 +22,7 @@ AS
 		- 20201113@Louisa: Add Hold Result - [Redmine:#135097]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		
 */
 BEGIN
@@ -135,9 +136,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT  CASE 
-					WHEN sp.ResourceID = '70400'
-						OR sp.ResourceID = '605' THEN '00' 
-					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bt.betid AS VARCHAR),3,3)
+					WHEN sp.ResourceID = '70400' THEN '00'
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
@@ -158,9 +157,7 @@ BEGIN
 			AND sp.sporttype = @SportType
 			AND (sp.Settletype = @SettleType)	
 		GROUP BY CASE 
-					WHEN sp.ResourceID = '70400'
-						OR sp.ResourceID = '605' THEN '00' 
-					WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bt.betid AS VARCHAR),3,3)
+					WHEN sp.ResourceID = '70400' THEN '00' 
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END 
@@ -169,7 +166,7 @@ BEGIN
 		IF @SportType = 2
 		BEGIN
 			INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo)
-			SELECT  CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END,					
+			SELECT  CASE WHEN bt.bettype = 603 THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END,					
 					0 AS BetCount,
 					0 As InRunning,
 					0 AS betSettledCount,
@@ -179,20 +176,20 @@ BEGIN
 			FROM (	SELECT DISTINCT bt.bettype, bt.betid
 					FROM	dbo.bettrans bt WITH (NOLOCK)
 					WHERE	bt.matchid = @matchid
-							AND (bt.bettype IN (603, 605, 617) OR bt.bettype BETWEEN 627 AND 644)
+							AND (bt.bettype = 603 OR bt.bettype BETWEEN 627 AND 644)
 							AND bt.statusID NOT IN (101, 102) --void/reject
 					UNION ALL
 					SELECT DISTINCT btm.bettype, btm.betcheck
 					FROM	dbo.bettransm btm WITH (NOLOCK)
 					WHERE	btm.matchid = @matchid
-							AND (btm.bettype IN (603, 605, 617) OR btm.bettype BETWEEN 627 AND 644)
+							AND (btm.bettype = 603 OR btm.bettype BETWEEN 627 AND 644)
 							AND btm.statusID	NOT IN (101, 102) --void/reject
 				)bt
 				INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			WHERE	(sp.Betid = 0 OR sp.BetID = bt.BetID)
 				AND sp.sporttype = @SportType
 				AND (sp.Settletype = @SettleType)	
-			GROUP BY CASE WHEN bt.bettype IN (603, 605, 617) THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END
+			GROUP BY CASE WHEN bt.bettype = 603 THEN sp.ResourceID ELSE CAST(bt.bettype AS VARCHAR(20)) END
 		END
 	END
 	
@@ -229,9 +226,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InRunning, BetSettledCount, BetRefundedCount, OrdNo)
 			SELECT CASE 
-						WHEN sp.ResourceID = '70400'
-							OR sp.ResourceID = '605' THEN '00' 
-						WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
+						WHEN sp.ResourceID = '70400' THEN '00'  
 						WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 						ELSE sp.ResourceID 
 					END     
@@ -248,9 +243,7 @@ BEGIN
 					AND sp.sporttype = @sporttype
 					AND sp.Settletype = @Settletype
 			GROUP BY CASE 
-						WHEN sp.ResourceID = '70400'
-							OR sp.ResourceID = '605' THEN '00' 
-						WHEN sp.ResourceID LIKE '6170[1-4]' THEN 'Q' + SUBSTRING(CAST(bm.betcheck AS VARCHAR),3,3)
+						WHEN sp.ResourceID = '70400' THEN '00' 
 						WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 						ELSE sp.ResourceID 
 					END

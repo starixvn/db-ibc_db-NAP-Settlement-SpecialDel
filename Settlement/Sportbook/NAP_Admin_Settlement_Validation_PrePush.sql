@@ -20,6 +20,7 @@ AS
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210311@Louisa: Check runnind Odds [Redmine:#151173]
 		- 20210413@Louisa: Enhancement [Redmine:#148241]
+		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 
      
     Param's Explanation:
@@ -50,7 +51,7 @@ BEGIN
 							WHERE o.matchid = @Matchid 
 								AND 1 = CASE 
 											WHEN CHARINDEX (CONVERT(VARCHAR(10), o.bettype) + ISNULL(o.Resourceid,''),@SelectedResource) > 0
-												AND o.bettype IN(604, 606, 607, 613) THEN 1 -- Early bettype
+												AND o.bettype IN(604, 606, 607, 613, 605, 617) THEN 1 -- Early bettype
 											ELSE 0
 										END	
 								AND o.liveindicator = 1
