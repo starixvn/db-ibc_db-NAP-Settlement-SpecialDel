@@ -279,7 +279,7 @@ BEGIN
 				,FailedTransIds = CASE WHEN m.MatchId NOT IN (9,29,2799) THEN q.TransIds
 									   WHEN m.MatchId IN (9,29,2799) THEN m.TransIds
 									   ELSE @FailedTransIds END
-				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
+				,NegativeBalanceUsers = @NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue q
 				LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 			WHERE EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId)  
@@ -288,11 +288,11 @@ BEGIN
 		BEGIN
 
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
+			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
 				,StatusId = @StatusId
-				,ErrMsg = CASE WHEN q.QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END
+				,ErrMsg = @ErrMsg
 				,FailedTransIds = @FailedTransIds
-				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
+				,NegativeBalanceUsers = @NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue q
 			WHERE q.QueueId = @QueueId 
 		END

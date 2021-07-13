@@ -39,7 +39,8 @@ AS
 		- 20210525@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210525@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
-	
+		- 20210714@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+
 	Param's explanation:
 		@WrongScoreInfo: 
 		<root>
@@ -115,14 +116,6 @@ BEGIN
 			LiveIndicator			BIT
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-			RefCode  BIGINT,
-			custid   INT,
-			bettype  SMALLINT,
-			transid  BIGINT,
-			IsMarked BIT
-	)
-
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT, VoidFromTime DATETIME, VoidToTime DATETIME, SubIssueTypeId SMALLINT)
 	CREATE INDEX IX_TransId ON #DangerAccept_SubParlayTickets(TransId)
@@ -154,7 +147,6 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT)
 
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, MainTransId BIGINT)
 
@@ -719,7 +711,6 @@ BEGIN
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblSoldTicket
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #DangerAccept_SubParlayTickets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tblGetLogInfo
