@@ -203,7 +203,7 @@ BEGIN
 	OPTION (MAXRECURSION 0)
 
 	INSERT INTO @tmpOverStatus (Id)
-	SELECT val 
+	SELECT CAST (val  AS TINYINT)
 	FROM dbo.f_SplitString(@OverStatus, ',')
 	OPTION (MAXRECURSION 0)
 	
@@ -445,8 +445,8 @@ BEGIN
 						AND f.Sporttype = m.sporttype
 					)f
 
-			SELECT @strMatchIds = CASE WHEN @strResourceIds = '' THEN '0' ELSE LEFT(@strMatchIds, LEN(@strMatchIds) - 1) END 	
-					,@strResourceIds = CASE WHEN @strResourceIds = '' THEN '''''' ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
+			SELECT @strMatchIds = CASE WHEN ISNULL(@strResourceIds,'') = '' OR ISNULL(@strMatchIds,'') = '' THEN '0' ELSE LEFT(@strMatchIds, LEN(@strMatchIds) - 1) END 	
+					,@strResourceIds = CASE WHEN ISNULL(@strResourceIds,'') = '' THEN '''''' ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
 
 			SET	@remoteQuery = N'SELECT r.MatchId, r.ResourceId 
 							FROM 
