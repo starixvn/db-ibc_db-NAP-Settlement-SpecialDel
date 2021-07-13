@@ -36,7 +36,7 @@ BEGIN
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN		
-			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update '
+			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update_UAT4 '
 				+ CASE WHEN @Matches IS NULL THEN '' ELSE '@Matches = ''' + CONVERT(NVARCHAR(4000), @Matches) + '''' END
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
@@ -100,7 +100,7 @@ BEGIN
 	SELECT m.TransId
 		,m.MatchId
 		,m.BetType
-		,CASE WHEN b.bettype = 29 THEN 1 ELSE NULL END
+		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END
 	FROM dbo.MarkedTransaction m WITH (NOLOCK)
 		INNER JOIN #Match t ON t.MatchId = m.MatchId
 								AND t.UserId = m.UserId
@@ -262,6 +262,18 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
 		,@functionName = 'TicketVoiding'
 		,@MessageType = 'MessageType_TicketVoiding_Log';
+
+
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #Match;
 	DROP TABLE #MarkedTransactionDeleted;
