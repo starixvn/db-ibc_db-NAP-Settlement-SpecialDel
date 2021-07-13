@@ -38,6 +38,7 @@ AS
 		- 20210524@Max: [TVS] Wrong Score - Void 2H tickets in range time [Redmine: #155598]
 		- 20210525@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210525@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 	
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -123,7 +124,7 @@ BEGIN
 	)
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
-	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, SubIssueTypeId SMALLINT)
+	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT, VoidFromTime DATETIME, VoidToTime DATETIME, SubIssueTypeId SMALLINT)
 	CREATE INDEX IX_TransId ON #DangerAccept_SubParlayTickets(TransId)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
@@ -455,25 +456,23 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 
-		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId, LiveHomeScore, LiveAwayScore)
+		INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId, VoidFromTime, VoidToTime)
 		SELECT sub.transid
 			, sub.statusID
 			, @MatchId
 			, main.transid
-			, CASE WHEN f.GroupName = '2H' THEN s.LiveHomeScore ELSE sub.livehomescore END AS livehomescore
-			, CASE WHEN f.GroupName = '2H' THEN s.LiveAwayScore ELSE sub.liveawayscore END AS liveawayscore
+			, s.VoidFromTime
+			, s.VoidToTime
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
 							ON	main.refno = sub.refno				
 								AND sub.matchid = @matchid
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = sub.BetType
 			CROSS APPLY (
-				SELECT TOP(1) t.LiveHomeScore, t.LiveAwayScore
+				SELECT TOP(1) t.VoidFromTime, t.VoidToTime
 				FROM #tblGetLogInfo t
 				WHERE matchid = @MatchId
-					AND 1 = CASE WHEN sub.livehomescore = LiveHomeScore AND sub.liveawayscore = LiveAwayScore AND sub.transdate BETWEEN VoidFromTime AND VoidToTime THEN 1
-								WHEN sub.transdate BETWEEN VoidFromTime AND VoidToTime AND f.GroupName = '2H' THEN 1
-							ELSE 0 END	
+					AND ISNULL(sub.checktime, sub.transdate) BETWEEN VoidFromTime AND VoidToTime 	
 					AND main.transid BETWEEN MinMainParlayTransId AND MaxMainParlayTransId
 			)s
 		WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
@@ -516,7 +515,7 @@ BEGIN
 			, rd.Id AS RequestDetailId
 			, t.MainTransId
 		FROM #DangerAccept_SubParlayTickets t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.LiveHomeScore = t.LiveHomeScore AND rd.LiveAwayScore = t.LiveAwayScore
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
 			OUTER APPLY (
 								SELECT TOP 1 rs.TransId
 								FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)

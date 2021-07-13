@@ -31,6 +31,7 @@ AS
 		- 20210428@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:	
 	
@@ -93,13 +94,14 @@ BEGIN
 				,rd.FilterToBetId
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,rd.TransIds AS SettingTime
+				,CASE WHEN @IssueTypeId = 3 THEN NULL ELSE rd.TransIds END AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
 				,m.IsNeutral
+				,CASE WHEN @IssueTypeId = 3 THEN rd.TransIds ELSE NULL END AS ScoreId
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			CROSS APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
@@ -117,6 +119,7 @@ BEGIN
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
 		ORDER BY CASE WHEN @IssueTypeId = 1 THEN m.matchcode ELSE NULL END
+			, CASE WHEN @IssueTypeId = 3 THEN CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) ELSE NULL END
 	END
 	ELSE IF @IssueTypeId = 13 -- apply for Abnormal Account
 	BEGIN

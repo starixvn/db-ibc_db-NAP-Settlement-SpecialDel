@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@Status		INT				= 0
 	,@IssueTypeId	VARCHAR(100)	= NULL
 	,@SubIssueType  VARCHAR(MAX)	= NULL
+	,@RequestId		INT				= NULL
 )
 AS
 /*	Created by: Kathy
@@ -37,6 +38,8 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210414@July: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
+		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 
 	Param's explanation:	
 		@Status: 
@@ -51,9 +54,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@FilteredBy			TINYINT,
-			@NumberofRequestId	INT,
-			@RequestId			INT
+	DECLARE	@FilteredBy			TINYINT
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -102,7 +103,6 @@ BEGIN
 
 	DECLARE @SubIssueType_tmp TABlE (SubIssueTypeId INT)
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
-	DECLARE @RequestId_tmp TABlE (RequestId INT)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
 	SELECT DISTINCT val AS IssueTypeId
@@ -118,28 +118,16 @@ BEGIN
 	IF @RequestIdXml IS NOT NULL
 	BEGIN
 		-- Parse xml @RequestId
-		INSERT INTO @RequestId_tmp(RequestId)
+		INSERT INTO @tmpRequest(RequestId)
 		SELECT t.c.value('@Id','INT') AS RequestId
 		FROM @RequestIdXml.nodes('RequestId') t(c)
 		OPTION (OPTIMIZE FOR (@RequestIdXml = NULL))
-
-		SELECT @NumberofRequestId = COUNT(RequestId)
-		FROM @RequestId_tmp
-
-		IF @NumberofRequestId = 1
-		BEGIN
-			SELECT @RequestId = RequestId 
-			FROM @RequestId_tmp
-		END
 	END
 
 	SELECT	@FilteredBy = CASE
-								WHEN @RequestIdXml IS NULL THEN 2 -- MatchId
-								ELSE
-									CASE 
-										WHEN @NumberofRequestId = 1 THEN 1 -- RequestId
-										ELSE 3 -- Fromdate, Todate
-									END
+								WHEN @RequestId IS NOT NULL THEN 1 -- RequestId
+								WHEN @MatchId IS NOT NULL THEN 2 -- MatchId
+								WHEN @RequestIdXml IS NOT NULL THEN 3 -- Fromdate, Todate
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF @FilteredBy = 1
@@ -290,7 +278,7 @@ BEGIN
 		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-											INNER JOIN @RequestId_tmp r 
+											INNER JOIN @tmpRequest r 
 												ON rd.RequestId = r.RequestId 
 									   WHERE matchid IN (9, 29, 2799)
 									   
@@ -298,7 +286,7 @@ BEGIN
 			BEGIN
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(bt.winlostdate)
-					FROM @RequestId_tmp r
+					FROM @tmpRequest r
 						INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) ON s.RequestId = r.RequestId
 						CROSS APPLY (SELECT winlostdate 
 									 FROM dbo.bettrans b WITH(NOLOCK) 
@@ -323,13 +311,13 @@ BEGIN
 										 FROM	dbo.outright14 o14 WITH(NOLOCK)
 										)o 
 								ON rd.MatchId = o.orid
-							INNER JOIN @RequestId_tmp r ON rd.RequestId = r.RequestId
+							INNER JOIN @tmpRequest r ON rd.RequestId = r.RequestId
 						
 						)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(o.eventdate)
-				FROM @RequestId_tmp r
+				FROM @tmpRequest r
 					INNER JOIN TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = r.RequestId
 					INNER JOIN(
 								SELECT o.orid, o.eventdate
@@ -345,7 +333,7 @@ BEGIN
 		
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
-		FROM @RequestId_tmp r
+		FROM @tmpRequest r
 			INNER JOIN TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = r.RequestId
 			INNER JOIN (
 						SELECT m.matchid, m.eventdate
@@ -376,7 +364,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -426,7 +414,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -476,7 +464,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,rd.TransIds
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
