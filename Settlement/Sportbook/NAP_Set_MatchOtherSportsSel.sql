@@ -537,7 +537,7 @@ BEGIN
 			)
 
 		DELETE FROM #tmpMatchIds
-		WHERE matchid IN (SELECT matchid FROM cte_match WHERE IsDisplay = 0 )
+		WHERE matchid NOT IN (SELECT matchid FROM cte_match WHERE IsDisplay = 1 )
 	END
 
 	;WITH singlequeue 
