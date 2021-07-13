@@ -657,6 +657,7 @@ SET NOCOUNT ON
   DROP TABLE #tmpRefCodeSummary
   DROP TABLE #t_LicenseeNames
   DROP TABLE #t_UIRepresentativeLicenseeGroupNames
+  DROP TABLE #temp_Cashout
 SET NOCOUNT OFF
 END
 GO
