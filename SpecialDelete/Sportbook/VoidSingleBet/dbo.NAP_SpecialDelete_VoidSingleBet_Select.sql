@@ -82,6 +82,7 @@ AS
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
+		- 20210630@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -141,7 +142,7 @@ BEGIN
 		ValueHdp1		VARCHAR(500),
 		ValueHdp2		VARCHAR(20),
 		Goal			VARCHAR(10),
-		OddsSpread		VARCHAR(20)
+		OddsSpread		VARCHAR(500)
 	)
 
 	CREATE TABLE #tblBetType_Detail
@@ -165,11 +166,11 @@ BEGIN
 			, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
 			, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
-			, t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1		-- check columns : hdp1	 ; single-choice + multi-choice
-			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 ; single-choice
+			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-			, t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
+			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
@@ -203,13 +204,14 @@ BEGIN
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2					 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
-			 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
-						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+			 , CAST(CASE WHEN os.val = 'ALL' THEN @ValueDefault
+						ELSE os.val END AS MONEY) AS OddsSpread
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY dbo.strSplit(cte.OddsSpread, ',') os
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
