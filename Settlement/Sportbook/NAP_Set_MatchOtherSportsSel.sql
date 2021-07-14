@@ -91,7 +91,7 @@ BEGIN
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0), IsDisplay BIT DEFAULT(0) )
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, IsConfirmed BIT DEFAULT(0) )
-	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, esourceID VARCHAR(50), Bettype INT DEFAULT(0),BetId INT DEFAULT(0)
+	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, esourceID VARCHAR(50), Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
 	)
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
@@ -474,8 +474,9 @@ BEGIN
 			INSERT INTO #ConfirmedResources ( MatchId, ResourceId )
 			EXECUTE	sys.sp_executesql @remoteQuery
 
-			INSERT INTO @tmpMatchConfirmed (matchid, bettype, betid)
+			INSERT INTO @tmpMatchConfirmed (matchid, bettype, betid, IsEarly)
 			SELECT m.matchid, sp.bettype, sp.betid
+				 , CASE sp.SettleType WHEN 'EAR' THEN 1 ELSE 0 END
 			FROM #tmpMatchIds m
 				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
@@ -516,7 +517,7 @@ BEGIN
 						   THEN 1
 						   ELSE 0 END ) AS IsDisplay
 			FROM @tmpMatchOverStatus m
-			OUTER APPLY ( SELECT confirm.matchid, confirm.bettype, confirm.betid 
+			OUTER APPLY ( SELECT confirm.matchid, confirm.bettype, confirm.betid , confirm.IsEarly
 								FROM @tmpMatchConfirmed confirm 
 								WHERE confirm.matchid = m.matchid
 						) confirm		
@@ -525,13 +526,21 @@ BEGIN
 				FROM dbo.bettrans b WITH(NOLOCK)
 				WHERE b.matchid = m.matchid
 					AND b.statusId IN ( 0, 101, 102)
-					AND (m.IsConfirmed = 0	OR ( m.IsConfirmed = 1 AND  b.bettype = confirm.bettype AND (b.betID = 0 OR b.betid = confirm.betid ))	) 
+					AND 1 = CASE WHEN m.IsConfirmed = 0 THEN 1
+								 ELSE CASE WHEN b.bettype = confirm.bettype AND (b.betID = 0 OR b.betid = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 and b.StatusId IN (101,102) THEN 0
+																																	ELSE 1 END
+											ELSE 0 END
+							END
 				UNION ALL
 				SELECT	TOP 1  bm.transid
 				FROM dbo.bettransm bm WITH(NOLOCK)
 				WHERE bm.matchid = m.matchid
 					AND bm.statusId IN ( 0, 101, 102)
-					AND (m.IsConfirmed = 0	OR ( m.IsConfirmed = 1 AND  bm.bettype = confirm.bettype AND (bm.betcheck = 0 OR bm.betcheck = confirm.betid ))	) 
+					AND 1 = CASE WHEN m.IsConfirmed = 0 THEN 1
+								 ELSE CASE WHEN bm.bettype = confirm.bettype AND (bm.betcheck = 0 OR bm.betcheck = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 and bm.StatusId IN (101,102) THEN 0
+																																	ELSE 1 END
+											ELSE 0 END 
+							END
 			) bt
 			GROUP BY m.matchid
 			)
