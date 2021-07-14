@@ -114,6 +114,7 @@ AS
 		- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
+		- 20210714@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -397,7 +398,7 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1	 	 	 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
+			 , t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -415,13 +416,14 @@ BEGIN
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
-			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
-						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+			 , CAST(CASE WHEN os.val = 'ALL' THEN @ValueDefault
+						ELSE os.val END AS MONEY) AS OddsSpread
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY dbo.strSplit(cte.OddsSpread, ',') os
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT cte.Id
