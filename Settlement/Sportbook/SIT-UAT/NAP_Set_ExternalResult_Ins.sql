@@ -45,13 +45,15 @@ BEGIN
 
 	IF  ISNULL(@Sporttype,0) = 0 
 	BEGIN
-		SELECT @ErrMsg = N'Invalid sport type or match'
+		SELECT @ErrCode = 1001053
+			,@ErrMsg = N'Invalid sport type or match'
 		RETURN
 	END
 
 	IF  @IsLeagueTest = 0 
 	BEGIN
-		SELECT @ErrMsg = N'The League does not belong league test'
+		SELECT @ErrCode = 1001054
+			 ,@ErrMsg = N'The League does not belong league test'
 		RETURN
 	END
 
