@@ -481,7 +481,7 @@ BEGIN
 				 , CASE sp.SettleType WHEN 'EAR' THEN 1 ELSE 0 END
 			FROM #tmpMatchIds m
 				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid OR r.ResourceId =  ISNULL(sp.RefResourceId,'')
 			WHERE sp.sporttype = m.sporttype
 
 			--confirmed HT, FT on sportype not settle by Profile
