@@ -3,10 +3,10 @@ ALTER PROCEDURE NAP_Set_LetstalkMessage_Insert
 (
 	@MessageGroupId	TINYINT,
 	@MessageType	VARCHAR(100),
-	@MatchId		INT				= NULL, 
-	@ActionName		VARCHAR(512)	= NULL,		
-	@MessageContent	VARCHAR(MAX)	= NULL,
-	@UserID			INT				= 0,
+	@MatchId		INT, 
+	@ActionName		VARCHAR(512),		
+	@MessageContent	VARCHAR(MAX),
+	@UserID			INT,
 	@ErrCode		INT 			= 0	 OUTPUT,	
 	@ErrMsg			NVARCHAR(200) 	= '' OUTPUT
 )
@@ -23,8 +23,9 @@ AS
 	Param explanation:
 		@MessageGroupId 
 					1: Instant Settlement
-		@MessageType
+		@MessageTypeId
 					Warning
+					Error
 		@ActionId: Settlement ActionId
 					101: Cal Inst HT
 					102: Cal Inst FT
@@ -32,23 +33,41 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF (@MessageGroupId = 1) ---erorr message from Instant Settlement
-	BEGIN
-		EXEC NAP_Set_LetstalkMessage_Inst_Insert
-			@MessageGroupId	 = @MessageGroupId	
-			,@MessageType	 = @MessageType	
-			,@MatchId		 = @MatchId		
-			,@ActionName	 = @ActionName		
-			,@MessageContent = @MessageContent	
-			,@UserID		 = @UserID			
-			,@ErrCode		 = @ErrCode OUTPUT
-			,@ErrMsg		 = @ErrMsg  OUTPUT
+	BEGIN TRY
+		INSERT INTO [dbo].[Settlement_LetstalkMessage]
+		(	
+			MessageGroupId		
+			,MessageType
+			,MatchId		
+			,ActionName		
+			,MessageContent
+			,MessageContent
+			,StatusId
+			,CreatedDate		
+			,CreatedBy		
+			,LastModifiedDate
+		) 
+		SELECT	
+			@MessageGroupId
+			,@MessageType
+			,@MatchId
+			,@ActionName
+			,@MessageContent
+			, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
+					ELSE 0
+			  END
+			,0
+			,GETDATE()
+			,@UserID
+			,GETDATE()
 
-	END
+	END TRY
 
-	ELSE
-	RETURN		
-
+	BEGIN CATCH
+		SELECT @ErrCode = @@ERROR
+			, @ErrMsg = ISNULL(ERROR_MESSAGE(), '')
+	    RETURN
+    END CATCH   
 
 END
 GO

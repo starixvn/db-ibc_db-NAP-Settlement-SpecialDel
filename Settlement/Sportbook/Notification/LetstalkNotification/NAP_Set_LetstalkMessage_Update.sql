@@ -12,16 +12,6 @@ AS
 
 	Revisions:
 		20210706@Louisa: Update Letstalk message status [Redmine:#157540]
-
-	Param explanation:
-		@MessageGroupId 
-					1: Instant Settlement
-		@MessageTypeId
-					1: Warning
-					2: Error
-		@ActionId: Settlement ActionId
-					101: Cal Inst HT
-					102: Cal Inst FT
 */
 BEGIN
 	SET NOCOUNT ON;

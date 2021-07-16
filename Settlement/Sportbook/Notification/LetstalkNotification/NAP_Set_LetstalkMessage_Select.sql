@@ -23,7 +23,7 @@ BEGIN
 
 	SELECT	lm.MessageId
 			,lm.MessageGroupId
-			,MessageType
+			,lm.MessageType
 			,lm.ActionName
 			,lm.MatchId
 			,m.LeagueId

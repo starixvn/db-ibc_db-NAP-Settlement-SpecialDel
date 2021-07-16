@@ -32,17 +32,6 @@ CREATE TABLE dbo.Settlement_LetstalkMessage
 
 GO
 
-	EXEC sys.sp_addextendedproperty 
-	@name=N'MS_Description', 
-	@value=N'1:Instant Settlement' ,
-	@level0type=N'SCHEMA', 
-	@level0name=N'dbo', 
-	@level1type=N'TABLE', 
-	@level1name=N'Settlement_LetstalkMessage', 
-	@level2type=N'COLUMN', 
-	@level2name=N'MessageGroupId'
-
-GO
 
 ALTER TABLE [dbo].[Settlement_LetstalkMessage] ADD  CONSTRAINT [DF_Settlement_LetstalkMessage_StatusId]  DEFAULT (0) FOR [StatusId]
 GO
@@ -55,10 +44,11 @@ GO
 
 -----CREATE INDEXS
 
-	CREATE NONCLUSTERED INDEX [IX_Settlement_LetstalkMessage_MatchStatus] ON [dbo].[Settlement_LetstalkMessage]
+	CREATE NONCLUSTERED INDEX [IX_Settlement_LetstalkMessage_MatchStatusDate] ON [dbo].[Settlement_LetstalkMessage]
 	(
 		[MatchId] ASC	
 		,[StatusId] ASC
+		,CreatedDate ASC
 	)
 	ON [Event_table]
 	GO
