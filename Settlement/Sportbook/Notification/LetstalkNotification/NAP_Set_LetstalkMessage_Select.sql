@@ -11,9 +11,8 @@ AS
 		20210706@Louisa: Letstalk message [Redmine:#157540]
 
 	Param explanation:
-		@MessageGroupId
-					0: All new message
-					1: Instant Settlement
+
+
 */
 BEGIN
 	SET NOCOUNT ON;
