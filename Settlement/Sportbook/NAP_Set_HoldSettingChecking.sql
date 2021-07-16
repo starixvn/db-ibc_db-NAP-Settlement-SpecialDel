@@ -16,6 +16,7 @@ AS
 		-  20201111@Louisa: Check Hold setting [Redmine:#143441]
 		-  20201113@Louisa: Check Hold Result [Redmine:#135097]
 		-  20210122@Louisa: Cricket AIO [Redmine:#148870]
+		-  20210706@Louisa: Letstalk message [Redmine:#157540]
 
 		
 	Parameters Explanation:    
@@ -49,7 +50,7 @@ BEGIN
 	IF @SettlementStatus & 87 > 0
 	BEGIN
 		SET	@ErrCode = 1001038	
-		SET @ErrMsg = 'WARNING! Cannot continue to the match is put on hold. Please unhold and try again.	'
+		SET @ErrMsg = 'WARNING! Cannot continue due to the match is put on hold. Please unhold and try again.	'
 	END
 
 	-- Soccer, Basketball, Badminton, and E-Sports.

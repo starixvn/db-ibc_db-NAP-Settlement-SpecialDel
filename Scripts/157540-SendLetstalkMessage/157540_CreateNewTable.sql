@@ -28,7 +28,7 @@ CREATE TABLE dbo.Settlement_LetstalkMessage
 	(
 		[MessageId] ASC
 	)
-) ON [Event_table]
+) ON [DATA]
 
 GO
 
@@ -50,5 +50,5 @@ GO
 		,[StatusId] ASC
 		,CreatedDate ASC
 	)
-	ON [Event_table]
+	ON [DATA]
 	GO

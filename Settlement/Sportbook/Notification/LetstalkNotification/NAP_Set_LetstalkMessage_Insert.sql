@@ -41,7 +41,7 @@ BEGIN
 			,MatchId		
 			,ActionName		
 			,MessageContent
-			,MessageContent
+			,MessageDetail
 			,StatusId
 			,CreatedDate		
 			,CreatedBy		
