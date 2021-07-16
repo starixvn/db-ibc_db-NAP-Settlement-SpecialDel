@@ -45,7 +45,8 @@ AS
 							3 - Kicked-off/In-play
 							4 - Postponed	
 							5 - Completed
-							6 - Refund )
+							6 - Refund
+							7 - Internal )
 
 		@HoldStatus:   Un-check all: 0
 					   Check all: '87,1,2,4,16,64'
@@ -197,6 +198,7 @@ BEGIN
 				WHEN val IN (2,3) THEN 'running'
 				WHEN val = 4 THEN 'Postponed'
 				WHEN val = 5 THEN 'Completed'
+				WHEN val = 7 THEN 'internal'
 				ELSE ''
 			END	
 	FROM	dbo.f_SplitString(@MatchStatus, ',')
