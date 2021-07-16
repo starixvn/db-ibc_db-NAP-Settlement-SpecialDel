@@ -3,12 +3,9 @@ ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO]
 	 @MatchId			INT  
 	,@KickOffDate		DATETIME  
 	,@BetTypes			XML			 = NULL  	
-	
 	,@TransIds			VARCHAR(MAX) = ''  
 	,@TransIdSolds		VARCHAR(MAX) = '' -- just for BetTrade's subticket (transid of bettype 901)		
-	
 	,@InvalidTransIds   VARCHAR(MAX) = '' OUTPUT -- invalid trans of BTrade  
-
 	,@UserID			INT  
 	,@UserName			NVARCHAR(50)  
 	,@UserPassword		NVARCHAR(50)  
@@ -104,6 +101,7 @@ Revisions:
 	- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+	- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -169,7 +167,9 @@ BEGIN
 			,@ValueDefault		SMALLMONEY = 9999.00
 		
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
-	
+		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@totalSubParlay		INT = 0
+
 	DECLARE @ResultDetail3rd AS TABLE ([ResultID] [int] ,[GameID] [int] ,[Custom1] [nvarchar](50) )
 	DECLARE @queryResultDetail NVARCHAR(MAX) = ''
 	DECLARE @execSql NVARCHAR(MAX) = ''
@@ -193,7 +193,7 @@ BEGIN
 	CREATE TABLE #tblTransIdSolds (grouptransid BIGINT, transid BIGINT PRIMARY KEY)  
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)  
 
 	CREATE TABLE #BetDelete (  
@@ -473,7 +473,8 @@ BEGIN
 
 	IF(EXISTS (SELECT 1 FROM #tblBettype WHERE Id = 29))    
 	BEGIN  
-		SELECT TOP 1 @isExistParlay = 1  
+		INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+		SELECT @MatchId, sub.refno
 		FROM dbo.bettransm AS sub WITH (NOLOCK)  
 			INNER JOIN dbo.bettrans AS main WITH (NOLOCK)  
 			ON sub.refno = main.refno  
@@ -482,7 +483,15 @@ BEGIN
 		WHERE main.matchid  = 29 
 			AND main.bettype = 29 
 			AND sub.matchid  = @matchid  
+
+		SET @totalSubParlay = @@ROWCOUNT
+		IF @totalSubParlay > 0 
+			SET @isExistParlay = 1
 	END  
+
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+			 @LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchProcess(matchid, KeyID)  
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1  
@@ -496,17 +505,48 @@ BEGIN
 	SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
 
 	-- check and not allow attempt to void tickets of this match while it's being calculated  
-	EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay		= @isExistParlay  
-		, @isExistMG		= @isExistMG  
-		, @isExistFM		= @isExistFM  
-		, @isExistMatch		= @isExistMatch  
-		, @isExistBB		= @isExistBB
-		, @isExistFM2		= @isExistFM2
-		, @spName			= @spName
-		, @avaiableProcess  = @avaiableProcess OUTPUT  
-		, @ErrCode			= @ErrCode OUTPUT  
-		, @ErrMsg			= @ErrMsg OUTPUT  
+	IF @totalSubParlay <= @ThreadHold
+	BEGIN
+		-- checking single proccess		
+		EXEC dbo.NAP_Admin_CheckingProcess   
+			@isExistMG			= @isExistMG  
+			, @isExistFM		= @isExistFM  
+			, @isExistMatch		= @isExistMatch  
+			, @isExistBB		= @isExistBB
+			, @isExistFM2		= @isExistFM2
+			, @spName			= @spName
+			, @avaiableProcess  = @avaiableProcess OUTPUT  
+			, @ErrCode			= @ErrCode OUTPUT  
+			, @ErrMsg			= @ErrMsg OUTPUT 
+		
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN	
+			RETURN		
+		END	
+		-- checking refno parlay proccess
+		EXEC dbo.NAP_Admin_CheckingProcess
+			 @IsLockingByRefno	= 1
+			,@spName			= @spName
+			,@Session			= @Session
+			,@avaiableProcess 	= @avaiableProcess OUTPUT
+			,@ErrCode			= @ErrCode OUTPUT
+			,@ErrMsg			= @ErrMsg OUTPUT 
+	END
+	ELSE
+	BEGIN
+		-- checking SD proccess
+		EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay		= @isExistParlay  
+			, @isExistMG		= @isExistMG  
+			, @isExistFM		= @isExistFM  
+			, @isExistMatch		= @isExistMatch  
+			, @isExistBB		= @isExistBB
+			, @isExistFM2		= @isExistFM2
+			, @spName			= @spName
+			, @avaiableProcess  = @avaiableProcess OUTPUT  
+			, @ErrCode			= @ErrCode OUTPUT  
+			, @ErrMsg			= @ErrMsg OUTPUT  
+	END
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0)   
 	BEGIN		
@@ -532,16 +572,39 @@ BEGIN
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Some tickets not found.'
 
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay	= @isExistParlay  
-			, @isExistMG  	= @isExistMG  
-			, @isExistFM	= @isExistFM  
-			, @isExistMatch	= @isExistMatch  
-			, @isExistBB	= @isExistBB
-			, @isExistFM2	= @isExistFM2
-			, @IsReleased  	= 1
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			------ releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess   
+				@isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
 
-		RETURN
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+			   ,@Session	= @Session
+			   ,@IsReleased = 1
+
+			RETURN
+		END
+		ELSE
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay	= @isExistParlay  
+				, @isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
+
+			RETURN
+		END
 	END
 
 	------------------***** Insert all data into #BetDelete,#BetmDelete *****------------------    
@@ -1103,15 +1166,35 @@ BEGIN
 			SELECT @ErrMsg = CASE WHEN @ErrCode = 0 THEN 'No ticket found.' ELSE @ErrMsg END  
 			,@ErrCode = CASE WHEN @ErrCode = 0 THEN 99 ELSE @ErrCode END  
 
-		------ releasing SD process  
-		EXEC dbo.NAP_Admin_CheckingProcess  
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			------ releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess   
+				@isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
+
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+			   ,@Session	= @Session
+			   ,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess  
 				@isExistParlay	= @isExistParlay  
 				, @isExistMG  	= @isExistMG  
 				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
 				, @isExistFM2	= @isExistFM2
-				, @IsReleased  	= 1  
+				, @IsReleased  	= 1
+		END
 		
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2435,15 +2518,35 @@ BEGIN
 			END  
 		END  
 		
-		------ releasing SD process  
-		EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay	= @isExistParlay  
-				, @isExistMG  	= @isExistMG  
-				, @isExistFM  = @isExistFM  
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			------ releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess   
+				@isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
 				, @isExistFM2	= @isExistFM2
 				, @IsReleased  	= 1
+
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+			   ,@Session	= @Session
+			   ,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay	= @isExistParlay  
+				, @isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
+		END
 		
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2739,5 +2842,7 @@ BEGIN
 
 	DROP TABLE #tblMatchProcess  
 	DROP TABLE #BetDelete  
-	DROP TABLE #BetmDelete  
+	DROP TABLE #BetmDelete
+	DROP TABLE #tblMatchParlayProcess
+  
 END

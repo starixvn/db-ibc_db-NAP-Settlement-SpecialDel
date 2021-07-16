@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 	@CurrencyIDs		VARCHAR(MAX),
 	@TransIDs			VARCHAR(MAX),
 	@SoldTransIds		VARCHAR(MAX) = '', -- just for BetTrade's subticket (transid of bettype 901)		
-
 	@UserID				INT,  
 	@UserName			NVARCHAR(50),
 	@UserPassword		NVARCHAR(50),  
@@ -55,7 +54,8 @@ AS
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
-
+		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+			
 	Param's Explanation:
 */
 BEGIN
@@ -141,6 +141,8 @@ BEGIN
 		  
 	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
+		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+
 	DECLARE @tblTransIds TABLE (transid BIGINT)	
 	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
@@ -293,7 +295,7 @@ BEGIN
 	CREATE TABLE #t_exchanges(exchangeid INT, currency NVARCHAR(50))
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
-	
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)	
 
 	-------> Parse @LicenseeNames	
@@ -1417,7 +1419,13 @@ BEGIN
 				AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND main.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
 				AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
-			SET @CountParlay = @@ROWCOUNT				
+			
+			SET @CountParlay = @@ROWCOUNT
+			
+			INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+			SELECT @matchid, RefNo
+			FROM #SpecialDeleteBets_Parlay		
+
 		END
 
 		-------> Check No ticket found
@@ -1465,20 +1473,59 @@ BEGIN
 			
 			IF @CountParlay > 0
 				SET @IsExistParlay = 1
+			
+			EXEC dbo.NAP_Set_GlobalSettingSel 
+					 @LockName = 'ParlayRefno'
+					,@ThreadHold = @ThreadHold OUTPUT
+			
+			-- check and not allow attempt to void tickets of this match while it's being calculated	
+			IF @CountParlay <= @ThreadHold
+			BEGIN
+				-- checking single proccess		
+				EXEC dbo.NAP_Admin_CheckingProcess   
+					@isExistMatch		= @isExistMatch	
+					, @isExistFM		= @isExistFM				
+					, @isExistBB		= @isExistBB
+					, @isExistFM2		= @isExistFM2
+					, @spName			= @spName
+					, @avaiableProcess  = @avaiableProcess OUTPUT  
+					, @ErrCode			= @ErrorCode OUTPUT  
+					, @ErrMsg			= @ErrorMsg OUTPUT 
 				
-			-------> Check concurrent single, parlay
-			EXEC dbo.NAP_Admin_CheckingProcess
-				  @IsReleased	= 0
-				, @isExistMatch		= @isExistMatch	
-				, @isExistFM		= @isExistFM				
-				, @IsExistParlay	= @IsExistParlay
-				, @isExistBB		= @isExistBB
-				, @isExistFM2		= @isExistFM2
-				, @spName			= @spName
-				, @avaiableProcess 	= @AvaiableProcess OUTPUT
-				, @ErrCode			= @ErrorCode OUTPUT
-				, @ErrMsg			= @ErrorMsg OUTPUT
-				
+				IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
+				BEGIN
+					-------> releasing cash-out process
+					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+							@Mode = 'Original'
+						  , @Action = 'Void'
+						  , @IsReleased = 1	
+					RETURN		
+				END	
+				-- checking refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @IsLockingByRefno	= 1
+					, @spName			= @spName
+					, @Session			= @Session
+					, @avaiableProcess 	= @avaiableProcess OUTPUT
+					, @ErrCode			= @ErrorCode OUTPUT
+					, @ErrMsg			= @ErrorMsg OUTPUT 
+			END
+			ELSE
+			BEGIN
+				-- checking SD proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					  @IsReleased		= 0
+					, @isExistMatch		= @isExistMatch	
+					, @isExistFM		= @isExistFM				
+					, @IsExistParlay	= @IsExistParlay
+					, @isExistBB		= @isExistBB
+					, @isExistFM2		= @isExistFM2
+					, @spName			= @spName
+					, @avaiableProcess 	= @AvaiableProcess OUTPUT
+					, @ErrCode			= @ErrorCode OUTPUT
+					, @ErrMsg			= @ErrorMsg OUTPUT
+			END	
+
 			IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
 			BEGIN				
 				-------> releasing cash-out process
@@ -1495,22 +1542,7 @@ BEGIN
 						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
 						WHERE matchid <> @MatchId
 					)
-			BEGIN
-				SELECT	@ErrorCode = 99
-						,@ErrorMsg = 'Some tickets not found.'
-
-				EXEC dbo.NAP_Admin_CheckingProcess
-					  @IsReleased		= 1						
-					, @isExistMatch		= @isExistMatch	
-					, @isExistFM		= @isExistFM		
-					, @isExistBB		= @isExistBB		
-					, @isExistParlay	= @isExistParlay
-					, @isExistFM2		= @isExistFM2
-
-				RETURN
-			END
-			--Parlay
-			IF EXISTS ( SELECT TOP 1 1 
+			OR EXISTS ( SELECT TOP 1 1 
 						FROM @tblTransIds t
 							INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
 							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
@@ -1518,20 +1550,53 @@ BEGIN
 							AND b.bettype = 29   
 							AND bm.matchid  <> @matchid  
 					)
-			BEGIN
+			BEGIN 
 				SELECT	@ErrorCode = 99
 						,@ErrorMsg = 'Some tickets not found.'
+				
+				IF @CountParlay  <= @ThreadHold
+				BEGIN
+					------ releasing single process
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistMatch	= @isExistMatch	
+						,@isExistFM		= @isExistFM		
+						,@isExistBB		= @isExistBB		
+						,@isExistFM2	= @isExistFM2
+						,@IsReleased	= 1
+					
+					------ releasing Refno parlay proccess
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@IsLockingByRefno = 1
+					    ,@Session	= @Session
+					    ,@IsReleased = 1
+					
+					-------> releasing cash-out process
+					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+							@Mode = 'Original'
+						  , @Action = 'Void'
+						  , @IsReleased = 1
 
-				EXEC dbo.NAP_Admin_CheckingProcess
-					  @IsReleased		= 1						
-					, @isExistMatch		= @isExistMatch	
-					, @isExistFM		= @isExistFM		
-					, @isExistBB		= @isExistBB		
-					, @isExistParlay	= @isExistParlay
-					, @isExistFM2		= @isExistFM2
-				RETURN
-			END 
+					RETURN
+				END
+				ELSE
+				BEGIN
+					------ releasing SD process
+					EXEC dbo.NAP_Admin_CheckingProcess
+						 @IsReleased	= 1						
+						,@isExistMatch	= @isExistMatch	
+						,@isExistFM		= @isExistFM		
+						,@isExistBB		= @isExistBB		
+						,@isExistParlay	= @isExistParlay
+						,@isExistFM2	= @isExistFM2
 
+					-------> releasing cash-out process
+					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+							@Mode = 'Original'
+						  , @Action = 'Void'
+						  , @IsReleased = 1
+					RETURN
+				END
+			END
 		END
 		
 		INSERT INTO #t_CustID_501(custid)
@@ -2232,14 +2297,34 @@ BEGIN
 			@CustIds = @NegativeBalanceCustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			 
-		-------> Release process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			  @IsReleased		= 1						
-			, @isExistMatch		= @isExistMatch	
-			, @isExistFM		= @isExistFM		
-			, @isExistBB		= @isExistBB		
-			, @isExistParlay	= @isExistParlay
-			, @isExistFM2		= @isExistFM2
+		IF @CountParlay  <= @ThreadHold
+		BEGIN
+			------ releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch	= @isExistMatch	
+				,@isExistFM		= @isExistFM		
+				,@isExistBB		= @isExistBB		
+				,@isExistFM2	= @isExistFM2
+				,@IsReleased	= 1
+					
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+				,@Session	= @Session
+				,@IsReleased = 1
+		
+		END
+		ELSE
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@IsReleased	= 1						
+				,@isExistMatch	= @isExistMatch	
+				,@isExistFM		= @isExistFM		
+				,@isExistBB		= @isExistBB		
+				,@isExistParlay	= @isExistParlay
+				,@isExistFM2	= @isExistFM2
+		END
 			
 		-------> releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2365,12 +2450,28 @@ BEGIN
 				 END
 	END TRY
 	BEGIN CATCH
-		-------> Release process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			  @IsReleased		= 1						
-			, @isExistMatch		= @isExistMatch			
-			, @isExistParlay  = @isExistParlay
-			
+		IF @CountParlay <= @ThreadHold
+		BEGIN
+			-------> Release process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				  @IsReleased		= 1						
+				, @isExistMatch		= @isExistMatch
+
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+			   ,@Session	= @Session
+			   ,@IsReleased = 1
+
+		END
+		ELSE
+		BEGIN
+			-------> Release process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				  @IsReleased		= 1						
+				, @isExistMatch		= @isExistMatch			
+				, @isExistParlay  = @isExistParlay
+		END	
 		-------> releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 				@Mode = 'Original'
@@ -2412,6 +2513,7 @@ BEGIN
 	DROP TABLE #AfterUpd 
 	DROP TABLE #NegativeBalance
 	DROP TABLE #InstantSettlementBettypes
+	DROP TABLE #tblMatchParlayProcess
 
 END
 GO

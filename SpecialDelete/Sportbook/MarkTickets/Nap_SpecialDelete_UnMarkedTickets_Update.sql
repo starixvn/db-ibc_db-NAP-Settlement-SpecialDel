@@ -33,7 +33,8 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
-		- 20210810@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210720@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -66,6 +67,11 @@ BEGIN
 	DECLARE @xmlLog VARCHAR(MAX)
 		,@LogData VARCHAR(MAX) = '';
 
+	DECLARE @Session			NVARCHAR(50)
+		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@totalSubParlay		INT = 0
+	SET @Session = CONVERT(NVARCHAR(50),NEWID())
+
 	CREATE TABLE #transIds -- single + sub parlay Id
 				(TransId BIGINT
 				PRIMARY KEY
@@ -77,7 +83,7 @@ BEGIN
 		WHERE val <> '' OPTION(MAXRECURSION 0);
 
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
-
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	DECLARE @tblInvalidTrans TABLE(transid BIGINT);
 
 	CREATE TABLE #Match(matchid INT);
@@ -363,9 +369,18 @@ BEGIN
 				)f
 		WHERE t.IsParlay = 0;
 
-		SELECT TOP 1 @IsExistParlay = 1
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			 @LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
+
+		INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+		SELECT t.MatchId, t.refno
 		FROM #Tickets AS t
 		WHERE t.IsParlay = 1
+
+		SET @totalSubParlay = @@ROWCOUNT
+		IF @totalSubParlay > 0 
+			SET @isExistParlay = 1
 
 		INSERT INTO #tblMatchProcess (
 			MatchId
@@ -385,14 +400,44 @@ BEGIN
 						WHERE Bettype = t.Bettype
 				)f
 
-		EXEC dbo.NAP_Admin_CheckingProcess @isExistMatch = @IsExistSingle
-			,@isExistParlay = @IsExistParlay
-			,@IsExistFM = @IsExistFM
-			,@IsExistFM2 = @IsExistFM2
-			,@spName = @spName
-			,@avaiableProcess = @avaiableProcess OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT;
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			-- checking single proccess
+			EXEC dbo.NAP_Admin_CheckingProcess 
+				 @isExistMatch = @IsExistSingle
+				,@IsExistFM = @IsExistFM
+				,@IsExistFM2 = @IsExistFM2
+				,@spName = @spName
+				,@avaiableProcess = @avaiableProcess OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT;
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN	
+				RETURN		
+			END
+			-- checking Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				 @IsLockingByRefno	= 1
+				,@spName			= @spName
+				,@Session			= @Session
+				,@avaiableProcess 	= @avaiableProcess OUTPUT
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
+		END
+		ELSE
+		BEGIN
+			-- checking SD proccess
+			EXEC dbo.NAP_Admin_CheckingProcess 
+				 @isExistMatch = @IsExistSingle
+				,@isExistParlay = @IsExistParlay
+				,@IsExistFM = @IsExistFM
+				,@IsExistFM2 = @IsExistFM2
+				,@spName = @spName
+				,@avaiableProcess = @avaiableProcess OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT;
+		END
 
 		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 		BEGIN
@@ -447,13 +492,31 @@ BEGIN
 	
 	IF @IsLockMatch = 1
 	BEGIN
-		-- Release Match
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch = @IsExistSingle,
-			@isExistParlay = @IsExistParlay,
-			@IsExistFM = @IsExistFM,
-			@IsExistFM2 = @IsExistFM2,
-			@IsReleased = 1;
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			-- releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch = @IsExistSingle,
+				@IsExistFM = @IsExistFM,
+				@IsExistFM2 = @IsExistFM2,
+				@IsReleased = 1;
+
+			-- releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+			   ,@Session	= @Session
+			   ,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			-- Release Match
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistMatch = @IsExistSingle,
+				@isExistParlay = @IsExistParlay,
+				@IsExistFM = @IsExistFM,
+				@IsExistFM2 = @IsExistFM2,
+				@IsReleased = 1;
+		END
 	END
 
 	SELECT b.MatchId,
@@ -505,6 +568,7 @@ BEGIN
 	DROP TABLE #Match;
 	DROP TABLE #ParlayTransIds;
 	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 
 	SET NOCOUNT OFF;
 END
