@@ -54,7 +54,7 @@ BEGIN
 			,@ActionName
 			,@MessageContent
 			, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
-					ELSE 0
+					ELSE ''
 			  END
 			,0
 			,GETDATE()
