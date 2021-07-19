@@ -93,8 +93,9 @@ AS
 	  - 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 	  - 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	  - 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
-	  - 20210625@July: TVS - Modify the way to get move bet date [Redmine: #154974]
-	  
+	  - 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+	  - 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+
 	 Param's Explanation:   
 	*/
 BEGIN
@@ -159,7 +160,9 @@ BEGIN
 			,@Movebetdate				DATETIME
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))							
-		
+			,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
+			,@totalMainParlay		INT = 0
+
 	SELECT @InvalidTransIds		= '' 
 		, @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -290,7 +293,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatch (matchid INT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 
 	CREATE TABLE #Lucky3Matches
@@ -858,9 +861,10 @@ BEGIN
 		WHERE sub.bettype 	= 901
 			AND EXISTS (
 				SELECT TOP 1 1 
-				FROM dbo.strSplit(@TransIdSolds,',') 
+				FROM dbo.f_SplitString(@TransIdSolds,',') 
 				WHERE val = sub.transid
 			) 
+		OPTION (maxrecursion 0)
 	END
 	
 	
@@ -942,7 +946,7 @@ BEGIN
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 		OUTER APPLY (
@@ -977,21 +981,75 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistParlay 				= @isExistParlay
-		, @isExistOutright 			= @isExistOutright
-		, @isExistMG				= @isExistMG
-		, @isExistFM				= @isExistFM
-		, @isExistMatch				= @isExistMatch
-		, @isExistNG				= @isExistNG
-		, @isExistVS				= @isExistVS
-		, @isExistBB				= @isExistBB
-		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-		, @isExistFM2				= @isExistFM2
-		, @spName					= @spName
-		, @avaiableProcess 			= @avaiableProcess OUTPUT
-		, @ErrCode					= @ErrCode OUTPUT
-		, @ErrMsg					= @ErrMsg OUTPUT
+	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+	SELECT matchid, refno
+	FROM #BetDelete
+	WHERE Bettype IN (9,29,2799)
+
+	SET @totalMainParlay = @@ROWCOUNT
+
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		 @LockName = 'ParlayRefno'
+		,@ThreadHold = @ThreadHold OUTPUT
+
+	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
+	BEGIN
+		-- checking single proccess
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistOutright 			= @isExistOutright
+			, @isExistMG				= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistNG				= @isExistNG
+			, @isExistVS				= @isExistVS
+			, @isExistBB				= @isExistBB
+			, @isExistFM2				= @isExistFM2
+			, @spName					= @spName
+			, @avaiableProcess 			= @avaiableProcess OUTPUT
+			, @ErrCode					= @ErrCode OUTPUT
+			, @ErrMsg					= @ErrMsg OUTPUT
+		
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN		
+			-------> releasing cash-out process
+			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+					@Mode = 'Original'
+				  , @Action = 'Void'
+				  , @IsReleased = 1
+		
+			RETURN
+		END
+		IF @totalMainParlay > 0 
+		BEGIN
+			-- checking Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno		= 1
+				,@SPName				= @SPName
+				,@Session				= @Session
+				,@avaiableProcess 		= @avaiableProcess OUTPUT
+				,@ErrCode				= @ErrCode OUTPUT
+				,@ErrMsg				= @ErrMsg OUTPUT
+		END		
+	END
+	ELSE IF @totalMainParlay > @ThreadHold
+	BEGIN
+		-- checking SD proccess
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay 				= @isExistParlay
+			, @isExistOutright 			= @isExistOutright
+			, @isExistMG				= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistNG				= @isExistNG
+			, @isExistVS				= @isExistVS
+			, @isExistBB				= @isExistBB
+			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+			, @isExistFM2				= @isExistFM2
+			, @spName					= @spName
+			, @avaiableProcess 			= @avaiableProcess OUTPUT
+			, @ErrCode					= @ErrCode OUTPUT
+			, @ErrMsg					= @ErrMsg OUTPUT
+	END 
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
@@ -2684,18 +2742,45 @@ BEGIN
 	
 	------ releasing SD process
 	--CleanUP:
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistParlay 				= @isExistParlay
-		, @isExistOutright 			= @isExistOutright
-		, @isExistMG				= @isExistMG
-		, @isExistFM				= @isExistFM
-		, @isExistMatch				= @isExistMatch
-		, @isExistNG				= @isExistNG
-		, @isExistVS				= @isExistVS
-		, @isExistBB				= @isExistBB
-		, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-		, @isExistFM2				= @isExistFM2
-		, @IsReleased				= 1
+	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
+	BEGIN
+		------ releasing single process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistOutright 			= @isExistOutright
+			, @isExistMG				= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistNG				= @isExistNG
+			, @isExistVS				= @isExistVS
+			, @isExistBB				= @isExistBB
+			, @isExistFM2				= @isExistFM2
+			, @IsReleased				= 1
+
+		IF @totalMainParlay > 0 
+		BEGIN
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+				,@Session	= @Session
+				,@IsReleased = 1
+	    END			
+	END
+	ELSE IF @totalMainParlay > @ThreadHold
+	BEGIN
+		------ releasing SD process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay 				= @isExistParlay
+			, @isExistOutright 			= @isExistOutright
+			, @isExistMG				= @isExistMG
+			, @isExistFM				= @isExistFM
+			, @isExistMatch				= @isExistMatch
+			, @isExistNG				= @isExistNG
+			, @isExistVS				= @isExistVS
+			, @isExistBB				= @isExistBB
+			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+			, @isExistFM2				= @isExistFM2
+			, @IsReleased				= 1
+	END
 		
 	-------> releasing cash-out process
 	EXEC dbo.NAP_Admin_CheckingCashOutProcess
@@ -2902,6 +2987,8 @@ BEGIN
 	DROP TABLE #tblCashOutProcess
 	DROP TABLE #Lucky3Matches
 	DROP TABLE #temp_Cashout
+	DROP TABLE #tblMatchParlayProcess
+
 	RETURN
 END
 GO

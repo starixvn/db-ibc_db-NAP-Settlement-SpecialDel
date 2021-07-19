@@ -202,7 +202,6 @@ BEGIN
 			BonusID				INT,
 			MainTransId			BIGINT,
 			ActualStake			MONEY,
-					
 			SubTransDesc		NVARCHAR(1000),
 			SubTransId			BIGINT,
 			SubBetCheck			NVARCHAR(50),
@@ -469,7 +468,6 @@ BEGIN
 						RefCode,
 						BonusID,
 						ActualStake,
-						
 						SubTransId,
 						SubBetCheck,
 						SubBetTeam,
@@ -525,7 +523,6 @@ BEGIN
 					b.RefCode,
 					b.BonusID,
 					b.actual_stake AS ActualStake,
-					
 					b.TransId AS SubTransId,
 					NULL AS SubBetCheck,
 					NULL AS SubBetTeam,
@@ -553,7 +550,6 @@ BEGIN
 				AND b.betfrom <> 'P' -- exclude phone betting
 				AND b.matchid = @MatchID -- filer for @MatchID
 				AND b.bettype <> 500 -- exclude charge comm	
-				
 				AND b.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
 				AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 				AND b.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
@@ -619,7 +615,6 @@ BEGIN
 							BonusID,
 							MainTransId,
 							ActualStake,
-						
 							SubTransId,
 							SubBetCheck,
 							SubBetTeam,
@@ -679,7 +674,6 @@ BEGIN
 						b.BonusID,
 						r.transid AS MainTransId,
 						b.actual_stake AS ActualStake,
-					
 						b.TransId AS SubTransId,
 						NULL AS SubBetCheck,
 						NULL AS SubBetTeam,
@@ -871,7 +865,6 @@ BEGIN
 							BonusID,
 							MainTransId,
 							ActualStake,
-							
 							SubTransId,
 							SubBetCheck,
 							SubBetTeam,
@@ -927,7 +920,6 @@ BEGIN
 						sub.BonusID,
 						sub.MainTransId,
 						tmpmain.ActualStake,
-						
 						sub.TransId AS SubTransId,
 						NULL AS SubBetCheck,
 						NULL AS SubBetTeam,
@@ -1004,7 +996,6 @@ BEGIN
 							BonusID,
 							MainTransId,
 							ActualStake,
-							
 							SubTransId,
 							SubBetCheck,
 							SubBetTeam,
@@ -1074,7 +1065,6 @@ BEGIN
 						sub.BonusID,
 						tmpmain.TransId AS MainTransId,
 						tmpmain.ActualStake,
-						
 						sub.TransId AS SubTransId,
 						NULL AS SubBetCheck,
 						NULL AS SubBetTeam,
@@ -1408,23 +1398,17 @@ BEGIN
 			WHERE main.matchid =29 AND main.bettype = 29 -- parlay
 				AND main.statusID NOT IN (101, 102) -- reject, void				
 				AND main.betfrom <> 'P' -- exclude phone betting
-				
 				AND m.sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND sub.matchid = @matchid -- filer for @MatchID
 				AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND sub.betfrom <> 'P' -- exclude phone betting	
-				
 				AND main.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
 				AND main.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 				AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND main.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
 				AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
 			
-			SET @CountParlay = @@ROWCOUNT
-			
-			INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
-			SELECT @matchid, RefNo
-			FROM #SpecialDeleteBets_Parlay		
+			SET @CountParlay = @@ROWCOUNT	
 
 		END
 
@@ -1472,7 +1456,13 @@ BEGIN
 			END
 			
 			IF @CountParlay > 0
+			BEGIN
 				SET @IsExistParlay = 1
+
+				INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+				SELECT @matchid, RefNo
+				FROM #SpecialDeleteBets_Parlay	
+			END
 			
 			EXEC dbo.NAP_Set_GlobalSettingSel 
 					 @LockName = 'ParlayRefno'
@@ -1575,14 +1565,6 @@ BEGIN
 							,@Session	= @Session
 							,@IsReleased = 1
 					END
-					
-					-------> releasing cash-out process
-					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-							@Mode = 'Original'
-						  , @Action = 'Void'
-						  , @IsReleased = 1
-
-					RETURN
 				END
 				ELSE IF @CountParlay > @ThreadHold
 				BEGIN
@@ -1595,13 +1577,14 @@ BEGIN
 						,@isExistParlay	= @isExistParlay
 						,@isExistFM2	= @isExistFM2
 
-					-------> releasing cash-out process
-					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-							@Mode = 'Original'
-						  , @Action = 'Void'
-						  , @IsReleased = 1
-					RETURN
 				END
+				-------> releasing cash-out process
+				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+						@Mode = 'Original'
+						, @Action = 'Void'
+						, @IsReleased = 1
+
+				RETURN;
 			END
 		END
 		
@@ -2327,7 +2310,7 @@ BEGIN
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess
-					@IsReleased	= 1						
+				 @IsReleased	= 1						
 				,@isExistMatch	= @isExistMatch	
 				,@isExistFM		= @isExistFM		
 				,@isExistBB		= @isExistBB		
@@ -2459,7 +2442,7 @@ BEGIN
 				 END
 	END TRY
 	BEGIN CATCH
-		IF @CountParlay  = 0 OR @CountParlay <= @ThreadHold
+		IF @CountParlay = 0 OR @CountParlay <= @ThreadHold
 		BEGIN
 			-------> Release process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2482,7 +2465,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsReleased		= 1						
 				, @isExistMatch		= @isExistMatch			
-				, @isExistParlay  = @isExistParlay
+				, @isExistParlay	= @isExistParlay
 		END	
 		-------> releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 

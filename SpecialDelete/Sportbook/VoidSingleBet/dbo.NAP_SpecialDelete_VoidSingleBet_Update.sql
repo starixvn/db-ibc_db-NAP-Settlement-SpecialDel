@@ -610,8 +610,6 @@ BEGIN
 				   ,@Session	= @Session
 				   ,@IsReleased = 1
 			END
-
-			RETURN
 		END
 		ELSE IF @totalSubParlay > @ThreadHold 
 		BEGIN
@@ -622,9 +620,9 @@ BEGIN
 				,@isExistFM			= @isExistFM
 				,@isExistFM2		= @isExistFM2
 				,@IsReleased		= 1
-
-			RETURN
 		END
+
+		RETURN;
 	END
 
 	------------------***** Insert all data into #BetDelete *****------------------
