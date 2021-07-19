@@ -141,7 +141,7 @@ BEGIN
 		  
 	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
-		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 
 	DECLARE @tblTransIds TABLE (transid BIGINT)	
 	DECLARE @tblInputSoldTransIds TABLE (transid BIGINT)	
@@ -1479,7 +1479,7 @@ BEGIN
 					,@ThreadHold = @ThreadHold OUTPUT
 			
 			-- check and not allow attempt to void tickets of this match while it's being calculated	
-			IF @CountParlay <= @ThreadHold
+			IF @CountParlay = 0 OR @CountParlay <= @ThreadHold
 			BEGIN
 				-- checking single proccess		
 				EXEC dbo.NAP_Admin_CheckingProcess   
@@ -1501,16 +1501,19 @@ BEGIN
 						  , @IsReleased = 1	
 					RETURN		
 				END	
-				-- checking refno parlay proccess
-				EXEC dbo.NAP_Admin_CheckingProcess
-					 @IsLockingByRefno	= 1
-					, @spName			= @spName
-					, @Session			= @Session
-					, @avaiableProcess 	= @avaiableProcess OUTPUT
-					, @ErrCode			= @ErrorCode OUTPUT
-					, @ErrMsg			= @ErrorMsg OUTPUT 
+				IF @CountParlay > 0
+				BEGIN
+					-- checking refno parlay proccess
+					EXEC dbo.NAP_Admin_CheckingProcess
+						 @IsLockingByRefno	= 1
+						, @spName			= @spName
+						, @Session			= @Session
+						, @avaiableProcess 	= @avaiableProcess OUTPUT
+						, @ErrCode			= @ErrorCode OUTPUT
+						, @ErrMsg			= @ErrorMsg OUTPUT 
+				END
 			END
-			ELSE
+			ELSE IF @CountParlay > @ThreadHold
 			BEGIN
 				-- checking SD proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
@@ -1554,7 +1557,7 @@ BEGIN
 				SELECT	@ErrorCode = 99
 						,@ErrorMsg = 'Some tickets not found.'
 				
-				IF @CountParlay  <= @ThreadHold
+				IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
 				BEGIN
 					------ releasing single process
 					EXEC dbo.NAP_Admin_CheckingProcess
@@ -1564,11 +1567,14 @@ BEGIN
 						,@isExistFM2	= @isExistFM2
 						,@IsReleased	= 1
 					
-					------ releasing Refno parlay proccess
-					EXEC dbo.NAP_Admin_CheckingProcess
-						@IsLockingByRefno = 1
-					    ,@Session	= @Session
-					    ,@IsReleased = 1
+					IF @CountParlay > 0 
+					BEGIN
+						------ releasing Refno parlay proccess
+						EXEC dbo.NAP_Admin_CheckingProcess
+							@IsLockingByRefno = 1
+							,@Session	= @Session
+							,@IsReleased = 1
+					END
 					
 					-------> releasing cash-out process
 					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -1578,7 +1584,7 @@ BEGIN
 
 					RETURN
 				END
-				ELSE
+				ELSE IF @CountParlay > @ThreadHold
 				BEGIN
 					------ releasing SD process
 					EXEC dbo.NAP_Admin_CheckingProcess
@@ -2297,7 +2303,7 @@ BEGIN
 			@CustIds = @NegativeBalanceCustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			 
-		IF @CountParlay  <= @ThreadHold
+		IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
 		BEGIN
 			------ releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2306,15 +2312,18 @@ BEGIN
 				,@isExistBB		= @isExistBB		
 				,@isExistFM2	= @isExistFM2
 				,@IsReleased	= 1
-					
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-				,@Session	= @Session
-				,@IsReleased = 1
+			
+			IF @CountParlay > 0 
+			BEGIN		
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+			END
 		
 		END
-		ELSE
+		ELSE IF @CountParlay > @ThreadHold
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2450,21 +2459,24 @@ BEGIN
 				 END
 	END TRY
 	BEGIN CATCH
-		IF @CountParlay <= @ThreadHold
+		IF @CountParlay  = 0 OR @CountParlay <= @ThreadHold
 		BEGIN
 			-------> Release process
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsReleased		= 1						
 				, @isExistMatch		= @isExistMatch
-
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-			   ,@Session	= @Session
-			   ,@IsReleased = 1
+			
+			IF @CountParlay > 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
 
 		END
-		ELSE
+		ELSE IF @CountParlay > @ThreadHold
 		BEGIN
 			-------> Release process
 			EXEC dbo.NAP_Admin_CheckingProcess

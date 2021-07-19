@@ -196,7 +196,7 @@ BEGIN
 			,@Eventdate			DATETIME
 
 	DECLARE @session			NVARCHAR(50)
-		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0
 
 	DECLARE @CustIds			VARCHAR(MAX) = ''
@@ -530,7 +530,7 @@ BEGIN
 	UNION ALL
 	SELECT @MatchId AS matchid, 7 AS KeyId WHERE @isExistFM2 = 1
 
-	IF @totalSubParlay <= @ThreadHold
+	IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 	BEGIN
 		-- checking single proccess
 		EXEC dbo.NAP_Admin_CheckingProcess 
@@ -546,17 +546,19 @@ BEGIN
 		BEGIN	
 			RETURN		
 		END	
-		-- checking Refno parlay proccess
-		EXEC dbo.NAP_Admin_CheckingProcess
-			 @IsLockingByRefno	= 1
-			,@spName			= @spName
-			,@Session			= @Session
-			,@avaiableProcess 	= @avaiableProcess OUTPUT
-			,@ErrCode			= @ErrCode OUTPUT
-			,@ErrMsg			= @ErrMsg OUTPUT
-
+		IF @totalSubParlay > 0
+		BEGIN
+			-- checking Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				 @IsLockingByRefno	= 1
+				,@spName			= @spName
+				,@Session			= @Session
+				,@avaiableProcess 	= @avaiableProcess OUTPUT
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
+		END
 	END
-	ELSE 
+	ELSE IF @totalSubParlay > @ThreadHold
 	BEGIN
 		-- checking SD proccess
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -591,7 +593,7 @@ BEGIN
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Some tickets not found.'
 		
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			------ releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -600,15 +602,18 @@ BEGIN
 				,@isExistFM2		= @isExistFM2
 				,@IsReleased		= 1
 
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-			   ,@Session	= @Session
-			   ,@IsReleased = 1
+			IF @totalSubParlay > 0
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
 
 			RETURN
 		END
-		ELSE
+		ELSE IF @totalSubParlay > @ThreadHold 
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -1255,7 +1260,7 @@ BEGIN
 			SELECT	@ErrCode = 99
 					,@ErrMsg = 'No ticket found.'
 		
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			------ releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -1263,15 +1268,17 @@ BEGIN
 				,@isExistFM			= @isExistFM
 				,@isExistFM2		= @isExistFM2
 				,@IsReleased		= 1
-
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-			   ,@Session	= @Session
-			   ,@IsReleased = 1
-						
+			
+			IF @totalSubParlay > 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END						
 		END
-		ELSE
+		ELSE IF @totalSubParlay > @ThreadHold
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2207,7 +2214,7 @@ BEGIN
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			------ releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2215,15 +2222,17 @@ BEGIN
 				,@isExistFM			= @isExistFM
 				,@isExistFM2		= @isExistFM2
 				,@IsReleased		= 1
-
-			------ releasing refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-			   ,@Session	= @Session
-			   ,@IsReleased = 1
-						
+			
+			IF @totalSubParlay > 0
+			BEGIN
+				------ releasing refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END						
 		END
-		ELSE
+		ELSE IF @totalSubParlay > @ThreadHold
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess

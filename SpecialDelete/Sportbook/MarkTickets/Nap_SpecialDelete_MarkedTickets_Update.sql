@@ -66,7 +66,7 @@ BEGIN
 			,@LogData VARCHAR(MAX) = '';
 	
 	DECLARE @Session			NVARCHAR(50)
-		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
@@ -364,7 +364,7 @@ BEGIN
 					WHERE Bettype = t.Bettype
 			)f
 
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			-- checking single proccess
 			EXEC dbo.NAP_Admin_CheckingProcess 
@@ -380,17 +380,20 @@ BEGIN
 			BEGIN	
 				RETURN		
 			END	
-			-- checking Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				 @IsLockingByRefno	= 1
-				,@spName			= @spName
-				,@Session			= @Session
-				,@avaiableProcess 	= @avaiableProcess OUTPUT
-				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT
+			IF @totalSubParlay > 0 
+			BEGIN
+				-- checking Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @IsLockingByRefno	= 1
+					,@spName			= @spName
+					,@Session			= @Session
+					,@avaiableProcess 	= @avaiableProcess OUTPUT
+					,@ErrCode			= @ErrCode OUTPUT
+					,@ErrMsg			= @ErrMsg OUTPUT
+			END
 
 		END
-		ELSE
+		ELSE IF @totalSubParlay > @ThreadHold
 		BEGIN
 			-- checking SD proccess
 			EXEC dbo.NAP_Admin_CheckingProcess 
@@ -447,7 +450,7 @@ BEGIN
 
 	IF @IsLockMatch = 1
 	BEGIN
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			-- releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -456,13 +459,16 @@ BEGIN
 				@IsExistFM2 = @IsExistFM2,
 				@IsReleased = 1;
 
-			-- releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-			   ,@Session	= @Session
-			   ,@IsReleased = 1
+			IF @totalSubParlay > 0 
+			BEGIN
+				-- releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
 		END
-		ELSE
+		ELSE IF @totalSubParlay > @ThreadHold
 		BEGIN
 			-- Release Match
 			EXEC dbo.NAP_Admin_CheckingProcess
