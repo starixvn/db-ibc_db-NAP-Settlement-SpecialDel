@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@IsAuto			BIT				= 0
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
+	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -36,6 +37,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -97,7 +99,7 @@ BEGIN
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-
+	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	----------------------------------------------------------------------------------------------------------------------
 
 	-- Check SP is in deployment
@@ -225,6 +227,7 @@ BEGIN
 						,@creator				= @creator
 						,@Sporttype				= @Sporttype
 						,@SelectedRID   		= @SelectedResources
+						,@IsDirectly			= @IsDirectly
 		END
 
 		-----------------------------------------add more info-----------------------------------------
@@ -316,7 +319,7 @@ BEGIN
   		IF @Action LIKE 'CAL%'
   		BEGIN
 
-			--Bettype 2,3: using match score or total point, badminton only
+			--Bettype 2,3: using match score or total point
 			UPDATE t
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
@@ -674,9 +677,13 @@ BEGIN
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
 	
+	INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, BetType, BetID, OrdNo, RoundName )
+	SELECT ResourceID, HomeValue, AwayValue, BetType, BetID, OrdNo, RoundName
+	FROM @tmpSelectedRID
+
 	IF @ParentMatchId IS NOT NULL 
 	BEGIN
-		DELETE FROM @tmpSelectedRID
+		DELETE FROM @tmpGetLog
 		WHERE ResourceID NOT IN (
 			SELECT sp.ResourceID 
 			FROM dbo.bettrans bt WITH(NOLOCK)
@@ -687,6 +694,15 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
+	IF @sportType = 45 ---for Log Only
+	BEGIN
+		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
+		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
+		FROM @tmpResourcesWeb r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.ResourceID IN ('0101','0102','0103')
+	END
+
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 				 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
@@ -694,7 +710,7 @@ BEGIN
 				 ELSE '' END
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
-		  	FROM @tmpSelectedRID sr
+		  	FROM @tmpGetLog sr
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	ORDER BY OrdNo
@@ -731,19 +747,20 @@ BEGIN
 				@UserID = @creator
 				,@Doing = @logdata
 	
-	IF @sportType = 50
+	
+	IF @ParentMatchId IS NOT NULL ---Cricket
+	BEGIN
+		SELECT  @MatchId =  @ParentMatchId
+				,@fth	= finalhomescore
+				,@fta	= finalawayscore
+  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  		WHERE   matchid = @ParentMatchId
+	END
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
 	BEGIN
 		SELECT @hth	= NULL
 				,@hta = NULL
-
-		IF @ParentMatchId IS NOT NULL
-		BEGIN
-			SELECT  @MatchId =  @ParentMatchId
-					,@fth	= finalhomescore
-					,@fta	= finalawayscore
-  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  			WHERE   matchid = @ParentMatchId
-		END
 	END
 				
 	BEGIN TRY

@@ -42,6 +42,7 @@ AS
 		- 20200901@Kathy: Change Calculate Formula for HDP Bet Types of Football [Redmine:#140769]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -510,20 +511,20 @@ BEGIN
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
 
-		IF @SportType = 50
+		IF @ParentMatchId IS NOT NULL ---Cricket
 		BEGIN
-			SELECT @hthomescore	= NULL  
-				,@htawayscore	= NULL
+			SELECT  @matchid		= @ParentMatchId
+					,@finalhomescore = finalhomescore 
+					,@finalawayscore = finalawayscore
+					,@betstatus		= betstatus
+			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+			WHERE	matchid = @ParentMatchId
+		END
 
-			IF @ParentMatchId IS NOT NULL
-			BEGIN
-				SELECT  @matchid		= @ParentMatchId
-					   ,@finalhomescore = finalhomescore 
-					   ,@finalawayscore = finalawayscore
-					   ,@betstatus		= betstatus
-				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-				WHERE	matchid = @ParentMatchId
-			END
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+		BEGIN
+			SELECT @hthomescore		= NULL
+					,@htawayscore	= NULL
 		END
 
 		BEGIN TRY

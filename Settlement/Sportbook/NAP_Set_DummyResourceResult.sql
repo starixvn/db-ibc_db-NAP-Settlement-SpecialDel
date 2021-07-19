@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 */
 
 BEGIN
@@ -32,6 +33,8 @@ BEGIN
 			,@Q4Away INT
 
 			,@CorrectQuaterOddEven VARCHAR(50)
+			,@TotalHomeScore INT
+			,@TotalAwayScore INT
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
@@ -46,11 +49,14 @@ BEGIN
 	WHERE	val <> ''
 	OPTION (MAXRECURSION 0)
 
-	INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-	SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
-	FROM	DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
-	WHERE	MatchId = @MatchId
-	
+	IF @Sporttype  IN ( 1, 2)
+	BEGIN
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
+		WHERE	MatchId = @MatchId
+	END
+
 	IF @Sporttype = 2
 	BEGIN
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
@@ -405,6 +411,37 @@ BEGIN
 			FROM	@tmpResultDetail
 			WHERE	ResourceId = '00'
         END 
+	END
+
+	ELSE IF @Sporttype = 45
+	BEGIN
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE	MatchId = @MatchId
+			AND ResultStatusID = 5
+		
+		IF NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResultDetail)
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	'00', '', '', 0
+		
+		SELECT	 @FTHome = SUM(CASE WHEN ResourceId = '00' THEN CAST(HomeValue AS INT) ELSE 0 END)
+				,@FTAway = SUM(CASE WHEN ResourceId = '00' THEN CAST(AwayValue AS INT) ELSE 0 END)
+				,@TotalHomeScore = SUM(CASE WHEN ResourceId <> '00' THEN CAST(HomeValue AS INT) ELSE 0 END)
+				,@TotalAwayScore = SUM(CASE WHEN ResourceId <> '00' THEN CAST(AwayValue AS INT) ELSE 0 END)
+		FROM	@tmpResultDetail r
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '0100')
+		BEGIN
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	'0100'
+					,CAST(CASE @TotalHomeScore WHEN 0 THEN @FTHome ELSE @TotalHomeScore END AS VARCHAR(50))
+					,CAST(CASE @TotalAwayScore WHEN 0 THEN @FTAway ELSE @TotalAwayScore END AS VARCHAR(50))
+					,MIN(ssId)
+			FROM @tmpResultDetail r
+			GROUP BY ResourceId
+		END
 	END
 
 	SET @DummyResourceResults = CONVERT(VARCHAR(MAX),(

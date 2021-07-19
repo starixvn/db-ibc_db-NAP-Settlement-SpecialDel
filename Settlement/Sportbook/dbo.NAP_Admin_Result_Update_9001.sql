@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@SelectedRID      VARCHAR(MAX)       = NULL
  ,@creator          INT                = 0 
  ,@Sporttype		SMALLINT
-
+ ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 
 AS 
 /*
@@ -26,6 +26,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
     Param's Explanation: 
     
@@ -49,15 +50,18 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
 			,@othomescore INT
 			,@otawayscore INT
+			,@ResultTable	  TINYINT = 0
 		
     -------------END DECLARE    
     
+	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile(@sporttype) f
+
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
     INSERT INTO @tblSelectedRID(ResourceID, HomeValue, AwayValue)
@@ -86,8 +90,8 @@ BEGIN
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
-	   SET @ResultStatusID      = CASE WHEN @Sporttype IN (2,5,9,43,50) THEN 4 ELSE 0 END
-       SET @SettlementStatusID  = 0     -- Initial
+	   SET @ResultStatusID      = 4  --@Sporttype IN (2,5,9,43,45,50)
+       SET @SettlementStatusID  = 0  -- Initial
     END 
     ELSE IF @action = 'REFUND'
     BEGIN
@@ -106,10 +110,9 @@ BEGIN
         SET @SettlementStatusID = 4
         SET @ResultStatusID = 5
     END
-     
     
     --Insert and update ResultDetail
-    IF @Sporttype = 43
+    IF @ResultTable = 3
     BEGIN
 	    MERGE dbo.ResultDetailES TARGET
 	    USING (
@@ -124,12 +127,23 @@ BEGIN
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+				,r.ResultStatusID = 0
+		FROM dbo.ResultDetailES r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
     END
-	--Insert and update ResultDetailOS - Badminton, Cricket
-    ELSE IF @Sporttype IN (9, 50)
+	--Insert and update ResultDetailOS - Badminton, Cricket, Beach Volleyball
+    ELSE IF @ResultTable = 2
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (
@@ -143,9 +157,20 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+				,r.ResultStatusID = 0
+		FROM dbo.ResultDetailOS r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
     END 
     ELSE 
     BEGIN
@@ -162,9 +187,20 @@ BEGIN
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
 	
-	    WHEN NOT MATCHED BY TARGET THEN
+	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+		
+		IF @IsDirectly = 1
+		UPDATE r
+			SET  r.HomeValue = ''
+				,r.AwayValue = ''
+				,r.SettlementStatusID = 0
+				,r.ResultStatusID = 0
+		FROM dbo.ResultDetail r
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE r.MatchID = @MatchID
+			AND sd.AllowDirectly = 0
 
 		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
 		BEGIN

@@ -27,6 +27,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:		
 		
@@ -515,20 +516,20 @@ BEGIN
 		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 
 		
-		IF @SportType = 50
+		IF @ParentMatchId IS NOT NULL --- Cricket
 		BEGIN
-			SELECT @hthomescore = NULL
-				  ,@htawayscore = NULL
+			SELECT  @MatchId =  @ParentMatchId
+					,@fthomescore = finalhomescore 
+					,@ftawayscore = finalawayscore
+					,@betstatus	 = ISNULL(betstatus,'')
+			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+			WHERE	matchid = @ParentMatchId
+		END
 
-			IF @ParentMatchId IS NOT NULL
-			BEGIN
-				SELECT  @MatchId =  @ParentMatchId
-						,@fthomescore = finalhomescore 
-						,@ftawayscore = finalawayscore
-						,@betstatus	 = ISNULL(betstatus,'')
-				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-				WHERE	matchid = @ParentMatchId
-			END
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+		BEGIN
+			SELECT @hthomescore		= NULL
+					,@htawayscore	= NULL
 		END
 
 		BEGIN TRY

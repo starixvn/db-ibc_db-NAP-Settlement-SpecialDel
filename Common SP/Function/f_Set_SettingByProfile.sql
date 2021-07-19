@@ -14,23 +14,29 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
    
     Parameters Explanation:        
     
     Example:
         SELECT * FROM dbo.[f_Set_SettingByProfile](43)
 		SELECT * FROM dbo.[f_Set_SettingByProfile](09)-- Badminton
+
+		Result = 1: ResultDetail
+				 2: ResultDetailOS
+				 3: ResultDetailES
 */
 RETURN
 (
-	SELECT Sporttype
+	SELECT Sporttype, ResultTable
 	FROM
 	(
-		SELECT CONVERT(SMALLINT, 43) AS Sporttype
-		UNION ALL SELECT 9 --Badminton
-		UNION ALL SELECT 5 --Tennis
-		UNION ALL SELECT 2 --Basketball
-		UNION ALL SELECT 50 --Cricket
+		SELECT CONVERT(SMALLINT, 43) AS Sporttype, CONVERT(TINYINT, 3) AS ResultTable
+		UNION ALL SELECT 9,	 2	--Badminton
+		UNION ALL SELECT 5,	 1	--Tennis
+		UNION ALL SELECT 2,	 1	--Basketball
+		UNION ALL SELECT 50, 2	--Cricket
+		UNION ALL SELECT 45, 2	--Beach Volleyball
     ) AS tbl
     WHERE Sporttype = @Sporttype 
 )

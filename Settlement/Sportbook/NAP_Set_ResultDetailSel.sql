@@ -12,6 +12,7 @@ AS
 		- 20200914@Louisa: Return result for multisports [Redmine:#139979]
 		- 20201202@Louisa: Integrate with SBO for 8 sports:3,4,6,8,9,18,24,25 [Redmine:#146239]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's explanation:
 		
@@ -83,7 +84,7 @@ BEGIN
 	END
 	
 	
-	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType IN (9, 50)	 )
+	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType IN (9, 45, 50)	 )
     BEGIN
 		---- Reference score: Badminton
 		;WITH  cteLatestOS
@@ -118,16 +119,16 @@ BEGIN
                 , rs.ResultStatusID
                 , rs.SettlementStatusID
         FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (9,50)	)
+    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (9,45,50)	)
     		AND EXISTS (SELECT 1 
     					FROM #tblMatchID m
 						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
     					WHERE rs.ResourceID = f.ResourceID)
 	END
 	
-	DELETE FROM #tblMatchID WHERE SportType in (43,9, 50)
+	DELETE FROM #tblMatchID WHERE SportType in (9,43,45,50)
 	
-	---- Settled score: Exclude Badminton and ESports
+	---- Settled score: Exclude Badminton, Cricket, Beach Volleyball, ESports
 	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
     	SELECT    rs.MatchId
 				, 0

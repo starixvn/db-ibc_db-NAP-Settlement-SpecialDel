@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsAuto			BIT				= 0
+	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -27,6 +28,7 @@ AS
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -159,6 +161,10 @@ BEGIN
 															+  CASE 
 																	WHEN @IsLeader = 1 THEN ', @IsLeader = ' + CONVERT(NVARCHAR(50), @IsLeader) 
 																ELSE '' 
+															END
+															+ CASE 
+																	WHEN @IsDirectly = 1 THEN ', @IsDirectly = ' + CONVERT(NVARCHAR(1), @IsDirectly)
+																ELSE ''
 															END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'

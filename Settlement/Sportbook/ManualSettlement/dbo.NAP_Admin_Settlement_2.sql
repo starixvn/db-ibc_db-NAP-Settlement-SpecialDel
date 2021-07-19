@@ -26,6 +26,7 @@ AS
 		- 20190924@Sol: Incorporate BMAIO [Redmine:#120324]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -35,7 +36,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @temp_resultDetail as TABLE (rID varchar(20) PRIMARY KEY, H varchar(50), A varchar(50), ssID tinyint)
-	DECLARE @parentmatchId INT
+	DECLARE @parentmatchId INT, @ResultTable TINYINT = 0
+
+	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile (@SportType) f
 
 	IF @Sporttype = 50
 	BEGIN
@@ -75,7 +78,7 @@ BEGIN
 	
 	IF @mode ='all_profile'
 	BEGIN
-		IF @Sporttype = 43
+		IF @ResultTable = 3 --ResultDetailES
 			SELECT	ResourceId 
 					,HomeValue
 					,AwayValue
@@ -83,7 +86,7 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailES  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE IF @Sporttype IN ( 9, 50 )
+		ELSE IF @ResultTable = 2 --ResultDetailOS
 			SELECT	ResourceId 
 					,ISNULL(HomeValue, '' ) AS HomeValue
 					,ISNULL(AwayValue, '') AS AwayValue
@@ -91,7 +94,7 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE
+		ELSE --ResultDetail
 			SELECT	ResourceId
 					,HomeValue
 					,AwayValue
@@ -104,7 +107,7 @@ BEGIN
 	
 	IF @mode = 'resourceid_profile'
 	BEGIN
-		IF @Sporttype = 43
+		IF @ResultTable = 3 --ResultDetailES
 		BEGIN
 			SELECT	ResourceId
 					,HomeValue
@@ -114,7 +117,7 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE IF @Sporttype IN ( 9, 50 )
+		ELSE IF @ResultTable = 2 --ResultDetailOS
 		BEGIN
 			SELECT	ResourceId
 					,ISNULL(HomeValue,'') AS HomeValue
@@ -124,7 +127,7 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE
+		ELSE --ResultDetail
 		BEGIN
 			SELECT	ResourceId
 					,HomeValue

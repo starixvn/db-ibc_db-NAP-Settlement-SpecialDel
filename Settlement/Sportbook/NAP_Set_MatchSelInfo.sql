@@ -12,7 +12,7 @@ AS
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
-		
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -26,7 +26,10 @@ BEGIN
         ,m.leagueId
         ,mr.BestOfMap
 		,m.betstatus
-		,mr.IsHTCal AS isHalftimeCal 
+		,mr.IsHTCal AS isHalftimeCal
+		,m.sporttype
+		,m.eventstatus
+		,mr.ConfirmFT
      FROM dbo.[match] m WITH (NOLOCK)
      	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
      WHERE m.matchid = @matchid

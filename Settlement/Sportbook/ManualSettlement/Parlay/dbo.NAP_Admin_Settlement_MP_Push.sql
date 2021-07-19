@@ -43,6 +43,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 
 	Param's Explanation:		
 		
@@ -123,7 +124,7 @@ BEGIN
 	SELECT @ParentIds =  COALESCE(@ParentIds + ',' + CAST(m.ParentId AS varchar),  CAST(ParentId AS varchar)) from #Match m 	
 	SELECT @ParentIds = STUFF(@ParentIds, 1, 1, '')
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43, 50))
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype NOT IN (9, 43, 45, 50))
 	BEGIN
 		-- get date from remote ResultDetail table 
 		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
@@ -157,7 +158,7 @@ BEGIN
 		-- end
 	END
 
-	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9, 50))
+	IF EXISTS (SELECT TOP(1) 1 FROM #Match m WHERE m.sporttype IN (9, 45, 50))
 	BEGIN
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId

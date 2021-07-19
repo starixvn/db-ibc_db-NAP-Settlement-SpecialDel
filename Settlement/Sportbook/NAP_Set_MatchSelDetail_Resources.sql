@@ -20,9 +20,10 @@ AS
 		- 20200721@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20200910@Louisa: Separate Ticket status: Calculated, Parlay Running and Refunded for MNL [Redmine:#141340]
 		- 20201113@Louisa: Add Hold Result - [Redmine:#135097]
-		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
-		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
+		- 20210121@Kathy:  Cricket AIO [Redmine:#148870]
+		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		
 */
 BEGIN
@@ -253,7 +254,7 @@ BEGIN
 	SELECT mr.ResourceID, 0, 0, mr.OrdNo
 	FROM dbo.f_Set_MajorRound(@Sporttype) mr
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
-	WHERE bt.ResourceID IS NULL 	
+	WHERE bt.ResourceID IS NULL
 	
 
     ---return
@@ -295,7 +296,7 @@ BEGIN
 	END
 	
 	---Badminton AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType IN (9, 50)
+	ELSE IF @SportType IN (9, 45, 50)
 	BEGIN
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue
@@ -372,7 +373,7 @@ BEGIN
 			,SUM(InRunning) AS betRunningCount
 			,SUM(betSettledCount) + SUM(BetRefundedCount) AS betSettledCount
 			,SUM(betMarkedCount) AS betMarkedCount
-	FROM	@tmpTicketStatus	
+	FROM	@tmpTicketStatus
 
 END
 GO
