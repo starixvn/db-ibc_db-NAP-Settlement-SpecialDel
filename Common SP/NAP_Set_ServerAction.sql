@@ -6,6 +6,9 @@ ALTER PROCEDURE [dbo].[NAP_Set_ServerAction]
 	,@AllowUndo			BIT		= 0	OUTPUT
 	,@AllowRefund		BIT		= 0	OUTPUT
 	,@AllowExec			BIT		= 0 OUTPUT
+	,@AllowCalculateParlay BIT	= 0 OUTPUT
+	,@AllowUndoParlay	BIT		= 0 OUTPUT
+	,@AllowRefundParlay BIT		= 0 OUTPUT
 )
 /*    
 	Creator: 20181129@Kathy
@@ -18,6 +21,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_ServerAction]
 		- 20191119@Helen: Do not settle ticket on DB054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20210720@Louisa: Allow UNDO Parlay on DB054
 		
     Param's Explanation:
         this SP is adding in publication DBTrans_ExecRep
@@ -26,45 +30,52 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpServerName TABLE (ServerName SYSNAME, AllowCalculation BIT, AllowUndo BIT, AllowRefund BIT)
+	DECLARE @tmpServerName TABLE 
+	(ServerName SYSNAME, AllowCalculation BIT, AllowUndo BIT, AllowRefund BIT, AllowCalculateParlay BIT, AllowUndoParlay BIT, AllowRefundParlay BIT	)
 
-	INSERT INTO @tmpServerName (ServerName, AllowCalculation, AllowUndo, AllowRefund)
-	SELECT 'DB04' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	INSERT INTO @tmpServerName (ServerName, AllowCalculation, AllowUndo, AllowRefund, AllowCalculateParlay, AllowUndoParlay, AllowRefundParlay)
+	SELECT 'DB04' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund,  0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'DB042' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	SELECT 'DB042' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 0	AS AllowUndoParlay,	0 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'DB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'DB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'DB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'DB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'DB04ADMIN1' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'DB04ADMIN1' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'DB04ADMIN2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund 
+	SELECT 'DB04ADMIN2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay 
 	UNION ALL
-	SELECT 'DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	SELECT 'DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 1 AS AllowUndoParlay,	0 AS AllowRefundParlay	
 	UNION ALL
-	SELECT 'DB054C2\DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	SELECT 'DB054C2\DB054' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 1 AS AllowUndoParlay,	0 AS AllowRefundParlay	
     UNION ALL
-	SELECT 'DB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	SELECT 'DB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 1 AS AllowUndoParlay,	0 AS AllowRefundParlay	
 	
 	-- local 
 	UNION ALL
-	SELECT 'DB233\SQLSERVER2008R2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund -- DB042
+	SELECT 'DB233\SQLSERVER2008R2' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 0	AS AllowUndoParlay,	0 AS AllowRefundParlay -- DB042
 	
 	-- SIT
 	UNION ALL
-	SELECT 'SITDB04' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'SITDB04' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'SITDB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'SITDB043' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'SITDB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund
+	SELECT 'SITDB044' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	1 AS AllowRefundParlay
 	UNION ALL
-	SELECT 'SITDB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund
+	SELECT 'SITDB055' AS ServerName, 0 AS AllowCalculation, 1 AS AllowUndo, 0 AS AllowRefund, 0 AS AllowCalculateParlay, 1	AS AllowUndoParlay,	0 AS AllowRefundParlay
+	UNION ALL
+	SELECT 'SITDB042' AS Servername, 1 AS AllowCalculation, 1 AS AllowUndo, 1 AS AllowRefund, 0 AS AllowCalculateParlay, 0	AS AllowUndoParlay,	0 AS AllowRefundParlay
 		
 	SELECT	@AllowCalculation = AllowCalculation
 			,@AllowUndo = AllowUndo
 			,@AllowRefund = AllowRefund
 			,@AllowExec = 0
+			,@AllowCalculateParlay  = AllowCalculateParlay
+			,@AllowUndoParlay		= AllowUndoParlay	
+			,@AllowRefundParlay		= AllowRefundParlay
+
 	FROM	@tmpServerName
 	WHERE	ServerName = @ServerName
 
@@ -73,6 +84,11 @@ BEGIN
 				,@AllowUndo = 1
 				,@AllowRefund = 1
 				,@AllowExec = 1
+				,@AllowCalculateParlay  = 1
+				,@AllowUndoParlay		= 1
+				,@AllowRefundParlay		= 1
+
+
 END
 GO
 

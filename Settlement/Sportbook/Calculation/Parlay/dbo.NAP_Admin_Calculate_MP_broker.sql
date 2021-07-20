@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     @matchid INT = NULL
     ,@mode VARCHAR(30) = NULL
     ,@priorAction VARCHAR(20) = NULL
@@ -58,7 +58,7 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
-		
+		- 20210720@Louisa: Allow UNDO Parlay on DB054 [Redmine:#157381]
 
     Param's Explanation:
         @action         @mode
@@ -67,9 +67,13 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-	DECLARE @IsEnableServiceBroker BIT 
+	DECLARE @IsEnableServiceBroker BIT
+			,@IsUndo			   BIT = 0
 	
-    IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
+	IF ( @action = 'UNDO' OR @mode = 'UNDO' )
+		SELECT @IsUndo = 1
+
+	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055') AND @IsUndo = 0
         RETURN
 
     IF ((@mode IS NULL) OR (@matchid IS NULL AND @mode NOT IN ('9', '29'))) RETURN -- not sure what's going on :P

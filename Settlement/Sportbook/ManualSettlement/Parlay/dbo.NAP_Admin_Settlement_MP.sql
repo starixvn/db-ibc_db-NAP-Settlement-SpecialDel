@@ -43,6 +43,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210720@Louisa: Allow UNDO Parlay on DB054 [Redmine:#157381]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -366,6 +367,7 @@ BEGIN
 			-- handle betParlayDetail, betParlayResult
 			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchid
 				,@mode = 'PRECAL-29'
+				,@action = @action
 				,@matchdate = @matchdate
 				,@strXML = @strTransIds
 
@@ -402,6 +404,7 @@ BEGIN
 
 				EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@mode = '29'
+					,@action = @action
 					,@matchdate = @matchdate
 					,@strXML = @strRefnos
 
