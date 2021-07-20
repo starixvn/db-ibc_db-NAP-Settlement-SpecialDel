@@ -4,15 +4,10 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	, @Type					SMALLINT		= 0   
 	, @LiveHomeScore		SMALLINT		= NULL
 	, @LiveAwayScore		SMALLINT		= NULL    
-	  
 	, @FromTransdate		DATETIME		= NULL
 	, @ToTransdate			DATETIME		= NULL 
-	  
-	    
 	, @BetTypes				XML				= NULL
-	  
 	, @TransIds				VARCHAR(MAX)	= '' 
-	  
 	, @UserId				INT
 	, @UserName				NVARCHAR(50)
 	, @UserPassword			NVARCHAR(50)
@@ -21,7 +16,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	, @ReasonSC				NVARCHAR(500)	=''
 	, @Language				NVARCHAR(2)		= 'E'
 	, @NegativeBalanceUsers	VARCHAR(MAX)	= '' OUTPUT
-
 	, @ErrMsg				NVARCHAR(200)	= '' OUTPUT
 	, @ErrCode				INT				= 0  OUTPUT       
 AS  
@@ -50,7 +44,8 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
-		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -78,7 +73,13 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
 
-	SET @NegativeBalanceUsers = ''
+	DECLARE @Session			NVARCHAR(50)
+		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@totalSubParlay		INT = 0 
+		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
+		   	
+	SELECT @NegativeBalanceUsers = ''
+	      ,@Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #tblBetType
 	(
@@ -120,6 +121,7 @@ BEGIN
 	)  
        
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)								 
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	SELECT @ErrCode = 0  
    
@@ -226,35 +228,6 @@ BEGIN
 		
 		RETURN  
 	END CATCH    
-  
- ---- Check for concurrent running  
-	EXEC dbo.NAP_Admin_CheckingProcess  
-		@isExistParlay   = 1  
-		, @avaiableProcess  = @avaiableProcess OUTPUT  
-		, @ErrCode   = @ErrCode OUTPUT  
-		, @ErrMsg   = @ErrMsg OUTPUT  
-  
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN	
-		RETURN  
-	END
-    
-	-- Apply for move match Cricket
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransId t
-					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE b.matchid <> @MatchId
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'Some tickets not found.'
-
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay  = 1  
-			, @IsReleased  = 1	
-
-		RETURN
-	END
 
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
@@ -416,14 +389,71 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)   
 	BEGIN  
 		SELECT @ErrCode = 99  
-		, @ErrMsg = 'No ticket found.'  
-
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay  = 1  
-			, @IsReleased  = 1								
+		, @ErrMsg = 'No ticket found.'  			
 	END  
 	ELSE  
 	BEGIN  
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			 @LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
+
+		INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+		SELECT @MatchID, RefNo
+		FROM #BetDelete	
+		
+		SET @totalSubParlay = @@ROWCOUNT
+		
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno		= 1
+				,@SPName				= @SPName
+				,@Session				= @Session
+				,@avaiableProcess 		= @avaiableProcess OUTPUT
+				,@ErrCode				= @ErrCode OUTPUT
+				,@ErrMsg				= @ErrMsg OUTPUT
+
+		END
+		ELSE
+		BEGIN
+			 ---- Check for concurrent running  
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay   = 1  
+				,@avaiableProcess  = @avaiableProcess OUTPUT  
+				,@ErrCode   = @ErrCode OUTPUT  
+				,@ErrMsg   = @ErrMsg OUTPUT  
+		END
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN	
+			RETURN  
+		END
+
+		-- Apply for move match Cricket
+		IF EXISTS ( SELECT TOP 1 1 
+					FROM #tblTransId t
+						INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
+					WHERE b.matchid <> @MatchId
+				)
+		BEGIN
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Some tickets not found.'
+
+			IF @totalSubParlay <= @ThreadHold
+			BEGIN
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+			END
+			BEGIN
+				EXEC dbo.NAP_Admin_CheckingProcess  
+					@isExistParlay  = 1  
+					, @IsReleased  = 1	
+			END
+
+			RETURN
+		END
+
 		UPDATE	r  
 			SET mainbettype = b.bettype  
 				,maintransid = b.transid
@@ -433,6 +463,26 @@ BEGIN
 				ON	r.refno = b.refno  
 					AND b.matchid = 29
 					AND b.bettype = 29
+
+		UPDATE r
+			SET betfrom = b.betfrom
+			   ,bettype = b.bettype
+			   ,hdp1 = b.hdp1
+			   ,hdp2 = CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END --646: Match Handicap & Total
+			   ,odds = b.odds  
+			   ,betteam = b.betteam    
+			   ,livehomescore = b.livehomescore
+			   ,liveawayscore = b.liveawayscore
+			   ,liveindicator= b.liveindicator
+			   ,betteam = b.betteam
+			   ,statusID = b.statusID
+			   ,status = b.status
+			   ,betcheck = b.betcheck  
+			   ,transdesc = b.transdesc
+			   ,creator = b.creator
+		FROM  #BetDelete r  
+			INNER JOIN dbo.bettransm AS b WITH(NOLOCK)        
+			     ON	b.transid = r.transid
 					
 		------------------***** BegIN Special Delete *****------------------  
 
@@ -632,10 +682,21 @@ BEGIN
 		---********* End of calculate balance at bettrans table********---  
 		END  
 
-		------ releasing SD process  
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay  = 1  
-			, @IsReleased  = 1 
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+				,@Session	= @Session
+				,@IsReleased = 1			
+		END
+		ELSE
+		BEGIN
+			------ releasing SD process  
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay  = 1  
+				, @IsReleased  = 1
+		END
 
 		SELECT	@LogData ='Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete'   
 		  + ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
@@ -754,6 +815,7 @@ BEGIN
 	DROP TABLE #tblTransId  
 	DROP TABLE #BetDelete    
 	DROP TABLE #tblBettype
-	   
+	DROP TABLE #tblMatchParlayProcess
+
 	SET NOCOUNT OFF  
 END

@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Main]
 	@TransIds				VARCHAR(MAX)	= '',
 	@UserId					INT, 
 	@IP						VARCHAR(50),
-
 	@SettledMainTranIds		VARCHAR(MAX)	= ''	OUTPUT,
 	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
 	@ErrCode				INT				= 0		OUTPUT,
@@ -25,8 +24,9 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
-		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
-		
+		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
 		EXEC NAP_BettransRecoverParlayBet_Main @BetType = 'All', @TransIds = '10094287060761,10094287060762,10094287060763,10094287060764', @UserID = 8, @ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
@@ -50,7 +50,14 @@ BEGIN
 			,@IsITAdmin			BIT = 0
 			,@AvaiableProcess	BIT
 			,@Movebetdate		DATETIME
+	
+	DECLARE @Session			NVARCHAR(50)
+		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@totalSubParlay		INT = 0 
+		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
+	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @beforeDaysNum INT = 2
@@ -74,19 +81,6 @@ BEGIN
 											
 	DECLARE @tblBeforeBalance	TABLE (custid INT, balance MONEY)
 	DECLARE @tblAfterBalance	TABLE (custid INT, balance MONEY)		
-	
-	--- Check for concurrent running
-	EXEC [dbo].[NAP_Admin_CheckingProcess]
-			@IsExistParlay = 1			
-		  , @IsReleased	= 0
-		  , @AvaiableProcess = @AvaiableProcess OUTPUT
-		  , @ErrCode = @ErrCode OUTPUT
-		  , @ErrMsg	= @ErrMsg OUTPUT
-	
-	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN		
-		RETURN		
-	END
 	
 	BEGIN TRY
 		--Transid which user input
@@ -124,17 +118,54 @@ BEGIN
 					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
 					ELSE 0
 				END	= 1	
-	
-		IF @@ROWCOUNT = 0
-		BEGIN
-				------ release Parlay procesee	
-			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlay = 1			
-				  , @IsReleased	= 1			  			
-			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
+		
+		SET @totalSubParlay = @@ROWCOUNT
+		IF @totalSubParlay = 0
+		BEGIN		  			
+			SELECT @ErrCode = 99
+				 , @ErrMsg = 'No ticket found.'						
 		
 			RETURN
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.NAP_Set_GlobalSettingSel 
+				 @LockName = 'ParlayRefno'
+				,@ThreadHold = @ThreadHold OUTPUT
+
+			IF @totalSubParlay <= @ThreadHold
+			BEGIN
+				INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+				SELECT matchid, refno
+				FROM #tblRecoverBet	
+
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno		= 1
+					,@SPName				= @SPName
+					,@Session				= @Session
+					,@avaiableProcess 		= @avaiableProcess OUTPUT
+					,@ErrCode				= @ErrCode OUTPUT
+					,@ErrMsg				= @ErrMsg OUTPUT
+			END
+			ELSE --@totalSubParlay > 10K
+			BEGIN
+				EXEC [dbo].[NAP_Admin_CheckingProcess]
+						@IsExistParlay = 1			
+					  , @IsReleased	= 0
+					  , @AvaiableProcess = @AvaiableProcess OUTPUT
+					  , @ErrCode = @ErrCode OUTPUT
+					  , @ErrMsg	= @ErrMsg OUTPUT
+			END
+			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+			BEGIN		
+				RETURN		
+			END
+
+			DELETE s
+			FROM #tblRecoverBet s 	
+					INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid
+			WHERE b.matchid = 29 AND b.bettype = 29
+				AND b.statusid <> 102
 		END
 
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -296,11 +327,21 @@ BEGIN
 		DELETE	z
 		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblRecoverBet t  ON	z.custid = t.custid AND z.matchid = t.matchid AND z.transid = t.transid
-
-		------ release Parlay procesee	
-		EXEC [dbo].[NAP_Admin_CheckingProcess]
-				@IsExistParlay = 1			
-			  , @IsReleased	= 1	
+		
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			------ release Parlay procesee	
+			EXEC [dbo].[NAP_Admin_CheckingProcess]
+					@IsExistParlay = 1			
+				  , @IsReleased	= 1	
+		END
 
 		SELECT @LogData = 'Recover Parlay bets having transid: IP=' + @Ip + ' ' + @TransIds				
 		EXEC WriteLog_UserLog 
@@ -378,14 +419,28 @@ BEGIN
 		ORDER BY T1.GroupName, t.transid				
 	END TRY
 	BEGIN CATCH
-		------ release Parlay procesee	
-		EXEC [dbo].[NAP_Admin_CheckingProcess]
-			@IsExistParlay = 1			
-		  , @IsReleased	= 1		  
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			------ release Parlay procesee	
+			EXEC [dbo].[NAP_Admin_CheckingProcess]
+					@IsExistParlay = 1			
+				  , @IsReleased	= 1	
+		END	  
 	
 		SELECT @ErrCode = 100,
 				@ErrMsg = 'Unable to recover these parlay bets'						
 						
 		RETURN
-	END CATCH		
+	END CATCH	
+
+	DROP TABLE #tblRecoverBet
+	DROP TABLE #tblMatchParlayProcess
+
 END
