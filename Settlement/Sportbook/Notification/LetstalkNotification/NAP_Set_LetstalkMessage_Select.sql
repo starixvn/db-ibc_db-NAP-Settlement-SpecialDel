@@ -37,6 +37,7 @@ BEGIN
 		INNER JOIN dbo.League l WITH(NOLOCK) ON l.leagueid = m.leagueid
 	WHERE lm.StatusId = 0
 		AND lm.CreatedDate >= @CheckTime
+	ORDER BY lm.MessageId
 END
 GO
 
