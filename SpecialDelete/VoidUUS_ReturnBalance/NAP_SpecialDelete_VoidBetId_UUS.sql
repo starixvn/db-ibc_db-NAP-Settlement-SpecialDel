@@ -21,8 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 	
-	DECLARE	@isExistMG					BIT = 0
-			,@IsExistParlayVSBetradar 	BIT = 0
+	DECLARE	@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
 			,@isExistNG					BIT = 0
 			,@isExistCashOut			BIT = 0
@@ -157,124 +156,6 @@ BEGIN
 		RETURN
 	END CATCH		
 		
-	/* Products & bettype
-	-- SB/NG/LC/BT
-	-- MG - settled ticket
-	-- Parlay vs Outright ticket 
-	*/
-	INSERT INTO #BetDelete(
-		GroupTransId	
-		,transid			
-		,matchid		
-		,Bettype		
-		,betid			
-		,stake			
-		,odds	
-		,oddsspread		
-		,refno			
-		,betfrom		
-		,statusid				
-		,betdaqid		
-		,winlostdate
-		,status		
-		,oddstype		
-		,transdate		
-		,betteam		
-		,betcheck		
-		,hdp1			
-		,hdp2			
-		,livehomescore	
-		,liveawayscore	
-		,liveindicator	
-		,winlost		
-		,playercomm		
-		,currency	
-		,transdesc		
-		,custid			
-		,creator	
-		,recommend
-		,mrecommend
-		,srecommend
-		,IsHideComm
-		,eventdate
-		,oddsid
-		,ExtraInfo
-		,MainCashoutId
-		,awinlost
-		,IsBetTrade
-		,SiteId
-		,CurrencyName
-		,IsMetricGaming
-		,modds
-		,WalletType
-		,RefCode
-		,BonusID
-		,actual_stake
-	)
-	SELECT	
-		b.refno AS groupTransId
-		,b.transid
-		,b.matchid
-		,b.bettype
-		,b.betid
-		,b.stake
-		,b.odds
-		,b.oddsspread
-		,b.refno
-		,b.betfrom
-		,b.statusID
-		,-1 AS betdaqid
-		,b.winlostdate
-		,b.status
-		,b.oddstype
-		,b.transdate
-		,b.betteam
-		,b.betcheck
-		,b.hdp1
-		,b.hdp2
-		,b.livehomescore
-		,b.liveawayscore
-		,b.liveindicator
-		,b.winlost - b.actual_stake
-		,b.playercomm
-		,b.currency
-		,b.transdesc
-		,b.custid
-		,b.creator
-		,b.recommend
-		,b.mrecommend
-		,b.srecommend
-		,0 AS IsHideComm
-		,b.winlostdate
-		,b.oddsid
-		,b.ExtraInfo
-		,CASE
-			WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-					THEN b.transid
-			ELSE NULL
-		 END AS MainCashoutId
-		,b.awinlost
-		,CAST(0 AS BIT) AS IsBetTrade
-		,tl.SiteId
-		,b.CurrencyName
-		,1 AS IsMetricGaming
-		,b.modds
-		,b.WalletType
-		,b.RefCode
-		,b.BonusID
-		,tl.actual_stake
-	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN dbo.translog tl WITH(NOLOCK)
-			ON b.custid 	= tl.custid
-			AND b.refno 	= tl.translogid
-			AND b.matchid 	= tl.eventid
-		INNER JOIN #tblTransIds t
-			ON tl.translogid = t.transid
-	WHERE tl.gameID BETWEEN 801 AND 806 
-		AND b.statusID NOT IN (0, 101, 102)
-		AND b.currency = 20
-		
-	UNION ALL
 	SELECT	
 		b.transid AS groupTransId
 		,b.transid
@@ -577,8 +458,7 @@ BEGIN
 		RETURN
 	END
 	
-	SELECT @isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+	SELECT @IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
@@ -1224,62 +1104,7 @@ BEGIN
 
 		SET @TransIds_tmp = ''
 
-	END
-	-- 2.2 - void MetricGaming
-	IF (@isExistMG = 1)
-	BEGIN
-		WHILE (1=1)
-		BEGIN
-			DELETE @tmpTransIDBatch
-
-			UPDATE TOP(2000) t
-				SET IsFinish = 1
-			OUTPUT  DELETED.transid
-				   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  DELETED.refno ELSE NULL END
-				   ,ISNULL(DELETED.BetID, rs.ResultID)
-				   ,DELETED.IsMetricGaming
-				   ,DELETED.actual_stake
-				   ,DELETED.IsCashOutMemberTicket
-			INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, IsCashOutMember)
-			FROM #BetDelete t
-				INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
-				INNER JOIN dbo.translog tl WITH(NOLOCK) ON t.refno = tl.translogid
-				OUTER APPLY (
-						SELECT rs.ResultID 
-						FROM DBPRO.bodb02.dbo.ResultDetail3rd rs WITH(NOLOCK) 
-						WHERE (
-								(ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, t.transdesc,0) <> 0)
-								OR
-								t.bettype = 806
-							)
-							AND rs.GameID = t.bettype	
-							AND rs.VendorID = 5		
-							AND rs.MatchID = t.matchid	
-					) AS rs
-			WHERE IsFinish IS NULL
-				AND t.Bettype BETWEEN 801 AND 806
-
-			IF @@ROWCOUNT = 0 BREAK
-			SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'
-												   ,m.TranslogId AS '@translogid'
-												   ,m.BetId AS '@betid'
-												   ,m.IsMG AS '@isMG'
-												   ,CASE WHEN m.IsMG = 1 THEN ISNULL(m.Actual_stake,0) ELSE 0 END AS '@actual_stake'
-												   ,m.IsCashOutMember AS '@IsCashOutMember'
-										FROM @tmpTransIDBatch m
-										FOR XML PATH('r')
-											,ROOT('root')
-									) AS VARCHAR(MAX));
-
-			EXEC dbo.TicketVoiding_Admin_VoidingTransId
-				@TransIds = @TransIds_tmp,
-				@UserId = 10278938, --StarixIT
-				@IssueTypeId = @IssueTypeId
-
-			SET @TransIds_tmp = ''
-
-		END
-	END		
+	END	
 
 	-- 2.3 update status for sub cash-out ticket (911,912,913)
 	IF (@isExistCashOut = 1)
