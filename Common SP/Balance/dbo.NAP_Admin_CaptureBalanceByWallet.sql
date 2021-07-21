@@ -27,6 +27,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
+		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -191,10 +192,6 @@ BEGIN
 								END
 							ELSE 0 
 						END
-			AND f.SettledByProfile = CASE
-										WHEN @Mode = 2 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') AND @sportType = 1 THEN 0
-										ELSE f.SettledByProfile
-									END
 				
 		SELECT	@minBettype = MIN(bettype)
 				,@maxBettype = MAX(bettype)

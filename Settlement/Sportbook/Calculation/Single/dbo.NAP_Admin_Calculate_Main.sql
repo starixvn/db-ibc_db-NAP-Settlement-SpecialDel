@@ -69,6 +69,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@isMarked						BIT			= NULL
 	,@modds							SMALLMONEY	= NULL
 	,@RunOnServer					VARCHAR(100) = NULL
+	,@IsExistSpecialBettype			TINYINT = NULL
 
 AS
 /*
@@ -140,6 +141,7 @@ AS
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210416@Kathy: - Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 						  - Remove unused param matchCode
+		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 
     Param's Explanation:
         @action             @mode
@@ -270,6 +272,7 @@ BEGIN
 			+ CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
 			+ CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+			+ CASE WHEN @IsExistSpecialBettype IS NULL THEN '' ELSE ',@IsExistSpecialBettype = ' + CONVERT(NVARCHAR(50), @IsExistSpecialBettype) END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -289,11 +292,20 @@ BEGIN
         BEGIN
 			IF @mode = 'profile-major'
 			BEGIN
-				EXEC dbo.NAP_Admin_Calculate_Profile
-					@transIds   		= @strTransIds
-					,@modds				= @modds
-					,@Oddstype			= @Oddstype
-					,@IsMarked			= @IsMarked
+				IF @IsExistSpecialBettype = 2
+					EXEC dbo.ExecRep_NAP_Admin_01
+						@transIds   		= @strTransIds
+						,@IsMarked			= @IsMarked
+						,@fth				= @fth
+						,@fta				= @fta 
+						,@hth				= @hth
+						,@hta				= @hta
+				ELSE
+					EXEC dbo.NAP_Admin_Calculate_Profile
+						@transIds   		= @strTransIds
+						,@modds				= @modds
+						,@Oddstype			= @Oddstype
+						,@IsMarked			= @IsMarked
 			END
 			ELSE
 			BEGIN

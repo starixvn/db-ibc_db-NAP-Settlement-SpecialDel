@@ -80,6 +80,7 @@ AS
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
+		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 
 
     Param's Explanation:
@@ -131,8 +132,7 @@ BEGIN
     
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
     
-    SELECT    @start                    = CURRENT_TIMESTAMP
-            ,@SkipBalanceUpdate     = 0
+    SELECT  @start                    = CURRENT_TIMESTAMP
             ,@TicketCount            = 0
             ,@ActionID                = CASE @Action
 											WHEN 'CAL' THEN 100
@@ -150,10 +150,6 @@ BEGIN
     FROM    dbo.match m WITH(NOLOCK)
     WHERE    m.matchid = @matchid
 
-    SELECT  @HomeValue    = CAST(@fth AS VARCHAR(20))
-            ,@AwayValue    = CAST(@fta AS VARCHAR(20)) 
-            ,@SelectedQuarter = CASE WHEN @sporttype <> 2 THEN NULL ELSE @SelectedQuarter END
-
     IF @@ROWCOUNT = 0
     BEGIN
         SELECT @ErrCode = 1001001
@@ -161,6 +157,14 @@ BEGIN
 
         RETURN
     END
+
+	 SELECT @HomeValue  = CAST(@fth AS VARCHAR(20))
+            ,@AwayValue = CAST(@fta AS VARCHAR(20)) 
+            ,@SelectedQuarter = CASE WHEN @sporttype <> 2 THEN NULL ELSE @SelectedQuarter END
+			,@SkipBalanceUpdate     = CASE 
+										WHEN @sporttype = 1 THEN CASE WHEN @action = 'UNDO' THEN 0 ELSE 1 END
+										ELSE 0
+									END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
@@ -492,7 +496,7 @@ BEGIN
             END
 
             IF @Sporttype = 1 AND LEFT(@Action, 3) = 'CAL'
-            BEGIN						
+            BEGIN				
                 EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
                     @Command        = 'NAP_Admin_Settlement_1-CAL',
                     @MatchID        = @MatchID,
@@ -515,6 +519,7 @@ BEGIN
 						,@action	= @action
 						,@ActionID	= @ActionID
 						,@IsReSettledTickets = @IsReSettledTickets
+						,@ResourceResult = @ResourceResult
 						,@ErrCode	= @ErrCode OUTPUT
 						,@ErrMsg	= @ErrMsg OUTPUT
 
