@@ -92,7 +92,7 @@ BEGIN
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0), IsDisplay BIT DEFAULT(0) )
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, IsConfirmed BIT DEFAULT(0) )
-	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
+	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, esourceID VARCHAR(50), Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
 	)
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
