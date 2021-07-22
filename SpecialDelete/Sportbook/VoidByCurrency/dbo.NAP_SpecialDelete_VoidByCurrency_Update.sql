@@ -1442,9 +1442,7 @@ BEGIN
 								FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 								WHERE Bettype = b.Bettype
 						)f
-			
-					 			 
-
+							 	
 				INSERT INTO #tblMatchProcess (matchid, KeyID)
 				SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1 
 				UNION ALL
@@ -1471,16 +1469,19 @@ BEGIN
 			-- check and not allow attempt to void tickets of this match while it's being calculated	
 			IF @CountParlay = 0 OR @CountParlay <= @ThreadHold
 			BEGIN
-				-- checking single proccess		
-				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMatch		= @isExistMatch	
-					, @isExistFM		= @isExistFM				
-					, @isExistBB		= @isExistBB
-					, @isExistFM2		= @isExistFM2
-					, @spName			= @spName
-					, @avaiableProcess  = @avaiableProcess OUTPUT  
-					, @ErrCode			= @ErrorCode OUTPUT  
-					, @ErrMsg			= @ErrorMsg OUTPUT 
+				IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+				BEGIN
+					-- checking single proccess		
+					EXEC dbo.NAP_Admin_CheckingProcess   
+						@isExistMatch		= @isExistMatch	
+						, @isExistFM		= @isExistFM				
+						, @isExistBB		= @isExistBB
+						, @isExistFM2		= @isExistFM2
+						, @spName			= @spName
+						, @avaiableProcess  = @avaiableProcess OUTPUT  
+						, @ErrCode			= @ErrorCode OUTPUT  
+						, @ErrMsg			= @ErrorMsg OUTPUT 
+				END
 				
 				IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
 				BEGIN
@@ -1549,13 +1550,16 @@ BEGIN
 				
 				IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
 				BEGIN
-					------ releasing single process
-					EXEC dbo.NAP_Admin_CheckingProcess
-						@isExistMatch	= @isExistMatch	
-						,@isExistFM		= @isExistFM		
-						,@isExistBB		= @isExistBB		
-						,@isExistFM2	= @isExistFM2
-						,@IsReleased	= 1
+					IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+					BEGIN
+						------ releasing single process
+						EXEC dbo.NAP_Admin_CheckingProcess
+							@isExistMatch	= @isExistMatch	
+							,@isExistFM		= @isExistFM		
+							,@isExistBB		= @isExistBB		
+							,@isExistFM2	= @isExistFM2
+							,@IsReleased	= 1
+					END
 					
 					IF @CountParlay > 0 
 					BEGIN
@@ -2288,13 +2292,16 @@ BEGIN
 			 
 		IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistMatch	= @isExistMatch	
-				,@isExistFM		= @isExistFM		
-				,@isExistBB		= @isExistBB		
-				,@isExistFM2	= @isExistFM2
-				,@IsReleased	= 1
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMatch	= @isExistMatch	
+					,@isExistFM		= @isExistFM		
+					,@isExistBB		= @isExistBB		
+					,@isExistFM2	= @isExistFM2
+					,@IsReleased	= 1
+			END
 			
 			IF @CountParlay > 0 
 			BEGIN		
@@ -2444,10 +2451,13 @@ BEGIN
 	BEGIN CATCH
 		IF @CountParlay = 0 OR @CountParlay <= @ThreadHold
 		BEGIN
-			-------> Release process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				  @IsReleased		= 1						
-				, @isExistMatch		= @isExistMatch
+			IF EXISTS(SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				-------> Release process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					  @IsReleased		= 1						
+					, @isExistMatch		= @isExistMatch
+			END
 			
 			IF @CountParlay > 0 
 			BEGIN

@@ -69,7 +69,7 @@ BEGIN
 
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
-		   ,@totalSubParlay		INT = 0
+		   ,@totalMainParlay	INT = 0
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #transIds -- single + sub parlay Id
@@ -378,8 +378,8 @@ BEGIN
 		FROM #Tickets AS t
 		WHERE t.IsParlay = 1
 
-		SET @totalSubParlay = @@ROWCOUNT
-		IF @totalSubParlay > 0 
+		SET @totalMainParlay = @@ROWCOUNT
+		IF @totalMainParlay > 0 
 			SET @isExistParlay = 1
 
 		INSERT INTO #tblMatchProcess (
@@ -400,23 +400,27 @@ BEGIN
 						WHERE Bettype = t.Bettype
 				)f
 
-		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 		BEGIN
-			-- checking single proccess
-			EXEC dbo.NAP_Admin_CheckingProcess 
-				 @isExistMatch = @IsExistSingle
-				,@IsExistFM = @IsExistFM
-				,@IsExistFM2 = @IsExistFM2
-				,@spName = @spName
-				,@avaiableProcess = @avaiableProcess OUTPUT
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg = @ErrMsg OUTPUT;
+			DELETE FROM #tblMatchProcess WHERE KeyID = 0
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				-- checking single proccess
+				EXEC dbo.NAP_Admin_CheckingProcess 
+					 @isExistMatch = @IsExistSingle
+					,@IsExistFM = @IsExistFM
+					,@IsExistFM2 = @IsExistFM2
+					,@spName = @spName
+					,@avaiableProcess = @avaiableProcess OUTPUT
+					,@ErrCode = @ErrCode OUTPUT
+					,@ErrMsg = @ErrMsg OUTPUT;
+			END
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
 				RETURN		
 			END
-			IF @totalSubParlay > 0 
+			IF @totalMainParlay > 0 
 			BEGIN
 				-- checking Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
@@ -428,7 +432,7 @@ BEGIN
 					,@ErrMsg			= @ErrMsg OUTPUT
 			END
 		END
-		ELSE IF @totalSubParlay > @ThreadHold
+		ELSE IF @totalMainParlay > @ThreadHold
 		BEGIN
 			-- checking SD proccess
 			EXEC dbo.NAP_Admin_CheckingProcess 
@@ -495,16 +499,19 @@ BEGIN
 	
 	IF @IsLockMatch = 1
 	BEGIN
-		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 		BEGIN
-			-- releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistMatch = @IsExistSingle,
-				@IsExistFM = @IsExistFM,
-				@IsExistFM2 = @IsExistFM2,
-				@IsReleased = 1;
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				-- releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMatch = @IsExistSingle,
+					@IsExistFM = @IsExistFM,
+					@IsExistFM2 = @IsExistFM2,
+					@IsReleased = 1;
+			END
 
-			IF @totalSubParlay > 0 
+			IF @totalMainParlay > 0 
 			BEGIN
 				-- releasing Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
@@ -513,7 +520,7 @@ BEGIN
 				   ,@IsReleased = 1
 			END
 		END
-		ELSE IF @totalSubParlay > @ThreadHold
+		ELSE IF @totalMainParlay > @ThreadHold
 		BEGIN
 			-- Release Match
 			EXEC dbo.NAP_Admin_CheckingProcess

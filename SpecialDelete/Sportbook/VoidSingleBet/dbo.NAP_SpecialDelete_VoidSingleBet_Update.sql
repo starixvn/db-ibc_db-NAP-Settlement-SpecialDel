@@ -532,15 +532,18 @@ BEGIN
 
 	IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 	BEGIN
-		-- checking single proccess
-		EXEC dbo.NAP_Admin_CheckingProcess 
-			 @isExistMatch		= @isExistSingle
-			,@isExistFM			= @isExistFM
-			,@isExistFM2		= @isExistFM2
-			,@spName			= @spName
-			,@avaiableProcess 	= @avaiableProcess OUTPUT
-			,@ErrCode			= @ErrCode OUTPUT
-			,@ErrMsg			= @ErrMsg OUTPUT
+		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+		BEGIN
+			-- checking single proccess
+			EXEC dbo.NAP_Admin_CheckingProcess 
+				 @isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@spName			= @spName
+				,@avaiableProcess 	= @avaiableProcess OUTPUT
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
+		END
 		
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN	
@@ -595,12 +598,15 @@ BEGIN
 		
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				 @isExistMatch		= @isExistSingle
-				,@isExistFM			= @isExistFM
-				,@isExistFM2		= @isExistFM2
-				,@IsReleased		= 1
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
 
 			IF @totalSubParlay > 0
 			BEGIN
@@ -1260,12 +1266,15 @@ BEGIN
 		
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				 @isExistMatch		= @isExistSingle
-				,@isExistFM			= @isExistFM
-				,@isExistFM2		= @isExistFM2
-				,@IsReleased		= 1
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
 			
 			IF @totalSubParlay > 0 
 			BEGIN
@@ -2214,12 +2223,15 @@ BEGIN
 
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				 @isExistMatch		= @isExistSingle
-				,@isExistFM			= @isExistFM
-				,@isExistFM2		= @isExistFM2
-				,@IsReleased		= 1
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
 			
 			IF @totalSubParlay > 0
 			BEGIN

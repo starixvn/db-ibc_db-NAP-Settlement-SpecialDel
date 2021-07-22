@@ -678,20 +678,24 @@ BEGIN
 
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold 
 	BEGIN
-		-- checking single proccess
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistOutright 			= @isExistOutright
-			, @isExistMG				= @isExistMG
-			, @isExistFM				= @isExistFM
-			, @isExistMatch				= @isExistMatch
-			, @isExistNG				= @isExistNG
-			, @isExistVS				= @isExistVS
-			, @isExistBB				= @isExistBB
-			, @isExistFM2				= @isExistFM2
-			, @spName					= @spName
-			, @avaiableProcess 			= @avaiableProcess OUTPUT
-			, @ErrCode					= @ErrCode OUTPUT
-			, @ErrMsg					= @ErrMsg OUTPUT
+		DELETE FROM #tblMatchProcess WHERE KeyID = 0
+		IF EXISTS ( SELECT TOP 1 1 FROM #tblMatchProcess)
+		BEGIN
+			-- checking single proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistOutright 			= @isExistOutright
+				, @isExistMG				= @isExistMG
+				, @isExistFM				= @isExistFM
+				, @isExistMatch				= @isExistMatch
+				, @isExistNG				= @isExistNG
+				, @isExistVS				= @isExistVS
+				, @isExistBB				= @isExistBB
+				, @isExistFM2				= @isExistFM2
+				, @spName					= @spName
+				, @avaiableProcess 			= @avaiableProcess OUTPUT
+				, @ErrCode					= @ErrCode OUTPUT
+				, @ErrMsg					= @ErrMsg OUTPUT
+		END
 
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
@@ -779,17 +783,20 @@ BEGIN
 	BEGIN
 		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
-					, @isExistFM				= @isExistFM
-					, @isExistMatch				= @isExistMatch
-					, @isExistNG				= @isExistNG
-					, @isExistVS				= @isExistVS
-					, @isExistBB				= @isExistBB
-					, @isExistFM2				= @isExistFM2
-					, @IsReleased				= 1	
+			IF EXISTS ( SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistOutright 			= @isExistOutright
+						, @isExistMG				= @isExistMG
+						, @isExistFM				= @isExistFM
+						, @isExistMatch				= @isExistMatch
+						, @isExistNG				= @isExistNG
+						, @isExistVS				= @isExistVS
+						, @isExistBB				= @isExistBB
+						, @isExistFM2				= @isExistFM2
+						, @IsReleased				= 1	
+			END
 
 			IF @totalMainParlay	> 0 
 			BEGIN
@@ -1966,26 +1973,29 @@ BEGIN
 
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN
-		------ releasing single process
-		EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
-					, @isExistFM				= @isExistFM
-					, @isExistMatch				= @isExistMatch
-					, @isExistNG				= @isExistNG
-					, @isExistVS				= @isExistVS
-					, @isExistBB				= @isExistBB
-					, @isExistFM2				= @isExistFM2
-					, @IsReleased				= 1
+		IF EXISTS ( SELECT TOP 1 1 FROM #tblMatchProcess)
+		BEGIN
+			------ releasing single process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				 @isExistOutright 			= @isExistOutright
+				 , @isExistMG				= @isExistMG
+				 , @isExistFM				= @isExistFM
+				 , @isExistMatch				= @isExistMatch
+				 , @isExistNG				= @isExistNG
+				 , @isExistVS				= @isExistVS
+				 , @isExistBB				= @isExistBB
+				 , @isExistFM2				= @isExistFM2
+				 , @IsReleased				= 1
+		END
 
-			IF @totalMainParlay	> 0 
-			BEGIN
-				------ releasing Refno parlay proccess
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-				   ,@Session	= @Session
-				   ,@IsReleased = 1				
-			END				
+		IF @totalMainParlay	> 0 
+		BEGIN
+			------ releasing Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno = 1
+				,@Session	= @Session
+				,@IsReleased = 1				
+		END				
 	END
 	ELSE --@totalMainParlay > 10K
 	BEGIN

@@ -476,7 +476,6 @@ BEGIN
 			   ,livehomescore = b.livehomescore
 			   ,liveawayscore = b.liveawayscore
 			   ,liveindicator= b.liveindicator
-			   ,betteam = b.betteam
 			   ,statusID = b.statusID
 			   ,status = b.status
 			   ,betcheck = b.betcheck  
