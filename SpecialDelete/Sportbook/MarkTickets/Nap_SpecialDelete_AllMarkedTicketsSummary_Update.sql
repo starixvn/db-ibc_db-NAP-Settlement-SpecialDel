@@ -52,7 +52,7 @@ BEGIN
 
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
-		   ,@totalMainParlay	INT = 0
+		   ,@totalParlay		INT = 0
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #Match (
@@ -133,9 +133,13 @@ BEGIN
 	FROM #Tickets AS t
 	WHERE t.IsParlay = 1
 
-	SET @totalMainParlay = @@ROWCOUNT
-	IF @totalMainParlay > 0 
+	SET @totalParlay = @@ROWCOUNT
+	IF @totalParlay > 0 
 		SET @isExistParlay = 1
+
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		@LockName = 'ParlayRefno'
+		,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchProcess (
 		MatchId
@@ -143,7 +147,8 @@ BEGIN
 		)
 	SELECT DISTINCT MatchId
 		,CASE 
-			WHEN f.GroupId IS NULL THEN 1 --SB
+			WHEN @totalParlay <= @ThreadHold AND f.GroupId IS NULL AND t.IsParlay <> 1 THEN 1 --SB
+			WHEN @totalParlay > @ThreadHold AND f.GroupId IS NULL THEN 1 --SB
 			WHEN f.GroupId = 1 THEN 6 -- Fast Market
 			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 			ELSE 0
@@ -155,11 +160,7 @@ BEGIN
 				WHERE Bettype = t.Bettype
 		)f
 
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-			@LockName = 'ParlayRefno'
-		   ,@ThreadHold = @ThreadHold OUTPUT	
-
-	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
+	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 	BEGIN
 		DELETE FROM #tblMatchProcess WHERE KeyID = 0
 		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
@@ -173,14 +174,14 @@ BEGIN
 				,@avaiableProcess = @avaiableProcess OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT;	
+
+			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+			BEGIN
+				RETURN;
+			END;
 		END
 
-		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-		BEGIN
-			RETURN;
-		END;
-
-		IF @totalMainParlay > 0
+		IF @totalParlay > 0
 		BEGIN
 			-- checking Refno parlay proccess
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -189,11 +190,23 @@ BEGIN
 				,@Session			= @Session
 				,@avaiableProcess 	= @avaiableProcess OUTPUT
 				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT			
+				,@ErrMsg			= @ErrMsg OUTPUT	
+			
+			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+			BEGIN
+				-- releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMatch = @IsExistSingle,
+					@IsExistFM = @IsExistFM,
+					@IsExistFM2 = @IsExistFM2,
+					@IsReleased = 1;
+
+				RETURN;
+			END;		
 		END	
 
 	END
-	ELSE IF @totalMainParlay > @ThreadHold
+	ELSE IF @totalParlay > @ThreadHold
 	BEGIN
 		-- checking SD proccess
 		EXEC dbo.NAP_Admin_CheckingProcess 
@@ -205,12 +218,12 @@ BEGIN
 			,@avaiableProcess = @avaiableProcess OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT;
-	END
 
-	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN
-		RETURN;
-	END;
+		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		BEGIN
+			RETURN;
+		END;
+	END
 	
 	-- Delete Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX), @MatchId INT
@@ -229,7 +242,7 @@ BEGIN
 		TRUNCATE TABLE #tblMatchParlayProcess
 
 		SET @MatchId = NULL
-		SET @totalMainParlay = 0
+		SET @totalParlay = 0
 
 		UPDATE TOP (1) m SET m.IsFinish = 1, @MatchId = m.MatchId
 		FROM #tblMatchProcess_tmp m 
@@ -281,9 +294,9 @@ BEGIN
 		FROM #tblMatchParlayProcess_tmp
 		WHERE matchid = @MatchId
 
-		SET @totalMainParlay = @@ROWCOUNT
+		SET @totalParlay = @@ROWCOUNT
 
-		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
+		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
 			BEGIN
@@ -295,7 +308,7 @@ BEGIN
 					@IsReleased = 1;
 			END
 
-			IF @totalMainParlay > 0 
+			IF @totalParlay > 0 
 			BEGIN
 				-- releasing Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
@@ -304,7 +317,7 @@ BEGIN
 				   ,@IsReleased = 1
 			END
 		END
-		ELSE IF @totalMainParlay > @ThreadHold
+		ELSE IF @totalParlay > @ThreadHold
 		BEGIN
 			--Release Match
 			EXEC dbo.NAP_Admin_CheckingProcess

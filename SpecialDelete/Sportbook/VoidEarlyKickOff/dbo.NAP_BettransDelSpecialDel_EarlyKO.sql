@@ -520,12 +520,13 @@ BEGIN
 				, @avaiableProcess  = @avaiableProcess OUTPUT  
 				, @ErrCode			= @ErrCode OUTPUT  
 				, @ErrMsg			= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN	
+				RETURN		
+			END
 		END
 		
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-		BEGIN	
-			RETURN		
-		END
 		IF @totalSubParlay > 0 
 		BEGIN	
 			-- checking refno parlay proccess
@@ -535,7 +536,21 @@ BEGIN
 				,@Session			= @Session
 				,@avaiableProcess 	= @avaiableProcess OUTPUT
 				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT 
+				,@ErrMsg			= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0)   
+			BEGIN		
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess   
+					@isExistMG  	= @isExistMG  
+					, @isExistFM	= @isExistFM  
+					, @isExistMatch	= @isExistMatch  
+					, @isExistBB	= @isExistBB
+					, @isExistFM2	= @isExistFM2
+					, @IsReleased  	= 1
+
+				RETURN;  
+			END 
 		END
 	END
 	ELSE IF @totalSubParlay > @ThreadHold
@@ -552,12 +567,13 @@ BEGIN
 			, @avaiableProcess  = @avaiableProcess OUTPUT  
 			, @ErrCode			= @ErrCode OUTPUT  
 			, @ErrMsg			= @ErrMsg OUTPUT  
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0)   
+		BEGIN		
+			RETURN  
+		END
 	END
 
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0)   
-	BEGIN		
-		RETURN  
-	END
 	END -- end SD checking process		
 
 	-- Apply for move match Cricket

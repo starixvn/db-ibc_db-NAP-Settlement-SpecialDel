@@ -695,14 +695,15 @@ BEGIN
 				, @avaiableProcess 			= @avaiableProcess OUTPUT
 				, @ErrCode					= @ErrCode OUTPUT
 				, @ErrMsg					= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN
+				SET @ErrCode = 9999
+				
+				RETURN
+			END
 		END
 
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-		BEGIN
-			SET @ErrCode = 9999
-				
-			RETURN
-		END
 		IF @totalMainParlay > 0 
 		BEGIN
 			-- checking Refno parlay proccess
@@ -713,6 +714,22 @@ BEGIN
 				,@avaiableProcess 	= @avaiableProcess OUTPUT
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg			= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistOutright 			= @isExistOutright
+						, @isExistMG				= @isExistMG
+						, @isExistFM				= @isExistFM
+						, @isExistMatch				= @isExistMatch
+						, @isExistNG				= @isExistNG
+						, @isExistVS				= @isExistVS
+						, @isExistBB				= @isExistBB
+						, @isExistFM2				= @isExistFM2
+						, @IsReleased				= 1	
+				RETURN
+			END
 		END
 				
 	END
@@ -734,13 +751,14 @@ BEGIN
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT
-	END	
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN
-		SET @ErrCode = 9999
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN
+			SET @ErrCode = 9999
 				
-		RETURN
-	END
+			RETURN
+		END
+	END	
 
 	IF EXISTS (SELECT TOP 1 1 
 				FROM #tmpTransId_VOID_RequestID t	

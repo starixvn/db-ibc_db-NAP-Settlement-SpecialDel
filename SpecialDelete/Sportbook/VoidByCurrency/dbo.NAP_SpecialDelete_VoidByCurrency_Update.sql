@@ -1480,18 +1480,19 @@ BEGIN
 						, @spName			= @spName
 						, @avaiableProcess  = @avaiableProcess OUTPUT  
 						, @ErrCode			= @ErrorCode OUTPUT  
-						, @ErrMsg			= @ErrorMsg OUTPUT 
+						, @ErrMsg			= @ErrorMsg OUTPUT
+					
+					IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
+					BEGIN
+						-------> releasing cash-out process
+						EXEC dbo.NAP_Admin_CheckingCashOutProcess
+								@Mode = 'Original'
+							  , @Action = 'Void'
+							  , @IsReleased = 1	
+						RETURN		
+					END	 
 				END
 				
-				IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
-				BEGIN
-					-------> releasing cash-out process
-					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-							@Mode = 'Original'
-						  , @Action = 'Void'
-						  , @IsReleased = 1	
-					RETURN		
-				END	
 				IF @CountParlay > 0
 				BEGIN
 					-- checking refno parlay proccess
@@ -1502,6 +1503,24 @@ BEGIN
 						, @avaiableProcess 	= @avaiableProcess OUTPUT
 						, @ErrCode			= @ErrorCode OUTPUT
 						, @ErrMsg			= @ErrorMsg OUTPUT 
+
+					IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
+					BEGIN
+						------ releasing single process
+						EXEC dbo.NAP_Admin_CheckingProcess
+							@isExistMatch	= @isExistMatch	
+							,@isExistFM		= @isExistFM		
+							,@isExistBB		= @isExistBB		
+							,@isExistFM2	= @isExistFM2
+							,@IsReleased	= 1	
+										
+						-------> releasing cash-out process
+						EXEC dbo.NAP_Admin_CheckingCashOutProcess
+								@Mode = 'Original'
+							  , @Action = 'Void'
+							  , @IsReleased = 1	
+						RETURN		
+					END
 				END
 			END
 			ELSE IF @CountParlay > @ThreadHold
@@ -1518,17 +1537,17 @@ BEGIN
 					, @avaiableProcess 	= @AvaiableProcess OUTPUT
 					, @ErrCode			= @ErrorCode OUTPUT
 					, @ErrMsg			= @ErrorMsg OUTPUT
-			END	
 
-			IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
-			BEGIN				
-				-------> releasing cash-out process
-				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-						@Mode = 'Original'
-					  , @Action = 'Void'
-					  , @IsReleased = 1
-				RETURN
-			END
+				IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
+				BEGIN				
+					-------> releasing cash-out process
+					EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+							@Mode = 'Original'
+						  , @Action = 'Void'
+						  , @IsReleased = 1
+					RETURN
+				END
+			END	
 
 			-- Apply for move match Cricket
 			IF EXISTS ( SELECT TOP 1 1 

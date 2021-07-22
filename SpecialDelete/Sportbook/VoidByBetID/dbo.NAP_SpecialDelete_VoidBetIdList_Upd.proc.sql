@@ -1011,18 +1011,31 @@ BEGIN
 				, @avaiableProcess 			= @avaiableProcess OUTPUT
 				, @ErrCode					= @ErrCode OUTPUT
 				, @ErrMsg					= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN	
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistOutright 			= @isExistOutright
+					, @isExistMG				= @isExistMG
+					, @isExistFM				= @isExistFM
+					, @isExistMatch				= @isExistMatch
+					, @isExistNG				= @isExistNG
+					, @isExistVS				= @isExistVS
+					, @isExistBB				= @isExistBB
+					, @isExistFM2				= @isExistFM2
+					, @IsReleased				= 1
+					
+				-------> releasing cash-out process
+				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+						@Mode = 'Original'
+					  , @Action = 'Void'
+					  , @IsReleased = 1
+		
+				RETURN
+			END
 		END
 		
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-		BEGIN		
-			-------> releasing cash-out process
-			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-					@Mode = 'Original'
-				  , @Action = 'Void'
-				  , @IsReleased = 1
-		
-			RETURN
-		END
 		IF @totalMainParlay > 0 
 		BEGIN
 			-- checking Refno parlay proccess
@@ -1033,6 +1046,17 @@ BEGIN
 				,@avaiableProcess 		= @avaiableProcess OUTPUT
 				,@ErrCode				= @ErrCode OUTPUT
 				,@ErrMsg				= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN		
+				-------> releasing cash-out process
+				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+						@Mode = 'Original'
+					  , @Action = 'Void'
+					  , @IsReleased = 1
+		
+				RETURN
+			END
 		END		
 	END
 	ELSE IF @totalMainParlay > @ThreadHold
@@ -1053,18 +1077,18 @@ BEGIN
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT
-	END 
 
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
-		-------> releasing cash-out process
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = 'Original'
-			  , @Action = 'Void'
-			  , @IsReleased = 1
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN		
+			-------> releasing cash-out process
+			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+					@Mode = 'Original'
+				  , @Action = 'Void'
+				  , @IsReleased = 1
 		
-		RETURN
-	END
+			RETURN
+		END
+	END 
 		
 	DELETE 
 	FROM	#tblTransIdSolds 
