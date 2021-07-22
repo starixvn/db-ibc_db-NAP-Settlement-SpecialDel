@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="vnSAS" isFunction="0"></info>*/
 ALTER PROC Task_LuckyDraw3rd_Freebets_Select 
 (
-	@sporttype INT = 150
+	@sporttype INT = 173
 	,@RoundID INT = NULL
 	,@StatusId TINYINT = 0
 )
@@ -14,6 +14,7 @@ AS
 	
 	Revisions:
 		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+		- 20210722@Max: Deposit - Offer Vgaming to INH currency [Redmine: #158105]
 */
 BEGIN
 	
