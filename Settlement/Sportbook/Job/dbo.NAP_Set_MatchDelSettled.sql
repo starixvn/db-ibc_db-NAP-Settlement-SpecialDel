@@ -16,7 +16,8 @@ AS
 		- 20181115@Kathy: backup data for 2 tables: Single_Calculate_Queue & Parlay_Calculate_Queue [Redmine:#104631]
 		- 20200903@Kathy: backup data of single_calculate_queue & parlay_calculate_queue to DBLOG [Redmine:#138281]
 		- 20210426@Kathy: Remove Old Command Logs of Settlement by Profile [Redmine:#153976]
-	    
+	    - 20210706@Louisa: Letstalk message [Redmine:#157540]
+
 	 Param's Explanation:  
     
     
@@ -154,5 +155,29 @@ BEGIN
 		IF @@ROWCOUNT < 1000
 			BREAK
 	END
+
+	-- Remove old data from TVS_UserActionLog
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP (1000)
+		FROM	dbo.TVS_UserActionLog WITH(ROWLOCK, UPDLOCK)
+		WHERE	 CreatedDate <= DATEADD (DD, -14, GETDATE())
+
+		IF @@ROWCOUNT < 1000
+			BREAK
+	END
+
+	-- Remove old data from table store Letstalk Message
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP (1000)
+		FROM	dbo.Settlement_LetstalkMessage WITH(ROWLOCK, UPDLOCK)
+		WHERE	 CreatedDate <= DATEADD (DD, -14, GETDATE())
+
+		IF @@ROWCOUNT < 1000
+			BREAK
+	END
+
+
 END  
 GO
