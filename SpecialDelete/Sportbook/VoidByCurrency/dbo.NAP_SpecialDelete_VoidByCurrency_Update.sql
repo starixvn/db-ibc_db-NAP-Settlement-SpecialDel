@@ -1459,7 +1459,7 @@ BEGIN
 			BEGIN
 				SET @IsExistParlay = 1
 
-				INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 				SELECT @matchid, RefNo
 				FROM #SpecialDeleteBets_Parlay	
 			END

@@ -53,7 +53,7 @@ BEGIN
 	
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
-		   ,@totalMainParlay		INT = 0 
+		   ,@totalMainParlay	INT = 0 
 		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 

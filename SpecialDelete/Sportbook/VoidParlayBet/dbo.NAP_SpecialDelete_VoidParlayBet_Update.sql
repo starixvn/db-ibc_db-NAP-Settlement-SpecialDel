@@ -445,6 +445,7 @@ BEGIN
 					,@Session	= @Session
 					,@IsReleased = 1
 			END
+			ELSE
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess  
 					@isExistParlay  = 1  
@@ -463,7 +464,8 @@ BEGIN
 				ON	r.refno = b.refno  
 					AND b.matchid = 29
 					AND b.bettype = 29
-
+		
+		-- Update data column after lockmatch -> avoid get old data
 		UPDATE r
 			SET betfrom = b.betfrom
 			   ,bettype = b.bettype
@@ -483,7 +485,10 @@ BEGIN
 		FROM  #BetDelete r  
 			INNER JOIN dbo.bettransm AS b WITH(NOLOCK)        
 			     ON	b.transid = r.transid
-					
+		WHERE	b.matchid = @MatchID
+			AND b.statusID NOT IN (101, 102)
+			AND b.betfrom <> 'p'
+						
 		------------------***** BegIN Special Delete *****------------------  
 
 		-- BackUp bettransm tickets into zzzbettrans  

@@ -25,6 +25,7 @@ AS
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 
 	Param's explanation:	
 		
@@ -38,6 +39,9 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@Movebetdate		DATETIME
+			,@Session			NVARCHAR(50)
+		    ,@ThreadHold		INT -- over threadhold, the parlay process will be locked in systemsetting 
+		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @avaiableProcess BIT
 			,@MatchDate DATETIME
@@ -50,6 +54,7 @@ BEGIN
 
 	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
 	SET @RetryCnt = 0
+	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
@@ -60,6 +65,7 @@ BEGIN
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	CREATE TABLE #tmpSubTransId (RowId INT IDENTITY(1,1), TransId BIGINT, Refno BIGINT)
 	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90101
@@ -148,18 +154,39 @@ BEGIN
 
 	IF @BypassCheckingProcess = 0
 	BEGIN
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			 @LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
+
 		SET @Retry = 0
 		SET @Success = 0
 	
 		WHILE @Retry < 3 AND @Success = 0
 		BEGIN
 			SET @Success = 1
+			
+			IF @RowCount <= @ThreadHold
+			BEGIN
+				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+				SELECT @MatchId, refno
+				FROM #tmpSubTransId
 
-			EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay   = 1  
-			, @avaiableProcess  = @avaiableProcess OUTPUT  
-			, @ErrCode   = @ErrCode OUTPUT  
-			, @ErrMsg   = @ErrMsg OUTPUT  
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno		= 1
+					,@SPName				= @SPName
+					,@Session				= @Session
+					,@avaiableProcess 		= @avaiableProcess OUTPUT
+					,@ErrCode				= @ErrCode OUTPUT
+					,@ErrMsg				= @ErrMsg OUTPUT
+			END
+			ELSE --@totalSubParlay > 10K
+			BEGIN
+				EXEC dbo.NAP_Admin_CheckingProcess  
+					@isExistParlay		= 1  
+					,@avaiableProcess	= @avaiableProcess OUTPUT  
+					,@ErrCode			= @ErrCode OUTPUT  
+					,@ErrMsg			= @ErrMsg OUTPUT  
+			END
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN
@@ -305,9 +332,21 @@ BEGIN
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	IF @BypassCheckingProcess IN (0,1) 
-		EXEC dbo.NAP_Admin_CheckingProcess  
-			@isExistParlay  = 1  
-			, @IsReleased  = 1 
+	BEGIN
+		IF @RowCount <= @ThreadHold
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				 @IsLockingByRefno = 1
+				 ,@Session	= @Session
+				 ,@IsReleased = 1
+		END
+		ELSE --@RowCount > 10K
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				 @isExistParlay  = 1  
+				,@IsReleased  = 1 
+		END
+	END
 	
 	-- Write Log
 	SET @EndTime = GETDATE()
@@ -324,6 +363,13 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+	
+	DROP TABLE #tmpMainTransId
+	DROP TABLE #tmpSubTransId
+	DROP TABLE #BeforeUpd
+	DROP TABLE #AfterUpd
+	DROP TABLE #tblMatchParlayProcess
+
 END
 GO
 
