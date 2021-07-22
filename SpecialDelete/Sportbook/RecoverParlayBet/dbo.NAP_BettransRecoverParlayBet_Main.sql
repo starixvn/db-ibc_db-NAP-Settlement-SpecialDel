@@ -53,7 +53,7 @@ BEGIN
 	
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
-		   ,@totalSubParlay		INT = 0 
+		   ,@totalMainParlay		INT = 0 
 		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
@@ -119,8 +119,8 @@ BEGIN
 					ELSE 0
 				END	= 1	
 		
-		SET @totalSubParlay = @@ROWCOUNT
-		IF @totalSubParlay = 0
+		SET @totalMainParlay = @@ROWCOUNT
+		IF @totalMainParlay = 0
 		BEGIN		  			
 			SELECT @ErrCode = 99
 				 , @ErrMsg = 'No ticket found.'						
@@ -133,7 +133,7 @@ BEGIN
 				 @LockName = 'ParlayRefno'
 				,@ThreadHold = @ThreadHold OUTPUT
 
-			IF @totalSubParlay <= @ThreadHold
+			IF @totalMainParlay <= @ThreadHold
 			BEGIN
 				INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 				SELECT matchid, refno
@@ -147,7 +147,7 @@ BEGIN
 					,@ErrCode				= @ErrCode OUTPUT
 					,@ErrMsg				= @ErrMsg OUTPUT
 			END
-			ELSE --@totalSubParlay > 10K
+			ELSE --@totalMainParlay > 10K
 			BEGIN
 				EXEC [dbo].[NAP_Admin_CheckingProcess]
 						@IsExistParlay = 1			
@@ -328,7 +328,7 @@ BEGIN
 		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblRecoverBet t  ON	z.custid = t.custid AND z.matchid = t.matchid AND z.transid = t.transid
 		
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalMainParlay <= @ThreadHold
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno = 1
@@ -419,7 +419,7 @@ BEGIN
 		ORDER BY T1.GroupName, t.transid				
 	END TRY
 	BEGIN CATCH
-		IF @totalSubParlay <= @ThreadHold
+		IF @totalMainParlay <= @ThreadHold
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno = 1
