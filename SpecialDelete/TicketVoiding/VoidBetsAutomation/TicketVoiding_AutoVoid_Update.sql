@@ -235,7 +235,8 @@ BEGIN
 	SET @SB_Error = 0
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
-	
+	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
+
 	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
@@ -435,7 +436,7 @@ BEGIN
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
 
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate)
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -447,7 +448,7 @@ BEGIN
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
-			,b.matchid, b.oddsid, t.Winlostdate
+			,b.matchid, b.oddsid, t.Winlostdate, b.refno
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -457,7 +458,7 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate)
+	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -468,7 +469,7 @@ BEGIN
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate, b.refno
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -733,7 +734,7 @@ BEGIN
 		END
 				
 	END
-	ELSE --@totalMainParlay > 10K
+	ELSE IF @totalMainParlay > @ThreadHold
 	BEGIN
 		--check settlement process
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -825,7 +826,7 @@ BEGIN
 				   ,@IsReleased = 1				
 			END
 		END
-		ELSE --@totalMainParlay > 10K
+		ELSE IF @totalMainParlay > @ThreadHold
 		BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -1303,7 +1304,6 @@ BEGIN
 			,b.BonusID
 			,b.WalletType
 	
-	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestID = @RequestID)
 	BEGIN
@@ -1998,7 +1998,7 @@ BEGIN
 				 @isExistOutright 			= @isExistOutright
 				 , @isExistMG				= @isExistMG
 				 , @isExistFM				= @isExistFM
-				 , @isExistMatch				= @isExistMatch
+				 , @isExistMatch			= @isExistMatch
 				 , @isExistNG				= @isExistNG
 				 , @isExistVS				= @isExistVS
 				 , @isExistBB				= @isExistBB
@@ -2015,7 +2015,7 @@ BEGIN
 				,@IsReleased = 1				
 		END				
 	END
-	ELSE --@totalMainParlay > 10K
+	ELSE IF @totalMainParlay > @ThreadHold
 	BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess

@@ -1014,18 +1014,6 @@ BEGIN
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
-				------ releasing single process
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
-					, @isExistFM				= @isExistFM
-					, @isExistMatch				= @isExistMatch
-					, @isExistNG				= @isExistNG
-					, @isExistVS				= @isExistVS
-					, @isExistBB				= @isExistBB
-					, @isExistFM2				= @isExistFM2
-					, @IsReleased				= 1
-					
 				-------> releasing cash-out process
 				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 						@Mode = 'Original'
@@ -1048,7 +1036,19 @@ BEGIN
 				,@ErrMsg				= @ErrMsg OUTPUT
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-			BEGIN		
+			BEGIN	
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistOutright 			= @isExistOutright
+					, @isExistMG				= @isExistMG
+					, @isExistFM				= @isExistFM
+					, @isExistMatch				= @isExistMatch
+					, @isExistNG				= @isExistNG
+					, @isExistVS				= @isExistVS
+					, @isExistBB				= @isExistBB
+					, @isExistFM2				= @isExistFM2
+					, @IsReleased				= 1
+						
 				-------> releasing cash-out process
 				EXEC dbo.NAP_Admin_CheckingCashOutProcess 
 						@Mode = 'Original'

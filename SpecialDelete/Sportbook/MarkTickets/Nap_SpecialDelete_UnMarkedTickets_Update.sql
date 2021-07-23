@@ -388,8 +388,7 @@ BEGIN
 			)
 		SELECT DISTINCT MatchId
 			,CASE 
-				WHEN @totalParlay <= @ThreadHold AND f.GroupId IS NULL AND t.IsParlay <> 1 THEN 1 --SB
-				WHEN @totalParlay > @ThreadHold AND f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId IS NULL THEN 1 --SB
 				WHEN f.GroupId = 1 THEN 6 -- Fast Market
 				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
 				ELSE 0
@@ -400,6 +399,9 @@ BEGIN
 						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 						WHERE Bettype = t.Bettype
 				)f
+		WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
+				       WHEN @totalParlay > @ThreadHold THEN 1
+				       ELSE 0 END
 
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 		BEGIN

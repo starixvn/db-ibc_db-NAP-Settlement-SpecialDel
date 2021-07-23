@@ -32,7 +32,7 @@ BEGIN
 			,@starttime			DATETIME
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@Session			NVARCHAR(50)
-		    ,@ThreadHold		INT -- over threadhold, the parlay process will be locked in systemsetting
+		    ,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 		    ,@totalSubParlay	INT = 0 
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
@@ -129,6 +129,8 @@ BEGIN
 			FROM @tmpInputTransIdParlay p
 				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON p.TransId = bm.transid
 			WHERE  bm.statusID <> 102
+
+			SET @totalSubParlay = @@ROWCOUNT
 		END
 	END
 	

@@ -108,6 +108,7 @@ BEGIN
 	CREATE TABLE #tblMatch_TransIds (matchid INT, transids NVARCHAR(MAX), isFinish BIT)
 	CREATE TABLE #tblMatch (matchid INT, isFinish BIT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+	CREATE TABLE #tblMatchParlayProcess_Retry (matchid INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -387,6 +388,7 @@ BEGIN
 		BEGIN
 			SET @MatchId_Retry = 0
 			DELETE #tblMatchProcess
+			DELETE #tblMatchParlayProcess
 
 			UPDATE TOP(1) m SET m.isFinish = 1, @MatchId_Retry = m.matchid
 			FROM #tblMatch m
@@ -542,6 +544,13 @@ BEGIN
 					INSERT INTO #tblMatchProcess_Retry(matchid, KeyID)
 					SELECT matchid, KeyID
 					FROM #tblMatchProcess
+
+					IF @totalMainParlay > 0 AND @totalMainParlay <= @ThreadHold
+					BEGIN
+						INSERT INTO #tblMatchParlayProcess_Retry(matchid, RefNo)
+						SELECT matchid, RefNo
+						FROM #tblMatchParlayProcess
+					END
 				END
 				
 			END
@@ -550,10 +559,18 @@ BEGIN
 			BEGIN
 			
 				DELETE #tblMatchProcess
+				DELETE #tblMatchParlayProcess
 
 				INSERT INTO #tblMatchProcess(matchid, KeyID)
 				SELECT matchid, KeyID
 				FROM #tblMatchProcess_Retry
+
+				IF @totalMainParlay > 0 AND @totalMainParlay <= @ThreadHold
+				BEGIN
+					INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+					SELECT matchid, RefNo
+					FROM #tblMatchParlayProcess_Retry
+				END
 
 				SELECT @ErrCode = 101
 
@@ -622,7 +639,7 @@ BEGIN
 						, @IsReleased				= 1
 				END
 
-				RETURN
+				RETURN;
 			END
 
 		END
@@ -630,6 +647,13 @@ BEGIN
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT matchid, KeyID
 		FROM #tblMatchProcess_Retry
+
+		IF @totalMainParlay > 0 AND @totalMainParlay <= @ThreadHold
+		BEGIN
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT matchid, RefNo
+			FROM #tblMatchParlayProcess_Retry
+		END
 	END
 	ELSE
 	BEGIN
@@ -743,7 +767,7 @@ BEGIN
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM	#tmpTransId b
 		OUTER APPLY (
@@ -1739,7 +1763,7 @@ BEGIN
 	DROP TABLE #tblMatch
 	DROP TABLE #tblMatch_TransIds
 	DROP TABLE #tblMatchParlayProcess
-
+	DROP TABLE #tblMatchParlayProcess_Retry
 END
 
 GO

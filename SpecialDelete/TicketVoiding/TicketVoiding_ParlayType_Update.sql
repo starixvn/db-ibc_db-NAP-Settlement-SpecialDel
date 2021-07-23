@@ -40,7 +40,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@Movebetdate		DATETIME
 			,@Session			NVARCHAR(50)
-		    ,@ThreadHold		INT -- over threadhold, the parlay process will be locked in systemsetting 
+		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
 		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @avaiableProcess BIT
@@ -152,11 +152,16 @@ BEGIN
 		RETURN
 	END	
 
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		@LockName = 'ParlayRefno'
+	   ,@ThreadHold = @ThreadHold OUTPUT
+
+	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+	SELECT @MatchId, refno
+	FROM #tmpSubTransId
+
 	IF @BypassCheckingProcess = 0
 	BEGIN
-		EXEC dbo.NAP_Set_GlobalSettingSel 
-			 @LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
 
 		SET @Retry = 0
 		SET @Success = 0
@@ -167,10 +172,6 @@ BEGIN
 			
 			IF @RowCount <= @ThreadHold
 			BEGIN
-				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-				SELECT @MatchId, refno
-				FROM #tmpSubTransId
-
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno		= 1
 					,@SPName				= @SPName
@@ -335,6 +336,9 @@ BEGIN
 	BEGIN
 		IF @RowCount <= @ThreadHold
 		BEGIN
+		    IF @BypassCheckingProcess = 1
+			    SET @Session = (SELECT TOP 1 Session FROM dbo.ParlayLocking WITH(NOLOCK) WHERE MatchId = @MatchId)
+
 			EXEC dbo.NAP_Admin_CheckingProcess
 				 @IsLockingByRefno = 1
 				 ,@Session	= @Session
