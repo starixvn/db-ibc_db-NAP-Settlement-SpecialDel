@@ -4,12 +4,13 @@
 	Server: db061
 	DB: dbacc/bodb02
 */
-use bodb02
-go
+
+USE bodb02
+GO
 
 
-declare @fromDate datetime = '2021-07-22'
-		,@toDate  datetime = '2021-07-22'
+DECLARE @fromDate DATETIME = '2021-07-22'
+		,@toDate  DATETIME = '2021-07-22'
 -------------------------------------------------
 
 
@@ -44,11 +45,11 @@ CREATE TABLE #MatchInfo
 		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
 		INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
 		INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
-	WHERE m.eventdate between @fromDate and @toDate
+	WHERE m.eventdate BETWEEN @fromDate AND @toDate
 		AND l.isTest = 0 --exclude test match
 		AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 				  ELSE 1 END
-		AND ( m.sporttype IN (1,2,5,9,43,45,50) OR m.eventStatus = 'completed' )
+		AND m.eventStatus = 'completed'
 			
 
 	INSERT INTO #MatchId (matchid, sporttype) SELECT matchid, sporttype FROM #MatchInfo
@@ -112,7 +113,7 @@ CREATE TABLE #MatchInfo
 			, CASE WHEN  m.betstatus = 'Refund;' THEN 1 ELSE 0 END	AS IsRefunded
 			, CASE WHEN r.MatchId IS NOT NULL THEN 1 ELSE 0 END		AS IsAuto
 			FROM #MatchInfo m
-		OUTER APPLY (	--- Table Tennis  : already Auto settle sucessfully atleast 1 time )
+		OUTER APPLY (	--- Table Tennis  : already Auto settle sucessfully at least 1 time )
 						SELECT TOP 1 r.MatchId FROM dbo.AutoPayoutResult r WITH(NOLOCK)
 						WHERE m.matchid = r.MatchId 
 							AND r.StatusId = 2
