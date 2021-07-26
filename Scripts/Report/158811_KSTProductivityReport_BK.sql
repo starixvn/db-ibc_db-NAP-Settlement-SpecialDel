@@ -1,13 +1,20 @@
 /*
 	Created by: 20210723@Louisa
 	Task: Keyscore Productivity Report [Redmine:#158811]
-	Server: DBARC
-	DB: bodb_archive
+	Server: DB061	
+	DB: DBARC/bodb_archive
 */
 
 USE bodb_archive
 GO
 
+/*
+	Optional : Check datetime for BK Range
+
+	select max(m.eventdate)	AS maxDateBK
+	from match_bk m  with(nolock)
+
+*/
 
 declare @fromDate datetime = '2021-01-22'
 		,@toDate  datetime = '2021-05-22'

@@ -8,6 +8,16 @@
 USE bodb02
 GO
 
+/*
+	Optional : Check datetime for Active Range
+
+	 select min(m.eventdate) AS minDateActive
+	 from match m  with(nolock)
+
+	 select min(m.eventdate) AS minDate14, max(m.eventdate)  AS maxDate14
+	 from match14 m  with(nolock)
+*/
+
 
 DECLARE @fromDate DATETIME = '2021-07-22'
 		,@toDate  DATETIME = '2021-07-22'
