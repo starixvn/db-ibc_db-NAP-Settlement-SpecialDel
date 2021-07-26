@@ -68,6 +68,8 @@ CREATE TABLE #MatchInfo
 		AND r.ResultStatusID  = 5	---settled
 		AND r.SettlementStatusID > 0
 		AND r.ResourceId not LIKE '22[1-9]%'	--exclude Fastmarkets, Time Machine
+		AND 1 =  CASE WHEN m.sporttype = 1 THEN CASE WHEN r.ResourceId IN ('09','127F','127L','14F','14L') THEN 0 ELSE 1 END
+						ELSE 1 END
 	GROUP BY r.MatchId
 
 	----E-Sports
