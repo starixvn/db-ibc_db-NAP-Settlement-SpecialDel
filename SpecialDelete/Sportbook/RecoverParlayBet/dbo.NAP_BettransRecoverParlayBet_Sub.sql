@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@IP					VARCHAR(50),
 	@BetType			VARCHAR(20)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
-	@matchid			BIGINT,
+	@matchid			BIGINT,	
 	@SettledMainTranIds	VARCHAR(MAX) = '' OUTPUT,
 	@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT,
 	@ErrCode			INT = 0	OUTPUT,
@@ -54,8 +54,10 @@ BEGIN
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+
 	DECLARE @tblRecoverBet TABLE (
 		 RowNumber				BIGINT IDENTITY(1, 1) PRIMARY KEY
+		 
 		,SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
 		,SubOdds				MONEY   
@@ -149,7 +151,60 @@ BEGIN
 		
 		RETURN
 	END		  
-		  
+	
+	-- Apply new way to lock parlay tickets	
+	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+	SELECT bm.matchid, bm.refno
+	FROM @tblMainTransIds t
+		  INNER JOIN dbo.bettrans b WITH (NOLOCK)
+		  		ON t.transid = b.transid
+		  INNER JOIN bettransm bm WITH (NOLOCK)
+		  		ON bm.refno	= b.refno	   							
+		  INNER JOIN dbo.match m WITH(NOLOCK)
+		  		ON	bm.matchid = m.matchid
+	WHERE bm.matchid = @MatchId
+		AND b.bettype = 29	
+		AND bm.statusid = 102
+		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
+		AND (m.sporttype BETWEEN 1 AND 99)
+		AND CASE
+				WHEN @BetType = 'all' THEN 1
+				WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
+				WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
+				ELSE 0
+			END = 1	
+
+	SET @totalSubParlay = @@ROWCOUNT
+
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		 @LockName = 'ParlayRefno'
+		,@ThreadHold = @ThreadHold OUTPUT
+
+	IF 	@totalSubParlay <= @ThreadHold 
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+            @IsLockingByRefno   = 1
+           ,@spName             = @spName
+           ,@Session            = @Session
+           ,@avaiableProcess    = @avaiableProcess OUTPUT
+           ,@ErrCode            = @ErrCode OUTPUT
+           ,@ErrMsg             = @ErrMsg OUTPUT
+	END
+	ELSE
+	BEGIN
+		--- Check for concurrent running
+		EXEC dbo.NAP_Admin_CheckingProcess
+		    @IsExistParlay = 1			
+		   ,@IsReleased	= 0
+		   ,@AvaiableProcess = @AvaiableProcess OUTPUT
+		   ,@ErrCode = @ErrCode OUTPUT
+		   ,@ErrMsg	= @ErrMsg OUTPUT
+	END
+	
+	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+	BEGIN					 
+		RETURN		 
+	END 
 	
 	BEGIN TRY									
 		--> query all sub tickets to recover
@@ -252,100 +307,29 @@ BEGIN
 					WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
 					ELSE 0
 			  END	= 1	
-		
-		SET @totalSubParlay = @@ROWCOUNT
-		IF @totalSubParlay = 0
-		BEGIN		  			
-			SELECT @ErrCode = 99
-				  ,@ErrMsg = 'No ticket found.'						
+				
+		IF @@ROWCOUNT = 0
+		BEGIN
+			IF @totalSubParlay <= @ThreadHold
+			BEGIN
+				 EXEC dbo.NAP_Admin_CheckingProcess
+                    @IsLockingByRefno = 1
+                   ,@Session = @Session
+                   ,@IsReleased = 1
+			END
+			ELSE
+			BEGIN
+				------ release Parlay procesee	
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsExistParlay = 1			
+				   ,@IsReleased	= 1		
+			END	  			
+			
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
 		
 			RETURN
 		END										
-		ELSE -- @totalSubParlay > 0
-		BEGIN
-			EXEC dbo.NAP_Set_GlobalSettingSel 
-				 @LockName = 'ParlayRefno'
-				,@ThreadHold = @ThreadHold OUTPUT
-
-			IF @totalSubParlay <= @ThreadHold
-			BEGIN
-				INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
-				SELECT matchid, refno
-				FROM @tblRecoverBet	
-
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno		= 1
-					,@SPName				= @SPName
-					,@Session				= @Session
-					,@avaiableProcess 		= @avaiableProcess OUTPUT
-					,@ErrCode				= @ErrCode OUTPUT
-					,@ErrMsg				= @ErrMsg OUTPUT
-			END
-			ELSE --@totalSubParlay > 10K
-			BEGIN
-				--- Check for concurrent running
-				EXEC [dbo].[NAP_Admin_CheckingProcess]
-						@IsExistParlay = 1			
-					  , @IsReleased	= 0
-					  , @AvaiableProcess = @AvaiableProcess OUTPUT
-					  , @ErrCode = @ErrCode OUTPUT
-					  , @ErrMsg	= @ErrMsg OUTPUT
-			END
-
-			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-			BEGIN					 
-				RETURN		 
-			END
-
-			DELETE t
-			FROM @tblRecoverBet t
-				INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					ON t.transid = b.transid
-				INNER JOIN bettransm bm WITH (NOLOCK)
-					ON bm.refno	= b.refno	   							
-			WHERE bm.matchid = @MatchId
-			  AND b.bettype = 29	
-			  AND bm.statusid <> 102
-			  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
-
-			 -- Update data column after lockmatch -> avoid get old data
-			 UPDATE t
-			 SET t.SubBetCheck = bm.betcheck
-				,t.SubOdds = bm.odds
-				,t.SubBetTeam = bm.betteam
-				,t.SubBetType = bm.bettype
-				,t.SubHdp1 = bm.hdp1
-				,t.SubHdp2 = bm.hdp2
-				,t.SubTransDesc = bm.transdesc
-				,t.SubLivehomescore = bm.livehomescore
-				,t.SubLiveawayscore = bm.liveawayscore
-				,t.SubLiveindicator = bm.liveindicator
-				,t.balance = b.winlost - b.actual_stake + b.playercomm
-				,t.BetType  = b.bettype
-				,t.Status = b.status
-				,t.StatusId = b.statusID
-				,t.WinLost = b.winlost - b.actual_stake
-				,t.betid = b.betid
-				,t.BetTeam = b.betteam
-				,t.Stake = b.stake
-				,t.Odds = b.odds
-				,t.hdp1 = b.hdp1
-				,t.hdp2 = b.hdp2
-				,t.betfrom = b.betfrom
-				,t.betcheck = b.betcheck
-				,t.ExtraInfo = b.ExtraInfo
-				,t.ActualStake = b.actual_stake
-			 FROM @tblRecoverBet t
-				INNER JOIN dbo.bettrans b WITH (NOLOCK)
-			 		ON t.transid = b.transid
-				INNER JOIN bettransm bm WITH (NOLOCK)
-			 		ON bm.refno	= b.refno
-			WHERE bm.matchid = @MatchId 
-				AND b.bettype = 29	
-				AND bm.statusid = 102
-				AND (b.betfrom IS NULL OR b.betfrom <> 'p')		
-		END
-		 
+	
 		--> get list of MainTranIds	
 		INSERT INTO #tblMainTicket(transid
 								 , refno								 
@@ -494,17 +478,17 @@ BEGIN
 		
 		IF @totalSubParlay <= @ThreadHold
 		BEGIN
-			EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-					,@Session	= @Session
-					,@IsReleased = 1
+				EXEC dbo.NAP_Admin_CheckingProcess
+                @IsLockingByRefno = 1
+                ,@Session = @Session
+                ,@IsReleased = 1
 		END
 		ELSE
 		BEGIN
 			------ release Parlay procesee	
-			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlay = 1			
-				  , @IsReleased	= 1	
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsExistParlay = 1			
+				,@IsReleased	= 1		
 		END	
 
 		--> write log		
@@ -612,27 +596,27 @@ BEGIN
 	BEGIN CATCH
 		IF @totalSubParlay <= @ThreadHold
 		BEGIN
-			EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-					,@Session	= @Session
-					,@IsReleased = 1
+				EXEC dbo.NAP_Admin_CheckingProcess
+                @IsLockingByRefno = 1
+                ,@Session = @Session
+                ,@IsReleased = 1
 		END
 		ELSE
 		BEGIN
 			------ release Parlay procesee	
-			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlay = 1			
-				  , @IsReleased	= 1	
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsExistParlay = 1			
+				,@IsReleased	= 1		
 		END		  
 	
 		SELECT @ErrCode = 100,
 				@ErrMsg = 'Unable to recover these parlay bets'						
 							
 		RETURN				
-	END CATCH
-			  		  	  
+	END CATCH		  		  	  
+	
 	DROP TABLE #tblMainTicket
-	DROP TABLE #tblMatchParlayProcess	
+	DROP TABLE #tblMatchParlayProcess
 		
 	RETURN;							
 END

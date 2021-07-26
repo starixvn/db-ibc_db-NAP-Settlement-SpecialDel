@@ -467,6 +467,7 @@ BEGIN
 			BEGIN
 				SET @Success = 1
 
+				-- Apply new way to lock parlay tickets	
 				IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 				BEGIN
 					DELETE FROM #tblMatchProcess WHERE KeyID = 0
@@ -597,7 +598,8 @@ BEGIN
 								FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 								WHERE Bettype = b.Bettype
 						)f
-				
+
+				-- Apply new way to lock parlay tickets
 				IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 				BEGIN
 					IF EXISTS(SELECT TOP 1 1 FROM #tblMatchProcess)
@@ -801,6 +803,7 @@ BEGIN
 		------ releasing SD process
 		IF @BypassCheckingProcess = 0
 		BEGIN
+			-- Apply new way to lock parlay tickets
 			IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 			BEGIN
 				IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)

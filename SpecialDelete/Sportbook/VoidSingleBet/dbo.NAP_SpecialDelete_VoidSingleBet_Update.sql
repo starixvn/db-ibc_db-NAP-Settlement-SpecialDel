@@ -530,6 +530,7 @@ BEGIN
 	UNION ALL
 	SELECT @MatchId AS matchid, 7 AS KeyId WHERE @isExistFM2 = 1
 
+	-- Apply new way to lock parlay tickets	
 	IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)

@@ -53,6 +53,9 @@ BEGIN
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalParlay		INT = 0
+		   ,@Row_SD				INT = 0
+		   ,@Row_Refno			INT = 0
+
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #Match (
@@ -78,7 +81,7 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	CREATE TABLE #tblMatchProcess_tmp(matchid INT, KeyID TINYINT, IsFinish BIT);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT);
-	CREATE TABLE #tblMatchParlayProcess_tmp (matchId INT, RefNo BIGINT);
+	CREATE TABLE #tblMatchParlayProcess_tmp (matchId INT, RefNo BIGINT, IsFinish BIT);
 
 	INSERT INTO #Match (
 		MatchId
@@ -162,6 +165,7 @@ BEGIN
 				   WHEN @totalParlay > @ThreadHold THEN 1
 				   ELSE 0 END
 
+	-- Apply new way to lock parlay tickets
 	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 	BEGIN
 		DELETE FROM #tblMatchProcess WHERE KeyID = 0
@@ -228,7 +232,7 @@ BEGIN
 	END
 	
 	-- Delete Transaction
-	DECLARE @TransIds_SB VARCHAR(MAX), @MatchId INT
+	DECLARE @TransIds_SB VARCHAR(MAX), @MatchId INT, @MatchId_RefNo INT
 
 	INSERT INTO #tblMatchProcess_tmp (KeyID, matchid)
 	SELECT KeyID, matchid
@@ -243,14 +247,20 @@ BEGIN
 		TRUNCATE TABLE #tblMatchProcess
 		TRUNCATE TABLE #tblMatchParlayProcess
 
-		SET @MatchId = NULL
-		SET @totalParlay = 0
+		SELECT @MatchId = NULL, @MatchId_RefNo = NULL, @totalParlay = 0
 
 		UPDATE TOP (1) m SET m.IsFinish = 1, @MatchId = m.MatchId
 		FROM #tblMatchProcess_tmp m 
 		WHERE m.IsFinish IS NULL
+		SET @Row_SD = @@ROWCOUNT
 		
-		IF @@ROWCOUNT = 0 BREAK
+		UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId_RefNo = p.MatchId
+		FROM #tblMatchParlayProcess_tmp p
+		WHERE p.IsFinish IS NULL
+		SET @Row_Refno = @@ROWCOUNT
+
+		IF @Row_SD = 0 AND @Row_Refno = 0
+			  BREAK
 
 		WHILE (0=0)
 		BEGIN
@@ -263,7 +273,7 @@ BEGIN
 			INTO #MarkedTransactionDeleted (TransId, MatchId)
 			FROM #Tickets t
 			WHERE t.IsFinish IS NULL
-				AND t.MatchId = @MatchId
+				AND (t.MatchId = @MatchId OR t.MatchId = @MatchId_RefNo)
 
 			IF @@ROWCOUNT = 0 BREAK	
 
@@ -294,7 +304,7 @@ BEGIN
 		INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 		SELECT matchId , RefNo 
 		FROM #tblMatchParlayProcess_tmp
-		WHERE matchid = @MatchId
+		WHERE matchid = @MatchId_RefNo
 
 		SET @totalParlay = @@ROWCOUNT
 

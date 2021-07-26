@@ -169,7 +169,8 @@ BEGIN
 		WHILE @Retry < 3 AND @Success = 0
 		BEGIN
 			SET @Success = 1
-			
+
+			-- Apply new way to lock parlay tickets	
 			IF @RowCount <= @ThreadHold
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
@@ -337,7 +338,10 @@ BEGIN
 		IF @RowCount <= @ThreadHold
 		BEGIN
 		    IF @BypassCheckingProcess = 1
-			    SET @Session = (SELECT TOP 1 Session FROM dbo.ParlayLocking WITH(NOLOCK) WHERE MatchId = @MatchId)
+			    SET @Session = (SELECT TOP 1 Session 
+								FROM dbo.ParlayLocking p WITH(NOLOCK)
+									  INNER JOIN #tblMatchParlayProcess m ON p.MatchId = m.matchId AND p.Refno = m.RefNo
+								WHERE p.MatchId = @MatchId)
 
 			EXEC dbo.NAP_Admin_CheckingProcess
 				 @IsLockingByRefno = 1

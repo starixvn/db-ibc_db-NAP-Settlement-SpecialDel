@@ -402,7 +402,8 @@ BEGIN
 		WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
 				       WHEN @totalParlay > @ThreadHold THEN 1
 				       ELSE 0 END
-
+		
+		-- Apply new way to lock parlay tickets
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 		BEGIN
 			DELETE FROM #tblMatchProcess WHERE KeyID = 0

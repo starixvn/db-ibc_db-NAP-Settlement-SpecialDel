@@ -1466,7 +1466,8 @@ BEGIN
 					 @LockName = 'ParlayRefno'
 					,@ThreadHold = @ThreadHold OUTPUT
 			
-			-- check and not allow attempt to void tickets of this match while it's being calculated	
+			-- check and not allow attempt to void tickets of this match while it's being calculated
+			-- Apply new way to lock parlay tickets	
 			IF @CountParlay = 0 OR @CountParlay <= @ThreadHold
 			BEGIN
 				IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)

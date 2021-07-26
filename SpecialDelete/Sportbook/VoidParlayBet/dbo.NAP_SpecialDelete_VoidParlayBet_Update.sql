@@ -18,7 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	, @NegativeBalanceUsers	VARCHAR(MAX)	= '' OUTPUT
 	, @ErrMsg				NVARCHAR(200)	= '' OUTPUT
 	, @ErrCode				INT				= 0  OUTPUT       
-AS  
+AS 
 /*  
 	 Created by: Paul  
 	 Date:   
@@ -229,6 +229,75 @@ BEGIN
 		RETURN  
 	END CATCH    
 
+   -- Apply new way to lock parlay tickets
+	INSERT INTO #tblMatchParlayProcess (MatchID, RefNo)
+	SELECT @MatchID, b.refno
+	FROM #tblTransId t
+	  INNER JOIN dbo.bettransm b WITH(NOLOCK) ON t.transid = b.transid
+	WHERE	b.matchid = @MatchID   
+		AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE b.livehomescore END  
+		AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE b.liveawayscore END   
+		AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL THEN @FromTransdate ELSE b.transdate END   
+							AND CASE WHEN @ToTransdate IS NOT NULL THEN @ToTransdate ELSE b.transdate END   
+		AND b.statusID NOT IN (101, 102)
+		AND b.betfrom <> 'p'
+   
+	SET @totalSubParlay = @@ROWCOUNT
+   	EXEC dbo.NAP_Set_GlobalSettingSel 
+			@LockName = 'ParlayRefno'
+		   ,@ThreadHold = @ThreadHold OUTPUT
+
+   IF @totalSubParlay <= @ThreadHold
+   BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+              @IsLockingByRefno   = 1
+             ,@spName             = @spName
+             ,@Session            = @Session
+             ,@avaiableProcess    = @avaiableProcess OUTPUT
+             ,@ErrCode            = @ErrCode OUTPUT
+             ,@ErrMsg             = @ErrMsg OUTPUT
+   END
+   ELSE
+   BEGIN
+		---- Check for concurrent running  
+		EXEC dbo.NAP_Admin_CheckingProcess  
+			@isExistParlay   = 1  
+		   ,@avaiableProcess = @avaiableProcess OUTPUT  
+		   ,@ErrCode		 = @ErrCode OUTPUT  
+		   ,@ErrMsg          = @ErrMsg OUTPUT  
+	END
+  
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN	
+		RETURN  
+	END
+    
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransId t
+					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE b.matchid <> @MatchId
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+		
+		IF @totalSubParlay <= @ThreadHold
+		BEGIN
+		     EXEC dbo.NAP_Admin_CheckingProcess
+                  @IsLockingByRefno = 1
+                 ,@Session = @Session
+                 ,@IsReleased = 1
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				 @isExistParlay  = 1  
+				,@IsReleased     = 1	
+		END
+		RETURN;
+	END
+
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
 	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator)  
@@ -389,72 +458,24 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)   
 	BEGIN  
 		SELECT @ErrCode = 99  
-		, @ErrMsg = 'No ticket found.'  			
-	END  
-	ELSE  
-	BEGIN  
-		EXEC dbo.NAP_Set_GlobalSettingSel 
-			 @LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
+		, @ErrMsg = 'No ticket found.'  
 
-		INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-		SELECT @MatchID, RefNo
-		FROM #BetDelete	
-		
-		SET @totalSubParlay = @@ROWCOUNT
-		
 		IF @totalSubParlay <= @ThreadHold
 		BEGIN
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno		= 1
-				,@SPName				= @SPName
-				,@Session				= @Session
-				,@avaiableProcess 		= @avaiableProcess OUTPUT
-				,@ErrCode				= @ErrCode OUTPUT
-				,@ErrMsg				= @ErrMsg OUTPUT
-
+		     EXEC dbo.NAP_Admin_CheckingProcess
+                  @IsLockingByRefno = 1
+                 ,@Session = @Session
+                 ,@IsReleased = 1
 		END
 		ELSE
 		BEGIN
-			 ---- Check for concurrent running  
 			EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay   = 1  
-				,@avaiableProcess  = @avaiableProcess OUTPUT  
-				,@ErrCode   = @ErrCode OUTPUT  
-				,@ErrMsg   = @ErrMsg OUTPUT  
-		END
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-		BEGIN	
-			RETURN  
-		END
-
-		-- Apply for move match Cricket
-		IF EXISTS ( SELECT TOP 1 1 
-					FROM #tblTransId t
-						INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
-					WHERE b.matchid <> @MatchId
-				)
-		BEGIN
-			SELECT	@ErrCode = 99
-					,@ErrMsg = 'Some tickets not found.'
-
-			IF @totalSubParlay <= @ThreadHold
-			BEGIN
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-					,@Session	= @Session
-					,@IsReleased = 1
-			END
-			ELSE
-			BEGIN
-				EXEC dbo.NAP_Admin_CheckingProcess  
-					@isExistParlay  = 1  
-					, @IsReleased  = 1	
-			END
-
-			RETURN
-		END
-
+				 @isExistParlay  = 1  
+				,@IsReleased     = 1	
+		END							
+	END  
+	ELSE  
+	BEGIN  
 		UPDATE	r  
 			SET mainbettype = b.bettype  
 				,maintransid = b.transid
@@ -464,30 +485,7 @@ BEGIN
 				ON	r.refno = b.refno  
 					AND b.matchid = 29
 					AND b.bettype = 29
-		
-		-- Update data column after lockmatch -> avoid get old data
-		UPDATE r
-			SET betfrom = b.betfrom
-			   ,bettype = b.bettype
-			   ,hdp1 = b.hdp1
-			   ,hdp2 = CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END --646: Match Handicap & Total
-			   ,odds = b.odds  
-			   ,betteam = b.betteam    
-			   ,livehomescore = b.livehomescore
-			   ,liveawayscore = b.liveawayscore
-			   ,liveindicator= b.liveindicator
-			   ,statusID = b.statusID
-			   ,status = b.status
-			   ,betcheck = b.betcheck  
-			   ,transdesc = b.transdesc
-			   ,creator = b.creator
-		FROM  #BetDelete r  
-			INNER JOIN dbo.bettransm AS b WITH(NOLOCK)        
-			     ON	b.transid = r.transid
-		WHERE	b.matchid = @MatchID
-			AND b.statusID NOT IN (101, 102)
-			AND b.betfrom <> 'p'
-						
+					
 		------------------***** BegIN Special Delete *****------------------  
 
 		-- BackUp bettransm tickets into zzzbettrans  
@@ -688,18 +686,18 @@ BEGIN
 
 		IF @totalSubParlay <= @ThreadHold
 		BEGIN
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-				,@Session	= @Session
-				,@IsReleased = 1			
+			------ releasing refno process  
+		     EXEC dbo.NAP_Admin_CheckingProcess
+                  @IsLockingByRefno = 1
+                 ,@Session = @Session
+                 ,@IsReleased = 1
 		END
 		ELSE
 		BEGIN
 			------ releasing SD process  
 			EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay  = 1  
-				, @IsReleased  = 1
+				 @isExistParlay  = 1  
+				,@IsReleased     = 1	
 		END
 
 		SELECT	@LogData ='Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete'   
@@ -820,6 +818,6 @@ BEGIN
 	DROP TABLE #BetDelete    
 	DROP TABLE #tblBettype
 	DROP TABLE #tblMatchParlayProcess
-
+	   
 	SET NOCOUNT OFF  
 END

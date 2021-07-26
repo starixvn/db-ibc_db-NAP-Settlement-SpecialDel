@@ -367,6 +367,7 @@ BEGIN
 					   WHEN @totalParlay > @ThreadHold THEN 1
 					   ELSE 0 END
 
+		-- Apply new way to lock parlay tickets
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 		BEGIN
 			DELETE FROM #tblMatchProcess WHERE KeyID = 0

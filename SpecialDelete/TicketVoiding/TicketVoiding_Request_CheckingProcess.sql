@@ -173,6 +173,8 @@ BEGIN
 		BEGIN
 			IF @isExistParlay = 1
 			BEGIN
+				-- Apply new way to lock parlay tickets	
+
 				EXEC dbo.NAP_Set_GlobalSettingSel 
 					 @LockName = 'ParlayRefno'
 					,@ThreadHold = @ThreadHold OUTPUT

@@ -129,6 +129,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			-- Apply new way to lock parlay tickets	
 			EXEC dbo.NAP_Set_GlobalSettingSel 
 				 @LockName = 'ParlayRefno'
 				,@ThreadHold = @ThreadHold OUTPUT
@@ -160,12 +161,6 @@ BEGIN
 			BEGIN		
 				RETURN		
 			END
-
-			DELETE s
-			FROM #tblRecoverBet s 	
-					INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid
-			WHERE b.matchid = 29 AND b.bettype = 29
-				AND b.statusid <> 102
 		END
 
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT

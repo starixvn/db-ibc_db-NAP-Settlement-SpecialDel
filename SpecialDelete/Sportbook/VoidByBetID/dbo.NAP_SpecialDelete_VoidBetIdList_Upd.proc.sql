@@ -980,7 +980,8 @@ BEGIN
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = b.Bettype
 			)f
-	
+
+	-- Apply new way to lock parlay tickets
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 	SELECT matchid, refno
 	FROM #BetDelete
@@ -991,7 +992,7 @@ BEGIN
 	EXEC dbo.NAP_Set_GlobalSettingSel 
 		 @LockName = 'ParlayRefno'
 		,@ThreadHold = @ThreadHold OUTPUT
-
+	
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN
 		DELETE FROM #tblMatchProcess WHERE KeyID = 0

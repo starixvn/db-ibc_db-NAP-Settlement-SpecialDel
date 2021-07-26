@@ -504,7 +504,8 @@ BEGIN
 	UNION ALL
 	SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
 
-	-- check and not allow attempt to void tickets of this match while it's being calculated  
+	-- check and not allow attempt to void tickets of this match while it's being calculated
+	-- Apply new way to lock parlay tickets  
 	IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
