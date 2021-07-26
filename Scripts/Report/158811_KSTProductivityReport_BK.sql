@@ -50,6 +50,7 @@ CREATE TABLE #MatchInfo
 		AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
 				  ELSE 1 END
 		AND m.eventStatus = 'completed'
+		AND m.sporttype < 99 --Sportbook
 			
 
 	INSERT INTO #MatchId (matchid, sporttype) SELECT matchid, sporttype FROM #MatchInfo
