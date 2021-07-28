@@ -19,55 +19,67 @@ AS
 
 	Revisions:
 		20210706@Louisa: Insert Letstalk message [Redmine:#157540]
+		20210727@Louisa: Letstalk message: Confirmed HT/FT, Completed with early running tickets [Redmine:#158331]	
 
 	Param explanation:
 		@MessageGroupId 
 					1: Instant Settlement
-		@MessageTypeId
+					2: Settlement
+		@MessageType
 					Warning
 					Error
-		@ActionId: Settlement ActionId
-					101: Cal Inst HT
-					102: Cal Inst FT
+					Reminder
+		@ActionName: HT Auto Instant
+					 FT Auto Instant
+					 HT Score confirmed
+					 FT Score confirmed
+					 Completed match with 'Running' tickets		
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	BEGIN TRY
-		INSERT INTO [dbo].[Settlement_LetstalkMessage]
-		(	
-			MessageGroupId		
-			,MessageType
-			,MatchId		
-			,ActionName		
-			,MessageContent
-			,MessageDetail
-			,StatusId
-			,CreatedDate		
-			,CreatedBy		
-			,LastModifiedDate
-		) 
-		SELECT	
-			@MessageGroupId
-			,@MessageType
-			,@MatchId
-			,@ActionName
-			,@MessageContent
-			, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
-					ELSE ''
-			  END
-			,0
-			,GETDATE()
-			,@UserID
-			,GETDATE()
+		BEGIN TRY
+			INSERT INTO [dbo].[Settlement_LetstalkMessage]
+			(	
+				MessageGroupId		
+				,MessageType
+				,MatchId		
+				,ActionName		
+				,MessageContent
+				,MessageDetail
+				,StatusId
+				,CreatedDate		
+				,CreatedBy		
+				,LastModifiedDate
+			) 
+			SELECT	
+				@MessageGroupId
+				,@MessageType
+				,@MatchId
+				,@ActionName
+				,@MessageContent
+				, CASE WHEN @MessageGroupId = 1 THEN 'Inst Settlement'
+						ELSE ''
+					END
+				,0
+				,GETDATE()
+				,@UserID
+				,GETDATE()
+			WHERE NOT EXISTS (
+						SELECT TOP 1 1 
+						FROM Settlement_LetstalkMessage l
+						WHERE l.MatchId = @MatchId
+							AND l.MessageGroupId =  @MessageGroupId
+							AND l.ActionName =  @ActionName
+							AND l.MessageGroupId <> 1
+									)
 
-	END TRY
-
-	BEGIN CATCH
-		SELECT @ErrCode = @@ERROR
-			, @ErrMsg = ISNULL(ERROR_MESSAGE(), '')
-	    RETURN
-    END CATCH   
+		END TRY
+		BEGIN CATCH
+			SELECT @ErrCode = @@ERROR
+				, @ErrMsg = ISNULL(ERROR_MESSAGE(), '')
+			RETURN
+		END CATCH 
 
 END
 GO
