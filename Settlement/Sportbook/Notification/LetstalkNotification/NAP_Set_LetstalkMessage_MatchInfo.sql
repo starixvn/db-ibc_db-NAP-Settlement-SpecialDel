@@ -25,9 +25,18 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE  @SqlQuery VARCHAR(4000) = ''
+			, @MessageGroupId TINYINT
+
+
+	SET @MessageGroupId  = 2
+
+	IF OBJECT_ID('tempdb..#CheckInfo') IS NOT NULL
+	DROP TABLE #CheckInfo
 
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 	DROP TABLE #MatchInfo
+	 
+	CREATE TABLE #CheckInfo (MatchId INT, ActionType TINYINT )
 
 	CREATE TABLE #MatchInfo (
 		MatchId				INT
@@ -40,6 +49,7 @@ BEGIN
 		,ConfirmedTime		DATETIME
 		,settletime			DATETIME
 		,IsRunningEarlyTicket BIT DEFAULT(0)
+		,ActionType			TINYINT  DEFAULT(0)
 	)
 
 	SELECT @SqlQuery = 
@@ -54,6 +64,10 @@ BEGIN
 				, r.ResultStatusID
 				, r.LastModifyDate AS ConfirmedTime
 				, m.settletime
+				, CASE r.ResultStatusID WHEN 3 THEN CASE r.ResourceId WHEN ''''01'''' THEN 1
+																	  ELSE 2 END
+										WHEN 5 THEN 3
+										ELSE 0 END AS ActionType
 		FROM bodb02.dbo.Match m WITH(NOLOCK)
 			INNER JOIN bodb02.dbo.ResultDetail r WITH(NOLOCK)
 				ON m.matchid = r.matchid
@@ -75,28 +89,49 @@ BEGIN
 	,ResultStatusID		
 	,ConfirmedTime		
 	,settletime
+	,ActionType
 	)
 	EXEC (@SqlQuery)
 
-	UPDATE m
-	SET IsRunningEarlyTicket = 1
-	FROM #MatchInfo m
-	WHERE m.MatchId IN (
-			SELECT TOP 1 1 FROM dbo.f_Set_GetEarlyBettypes() f
-			CROSS APPLY (	SELECT TOP 1 b.transid
-							FROM dbo.bettrans b WITH(NOLOCK)
-							WHERE b.matchid = MatchId
-								AND b.statusID = 0
-								AND b.bettype = f.bettype
-							UNION ALL
-							SELECT TOP 1 bm.transid
-							FROM dbo.bettransm bm WITH(NOLOCK)
-							WHERE bm.matchid = MatchId
-								AND bm.statusID = 0
-								AND bm.bettype = f.bettype
-						) b
-					)
+	IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo)
+	BEGIN
+		UPDATE m
+		SET IsRunningEarlyTicket = 1
+		FROM #MatchInfo m
+		WHERE m.MatchId IN (
+				SELECT TOP 1 1 FROM dbo.f_Set_GetEarlyBettypes() f
+				CROSS APPLY (	SELECT TOP 1 b.transid
+								FROM dbo.bettrans b WITH(NOLOCK)
+								WHERE b.matchid = MatchId
+									AND b.statusID = 0
+									AND b.bettype = f.bettype
+								UNION ALL
+								SELECT TOP 1 bm.transid
+								FROM dbo.bettransm bm WITH(NOLOCK)
+								WHERE bm.matchid = MatchId
+									AND bm.statusID = 0
+									AND bm.bettype = f.bettype
+							) b
+						)
 	
+		INSERT INTO #CheckInfo (MatchId, ActionType)
+		SELECT l.MatchId, 
+				CASE l.MessageGroupId WHEN 2 THEN CASE WHEN ActionName LIKE '%HT%' THEN 1 --Confirmed HT
+														WHEN ActionName LIKE '%FT%' THEN 2 --Confirmed FT
+														ELSE 3								--Exists running Early Ticket
+														END
+										ELSE 0 
+										END AS ActionType
+		FROM dbo.Settlement_LetstalkMessage l with(NOLOCK)
+		WHERE l.MessageGroupId = @MessageGroupId
+
+		DELETE m
+		FROM #MatchInfo m
+		WHERE m.MatchId IN (SELECT c.MatchId FROM #CheckInfo c WHERE c.ActionType = m.ActionType ) --- Already exists in Settlement_LetstalkMessage
+			OR (m.ResultStatusID = 5 AND m.IsRunningEarlyTicket = 0) --- Do not exists running Early Ticket
+	
+	END
+		
 	SELECT m.MatchId
 			,eventstatus	
 		   ,m.SettlementStatus	
@@ -108,8 +143,5 @@ BEGIN
 		   ,m.settletime			
 		   ,m.IsRunningEarlyTicket
 	FROM #MatchInfo	m
-	WHERE m.ResultStatusID = 3
-		OR m.IsRunningEarlyTicket = 1
-	
 END
 GO
