@@ -17,9 +17,11 @@ AS
 		- 20201109@Louisa: Insert SBO result for 13 sports: 1,2,3,4,5,6,8,9,18,19,24,25,43 [Redmine:#144486]
 		- 20201124@Louisa: Remove param @Sporttype
 		- 20210504@Louisa: Intergration Result for Cricket - Weverdat [Redmine:#154493]
+		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
 
 	Param's Explanation:
-		@SourceId: 1 - SBO
+		@SourceId: 1  - SBO
+				   25 - LSports
 
 		@Resources:
 			For Soccer:
@@ -34,7 +36,7 @@ BEGIN
 	DECLARE @Sporttype SMALLINT
 	SELECT  @Sporttype = ISNULL(m.Sporttype,0) FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
-	IF @Sporttype IN ( 5,9,50) ---- Tennis, Badminton, Cricket
+	IF @Sporttype IN ( 5,9,50,7,14,16,26,28,45)
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
 		@MatchId3rd = @MatchId3rd
