@@ -41,6 +41,8 @@ BEGIN
 	CREATE TABLE #MatchInfo (
 		MatchId				INT
 		,eventstatus		NVARCHAR(100)
+		,leagueid			INT
+		,sporttype			SMALLINT
 		,SettlementStatus	TINYINT
 		,ResourceId			VARCHAR(20)
 		,HomeValue			VARCHAR(50)
@@ -57,6 +59,8 @@ BEGIN
 	 OPENQUERY(DBPRO, ''
 		SELECT DISTINCT m.matchid
 				, m.eventstatus
+				, m.leagueid
+				, m.sporttype
 				, m.SettlementStatus
 				, r.ResourceId
 				, r.HomeValue
@@ -76,12 +80,14 @@ BEGIN
 							AND r.ResultStatusID = 3 
 							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) >= 120 THEN 1
 						WHEN r.ResourceId = ''''00'''' AND r.ResultStatusID = 5
-							AND DATEDIFF( SECOND ,m.settletime, GETDATE() ) >= 180 THEN 1 
+							AND DATEDIFF( SECOND ,m.settletime, GETDATE() ) BETWEEN 180 AND 7200 THEN 1 
 						ELSE 0 END )	> 0 '')'
 	
 	INSERT INTO #MatchInfo (
 	MatchId
-	,eventstatus		
+	,eventstatus
+	,leagueid
+	,sporttype		
 	,SettlementStatus	
 	,ResourceId			
 	,HomeValue			
@@ -99,19 +105,22 @@ BEGIN
 		SET IsRunningEarlyTicket = 1
 		FROM #MatchInfo m
 		WHERE m.MatchId IN (
-				SELECT TOP 1 1 FROM dbo.f_Set_GetEarlyBettypes() f
-				CROSS APPLY (	SELECT TOP 1 b.transid
+				SELECT TOP 1 b.matchid FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+								CROSS APPLY (	SELECT TOP 1 b.matchid
 								FROM dbo.bettrans b WITH(NOLOCK)
-								WHERE b.matchid = MatchId
+								WHERE b.matchid = m.MatchId
 									AND b.statusID = 0
-									AND b.bettype = f.bettype
+									AND b.bettype = sp.bettype
 								UNION ALL
-								SELECT TOP 1 bm.transid
+								SELECT TOP 1 bm.matchid
 								FROM dbo.bettransm bm WITH(NOLOCK)
-								WHERE bm.matchid = MatchId
+								WHERE bm.matchid = m.MatchId
 									AND bm.statusID = 0
-									AND bm.bettype = f.bettype
+									AND bm.bettype = sp.bettype
 							) b
+					WHERE sp.sporttype = m.sporttype
+						AND sp.SettleType ='EAR'
+						AND m.ResultStatusID = 5
 						)
 	
 		INSERT INTO #CheckInfo (MatchId, ActionType)
@@ -133,7 +142,8 @@ BEGIN
 	END
 		
 	SELECT m.MatchId
-			,eventstatus	
+			,eventstatus
+		   ,m.leagueid	
 		   ,m.SettlementStatus	
 		   ,m.ResourceId			
 		   ,m.HomeValue			
