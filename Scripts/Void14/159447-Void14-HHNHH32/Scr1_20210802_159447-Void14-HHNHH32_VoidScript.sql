@@ -13,7 +13,7 @@ DECLARE @TransIds			VARCHAR(MAX) = '112734779478,112734855113,112734868796,11273
 	,@UserName			VARCHAR(30) = 'starixIT'
 	,@UserId			INT = 10278938 -- custid of Admin
 	,@IP				VARCHAR(15) ='125.227.140.97'
-	,@Reason			NVARCHAR(500) = 'Abnormal bet'
+	,@Reason			NVARCHAR(500) = 'Abnormal bets'
 	,@ReasonSC			NVARCHAR(500) = N'非正常投注'
 	,@IsAbnormalBet		BIT = 1
 
