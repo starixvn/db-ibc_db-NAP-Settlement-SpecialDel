@@ -83,6 +83,7 @@ AS
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		- 20210630@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
+		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -480,7 +481,7 @@ BEGIN
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
-			AND statusID NOT IN (101,102 ) -- reject, void		
+			AND statusID NOT IN (101,102, 103) -- reject, void, refund	
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
 			AND b.betfrom <> 'p'	
 	END
@@ -602,7 +603,7 @@ BEGIN
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
-			AND statusID NOT IN (101,102 ) -- reject, void		
+			AND statusID NOT IN (101,102, 103) -- reject, void, refund		
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
 			AND b.betfrom <> 'p'	
 	END
@@ -665,7 +666,7 @@ BEGIN
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			
-				AND bm.statusID NOT IN (101,102) -- reject, void
+				AND bm.statusID NOT IN (101,102, 103) -- reject, void, refund
 				AND bm.betfrom <> 'p'
 		END
 
@@ -971,7 +972,7 @@ BEGIN
 							AND b.matchid = @MatchId
 							AND b.custid = t.custid
 							AND b.bettype = t.bettype 
-			WHERE b.statusID NOT IN (101,102 ) -- reject, void	  
+			WHERE b.statusID NOT IN (101,102, 103) -- reject, void, refund	  
 		END 			    				    				    				    					    
 	END
 
@@ -1165,7 +1166,7 @@ BEGIN
 					AND charindex ('p25',main.extrainfo)> 0			
 					AND sub911.bettype = 911
 					AND sub911.matchid = @matchid
-	WHERE sub911.statusID NOT IN (102, 101) -- VOID, REJECT																			
+	WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund																			
 	
 	-- get cash-out member bet tickets
 	INSERT INTO #SpecialDeleteBets(
@@ -1252,7 +1253,7 @@ BEGIN
 						AND b.matchid = sub911.matchid
 						AND b.bettype = sub911.OriginalBetType
 						AND b.matchid = @MatchId
-						AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+						AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
 	WHERE sub911.bettype = 911
 	
 	-- update username/creatorname column, Isdeposit

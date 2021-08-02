@@ -115,6 +115,7 @@ AS
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		- 20210714@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
+		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -660,7 +661,7 @@ BEGIN
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END 
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END 			
 			AND ISNULL(b.SecAcceptFlag, 0)  = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-			AND b.statusID NOT IN (101, 102)
+			AND b.statusID NOT IN (101, 102, 103)
 			AND b.betfrom <> 'p'
 		
 		OPTION (OPTIMIZE FOR (@CountTransId = 1))
@@ -780,7 +781,7 @@ BEGIN
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END 
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END 			
 			AND ISNULL(b.SecAcceptFlag, 0)  = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-			AND b.statusID NOT IN (101, 102)
+			AND b.statusID NOT IN (101, 102, 103)
 			AND b.betfrom <> 'p'
 		
 		OPTION (OPTIMIZE FOR (@CountTransId = 1))
@@ -843,7 +844,7 @@ BEGIN
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-				AND bm.statusID NOT IN (101, 102)
+				AND bm.statusID NOT IN (101, 102, 103)
 				AND bm.betfrom <> 'p'
 		END
 		
@@ -1125,7 +1126,7 @@ BEGIN
 						AND b.matchid = @MatchId
 						AND b.custid = r.custid
 						AND b.bettype = r.bettype
-		WHERE b.statusID NOT IN (101,102 ) -- reject, void	
+		WHERE b.statusID NOT IN (101,102, 103) -- reject, void, refund
 	END
 	
 	-- delete main ticket if it's BT but subticket is not exists in SOLD list
@@ -1420,7 +1421,7 @@ BEGIN
 						AND charindex ('p25',tmpmain.extrainfo)> 0			
 						AND sub.bettype = 911
 						AND sub.matchid = @matchid	
-			WHERE sub.statusID NOT IN (102, 101) -- VOID, REJECT						
+			WHERE sub.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund						
 			
 			-- insert cash-out member bet tickets			
 			INSERT INTO #BetDelete(
@@ -1511,7 +1512,7 @@ BEGIN
 								AND b.matchid = sub911.matchid
 								AND b.bettype = sub911.OriginalBetType
 								AND b.matchid = @MatchId
-								AND b.statusID NOT IN (102, 101) -- VOID, REJECT
+								AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
 			WHERE sub911.bettype = 911	
 			
 			-- insert 912,913
@@ -1523,7 +1524,7 @@ BEGIN
 							AND sub911.matchid = sub_912_913.matchid						    
 							AND sub_912_913.bettype IN (912,913) 
 							AND sub_912_913.matchid = @MatchId
-							AND sub_912_913.statusID NOT IN (102, 101) -- VOID, REJECT
+							AND sub_912_913.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
 			
 			-- insert custCashOut912
 			INSERT INTO @tblCustCashOut912( custid )

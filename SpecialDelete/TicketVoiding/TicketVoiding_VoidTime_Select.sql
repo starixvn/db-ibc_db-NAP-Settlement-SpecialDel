@@ -1,7 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidTime_Select]
 (	
-	 @GetVoidTimeInfo	VARCHAR(MAX) = ''	
+	 @GetVoidTimeInfo	VARCHAR(MAX) = ''
+	 ,@ActionId			INT = 5
 )
 AS 
 /*	
@@ -15,6 +16,7 @@ AS
 		- 20210506@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210526@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210628@Max: [TVS] Submit new allowance setting for Main Match [Redmine: #157226]
+		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 
 	Param's explanation:
 		+ GetVoidTimeInfo:
@@ -122,13 +124,14 @@ BEGIN
 										)
 			  ,@VoidToTime = MAX(act.FromDate)
 		FROM (
-			SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime
+			SELECT b.transid, NULL AS subtransid, b.bettype, b.transdate, b.checktime, bi.LiveBetAcceptTime, bi.SecAcceptTime, b.statusID
 			FROM dbo.bettrans b WITH(NOLOCK) 
 				LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 			WHERE b.matchid = @MatchId
 				AND b.betfrom <> 'P'
+				AND ISNULL(b.betdaqid,-1) NOT IN (1)
 			UNION ALL
-			SELECT NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
+			SELECT NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime, bm.statusID
 			FROM dbo.bettransm bm WITH(NOLOCK)
 			WHERE bm.matchid = @MatchId
 				AND bm.betfrom <> 'P'
@@ -156,7 +159,10 @@ BEGIN
 						  WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 						  ELSE 0
 					 END
-
+			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							 ELSE 0 END
+		
 		IF @VoidFromTime IS NULL
 		BEGIN
 			SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
