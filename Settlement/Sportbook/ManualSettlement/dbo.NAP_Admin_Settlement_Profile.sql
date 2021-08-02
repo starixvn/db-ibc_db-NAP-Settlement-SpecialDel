@@ -38,6 +38,7 @@ AS
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -99,6 +100,7 @@ BEGIN
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	DECLARE @tmpResourceSettled TABLE (ResourceID VARCHAR(20))
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -193,6 +195,21 @@ BEGIN
 														,Away VARCHAR(50)
 										) AS tbl
 	EXEC sp_xml_removedocument @handle
+
+	IF @IsAuto = 1 AND @sportType = 50
+	BEGIN
+		DELETE r
+		OUTPUT DELETED.ResourceID
+		INTO @tmpResourceSettled
+		FROM @tmpResourcesWeb r
+		WHERE r.ResourceID IN 
+					(
+						SELECT ResourceID FROM DBPRO.bodb02.dbo.ResultDetailOS ro WITH(NOLOCK)
+						WHERE ro.MatchId = @MatchID
+							AND ro.ResourceID = r.ResourceID
+							AND ro.ResultStatusID = 5 
+					)
+	END
 
 	IF @Action LIKE 'REFUND%'
 	BEGIN

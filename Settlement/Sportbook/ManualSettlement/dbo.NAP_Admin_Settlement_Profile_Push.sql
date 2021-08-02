@@ -29,6 +29,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -91,11 +92,15 @@ BEGIN
 	FROM	dbo.League l WITH(NOLOCK)
 	WHERE	l.leagueid = @leagueid
 
-	IF @LeagueGroupId <> 113 AND @IsAuto = 1
+	IF @IsAuto = 1
 	BEGIN
+
+		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal
+			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
+
 		SELECT	 @ErrCode	= 1001052
 				,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
-		RETURN
+				RETURN
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
@@ -202,9 +207,22 @@ BEGIN
 			,@AdminId		= @AdminId
 			,@IP			= @IP
 	END
+
+	IF (@IsAuto = 1 AND @sporttype = 50 ) --Auto Settle Cricket
+	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Insert 
+		  @MatchId 		= @matchid
+		, @ResourceId 	= @SelectedResources
+		, @StatusId 	= 1 -- waiting
+		, @ErrCode 		= @ErrCode OUTPUT
+		, @ErrMsg		= @ErrMsg OUTPUT
+		
+	IF @ErrCode <> 0
+	BEGIN
+		RETURN
+	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
-		OR @IsAuto = 1 -- product PinGoal will be executed directly instead of pushing in queue
+		OR ( @IsAuto = 1 AND @sporttype = 1 ) -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand
