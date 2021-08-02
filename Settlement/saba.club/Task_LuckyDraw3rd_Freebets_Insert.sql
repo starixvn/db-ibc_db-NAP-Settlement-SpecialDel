@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
 		- 20210428@Helen: Deposit - Adjust Free Bets based on Turnover [Redmine: #154287]
+		- 20210722@Max: Deposit - Offer Vgaming to INH currency [Redmine: #158105]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -21,7 +22,7 @@ BEGIN
 	CREATE TABLE #testAccount (username VARCHAR(30),FreeSpinCount INT )
 	CREATE TABLE #temp_result (CustID INT, srecommend INT, mrecommend INT,recommend INT, Amount MONEY)			
 	-- Input param value here
-	SELECT  @Sporttype = 150
+	SELECT  @Sporttype = 173
 	
 	SET @winlostdate = CONVERT(date, getdate()-1)
 	SELECT DATENAME(dw,@winlostdate)
@@ -49,11 +50,11 @@ BEGIN
 			AND b.statusID IN (111,112,113)
 			AND b.bettype < 19999
 			AND b.bettype NOT IN (29)
-			AND l.LeagueGroupID IN (42,74,108)
+			AND l.LeagueGroupID IN (42,74,108, 113)
 			AND l.isTest = 0
 			AND b.currency = 51
 			AND b.winlostdate = @winlostdate
-			AND 1 = CASE WHEN m.sporttype = 1 AND l.leaguegroupid in (42, 74, 108) THEN 1
+			AND 1 = CASE WHEN m.sporttype = 1 AND l.leaguegroupid in (42, 74, 108, 113) THEN 1
 						 WHEN m.sporttype = 2 AND l.leaguegroupid = 42 THEN 1
 						 WHEN m.sporttype = 50 AND l.leaguegroupid = 42 THEN 1
 						 ELSE 0
@@ -125,7 +126,7 @@ BEGIN
 			INNER JOIN custdb.dbo.Customer c WITH (NOLOCK) ON s.username = c.username
 	
 		INSERT INTO dbo.LuckyDraw3rd_Log (sporttype, RoundID, CreatedDate)
-		SELECT 150,@RoundID,GETDATE()
+		SELECT @Sporttype,@RoundID,GETDATE()
 		
 	END
 	

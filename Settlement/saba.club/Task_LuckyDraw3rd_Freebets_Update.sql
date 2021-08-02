@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20210319@Helen: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+		- 20210722@Max: Deposit - Offer Vgaming to INH currency [Redmine: #158105]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -18,7 +19,7 @@ BEGIN
 	DECLARE @currentDate DATETIME
 	SET @currentDate = CONVERT(date, getdate())
 	
-	SELECT @sporttype = 150
+	SELECT @sporttype = 173
 	
 	SET @RoundID = (SELECT MAX(roundID) 
 					FROM dbo.LuckyDraw3rd WITH (NOLOCK) 

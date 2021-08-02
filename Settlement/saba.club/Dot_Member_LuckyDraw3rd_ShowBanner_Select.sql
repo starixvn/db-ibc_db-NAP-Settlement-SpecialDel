@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="dot_intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Dot_Member_LuckyDraw3rd_ShowBanner_Select]
 (
-	@sporttype TINYINT = 150
+	@sporttype TINYINT = 173
 )
 AS
 /*
@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20200826@Helen: Saba.club - Offer Freebet tickets for 789y market [Redmine:#137942]
 		- 20201208@Max: Deposit - Saba.Club - Free Bets [Redmine: #142369]
+		- 20210722@Max: Deposit - Offer Vgaming to INH currency [Redmine: #158105]
 		
 */
 BEGIN
