@@ -234,13 +234,8 @@ BEGIN
 	SELECT @MatchID, b.refno
 	FROM #tblTransId t
 	  INNER JOIN dbo.bettransm b WITH(NOLOCK) ON t.transid = b.transid
-	WHERE	b.matchid = @MatchID   
-		AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE b.livehomescore END  
-		AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE b.liveawayscore END   
-		AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL THEN @FromTransdate ELSE b.transdate END   
-							AND CASE WHEN @ToTransdate IS NOT NULL THEN @ToTransdate ELSE b.transdate END   
-		AND b.statusID NOT IN (101, 102)
-		AND b.betfrom <> 'p'
+	WHERE	b.matchid = @MatchID
+		 AND b.statusID NOT IN (101, 102)   
    
 	SET @totalSubParlay = @@ROWCOUNT
    	EXEC dbo.NAP_Set_GlobalSettingSel 

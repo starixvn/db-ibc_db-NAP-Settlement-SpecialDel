@@ -333,27 +333,25 @@ BEGIN
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-	IF @BypassCheckingProcess IN (0,1) 
+	IF @RowCount <= @ThreadHold
 	BEGIN
-		IF @RowCount <= @ThreadHold
-		BEGIN
-		    IF @BypassCheckingProcess = 1
-			    SET @Session = (SELECT TOP 1 Session 
-								FROM dbo.ParlayLocking p WITH(NOLOCK)
-									  INNER JOIN #tblMatchParlayProcess m ON p.MatchId = m.matchId AND p.Refno = m.RefNo
-								WHERE p.MatchId = @MatchId)
+		IF @BypassCheckingProcess IN (1,3)  
+			SET @Session = (SELECT TOP 1 Session 
+							FROM dbo.ParlayLocking p WITH(NOLOCK)
+									INNER JOIN #tblMatchParlayProcess m ON p.MatchId = m.matchId AND p.Refno = m.RefNo
+							WHERE p.MatchId = @MatchId)
 
-			EXEC dbo.NAP_Admin_CheckingProcess
-				 @IsLockingByRefno = 1
-				 ,@Session	= @Session
-				 ,@IsReleased = 1
-		END
-		ELSE --@RowCount > 10K
-		BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+	END
+	ELSE 
+	BEGIN
+		IF @BypassCheckingProcess IN (0,1) 
 			EXEC dbo.NAP_Admin_CheckingProcess  
-				 @isExistParlay  = 1  
-				,@IsReleased  = 1 
-		END
+					@isExistParlay  = 1  
+				   ,@IsReleased  = 1 
 	END
 	
 	-- Write Log

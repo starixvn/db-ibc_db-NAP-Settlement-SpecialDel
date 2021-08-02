@@ -504,10 +504,9 @@ BEGIN
 		END
 	END
 
-	INSERT INTO #Match
-	SELECT DISTINCT
-			t.MatchId
-	FROM #Tickets t;
+	INSERT INTO #Match (MatchId)
+	SELECT DISTINCT MatchId
+	FROM #Tickets ;
 
 	-- Write Log
 	SET @xmlLog = CAST((
@@ -543,7 +542,7 @@ BEGIN
 		m.SportType,
 		m.IsNeutral
 	FROM #Match b
-		LEFT JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+		LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
 	
 	-- Write useraction log	
 	BEGIN TRY

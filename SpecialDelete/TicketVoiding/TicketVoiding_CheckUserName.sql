@@ -22,6 +22,7 @@ AS
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 
 	Param's Explanation:
 */
@@ -54,7 +55,9 @@ BEGIN
 			,@MatchProcessXML		  XML = NULL
 			,@movebetdate SMALLDATETIME
 			,@maxdate 	DATETIME = '9999-01-01'
-
+			,@MatchParlayProcessXML	  XML = NULL
+			,@TotalRefnoParlay		  INT = 0
+			,@ThreadHold			  INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
 
 	
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
@@ -62,10 +65,11 @@ BEGIN
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, RefNo BIGINT)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
 	INSERT INTO #TmpInValidUserName (Username)
 	SELECT DISTINCT val
@@ -187,11 +191,12 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
 		SELECT	b.translogid AS transid
 				,b.statusID 
 				,b.EventID
 				,b.GameID
+				,b.translogid AS refno
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -204,6 +209,7 @@ BEGIN
 				,b.statusID
 				,b.matchid
 				,b.bettype
+				,b.refno
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -238,11 +244,12 @@ BEGIN
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_1)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
 		SELECT	b.translogid AS transid
 				,b.statusID 
 				,b.EventID
 				,b.GameID
+				,b.translogid AS refno
 		FROM	dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
 		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -255,6 +262,7 @@ BEGIN
 				,b.statusID
 				,b.matchid
 				,b.bettype
+				,b.refno
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -372,6 +380,32 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 			)
 
+	--Lock Refno process - SportBook
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		@LockName = 'ParlayRefno'
+		,@ThreadHold = @ThreadHold OUTPUT
+
+	INSERT INTO @tblMatchParlay (MatchId, RefNo)
+	SELECT DISTINCT MatchId, refno
+	FROM #transIdTemp 
+	WHERE bettype IN (9,29) --NOT 2799: Virtual Sport
+
+	SET @TotalRefnoParlay = @@ROWCOUNT
+
+	IF @TotalRefnoParlay <= @ThreadHold
+	BEGIN
+		SET @MatchParlayProcessXML = (
+		SELECT  MatchId "@MatchId"
+				,refno AS "@RefNo"
+		FROM @tblMatchParlay 
+		FOR XML PATH('r'), ROOT('root'))
+	END	
+	ELSE
+	BEGIN
+		SET @MatchParlayProcessXML = NULL
+	END
+
+
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
@@ -388,7 +422,8 @@ BEGIN
 		  ,@IsExistVS AS IsExistVS				
 		  ,@IsExistBB AS IsExistBB							    
 		  ,@IsExistFM AS IsExistFM
-		  ,@IsExistFM2 AS IsExistFM2		
+		  ,@IsExistFM2 AS IsExistFM2
+		  ,@MatchParlayProcessXML AS MatchParlayProcessXML 		
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

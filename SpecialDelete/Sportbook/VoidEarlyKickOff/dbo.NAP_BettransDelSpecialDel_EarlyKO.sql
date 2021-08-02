@@ -480,9 +480,9 @@ BEGIN
 			ON sub.refno = main.refno  
 			INNER JOIN #tblTransIds t   
 			ON t.transid = sub.transid  
-		WHERE main.matchid  = 29 
-			AND main.bettype = 29 
-			AND sub.matchid  = @matchid  
+		WHERE main.matchid  = 29 AND main.bettype = 29 
+			AND sub.matchid  = @matchid
+			AND sub.statusID NOT IN (101, 102)  
 
 		SET @totalSubParlay = @@ROWCOUNT
 		IF @totalSubParlay > 0 

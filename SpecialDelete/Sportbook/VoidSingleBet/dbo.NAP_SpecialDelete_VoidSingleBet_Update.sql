@@ -513,6 +513,7 @@ BEGIN
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
 		WHERE bm.matchid  = @matchid  
+			AND bm.statusID NOT IN (101, 102, 103)
 
 		SET @totalSubParlay = @@ROWCOUNT
 		IF @totalSubParlay > 0 

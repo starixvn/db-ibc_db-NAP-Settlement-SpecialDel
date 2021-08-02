@@ -469,10 +469,9 @@ BEGIN
 		END
 	END;
 
-	INSERT INTO #Match
-	SELECT DISTINCT
-		t.MatchId
-	FROM #Tickets t;
+	INSERT INTO #Match (matchid)
+	SELECT DISTINCT MatchId
+	FROM #Tickets;
     
 	-- Insert Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX)

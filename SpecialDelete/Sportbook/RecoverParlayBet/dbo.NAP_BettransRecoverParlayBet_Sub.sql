@@ -160,19 +160,9 @@ BEGIN
 		  		ON t.transid = b.transid
 		  INNER JOIN bettransm bm WITH (NOLOCK)
 		  		ON bm.refno	= b.refno	   							
-		  INNER JOIN dbo.match m WITH(NOLOCK)
-		  		ON	bm.matchid = m.matchid
 	WHERE bm.matchid = @MatchId
 		AND b.bettype = 29	
 		AND bm.statusid = 102
-		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
-		AND (m.sporttype BETWEEN 1 AND 99)
-		AND CASE
-				WHEN @BetType = 'all' THEN 1
-				WHEN @BetType = 'Mix Parlay' THEN CASE WHEN b.betteam = 1 THEN 1 ELSE 0 END
-				WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
-				ELSE 0
-			END = 1	
 
 	SET @totalSubParlay = @@ROWCOUNT
 

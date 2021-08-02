@@ -164,7 +164,6 @@ BEGIN
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
 	SET @SB_Error = 0
-	SET @FailedTransIds = @TransIds
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 	
@@ -172,6 +171,8 @@ BEGIN
 
 	IF @IssueTypeId <> 13 AND @TransIds <> ''
 	BEGIN
+		SET @FailedTransIds = @TransIds
+
 		INSERT INTO @tmpInputTransId (TransId)
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@TransIds, ',')
@@ -183,6 +184,8 @@ BEGIN
 	END
 	ELSE --13
 	BEGIN
+		SET @FailedTransIds = NULL
+
 		INSERT INTO #tblMatch_TransIds (matchid, transids)
 		SELECT	q.MatchId, q.TransIds
 		FROM dbo. TicketVoiding_Queue q WITH (NOLOCK)	
@@ -448,7 +451,7 @@ BEGIN
 			SET @Retry = 0
 			SET @Success = 0
 			
-			IF @MatchId_Retry IN (9,29,2799)
+			IF @MatchId_Retry IN (9,29) --NOT 2799: Virtual Sport
 			BEGIN
 				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 				SELECT @MatchId_Retry, refno
@@ -467,11 +470,11 @@ BEGIN
 			BEGIN
 				SET @Success = 1
 
-				-- Apply new way to lock parlay tickets	
+				-- Apply new way to lock parlay tickets - Sportsbook	
 				IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 				BEGIN
-					DELETE FROM #tblMatchProcess WHERE KeyID = 0
-					IF EXISTS(SELECT TOP 1 1 FROM #tblMatchProcess)
+					IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
+						OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
 					BEGIN
 						-- checking single proccess
 						EXEC dbo.NAP_Admin_CheckingProcess
@@ -482,6 +485,7 @@ BEGIN
 							, @isExistNG				= @isExistNG
 							, @isExistVS				= @isExistVS
 							, @isExistBB				= @isExistBB
+							, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 							, @isExistFM2				= @isExistFM2
 							, @spName					= @spName
 							, @avaiableProcess 			= @avaiableProcess OUTPUT
@@ -538,6 +542,7 @@ BEGIN
 					ELSE IF (@isExistParlay = 1) OR (@ErrCodeRefNo <> 0 OR @avaiableProcessRefNo = 0)
 					BEGIN
 						WAITFOR DELAY '00:00:20'
+						SELECT  @ErrCode = @ErrCodeRefNo, @ErrMsg = @ErrMsgRefNo --Output message
 					END
 				END
 				ELSE 
@@ -602,7 +607,8 @@ BEGIN
 				-- Apply new way to lock parlay tickets
 				IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 				BEGIN
-					IF EXISTS(SELECT TOP 1 1 FROM #tblMatchProcess)
+					IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
+						OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
 					BEGIN
 						EXEC dbo.NAP_Admin_CheckingProcess
 							@isExistOutright 			= @isExistOutright
@@ -612,6 +618,7 @@ BEGIN
 							, @isExistNG				= @isExistNG
 							, @isExistVS				= @isExistVS
 							, @isExistBB				= @isExistBB
+							, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 							, @isExistFM2				= @isExistFM2
 							, @IsReleased				= 1	
 					END
@@ -806,7 +813,8 @@ BEGIN
 			-- Apply new way to lock parlay tickets
 			IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 			BEGIN
-				IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+				IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
+						OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
 				BEGIN
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistOutright 			= @isExistOutright
@@ -816,6 +824,7 @@ BEGIN
 						, @isExistNG				= @isExistNG
 						, @isExistVS				= @isExistVS
 						, @isExistBB				= @isExistBB
+						, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 						, @isExistFM2				= @isExistFM2
 						, @IsReleased				= 1
 				END
@@ -1643,6 +1652,7 @@ BEGIN
 					, @isExistNG				= @isExistNG
 					, @isExistVS				= @isExistVS
 					, @isExistBB				= @isExistBB
+					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 					, @isExistFM2				= @isExistFM2
 					, @IsReleased				= 1
 			END
