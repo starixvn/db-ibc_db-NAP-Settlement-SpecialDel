@@ -78,7 +78,7 @@ BEGIN
 		WHERE m.sporttype = 1
 			AND ( CASE  WHEN r.ResourceId IN (''''00'''', ''''01'''') 
 							AND r.ResultStatusID = 3 
-							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) >= 120 THEN 1
+							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) BETWEEN 120 AND 7200 THEN 1
 						WHEN r.ResourceId = ''''00'''' AND r.ResultStatusID = 5
 							AND m.eventstatus = ''''completed''''
 							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) BETWEEN 180 AND 7200 THEN 1 
@@ -130,7 +130,7 @@ BEGIN
 	INSERT INTO #CheckInfo (MatchId, ActionType)
 	SELECT l.MatchId, 
 			CASE l.MessageGroupId WHEN 2 THEN CASE  WHEN ActionName = 'HT Score confirmed'	THEN 1 --Confirmed HT
-													WHEN ActionName = 'Score confirmed'		THEN 2 --Confirmed FT
+													WHEN ActionName = 'FT Score confirmed'	THEN 2 --Confirmed FT
 													ELSE 3								--Exists running Early Ticket
 													END
 									ELSE 0 
