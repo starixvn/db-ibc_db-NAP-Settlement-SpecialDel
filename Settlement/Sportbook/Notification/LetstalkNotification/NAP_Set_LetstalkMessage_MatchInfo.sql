@@ -80,7 +80,8 @@ BEGIN
 							AND r.ResultStatusID = 3 
 							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) >= 120 THEN 1
 						WHEN r.ResourceId = ''''00'''' AND r.ResultStatusID = 5
-							AND DATEDIFF( SECOND ,m.settletime, GETDATE() ) BETWEEN 180 AND 7200 THEN 1 
+							AND m.eventstatus = ''''completed''''
+							AND DATEDIFF( SECOND ,r.LastModifyDate, GETDATE() ) BETWEEN 180 AND 7200 THEN 1 
 						ELSE 0 END )	> 0 '')'
 	
 	INSERT INTO #MatchInfo (
@@ -99,47 +100,50 @@ BEGIN
 	)
 	EXEC (@SqlQuery)
 
-	IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo)
+	IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo WHERE ResultStatusID = 5)
 	BEGIN
 		UPDATE m
 		SET IsRunningEarlyTicket = 1
 		FROM #MatchInfo m
 		WHERE m.MatchId IN (
-				SELECT TOP 1 b.matchid FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-								CROSS APPLY (	SELECT TOP 1 b.matchid
-								FROM dbo.bettrans b WITH(NOLOCK)
-								WHERE b.matchid = m.MatchId
-									AND b.statusID = 0
-									AND b.bettype = sp.bettype
-								UNION ALL
-								SELECT TOP 1 bm.matchid
-								FROM dbo.bettransm bm WITH(NOLOCK)
-								WHERE bm.matchid = m.MatchId
-									AND bm.statusID = 0
-									AND bm.bettype = sp.bettype
-							) b
-					WHERE sp.sporttype = m.sporttype
-						AND sp.SettleType ='EAR'
-						AND m.ResultStatusID = 5
-						)
-	
-		INSERT INTO #CheckInfo (MatchId, ActionType)
-		SELECT l.MatchId, 
-				CASE l.MessageGroupId WHEN 2 THEN CASE WHEN ActionName LIKE '%HT%' THEN 1 --Confirmed HT
-														WHEN ActionName LIKE '%FT%' THEN 2 --Confirmed FT
-														ELSE 3								--Exists running Early Ticket
-														END
-										ELSE 0 
-										END AS ActionType
-		FROM dbo.Settlement_LetstalkMessage l with(NOLOCK)
-		WHERE l.MessageGroupId = @MessageGroupId
-
-		DELETE m
-		FROM #MatchInfo m
-		WHERE m.MatchId IN (SELECT c.MatchId FROM #CheckInfo c WHERE c.ActionType = m.ActionType ) --- Already exists in Settlement_LetstalkMessage
-			OR (m.ResultStatusID = 5 AND m.IsRunningEarlyTicket = 0) --- Do not exists running Early Ticket
-	
+							SELECT TOP 1 b.matchid 
+							FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+								CROSS APPLY (	
+												SELECT TOP 1 b.matchid
+												FROM dbo.bettrans b WITH(NOLOCK)
+												WHERE b.matchid = m.MatchId
+													AND b.statusID = 0
+													AND b.bettype = sp.bettype
+												UNION ALL
+												SELECT TOP 1 bm.matchid
+												FROM dbo.bettransm bm WITH(NOLOCK)
+												WHERE bm.matchid = m.MatchId
+													AND bm.statusID = 0
+													AND bm.bettype = sp.bettype
+											) b
+							WHERE sp.sporttype = m.sporttype
+								AND sp.SettleType ='EAR'
+								AND m.ResultStatusID = 5
+					)
 	END
+
+	INSERT INTO #CheckInfo (MatchId, ActionType)
+	SELECT l.MatchId, 
+			CASE l.MessageGroupId WHEN 2 THEN CASE  WHEN ActionName = 'HT Score confirmed'	THEN 1 --Confirmed HT
+													WHEN ActionName = 'Score confirmed'		THEN 2 --Confirmed FT
+													ELSE 3								--Exists running Early Ticket
+													END
+									ELSE 0 
+									END AS ActionType
+	FROM dbo.Settlement_LetstalkMessage l WITH(NOLOCK)
+		INNER JOIN #MatchInfo m ON l.MatchId = m.MatchId
+	WHERE l.MessageGroupId = @MessageGroupId
+
+	DELETE m
+	FROM #MatchInfo m
+	WHERE m.MatchId IN (SELECT c.MatchId FROM #CheckInfo c WHERE c.ActionType = m.ActionType ) --- Already exists in Settlement_LetstalkMessage
+		OR (m.ResultStatusID = 5 AND m.IsRunningEarlyTicket = 0) --- Do not exists running Early Ticket
+	
 		
 	SELECT m.MatchId
 			,eventstatus
