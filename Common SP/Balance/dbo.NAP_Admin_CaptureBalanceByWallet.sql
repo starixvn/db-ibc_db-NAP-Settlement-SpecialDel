@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
 	, @TransIDs		    VARCHAR(MAX)    = NULL
+	, @IsCashout			BIT = 0
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -27,7 +28,8 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
-
+		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
+		
 	Param's Explanation:   
 		- @MatchId: Id of match event
 		- @Action : [CAL, CAL-HT, CAL-FT]
@@ -90,6 +92,12 @@ BEGIN
 
 	CREATE TABLE #tmpFMTransId (TransId BIGINT)
 	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tmpDummyTicket -- cashout: 901-> 903, 911; bettrade: 901 -> 903
+	(
+		transid BIGINT PRIMARY KEY
+		,custid INT
+		,bettype SMALLINT
+	)
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 	
 	SELECT @xmlFMResults 	= CAST(ISNULL(@FMResults, '<r />') AS XML)
@@ -139,22 +147,98 @@ BEGIN
                                 			) AS tbl
 	    EXEC sp_xml_removedocument @handle
 	    
+	    IF @sportType = 2 AND @IsCashout = 1
+		BEGIN
+			-- get main transid of Bettrade & transid of bettype 911
+			;WITH cteMain
+			AS(
+				SELECT	b.transId, b.matchid, b.custid
+				FROM	dbo.bettrans b WITH(NOLOCK)
+				WHERE	b.matchid = @matchid
+						AND b.betdaqid = 0 
+				UNION ALL
+				SELECT NULL, NULL, NULL
+			)			
+			INSERT INTO #tmpReferTransId(transid)
+			SELECT	ISNULL(co.transid, main.transid) AS transid
+			FROM cteMain main
+				LEFT JOIN dbo.bettrans co WITH(NOLOCK)
+					ON	co.matchid = main.matchid
+						AND co.refno = main.transid
+						AND co.custid = main.custid
+						AND co.bettype = 911
+			WHERE main.transid IS NOT NULL
+						
+			INSERT INTO #tmpDummyTicket (transid, custid, bettype) -- 911
+			SELECT	transid, custid, bettype
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.matchid = @matchid
+					AND b.bettype = 911 
+					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.transid)			
+			
+			UNION ALL
+			
+			SELECT	transid, custid, bettype -- 912, 913
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.matchid = @matchId
+					AND b.bettype IN (912, 913)					
+					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.refno)
+				
+			INSERT INTO #tmpDummyTicket (transid, custid, bettype) -- 914
+			SELECT	transid, custid, bettype
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	b.matchid = @matchId
+					AND b.bettype IN ( 914)
+					AND EXISTS (SELECT TOP 1 1 
+								FROM #tmpDummyTicket t 
+								WHERE	1 = CASE 
+												WHEN t.bettype = 912 AND b.bettype = 914 THEN 1
+												ELSE 0
+											END
+										AND t.custid = b.custid)
+		END
+		
         ----cal Balance
-        SELECT @MatchId AS matchid,b.custid
-               ,@balanceType AS balanceType
-               ,ISNULL(b.WalletType,2) AS WalletType -- 2: Cash wallet,
-               ,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
-               ,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-        FROM BetTrans b WITH (ROWLOCK)
-        WHERE b.matchid = @matchid_tmp
-        	AND b.statusID NOT IN (101,102)
-			AND EXISTS( SELECT TOP 1 1
-  						FROM @tmpSelectedRID t
-  						WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-	  					) 
-        GROUP BY b.custid, b.WalletType, b.BonusId
+        SELECT @MatchId AS matchid
+				,b.custid
+				,@balanceType AS balanceType
+				,b.WalletType
+				,b.BonusId
+				,SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM	(	
+					SELECT	
+						b.custid
+						,ISNULL(b.WalletType,2) AS WalletType -- 2: Cash wallet
+						,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+						,b.winlost
+						,b.actual_stake
+						,b.playercomm
+					FROM BetTrans b WITH (ROWLOCK)
+					WHERE b.matchid = @matchid_tmp
+						AND b.statusID NOT IN (101,102)
+						AND EXISTS( SELECT TOP 1 1
+									FROM @tmpSelectedRID t
+									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+									) 	
+						
+					UNION ALL
+
+					SELECT	b.custid
+							,2 AS WalletType -- Cash wallet
+							,0 AS BonusId -- not join bonus
+							,b.winlost
+							,b.actual_stake
+							,b.playercomm
+					FROM	#tmpDummyTicket st
+						INNER JOIN dbo.bettrans b WITH(ROWLOCK)
+							ON b.transid = st.transid
+					WHERE	b.matchid = @matchid
+			
+		) b
+		GROUP BY b.custid, b.WalletType, b.BonusId
+		
+		RETURN
     END  ---END @SelectedRID
-    
     ELSE IF (@isCheckBet = 0) --Capturing Balance M1
 	BEGIN		
 		INSERT INTO @tmpBettypes(bettype)

@@ -39,6 +39,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
@@ -91,10 +92,14 @@ BEGIN
 			,@IsMergedParlay	BIT = 0
 			,@SelectedResourceParlay VARCHAR(MAX) = ''
 			,@sqlCommand VARCHAR(MAX) = ''
+			-- for cashout
+			,@ResourceID_914_HTFT TINYINT
+			,@Action_914_tmp	VARCHAR(10)
+			,@IsCashout			BIT = 0
 			,@TotalSubParlay	INT = 0
 			,@ThreadHold		INT = 0
 			,@LockedByRefno		BIT = 0
-
+			
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
@@ -110,6 +115,18 @@ BEGIN
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
+	
+	-- for cashout
+	DECLARE @rowcountDummy	INT
+			, @threshold	INT = 4500
+			,@strBettypes VARCHAR(MAX)
+	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tmpDummyTicket -- cashout: 901-> 903, 911; bettrade: 901 -> 903
+	(
+		transid BIGINT PRIMARY KEY
+		,custid INT
+		,bettype SMALLINT
+	)
 	----------------------------------------------------------------------------------------------------------------------
 
 	-- Check SP is in deployment
@@ -536,6 +553,15 @@ BEGIN
 						,@BetStatus				= @BetStatus
 		END
 		
+		IF @sportType = 2 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID IN ('00','01'))-- BASKETBALL
+		BEGIN
+			SELECT	@strBettypes = @strBettypes + CAST(bettype AS VARCHAR) + ','
+			FROM	@tmpSelectedRID
+			GROUP BY bettype
+			
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK)	WHERE	b.matchid = @matchid AND b.betdaqid = 0 )
+				SET @IsCashout = 1
+		END
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
 		---------------------------VVVV------------------------------
@@ -547,9 +573,10 @@ BEGIN
 						,@Action 				  = @Action
 						,@Mode 					  = 2
 						,@SelectedRID			  = @SelectedRID
-		SELECT @TotalAccount = @@ROWCOUNT
+						,@IsCashout				  = @IsCashout
 		
-
+		SELECT @TotalAccount = @@ROWCOUNT
+						
 		------START UPDATE BETTRANS---------------------------------------------------------------------------
 		WHILE 1=1
 		BEGIN
@@ -584,7 +611,36 @@ BEGIN
 			   ,@strTransIds		 = @strTransIds
 
 		END
-
+		
+		-- cashout for basketball
+		IF @sportType = 2 AND @IsCashout = 1 -- BASKETBALL
+		BEGIN
+			-- process for 911 first: NAP_Admin_Calculate_911
+			EXEC dbo.NAP_Admin_Calculate_Main
+				@matchid	  		 = @matchid
+			   ,@action				 = @action
+			   ,@IsSettingByProfile  = 1
+			   ,@strBettypes		 = @strBettypes
+			   ,@sportType			 = @sportType
+			   ,@isCashout			 = @IsCashout
+			   
+			-- For Undo for both HT (01) & FT (00)-> action = 'UNDO', if one of them 01 OR 00 -> action = 'CAL' (NAP_Admin_Calculate_914 will run at block code <>'Undo')
+			IF @Action = 'UNDO'
+			BEGIN
+				SET @ResourceID_914_HTFT = (SELECT COUNT(DISTINCT ResourceID) FROM @tmpSelectedRID WHERE ResourceID IN ('00','01'))
+				
+				IF @ResourceID_914_HTFT = 1
+					SET @Action_914_tmp = 'CAL'
+				ELSE 
+					SET @Action_914_tmp = @Action 	
+			END
+			
+			EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
+				@MatchId = @matchid
+				,@Action = @Action_914_tmp
+					
+			
+		END	
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 			
 		-------------------------------------------------------------
@@ -598,15 +654,16 @@ BEGIN
 					,@Action 			= @Action
 					,@Mode 			  	= 2 --Used for Manual settle process
 					,@SelectedRID		= @SelectedRID
-	
+					,@isCashout			= @isCashout
+		
+		
 		-- Compare and update pending balance with error case
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 					@BalanceWalletBefore	= @BalanceWalletBefore
 					,@BalanceWalletAfter	= @BalanceWalletAfter
 					,@ActionId				= @ActionID
-		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		
-					
+		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		IF @Action LIKE 'CAL%'
 		BEGIN
 
@@ -716,31 +773,31 @@ BEGIN
 		  -------------------------------------------------------------
 		  ---		 CAPTURE value BALANCE after settlement		---
 		  ---------------------------VVVV------------------------------
-		  
-		  INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
-		  EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-				  @MatchId 				= @matchId
-				  , @sportType			= @sportType
-				  , @Action 			= @Action
-				  , @Mode 				= 2 --Used for Manual settle process
-				  , @SelectedRID		= @SelectedRID
-	
-		  -- Compare and update pending balance with error case
-		  EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-				  @BalanceWalletBefore	= @BalanceWalletBefore
-				  , @BalanceWalletAfter	= @BalanceWalletAfter
-				  , @ActionId			= @ActionID
-		  
-		  
-		  SELECT	@ErrCode = 1001017
-					,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
-	
-		  ------ releasing Settlement process
-		  EXEC dbo.NAP_Admin_CheckingProcess
-					  @isExistMatch		= 1
-					  , @IsReleased		= 1
+		INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
+		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
+			  @MatchId 				= @matchId
+			  , @sportType			= @sportType
+			  , @Action 			= @Action
+			  , @Mode 				= 2 --Used for Manual settle process
+			  , @SelectedRID		= @SelectedRID
+			  , @isCashout			= @isCashout
 
-		  RETURN
+		-- Compare and update pending balance with error case
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+			  @BalanceWalletBefore	= @BalanceWalletBefore
+			  , @BalanceWalletAfter	= @BalanceWalletAfter
+			  , @ActionId			= @ActionID
+
+
+		SELECT	@ErrCode = 1001017
+				,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
+
+		------ releasing Settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+				  @isExistMatch		= 1
+				  , @IsReleased		= 1
+
+		RETURN
 	END CATCH
 
 	SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custid)
