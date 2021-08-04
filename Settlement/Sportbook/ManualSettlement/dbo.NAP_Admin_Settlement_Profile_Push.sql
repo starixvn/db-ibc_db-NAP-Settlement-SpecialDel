@@ -73,7 +73,7 @@ BEGIN
 		RETURN
 	END
 
-	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
@@ -97,10 +97,12 @@ BEGIN
 
 		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal
 			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-
-		SELECT	 @ErrCode	= 1001052
-				,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
-				RETURN
+		
+		BEGIN
+			SELECT	 @ErrCode	= 1001052
+					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
+					RETURN
+		END
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
@@ -152,6 +154,22 @@ BEGIN
 		RETURN
 	END
 
+	IF (@IsAuto = 1 AND @sporttype = 50 )
+	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+		  @MatchId 		= @matchid
+		, @Resources 	= @SelectedResources
+		, @StatusId 	= 1 -- waiting
+		, @UserId		= @AdminId
+		, @ErrCode 		= @ErrCode OUTPUT
+		, @ErrMsg		= @ErrMsg OUTPUT
+		
+	IF @ErrCode <> 0
+	BEGIN
+		SELECT  @ErrCode = @ErrCode
+			   ,@ErrMsg	 = @ErrMsg
+		RETURN
+	END
+
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
@@ -195,8 +213,7 @@ BEGIN
 									  END 
   	FROM @tmpSelectedRID sr
   	WHERE GroupType = 'FT' AND isFinal = 1
-  	
-  	
+		
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL 
 	BEGIN
@@ -206,19 +223,6 @@ BEGIN
 			,@IsEnabled		= @IsSystemSettlement 
 			,@AdminId		= @AdminId
 			,@IP			= @IP
-	END
-
-	IF (@IsAuto = 1 AND @sporttype = 50 ) --Auto Settle Cricket
-	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Insert 
-		  @MatchId 		= @matchid
-		, @ResourceId 	= @SelectedResources
-		, @StatusId 	= 1 -- waiting
-		, @ErrCode 		= @ErrCode OUTPUT
-		, @ErrMsg		= @ErrMsg OUTPUT
-		
-	IF @ErrCode <> 0
-	BEGIN
-		RETURN
 	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9

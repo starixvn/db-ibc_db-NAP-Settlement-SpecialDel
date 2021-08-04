@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@creator          INT                = 0 
  ,@Sporttype		SMALLINT
  ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+ ,@IsAuto			BIT				   = 0
 
 AS 
 /*
@@ -27,6 +28,7 @@ AS
 		- 20210205@Louisa:Cricket AIO [Redmine:#148870]
 		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		
     Param's Explanation: 
     
@@ -85,8 +87,10 @@ BEGIN
 
     IF @action = 'CAL'
     BEGIN
-       SET @SettlementStatusID 	= 4
-       SET @ResultStatusID 		= 5
+       SET @SettlementStatusID 	=  4
+       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype = 50 THEN 2 
+										ELSE 5
+										END
     END 
     ELSE IF @action = 'UNDO'
     BEGIN

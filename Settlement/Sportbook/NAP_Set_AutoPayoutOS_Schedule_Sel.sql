@@ -19,43 +19,39 @@ BEGIN
 
 	CREATE TABLE #MatchInfo (
 		MatchId		INT
+		,leagueid	INT
 		,ResourceId	VARCHAR(20)
 		,HomeValue	VARCHAR(50)
 		,AwayValue	VARCHAR(50)
 		,StatusId	TINYINT
 	)
 
-	INSERT INTO #MatchInfo  ( MatchId	,ResourceId	,HomeValue	,AwayValue	,StatusId	) 
+	INSERT INTO #MatchInfo  ( MatchId,leagueid, ResourceId,	HomeValue,	AwayValue ) 
 	SELECT m.matchid
+			,m.leagueid
 			, r.ResourceId
 			, r.HomeValue
 			, r.AwayValue
-			, os.StatusId
 	FROM dbo.ResultDetailOS r WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON r.MatchID = m.matchid
-		INNER JOIn dbo.League l WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
-		OUTER APPLY (	SELECT os.MatchId, ISNULL( os.StatusId , 2) AS StatusId
+		OUTER APPLY (	SELECT os.MatchId, os.ResourceId
 						FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 						WHERE os.MatchId = r.matchid
 							AND os.ResourceId = r.ResourceID 
 					) os			
-	WHERE m.sporttype = 50 --Cricket
-		AND ISNULL(m.AutoSetting,0) & 1 = 1
-		AND ISNULL(m.AutoSetting,0) & 16 = 0
-		AND l.LeagueGroupID = 42 --Virtual Cricket
+	WHERE m.sporttype = @Sporttype
+		AND ISNULL(m.AutoSetting,0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
+		AND l.LeagueGroupID = 42				--Virtual Cricket
 	 	AND r.ResultStatusID = 3
 		AND ISNULL(r.ResultSetting,0) & 1  = 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
-
-
-
-	DELETE
-	FROM #MatchInfo
-	WHERE StatusId IS NOT NULL
+		AND os.ResourceId IS NULL				--- has not been Auto Settled 
 
 	SELECT m.matchid
+		, m.leagueid
 		, m.ResourceId
 		, m.HomeValue
 		, m.AwayValue

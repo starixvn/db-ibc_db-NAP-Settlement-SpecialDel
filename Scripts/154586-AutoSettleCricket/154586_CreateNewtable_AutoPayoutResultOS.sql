@@ -7,13 +7,18 @@
 
 */
 
+USE bodb02
+GO
+
 CREATE TABLE dbo.AutoPayoutResultOS (
 		 AutoPayoutResultId	INT IDENTITY(1,1)
 		,MatchId			INT NOT NULL
 		,ResourceId			VARCHAR(20) NOT NULL 
 		,HomeValue			VARCHAR(50)
 		,AwayValue			VARCHAR(50)
-		,StatusId			TINYINT 
+		,StatusId			TINYINT
+		,CreatedBy			INT
+		,ModifiedBy			INT
 		,CreatedDate		DATETIME
 		,ModifiedDate		DATETIME 
 CONSTRAINT [PK_AutoPayoutResultOS] PRIMARY KEY NONCLUSTERED 
@@ -42,6 +47,6 @@ GO
 CREATE NONCLUSTERED INDEX IX_AutoPayoutResultOS_MatchIdResourceStatus ON dbo.AutoPayoutResultOS 
 (
 	MatchId ASC,
-	ResourceId ASC,
-	StatusId ASC
+	ResourceId ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
