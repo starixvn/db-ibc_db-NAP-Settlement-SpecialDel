@@ -38,13 +38,7 @@ GO
 ALTER TABLE dbo.AutoPayoutResultOS ADD CONSTRAINT DF_AutoPayoutResultOS_ModifiedDate DEFAULT (GETDATE()) FOR ModifiedDate
 GO
 
-CREATE NONCLUSTERED INDEX IX_AutoPayoutResultOS_MatchId ON dbo.AutoPayoutResultOS 
-(
-	MatchId ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
-GO
-
-CREATE NONCLUSTERED INDEX IX_AutoPayoutResultOS_MatchIdResourceStatus ON dbo.AutoPayoutResultOS 
+CREATE NONCLUSTERED INDEX IX_AutoPayoutResultOS_MatchIdResourceId ON dbo.AutoPayoutResultOS 
 (
 	MatchId ASC,
 	ResourceId ASC

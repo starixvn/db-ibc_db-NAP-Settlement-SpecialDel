@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE dbo.NAP_Set_AutoPayoutResultOS_Update
-	@MatchId 		INT
-	, @Resources 	VARCHAR(MAX)
-	, @StatusId 	TINYINT
-	, @UserId		INT	= 0
-	, @ErrCode 		INT = 0 OUTPUT
-	, @ErrMsg		NVARCHAR(200) = '' OUTPUT
+	@MatchId 				INT
+	, @SelectedResources 	VARCHAR(MAX)
+	, @StatusId 			TINYINT
+	, @UserId				INT	= 0
+	, @ErrCode 				INT = 0 OUTPUT
+	, @ErrMsg				NVARCHAR(200) = '' OUTPUT
 	
 AS
 /*
@@ -25,7 +25,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF ISNULL(@Resources,'') = ''
+	IF ISNULL(@SelectedResources,'') = ''
 	RETURN
 
 
@@ -33,7 +33,7 @@ BEGIN
 
 	DECLARE @tmpResourceIds TABLE ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
-	EXEC sp_xml_preparedocument @handle OUTPUT, @Resources
+	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResourceIds (ResourceId, HomeValue, AwayValue)
 	SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)

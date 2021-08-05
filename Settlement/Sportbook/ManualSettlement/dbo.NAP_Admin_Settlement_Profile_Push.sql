@@ -156,12 +156,12 @@ BEGIN
 
 	IF (@IsAuto = 1 AND @sporttype = 50 )
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-		  @MatchId 		= @matchid
-		, @Resources 	= @SelectedResources
-		, @StatusId 	= 1 -- waiting
-		, @UserId		= @AdminId
-		, @ErrCode 		= @ErrCode OUTPUT
-		, @ErrMsg		= @ErrMsg OUTPUT
+		  @MatchId 				= @matchid
+		, @SelectedResources 	= @SelectedResources
+		, @StatusId 			= 1 -- waiting
+		, @UserId				= @AdminId
+		, @ErrCode 				= @ErrCode OUTPUT
+		, @ErrMsg				= @ErrMsg OUTPUT
 		
 	IF @ErrCode <> 0
 	BEGIN

@@ -632,10 +632,10 @@ BEGIN
 		IF (@IsAuto = 1 AND @sporttype = 50 ) --Auto Settle Cricket
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 		= @matchid
-			, @Resources 	= @SelectedResources
-			, @StatusId 	= 2
-			, @UserId		= @creator
+			  @MatchId 			 = @matchid
+			, @SelectedResources = @SelectedResources
+			, @StatusId 		 = 2
+			, @UserId			 = @creator
 		END
 
 	END TRY
@@ -670,10 +670,10 @@ BEGIN
 		  IF (@IsAuto = 1 AND @sporttype = 50 )
 		  BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 		= @matchid
-			, @Resources 	= @SelectedResources
-			, @StatusId 	= 3 --Fail
-			, @UserId		= @creator
+			  @MatchId 			 = @matchid
+			, @SelectedResources = @SelectedResources
+			, @StatusId 		 = 3 --Fail
+			, @UserId			 = @creator
 		  END
 
 		  RETURN
