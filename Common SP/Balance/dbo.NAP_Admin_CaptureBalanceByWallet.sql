@@ -155,7 +155,8 @@ BEGIN
 				SELECT	b.transId, b.matchid, b.custid
 				FROM	dbo.bettrans b WITH(NOLOCK)
 				WHERE	b.matchid = @matchid
-						AND b.betdaqid = 0 
+						AND b.betdaqid = 0
+						AND EXISTS (SELECT TOP (1) 1 FROM @tmpSelectedRID t WHERE t.BetType = b.bettype) 
 				UNION ALL
 				SELECT NULL, NULL, NULL
 			)			

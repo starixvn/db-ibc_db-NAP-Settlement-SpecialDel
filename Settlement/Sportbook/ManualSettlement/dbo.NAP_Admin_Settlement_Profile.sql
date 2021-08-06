@@ -93,8 +93,7 @@ BEGIN
 			,@SelectedResourceParlay VARCHAR(MAX) = ''
 			,@sqlCommand VARCHAR(MAX) = ''
 			-- for cashout
-			,@ResourceID_914_HTFT TINYINT
-			,@Action_914_tmp	VARCHAR(10)
+			,@Action_tmp	VARCHAR(10)
 			,@IsCashout			BIT = 0
 			,@TotalSubParlay	INT = 0
 			,@ThreadHold		INT = 0
@@ -117,16 +116,7 @@ BEGIN
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	
 	-- for cashout
-	DECLARE @rowcountDummy	INT
-			, @threshold	INT = 4500
-			,@strBettypes VARCHAR(MAX)
-	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tmpDummyTicket -- cashout: 901-> 903, 911; bettrade: 901 -> 903
-	(
-		transid BIGINT PRIMARY KEY
-		,custid INT
-		,bettype SMALLINT
-	)
+	DECLARE @strBettypes VARCHAR(MAX) = '', @mode VARCHAR(20) = ''
 	----------------------------------------------------------------------------------------------------------------------
 
 	-- Check SP is in deployment
@@ -559,7 +549,10 @@ BEGIN
 			FROM	@tmpSelectedRID
 			GROUP BY bettype
 			
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK)	WHERE	b.matchid = @matchid AND b.betdaqid = 0 )
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK)	
+						WHERE	b.matchid = @matchid AND b.betdaqid = 0
+								AND EXISTS (SELECT TOP (1) 1 FROM @tmpSelectedRID t WHERE t.BetType = b.bettype )
+						)
 				SET @IsCashout = 1
 		END
 		-------------------------------------------------------------
@@ -616,29 +609,23 @@ BEGIN
 		IF @sportType = 2 AND @IsCashout = 1 -- BASKETBALL
 		BEGIN
 			-- process for 911 first: NAP_Admin_Calculate_911
+			IF @Action = 'UNDO'
+				SELECT @Action_tmp = 'CAL', @mode = 'UNDO'
+			ELSE
+				SELECT @Action_tmp =  @Action, @mode = @Action
+					
 			EXEC dbo.NAP_Admin_Calculate_Main
 				@matchid	  		 = @matchid
-			   ,@action				 = @action
+			   ,@action				 = @Action_tmp
+			   ,@mode				 = @mode
 			   ,@IsSettingByProfile  = 1
 			   ,@strBettypes		 = @strBettypes
 			   ,@sportType			 = @sportType
 			   ,@isCashout			 = @IsCashout
-			   
-			-- For Undo for both HT (01) & FT (00)-> action = 'UNDO', if one of them 01 OR 00 -> action = 'CAL' (NAP_Admin_Calculate_914 will run at block code <>'Undo')
-			IF @Action = 'UNDO'
-			BEGIN
-				SET @ResourceID_914_HTFT = (SELECT COUNT(DISTINCT ResourceID) FROM @tmpSelectedRID WHERE ResourceID IN ('00','01'))
-				
-				IF @ResourceID_914_HTFT = 1
-					SET @Action_914_tmp = 'CAL'
-				ELSE 
-					SET @Action_914_tmp = @Action 	
-			END
-			
+						
 			EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
 				@MatchId = @matchid
-				,@Action = @Action_914_tmp
-					
+				,@Action = @Action
 			
 		END	
 		------END UPDATE BETTRANS---------------------------------------------------------------------------

@@ -272,6 +272,7 @@ BEGIN
 			+ CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
 			+ CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+			+ CASE WHEN @isCashout IS NULL THEN '' ELSE ',@isCashout = ' + CONVERT(NVARCHAR(50),@isCashout,0) END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -316,11 +317,10 @@ BEGIN
 					 EXEC dbo.NAP_Admin_Calculate_911
 						@matchid        = @matchid
 						,@action        = @action
-						,@mode          = @action
+						,@mode          = @mode
 						,@strBettypes   = @strBettypes
 						,@ResourceIDs   = @strBettypes
 				END	
-					   
 			END
 	        RETURN
         END 
