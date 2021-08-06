@@ -11,27 +11,19 @@ AS
     Task: get provider result - 13 Sports: 1,2,3,4,5,6,8,9,18,19,24,25,43 [Redmine:#144486]
     DB: DBPRO/BODB02 
     
-    Revisions:            
+    Revisions:               
 		- 20201110@Louisa: get provider result - 13 Sports: 1,2,3,4,5,6,8,9,18,19,24,25,43 [Redmine:#144486]
 		- 20201118@Louisa: allow query by In-house MatchId
 		- 20210504@Louisa: Intergration Result for Cricket - Weverdat [Redmine:#154493]
 		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
+		- 20210805@Louisa: Default for Other sports [Redmine:#159307]
 		
 */
 BEGIN
 	
 	SELECT @Sporttype  = ISNULL( @Sporttype, 0 )
 
-	IF @Sporttype  IN ( 5,9,50,7,14,16,26,28,45 )
-	BEGIN
-		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSSel
-			@MatchId3rd	= @MatchId3rd
-			,@SourceId	= @SourceId
-			,@MatchId	= @MatchId
-			,@IsInhouse	= @IsInhouse
-	END
-
-	ELSE IF @Sporttype = 43 ---- E-Sports
+	IF @Sporttype = 43 ---- E-Sports
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESSel
 			@MatchId3rd	= @MatchId3rd
@@ -48,7 +40,13 @@ BEGIN
 	END
 
 	ELSE
-		RETURN
+	BEGIN
+		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSSel
+			@MatchId3rd	= @MatchId3rd
+			,@SourceId	= @SourceId
+			,@MatchId	= @MatchId
+			,@IsInhouse	= @IsInhouse
+	END
 
 END
 GO

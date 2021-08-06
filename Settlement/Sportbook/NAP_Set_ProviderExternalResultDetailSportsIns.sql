@@ -18,6 +18,7 @@ AS
 		- 20201124@Louisa: Remove param @Sporttype
 		- 20210504@Louisa: Intergration Result for Cricket - Weverdat [Redmine:#154493]
 		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
+		- 20210805@Louisa: Insert all remain Other sports into ProviderExternalResultDetailOS [Redmine:#159307]
 
 	Param's Explanation:
 		@SourceId: 1  - SBO
@@ -34,19 +35,14 @@ AS
 BEGIN
 	
 	DECLARE @Sporttype SMALLINT
-	SELECT  @Sporttype = ISNULL(m.Sporttype,0) FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
+	SELECT  @Sporttype = m.Sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
-	IF @Sporttype IN ( 5,9,50,7,14,16,26,28,45)
-	BEGIN
-		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
-		@MatchId3rd = @MatchId3rd
-		,@MatchId	= @MatchId
-		,@SourceId	= @SourceId
-		,@Resources = @Resources
-		,@UserId	= @UserId
-	END
+	SELECT @Sporttype = ISNULL(@Sporttype, 0)
 
-	ELSE IF @Sporttype = 43 ---E-Sports
+	IF @Sporttype >= 99 --- Not in Sportbook
+	RETURN
+
+	IF @Sporttype = 43 ---E-Sports
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESIns
 		@MatchId3rd = @MatchId3rd
@@ -67,7 +63,14 @@ BEGIN
 	END
 
 	ELSE
-		RETURN
+	BEGIN
+		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
+		@MatchId3rd = @MatchId3rd
+		,@MatchId	= @MatchId
+		,@SourceId	= @SourceId
+		,@Resources = @Resources
+		,@UserId	= @UserId
+	END
 	
 END
 GO
