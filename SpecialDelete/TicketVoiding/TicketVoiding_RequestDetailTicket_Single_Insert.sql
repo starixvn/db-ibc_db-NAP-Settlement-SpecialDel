@@ -22,7 +22,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
+	,@RedCardInfo			VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -51,6 +52,7 @@ AS
 		- 20210525@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -85,9 +87,10 @@ BEGIN
 			,@IsLockMatch		  BIT = 0 -- 0: nolock, 1: lock match
 			,@FromWinlostDate     DATETIME
 			,@RequestDetailId_DA  INT
-			,@WrongScoreInfoXML XML = NULL
-			,@DangerAcceptedInfoXML		XML  = NULL
+			,@WrongScoreInfoXML	  XML = NULL
+			,@DangerAcceptedInfoXML	XML  = NULL
 			,@movebetdate SMALLDATETIME
+			,@RedCardInfoXML	  XML = NULL
 			,@maxdate 	DATETIME = '9999-01-01'
 
 	CREATE TABLE #SpecialDeleteBets (
@@ -292,8 +295,48 @@ BEGIN
 								       ELSE 0
 							  END
 		END
-		ELSE
+		IF @IssueTypeId = 10
 		BEGIN
+			SET @RedCardInfoXML = CONVERT(XML, @RedCardInfo)
+			INSERT INTO #tblGetLogInfo( 
+				   RequestID				
+				  ,MatchID				
+				  ,FilterFromTransTime	
+				  ,FilterToTransTime			
+				  ,FilterBy				
+				  ,SingleCount			
+				  ,MainParlayCount		
+				  ,MinSingleTransId		
+				  ,MaxSingleTransId		
+				  ,MinMainParlayTransId	
+				  ,MaxMainParlayTransId	
+				  ,VoidFromTime			
+				  ,VoidToTime				
+				  ,LiveScores					
+				  ,TypeAccept
+				  ,SubIssueTypeId
+				)
+			SELECT @RequestId AS RequestId
+				  ,t.c.value('@MatchId','INT') AS MatchID
+				  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+				  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+				  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				  ,t.c.value('@SingleCount','INT') AS SingleCount
+				  ,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+				  ,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+				  ,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+				  ,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' 
+						AS TypeAccept
+				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @RedCardInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
+
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT tmp.transid
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
@@ -303,30 +346,28 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE RequestId = req.RequestId
 						) AS tmp
+				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
 			WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId)
 			SELECT b.transid
 				, b.statusID
-				, @MatchId
-				, @SubIssueTypeId
+				, b.matchId
+				, t.SubIssueTypeId
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-			WHERE b.matchid = @MatchId
-				 AND b.betfrom <> 'P'
-				 AND 1 = CASE WHEN @FilterBy IN (0,1) AND b.transid BETWEEN @MinSingleTransId AND @MaxSingleTransId THEN 1
-							  WHEN @FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-							  WHEN @FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-							  ELSE 0 
-							  END
-				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
+			WHERE b.betfrom <> 'P'
+				AND CASE WHEN t.FilterBy IN (0,1) THEN b.transdate
+						WHEN t.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+						WHEN t.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+						END BETWEEN t.VoidFromTime AND t.VoidToTime 
+				AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
+				AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
 		END
 							  
-					
-			
-			
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time

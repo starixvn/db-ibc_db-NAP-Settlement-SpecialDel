@@ -14,7 +14,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@SubIssueTypeId	  INT = NULL
 	,@KickOffTime		  DATETIME = NULL
 	,@WrongScoreInfo	  VARCHAR(MAX) = ''
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = ''
+	,@DangerAcceptedInfo  VARCHAR(MAX) = ''
+	,@RedCardInfo		  VARCHAR(MAX) = ''
 )
 AS
 /*	
@@ -46,6 +47,7 @@ AS
 		- 20210619@Helen: SP Tuning [Redmine: #157249]
 		- 20210621@Max: [TVS] EKO & Wrong Kick Off Time - Warning tickets existed on other request not show Transid [Redmine: #156728]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:
 		+@Filterby:
@@ -57,6 +59,10 @@ AS
 			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" />
 		</root>
 		+ @DangerAcceptedInfo:
+		<root>
+			<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/>
+		</root>
+		+ @RedCardInfo:
 		<root>
 			<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/>
 		</root>
@@ -73,12 +79,13 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
-			,@IsExistFM				  BIT = 0
+			,@IsExistFM			  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
 			,@WrongScoreInfoXML		  XML = NULL
-			,@DangerAcceptedInfoXML	  XML  = NULL
-			,@MatchParlayProcessXML	  XML  = NULL
+			,@DangerAcceptedInfoXML	          XML = NULL
+			,@MatchParlayProcessXML	          XML = NULL
+			,@RedCardInfoXML		  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 
@@ -140,8 +147,8 @@ BEGIN
 			StatusId			  TINYINT,
 			checktime			  DATETIME,
 			accepttype			  TINYINT,
-			SubIssueTypeId		SMALLINT,
-			ScoreId				INT
+			SubIssueTypeId		  SMALLINT,
+			ScoreId				  INT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -205,7 +212,7 @@ BEGIN
 		)
 	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
 
-	IF @IssueTypeId = 1
+	IF @IssueTypeId = 1 --Danger Accept
 	BEGIN
 		SET @DangerAcceptedInfoXML = CONVERT(XML, @DangerAcceptedInfo)
 		INSERT INTO #FilterInfo( 
@@ -226,7 +233,28 @@ BEGIN
 		SET @FilterBy = (SELECT DISTINCT FilterBy FROM #FilterInfo)
 			
 	END
-	ELSE --IF @IssueTypeId = 10
+	ELSE IF @IssueTypeId = 10 --Red Card
+	BEGIN
+		SET @RedCardInfoXML = CONVERT(XML, @RedCardInfo)
+		INSERT INTO #FilterInfo( 
+				MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime			
+				,FilterBy				
+				,SubIssueTypeId
+			)
+		SELECT t.c.value('@MatchId','INT') AS MatchID
+			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+		FROM @RedCardInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
+
+		SET @FilterBy = (SELECT DISTINCT FilterBy FROM #FilterInfo)
+			
+	END
+	ELSE --WC
 	BEGIN
 		INSERT INTO #FilterInfo( 
 				MatchID				
@@ -399,23 +427,21 @@ BEGIN
 			LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 			INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
-				AND b.betfrom <> 'P'
-				AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL AND b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							WHEN d.FilterBy = 2 AND b.checktime IS NULL AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							WHEN d.FilterBy = 0 AND b.transid BETWEEN @FilterFromBetId AND @FilterToBetId THEN 1
-							ELSE 0 END
-				AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-							 ELSE CASE WHEN d.SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
-									   WHEN d.SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-									   WHEN d.SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
-									   WHEN d.SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
-								       WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-									   ELSE 0
-							      END
-						END
+					   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+					   ELSE 0 END
+			AND b.betfrom <> 'P'
+			AND CASE WHEN d.FilterBy = 1 THEN b.transdate 
+					    WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
+					    WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+					    END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
+							ELSE CASE WHEN d.SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+									WHEN d.SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+									WHEN d.SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									WHEN d.SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
+								    WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+									ELSE 0 END
+					END
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS (
@@ -529,10 +555,9 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND CASE WHEN d.FilterBy = 0 THEN sub.transdate
-							WHEN d.FilterBy = 1 THEN sub.transdate
-							WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
-							WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+					AND CASE WHEN d.FilterBy = 1 THEN sub.transdate
+							 WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+							 WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
 								 ELSE CASE WHEN d.SubIssueTypeId IN (55,57,60,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1 
@@ -1553,7 +1578,7 @@ BEGIN
 				AND r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
 		END
-		ELSE IF @IssueTypeId = 1
+		ELSE IF @IssueTypeId IN (1,10)
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId,Refno)
 			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid,tmp.Refno
@@ -1584,7 +1609,7 @@ BEGIN
 			END
 			
 		END
-		ELSE
+		ELSE -- 3: Wrong score
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, ScoreId, MatchId)
 			SELECT tmp.transid, rd.RequestId, tmp.MainTransId, t.ScoreId, @MatchId
@@ -1615,7 +1640,7 @@ BEGIN
 
 			IF EXISTS (SELECT TOP (1) 1 FROM @Validation)
 			BEGIN
-				IF @IssueTypeId = 1
+				IF @IssueTypeId IN (1,10)
 				BEGIN
 					UPDATE v SET v.IsExistedInOtherRequest = 1
 					FROM @Validation v
@@ -1662,7 +1687,7 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		IF @IssueTypeId NOT IN (1,3)
+		IF @IssueTypeId NOT IN (1,3,10)
 		BEGIN
 			SELECT @IsInvalidTransId AS IsInvalidTransId
 					,@IsInvalidLiveScore AS IsInvalidLiveScore
@@ -1691,7 +1716,7 @@ BEGIN
 				,ScoreId
 			FROM @Validation
 		END
-		ELSE IF @IssueTypeId = 1
+		ELSE IF @IssueTypeId IN (1,10)
 		BEGIN
 			SELECT MatchId
 				,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1777,7 +1802,7 @@ BEGIN
 			GROUP BY b.matchid
 
 			--Highlight Min TransId (based on the acceptance type of the ticket)
-			IF @IssueTypeId = 1
+			IF @IssueTypeId IN (1,10)
 			BEGIN
 
 				IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
@@ -1925,7 +1950,7 @@ BEGIN
 		BEGIN
 			SELECT @IsInValidTotalTickets = 1
 
-			IF @IssueTypeId NOT IN (1,3)
+			IF @IssueTypeId NOT IN (1,3,10)
 			BEGIN
 				--Error Table
 				SELECT @IsInvalidTransId AS IsInvalidTransId
@@ -1955,7 +1980,7 @@ BEGIN
 					,ScoreId
 				FROM @Validation
 			END
-			ELSE IF @IssueTypeId = 1
+			ELSE IF @IssueTypeId IN (1,10)
 			BEGIN
 				SELECT MatchId
 					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -2022,7 +2047,7 @@ BEGIN
 			END
 			
 			--Loginfo Table
-			IF @IssueTypeId NOT IN (1,3)
+			IF @IssueTypeId NOT IN (1,3,10)
 			BEGIN
 				SELECT MatchId
 					,STUFF(w.scores,1,1,'') AS LiveScores
@@ -2047,7 +2072,7 @@ BEGIN
 								)w (scores)
 				GROUP BY MatchId, w.scores
 			END
-			ELSE IF @IssueTypeId = 1
+			ELSE IF @IssueTypeId IN (1,10)
 			BEGIN
 				;WITH _cte AS (
 						SELECT MatchId
@@ -2142,7 +2167,7 @@ BEGIN
 			)l
 	END
 
-	IF @IssueTypeId = 1
+	IF @IssueTypeId IN (1,10)
 	BEGIN
 		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN (l.SingleCount = 0 AND l.MainParlayCount = 0) OR (l.SingleCount IS NULL AND l.MainParlayCount IS NULL) THEN 1 ELSE 0 END
 		FROM @Validation v
@@ -2156,7 +2181,7 @@ BEGIN
 	END 
 
 	---Prepare for lock match---
-	IF @IssueTypeId NOT IN (1,3)
+	IF @IssueTypeId NOT IN (1,3,10)
 	BEGIN
 		SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 				,@IsExistParlay = MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END)
@@ -2194,7 +2219,7 @@ BEGIN
 				GROUP BY t.ScoreId
 			)tmp
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1,10)
 	BEGIN
 		UPDATE v SET 
 				v.IsExistSingle = tmp.IsExistSingle
@@ -2278,7 +2303,7 @@ BEGIN
 	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML, MatchParlayProcessXML = @MatchParlayProcessXML
 
 	--Error Table
-	IF @IssueTypeId NOT IN (1,3)
+	IF @IssueTypeId NOT IN (1,3,10)
 	BEGIN
 		SELECT @IsInvalidTransId AS IsInvalidTransId
 				,@IsInvalidLiveScore AS IsInvalidLiveScore
@@ -2307,7 +2332,7 @@ BEGIN
 			,ScoreId
 		FROM @Validation
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1,10)
 	BEGIN
 		SELECT MatchId
 			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -2375,7 +2400,7 @@ BEGIN
 	END
 
 	--Loginfo table
-	IF @IssueTypeId NOT IN (1,3)
+	IF @IssueTypeId NOT IN (1,3,10)
 	BEGIN
 		SELECT MatchId
 			,STUFF(w.scores,1,1,'') AS LiveScores
@@ -2400,7 +2425,7 @@ BEGIN
 						)w (scores)
 		GROUP BY MatchId, w.scores
 	END
-	ELSE IF @IssueTypeId = 1
+	ELSE IF @IssueTypeId IN (1,10)
 	BEGIN
 		;WITH _cte AS (
 				SELECT MatchId

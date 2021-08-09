@@ -52,8 +52,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@IsConfirmCalculator   BIT			  = 0
-	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
+	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
+	,@RedCardInfo			VARCHAR(MAX)  = NULL
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
 AS
@@ -78,6 +79,7 @@ AS
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210622@Max: [TVS] Submit new allowance setting for Main Match [Redmine: #157226]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -92,7 +94,11 @@ AS
 			</root>
 		+ @DangerAcceptInfo:
 			<root>
-				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+			</root>
+		+ @RedCardInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
 			</root>
 */
 BEGIN
@@ -307,6 +313,7 @@ BEGIN
 			,@TypeAccept = @TypeAccept		
 			,@WrongScoreInfo = @WrongScoreInfo	
 			,@DangerAcceptedInfo = @DangerAcceptedInfo
+			,@RedCardInfo = @RedCardInfo
 			,@ErrMsg = @ErrMsg	OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
@@ -336,6 +343,7 @@ BEGIN
 			,@ToDate = @ToDate
 			,@WrongScoreInfo = @WrongScoreInfo
 			,@DangerAcceptedInfo = @DangerAcceptedInfo
+			,@RedCardInfo = @RedCardInfo
 
 	IF @IssueTypeId IN (1,8,9,10,3)
 	BEGIN
@@ -356,6 +364,7 @@ BEGIN
 			,@FilterBy = @FilterBy
 			,@WrongScoreInfo = @WrongScoreInfo
 			,@DangerAcceptedInfo = @DangerAcceptedInfo
+			,@RedCardInfo = @RedCardInfo
 	END
 
 	IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
