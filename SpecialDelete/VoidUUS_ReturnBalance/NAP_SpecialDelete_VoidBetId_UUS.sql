@@ -156,6 +156,55 @@ BEGIN
 		RETURN
 	END CATCH		
 		
+	INSERT INTO #BetDelete(
+		GroupTransId	
+		,transid			
+		,matchid		
+		,Bettype		
+		,betid			
+		,stake			
+		,odds	
+		,oddsspread		
+		,refno			
+		,betfrom		
+		,statusid				
+		,betdaqid		
+		,winlostdate
+		,status		
+		,oddstype		
+		,transdate		
+		,betteam		
+		,betcheck		
+		,hdp1			
+		,hdp2			
+		,livehomescore	
+		,liveawayscore	
+		,liveindicator	
+		,winlost		
+		,playercomm		
+		,currency	
+		,transdesc		
+		,custid			
+		,creator	
+		,recommend
+		,mrecommend
+		,srecommend
+		,IsHideComm
+		,eventdate
+		,oddsid
+		,ExtraInfo
+		,MainCashoutId
+		,awinlost
+		,IsBetTrade
+		,SiteId
+		,CurrencyName
+		,IsMetricGaming
+		,modds
+		,WalletType
+		,RefCode
+		,BonusID
+		,actual_stake
+	)
 	SELECT	
 		b.transid AS groupTransId
 		,b.transid
@@ -442,12 +491,6 @@ BEGIN
 	FROM #BetDelete	
 	WHERE betdaqid = 0 
 	  AND charindex ('p25',extrainfo)> 0
-	
-	DELETE bd
-	FROM #BetDelete bd
-		 INNER JOIN #tblCashOutProcess rp
-				 ON bd.TransId = rp.transid							
-					AND rp.IsAvailable = 0	
 		
 	--check no data
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)
