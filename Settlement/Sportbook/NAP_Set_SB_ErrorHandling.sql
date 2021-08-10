@@ -19,6 +19,7 @@ AS
 		-20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		-20200720@Kathy: Extend datatype of @sqlCommand to VARCHAR(MAX) [Redmine:#135846]
+		-20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,8 +37,12 @@ BEGIN
 		, @IsAutoInst INT
 		, @SourceId   TINYINT
 		, @ChildMatchType		TINYINT
+		, @SportType	SMALLINT
+
 		 
 	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
+
+	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	IF @ActionIDInput <> 0
 	BEGIN
@@ -61,7 +66,10 @@ BEGIN
 								OR CHARINDEX('NAP_Admin_Settlement_RefundHT', @sqlCommand) > 0
 								OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 
 								OR CHARINDEX('NAP_Admin_Settlement_Refund_All', @sqlCommand) > 0 THEN 1
-							WHEN CHARINDEX('NAP_Admin_Settlement_Profile', @sqlCommand) > 0 THEN 8
+							WHEN CHARINDEX('NAP_Admin_Settlement_Profile', @sqlCommand) > 0 
+								THEN CASE WHEN  @SportType = 50 AND  @AdminId = 0 AND CHARINDEX('@IsAuto = 1', @sqlCommand) > 0 THEN 9							
+								ELSE 8
+								END
 						ELSE NULL END
 		IF @Mode IS NULL
 			RETURN
@@ -106,6 +114,14 @@ BEGIN
 			, @SourceId = @SourceId
 	END
 	
+	IF @Mode = 9
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+		  @MatchId 				= @matchid
+		, @StatusId 			= 99
+		, @UserId				= @AdminId
+	END
+
 	--Instant Calculation
 	IF @Mode = 6
 	BEGIN	

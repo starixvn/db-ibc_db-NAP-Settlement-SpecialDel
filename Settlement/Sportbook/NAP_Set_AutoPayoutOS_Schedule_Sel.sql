@@ -18,26 +18,29 @@ BEGIN
 	DROP TABLE #MatchInfo
 
 	CREATE TABLE #MatchInfo (
-		MatchId		INT
-		,leagueid	INT
-		,ResourceId	VARCHAR(20)
-		,HomeValue	VARCHAR(50)
-		,AwayValue	VARCHAR(50)
-		,StatusId	TINYINT
+		MatchId			INT
+		,leagueid		INT
+		,ResourceId		VARCHAR(20)
+		,HomeValue		VARCHAR(50)
+		,AwayValue		VARCHAR(50)
+		,StatusId		TINYINT
+		,MinStatusId	TINYINT
 	)
 
-	INSERT INTO #MatchInfo  ( MatchId,leagueid, ResourceId,	HomeValue,	AwayValue ) 
+	INSERT INTO #MatchInfo  ( MatchId, leagueid, ResourceId, HomeValue,	AwayValue, StatusId, MinStatusId ) 
 	SELECT m.matchid
 			,m.leagueid
 			, r.ResourceId
 			, r.HomeValue
 			, r.AwayValue
+			, os.StatusId
+			, MIN( ISNULL(os.StatusId,99)) OVER(PARTITION BY m.MatchId)	 AS MinStatusId
 	FROM dbo.ResultDetailOS r WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON r.MatchID = m.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
-		OUTER APPLY (	SELECT os.MatchId, os.ResourceId
+		OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  os.StatusId
 						FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 						WHERE os.MatchId = r.matchid
 							AND os.ResourceId = r.ResourceID 
@@ -48,7 +51,6 @@ BEGIN
 	 	AND r.ResultStatusID = 3
 		AND ISNULL(r.ResultSetting,0) & 1  = 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
-		AND os.ResourceId IS NULL				--- has not been Auto Settled 
 
 	SELECT m.matchid
 		, m.leagueid
@@ -56,6 +58,8 @@ BEGIN
 		, m.HomeValue
 		, m.AwayValue
 	FROM #MatchInfo m
+	WHERE m.StatusId IS NULL	--- has not been Auto Settled
+		AND m.MinStatusId <> 1	--- match not in process
 
 END
 GO

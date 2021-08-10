@@ -21,16 +21,19 @@ AS
 									<Resource Id="H2" Home="2" Away="4" />
 							   </Resources>'
 
+		@StatusId:
+				1: Waitting
+				2: Success
+				3: Fail
 */
 BEGIN
 	SET NOCOUNT ON
 
-	IF ISNULL(@SelectedResources,'') = ''
+	IF ISNULL(@SelectedResources,'') = '' AND @StatusId IN (1,2,3)
 	RETURN
 
 
 	DECLARE  @handle INT
-
 	DECLARE @tmpResourceIds TABLE ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
@@ -42,21 +45,31 @@ BEGIN
 										) AS tbl
 	EXEC sp_xml_removedocument @handle
 
+	IF @StatusId = 99 --Mark fail IF exec Settlement Command is failed
+	BEGIN
+		UPDATE dbo.AutoPayoutResultOS
+		SET StatusId = 3
+		WHERE MatchId = @MatchId
+			AND StatusId = 1
+	END
 
-	MERGE dbo.AutoPayoutResultOS TARGET
-	USING (
-			SELECT r.ResourceId, r.HomeValue, r.AwayValue
-			FROM @tmpResourceIds r	
-			) AS SOURCE ON TARGET.ResourceId  = SOURCE.ResourceId AND TARGET.Matchid  = @MatchId
+	ELSE
+	BEGIN
+		MERGE dbo.AutoPayoutResultOS TARGET
+		USING (
+				SELECT r.ResourceId, r.HomeValue, r.AwayValue
+				FROM @tmpResourceIds r	
+				) AS SOURCE ON TARGET.ResourceId  = SOURCE.ResourceId AND TARGET.Matchid  = @MatchId
 
-	WHEN MATCHED THEN
-		UPDATE SET StatusId		  = @StatusId
-					,ModifiedBy	  = @UserId
-					,ModifiedDate = GETDATE()
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT ( MatchId, ResourceId, HomeValue, AwayValue, StatusId, CreatedBy, ModifiedBy, CreatedDate, ModifiedDate)
-		VALUES (@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @StatusId, @UserId, @UserId, GETDATE(), GETDATE() );
-	
+		WHEN MATCHED THEN
+			UPDATE SET StatusId		  = @StatusId
+						,ModifiedBy	  = @UserId
+						,ModifiedDate = GETDATE()
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT ( MatchId, ResourceId, HomeValue, AwayValue, StatusId, CreatedBy, ModifiedBy, CreatedDate, ModifiedDate)
+			VALUES (@MatchId, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @StatusId, @UserId, @UserId, GETDATE(), GETDATE() );
+	END
+
 	IF ISNULL(@@ERROR,0) > 0
 	BEGIN
 		SELECT @ErrCode =  @@ERROR
