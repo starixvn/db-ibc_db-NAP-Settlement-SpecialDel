@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_911]
 	,@Mode			VARCHAR(20) = ''
 	,@strBettypes	VARCHAR(MAX)
 	,@ResourceIDs 	VARCHAR(MAX)=NULL
+	,@Sporttype		SMALLINT = NULL
 	
 AS
 /*
@@ -17,6 +18,7 @@ AS
 		- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 		- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		
 	Parameter's Explanation:
 		- @Action: CAL, Refund
@@ -28,11 +30,11 @@ BEGIN
 	
 	IF(@Action NOT IN ('CAL', 'UNDO', 'REFUND')) RETURN
 	
-	--SELECT distinct matchid FROM dbo.bettrans WITH(NOLOCK) WHERE  bettype BETWEEN 911 AND 920 AND statusID = 103
 	DECLARE @xml XML	
 			,@ServerAlias VARCHAR(50) = ''
 			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY)
 			
 	CREATE TABLE #tempCashOutTrans (
 		transid			BIGINT PRIMARY KEY
@@ -173,11 +175,28 @@ BEGIN
 			,awinlost = t.awinlost
 			,[status] = t.[status]
 			,statusId = t.statusId
-			
+		OUTPUT	deleted.custid
+				,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+		INTO @tmpBalanceChanged (CustId, Balance)	
 		FROM dbo.bettrans b WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN #tempCashOutTrans t 
 			ON b.transid = t.transid
 			
+		IF @ServerAlias = 'DBTXN' AND @Action ='CAL' AND @Sporttype = 1
+		BEGIN
+			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
+			SELECT	custid, SUM(Balance) Balance
+			FROM	@tmpBalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) > 0
+		
+			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
+			SELECT	custid, SUM(Balance) Balance
+			FROM	@tmpBalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) < 0
+		END
+
 		--RECOVER BetTradeSellingCancelled
 		IF @@SERVERNAME IN ('DB230' -- local dev
 			,'DB206' -- local test
