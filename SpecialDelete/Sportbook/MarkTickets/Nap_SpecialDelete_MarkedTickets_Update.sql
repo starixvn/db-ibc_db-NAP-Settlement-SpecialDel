@@ -31,6 +31,7 @@ AS
 		- 20200629@Max: HotFix - Cash-Out member is not unmarked [Redmine: #136580]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+		- 20210810@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 */
 BEGIN
@@ -98,7 +99,7 @@ BEGIN
 					(TransId BIGINT,
 					MatchId INT
 					);
-		CREATE TABLE #tmpRefCodeSummary
+		CREATE TABLE #tmpRefCodeSummaryMarked
 					(RefCode BIGINT,
 					custid  INT,
 					matchid INT,
@@ -106,7 +107,7 @@ BEGIN
 					transid BIGINT
 					);
 		CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
-		CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
+		CREATE INDEX IX_tmpRefCodeSummaryMarked_Refcode ON #tmpRefCodeSummaryMarked(RefCode);
 		CREATE TABLE #Match(MatchId INT);
 
 		CREATE TABLE #tblMatchProcess
@@ -169,7 +170,7 @@ BEGIN
 		)
 			BEGIN
 				-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-				INSERT INTO #tmpRefCodeSummary
+				INSERT INTO #tmpRefCodeSummaryMarked
 					(RefCode,
 						custid,
 						matchid,
@@ -192,7 +193,7 @@ BEGIN
 					BEGIN
 						INSERT INTO #Tickets(TransId, MatchId)
 							SELECT b.transid, b.matchid
-							FROM #tmpRefCodeSummary t
+							FROM #tmpRefCodeSummaryMarked t
 									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.RefCode = t.RefCode
 																			AND b.transid <> t.transid
 																			AND b.matchid = t.matchid
@@ -467,6 +468,6 @@ BEGIN
 	DROP TABLE #Cashout911Tickets
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #Tickets
-	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #tmpRefCodeSummaryMarked
 	SET NOCOUNT OFF;
 END
