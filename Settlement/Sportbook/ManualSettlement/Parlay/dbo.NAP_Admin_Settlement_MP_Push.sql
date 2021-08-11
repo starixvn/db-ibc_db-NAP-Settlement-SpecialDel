@@ -44,6 +44,7 @@ AS
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's Explanation:		
 		
@@ -330,7 +331,7 @@ BEGIN
 				SELECT RoundName FROM dbo.f_Set_MajorRound(c.sporttype)
 				WHERE c.ResourceID = ResourceID
 			) sd 
-		WHERE ISNULL(rs.ResultStatusId,0) <> 5
+		WHERE ISNULL(rs.ResultStatusId,0) NOT IN ( 2, 5 )
 		GROUP BY c.matchid, sd.RoundName--,c.OrdNo
 		--ORDER BY c.OrdNo
 

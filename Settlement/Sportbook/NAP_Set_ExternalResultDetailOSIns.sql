@@ -21,6 +21,7 @@ AS
 		- 20210504@Louisa: Save Cricket results [Redmine:#154472]
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -154,7 +155,7 @@ BEGIN
 					IF EXISTS (SELECT TOP 1 1 FROM dbo.ResultDetailOS r WITH(ROWLOCK)
 								INNER JOIN @tmpAllResult tmp 
 									ON r.MatchID = @MatchId AND  r.ResourceID = tmp.ResourceId
-								WHERE r.ResultStatusId = 5
+								WHERE r.ResultStatusId IN ( 2, 5 )
 									AND tmp.SourceId = 100
 									AND tmp.IsChanged = 1
 								)
@@ -171,7 +172,7 @@ BEGIN
 							WHERE r.SourceId = 100
 							AND r.IsChanged = 1
 						) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid							
-					WHEN MATCHED  AND ResultStatusID <> 5 THEN 
+					WHEN MATCHED  AND ResultStatusID NOT IN ( 2, 5 ) THEN 
 							UPDATE SET HomeValue		= SOURCE.HomeValue
 										,AwayValue      = SOURCE.AwayValue
 										,ResultStatusId	= 3

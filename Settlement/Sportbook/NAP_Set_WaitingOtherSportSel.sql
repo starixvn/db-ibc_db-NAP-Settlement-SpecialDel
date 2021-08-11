@@ -13,6 +13,7 @@ AS
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's explanation:  
 		
@@ -83,7 +84,8 @@ BEGIN
 		,AutoPayoutStatus				TINYINT
 	)
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT, Sporttype SMALLINT)
-	
+	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
+
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	SET @n = 2147483647
@@ -97,7 +99,13 @@ BEGIN
 	IF ISNUMERIC(@MatchCode) = 1
 		SET @matchid = CAST(@MatchCode AS INT)
 	
-	
+	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
+						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
+						GROUP BY r.MatchId'
+									
+	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)
+	EXECUTE sys.sp_executesql @remoteQuery
+
 	;WITH singlequeue AS (
 		SELECT	matchid, MIN(IsCalculating) AS IsCalculatingSingle
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
@@ -127,6 +135,17 @@ BEGIN
 		SELECT ap.MatchId, ap.StatusId
 		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
+	WHEN MATCHED THEN
+		UPDATE SET AutoPayoutStatus = SOURCE.statusid
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (MatchId, AutoPayoutStatus)
+		VALUES (SOURCE.MatchId, SOURCE.statusid);
+
+	MERGE @tmpQueueStatus  TARGET
+	USING (
+		SELECT os.MatchId, os.StatusId
+		FROM	@tmpAutoPayOutResultOS os
+		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
 	WHEN MATCHED THEN
 		UPDATE SET AutoPayoutStatus = SOURCE.statusid
 	WHEN NOT MATCHED BY TARGET THEN
