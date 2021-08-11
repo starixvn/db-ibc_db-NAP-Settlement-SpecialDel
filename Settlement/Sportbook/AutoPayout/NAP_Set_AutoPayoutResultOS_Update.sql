@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.NAP_Set_AutoPayoutResultOS_Update
+ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultOS_Update
 	@MatchId 				INT
-	, @SelectedResources 	VARCHAR(MAX)
+	, @SelectedResources 	VARCHAR(MAX) = ''
 	, @StatusId 			TINYINT
 	, @UserId				INT	= 0
 	, @ErrCode 				INT = 0 OUTPUT
@@ -36,15 +36,6 @@ BEGIN
 	DECLARE  @handle INT
 	DECLARE @tmpResourceIds TABLE ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpResourceIds (ResourceId, HomeValue, AwayValue)
-	SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
-	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
-														,Home VARCHAR(50)
-														,Away VARCHAR(50)
-										) AS tbl
-	EXEC sp_xml_removedocument @handle
-
 	IF @StatusId = 99 --Mark fail IF exec Settlement Command is failed
 	BEGIN
 		UPDATE dbo.AutoPayoutResultOS
@@ -55,6 +46,15 @@ BEGIN
 
 	ELSE
 	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+		INSERT INTO @tmpResourceIds (ResourceId, HomeValue, AwayValue)
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+															,Home VARCHAR(50)
+															,Away VARCHAR(50)
+											) AS tbl
+		EXEC sp_xml_removedocument @handle
+
 		MERGE dbo.AutoPayoutResultOS TARGET
 		USING (
 				SELECT r.ResourceId, r.HomeValue, r.AwayValue
