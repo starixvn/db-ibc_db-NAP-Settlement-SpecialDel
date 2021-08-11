@@ -29,16 +29,7 @@ CONSTRAINT [PK_AutoPayoutResultOS] PRIMARY KEY NONCLUSTERED
 GO
 
 
-ALTER TABLE dbo.AutoPayoutResultOS ADD CONSTRAINT DF_AutoPayoutResultOS_StatusId DEFAULT (0) FOR StatusId
-GO
-
-ALTER TABLE dbo.AutoPayoutResultOS ADD CONSTRAINT DF_AutoPayoutResultOS_CreatedDate DEFAULT (GETDATE()) FOR CreatedDate
-GO
-
-ALTER TABLE dbo.AutoPayoutResultOS ADD CONSTRAINT DF_AutoPayoutResultOS_ModifiedDate DEFAULT (GETDATE()) FOR ModifiedDate
-GO
-
-CREATE NONCLUSTERED INDEX IX_AutoPayoutResultOS_MatchIdResourceId ON dbo.AutoPayoutResultOS 
+CREATE CLUSTERED INDEX CIX_AutoPayoutResultOS_MatchIdResourceId ON dbo.AutoPayoutResultOS 
 (
 	MatchId ASC,
 	ResourceId ASC

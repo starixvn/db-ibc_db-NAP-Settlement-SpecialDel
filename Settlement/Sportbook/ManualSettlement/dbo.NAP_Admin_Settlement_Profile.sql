@@ -666,15 +666,6 @@ BEGIN
 		  EXEC dbo.NAP_Admin_CheckingProcess
 					  @isExistMatch		= 1
 					  , @IsReleased		= 1
-		  
-		  IF (@IsAuto = 1 AND @sporttype = 50 )
-		  BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 			 = @matchid
-			, @SelectedResources = @SelectedResources
-			, @StatusId 		 = 3 --Fail
-			, @UserId			 = @creator
-		  END
 
 		  RETURN
 	END CATCH

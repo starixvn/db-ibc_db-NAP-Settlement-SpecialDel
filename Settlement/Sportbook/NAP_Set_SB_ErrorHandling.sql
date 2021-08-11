@@ -6,6 +6,7 @@ ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @AdminId INT
 	, @IP VARCHAR(20)
 	, @ActionIDInput INT				= 0
+	, @IsService	 BIT				= 0
 AS
 /*
 	Created: 20160325@Patrick
@@ -20,6 +21,11 @@ AS
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		-20200720@Kathy: Extend datatype of @sqlCommand to VARCHAR(MAX) [Redmine:#135846]
 		-20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+
+	Param's Explanation:
+		@IsService
+				0: Settle command ran by Settlement Job
+				1: Settle command ran by Service
 */
 BEGIN
 	SET NOCOUNT ON
@@ -145,6 +151,7 @@ BEGIN
     --End: #86964								
 
 	BEGIN TRY
+		IF @IsService  = 0
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			, @matchid = @matchid
 			, @actionid = @actionid
@@ -156,10 +163,12 @@ BEGIN
 			, @betstatus = @betstatus
 			, @remark = @Remark
 			, @ip = @IP
+
 	END TRY
 	BEGIN CATCH 
 		SELECT @remark = @remark + ' ErMsg=' + LEFT(ERROR_MESSAGE(), 300)
 		
+		IF @IsService  = 0
 		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 			, @MatchID = @matchid
 			, @actionid = @actionid

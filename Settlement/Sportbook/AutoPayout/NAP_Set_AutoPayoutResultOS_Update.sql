@@ -36,7 +36,7 @@ BEGIN
 	DECLARE  @handle INT
 	DECLARE @tmpResourceIds TABLE ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
-	IF @StatusId = 99 --Mark fail IF exec Settlement Command is failed
+	IF @StatusId = 99 -- Mark fail IF exec Settlement Command NAP_Admin_Settlement_Profile failed
 	BEGIN
 		UPDATE dbo.AutoPayoutResultOS
 		SET StatusId = 3

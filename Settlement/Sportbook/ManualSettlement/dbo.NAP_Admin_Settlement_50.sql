@@ -141,10 +141,13 @@ BEGIN
 		
 		IF @IsAuto = 1 AND ISNULL(@ErrCode,1000006) <> 1000006
 		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 				= @matchid
-			, @StatusId 			= 99
-			, @UserId				= @AdminId
+			EXEC dbo.NAP_Set_SB_ErrorHandling @Action	  = @Action
+											, @MatchId	  = @MatchId
+											, @sqlCommand = @ServiceCommand	
+											, @ErrMsg	  = @ErrMsg
+											, @AdminId	  = 0			---Service Auto
+											, @IP		  = ''
+											, @IsService  = 1
 		END		
 	END
 	
