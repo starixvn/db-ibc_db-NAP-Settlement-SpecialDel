@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_BalancePendingIns]
+ALTER PROCEDURE [dbo].[NAP_Admin_BalancePendingIns]
 	@BeforeUpd	TVP_BalanceChange	READONLY
 	,@AfterUpd	TVP_BalanceChange	READONLY
 AS
@@ -11,6 +11,7 @@ AS
 	   
 	Revisions:  
 		- 20170420@Bobby: 72789 - Implement bonus system into NAP Settlement
+		- 20210811@Kathy: Force hash join for balancetype 1 [Redmine:#160017]
 		
 	Param's Explanation:   	 
 */
@@ -33,7 +34,7 @@ BEGIN
 	INSERT INTO @tblCreditPending (custid,Balance)  
 	SELECT	a.custid, (a.balance - b.balance) as Balance  
 	FROM	@BeforeUpd b  
-	INNER JOIN @AfterUpd a    
+	INNER HASH JOIN @AfterUpd a    
 		ON	a.custid = b.custid  
 	WHERE  (a.balance - b.balance) > 0
 		AND a.balanceType = 1
@@ -80,7 +81,7 @@ BEGIN
 	INSERT INTO @tblDebitPending (custid,Balance)  
 	SELECT  a.custid, ABS(a.balance - b.balance) as Balance  
 	FROM  @BeforeUpd b  
-		INNER JOIN @AfterUpd a    
+		INNER HASH JOIN @AfterUpd a    
 			ON	a.custid = b.custid  
 	WHERE  (a.balance - b.balance) < 0  
 			AND a.balanceType = 1
@@ -118,10 +119,7 @@ BEGIN
 		EXEC dbo.Dot_BalancePendingDebitIns 
 			@BalancePending = @tblDebitOthersPending
 			,@Type			= 4 -- Others
-		
-	
-	
-	
+			
 	RETURN
 END
 GO
