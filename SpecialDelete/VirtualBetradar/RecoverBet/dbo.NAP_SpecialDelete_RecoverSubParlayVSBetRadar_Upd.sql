@@ -21,7 +21,8 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
-		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+				
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -30,7 +31,8 @@ BEGIN
 	
 	DECLARE @Action_Recal				VARCHAR(100)  = 'Re-Cal'
 		  , @Action_Refund				VARCHAR(100)  = 'Refund'		  
-	
+		  , @Movebetdate				DATETIME
+
 	DECLARE @IsExistParlayVSBetradar	BIT = 0		  
 		  , @avaiableProcess			BIT	= 0
 		  , @isITAdmin					BIT	= 0
@@ -82,8 +84,7 @@ BEGIN
 		showtime			NVARCHAR(20),
 		LeagueId			INT,
 		matchcode			NVARCHAR(50),
-		modds				SMALLMONEY,
-		
+		modds				SMALLMONEY,	
 		SubStatus			NVARCHAR(10),
 		SubTransId			BIGINT,
 		SubBetCheck			NVARCHAR(50),
@@ -93,8 +94,7 @@ BEGIN
 		SubHdp2				SMALLMONEY,
 		SubOdds				MONEY,
 		SubCustId			INT,
-		SubTransdesc		NVARCHAR(2000),		
-				
+		SubTransdesc		NVARCHAR(2000),			
 		BetFrom				NVARCHAR(1),
 		matchid				INT						
 	)
@@ -112,7 +112,25 @@ BEGIN
 		 , @ErrCode = 0
 		 , @ErrMsg = ''
 	
-	BEGIN TRY	 
+	BEGIN TRY
+		--> get match info
+		SELECT @matchdate = eventdate
+				, @eventstatus = eventstatus
+				, @betstatus = betstatus
+		FROM dbo.match (NOLOCK)
+		WHERE matchid = @MatchId
+			 
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		IF @matchdate <= @Movebetdate
+		BEGIN
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			RETURN	
+		END
+
 		--> parse @TransIds
 		INSERT INTO #tblTransIds (transid)
 		SELECT	t.val
@@ -158,8 +176,7 @@ BEGIN
 				CustId,											
 				showtime,
 				LeagueId,
-				modds,
-					
+				modds,	
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -169,8 +186,7 @@ BEGIN
 				SubHdp2,
 				SubOdds,
 				SubCustId,	
-				SubTransdesc,			
-					
+				SubTransdesc,				
 				betfrom,
 				matchid)
 		SELECT  b.Stake,
@@ -203,8 +219,7 @@ BEGIN
 				b.CustId,											
 				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
 				m.leagueid,
-				b.modds,
-					
+				b.modds,	
 				bm.Status AS SubStatus,
 				bm.TransId AS SubTransId,
 				bm.BetCheck AS SubBetCheck,
@@ -215,7 +230,6 @@ BEGIN
 				bm.Odds AS SubOdds,
 				bm.custid AS SubCustId,
 				bm.transdesc AS SubTransdesc,				
-					
 				b.betfrom,
 				bm.matchid
 		FROM dbo.bettrans b WITH (NOLOCK)
@@ -259,14 +273,7 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK) 
 				INNER JOIN #RecoverBet t 
 						ON	b.transid = t.TransId					 	  
-		GROUP BY b.CustID
-			
-		--> get match info
-		SELECT @matchdate = eventdate
-				, @eventstatus = eventstatus
-				, @betstatus = betstatus
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchId
+		GROUP BY b.CustID			
 			
 		--> update bettransm to running + rec-cal sub tickets / refund sub tickets 
 		IF @eventstatus = 'completed'

@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SingleType_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 	,@QueueIds			VARCHAR(MAX)	= NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 
 AS
 /*	Created by: Kathy
@@ -36,7 +37,8 @@ AS
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210601@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
-	
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
 		
@@ -50,6 +52,8 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@Movebetdate		DATETIME
+			,@MatchDate			DATETIME
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -90,6 +94,7 @@ BEGIN
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)		
 	DECLARE @tmpCustCashOut TABLE (CustId INT, matchid INT)
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
 						
 	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -115,6 +120,7 @@ BEGIN
 		,matchid			INT
 		,oddsid				INT
 		,winlostdate		SMALLDATETIME
+		,eventdate			DATETIME
 		,isFinish			BIT
 	)
 
@@ -162,6 +168,10 @@ BEGIN
 		SELECT	val AS TransId
 		FROM	dbo.f_SplitString(@TransIds, ',')
 		OPTION (maxrecursion 0)
+
+		SELECT 	@MatchDate = eventdate
+		FROM dbo.match WITH(NOLOCK)
+		WHERE matchid = @MatchId
 	END
 	ELSE --13
 	BEGIN
@@ -257,6 +267,7 @@ BEGIN
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
+			,eventdate = m.eventdate
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -270,6 +281,7 @@ BEGIN
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
+			,eventdate = o.eventdate
 		FROM	#tmpTransId b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -283,7 +295,8 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
-		SET sporttype 	= r.sporttype	
+		SET sporttype 	= r.sporttype
+			,eventdate = o.EventDate	
 		FROM	#tmpTransId b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -301,6 +314,12 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
 
 	-- remove un-supported sports & bettype
 	DELETE bd
@@ -311,6 +330,37 @@ BEGIN
 			OR bettype = 500 /*charge comm*/
 		) 
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF @IssueTypeId = 13 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @Movebetdate)
+	BEGIN	
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	DELETED.matchid, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE eventdate <= @Movebetdate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
+	END
+
+	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
+		OR (@IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
+	BEGIN   
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+		RETURN
+	END
+
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid
@@ -325,6 +375,7 @@ BEGIN
 
 	IF @BypassCheckingProcess = 0
 	BEGIN
+	
 		WHILE (1=1)
 		BEGIN
 			SET @MatchId_Retry = 0
@@ -350,7 +401,7 @@ BEGIN
 					,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-					,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+					,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			FROM	#tmpTransId b
 				OUTER APPLY (
@@ -457,7 +508,7 @@ BEGIN
 						,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 						,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 						,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-						,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+						,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 						,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				FROM	#tmpTransId b
 					INNER JOIN #tblMatchProcess_Retry m ON m.matchid = b.matchid
@@ -561,7 +612,30 @@ BEGIN
 			LEFT JOIN cteRemainingKeyIds r
 				ON	t.matchid = r.matchid
 					AND t.KeyID = r.KeyID
-		WHERE r.matchid IS NULL			
+		WHERE r.matchid IS NULL		
+
+		IF @MatchDate <= @Movebetdate
+		BEGIN
+			SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
+					,@isExistMG = CASE WHEN KeyID = 3 THEN 1 ELSE 0 END
+					,@isExistBB = CASE WHEN KeyID = 5 THEN 1 ELSE 0 END
+					,@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
+					,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
+			FROM	#tblMatchProcess
+
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistMG				= @isExistMG
+				  , @isExistFM				= @isExistFM
+				  , @isExistMatch			= @isExistMatch
+				  , @isExistBB				= @isExistBB
+				  , @isExistFM2				= @isExistFM2
+				  , @IsReleased				= 1
+
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+			
+			RETURN
+		END
 	END
 
 	SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
@@ -876,6 +950,9 @@ BEGIN
 	SELECT	@FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(it.TransId AS VARCHAR(30)), CAST(it.TransId AS VARCHAR(30)))
 	FROM	@tmpInputTransId it
 	WHERE	NOT EXISTS (SELECT * FROM cteResult c WHERE c.TransId = it.TransId)
+			AND 1 = CASE WHEN @IssueTypeId <> 13 THEN 1 
+						 WHEN @IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId_MoveBet m WHERE m.TransId = it.TransId) THEN 1
+						 ELSE 0 END
 
 	-- backup into zzzbettrans
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2

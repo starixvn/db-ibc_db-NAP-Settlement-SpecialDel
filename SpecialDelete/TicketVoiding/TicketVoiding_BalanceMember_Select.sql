@@ -10,6 +10,7 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
+		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's explanation:	
 */
@@ -17,12 +18,16 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @tmpCustId TABLE(CustId INT)
+	DECLARE @movebetdate SMALLDATETIME
 
 	INSERT INTO @tmpCustId (CustId)
 	SELECT	val AS CustId
 	FROM	dbo.f_SplitString(@CustIds, ',')
 	OPTION (maxrecursion 0)
 
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	
 	SET @CustBalance = (
 		SELECT c.custid AS '@c', SUM(c.Balance) AS '@b'
 		FROM
@@ -33,6 +38,8 @@ BEGIN
 					ON	c.CustId = b.custid
 			WHERE	1 = CASE
 							WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
+							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
+							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
 							ELSE 1
 						END
 			GROUP BY b.custid

@@ -1,14 +1,12 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Update]
 	 @TransIds			VARCHAR(MAX)	= ''
-	
 	,@UserName 			NVARCHAR(50)
     ,@UserPassword		NVARCHAR(50)
     ,@UserID			INT
     ,@IP				VARCHAR(15)		= ''
     ,@Reason			NVARCHAR(500)	= ''
 	,@ReasonSC			NVARCHAR(500)	= ''
-    
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT	
@@ -31,6 +29,9 @@ AS
 		- 20181207@Alan: Support Chinese Email [105976]
 		- 20190731@Raymond.Le: Return column for display Deposit name in Email [Redmine: #117896]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
+	Explanation's Param:
 
 */
 BEGIN	
@@ -39,6 +40,8 @@ BEGIN
 	DECLARE @LogData			NVARCHAR(500)
 		  , @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
+		  , @Movebetdate		DATETIME
+
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		  
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -83,7 +86,8 @@ BEGIN
 		LeagueId			INT,
 		SportTypeId			SMALLINT,
 		IsNeutral			BIT,
-		MatchCode			NVARCHAR(50)
+		MatchCode			NVARCHAR(50),
+		EventDate			DATETIME
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_OriginalBetType_matchid_custid	
 	ON #SpecialDeleteBets(RefNo, OriginalBetType, matchid, custid) INCLUDE(stake)
@@ -195,7 +199,9 @@ BEGIN
 					LeagueId,
 					SportTypeId,
 					IsNeutral,
-					MatchCode)
+					MatchCode,
+					EventDate
+			)
 	SELECT 	sub.TransId,
 			sub.BetType,
 			main.BetTeam,
@@ -231,7 +237,8 @@ BEGIN
 			m.LeagueId,
 			m.sporttype AS SportTypeId,
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-			m.MatchCode
+			m.MatchCode,
+			m.eventdate
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.bettrans main WITH(NOLOCK)
 			     ON	main.transid = sub.refno
@@ -246,6 +253,17 @@ BEGIN
 			AND main.betdaqid = 0
 			AND charindex ('p25',main.extrainfo)> 0
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
+	BEGIN
+		SELECT @ErrCode = 102
+			 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+				
+		RETURN
+	END
+
 	-- checking cash-out process
 	INSERT INTO #tblCashOutProcess(transid, refno)
 	SELECT transid, RefNo
@@ -383,7 +401,9 @@ BEGIN
 					LeagueId,
 					SportTypeId,
 					IsNeutral,
-					MatchCode)
+					MatchCode,
+					EventDate
+			)
 	OUTPUT inserted.TransId
 		 , inserted.RefNo
 		 , inserted.BetType
@@ -437,7 +457,8 @@ BEGIN
 			m.LeagueId,
 			m.sporttype AS SportTypeId,
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
-			m.MatchCode
+			m.MatchCode,
+			m.eventdate
 	FROM #SpecialDeleteBets sub911 WITH(NOLOCK)
 		 CROSS APPLY (SELECT b.*
 					  FROM dbo.bettrans b WITH(NOLOCK)

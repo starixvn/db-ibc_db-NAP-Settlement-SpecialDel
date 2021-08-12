@@ -38,6 +38,7 @@ AS
 		- 20190812@Charles: Add new column IsMarked [118437]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20191101@Charles: Remove column IsMarked [122187]
+		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 			- @Opition: 
@@ -88,6 +89,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
+		,EventDate		DATETIME
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	
@@ -102,7 +104,9 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE @MovebetDate DATETIME
+
 	IF @Option = 0 -- By MatchID
 	BEGIN
 		-- Outright
@@ -142,6 +146,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -182,6 +187,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,o.EventDate
 		FROM	zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 				ON	b.transid = z.transid
@@ -233,6 +239,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -274,6 +281,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,m.EventDate
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -325,6 +333,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -365,6 +374,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,m.EventDate
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -422,6 +432,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -462,6 +473,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,o.EventDate
 		FROM zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 					ON b.transid = z.transid
@@ -515,6 +527,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -556,6 +569,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,m.EventDate
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -606,6 +620,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,EventDate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -646,6 +661,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,m.EventDate
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -678,7 +694,19 @@ BEGIN
 					AND main.matchid = sub.matchid
 					AND main.bettype = sub.bettype
 	WHERE main.WalletType = 1
-	  
+	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
+	IF @Option = 1 AND EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE EventDate <= @MovebetDate)
+	BEGIN
+		DELETE 
+		FROM @tblRecoverBet
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE EventDate <= @MovebetDate
+	END
+  
 	-- Insert more bonus or cash ticket in case only one ticket appears in @tblRecoverBet 	
 	INSERT INTO #tmpRefCodeSummary (refcode, custid, matchid, bettype, transid)
 	SELECT RefCode, custid, matchid, bettype
@@ -1196,6 +1224,10 @@ BEGIN
 					SELECT b14.transid
 					FROM dbo.bettrans14 b14 WITH (NOLOCK)
 					WHERE b14.transid = t.transid
+					UNION ALL
+					SELECT m.TransId
+					FROM @tmpTransIdMoveBet m  
+					WHERE m.TransId = t.transid
 					) THEN CAST(1 AS BIT)
 			ELSE CAST(0 AS BIT)
 			END AS isMoved

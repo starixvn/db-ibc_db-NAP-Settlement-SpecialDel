@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@VoidingHistoryIds VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 AS
 /*	Created by: Helen
 	Date 20200212
@@ -40,6 +41,7 @@ AS
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210106@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175] 
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's explanation:	
 		
@@ -69,6 +71,8 @@ BEGIN
 			,@VoidDataXML       XML = NULL
 			,@RequestDetailId	INT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@Movebetdate		DATETIME
+			,@MatchId_cnt		INT = 0
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
@@ -110,7 +114,7 @@ BEGIN
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
-	
+	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @tmpCustCashOut TABLE (CustId INT)		
 	DECLARE @tmpCustCashOut_VOID TABLE (CustId INT)
 	DECLARE @tmpCustCashOut_Recalculate TABLE (CustId INT)
@@ -138,6 +142,7 @@ BEGIN
 		,sporttype			SMALLINT
 		,matchid			INT
 		,oddsid				INT
+		,winlostdate		DATETIME
 	)
 	
 	CREATE TABLE #tmpTransId_Recalculate (
@@ -160,6 +165,7 @@ BEGIN
 		,sporttype			SMALLINT
 		,matchid			INT
 		,oddsid				INT
+		,winlostdate		DATETIME
 	)
 	
 	DECLARE @tmpTransIDBatch TABLE (
@@ -418,15 +424,15 @@ BEGIN
 		RETURN
 	END
 	-------------DATA PREPARATION ------------
-	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, RequestID)
+	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, RequestID, winlostdate)
 	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
-		, tl.eventID, t.RequestID
+		, tl.eventID, t.RequestID, t.Winlostdate
 	FROM	@tmpInputTransId_VOID t 
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
 
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid)
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -438,7 +444,7 @@ BEGIN
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
-			,b.matchid, b.oddsid
+			,b.matchid, b.oddsid, t.Winlostdate
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -448,7 +454,7 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid)
+	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -459,7 +465,7 @@ BEGIN
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -477,7 +483,6 @@ BEGIN
 		FROM	#tmpTransId_VOID_RequestID b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		
 		WHERE bettype NOT IN (9, 29, 2799)
 			
 	END
@@ -489,7 +494,6 @@ BEGIN
 		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		
 		WHERE bettype NOT IN (9, 29, 2799)
 			
 	END
@@ -504,7 +508,6 @@ BEGIN
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	o.leagueid = l.leagueid
-			
 		WHERE bettype IN (10)
 	END
 
@@ -517,7 +520,6 @@ BEGIN
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	o.leagueid = l.leagueid
-			
 		WHERE bettype IN (10)
 	END
 	
@@ -537,7 +539,7 @@ BEGIN
 	IF(EXISTS (SELECT 1 FROM #tmpTransId_Recalculate WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
-		SET sporttype 	= r.sporttype	
+		SET sporttype 	= r.sporttype		
 		FROM	#tmpTransId_Recalculate b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -563,7 +565,6 @@ BEGIN
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
-
 
 	-- remove un-supported sports & bettype
 	DELETE bd
@@ -1238,6 +1239,101 @@ BEGIN
 		FROM @VoidingHistory_tmp vh
 	END
 	
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
+	SELECT DISTINCT t.MatchId, t.winlostdate
+	FROM (
+			SELECT t.matchid, t.winlostdate
+			FROM #tmpTransId_VOID_RequestID t
+			UNION ALL
+			SELECT r.matchid, r.winlostdate
+			FROM #tmpTransId_Recalculate r
+		 )t
+	
+	SELECT @MatchId_cnt = COUNT(MatchId)
+	FROM @tmpMatch_Eventdate t
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
+	BEGIN
+		DECLARE @tblMatchProcess_1 TABLE (matchid INT, KeyID TINYINT)
+		DECLARE @tblCashOutProcess_1 TABLE (transid BIGINT)
+
+		DELETE 
+		FROM #tblMatchProcess
+		OUTPUT	DELETED.matchid, DELETED.KeyID
+		INTO  @tblMatchProcess_1 (matchid, KeyID)
+		WHERE matchid NOT IN (SELECT matchid FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
+
+		------ releasing process
+		EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay 				= @isExistParlay
+				, @isExistOutright 			= @isExistOutright
+				, @isExistMG				= @isExistMG
+				, @isExistFM				= @isExistFM
+				, @isExistMatch				= @isExistMatch
+				, @isExistNG				= @isExistNG
+				, @isExistVS				= @isExistVS
+				, @isExistBB				= @isExistBB
+				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+				, @isExistFM2				= @isExistFM2
+				, @IsReleased				= 1
+
+		DELETE #tblMatchProcess
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT matchid, KeyID FROM @tblMatchProcess_1
+
+		IF EXISTS (SELECT TOP 1 1 
+				FROM #tmpTransId_VOID_RequestID t	
+				WHERE	t.TicketType = 3 AND winlostdate <= @Movebetdate)
+		BEGIN		
+		  	DELETE 
+			FROM #tblCashOutProcess
+			OUTPUT	DELETED.transid
+			INTO  @tblCashOutProcess_1 (transid)
+			WHERE transid NOT IN (SELECT transid FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND winlostdate <= @Movebetdate)
+
+			------ releasing cash-out process
+			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
+				@Mode = 'Original'
+				,@Action = 'Void'
+				,@IsReleased = 1
+			
+			DELETE #tblCashOutProcess
+			INSERT INTO #tblCashOutProcess(transid)
+			SELECT transid FROM @tblCashOutProcess_1
+			
+		END
+
+		IF (@MatchId_cnt = 1) OR (NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchProcess_1))
+		BEGIN
+			SELECT	@ErrCode = 99
+					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+			RETURN
+		END	
+		ELSE
+		BEGIN
+			SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
+							FROM @tmpMatch_Eventdate m
+							WHERE eventdate <= @Movebetdate
+							FOR XML PATH ('')
+						),1,1,'')
+
+			DELETE t
+			FROM #tmpTransId_VOID_RequestID t
+				INNER JOIN @tmpMatch_Eventdate m 
+			ON t.matchid = m.matchid  AND t.winlostdate <= @Movebetdate
+				
+			DELETE r
+			FROM #tmpTransId_Recalculate r
+				INNER JOIN @tmpMatch_Eventdate m 
+			ON r.matchid = m.matchid  AND r.winlostdate <= @Movebetdate	 	
+					 	 
+		END
+	END
+
 	BEGIN TRY
 			  
 		WHILE (1=1)

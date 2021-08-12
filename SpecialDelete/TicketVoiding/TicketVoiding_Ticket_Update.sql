@@ -8,12 +8,12 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@UserId			INT
 	,@IP				VARCHAR(50)
 	,@BypassCheckingProcess TINYINT = 0
-
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
 	,@QueueIds			VARCHAR(MAX) = ''	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -24,6 +24,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210501@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's explanation:	
 		
@@ -48,6 +49,7 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			,@QueueIds = @QueueIds OUTPUT
+			,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId = 2 -- subParlay
 	BEGIN

@@ -25,6 +25,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -48,6 +49,7 @@ BEGIN
 			,@MatchDate			DATETIME
 			,@IsITAdmin			BIT = 0
 			,@AvaiableProcess	BIT
+			,@Movebetdate		DATETIME
 
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
@@ -60,6 +62,7 @@ BEGIN
 								,mrecommend		INT
 								,recommend		INT
 								,isdeposit		BIT
+								,winlostdate    SMALLDATETIME
 								)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
 	
@@ -89,8 +92,9 @@ BEGIN
 		--Transid which user input
 		INSERT INTO @tblTransIds
 		SELECT val
-		FROM dbo.strSplit(@TransIds, ',') 
-
+		FROM dbo.f_SplitString(@TransIds, ',') 
+		OPTION (maxrecursion 0)
+		
 		--Transid list is recovered
 		INSERT INTO #tblRecoverBet (
 					transid
@@ -100,6 +104,7 @@ BEGIN
 					,mrecommend
 					,recommend
 					,isdeposit
+					,winlostdate
 		)
 		SELECT	b.transid
 				,b.matchid
@@ -108,6 +113,7 @@ BEGIN
 				,b.mrecommend
 				,b.recommend
 				,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
+				,b.winlostdate
 		FROM	@tblTransIds s 
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid
 		WHERE b.matchid = 29 AND b.bettype = 29
@@ -130,7 +136,22 @@ BEGIN
 		
 			RETURN
 		END
-	
+
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tblRecoverBet WHERE winlostdate <= @Movebetdate)
+		BEGIN
+			------ release Parlay procesee	
+			EXEC [dbo].[NAP_Admin_CheckingProcess]
+					@IsExistParlay = 1			
+				  , @IsReleased	= 1	
+
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			RETURN		  		
+		END
+
 		INSERT INTO @tblNoResettleTransIds (transid)
 		SELECT t.transid
 		FROM dbo.bettransm b WITH(NOLOCK) 

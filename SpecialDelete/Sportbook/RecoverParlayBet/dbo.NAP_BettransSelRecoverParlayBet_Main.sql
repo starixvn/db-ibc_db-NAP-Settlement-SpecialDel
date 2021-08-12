@@ -14,6 +14,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:			
 			- @BetType:
@@ -48,12 +49,16 @@ BEGIN
 		,transdesc				NVARCHAR(1000)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
+		,Winlostdate			DATETIME
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE @MovebetDate DATETIME
+
 	INSERT INTO @tblTransIds
 	SELECT ss.val
-	FROM dbo.strSplit(@TransIds, ',') ss					
+	FROM dbo.f_SplitString(@TransIds, ',') ss	
+	OPTION (maxrecursion 0)				
 			
 	INSERT INTO @tblRecoverBet(			 							
 			custid
@@ -78,7 +83,9 @@ BEGIN
 			,betcheck
 			,transdesc
 			,ExtraInfo
-			,ActualStake)
+			,ActualStake
+			,Winlostdate
+			)
 	SELECT  z.custid AS custid
 			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
 			,b.mrecommend AS mrecommend
@@ -102,6 +109,7 @@ BEGIN
 			,b.transdesc AS transdesc
 			,b.ExtraInfo
 			,b.actual_stake AS ActualStake
+			,b.winlostdate
 	FROM @tblTransIds t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid	
@@ -119,7 +127,18 @@ BEGIN
 				WHEN @BetType = 'System Parlay' THEN CASE WHEN b.betteam = 1 THEN 0 ELSE 1 END
 				ELSE 0
 			END	= 1			
-		
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tblRecoverBet WHERE Winlostdate <= @MovebetDate)
+	BEGIN
+		DELETE 
+		FROM @tblRecoverBet
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE Winlostdate <= @MovebetDate
+	END	
+
 	SELECT	SUBSTRING(T1.GroupName, 3, 30) AS GroupName			 
 			 ,t.transid    
 			 ,t.UserName    
@@ -174,6 +193,11 @@ BEGIN
 					SELECT b14.transid
 					FROM dbo.bettrans14 b14 WITH (NOLOCK)
 					WHERE b14.transid = t.transid
+					) THEN CAST(1 AS BIT)
+			WHEN t.transid IN (
+					SELECT m.transid
+					FROM @tmpTransIdMoveBet m
+					WHERE m.transid = t.transid
 					) THEN CAST(1 AS BIT)
 			ELSE CAST(0 AS BIT)
 			END AS isMoved

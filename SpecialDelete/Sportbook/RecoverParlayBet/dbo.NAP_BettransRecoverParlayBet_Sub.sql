@@ -24,6 +24,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:			
 			- @BetType:
@@ -35,6 +36,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @RecoverPatchSize INT = 100
+		   ,@Movebetdate		DATETIME 
 	
 	DECLARE @MatchDate			DATETIME
 		   ,@transids_29		VARCHAR(MAX) = ''
@@ -115,11 +117,26 @@ BEGIN
 	
 	SELECT @ErrCode = 0
 		  ,@ErrMsg = ''
-		  
+	
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	SELECT  @MatchDate = eventdate
+	FROM	dbo.match WITH(NOLOCK)
+	WHERE	matchid = @matchid	
+
+	IF @MatchDate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 102
+		     , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+		RETURN	
+	END
+	
 	--> parse @MainTransIds
 	INSERT INTO @tblMainTransIds(transid)
 	SELECT ss.val AS transid
-	FROM dbo.strSplit(@MainTransIds, ',') ss
+	FROM dbo.f_SplitString(@MainTransIds, ',') ss
+	OPTION (maxrecursion 0)
 	
 	IF @@ROWCOUNT = 0
 	BEGIN		
@@ -275,11 +292,7 @@ BEGIN
 		SELECT transid
 		FROM #tblMainTicket
 		WHERE StatusId IN (111, 112, 113) -- 'DRAW', 'WON', 'LOSE'
-				
-		SELECT  @MatchDate = eventdate
-		FROM	dbo.match WITH(NOLOCK)
-		WHERE	matchid = @matchid				
-			
+								
 		--> capture @tblBeforeBalance
 		INSERT INTO @tblBeforeBalance (custid, balance)
 		SELECT	t.custid

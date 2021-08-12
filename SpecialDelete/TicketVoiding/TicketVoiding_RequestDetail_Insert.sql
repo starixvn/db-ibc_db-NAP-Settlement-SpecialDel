@@ -72,6 +72,8 @@ AS
 		- 20210526@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
+		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -107,8 +109,8 @@ BEGIN
 			,@IsOutright		 BIT = 0
 			,@IsSaba			 BIT = 0
 			,@IsNonSport		 BIT = 0
-			,@moveBetDay14 		 SMALLDATETIME
-			,@moveBetDay 		 SMALLDATETIME
+			,@movebetdate		SMALLDATETIME
+			,@maxdate 			DATETIME = '9999-01-01'
 			,@FromWinlostDate    DATETIME
 			,@LogDataContent	 VARCHAR(MAX)
 			,@WrongScoreInfoXML	XML = NULL
@@ -381,15 +383,17 @@ BEGIN
 	ELSE IF @IssueTypeId = 13 --AC
 	BEGIN 
 		-- Get info match belong to username
-			SELECT @moveBetDay14 = MAX(winlostdate) 
-		FROM dbo.bettrans14 WITH(NOLOCK)
+		--Get Movebetdate
+		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 
-		SELECT @moveBetDay = MAX(winlostdate) 
-		FROM dbo.bettrans WITH(NOLOCK)
-
-		SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
-				, @FromWinlostDate 	= CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-				, @ToDate 		= ISNULL(@ToDate, @moveBetDay)
+		SELECT @FromWinlostDate	= ISNULL(@FromDate, @movebetdate)
+				, @FromWinlostDate 	= CASE WHEN @FromWinlostDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromWinlostDate END
+		
+		IF @ToDate IS NULL
+		BEGIN
+	
+			SET @ToDate = @maxdate
+		END
 	
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT val 

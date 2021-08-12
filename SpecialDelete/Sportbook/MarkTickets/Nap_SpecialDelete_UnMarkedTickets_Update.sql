@@ -33,7 +33,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20201130@July: TVS - Check lock match before add request [Redmine: #143666]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
-
+		- 20210810@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -104,7 +104,7 @@ BEGIN
 				(TransId BIGINT,
 				MatchId INT
 				);
-	CREATE TABLE #tmpRefCodeSummary
+	CREATE TABLE #tmpRefCodeSummaryUnMarked
 				(RefCode BIGINT,
 				custid  INT,
 				matchid INT,
@@ -112,7 +112,7 @@ BEGIN
 				transid BIGINT
 				);
 	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
+	CREATE INDEX IX_tmpRefCodeSummaryUnMarked_Refcode ON #tmpRefCodeSummaryUnMarked(RefCode);
     
 	-- Get tickets insert into transaction
 	INSERT INTO #Tickets (
@@ -170,7 +170,7 @@ BEGIN
 	)
 	BEGIN
 			-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-			INSERT INTO #tmpRefCodeSummary
+			INSERT INTO #tmpRefCodeSummaryUnMarked
 				(RefCode,
 					custid,
 					matchid,
@@ -207,7 +207,7 @@ BEGIN
 								b.betdaqid,
 								b.ExtraInfo,
 								b.RefCode
-						FROM #tmpRefCodeSummary t
+						FROM #tmpRefCodeSummaryUnMarked t
 								INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.RefCode = t.RefCode
 																		AND b.transid <> t.transid
 																		AND b.matchid = t.matchid
@@ -500,7 +500,7 @@ BEGIN
 
 	DROP TABLE #Tickets;
 	DROP TABLE #Cashout911Tickets;
-	DROP TABLE #tmpRefCodeSummary;
+	DROP TABLE #tmpRefCodeSummaryUnMarked;
 	DROP TABLE #transIds;
 	DROP TABLE #Match;
 	DROP TABLE #ParlayTransIds;

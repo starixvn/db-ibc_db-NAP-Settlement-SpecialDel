@@ -19,6 +19,7 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -28,7 +29,8 @@ BEGIN
 	
 	DECLARE @Action_Recal			VARCHAR(100)  = 'Re-Cal'
 		  , @Action_Refund			VARCHAR(100)  = 'Refund'				
-	
+		  , @Movebetdate			DATETIME
+
 	DECLARE @isExistMatch				  BIT = 0	
 		  , @IsExistVS					  BIT = 0	  	  
 		  , @avaiableProcess			  BIT	= 0
@@ -92,7 +94,6 @@ BEGIN
 		LeagueId			INT,
 		matchcode			NVARCHAR(50),
 		modds				SMALLMONEY,
-		
 		SubStatus			NVARCHAR(10),
 		SubTransId			BIGINT,
 		SubBetCheck			NVARCHAR(50),
@@ -102,11 +103,9 @@ BEGIN
 		SubHdp2				SMALLMONEY,
 		SubOdds				MONEY,
 		SubCustId			INT,
-		SubTransdesc		NVARCHAR(2000),
-				
+		SubTransdesc		NVARCHAR(2000),		
 		BetFrom				NVARCHAR(1),
 		matchid				INT,
-		
 		[Action]			VARCHAR(100),
 		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181
 	)
@@ -208,7 +207,6 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -218,11 +216,10 @@ BEGIN
 				SubHdp2,
 				SubOdds,
 				SubTransdesc,
-				
 				BetFrom,
-				matchid,
-									
-				TicketType)
+				matchid,					
+				TicketType
+		)
 		SELECT  z.Stake,
 				m.AwayId,
 				z.BetCheck,
@@ -258,7 +255,6 @@ BEGIN
 				m.leagueid,
 				NULL AS matchcode,
 				b.modds,
-				
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -268,10 +264,8 @@ BEGIN
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				NULL AS SubTransdesc,
-				
 				b.betfrom,
-				b.matchid,
-									
+				b.matchid,					
 				CASE 
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
@@ -332,7 +326,6 @@ BEGIN
 				LeagueId,
 				matchcode,
 				modds,
-				
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -342,11 +335,10 @@ BEGIN
 				SubHdp2,
 				SubOdds,
 				SubTransdesc,
-				
 				BetFrom,
-				matchid,
-									
-				TicketType)
+				matchid,				
+				TicketType
+		)
 		SELECT  z.Stake,
 				0 AS AwayId,
 				z.BetCheck,
@@ -382,7 +374,6 @@ BEGIN
 				r.LeagueID,
 				CONVERT(NVARCHAR(50), o.RacerNum) AS matchcode,
 				b.modds,
-				
 				NULL AS SubStatus,
 				NULL AS SubTransId,
 				NULL AS SubBetCheck,
@@ -392,10 +383,8 @@ BEGIN
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				NULL AS SubTransdesc,
-				
 				b.betfrom,
-				b.matchid,
-									
+				b.matchid,			
 				3 AS TicketType -- Inspired VS 181
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
@@ -419,7 +408,17 @@ BEGIN
 			
 			RETURN
 		END				
-			
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE eventdate <= @Movebetdate )
+		BEGIN
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			RETURN	
+		END
+		
 		--> Check Concurrency				
 		SELECT @isExistMatch	  = MAX(CASE WHEN TicketType IN (1, 2) THEN 1 ELSE 0 END)
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 

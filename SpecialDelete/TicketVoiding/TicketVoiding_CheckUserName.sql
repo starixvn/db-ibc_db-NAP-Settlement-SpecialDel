@@ -21,6 +21,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 */
@@ -32,8 +33,6 @@ BEGIN
 			,@MatchIDs				  VARCHAR(MAX) = ''
 			,@NumberOfTickets		  INT = 0
 			,@IsInValidTotalTicket	  BIT = 0 -- 0 Exist valid ticket  -- 1: InValid
-			,@moveBetDay14 			  SMALLDATETIME
-			,@moveBetDay 			  SMALLDATETIME
 			,@FromWinlostDate		  DATETIME
 			,@IsSB					  BIT = 0
 			,@IsParlay				  BIT = 0
@@ -53,7 +52,10 @@ BEGIN
 			,@IsExistVS				  BIT = 0
 			,@IsExistBB				  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-			,@todate_tmp			  DATETIME = '9999-01-01'
+			,@movebetdate SMALLDATETIME
+			,@maxdate 	DATETIME = '9999-01-01'
+
+
 	
 	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT, recommend INT)
@@ -95,16 +97,16 @@ BEGIN
 	FROM dbo.bettrans14 WITH(NOLOCK)
 	*/
 	
-	SELECT @moveBetDay14 = MAX(eventdate) 
-	FROM dbo.match14 WITH(NOLOCK)
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
-	SELECT @FromWinlostDate	= ISNULL(@FromDate, @moveBetDay14)
-			, @FromWinlostDate 	= CASE WHEN @FromWinlostDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromWinlostDate END
+	SELECT @FromWinlostDate	= ISNULL(@FromDate, @movebetdate)
+			, @FromWinlostDate 	= CASE WHEN @FromWinlostDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromWinlostDate END
 			
 	IF @ToDate IS NULL
 	BEGIN
 		
-		SET @ToDate = @todate_tmp
+		SET @ToDate = @maxdate
 	END
 	
 	INSERT INTO @Status_tmp (StatusId)

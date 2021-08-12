@@ -13,6 +13,7 @@ AS
 		- 20210326@Max: [TVS] Enhance void queue and service integration [Redmine: #152053]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	
 	Param's explanation:	
 		
@@ -30,7 +31,6 @@ BEGIN
 			,@IP				VARCHAR(50)
 			,@StatusId			TINYINT
 			,@sessionID			INT = 0
-
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@FailedTransIds	VARCHAR(MAX)
@@ -40,11 +40,15 @@ BEGIN
 			,@Status_Single TINYINT
 			,@IsNoTicketFound BIT = 1
 			,@IsExistError BIT = 0
-
 			,@BypassCheckingProcess TINYINT = 0
 			,@RetryTime INT = 120
 			,@ExecTime DATETIME
 			,@ErrMsgLockMatch VARCHAR(300) = '1000000'
+
+	DECLARE @StatusMove TINYINT
+		   ,@ErrMsgMove VARCHAR(300)
+		   ,@MoveBetMatchIds VARCHAR(MAX) = NULL
+		   ,@MoveBetMatchIdsXML XML = NULL
 
 	DECLARE @tmpQueue TABLE (
 		RequestId		INT
@@ -64,6 +68,11 @@ BEGIN
 
 	DECLARE @tmpQueue_update TABLE (
 		QueueId	INT
+	)
+
+	DECLARE @tmpMatchMoveBet_update TABLE (
+		MatchId	INT
+	   ,TransIds VARCHAR(MAX)
 	)
 
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
@@ -213,6 +222,7 @@ BEGIN
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 				,@QueueIds = @QueueIds OUTPUT
+				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 
 		END TRY
 		BEGIN CATCH
@@ -231,7 +241,7 @@ BEGIN
 		IF @IssueTypeId = 13
 		BEGIN
 			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	val AS TransId
+			SELECT	val AS QueueId
 			FROM	dbo.f_SplitString(@QueueIds, ',')
 			OPTION (maxrecursion 0)
 		END
@@ -246,18 +256,48 @@ BEGIN
 							END
 		END
 
-		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
-				,StatusId = @StatusId
-				,ErrMsg = CASE WHEN q.QueueId = @QueueId THEN @ErrMsg ELSE ErrMsg END
-				,FailedTransIds = @FailedTransIds
-				,NegativeBalanceUsers = CASE WHEN q.QueueId = @QueueId THEN @NegativeBalanceUsers ELSE NegativeBalanceUsers END
-		FROM	dbo.TicketVoiding_Queue q
-		WHERE 1 = CASE WHEN @IssueTypeId = 13 AND EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId) THEN 1
-						WHEN @IssueTypeId <> 13 AND q.QueueId = @QueueId THEN 1
-					ELSE 0 END
+		IF @MoveBetMatchIds IS NOT NULL
+		BEGIN
+			SELECT @StatusMove = 3, @ErrMsgMove = 'Could not void some tickets due to Movebet process.'
 
-		IF @StatusId = 3
+			SET @MoveBetMatchIdsXML = CONVERT(XML, @MoveBetMatchIds)
+
+			INSERT INTO @tmpMatchMoveBet_update(MatchId, TransIds)
+			SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+					,T.C.value('@TransIds', 'VARCHAR(MAX)') AS TransIds
+			FROM @MoveBetMatchIdsXML.nodes('/root/r') as [T](C)
+		END
+		IF @IssueTypeId = 13 -- Abnormal account 
+		BEGIN
+			
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+			SET	Duration = CASE WHEN q.QueueId = @QueueId THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE())	ELSE Duration END
+				,StatusId = CASE WHEN m.MatchId IS NULL THEN @StatusId ELSE @StatusMove END
+				,ErrMsg = CASE WHEN m.MatchId IS NULL THEN @ErrMsg 
+							   WHEN m.MatchId IS NOT NULL THEN @ErrMsgMove 						
+							   ELSE ErrMsg END
+				,FailedTransIds = CASE WHEN m.MatchId NOT IN (9,29,2799) THEN q.TransIds
+									   WHEN m.MatchId IN (9,29,2799) THEN m.TransIds
+									   ELSE @FailedTransIds END
+				,NegativeBalanceUsers = @NegativeBalanceUsers
+			FROM	dbo.TicketVoiding_Queue q
+				LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
+			WHERE EXISTS (SELECT QueueId FROM @tmpQueue_update WHERE QueueId = q.QueueId)  
+		END
+		ELSE
+		BEGIN
+
+			UPDATE	q WITH(ROWLOCK, UPDLOCK)
+			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())
+				,StatusId = @StatusId
+				,ErrMsg = @ErrMsg
+				,FailedTransIds = @FailedTransIds
+				,NegativeBalanceUsers = @NegativeBalanceUsers
+			FROM	dbo.TicketVoiding_Queue q
+			WHERE q.QueueId = @QueueId 
+		END
+
+		IF @StatusId = 3 OR @StatusMove = 3
 			SET @IsExistError = 1
 
 		IF @ErrCode <> 100

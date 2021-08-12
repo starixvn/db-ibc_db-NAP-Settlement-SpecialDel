@@ -60,6 +60,7 @@ AS;
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
+		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -77,35 +78,32 @@ BEGIN
 	
 	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @moveBetDay14 	SMALLDATETIME,
-		@moveBetDay 	SMALLDATETIME,
-		@IsSB BIT = 0,
-		@IsParlay BIT = 0,
-		@IsBB BIT = 0,
-		@IsOutright BIT = 0,
-		@IsSaba BIT = 0,
-		@IsNonSport BIT = 0
+	DECLARE @movebetdate SMALLDATETIME,
+			@maxdate 	DATETIME = '9999-01-01',
+			@IsSB BIT = 0,
+			@IsParlay BIT = 0,
+			@IsBB BIT = 0,
+			@IsOutright BIT = 0,
+			@IsSaba BIT = 0,
+			@IsNonSport BIT = 0,
+			@MovebetDay DATETIME
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
-	
-	/*
-	SELECT @moveBetDay14 = MAX(winlostdate) 
-	FROM dbo.bettrans14 WITH(NOLOCK)
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	-- invalid trans
+	SELECT @InvalidTransIds = '', @MovedTransIds = ''
 
-	SELECT @moveBetDay = MAX(winlostdate) 
-	FROM dbo.bettrans WITH(NOLOCK)
-	*/
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
-	SELECT @moveBetDay14 = MAX(eventdate) 
-	FROM dbo.match14 WITH(NOLOCK)
-	
-	SELECT @FromDate	= ISNULL(@FromDate, @moveBetDay14)
-			, @FromDate = CASE WHEN @FromDate <= @moveBetDay14 THEN DATEADD(d, 1, @moveBetDay14) ELSE @FromDate END
-			
+	SELECT @FromDate	= ISNULL(@FromDate, @movebetdate)
+		, @FromDate 	= CASE WHEN @FromDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromDate END
+
 	IF @ToDate IS NULL
 	BEGIN
-		SET @ToDate = DATEADD(yy,2, GETDATE())
+		
+		SET @ToDate = @maxdate
 	END
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
@@ -163,7 +161,8 @@ BEGIN
               BonusID               INT,
               MainTransId           BIGINT,
 			  IsMarked			 	BIT,
-			  ActualStake			MONEY
+			  ActualStake			MONEY,
+			  eventdate				DATETIME
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -695,6 +694,7 @@ BEGIN
 			,sporttype 	= m.sporttype
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			,eventdate  = m.eventdate
 		FROM #Data d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
@@ -711,6 +711,7 @@ BEGIN
 			,leagueid 	= odds.leagueid
 			,sporttype 	= l.sporttype
 			,showtime	= ''
+			,eventdate  = odds.eventdate
 		FROM #Data d
 			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 			ON	d.matchid = odds.orid
@@ -728,7 +729,7 @@ BEGIN
 			,leagueid 	= r.leagueid
 			,sporttype 	= r.sporttype
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
-			
+			,eventdate  = o.eventdate
 		FROM #Data d
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
@@ -747,6 +748,12 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
+	IF(EXISTS(SELECT TOP 1 1 FROM #Data WHERE bettype IN (9,29,2799)))
+	BEGIN
+		UPDATE #Data
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)
+	END
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #Data
@@ -763,6 +770,19 @@ BEGIN
 	BEGIN
 		DELETE FROM #Data WHERE betdaqid = 0 AND extrainfo IS NULL
 	END
+
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDay OUTPUT
+
+	IF @TransIds IS NOT NULL AND EXISTS (SELECT TOP 1 1 FROM #Data WHERE eventdate <= @MovebetDay)
+	BEGIN
+		DELETE 
+		FROM #Data
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE eventdate <= @MovebetDay
+	END
+
 	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
 	INSERT INTO #temp_Cashout (matchid)
 	SELECT DISTINCT matchid
@@ -1058,6 +1078,7 @@ BEGIN
 			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) 
 			ON cs.srecommend = s.custid
 	)
+
 	-- ALL tickets	
 	SELECT
 		CASE WHEN d.bettype BETWEEN 801 AND 899 THEN d.refno ELSE d.transid END AS transid
@@ -1150,8 +1171,6 @@ BEGIN
 				ELSE d.transid
 			 END	
 
-	-- invalid trans
-	SELECT @InvalidTransIds = '', @MovedTransIds = ''
 	;WITH t_invalid AS
 	(
 		SELECT	transid
@@ -1161,6 +1180,10 @@ BEGIN
 				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 				FROM dbo.bettrans14 WITH(NOLOCK) 
 				WHERE transid = temp.transid
+				UNION ALL
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM @tmpTransIdMoveBet m  
+				WHERE m.transid = temp.transid
 			) bm
 		WHERE NOT EXISTS (SELECT 1 
 						  FROM #Data 

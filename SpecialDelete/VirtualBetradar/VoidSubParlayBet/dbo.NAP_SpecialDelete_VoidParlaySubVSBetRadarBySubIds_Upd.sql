@@ -25,7 +25,8 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181207@Alan: Support Chinese Email [105976]
 		- 20200929@Zane: Show Operator ID into void email notification - Fix bug cannot show bettype and deposit name [#141126]
-		
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
 */
@@ -36,7 +37,8 @@ BEGIN
 		  , @LogData					NVARCHAR(500) 
 		  , @isITAdmin					BIT	  
 		  , @CustIds					VARCHAR(MAX)
-		  
+		  , @Movebetdate				DATETIME
+
 	DECLARE @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)
 		  , @IgnoreList					VARCHAR(200)		  		  		  
@@ -84,8 +86,7 @@ BEGIN
 		IsNeutral		BIT,		
 		showtime		NVARCHAR(20),
 		LeagueId		INT,
-		modds			SMALLMONEY,
-		
+		modds			SMALLMONEY,	
 		SubStatus		NVARCHAR(10),
 		SubTransId		BIGINT,
 		SubBetCheck		NVARCHAR(50),
@@ -96,8 +97,7 @@ BEGIN
 		SubOdds			MONEY,	
 		SubTransdesc	NVARCHAR(2000),	
 		SubMatchid		INT,
-		SubMatchdate	DATETIME,
-				
+		SubMatchdate	DATETIME,		
 		BetFrom			NVARCHAR(1)
 	)	
 	CREATE INDEX IX_SubMatchid_SubMatchdate_RefNo ON #tmpBetDelete(SubMatchid, SubMatchdate, RefNo) INCLUDE(TransId)
@@ -238,8 +238,7 @@ BEGIN
 				,IsNeutral				   
 				,showtime
 				,LeagueId
-				,modds
-		           
+				,modds  
 				,SubStatus
 				,SubTransId
 				,SubBetCheck
@@ -250,8 +249,7 @@ BEGIN
 				,SubOdds
 				,SubTransdesc
 				,SubMatchid
-				,SubMatchdate
-				   
+				,SubMatchdate  
 				,BetFrom)			   
 		SELECT  b.Stake
 				,m.AwayId
@@ -286,8 +284,7 @@ BEGIN
 				,ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral				   
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 				,m.leagueid
-				,b.modds
-		           
+				,b.modds  
 				,bm.Status AS SubStatus
 				,bm.TransId AS SubTransId
 				,bm.BetCheck AS SubBetCheck
@@ -299,7 +296,6 @@ BEGIN
 				,bm.transdesc AS SubTransdesc
 				,bm.matchid AS SubMatchid
 				,m.eventdate AS SubMatchdate				
-				   
 				,b.betfrom
 		FROM (SELECT TOP (@SubTickets_Count) * 
 			  FROM #tmpBettransm WITH (NOLOCK)) bm 
@@ -320,6 +316,17 @@ BEGIN
 			RETURN		  
 		END
 		
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpBetDelete WHERE SubMatchdate <= @Movebetdate)
+		BEGIN
+			SELECT @ErrCode = 99
+				 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+			RETURN	
+		END
+
 		--> Check Concurrency
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = 1			

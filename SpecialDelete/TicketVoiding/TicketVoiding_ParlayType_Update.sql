@@ -24,7 +24,8 @@ AS
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 		- 20201210@Max: TVS - New issue type Abnormal Accounts [Redmine: #143666]
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
-		
+		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+
 	Param's explanation:	
 		
 */
@@ -36,6 +37,7 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
+			,@Movebetdate		DATETIME
 
 	DECLARE @avaiableProcess BIT
 			,@MatchDate DATETIME
@@ -52,7 +54,7 @@ BEGIN
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
 
-	DECLARE @tmpInputTransId TABLE(TransId BIGINT, MainTransId BIGINT, MainStatusId TINYINT, SubStatusId TINYINT, Refno BIGINT)
+	DECLARE @tmpInputTransId TABLE(TransId BIGINT, MainTransId BIGINT, MainStatusId TINYINT, SubStatusId TINYINT, Refno BIGINT, Eventdate DATETIME)
 
 	CREATE TABLE #BeforeUpd (custid INT, balance MONEY)  
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
@@ -71,6 +73,8 @@ BEGIN
 	SELECT	@MatchDate = eventdate
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
 	INSERT INTO @tmpInputTransId (TransId)
 	SELECT	val AS TransId
@@ -98,6 +102,7 @@ BEGIN
 			,MainStatusId = b.statusID
 			,SubStatusId = bm.statusID
 			,refno = b.refno
+			,Eventdate = @MatchDate
 	FROM	@tmpInputTransId t 
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK)
 			ON t.TransId = bm.transid
@@ -118,6 +123,7 @@ BEGIN
 	FROM	@tmpInputTransId
 	WHERE	MainTransId IS NULL
 			OR SubStatusId IN (101, 102)
+			OR Eventdate <= @Movebetdate --movebet
 
 	IF @RowCount = 0
 	BEGIN
@@ -126,6 +132,19 @@ BEGIN
 
 		RETURN
 	END
+
+	IF @MatchDate <= @Movebetdate
+	BEGIN
+		IF @BypassCheckingProcess = 1
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay  = 1  
+			   ,@IsReleased  = 1 
+
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+		RETURN
+	END	
 
 	IF @BypassCheckingProcess = 0
 	BEGIN

@@ -3,16 +3,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidOutright_Update]
 	  @OutrightID			INT
 	, @FromTransId			BIGINT
 	, @ToTransId			BIGINT
-	
     , @UserName 			NVARCHAR(50)
     , @UserPassword			NVARCHAR(50)
     , @UserID				INT
     , @IP					VARCHAR(15)		= ''
     , @Reason				NVARCHAR(500)	= ''
 	, @ReasonSC				NVARCHAR(500)	= ''
-    
 	, @TransIds				VARCHAR(MAX)	= ''	 
-		
 	, @ErrMsg				NVARCHAR(200)	= ''	OUTPUT
     , @ErrCode				INT				= 0		OUTPUT    
 
@@ -29,6 +26,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20201021@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		
 	Param's Explanation: Special bet delete option		
 	*/
@@ -36,7 +34,9 @@ BEGIN
 	SET NOCOUNT ON;
 	
 	DECLARE  @isITAdmin			BIT = 0					
-			,@avaiableProcess	BIT = 0						
+			,@avaiableProcess	BIT = 0 					
+			,@Movebetdate		DATETIME
+			,@Eventdate			DATETIME			
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)		
 	
@@ -98,7 +98,22 @@ BEGIN
 		
 		RETURN
 	END	
-			
+
+	/*Modify the way to get move bet date*/
+	SELECT @Eventdate = eventdate
+	FROM dbo.outright WITH(NOLOCK)
+	WHERE orid = @OutrightID
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+	IF @Eventdate <= @Movebetdate
+	BEGIN
+		SELECT @ErrCode = 99
+			 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+		RETURN	
+	END
+		
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
 		SELECT DISTINCT val 

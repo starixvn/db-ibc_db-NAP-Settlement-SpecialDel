@@ -2,10 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 	@TransIds			VARCHAR(MAX),
 	@TransIdSolds		VARCHAR(MAX)	= '', -- just for BetTrade's subticket (transid of bettype 901)  	
-
 	@UserId				INT,	
 	@IP					VARCHAR(50),
-	
 	@ErrCode			INT				= 0		OUTPUT,
 	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
 	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT,
@@ -63,6 +61,7 @@ AS
 		- 20200507@Charles: PHAIO 5.1 for Penalty [132985]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
+		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 
 	Param's Explanation:
 */
@@ -80,6 +79,7 @@ BEGIN
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 			,@isExistFM2		BIT = 0
+			,@Movebetdate		DATETIME    
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
@@ -135,6 +135,7 @@ BEGIN
 		,RefCode		BIGINT
 		,BonusID		INT		
 		,MainTransId	BIGINT
+		,winlostdate	DATETIME
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -214,6 +215,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,winlostdate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -250,6 +252,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,b.winlostdate
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.refno
@@ -300,6 +303,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,winlostdate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -339,6 +343,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,m.eventdate
 		FROM	#tbTransId t		
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -393,6 +398,7 @@ BEGIN
 				,WalletType
 				,RefCode
 				,BonusID
+				,winlostdate
 		)
 		SELECT	z.transid
 				,z.transid
@@ -432,6 +438,7 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
+				,o.eventdate
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -490,6 +497,7 @@ BEGIN
 					,b.RefCode
 					,b.BonusID
 					,r.transid AS MainTransId
+					,b.winlostdate
 						INTO #CTE_bettrans
 			FROM #tmpRefCodeSummary r
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)					 
@@ -539,6 +547,7 @@ BEGIN
 					,RefCode
 					,BonusID
 					,MainTransId
+					,winlostdate
 			)
 			SELECT	 z.transid
 					,z.transid
@@ -579,6 +588,7 @@ BEGIN
 					,b.RefCode
 					,b.BonusID
 					,b.MainTransId
+					,b.winlostdate
 			FROM #CTE_bettrans b WITH (NOLOCK)
 				 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 						 ON	z.transid = b.transid
@@ -587,6 +597,17 @@ BEGIN
 							AND z.bettype = b.bettype
 		END			 								
 		
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+		IF EXISTS ( SELECT TOP 1 1 FROM #tblTransInfo WHERE winlostdate <= @Movebetdate )
+		BEGIN
+			SELECT @ErrCode = 102
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			RETURN	
+		END
+
 		-- checking cash-out process
 		INSERT INTO #tblCashOutProcess(transid)
 		SELECT transid
@@ -1020,7 +1041,7 @@ BEGIN
 		
 		RETURN
 	END
-	
+
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
 			, CASE 
