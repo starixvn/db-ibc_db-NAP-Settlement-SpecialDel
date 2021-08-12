@@ -29,6 +29,7 @@ AS
 		- 20210331@Louisa: Enhancement MultiSports page [Redmine:#151545]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		
     Param's Explanation: 
     
