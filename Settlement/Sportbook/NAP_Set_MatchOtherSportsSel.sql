@@ -11,6 +11,7 @@ ALTER PROCEDURE dbo.NAP_Set_MatchOtherSportsSel
 	,@LeagueIds		VARCHAR(MAX) 
 	,@IsIncludeTest BIT				= 0
 	,@AutoSetting	TINYINT = 0
+	,@Page			TINYINT = 0
 AS
 /*  
 	 Created by: Kathy
@@ -65,9 +66,13 @@ AS
 					   (	1 - Early Over Only
 							2 - Over Only
 							3 - Over	)
+		@Page:
+					0 - Multisports Page
+					1 - Move Ticket Page
 					
 */
 BEGIN
+
 	SET NOCOUNT ON
 
 	DECLARE @MatchId			INT
@@ -309,7 +314,10 @@ BEGIN
 				)os
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
-				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+				AND 1 = CASE m.sporttype WHEN 50 THEN CASE  WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
+															WHEN @Page = 1 AND  l.LeagueGroupID = 42 THEN 0
+															ELSE 1 END
+									ELSE 1 END
 
 	END
 	ELSE
@@ -415,7 +423,10 @@ BEGIN
 									END
 					)
 				AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
-				AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
+				AND 1 = CASE m.sporttype WHEN 50 THEN CASE  WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
+															WHEN @Page = 1 AND  l.LeagueGroupID = 42 THEN 0
+															ELSE 1 END
+									ELSE 1 END
 				AND (@AutoSetting = 0 OR (@AutoSetting & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) > 0))				
 				AND EXISTS (	SELECT TOP 1 1 FROM @tmpHoldStatus h
 								WHERE  CASE WHEN h.HoldStatus = 0 THEN 1
