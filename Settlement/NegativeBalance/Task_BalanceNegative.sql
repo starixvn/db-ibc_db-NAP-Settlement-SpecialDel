@@ -16,11 +16,13 @@ AS
 		- 20170604@Bobby: Remove dummy accounts from table CustDB-TradeCust [Red:#36480]
 		- 20180326@Kathy: Enhancememnt for WC [Redmine:#89132]
 		- 20180927@Sophia: Migrate bodb_Licensee from DB052 to DBCUST [redmine: #99855]
+		- 20210702@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @BatchCount INT
+		, @movebetdate SMALLDATETIME
 
 	DECLARE @tmpMatch TABLE (MatchId INT PRIMARY KEY, MinExecId BIGINT, MaxExecId BIGINT)
 	DECLARE @tmpAffectedCustId	TABLE (CustId INT, Recommend INT, Site VARCHAR(50))
@@ -60,6 +62,9 @@ BEGIN
 			AND c.roleid = 1
 	GROUP by c.custid, c.recommend
 
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId)
 	BEGIN
 		UPDATE	t
@@ -76,6 +81,8 @@ BEGIN
 				ON b.custid = c.CustId	
 		WHERE	1 = CASE 
 						WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
+						WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
+						WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
 						ELSE 1
 					END
 		GROUP BY b.CustId, c.Site
