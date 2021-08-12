@@ -10,6 +10,10 @@ AS
 	Created by: 20210811@Louisa
 	Task	: Check Confirm Refund setting [Redmine:#159270]
 	DB		: DBPRO/bodb02
+
+	Revisions:
+		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+
 	Param's Explanation:
 		  @SelectedResources: <Resources>
 						    	<Resource Id="M1" Home="1" Away="3" />
