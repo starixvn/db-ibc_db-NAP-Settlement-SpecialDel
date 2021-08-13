@@ -14,6 +14,7 @@ AS
 	
 	Revisions: 
 		- 20210519@Max: Create new SP [Redmine:#154974]
+		- 20210813@Max: Fix CO issue [Redmine: #149927]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -463,6 +464,14 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 	
+	-- delete cash-out member bet tickets
+	DELETE t
+	FROM #BetDelete t
+	WHERE EXISTS (SELECT TOP 1 1
+				  FROM bettrans sub911 (NOLOCK)
+				  WHERE sub911.bettype = 911
+				    AND sub911.transid = t.refno)
+
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #BetDelete bd
