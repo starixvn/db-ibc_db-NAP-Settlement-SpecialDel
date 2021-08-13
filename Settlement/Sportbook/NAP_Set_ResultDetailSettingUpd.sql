@@ -60,7 +60,6 @@ BEGIN
 	sp.ResourceID
 	FROM DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
 		INNER JOIN f_SplitString(@ResourceIds,',') fs ON sp.ResourceID = fs.val
-	WHERE sp.SettleType  = 'EAR'
 		AND sp.SportType  = @SportType
 	OPTION (maxrecursion 0)
 
