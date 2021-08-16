@@ -469,7 +469,7 @@ BEGIN
 			WHILE @Retry < 16 AND @Success = 0
 			BEGIN
 				SET @Success = 1
-
+				SELECT @ErrCode = 0, @ErrMsg = ''
 				-- Apply new way to lock parlay tickets - Sportsbook	
 				IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 				BEGIN
@@ -1642,7 +1642,8 @@ BEGIN
 	BEGIN
 		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
+				OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistOutright 			= @isExistOutright

@@ -720,6 +720,8 @@ BEGIN
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN
+				SET @ErrCode = 9999
+
 				------ releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistOutright 			= @isExistOutright

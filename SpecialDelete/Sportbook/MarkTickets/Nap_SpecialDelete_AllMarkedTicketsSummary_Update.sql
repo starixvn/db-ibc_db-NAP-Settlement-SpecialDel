@@ -39,7 +39,7 @@ BEGIN
 		BEGIN		
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update '
 				+ CASE WHEN @Matches IS NULL THEN '' ELSE '@Matches = ''' + CONVERT(NVARCHAR(4000), @Matches) + '''' END
-				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 
@@ -131,12 +131,22 @@ BEGIN
 		)f
 	WHERE t.IsParlay = 0;
 
+	--Lock Refno process - SportBook
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-	SELECT t.MatchId, t.Refno
+	SELECT  0 AS MatchId, t.Refno --Many matches with same Refno
 	FROM #Tickets AS t
 	WHERE t.IsParlay = 1
-
+	GROUP BY t.Refno  
+	HAVING COUNT(*) > 1
 	SET @totalParlay = @@ROWCOUNT
+
+	INSERT INTO #tblMatchParlayProcess (MatchId, RefNo)
+	SELECT  t.MatchId, t.RefNo
+	FROM #Tickets t
+	WHERE NOT EXISTS (SELECT 1 FROM #tblMatchParlayProcess m WHERE m.RefNo = t.refno) 
+		AND t.IsParlay = 1
+	SET @totalParlay = @totalParlay + @@ROWCOUNT
+
 	IF @totalParlay > 0 
 		SET @isExistParlay = 1
 
