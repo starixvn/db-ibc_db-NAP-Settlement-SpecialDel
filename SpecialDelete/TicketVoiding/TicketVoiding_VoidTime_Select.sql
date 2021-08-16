@@ -18,6 +18,7 @@ AS
 		- 20210628@Max: [TVS] Submit new allowance setting for Main Match [Redmine: #157226]
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 
 	Param's explanation:
 		+ GetVoidTimeInfo:
@@ -156,14 +157,17 @@ BEGIN
 			AND 1 =  CASE 
 						  --1: Danger Accept
 						  WHEN @SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
-						  WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-						  WHEN @SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
-						  WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1 
-						  WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+						WHEN @SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
+						WHEN @SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+						WHEN @SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1 
+						WHEN @SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
 						  --10: Red Card
 						  WHEN @SubIssueTypeId IN (15,16,17,18,19,20,21) THEN 1 
-						  ELSE 0
-					 END
+						  
+						--Wrong Score
+						WHEN @SubIssueTypeId IN (7, 35) THEN 1
+						ELSE 0
+					END
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
