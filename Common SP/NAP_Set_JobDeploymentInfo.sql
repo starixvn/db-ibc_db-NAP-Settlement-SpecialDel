@@ -16,7 +16,6 @@ AS
 		- 20210206@Max: TVS - Lock TempVariableNumber and can't void cash out ticket [Redmine: #150176]
 		- 20210207@Helen: TVS - Increase Retry for void process [Redmine: #150176]
 		- 20210209@Helen: TVS - Performance Tuning for void abnormal account over 300 matches [Redmine: #150204]
-		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -28,13 +27,7 @@ BEGIN
 
 	---1.Single Settlement
 	INSERT INTO @tmpJobInfo (JobName, WaitingTime, IsWaiting)
-	SELECT 'bodb02 : NAP Single Settlement - Job 1'		, '00:01:00', 0
-
-	INSERT INTO @tmpJobInfo (JobName, WaitingTime, IsWaiting)
-	SELECT 'bodb02 : NAP Single Settlement - Job 2'		, '00:01:00', 0
-
-	INSERT INTO @tmpJobInfo (JobName, WaitingTime, IsWaiting)
-	SELECT 'bodb02 : NAP Single Settlement - Job 3'		, '00:01:00', 0
+	SELECT 'bodb02 : NAP Single Settlement'		, '00:01:00', 0
 
 	--2.Parlay Settlement
 	UNION ALL

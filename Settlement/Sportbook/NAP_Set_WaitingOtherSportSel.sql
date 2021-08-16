@@ -113,13 +113,14 @@ BEGIN
 	EXECUTE sys.sp_executesql @remoteQuery
 
 	;WITH singlequeue AS (
-		SELECT	matchid, MIN(IsCalculating) AS IsCalculating, MAX(IsCalculating) AS IsCalculatingParlay
+		SELECT	matchid, MIN(IsCalculating) AS IsCalculating
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE()) 
-				OR s.IsCalculating IN (0,1,100)
+				OR s.IsCalculating IN (0,1)
 		GROUP BY matchid
 	), parlayqueue AS (
-		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculating, 0 AS IsCalculatingParlay
+		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculating
+				,MAX(CASE WHEN IsCalculating = 1 THEN 1 ElSE 0 END) AS Running
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
 				OR p.IsCalculating IN (0,1)
@@ -129,8 +130,8 @@ BEGIN
 	SELECT q.matchid, q.IsCalculatingSingle, q.IsCalculatingMP, m.sporttype
 	FROM (
 		SELECT	ISNULL(s.matchid, p.matchid) AS matchid
-				,CASE WHEN s.IsCalculatingParlay > 3 AND s.IsCalculating NOT IN (0,1) THEN s.IsCalculatingParlay ELSE s.IsCalculating END AS IsCalculatingSingle
-				,p.IsCalculating AS IsCalculatingMP
+				,s.IsCalculating AS IsCalculatingSingle
+				,CASE WHEN p.Running = 1 THEN p.Running ELSE p.IsCalculating END AS IsCalculatingMP
 		FROM	singlequeue s
 			FULL OUTER JOIN parlayqueue p
 				ON	s.matchid = p.matchid

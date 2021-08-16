@@ -12,7 +12,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
-	,@KeyId				INT				= 0 
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -91,6 +90,10 @@ BEGIN
 			,@matchLog			INT 
 			,@IsMergedParlay	BIT = 0
 			,@SelectedResourceParlay VARCHAR(MAX) = ''
+			,@sqlCommand VARCHAR(MAX) = ''
+			,@TotalSubParlay	INT = 0
+			,@ThreadHold		INT = 0
+			,@LockedByRefno		BIT = 0
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -381,6 +384,21 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
+			
+			IF @IsMergedParlay = 1
+				SELECT @TotalSubParlay = COUNT(1)			
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID NOT IN (101)
+						AND 1 = CASE 
+									WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
+									WHEN @IsReSettledTickets = 1 THEN 1
+									ELSE 0
+								END
+						AND EXISTS (SELECT	TOP 1 1
+									FROM	@tmpSelectedRID t
+									WHERE	t.BetType = bm.bettype
+											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
@@ -400,6 +418,30 @@ BEGIN
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							 ELSE 0 
 						END
+
+		IF @IsMergedParlay = 1					
+			SELECT @TotalSubParlay = COUNT(1)			
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
+					ON	b.matchid = 29
+						AND b.bettype = 29
+						AND b.refno = bm.refno
+				OUTER APPLY (
+					SELECT	TOP (1) mt.TransId
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+							AND mt.MatchId = @MatchID
+				) mt
+			WHERE	bm.matchid = @MatchID
+					AND bm.statusID NOT IN (101)
+					AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+								 WHEN bm.statusID NOT IN (0, 1) THEN 1
+								 ELSE 0 
+							END
+					AND EXISTS (SELECT	TOP 1 1
+								FROM	@tmpSelectedRID t
+								WHERE	t.BetType = bm.bettype
+										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
@@ -410,6 +452,16 @@ BEGIN
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		WHERE b.matchid = @MatchId
 	  			AND	b.statusID NOT IN (103, 101)
+			
+			IF @IsMergedParlay = 1
+				SELECT @TotalSubParlay = COUNT(1)			
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID NOT IN (101, 103)
+						AND EXISTS (SELECT	TOP 1 1
+									FROM	@tmpSelectedRID t
+									WHERE	t.BetType = bm.bettype
+											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END 
 	
 		---check FT round
@@ -701,15 +753,6 @@ BEGIN
 				AND a.bonusId		= b.bonusId
 	WHERE a.balance <> b.balance
 	
-	SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
-											,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
-											,bettype AS '@Bettype'
-											,pfid	AS '@pfId'
-											,HomeValue AS '@Home'
-											,AwayValue AS '@Away'
-									FROM	@tmpSelectedRID
-									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-
 	-------------------------------------------------------------
 	---					  WRITE LOG						---
 	---------------------------VVVV------------------------------
@@ -840,26 +883,52 @@ BEGIN
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
 	
-	IF @IsMergedParlay = 1
-	BEGIN
-		-- update single_Calculate_queue
-		UPDATE	s 
-			SET IsCalculating = 100 -- start to calculate parlay
-		FROM	dbo.Single_Calculate_Queue s WITH(ROWLOCK, UPDLOCK)
-		WHERE	s.keyid = @KeyId
-				AND s.IsCalculating = 1
+	IF @TotalSubParlay > 0
+	BEGIN		
+		SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+											,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
+											,bettype AS '@Bettype'
+											,pfid	AS '@pfId'
+											,HomeValue AS '@Home'
+											,AwayValue AS '@Away'
+									FROM	@tmpSelectedRID
+									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+			
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			@LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
 
-		-- Settle parlay
-		EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
-			 @creator			= @creator
-			,@MatchID			= @MatchId
-			,@Action		  	= @Action
-			,@IP	 			= @Ip
-			,@SelectedResources = @SelectedResourceParlay
-			,@IsReSettledTickets = @IsReSettledTickets
+		IF @TotalSubParlay <= @ThreadHold
+			SET @LockedByRefno = 1
 
-			,@ErrCode			= @ErrCode OUTPUT
-			,@ErrMsg 			= @ErrMsg OUTPUT
+		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
+								+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
+								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
+								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
+								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
+								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @ErrCode = @ErrCode OUTPUT' 
+								+ ', @ErrMsg = @ErrMsg OUTPUT'
+
+		IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+					@creator			= @creator
+				,@MatchID			= @MatchId
+				,@Action		  	= @Action
+				,@IP	 			= @Ip
+				,@SelectedResources = @SelectedResourceParlay
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@LockedByRefno		= 1 -- always lock refno for testing
+
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg 			= @ErrMsg OUTPUT
+		END
+		ELSE
+		BEGIN
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
+			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+		END
 	END
 END
 GO

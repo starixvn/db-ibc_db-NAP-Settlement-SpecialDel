@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IP	 				VARCHAR(15)		= ''
 	,@SelectedResources		VARCHAR(MAX)
 	,@IsReSettledTickets	BIT			= 1
-	,@BypassCheckingProcess BIT = 0
+	,@LockedByRefno			BIT			= 0
 
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
@@ -30,12 +30,10 @@ BEGIN
 	DECLARE @start				DATETIME
 			,@stop				DATETIME
 			,@ActionID			INT
-			,@ThreadHold		INT -- over threadhold, the parlay process will be locked in systemsetting
-
+			
 			,@avaiableProcess	BIT		
 			,@Session			NVARCHAR(50)
 			,@SPName			SYSNAME
-			,@IsExistParlay		BIT = 0
 						
 			,@ParentMatchId		INT
 			,@eventdate			DATETIME
@@ -207,58 +205,24 @@ BEGIN
 	IF @totalSubParlay = 0
 		RETURN 
 
-	IF @BypassCheckingProcess = 0
+	--check settlement process
+	IF @LockedByRefno = 1
 	BEGIN
-		EXEC dbo.NAP_Set_GlobalSettingSel 
-			@LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
+		INSERT INTO #tblMatchParlayProcess (matchid, RefNo) 
+		SELECT	@MatchID, refno
+		FROM	#tmpsubTransID
 		
-		--check settlement process
-		IF @totalSubParlay <= @ThreadHold
-		BEGIN
-			INSERT INTO #tblMatchParlayProcess (matchid, RefNo) 
-			SELECT	@MatchID, refno
-			FROM	#tmpsubTransID
-		
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno		= 1
-				,@SPName				= @SPName
-				,@Session				= @Session
-				, @avaiableProcess 		= @avaiableProcess OUTPUT
-				, @ErrCode				= @ErrCode OUTPUT
-				, @ErrMsg				= @ErrMsg OUTPUT
-		END
-		ELSE
-		BEGIN
-			SET @IsExistParlay = 1
-		END
-
-		--check error
-		IF(@ErrCode <> 0 OR @avaiableProcess = 0) OR @IsExistParlay = 1 -- put to parlay queue and lock systemsettings
-		BEGIN
-			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT[1-9]'
-			BEGIN
-				RETURN
-			END
-
-			SELECT	@ErrCode = 0
-					,@ErrMsg = ''
-					,@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-															+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
-															+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResources) + ''''														
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
-															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
-															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
-															+ ', @BypassCheckingProcess = 1 ' 	
-															+ ', @ErrCode = @ErrCode OUTPUT' 
-															+ ', @ErrMsg = @ErrMsg OUTPUT'
-
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype)
-			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType
-
-			RETURN
-		END
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@IsLockingByRefno		= 1
+			,@SPName				= @SPName
+			,@Session				= @Session
+			, @avaiableProcess 		= @avaiableProcess OUTPUT
+			, @ErrCode				= @ErrCode OUTPUT
+			, @ErrMsg				= @ErrMsg OUTPUT
 	END
+	
+	IF @ErrCode <> 0
+		RETURN
 		
 	BEGIN TRY
 		-- settle sub parlay
@@ -450,7 +414,7 @@ BEGIN
 	VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
 
 	----------------------------------- releasing Settlement process--------------------------------------------
-	IF @BypassCheckingProcess = 0
+	IF @LockedByRefno = 1
 	BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@IsLockingByRefno = 1
@@ -458,7 +422,7 @@ BEGIN
 			,@IsReleased = 1
 	END
 
-	IF @ErrCode > 0
+	IF @ErrCode <> 0
 		RETURN
 
 	-- Write log
@@ -535,7 +499,5 @@ BEGIN
 				,@IP = @IP
 		END CATCH
 	END --END: WRITE LOG ---------------------------------- 
-
-	WAITFOR DELAY '00:00:01' -- for another parlay process request lock
 END
 GO

@@ -161,7 +161,7 @@ BEGIN
 	BEGIN
 		DELETE TOP (1000)
 		FROM	dbo.ParlayLockingHistory WITH(ROWLOCK, UPDLOCK)
-		WHERE	CreatedDate < @date
+		WHERE	CreatedDate <= DATEADD (DD, -7, GETDATE())
 
 		IF @@rowcount < 1000
 			BREAK

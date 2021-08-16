@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-alter PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources] 
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources] 
 	@matchid 			   INT
 	,@SportType            INT = 0
 	,@SettleType		   VARCHAR(10) = 'MNL'
@@ -25,6 +25,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
 		
 */
 BEGIN
@@ -34,6 +35,7 @@ BEGIN
         	,@isShowAll BIT = 0
         	,@BestOfMap TINYINT = NULL
 			,@IsMergedParlay BIT = 0
+			,@OpenQuery	NVARCHAR(MAX)
 
     DECLARE @tmpTicketStatus TABLE	(
 		ResourceID VARCHAR(20)
@@ -50,6 +52,7 @@ BEGIN
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT)
     DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
     DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
+	DECLARE @tblOddsES TABLE (ResourceID VARCHAR(20), bettype SMALLINT)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
     ---------------------------------------------------------------------------------------------
@@ -68,6 +71,13 @@ BEGIN
     --count ticket and group by Bettype and BetID
 	IF (@SportType = 43 AND @SettleType = 'EAR')
 	BEGIN
+		SET @OpenQuery = 'SELECT ResourceId, Bettype
+						 FROM OPENQUERY(DBPRO, '' SELECT o.ResourceId, o.Bettype 
+												 FROM bodb02.dbo.OddsES o WITH(NOLOCK)
+												 WHERE o.Matchid = '+ CAST( @matchid AS VARCHAR) +'	 '')'
+		INSERT INTO @tblOddsES (ResourceId, Bettype)
+		EXECUTE	sys.sp_executesql @OpenQuery
+
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InWaiting, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT  sp.ResourceID AS ResourceID,
 				SUM(CASE WHEN bt.transid IS NOT NULL THEN 1 ELSE 0 END) AS BetCount,
@@ -80,8 +90,7 @@ BEGIN
 				0 AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
 		FROM (
 			SELECT 	DISTINCT o.ResourceID, o.bettype
-			FROM 	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
-			WHERE	o.matchID = @matchID
+			FROM 	@tblOddsES o
 		)o
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = o.Bettype and sp.BetID = '8' + o.Resourceid 
 			OUTER APPLY 

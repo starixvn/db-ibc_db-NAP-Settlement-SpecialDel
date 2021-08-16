@@ -597,14 +597,14 @@ BEGIN
 		SELECT	s.matchid
 				,MIN(s.IsCalculating) AS IsCalculatingSingle
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
-		WHERE	s.IsCalculating IN (0, 1, 100)
+		WHERE	s.IsCalculating IN (0, 1)
 				AND s.SportType <> 1
 		GROUP BY s.matchid
 	)
 	,parlayqueue
 	AS(
 		SELECT	p.matchid
-				,MIN(p.IsCalculating) AS IsCalculatingMP
+				,MAX(p.IsCalculating) AS IsCalculatingMP
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 		WHERE	p.IsCalculating IN (0,1)
 		GROUP BY p.matchid

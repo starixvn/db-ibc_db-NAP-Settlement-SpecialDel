@@ -113,21 +113,23 @@ BEGIN
 	END
 	
 	;WITH SingleTicket AS (
-		SELECT matchid, sporttype, MIN(IsCalculating) AS IsCalculating, MAX(IsCalculating) AS IsParlayCalculating
+		SELECT matchid, sporttype, MIN(IsCalculating) AS IsCalculating
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE (Starttime > DATEADD(MINUTE, -10, GETDATE()) 
-				OR s.IsCalculating IN (0,1,100) -- queue has many waiting parlay command
+				OR s.IsCalculating IN (0,1)
 			) 
 			AND (sporttype = @sporttype OR @sporttype = 0)
 			AND (leagueid = @leagueid OR @leagueId = 0)
 		GROUP BY matchid, SportType
 	), ParlayTicket AS (
-		SELECT p.matchid, m.sporttype, MIN(IsCalculating) AS IsCalculating, 0 AS IsParlayCalculating
+		SELECT p.matchid, m.sporttype
+			,MIN(IsCalculating) AS IsCalculating
+			,MAX(CASE WHEN IsCalculating = 1 THEN 1 ELSE 0 END) AS Running -- match have waitting, running, completed status
 		FROM dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK)
 				ON p.matchid = m.matchid
 		WHERE (p.Starttime > DATEADD(MINUTE, -10, GETDATE()) 
-				OR p.IsCalculating IN (0,1) -- queue has many waiting parlay command
+				OR p.IsCalculating IN (0,1) 
 			) 
 			AND (m.sporttype = @sporttype OR @sporttype = 0)
 			AND (m.leagueid = @leagueid OR @leagueId = 0)
@@ -183,10 +185,10 @@ BEGIN
 	FROM  (
 		SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 			, ISNULL(sg.SportType, pl.sporttype) AS SportType
-			, CASE WHEN sg.IsParlayCalculating > 3 AND sg.IsCalculating NOT IN (0,1) THEN sg.IsParlayCalculating ELSE sg.IsCalculating END AS SingleStatus
-			, pl.IsCalculating AS ParlayStatus
+			, sg.IsCalculating AS SingleStatus
+			, CASE WHEN pl.Running = 1 THEN pl.Running ELSE pl.IsCalculating END AS ParlayStatus
 			, CAST(ISNULL(sg.IsCalculating, 0) AS BIT) AS IsSingle
-			, CAST(ISNULL(pl.IsCalculating, 0) AS BIT) AS IsMixParlay
+			, CASE WHEN pl.Running = 1 THEN pl.Running ELSE CAST(ISNULL(pl.IsCalculating, 0) AS BIT) END AS IsMixParlay
 		FROM SingleTicket sg
 			FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
 	) q

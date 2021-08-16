@@ -503,18 +503,20 @@ BEGIN
 	(
 		SELECT	matchid, min(IsCalculating)  IsCalculating
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
-		WHERE	s.IsCalculating IN (0,1,100)
+		WHERE	s.IsCalculating IN (0,1)
 		group by matchid 
 	),
 	ParlayTicket AS
 	(
-		SELECT	p.matchid, min(IsCalculating)  IsCalculating
+		SELECT	p.matchid, MAX(IsCalculating)  IsCalculating
 		FROM	dbo.Parlay_Calculate_Queue p WITH(NOLOCK)
 		WHERE	p.IsCalculating IN (0,1)
 		group by matchid 
 	)	
 
-	select isnull(sg.matchid, pl.matchid) matchid, sg.IsCalculating IsCalculatingSingle, pl.IsCalculating IsCalculatingMP
+	select isnull(sg.matchid, pl.matchid) matchid
+		, sg.IsCalculating IsCalculatingSingle
+		, pl.IsCalculating IsCalculatingMP
 	into #tempmatch
 	from SingleTicket sg
 		full outer join ParlayTicket pl on sg.matchid = pl.matchid 

@@ -31,6 +31,7 @@ BEGIN
 		,@pre_Sporttype smallint 
 		,@Sporttype SMALLINT
 		,@sqlCommand NVARCHAR(MAX)
+		,@LockedByRefno BIT = 0
 	
 	IF EXISTS (
 			SELECT TOP 1 1
@@ -52,6 +53,7 @@ BEGIN
 	-- giving priority to calcualate the match which has sporttype <> previous calculated match
 	SELECT TOP 1 @keyId =  p.keyid
 		,@Sporttype = p.Sporttype
+		,@LockedByRefno = p.LockedByRefno
 	FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
 	INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
 	WHERE p.IsCalculating = 0
@@ -60,40 +62,36 @@ BEGIN
 		,p.starttime
 		,p.keyid
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 0)
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
+	IF ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
 	BEGIN
-		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-			SET VValue = 1
-		WHERE VName = 'isCalculatingParlay'
-		
-		UPDATE TOP (1) dbo.Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
-			SET IsCalculating = 1
-				,execTime = GETDATE()
-				,@matchID = matchid
-				,@action = [action]
-				,@creator = creator
-				,@IP = IP
-				,@sqlCommand = sqlCommand
-		WHERE keyid = @keyId
-		
-		IF @@ROWCOUNT = 0 
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 0)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
 		BEGIN
 			UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-				SET VValue = 0
+				SET VValue = 1
 			WHERE VName = 'isCalculatingParlay'
 		
-			RETURN	
-		END		
+		END
+		ELSE
+			RETURN
 	END
-	ELSE
-	BEGIN
-		RETURN
-	END
+	
+	UPDATE TOP (1) dbo.Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
+		SET IsCalculating = 1
+			,execTime = GETDATE()
+			,@matchID = matchid
+			,@action = [action]
+			,@creator = creator
+			,@IP = IP
+			,@sqlCommand = sqlCommand
+	WHERE keyid = @keyId
 
 	BEGIN TRY
 		IF ISNULL(@sqlCommand,'') <> ''
 		BEGIN
+			IF @LockedByRefno = 1  
+				SET @sqlCommand = @sqlCommand + ', @LockedByRefno = 1 '
+								
 			EXEC sys.sp_executesql @sqlCommand
 				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
 				, @ErrMsg	= @ErrMsg	OUTPUT
@@ -129,6 +127,7 @@ BEGIN
 		UPDATE Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 		SET IsCalculating = 0
 			,TryCount = TryCount + 1
+			,LockedByRefno = CASE WHEN @ErrCode = 1000000 AND LockedByRefno IS NOT NULL THEN NULL ELSE LockedByRefno END
 		WHERE keyid = @keyId
 
 		IF NOT EXISTS (
@@ -173,7 +172,8 @@ BEGIN
 				AND IsCalculating = 1
 	END
 	
-	UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-		SET VValue = 0
-	WHERE VName = 'isCalculatingParlay'
+	IF ISNULL(@LockedByRefno,0) = 0
+		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+			SET VValue = 0
+		WHERE VName = 'isCalculatingParlay'
 END

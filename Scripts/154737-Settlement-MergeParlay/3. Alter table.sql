@@ -13,3 +13,7 @@ GO
 ALTER TABLE [dbo].[Parlay_Calculate_Queue] ADD SportType SMALLINT
 GO
 
+ALTER TABLE [dbo].[Parlay_Calculate_Queue] ADD LockedByRefno BIT
+GO
+ALTER TABLE [dbo].[Parlay_Calculate_Queue] ADD  CONSTRAINT [DF_Parlay_Calculate_Queue_LockedByRefno]  DEFAULT ((0)) FOR [LockedByRefno]
+GO

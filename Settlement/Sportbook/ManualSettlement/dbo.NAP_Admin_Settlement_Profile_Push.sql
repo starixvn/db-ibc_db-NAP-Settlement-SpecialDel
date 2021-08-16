@@ -55,8 +55,7 @@ BEGIN
 			,@WaitingTime			VARCHAR(10)
 			,@IsWaiting				BIT = 0
 			,@IsMergedParlay		BIT = 0
-			,@KeyId					INT
-
+		
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 
 	-- Check SP is in deployment
@@ -290,7 +289,7 @@ BEGIN
 			)
 		SELECT @MatchId
 			,@matchcode
-			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 99 END
+			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
 			,@leagueid
 			,@sporttype
 			,@AdminId
@@ -298,15 +297,6 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
-		
-		SET @KeyId = SCOPE_IDENTITY()
-
-		UPDATE s 
-			SET sqlCommand = @sqlCommand + ', @KeyId = ' + CAST(keyid AS VARCHAR)
-				,IsCalculating = 0
-		FROM	dbo.Single_Calculate_Queue s WITH(ROWLOCK, UPDLOCK)
-		WHERE	keyid = @KeyId
-				AND IsCalculating = 99
 
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand
