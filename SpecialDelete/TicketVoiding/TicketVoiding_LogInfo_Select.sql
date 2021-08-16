@@ -1543,8 +1543,8 @@ BEGIN
 					,MIN(VoidFromTime) AS VoidFromTime
 					,MAX(VoidToTime) AS VoidToTime
 					,SUM(SingleCount) AS SingleCount
-					,SUM(CashOutCount) AS CashOutCount
-					,SUM(InstantlySettleCount) AS InstantlySettleCount
+					,0 AS CashOutCount
+					,0 AS InstantlySettleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 					,MIN(MinSingleTransId) AS MinSingleTransId
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1569,8 +1569,8 @@ BEGIN
 							,MIN(VoidFromTime) AS VoidFromTime
 							,MAX(VoidToTime) AS VoidToTime
 							,SUM(SingleCount) AS SingleCount
-							,SUM(CashOutCount) AS CashOutCount
-							,SUM(InstantlySettleCount) AS InstantlySettleCount
+							,0 AS CashOutCount
+							,0 AS InstantlySettleCount
 							,SUM(MainParlayCount) AS MainParlayCount
 							,MIN(MinSingleTransId) AS MinSingleTransId
 							,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1628,8 +1628,8 @@ BEGIN
 					,MIN(VoidFromTime) AS VoidFromTime
 					,MAX(VoidToTime) AS VoidToTime
 					,SUM(SingleCount) AS SingleCount
-					,SUM(CashOutCount) AS CashOutCount
-					,SUM(InstantlySettleCount) AS InstantlySettleCount
+					,0 AS CashOutCount
+					,0 AS InstantlySettleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 					,MIN(MinSingleTransId) AS MinSingleTransId
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
