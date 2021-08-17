@@ -1,1 +1,1 @@
-Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
+
