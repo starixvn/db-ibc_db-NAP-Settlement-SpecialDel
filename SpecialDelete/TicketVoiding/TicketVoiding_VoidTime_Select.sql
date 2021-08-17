@@ -107,7 +107,7 @@ BEGIN
 			,@AATime = m.AATime
 			,@PATime = m.PATime
 			,@SATime = m.SATime
-			,@ScoreId = @ScoreId
+			,@ScoreId = m.ScoreId
 		FROM #Match_Filter m
 		WHERE m.isFinish IS NULL
 

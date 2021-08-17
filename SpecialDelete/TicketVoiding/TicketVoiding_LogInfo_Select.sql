@@ -1239,9 +1239,18 @@ BEGIN
 
 		/*Get log info for Void Page*/
 		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket, ScoreId)
-		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN rd.TransIds ELSE NULL END AS ScoreId 
+		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN tmp.ScoreId ELSE NULL END AS ScoreId 
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
+			CROSS APPLY (
+						SELECT CONVERT(XML, r.TransIds)
+						FROM dbo.TicketVoiding_RequestDetail r WITH (NOLOCK)
+						WHERE r.Id = s.RequestDetailId
+							AND r.RequestId = @RequestId
+				)AS t(xDATA)
+			CROSS APPLY (
+					SELECT t.c.value('@ScoreId','INT') AS ScoreId
+					FROM t.xDATA.nodes('/r') t(c)
+				) tmp (ScoreId)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND b.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
 			AND b.betdaqid = 0
@@ -1385,9 +1394,18 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO @InstantlySettleCount_tmp (transidCount, ScoreId, RequestId)
-			SELECT COUNT(s.TransId), rd.TransIds, @RequestId
+			SELECT COUNT(s.TransId), tmp.ScoreId, @RequestId
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH  (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
+				CROSS APPLY (
+							SELECT CONVERT(XML, r.TransIds)
+							FROM dbo.TicketVoiding_RequestDetail r WITH (NOLOCK)
+							WHERE r.Id = s.RequestDetailId
+								AND r.RequestId = @RequestId
+					)AS t(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+						FROM t.xDATA.nodes('/r') t(c)
+					) tmp (ScoreId)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 			WHERE s.RequestId = @RequestId
 				AND s.MatchId = @MatchId
@@ -1395,7 +1413,7 @@ BEGIN
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
-			GROUP BY rd.TransIds
+			GROUP BY tmp.ScoreId
 
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
@@ -1410,8 +1428,15 @@ BEGIN
 				,rd.MaxSingleTransId
 				,rd.MinMainParlayTransId
 				,rd.MaxMainParlayTransId
-				,rd.TransIds AS ScoreId
+				,tmp.ScoreId AS ScoreId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+				CROSS APPLY (
+						SELECT CONVERT(XML, rd.TransIds)
+					)AS t1(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+						FROM t1.xDATA.nodes('/r') t(c)
+					) tmp (ScoreId)
 				OUTER APPLY (
 						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
 						FROM #CashOuts

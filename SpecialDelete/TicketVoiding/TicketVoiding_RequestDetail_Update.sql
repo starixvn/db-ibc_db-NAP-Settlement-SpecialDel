@@ -80,6 +80,7 @@ AS
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -173,7 +174,6 @@ BEGIN
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
-			,ScoreId				INT
 		)
 	CREATE TABLE #tblOldResulDetail (
 			  RequestId INT
@@ -434,7 +434,7 @@ BEGIN
 				,LiveHomeScore
 				,LiveAwayScore
 				,LiveScores --ActualScore for WC
-				,ScoreId
+				,TypeAccept
 			)
 		SELECT @RequestId AS RequestId
 				,@MatchId AS MatchID
@@ -451,7 +451,8 @@ BEGIN
 				,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 				,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
 				,t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
-				,t.c.value('@ScoreId','INT') AS ScoreId
+				 ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(10)') + '" />' AS TypeAccept
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 		
@@ -480,7 +481,7 @@ BEGIN
 			, LiveAwayScore = l.LiveAwayScore
 			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = @SubIssueTypeId
-			, TransIds = l.ScoreId
+			, TransIds = l.TypeAccept
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
 														AND r.FilterFromTransTime = l.FilterFromTransTime
@@ -536,7 +537,7 @@ BEGIN
 			, l.LiveHomeScore
 			, l.LiveAwayScore
 			, l.LiveScores
-			, CASE WHEN @IssueTypeId IN (1,10) THEN l.TypeAccept ELSE CONVERT(VARCHAR(50), l.ScoreId) END
+			, l.TypeAccept
 			, @SubIssueTypeId
 		FROM #tblGetLogInfo l
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
