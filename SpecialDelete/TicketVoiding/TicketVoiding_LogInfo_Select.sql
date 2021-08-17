@@ -1442,10 +1442,10 @@ BEGIN
 						FROM #CashOuts
 						WHERE RequestId = rd.RequestId	
 							AND MatchId = rd.MatchId
-							AND ScoreId = rd.TransIds
+							AND ScoreId = tmp.ScoreId
 						GROUP BY ScoreId
 					) c
-				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = rd.TransIds
+				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = tmp.ScoreId
 			WHERE rd.RequestId = @RequestId
 		END
 
