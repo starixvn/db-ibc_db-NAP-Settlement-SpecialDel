@@ -121,12 +121,13 @@ BEGIN
 	    RETURN
 	END
 
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
-	@MatchId	= @MatchId
-	,@Action	= @Action
-	,@SelectedResources = @SelectedResources
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg  OUTPUT
+	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' )
+		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
+		@MatchId	= @MatchId
+		,@Action	= @Action
+		,@SelectedResources = @SelectedResources
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg  OUTPUT
 	
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN

@@ -23,8 +23,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Sporttype TINYINT
-			,@handle INT
+	DECLARE @Sporttype		SMALLINT
+			,@handle		INT
 			,@ResultTable	TINYINT	= 0
 
 

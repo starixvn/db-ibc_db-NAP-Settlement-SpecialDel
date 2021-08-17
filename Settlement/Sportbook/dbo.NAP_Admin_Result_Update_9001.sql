@@ -131,7 +131,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @Action IN ('UNDO', 'UNDO_EAR', 'REFUND', 'REFUND_EAR' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' THEN ResultSetting & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
@@ -193,7 +193,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @Sporttype = 5 AND @Action IN ('UNDO', 'UNDO_EAR', 'REFUND', 'REFUND_EAR' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @Sporttype = 5 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
