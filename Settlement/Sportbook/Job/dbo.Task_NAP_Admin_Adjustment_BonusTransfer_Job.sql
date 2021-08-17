@@ -14,6 +14,7 @@ AS
 		- 20180326@Kathy: Change bonus transfer bettypeId [Redmine:#92592]
 		- 20180529@Kathy: Change email list on production [Redmine:#92592]
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20210817@Louisa: HF-Change datatype from INT to BIGINT [Redmine:#160262]
 
     Parameters Explanation:   
 		@Mode:	- Adjustment
@@ -25,15 +26,15 @@ BEGIN
 	
 	IF @Mode = 'Adjustment'
 	BEGIN
-		DECLARE @execRefno 		INT
+		DECLARE @execRefno 		BIGINT
 			, @transCount 		INT
-			, @maxExecID		INT
+			, @maxExecID		BIGINT
 			, @batchExec		INT
 			, @batchCount		INT
 			, @bettype   		SMALLINT
 			
 		
-		DECLARE @transExecNo	TABLE (ExecID BIGINT, refno INT)
+		DECLARE @transExecNo	TABLE (ExecID BIGINT, refno BIGINT)
 		DECLARE @tempInvalidDummy TABLE ([site] VARCHAR(30), username VARCHAR(30), currencyName VARCHAR(10), isDummy BIT)
 		
 		DECLARE @tempTransfer 	TABLE (
