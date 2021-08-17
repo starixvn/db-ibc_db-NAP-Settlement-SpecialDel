@@ -81,7 +81,7 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	CREATE TABLE #tblMatchProcess_tmp(matchid INT, KeyID TINYINT, IsFinish BIT);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT);
-	CREATE TABLE #tblMatchParlayProcess_tmp (matchId INT, RefNo BIGINT, IsFinish BIT);
+	CREATE TABLE #tblMatchParlayProcess_tmp (matchId INT, IsFinish BIT);
 
 	INSERT INTO #Match (
 		MatchId
@@ -248,26 +248,32 @@ BEGIN
 	SELECT KeyID, matchid
 	FROM #tblMatchProcess
 
-	INSERT INTO #tblMatchParlayProcess_tmp (matchId, RefNo)
-	SELECT matchId, RefNo
-	FROM #tblMatchParlayProcess
+	IF @totalParlay <= @ThreadHold
+	BEGIN
+		INSERT INTO #tblMatchParlayProcess_tmp (matchId)
+		SELECT DISTINCT MatchId
+		FROM #Tickets 
+		WHERE IsParlay = 1
+	END
 
 	WHILE(1=1)
 	BEGIN
 		TRUNCATE TABLE #tblMatchProcess
-		TRUNCATE TABLE #tblMatchParlayProcess
 
-		SELECT @MatchId = NULL, @MatchId_RefNo = NULL, @totalParlay = 0
+		SELECT @MatchId = NULL, @MatchId_RefNo = NULL, @Row_SD = 0, @Row_Refno = 0
 
 		UPDATE TOP (1) m SET m.IsFinish = 1, @MatchId = m.MatchId
 		FROM #tblMatchProcess_tmp m 
 		WHERE m.IsFinish IS NULL
 		SET @Row_SD = @@ROWCOUNT
 		
-		UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId_RefNo = p.MatchId
-		FROM #tblMatchParlayProcess_tmp p
-		WHERE p.IsFinish IS NULL
-		SET @Row_Refno = @@ROWCOUNT
+		IF @totalParlay <= @ThreadHold
+		BEGIN
+			UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId_RefNo = p.MatchId
+			FROM #tblMatchParlayProcess_tmp p
+			WHERE p.IsFinish IS NULL
+			SET @Row_Refno = @@ROWCOUNT
+		END
 
 		IF @Row_SD = 0 AND @Row_Refno = 0
 			  BREAK
@@ -311,13 +317,6 @@ BEGIN
 		FROM #tblMatchProcess_tmp t
 		WHERE t.matchid = @MatchId
 
-		INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-		SELECT matchId , RefNo 
-		FROM #tblMatchParlayProcess_tmp
-		WHERE matchid = @MatchId_RefNo
-
-		SET @totalParlay = @@ROWCOUNT
-
 		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
@@ -330,13 +329,16 @@ BEGIN
 					@IsReleased = 1;
 			END
 
-			IF @totalParlay > 0 
+			IF @totalParlay > 0 AND EXISTS (SELECT 1 FROM #tblMatchParlayProcess)
 			BEGIN
 				-- releasing Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno = 1
 				   ,@Session	= @Session
 				   ,@IsReleased = 1
+
+				TRUNCATE TABLE #tblMatchParlayProcess
+				SET @totalParlay = 0
 			END
 		END
 		ELSE IF @totalParlay > @ThreadHold
