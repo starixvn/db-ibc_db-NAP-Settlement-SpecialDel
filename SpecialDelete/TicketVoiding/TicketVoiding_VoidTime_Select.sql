@@ -42,9 +42,10 @@ BEGIN
 		, @AATime				TINYINT		= 0 
 		, @PATime				TINYINT		= 0
 		, @SATime				TINYINT		= 0
+		, @ScoreId				INT			= NULL
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @Match_VoidTime AS TABLE (MatchId INT, VoidFromTime DATETIME, VoidToTime DATETIME)
+	DECLARE @Match_VoidTime AS TABLE (MatchId INT, VoidFromTime DATETIME, VoidToTime DATETIME, ScoreId INT)
 
 	CREATE TABLE #Match_Filter (
 		MatchId INT
@@ -56,10 +57,11 @@ BEGIN
 		, PATime TINYINT
 		, SATime TINYINT
 		, isFinish BIT
+		, ScoreId	INT
 	)
 
 	SET @GetVoidTimeInfoXML = CONVERT(XML, @GetVoidTimeInfo)
-	INSERT INTO #Match_Filter(MatchId, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime)
+	INSERT INTO #Match_Filter(MatchId, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId, AATime, PATime, SATime, ScoreId)
 	SELECT T.C.value('./@MatchId', 'INT')
 		,T.C.value('./@FilterFromTransTime', 'DATETIME')
 		,T.C.value('./@FilterToTransTime', 'DATETIME')
@@ -68,6 +70,7 @@ BEGIN
 		,T.C.value('./@AATime', 'TINYINT')
 		,T.C.value('./@PATime', 'TINYINT')
 		,T.C.value('./@SATime', 'TINYINT')
+		,T.C.value('./@ScoreId', 'INT')
 	FROM @GetVoidTimeInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@GetVoidTimeInfoXML = NULL ))
 
@@ -92,6 +95,7 @@ BEGIN
 			, @AATime					= 0 
 			, @PATime					= 0
 			, @SATime					= 0
+			, @ScoreId					= NULL
 
 		UPDATE TOP(1) m SET
 			m.isFinish = 1
@@ -103,6 +107,7 @@ BEGIN
 			,@AATime = m.AATime
 			,@PATime = m.PATime
 			,@SATime = m.SATime
+			,@ScoreId = @ScoreId
 		FROM #Match_Filter m
 		WHERE m.isFinish IS NULL
 
@@ -177,11 +182,11 @@ BEGIN
 			SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
 		END
 
-		INSERT INTO @Match_VoidTime (MatchId, VoidFromTime, VoidToTime)
-		SELECT @MatchId, @VoidFromTime, @VoidToTime
+		INSERT INTO @Match_VoidTime (MatchId, VoidFromTime, VoidToTime, ScoreId)
+		SELECT @MatchId, @VoidFromTime, @VoidToTime, @ScoreId
 	END
 
-	SELECT MatchId, VoidFromTime, VoidToTime
+	SELECT MatchId, VoidFromTime, VoidToTime, ScoreId
 	FROM @Match_VoidTime
 
 	DROP TABLE #Match_Filter
