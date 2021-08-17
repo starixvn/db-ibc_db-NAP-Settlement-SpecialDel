@@ -744,7 +744,7 @@ BEGIN
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
 							+ ' Result: ' + @SelectedResources + '<br/> '
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-							+ ' Betstatus(' + @betstatus + ')' 
+							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
 						   
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
