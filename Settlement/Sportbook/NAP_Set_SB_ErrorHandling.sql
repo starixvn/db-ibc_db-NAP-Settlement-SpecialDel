@@ -6,6 +6,7 @@ ALTER PROCEDURE dbo.NAP_Set_SB_ErrorHandling @Action VARCHAR(20)
 	, @AdminId INT
 	, @IP VARCHAR(20)
 	, @ActionIDInput INT				= 0
+	, @IsService	 BIT				= 0
 AS
 /*
 	Created: 20160325@Patrick
@@ -19,6 +20,12 @@ AS
 		-20200108@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		-20200720@Kathy: Extend datatype of @sqlCommand to VARCHAR(MAX) [Redmine:#135846]
+		-20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+
+	Param's Explanation:
+		@IsService
+				0: Settle command ran by Settlement Job
+				1: Settle command ran by Service
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,8 +43,12 @@ BEGIN
 		, @IsAutoInst INT
 		, @SourceId   TINYINT
 		, @ChildMatchType		TINYINT
+		, @SportType	SMALLINT
+
 		 
 	SELECT @IsAutoInst = CASE WHEN CHARINDEX('@IsAutoInst = ''1''', @sqlCommand) > 0 THEN 1 ELSE 0 END  --#86964
+
+	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	IF @ActionIDInput <> 0
 	BEGIN
@@ -61,7 +72,10 @@ BEGIN
 								OR CHARINDEX('NAP_Admin_Settlement_RefundHT', @sqlCommand) > 0
 								OR CHARINDEX('NAP_Admin_Settlement_RefundFT', @sqlCommand) > 0 
 								OR CHARINDEX('NAP_Admin_Settlement_Refund_All', @sqlCommand) > 0 THEN 1
-							WHEN CHARINDEX('NAP_Admin_Settlement_Profile', @sqlCommand) > 0 THEN 8
+							WHEN CHARINDEX('NAP_Admin_Settlement_Profile', @sqlCommand) > 0 
+								THEN CASE WHEN  @SportType = 50 AND  @AdminId = 0 AND CHARINDEX('@IsAuto = 1', @sqlCommand) > 0 THEN 9							
+								ELSE 8
+								END
 						ELSE NULL END
 		IF @Mode IS NULL
 			RETURN
@@ -106,6 +120,14 @@ BEGIN
 			, @SourceId = @SourceId
 	END
 	
+	IF @Mode = 9
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+		  @MatchId 				= @matchid
+		, @StatusId 			= 99
+		, @UserId				= @AdminId
+	END
+
 	--Instant Calculation
 	IF @Mode = 6
 	BEGIN	
@@ -129,6 +151,7 @@ BEGIN
     --End: #86964								
 
 	BEGIN TRY
+		IF @IsService  = 0
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
 			, @matchid = @matchid
 			, @actionid = @actionid
@@ -140,10 +163,12 @@ BEGIN
 			, @betstatus = @betstatus
 			, @remark = @Remark
 			, @ip = @IP
+
 	END TRY
 	BEGIN CATCH 
 		SELECT @remark = @remark + ' ErMsg=' + LEFT(ERROR_MESSAGE(), 300)
 		
+		IF @IsService  = 0
 		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 			, @MatchID = @matchid
 			, @actionid = @actionid

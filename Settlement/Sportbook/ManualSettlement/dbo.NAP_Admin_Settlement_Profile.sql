@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+	/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -38,6 +38,7 @@ AS
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155361]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -132,10 +133,6 @@ BEGIN
 						  ELSE 0
 					   END
 		   ,@SkipBalanceUpdate	 = 0
-		   ,@IsEarly =  CASE 
-						 WHEN @Action LIKE '%EAR' THEN 1 
-						 ELSE 0 
-						END
 
   	--get info of match
   	SELECT @fth			= m.finalhomescore
@@ -148,6 +145,8 @@ BEGIN
   	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
 		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
   	WHERE   m.matchid = @matchid
+
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -228,6 +227,7 @@ BEGIN
 						,@Sporttype				= @Sporttype
 						,@SelectedRID   		= @SelectedResources
 						,@IsDirectly			= @IsDirectly
+						,@IsAuto				= @IsAuto
 		END
 
 		-----------------------------------------add more info-----------------------------------------
@@ -626,8 +626,16 @@ BEGIN
 
 			END
 		END------------end REFUND
-
 		
+		IF (@IsAuto = 1 AND @sporttype = 50 ) --Auto Settle Cricket
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+			  @MatchId 			 = @matchid
+			, @SelectedResources = @SelectedResources
+			, @StatusId 		 = 2
+			, @UserId			 = @creator
+		END
+
 	END TRY
 	BEGIN CATCH
 		  -------------------------------------------------------------
@@ -656,7 +664,7 @@ BEGIN
 		  EXEC dbo.NAP_Admin_CheckingProcess
 					  @isExistMatch		= 1
 					  , @IsReleased		= 1
-	
+
 		  RETURN
 	END CATCH
 
@@ -715,25 +723,31 @@ BEGIN
   		) AS tbl1
 	ORDER BY OrdNo
 
-	IF @ParentMatchId IS NOT NULL -- Child match Cricket
-		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
-									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-										ELSE ' Selected:' 
-									END 
-									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-	ELSE
-		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-	 
+
+	SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 THEN CASE  WHEN @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match Cricket 
+																	WHEN @IsAuto = 1 THEN 'NAP: Auto Payout: Weverdat'  -- Auto Settle Cricket
+																	ELSE '' 
+																	END
+									ELSE ''
+									END
+			 
+								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
+									ELSE ' Selected:' 
+								END 
+								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog)) 
 	
-	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+	SELECT @logdata = CASE WHEN @sportType = 50 AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
+							ELSE 'NAP: Calculate '
+							END
+							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
 							+ ' Result: ' + @SelectedResources + '<br/> '
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-							+ ' Betstatus(' + @betstatus + ')' 
+							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
 						   
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
 						+ CASE
-							WHEN @sportType IN ( 2, 5, 9, 43 , 50 ) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN ( 2, 5, 9, 43 ) OR ( @sportType = 50 AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 

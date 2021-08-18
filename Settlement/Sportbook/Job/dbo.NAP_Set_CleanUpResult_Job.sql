@@ -11,6 +11,7 @@ AS
 		- 20200820@Louisa: Cleanup data ES
 		- 20200903@Louisa: Cleanup data OS [Redmine:#139627]
 		- 20201223@Louisa: Cleanup data for Other Sports [Redmine:#145651]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's Explanation: 
 
@@ -81,5 +82,16 @@ BEGIN
 		WAITFOR DELAY '00:00:00:280'
 	END
 
+	WHILE (1=1)
+	BEGIN
+
+		DELETE TOP(@batch) FROM dbo.AutoPayoutResultOS WITH(ROWLOCK, UPDLOCK)
+		WHERE	 CreatedDate < DATEADD (DD, -14, GETDATE())
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+	END
 END
 GO

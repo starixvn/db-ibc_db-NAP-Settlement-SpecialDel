@@ -31,6 +31,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -302,7 +303,7 @@ BEGIN
 	  				AND rd.matchid = c.matchid
 	  		) AS rs
 			LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON c.ResourceID = sd.ResourceID
-		WHERE	ISNULL(rs.ResultStatusId,'') <> 5
+		WHERE	ISNULL(rs.ResultStatusId,'') NOT IN ( 2, 5 )
 		GROUP BY c.ParentId, sd.RoundName--,c.OrdNo
 		--ORDER BY c.OrdNo
 	END

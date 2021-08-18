@@ -29,6 +29,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -71,8 +72,6 @@ BEGIN
 
 		RETURN
 	END
-
-	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR' THEN 1 ELSE 0 END
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
@@ -91,11 +90,19 @@ BEGIN
 	FROM	dbo.League l WITH(NOLOCK)
 	WHERE	l.leagueid = @leagueid
 
-	IF @LeagueGroupId <> 113 AND @IsAuto = 1
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
+
+	IF @IsAuto = 1
 	BEGIN
-		SELECT	 @ErrCode	= 1001052
-				,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
-		RETURN
+
+		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal
+			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
+		
+		BEGIN
+			SELECT	 @ErrCode	= 1001052
+					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
+					RETURN
+		END
 	END
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
@@ -147,6 +154,22 @@ BEGIN
 		RETURN
 	END
 
+	IF (@IsAuto = 1 AND @sporttype = 50 )
+	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+		  @MatchId 				= @matchid
+		, @SelectedResources 	= @SelectedResources
+		, @StatusId 			= 1 -- waiting
+		, @UserId				= @AdminId
+		, @ErrCode 				= @ErrCode OUTPUT
+		, @ErrMsg				= @ErrMsg OUTPUT
+		
+	IF @ErrCode <> 0
+	BEGIN
+		SELECT  @ErrCode = @ErrCode
+			   ,@ErrMsg	 = @ErrMsg
+		RETURN
+	END
+
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
@@ -190,8 +213,7 @@ BEGIN
 									  END 
   	FROM @tmpSelectedRID sr
   	WHERE GroupType = 'FT' AND isFinal = 1
-  	
-  	
+		
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL 
 	BEGIN
@@ -204,7 +226,7 @@ BEGIN
 	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
-		OR @IsAuto = 1 -- product PinGoal will be executed directly instead of pushing in queue
+		OR ( @IsAuto = 1 AND @sporttype = 1 ) -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand

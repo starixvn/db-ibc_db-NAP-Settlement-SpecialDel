@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_50]
 	,@Reason			VARCHAR(300)	= ''
 	,@StartTime			DATETIME		= NULL
 	,@EndTime			DATETIME		= NULL
+	,@IsAuto			BIT				= 0
 AS
 /*  
 	Creator: Kathy
@@ -18,6 +19,7 @@ AS
     Revisions:   
 		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
 		- 20200623@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
         
     Param's Explanation:
 		@ServiceStatus: - 0: Waiting for calculating NetPosition
@@ -135,6 +137,17 @@ BEGIN
 							END
 				END
 			END
+		END
+		
+		IF @IsAuto = 1 AND ISNULL(@ErrCode,1000006) <> 1000006
+		BEGIN
+			EXEC dbo.NAP_Set_SB_ErrorHandling @Action	  = @Action
+											, @MatchId	  = @MatchId
+											, @sqlCommand = @ServiceCommand	
+											, @ErrMsg	  = @ErrMsg
+											, @AdminId	  = 0			---Service Auto
+											, @IP		  = ''
+											, @IsService  = 1
 		END		
 	END
 	

@@ -9,6 +9,7 @@ AS
 	Revisions:
 		-20161013@Bobby: #65178 - Implement Instant calculation process
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
+		-20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			
 	Parameters Explanation:	
 		@Mode: 1: For Single ticket - Manual
@@ -66,7 +67,10 @@ RETURN (
 	SELECT 8 AS Mode, 'REFUND' AS ActionName, 109 AS ActionId UNION ALL
 	SELECT 8 AS Mode, 'CAL_EAR' AS ActionName, 189 AS ActionId UNION ALL
 	SELECT 8 AS Mode, 'UNDO_EAR' AS ActionName, 190 AS ActionId UNION ALL
-	SELECT 8 AS Mode, 'REFUND_EAR' AS ActionName, 191 AS ActionId
+	SELECT 8 AS Mode, 'REFUND_EAR' AS ActionName, 191 AS ActionId UNION ALL
+
+	--Auto Settle Cricket
+	SELECT 9 AS Mode, 'CAL' AS ActionName, 100 AS ActionId
 						  
 )
 GO

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
+ALTER PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @LeagueIds	VARCHAR(MAX)
 AS
@@ -13,6 +13,7 @@ AS
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
+		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 
 	Param's explanation:  
 		
@@ -31,6 +32,7 @@ BEGIN
 		,@strMatchIds		VARCHAR(MAX)
 		,@strEarlyBettypes	VARCHAR(MAX)
 		,@strResourceIds	VARCHAR(MAX)
+		,@CheckDate			VARCHAR(10)
 		
 	DECLARE @tmpLeagueIds TABLE(LeagueId INT)
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
@@ -83,11 +85,14 @@ BEGIN
 		,AutoPayoutStatus				TINYINT
 	)
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT, Sporttype SMALLINT)
-	
+	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
+
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	SET @n = 2147483647
 	SELECT @MatchCode = ISNULL(@MatchCode, '')
+	
+	SET @CheckDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -2, GETDATE()), 102)
 	
 	INSERT INTO @tmpLeagueIds(LeagueId)
 	SELECT	DISTINCT f.val
@@ -97,7 +102,14 @@ BEGIN
 	IF ISNUMERIC(@MatchCode) = 1
 		SET @matchid = CAST(@MatchCode AS INT)
 	
-	
+	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
+						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
+						WHERE r.CreatedDate >= ''' + @CheckDate  +'''
+						GROUP BY r.MatchId'
+									
+	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)
+	EXECUTE sys.sp_executesql @remoteQuery
+
 	;WITH singlequeue AS (
 		SELECT	matchid, MIN(IsCalculating) AS IsCalculatingSingle
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
@@ -127,6 +139,17 @@ BEGIN
 		SELECT ap.MatchId, ap.StatusId
 		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
+	WHEN MATCHED THEN
+		UPDATE SET AutoPayoutStatus = SOURCE.statusid
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (MatchId, AutoPayoutStatus)
+		VALUES (SOURCE.MatchId, SOURCE.statusid);
+
+	MERGE @tmpQueueStatus  TARGET
+	USING (
+		SELECT os.MatchId, os.StatusId
+		FROM	@tmpAutoPayOutResultOS os
+		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
 	WHEN MATCHED THEN
 		UPDATE SET AutoPayoutStatus = SOURCE.statusid
 	WHEN NOT MATCHED BY TARGET THEN
