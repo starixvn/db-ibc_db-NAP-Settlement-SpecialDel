@@ -133,10 +133,6 @@ BEGIN
 						  ELSE 0
 					   END
 		   ,@SkipBalanceUpdate	 = 0
-		   ,@IsEarly =  CASE 
-						 WHEN @Action LIKE '%EAR' OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
-						 ELSE 0 
-						END
 
   	--get info of match
   	SELECT @fth			= m.finalhomescore
@@ -149,6 +145,8 @@ BEGIN
   	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
 		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
   	WHERE   m.matchid = @matchid
+
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp

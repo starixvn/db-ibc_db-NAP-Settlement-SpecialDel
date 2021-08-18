@@ -72,8 +72,6 @@ BEGIN
 
 		RETURN
 	END
-
-	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
@@ -91,6 +89,8 @@ BEGIN
 	SELECT	@LeagueGroupId = LeagueGroupID
 	FROM	dbo.League l WITH(NOLOCK)
 	WHERE	l.leagueid = @leagueid
+
+	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
 	IF @IsAuto = 1
 	BEGIN
