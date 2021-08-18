@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
+ALTER PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @LeagueIds	VARCHAR(MAX)
 AS
@@ -32,6 +32,7 @@ BEGIN
 		,@strMatchIds		VARCHAR(MAX)
 		,@strEarlyBettypes	VARCHAR(MAX)
 		,@strResourceIds	VARCHAR(MAX)
+		,@CheckDate			VARCHAR(10)
 		
 	DECLARE @tmpLeagueIds TABLE(LeagueId INT)
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
@@ -91,6 +92,8 @@ BEGIN
 	SET @n = 2147483647
 	SELECT @MatchCode = ISNULL(@MatchCode, '')
 	
+	SET @CheckDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -2, GETDATE()), 102)
+	
 	INSERT INTO @tmpLeagueIds(LeagueId)
 	SELECT	DISTINCT f.val
 	FROM	dbo.f_SplitString(@LeagueIds, ',') f
@@ -101,6 +104,7 @@ BEGIN
 	
 	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
+						WHERE r.CreatedDate >= ''' + @CheckDate  +'''
 						GROUP BY r.MatchId'
 									
 	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)
