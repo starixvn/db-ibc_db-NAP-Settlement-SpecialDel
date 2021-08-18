@@ -43,7 +43,8 @@ BEGIN
 		AND md.Score IS NOT NULL
 	ORDER BY md.id
 	
-	SELECT w1.ScoreId
+	SELECT @MatchId AS MatchId 
+		, w1.ScoreId
 		, w1.Score AS WrongScore
 		, CASE WHEN w1.updatetime IS NULL THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
 		, DATEADD(MS, -100, w2.updatetime) AS FilterToTransTime
