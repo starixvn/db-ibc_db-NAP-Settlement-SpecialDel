@@ -10,6 +10,7 @@ AS
     
     Revisions:            
 		- 20200721@Kathy: get provider result [Redmine:#136931]
+		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		
 */
 BEGIN
@@ -17,7 +18,7 @@ BEGIN
 	
 	;WITH cteLatestId
 	AS(
-		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ,p.MatchId ORDER BY p.CreateDate DESC) AS rn
 				,p.MatchId
 				,p.ResourceId
 				,p.HomeValue

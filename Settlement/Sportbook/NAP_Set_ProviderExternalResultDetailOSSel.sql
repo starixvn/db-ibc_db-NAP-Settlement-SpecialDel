@@ -13,6 +13,7 @@ AS
     Revisions:            
 		- 20200818@Louisa: get result for LSports Redmine:#139627]
 		- 20200825@Louisa: allow get result by InHouse MatchId (request from TW )
+		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		
 	Param's explanation:
 		@SourceId	: LSport = 25
@@ -25,7 +26,7 @@ BEGIN
 	
 	;WITH cteLatestId
 	AS(
-		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId, p.MatchId ORDER BY p.CreateDate DESC) AS rn
 				,p.MatchId
 				,p.ResourceId
 				,p.HomeValue
