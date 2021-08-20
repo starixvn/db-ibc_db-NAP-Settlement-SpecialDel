@@ -20,6 +20,7 @@ AS
 		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
 		- 20210805@Louisa: Insert all remain Other sports into ProviderExternalResultDetailOS [Redmine:#159307]
 		- 20210818@Louisa: Add more Option [Redmine:#159307]
+		- 20210820@Louisa: Fix bug check ISNULL [Redmine:#159307]
 
 	Param's Explanation:
 		@SourceId: 1  - SBO
@@ -38,7 +39,7 @@ BEGIN
 	DECLARE @Sporttype SMALLINT
 	SELECT  @Sporttype = m.Sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
-	IF ISNULL( @Sporttype,99) > 99 --- Not in Sportbook
+	IF ISNULL( @Sporttype,100) > 99 --- Not in Sportbook
 		RETURN
 
 	IF @Sporttype = 43 ---E-Sports
