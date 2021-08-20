@@ -14,6 +14,7 @@ AS
 		- 20201110@Louisa: get provider result - 10 Sports: 1,2,3,4,6,8,18,19,24,25 [Redmine:#144486]
 		- 20201118@Louisa: allow query by In-house MatchId
 		- 20201124@Louisa: allow query by In-house MatchId or match 3rd (follow OS)
+		- 20210818@Louisa: Add more Option [Redmine:#159307]
 		
 */
 BEGIN
@@ -21,7 +22,7 @@ BEGIN
 	
 	;WITH cteLatestId
 	AS(
-		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+		SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId, p.MatchId ORDER BY p.CreateDate DESC) AS rn
 				,p.MatchId
 				,p.ResourceId
 				,p.HomeValue
@@ -45,7 +46,8 @@ BEGIN
 		  ,CreateBy
 		  ,LastModifyDate
 		  ,LastModifyBy
-	FROM	cteLatestId
-	WHERE	rn = 1
+	FROM	cteLatestId 
+	WHERE rn = 1
+
 END
 GO
