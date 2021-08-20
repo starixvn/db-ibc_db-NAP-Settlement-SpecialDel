@@ -43,6 +43,7 @@ AS
 		- 20210106@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175] 
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 
 	Param's explanation:	
 		
@@ -258,7 +259,7 @@ BEGIN
 		FROM dbo.TicketVoiding_Request req WITH (NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON req.RequestId = rd.RequestId 
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK) ON rds.RequestId = req.RequestId AND rd.MatchId = rds.MatchId
-		WHERE 1 = CASE WHEN req.IssueTypeId IN (11,15) AND rd.MatchId = @MatchId AND req.ActionId IN (1,4,6,7) -- Auto Void Winning, Auto Void All (Instant), Auto Void 5m & 10m before KOtime request only, not for take notes and waiting
+		WHERE 1 = CASE WHEN req.IssueTypeId IN (11,15) AND rd.MatchId = @MatchId AND req.ActionId IN (1,4,6,7,8) -- Auto Void Winning, Auto Void All (Instant), Auto Void 5m & 10m before KOtime request only, not for take notes and waiting
 							AND rd.RequestId = @RequestID THEN 1
 						WHEN req.IssueTypeId = 13  AND req.ActionId = 4 -- Auto Void All (Instant) request only
 							AND rd.RequestId  = @RequestID  THEN 1
@@ -388,7 +389,7 @@ BEGIN
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP + normal member
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7) THEN 1 --Auto void Instant & 5m &10m, void VIP + normal member
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7,8) THEN 1 --Auto void Instant & 5m &10m & NoPolicy, void VIP + normal member
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId <> 13 AND t.RequestType = 1 AND vip.CustID IS NULL THEN 1 -- Void Instant Request
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND vip.CustID IS NULL THEN 1 -- Auto void winning request
 			ELSE 0 END
@@ -414,7 +415,7 @@ BEGIN
 	WHERE 1 = CASE 
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7) THEN 0 
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7,8) THEN 0 
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END

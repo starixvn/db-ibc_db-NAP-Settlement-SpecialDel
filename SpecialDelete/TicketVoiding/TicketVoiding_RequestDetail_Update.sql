@@ -81,6 +81,7 @@ AS
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
+		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -222,7 +223,7 @@ BEGIN
 				,AwayId = ISNULL(@AwayId, AwayId)
 				,@OldTransIds = TransIds
 				,RequestType = CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
-								    WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
+								    WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7,8) THEN 1
 								    ELSE 0
 								END
 				,@OldSubIssueTypeId = SubIssueTypeId
@@ -961,12 +962,11 @@ BEGIN
 
 			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 												FROM #transid_tmp
-												WHERE --IsMixParlay = 0 AND 
-													statuswinlost IS NOT NULL
+												WHERE statuswinlost IS NOT NULL
 												FOR XML PATH('')
 									), 1,1,'')
 			--resettle ticket
-			IF (@IsConfirmCalculator = 1)
+			IF (@IsConfirmCalculator = 1 AND @ResettleTransids <> '')
 			BEGIN
 				EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 							@Matchid = @Matchid	,
@@ -981,13 +981,15 @@ BEGIN
 			END
 		END
 		
-		IF @ActionId IN (4,6,7) OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
 											  WHEN @ActionId = 4 THEN 'VoidInstant'
 											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
-											  ELSE 'VoidInstant10m' END -- @ActionId = 7
+											  WHEN @ActionId = 7 THEN 'VoidInstant10m' 
+											  WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
+											  ELSE '' END 
 			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END

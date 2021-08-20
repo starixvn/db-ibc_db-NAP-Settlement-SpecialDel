@@ -20,7 +20,7 @@ AS
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210608@Max: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
-
+		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 	Param's explanation:	
 	
 	--[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY')
@@ -144,7 +144,7 @@ BEGIN
 			)r
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
-					WHEN q.RequestId > 0 AND r.ActionId IN (1,4) THEN 1 --Void Instant Abnormal Bet, AB, AA
+					WHEN q.RequestId > 0 AND r.ActionId IN (1,4,8) THEN 1 --Void Instant Abnormal Bet, AB, AA
 					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
 					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
 					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
