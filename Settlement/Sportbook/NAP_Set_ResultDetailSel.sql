@@ -13,6 +13,7 @@ AS
 		- 20201202@Louisa: Integrate with SBO for 8 sports:3,4,6,8,9,18,24,25 [Redmine:#146239]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 
 	Param's explanation:
 		
@@ -31,147 +32,74 @@ BEGIN
 		,ResultStatusID TINYINT
 		,SettlementStatusID TINYINT
 	)
-    ---------------------------------------------------------------------------------------------
-    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT)
 
-	INSERT INTO #tblMatchID (MatchId, SportType)
-	SELECT f.Val , m.sporttype
+	DECLARE @tmpExternalResult TABLE 
+	(
+		 rn			 INT
+		,TopSourceId SMALLINT
+		,Matchid	 INT
+		,SourceId	 SMALLINT
+		,ResourceId  VARCHAR(20)
+		,HomeValue	 VARCHAR(50)
+		,AwayValue   VARCHAR(50)
+	)
+    
+    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT, ExternalResultTable INT)
+
+	INSERT INTO #tblMatchID (MatchId, SportType, ExternalResultTable)
+	SELECT f.Val 
+		 , m.sporttype
+		 , CASE WHEN m.sporttype IN ( 1, 2, 5, 9, 43, 50 )		   THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+				WHEN m.sporttype IN ( 3, 4, 6, 8, 18, 19, 24, 25 ) THEN 1 -- ProviderExternalResultDetail						
+				ELSE 2	--ProviderExternalResultDetailOS
+				END
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
 	OPTION (maxrecursion 0)
 
-	;WITH  cteLatestSports
-		AS(
-			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
-					,ex.matchid
-					,ex.SourceId
-					,ex.ResourceId
-					,ex.HomeValue
-					,ex.AwayValue
-			FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
-			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (3, 4, 6, 8, 18, 24, 25) )
-				AND  ex.SourceId  = 1
-		)
-		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
-		SELECT  matchid		
-				,1
-				,'SBO'
-				,ResourceId 
-				,HomeValue 
-				,AwayValue 
-		FROM	cteLatestSports
-		WHERE	rn = 1
 
-	DELETE FROM #tblMatchID WHERE SportType IN (3, 4, 6, 8, 18, 24, 25)
-
-    IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
-    BEGIN
-		---- Settled score: ESport
-		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
-        SELECT    rs.MatchId
-				, 0
-                , rs.ResourceId
-                , rs.HomeValue
-                , rs.AwayValue
-                , rs.ResultStatusID
-                , rs.SettlementStatusID
-        FROM    dbo.[ResultDetailES] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 43)
-    		AND EXISTS (SELECT 1 
-    					FROM dbo.f_Set_MajorRound(43) f 
-    					WHERE rs.ResourceID = f.ResourceID)
-	END
+	------  GET EXTERNAL Result
 	
-	
-	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType IN (9, 45, 50)	 )
-    BEGIN
-		---- Reference score: Badminton
-		;WITH  cteLatestOS
-		AS(
-			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId, ex.MatchId ORDER BY ex.CreateDate DESC) AS rn
-					,ex.matchid
-					,ex.SourceId
-					,ex.ResourceId
-					,ex.HomeValue
-					,ex.AwayValue
-			FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
-			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 9)
-				AND  ex.SourceId  = 1 ---SBO
-		)		
-		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
-		SELECT matchid		
-				,1
-				,'SBO'
-				,ResourceId 
-				,HomeValue 
-				,AwayValue 
-		FROM	cteLatestOS
-		WHERE	rn = 1
-		
-		---- Settled score: Badminton, Cricket
-		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
-        SELECT    rs.MatchId
-				, 0
-                , rs.ResourceId
-                , rs.HomeValue
-                , rs.AwayValue
-                , rs.ResultStatusID
-                , rs.SettlementStatusID
-        FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (9,45,50)	)
-    		AND EXISTS (SELECT 1 
-    					FROM #tblMatchID m
-						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
-    					WHERE rs.ResourceID = f.ResourceID)
-	END
-	
-	DELETE FROM #tblMatchID WHERE SportType in (9,43,45,50)
-	
-	---- Settled score: Exclude Badminton, Cricket, Beach Volleyball, ESports
-	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
-    	SELECT    rs.MatchId
-				, 0
-                , rs.ResourceId
-                , rs.HomeValue
-                , rs.AwayValue
-                , rs.ResultStatusID
-                , rs.SettlementStatusID
-        FROM    dbo.[ResultDetail] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m)
-    		AND EXISTS (SELECT 1 
-    					FROM #tblMatchID m
-						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
-    					WHERE rs.ResourceID = f.ResourceID)
+	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 1 ) ---ProviderExternalResultDetail
+	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
+	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
+			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+			,ex.matchid
+			,ex.SourceId
+			,ex.ResourceId
+			,ex.HomeValue
+			,ex.AwayValue
+	FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
+	WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE ExternalResultTable = 1 )
 
-	---- Reference Score (LSports): Tennis
-	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType = 5 )
-	BEGIN		
-		;WITH  cteLatestId
-		AS(
-			SELECT	ROW_NUMBER() OVER (PARTITION BY p.ResourceId, p.MatchId ORDER BY p.CreateDate DESC) AS rn
-					,p.matchid
-					,p.SourceId
-					,p.ResourceId
-					,p.HomeValue
-					,p.AwayValue
-			FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
-			WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 5 )
-				AND  p.SourceId  = 25
-		)
-		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
-		SELECT matchid		
-				,25
-				,'LSports'
-				,ResourceId 
-				,HomeValue 
-				,AwayValue 
-		FROM	cteLatestId
-		WHERE	rn = 1
+	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 2  ) ---ProviderExternalResultDetailOS
+	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
+	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
+			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+			,ex.matchid
+			,ex.SourceId
+			,ex.ResourceId
+			,ex.HomeValue
+			,ex.AwayValue
+	FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
+		WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE ExternalResultTable = 2 )
 
-	END
 
-	---- Reference Score (SBO): Soccer
+	INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+	SELECT  ex.matchid		
+			,ex.SourceId
+			,p.SourceName
+			,ex.ResourceId 
+			,ex.HomeValue 
+			,ex.AwayValue 
+	FROM	@tmpExternalResult ex
+		INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
+			ON ex.SourceId = p.SourceId
+	WHERE	ex.rn = 1
+		AND ex.TopSourceId = 1
+
+	---- (SBO): Soccer
 	IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 1 )
 	BEGIN
 		;WITH  cteLatestSBO
@@ -200,6 +128,66 @@ BEGIN
 		FROM cteLatestSBO l
 		WHERE	rn = 1
 	END
+
+	------/END  GET EXTERNAL Result
+
+
+	------ GET Settled Result
+
+    IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
+    BEGIN
+		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+        SELECT    rs.MatchId
+				, 0
+                , rs.ResourceId
+                , rs.HomeValue
+                , rs.AwayValue
+                , rs.ResultStatusID
+                , rs.SettlementStatusID
+        FROM    dbo.[ResultDetailES] rs WITH (NOLOCK) 
+    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 43)
+    		AND EXISTS (SELECT 1 
+    					FROM dbo.f_Set_MajorRound(43) f 
+    					WHERE rs.ResourceID = f.ResourceID)
+	END
+
+	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType IN (9, 45, 50)	 )
+    BEGIN		
+		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+        SELECT    rs.MatchId
+				, 0
+                , rs.ResourceId
+                , rs.HomeValue
+                , rs.AwayValue
+                , rs.ResultStatusID
+                , rs.SettlementStatusID
+        FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK) 
+    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (9,45,50)	)
+    		AND EXISTS (SELECT 1 
+    					FROM #tblMatchID m
+						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
+    					WHERE rs.ResourceID = f.ResourceID)
+	END
+	
+	DELETE FROM #tblMatchID WHERE SportType IN (9,43,45,50)
+	
+	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+    	SELECT    rs.MatchId
+				, 0
+                , rs.ResourceId
+                , rs.HomeValue
+                , rs.AwayValue
+                , rs.ResultStatusID
+                , rs.SettlementStatusID
+        FROM    dbo.[ResultDetail] rs WITH (NOLOCK) 
+    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m)
+    		AND EXISTS (SELECT 1 
+    					FROM #tblMatchID m
+						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
+    					WHERE rs.ResourceID = f.ResourceID)
+
+	
+	------/END  GET Settled Result
 
 	DROP TABLE #tblMatchID
 

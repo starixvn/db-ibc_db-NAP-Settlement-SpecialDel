@@ -30,6 +30,7 @@ AS
 			- 20210628@Louisa: Include new Filter [Redmine: #157541]
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+			- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -467,7 +468,7 @@ BEGIN
 			FROM #tmpMatchIds m
 			WHERE 	ISNULL(m.IsCalculated,0) = 0 
 					AND ISNULL(m.IsCalRefund,0) = 0
-					AND m.eventstatus IN ( 'running', 'closed')
+					AND m.eventstatus  <> 'Completed'
 					AND ( m.ConfirmFT > 0 OR DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 )
 		END
 
