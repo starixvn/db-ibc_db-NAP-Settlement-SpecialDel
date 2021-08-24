@@ -30,6 +30,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -117,6 +118,21 @@ BEGIN
 	    SELECT	@ErrCode
 				,@ErrMsg
 	    
+	    RETURN
+	END
+
+	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' )
+		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
+		@MatchId	= @MatchId
+		,@Action	= @Action
+		,@SelectedResources = @SelectedResources
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg  OUTPUT
+	
+	IF ISNULL(@ErrCode,0) <> 0
+	BEGIN
+	    SELECT	@ErrCode
+				,@ErrMsg  
 	    RETURN
 	END
 

@@ -16,10 +16,12 @@ AS
 	Revisions:
 		- 220201113@Louisa: Update Result Setting - Apply for Soccer, Basketball, Badminton, E-Sports[Redmine:#135097]
 		- 20210201@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
+		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
 			 1: Hold Result
+			 2: Confirm Refund
 
 		@ResourceIds = '902401,904301,906301,905801,905701'
 
@@ -30,33 +32,41 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE @SportType			TINYINT  = 0
-			--write log
 			,@ActionId			INT
 			,@LogData			NVARCHAR(200) 
 			,@Remark			VARCHAR(500)
-
+			,@ResultTable		TINYINT	= 0	
+								
 	DECLARE @tmpResultDetail TABLE ( ResourceId	VARCHAR(20)	)
 
-	SELECT	@ActionId = CASE	WHEN @Type = 1 
-								THEN 81021	
+	SELECT	@ActionId = CASE	WHEN @Type = 1 THEN 81021
+								WHEN @Type = 2 THEN 81032
 								ELSE NULL
 						 END
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
+	IF @ActionId IS NULL OR ( @Type = 2 AND @SportType NOT IN ( 5, 43 ) )
+	RETURN
+
+	SELECT @ResultTable =  f.ResultTable FROM [dbo].[f_Set_SettingByProfile] (@Sporttype) f
+							/*@ResultTable:
+								 1: ResultDetail
+								 2: ResultDetailOS
+								 3: ResultDetailES
+							*/
+
 	INSERT INTO @tmpResultDetail ( ResourceId)
 	SELECT DISTINCT
 	sp.ResourceID
-	FROM DBTRANS.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
+	FROM DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
 		INNER JOIN f_SplitString(@ResourceIds,',') fs ON sp.ResourceID = fs.val
-	WHERE sp.SettleType  = 'EAR'
 		AND sp.SportType  = @SportType
 	OPTION (maxrecursion 0)
 
 	IF @@ROWCOUNT> 0 
 	BEGIN
 
-		--- Soccer , Basketball
-		IF @SportType IN ( 1,2 )
+		IF @ResultTable = 1
 		BEGIN
 
 			MERGE dbo.ResultDetail WITH (UPDLOCK,ROWLOCK) TARGET
@@ -74,7 +84,7 @@ BEGIN
 					,ResourceId
 					,HomeValue
 					,AwayValue
-					,ResultStatusID -- 1: running
+					,ResultStatusID		-- 1: running
 					,SettlementStatusID --0: running
 					,CreateDate
 					,CreateBy
@@ -83,7 +93,7 @@ BEGIN
 			VALUES (@matchid, SOURCE.ResourceId, NULL, NULL, 1, 0, GETDATE(), @AdminId, NULL, POWER(2, @Type - 1));
 		END
 
-		IF @SportType  IN ( 9 , 50) ---- Badminton, Cricket
+		IF @ResultTable = 2
 		BEGIN
 			MERGE dbo.ResultDetailOS WITH (UPDLOCK,ROWLOCK) TARGET
 			USING (
@@ -109,7 +119,7 @@ BEGIN
 			VALUES (@matchid, SOURCE.ResourceId, NULL, NULL, 1, 0, GETDATE(), @AdminId, NULL, POWER(2, @Type - 1));
 		END
 
-		IF @SportType  = 43 ---- E-Sports
+		IF @ResultTable = 3
 		BEGIN
 			MERGE dbo.ResultDetailES WITH (UPDLOCK,ROWLOCK) TARGET
 			USING (
@@ -137,34 +147,41 @@ BEGIN
 
 
 			
-		SELECT @LogData = 'Update result setting of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with ResourceIDs = ' + @ResourceIds
+		SELECT @LogData = 'Update ' + CASE @Type 
+										WHEN 1 THEN 'hold ' 
+										WHEN 2 THEN 'confirm Refund '
+										ELSE '' END
+							+ 'result setting of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with ResourceIDs = ' + @ResourceIds
 
 		EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
-		IF @Type = 1
-		BEGIN
-			SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END + 'result hold: '
-							+ CAST(@MatchId AS VARCHAR) + '(' + @ResourceIds + ')'
-	
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-					@UserID             = @AdminId
-					,@Matchid           = @matchid
-					,@ActionID			= @ActionID
-					,@Remark            = @Remark
-					,@IP                = @IP
-			END TRY
-			BEGIN CATCH
-				SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
 
-				EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-					@UserID             = @AdminId
-					,@Matchid           = @matchid
-					,@ActionID          = @ActionID
-					,@Remark            = @Remark
-					,@IP                = @IP
-			END CATCH
-		END
+		SELECT @Remark = CASE @Type WHEN 1 THEN 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END + 'result hold: '
+												+ CAST(@MatchId AS VARCHAR) + '(' + @ResourceIds + ')'
+
+									WHEN 2 THEN 'NAP: Update Confirm-Refund ' + CASE @IsEnabled WHEN 0 THEN 'OFF ' ELSE  'ON ' END
+												+ '(' + @ResourceIds + ')'
+									ELSE '' END
+	
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID             = @AdminId
+				,@Matchid           = @matchid
+				,@ActionID			= @ActionID
+				,@Remark            = @Remark
+				,@IP                = @IP
+		END TRY
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+
+			EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID             = @AdminId
+				,@Matchid           = @matchid
+				,@ActionID          = @ActionID
+				,@Remark            = @Remark
+				,@IP                = @IP
+		END CATCH
+
 
 	END
 END
