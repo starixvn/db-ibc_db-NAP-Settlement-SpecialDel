@@ -1109,6 +1109,7 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId
 								AND rs.MatchId = @MatchId
+								AND rs.RequestDetailId = rd.Id
 							UNION ALL
 							SELECT rp.TransId, b.transid AS MainTransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
@@ -1116,6 +1117,7 @@ BEGIN
 								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
+								AND rp.RequestDetailId = rd.Id
 					)tmp
 				INNER JOIN #SpecialDeleteBets t ON t.SubTransid = tmp.transid
 			WHERE rd.MatchId = @MatchId
@@ -1458,7 +1460,6 @@ BEGIN
 		SELECT @SingleCount = SUM(SingleCount)
 			,@MainParlayCount = SUM(MainParlayCount)
 		FROM #logInfo
-		GROUP BY MatchId
 
 		IF @SingleCount = 0 AND @MainParlayCount = 0
 		BEGIN
@@ -1533,7 +1534,7 @@ BEGIN
 						STUFF((
 						SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 						FROM #TransidInRequest
-						WHERE (RequestId = r.RequestId) 
+						WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
 						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 						,1,2,'') AS TransIds
 						,NULL AS LiveScores
@@ -1561,109 +1562,9 @@ BEGIN
 			END
 			
 			--Loginfo Table
-			IF @IssueTypeId NOT IN (1,3,10)
-			BEGIN
-				SELECT MatchId
-					,STUFF(w.scores,1,1,'') AS LiveScores
-					,MIN(VoidFromTime) AS VoidFromTime
-					,MAX(VoidToTime) AS VoidToTime
-					,SUM(SingleCount) AS SingleCount
-					,0 AS CashOutCount
-					,0 AS InstantlySettleCount
-					,SUM(MainParlayCount) AS MainParlayCount
-					,MIN(MinSingleTransId) AS MinSingleTransId
-					,MAX(MaxSingleTransId) AS MaxSingleTransId
-					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-					,MIN(HighLightTransId) AS HighLightTransId
-					,MIN(HighlightAcceptType) AS HighlightAcceptType
-				FROM #logInfo l
-					CROSS APPLY(
-								SELECT '|' + LiveScores
-								FROM #logInfo rd WITH(NOLOCK)
-								where l.MatchId = rd.MatchId
-								FOR XML PATH('')
-								)w (scores)
-				GROUP BY MatchId, w.scores
-			END
-			ELSE IF @IssueTypeId IN (1,10)
-			BEGIN
-				;WITH _cte AS (
-						SELECT MatchId
-							,STUFF(w.scores,1,1,'') AS LiveScores
-							,MIN(VoidFromTime) AS VoidFromTime
-							,MAX(VoidToTime) AS VoidToTime
-							,SUM(SingleCount) AS SingleCount
-							,0 AS CashOutCount
-							,0 AS InstantlySettleCount
-							,SUM(MainParlayCount) AS MainParlayCount
-							,MIN(MinSingleTransId) AS MinSingleTransId
-							,MAX(MaxSingleTransId) AS MaxSingleTransId
-							,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-							,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-						FROM #logInfo l
-							CROSS APPLY(
-										SELECT '|' + LiveScores
-										FROM #logInfo rd WITH(NOLOCK)
-										where l.MatchId = rd.MatchId
-										FOR XML PATH('')
-										)w (scores) 
-						GROUP BY MatchId, w.scores
-					)
-				SELECT MatchId
-					, LiveScores
-					,VoidFromTime
-					,VoidToTime
-					,SingleCount
-					,CashOutCount
-					,InstantlySettleCount
-					,MainParlayCount
-					,MinSingleTransId
-					,MaxSingleTransId
-					,MinMainParlayTransId
-					,MaxMainParlayTransId
-					,tmpHighlight.HighLightTransId AS HighLightTransId
-					,tmpHighlight.HighlightAcceptType AS HighlightAcceptType
-				FROM _cte l
-					CROSS APPLY (SELECT MIN(VoidFromTime) AS VoidFromTime_min
-								 FROM #logInfo lg 
-								 WHERE l.matchid = lg.matchid
-								 ) AS Voidtime
-					OUTER APPLY (SELECT TOP 1 b.transid AS HighLightTransId
-									 ,b.accepttype HighlightAcceptType
-								FROM #SpecialDeleteBets b 
-										CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
-																 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-																 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-																 END AS VoidTime
-										)act
-								WHERE l.MatchId = b.matchid AND Voidtime.VoidFromTime_min = act.VoidTime 
-									AND 1 = (CASE WHEN l.MinSingleTransId IS NOT NULL AND b.transid = l.MinSingleTransId  THEN 1
-												  WHEN l.MinMainParlayTransId IS NOT NULL AND b.transid = l.MinMainParlayTransId THEN 1
-												END
-											)
-									ORDER BY CASE WHEN l.MinSingleTransId IS NOT NULL THEN 1 ELSE 0 END DESC
-							
-						) AS tmpHighlight
-			END
-			ELSE IF @IssueTypeId = 3
-			BEGIN
-				SELECT MatchId
-					,LiveScores
-					,MIN(VoidFromTime) AS VoidFromTime
-					,MAX(VoidToTime) AS VoidToTime
-					,SUM(SingleCount) AS SingleCount
-					,0 AS CashOutCount
-					,0 AS InstantlySettleCount
-					,SUM(MainParlayCount) AS MainParlayCount
-					,MIN(MinSingleTransId) AS MinSingleTransId
-					,MAX(MaxSingleTransId) AS MaxSingleTransId
-					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-					,ScoreId
-				FROM #logInfo
-				GROUP BY MatchId, LiveScores, ScoreId
-			END
+			DELETE #logInfo
+			SELECT MatchId, ScoreId FROM #logInfo
+
 			RETURN;
 		END
 	END
