@@ -44,9 +44,10 @@ GO
 
 ALTER TABLE [dbo].[ParlayLockingHistory] ADD  CONSTRAINT [DF_ParlayLockingHistory_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
 GO
-CREATE CLUSTERED INDEX [CIX_ParlayLockingHistory_MatchId_Refno] ON [dbo].[ParlayLockingHistory]
+
+CREATE CLUSTERED INDEX [CIX_ParlayLockingHistory_CreatedDate] ON [dbo].[ParlayLockingHistory]
 (
-	[MatchId] ASC,
-	[Refno] ASC
-) ON [DATA]
+	[CreatedDate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
 GO
+

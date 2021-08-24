@@ -58,7 +58,7 @@ BEGIN
 	INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
 	WHERE p.IsCalculating = 0
 	ORDER BY CASE WHEN m.SportType = @pre_Sporttype THEN 1 ELSE 0 END
-		,p.TryCount
+		,p.TryCount DESC
 		,p.starttime
 		,p.keyid
 
