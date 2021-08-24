@@ -1457,8 +1457,8 @@ BEGIN
 	--For case no ticket valid
 	IF @IssueTypeId IN (1, 10, 3)
 	BEGIN
-		SELECT @SingleCount = SUM(SingleCount)
-			,@MainParlayCount = SUM(MainParlayCount)
+		SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
+			,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
 		FROM #logInfo
 
 		IF @SingleCount = 0 AND @MainParlayCount = 0
@@ -1787,7 +1787,7 @@ BEGIN
 				STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
+				WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,NULL AS LiveScores
