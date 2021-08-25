@@ -1341,7 +1341,7 @@ BEGIN
 											 END
 									END AS AcceptType, rd.VoidFromTime
 					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
+					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId AND s.RequestId = @RequestId
 					CROSS APPLY  (
 								SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
 								FROM dbo.bettransm bm WITH(NOLOCK)
