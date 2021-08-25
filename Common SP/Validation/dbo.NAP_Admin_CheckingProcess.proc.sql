@@ -13,6 +13,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsExistFM				BIT = 0	
 	, @IsExistFM2				BIT = 0
 	, @spName					VARCHAR(500) = ''
+	, @session					NVARCHAR(50) = ''
+	, @IsLockingByRefno			BIT = 0
+
 	, @AvaiableProcess			BIT = 0 OUTPUT
 	, @ErrCode					INT = 0 OUTPUT
 	, @ErrMsg					NVARCHAR(200) = '' OUTPUT
@@ -31,12 +34,16 @@ AS
 	- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 	- 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
+	- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
  Param's Explanation:   
+	@SubParlayKey:
+		1: single
  
  Dependences:
 	1. CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	OR CREATE TABLE #tblMatchProcessKeyValue2 (matchid INT, KeyID TINYINT, KeyValue2 VARCHAR(20))  -- BetBuilder
+		CREATE TABLE #tblMatchParlayProcess (matchid INT, RefNo BIGINT)
 	
 */
 BEGIN
@@ -61,7 +68,7 @@ BEGIN
 								END
 	-- checking dependency				
 	IF (@isExistTempVariable = 1
-		AND (OBJECT_ID('tempdb..#tblMatchProcess') IS NULL AND OBJECT_ID('tempdb..#tblMatchProcessKeyValue2') IS NULL)
+		AND (OBJECT_ID('tempdb..#tblMatchProcess') IS NULL AND OBJECT_ID('tempdb..#tblMatchProcessKeyValue2') IS NULL) 
 	)
 	BEGIN
 		SELECT @ErrCode		= 109
@@ -78,10 +85,13 @@ BEGIN
 		BEGIN
 			IF EXISTS(
 				SELECT 1 
-				FROM dbo.SystemSettings WITH (NOLOCK)
-				WHERE VValue 	= 1 
-				AND VName 		= 'isCalculatingParlay'
-			)  
+				FROM	dbo.SystemSettings WITH (NOLOCK)
+				WHERE	VValue 	= 1 
+						AND VName 		= 'isCalculatingParlay'
+			)  OR EXISTS (
+				SELECT TOP 1 1
+				FROM	dbo.ParlayLocking p WITH(NOLOCK)
+			)
 			BEGIN  
 				SELECT @ErrCode	= 100  
 					,@ErrMsg 	= 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'  
@@ -212,7 +222,7 @@ BEGIN
 				INNER JOIN #tblMatchProcess tp 
 				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
 				
-			WHERE tp.KeyID > 0
+			WHERE tp.KeyID > 0 AND tp.KeyId < 100
 			
 			IF ( NOT EXISTS (SELECT TOP 1 1 FROM #checkProcess))
 			BEGIN
@@ -283,6 +293,74 @@ BEGIN
 				RETURN
 			END
 		END
+		
+		IF @IsLockingByRefno = 1
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = '0')
+			BEGIN
+				BEGIN TRY
+					INSERT INTO dbo.ParlayLocking(MatchId, Refno, Session, SPName)
+					SELECT DISTINCT tp.MatchId, tp.Refno, @session, @spName			
+					FROM	#tblMatchParlayProcess tp 
+			
+					SET @AvaiableProcess = 1
+				END TRY
+				BEGIN CATCH
+					SET @AvaiableProcess = 0
+				END CATCH
+			END
+
+			IF @AvaiableProcess = 0 OR EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings s WHERE s.VName = 'isCalculatingParlay' AND s.VValue = '1')
+				BEGIN
+					UPDATE	dbo.systemSettings WITH (ROWLOCK, UPDLOCK)  
+					SET VValue 			= '0'  
+					WHERE VName 		= 'isCalculatingParlayVSBetradar' 
+					AND @IsExistParlayVSBetradar 	= 1
+									
+					UPDATE dbo.systemSettings WITH (ROWLOCK, UPDLOCK)
+					SET VValue 		= '0'
+					WHERE VName 	= 'isCalculatingNGManual'
+					AND @isExistNG 	= 1
+
+					IF (OBJECT_ID('tempdb..#tblMatchProcess') IS NOT NULL)
+						DELETE	t
+						FROM	dbo.TempVariableNumber t
+							INNER JOIN #tblMatchProcess m
+								ON	t.keyid = m.keyid
+									and t.keyvalue = m.matchid
+						WHERE @isExistTempVariable = 1
+							AND t.KeyID < 100
+
+					IF (OBJECT_ID('tempdb..#tblMatchProcessKeyValue2') IS NOT NULL)
+						DELETE t
+						FROM	dbo.TempVariableNumber t
+							INNER JOIN #tblMatchProcessKeyValue2 b
+								ON t.keyid = b.keyid
+									and t.keyvalue = b.keyvalue
+									and t.keyvalue2 = b.keyvalue2
+						WHERE	@checkKeyValue2 = 1
+
+					IF @avaiableProcess = 1
+					BEGIN
+						WHILE (1=1)
+						BEGIN
+							DELETE TOP (2000) pl
+							FROM dbo.ParlayLocking pl
+								INNER JOIN #tblMatchParlayProcess tp
+									ON	pl.matchid = tp.matchid 
+										AND pl.refno = tp.refno
+										AND pl.session = @session
+
+							IF @@ROWCOUNT < 2000
+								BREAK
+						END
+					END
+
+					SELECT	@ErrCode = 1000000
+							,@ErrMsg	= 'Another parlay settlement is in progress or some parlay tickets are being voided, please wait a few seconds until the on-going process has finished and try again.'
+							,@avaiableProcess = 0
+				END
+		END
 	END
 
 	-- releasing process
@@ -321,7 +399,24 @@ BEGIN
 			FROM dbo.TempVariableNumber ck
 				INNER JOIN #tblMatchProcess tp
 				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
+			WHERE tp.keyId < 100
 					
+		END
+
+		IF @IsLockingByRefno = 1
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP (2000) pl
+				FROM dbo.ParlayLocking pl
+					INNER JOIN #tblMatchParlayProcess tp
+						ON	pl.matchid = tp.matchid 
+							AND pl.refno = tp.refno
+							AND pl.session = @session
+
+				IF @@ROWCOUNT < 2000
+					BREAK
+			END		
 		END
 	END
 	

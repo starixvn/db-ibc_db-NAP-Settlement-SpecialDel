@@ -45,6 +45,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's Explanation:		
 		
@@ -62,7 +63,7 @@ BEGIN
 
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
-			,@IsExistsResourceEarlyRunning BIT = 0
+			--,@IsExistsResourceEarlyRunning BIT = 0
 			,@HaveMarkedTicket VARCHAR(200)
 			,@HoldSettingMatchIds VARCHAR(200) = ''
 			,@ParentIds VARCHAR(MAX) = ''
@@ -215,10 +216,8 @@ BEGIN
 				ON	c.matchid = r.matchid 
 					AND r.ResourceId = c.ResourceId
 		WHERE	ISNULL(r.ResultStatusId,0) NOT IN (2,5)
+		GROUP BY c.matchid
 		
-		IF @@ROWCOUNT > 0
-			SET @IsExistsResourceEarlyRunning = 1
-
 		;WITH cteFGLGBettypes
 		AS(
 			SELECT	bm.matchid
@@ -347,25 +346,32 @@ BEGIN
 	IF EXISTS (SELECT 1
 				FROM #Match
 				WHERE  MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL) ) AND @action <> 'UNDO'
-		OR @IsExistsResourceEarlyRunning = 1	
+		OR EXISTS (SELECT TOP 1 1 FROM @tmpRunningEarlySettle)	
 		OR EXISTS (SELECT TOP 1 1
 					FROM @tblRunningBAIO
 				)					
 	BEGIN
 		
-		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode 
-									+  (CASE WHEN @IsExistsResourceEarlyRunning = 1 THEN '(Early Settle)' ELSE '' END) + ','
+		SELECT @NotKeyScoreList = @NotKeyScoreList + matchcode + ','									
 		FROM #Match
 		WHERE fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL
-			OR @IsExistsResourceEarlyRunning = 1
-
+			
 		-- exclude matches were not keyscore yet
 		DELETE
 		FROM #Match
 		WHERE (MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL))
-				OR @IsExistsResourceEarlyRunning = 1
-				
-		
+			
+
+		SELECT @NotKeyScoreList = @NotKeyScoreList + m.matchcode + '(Early Settle)' + ','
+		FROM #Match m
+			INNER JOIN @tmpRunningEarlySettle t
+				ON m.matchid = t.matchid
+
+		DELETE m 
+		FROM #Match m
+			INNER JOIN @tmpRunningEarlySettle t
+				ON m.matchid = t.matchid
+
 		SELECT @NotKeyScoreList = @NotKeyScoreList 
 								+ m.matchcode +  '(' + STUFF((SELECT ',' + QuarterX 
 												FROM @tblRunningBAIO 
@@ -523,17 +529,19 @@ BEGIN
 				IF @@ROWCOUNT = 0
 					BREAK
 				
-				IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 1)
-				BEGIN
-					SELECT	@ErrCode = 1000000
-						,@ErrMsg = 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'
-					RETURN	
-				END
-				ELSE
+				IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = '0')
+					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
 				BEGIN
 					UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
 							SET VValue = 1
 					WHERE VName = 'isCalculatingParlay'
+					
+				END
+				ELSE
+				BEGIN
+					SELECT	@ErrCode = 1000000
+						,@ErrMsg = 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'
+					RETURN	
 				END
 				
 				BEGIN TRY
@@ -570,8 +578,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN		
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action)
-			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype)
+			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action, sporttype
 			FROM #Match
 		END
 	END

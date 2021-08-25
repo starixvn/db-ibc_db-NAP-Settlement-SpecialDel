@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
 	Param's Explanation:
 */
@@ -25,6 +26,12 @@ BEGIN
 			,@eventstatus NVARCHAR(100)
 			,@childMatchId INT
 			,@avaiableProcess BIT
+			,@ThreadHold INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
+			,@Session			NVARCHAR(50)
+			,@SPName			SYSNAME
+			,@IsExistParlay		BIT = 0
+			,@IsLockingByRefno	BIT = 0
+
 			,@totalSingle INT 
 			,@totalParlay INT 
 			,@startRowId INT 
@@ -48,6 +55,8 @@ BEGIN
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, ResourceId VARCHAR(20) )
 	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20) )
 
@@ -227,8 +236,25 @@ BEGIN
 			WHERE	b.matchid = 29
 					AND t.statusId = 102
 				
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			@LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
+
+		IF @totalParlay > @ThreadHold
+			SET @isexistParlay = 1
+		ELSE
+		BEGIN
+			INSERT INTO #tblMatchParlayProcess(matchId, RefNo)
+			SELECT @MatchId, refno
+			FROM #tmpTransIdsParlay
+			GROUP BY refno
+
+			SET @IsLockingByRefno = 1
+		END
+
 		EXEC dbo.NAP_Admin_CheckingProcess		
-			 @isexistParlay				= 1		
+			 @isexistParlay				= @isexistParlay
+			,@IsLockingByRefno			= @IsLockingByRefno
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT
@@ -263,6 +289,12 @@ BEGIN
 
 			SET @startRowId = @startRowId + @batchNo
 		END
+
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay		= @IsExistParlay
+			,@IsLockingByRefno  = @IsLockingByRefno
+			,@IsReleased		= 1
+
 	END
 
 	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + r.ResourceId, r.ResourceId)
@@ -300,24 +332,6 @@ BEGIN
 				,@Remark			= @Remark
 				,@IP				= @ip
 	END CATCH
-
-
-	IF @totalParlay > 0
-	BEGIN
-		-- settle parlay
-		EXEC dbo.NAP_Admin_Settlement_MP
-		@matchid				= @childMatchId
-		,@creator				= @AdminId
-		,@action				= 'CAL'
-		,@isAuto				= 1
-		,@IP					= @IP
-		,@ErrCode				= @ErrCode	OUTPUT
-		,@ErrMsg				= @ErrMsg	OUTPUT
-
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistParlay		= 1
-			,@IsReleased		= 1
-	END
 
 	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
 				+' into child match: ' + CAST(@childMatchId AS VARCHAR)

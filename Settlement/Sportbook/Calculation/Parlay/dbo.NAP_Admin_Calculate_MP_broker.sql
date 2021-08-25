@@ -58,7 +58,7 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
-		
+		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 
     Param's Explanation:
         @action         @mode
@@ -211,7 +211,15 @@ BEGIN
     BEGIN
         EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
             , @matchdate = @matchdate
-            , @action = @Mode
+            , @action = @mode
+            , @strTransIds = @strTransIds
+    END
+
+	IF (@Mode IN ('profile'))
+    BEGIN
+        EXEC dbo.NAP_Admin_Parlay_Calculate_3 @matchid = @matchid
+            , @matchdate = @matchdate
+            , @action = @action
             , @strTransIds = @strTransIds
     END
 	
