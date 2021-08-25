@@ -43,19 +43,21 @@ BEGIN
 		,HomeValue	 VARCHAR(50)
 		,AwayValue   VARCHAR(50)
 	)
-    
-    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT, ExternalResultTable INT)
+  
+    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT, ResultTable TINYINT, ExternalResultTable TINYINT)
 
-	INSERT INTO #tblMatchID (MatchId, SportType, ExternalResultTable)
-	SELECT f.Val 
-		 , m.sporttype
-		 , CASE WHEN m.sporttype IN ( 1, 2, 5, 9, 43, 50 )		   THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
-				WHEN m.sporttype IN ( 3, 4, 6, 8, 18, 19, 24, 25 ) THEN 1 -- ProviderExternalResultDetail						
-				ELSE 2	--ProviderExternalResultDetailOS
+	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
+	SELECT f.Val
+		  ,m.sporttype 
+		  ,CASE WHEN m.sporttype IN ( 1, 2, 5, 9, 43, 50 )	THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+				ELSE r.ResultTable
 				END
+		 ,r.ExternalResultTable
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
+		INNER JOIN dbo.f_Set_GetResultTable() r
+			ON r.Sporttype = m.SportType
 	OPTION (maxrecursion 0)
 
 
@@ -71,7 +73,9 @@ BEGIN
 			,ex.HomeValue
 			,ex.AwayValue
 	FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
-	WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE ExternalResultTable = 1 )
+		INNER JOIN #tblMatchID m 
+			ON ex.MatchId = m.MatchId
+	WHERE ExternalResultTable = 1
 
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 2  ) ---ProviderExternalResultDetailOS
 	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
@@ -83,7 +87,9 @@ BEGIN
 			,ex.HomeValue
 			,ex.AwayValue
 	FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
-		WHERE MatchID IN  (SELECT m.MatchId FROM #tblMatchID m WHERE ExternalResultTable = 2 )
+		INNER JOIN #tblMatchID m 
+			ON ex.MatchId = m.MatchId
+	WHERE ExternalResultTable = 2
 
 
 	INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
@@ -134,24 +140,27 @@ BEGIN
 
 	------ GET Settled Result
 
-    IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 43)
-    BEGIN
+	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.ResultTable = 1 )
+	BEGIN
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
-        SELECT    rs.MatchId
-				, 0
-                , rs.ResourceId
-                , rs.HomeValue
-                , rs.AwayValue
-                , rs.ResultStatusID
-                , rs.SettlementStatusID
-        FROM    dbo.[ResultDetailES] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType = 43)
-    		AND EXISTS (SELECT 1 
-    					FROM dbo.f_Set_MajorRound(43) f 
-    					WHERE rs.ResourceID = f.ResourceID)
+    		SELECT    rs.MatchId
+					, 0
+					, rs.ResourceId
+					, rs.HomeValue
+					, rs.AwayValue
+					, rs.ResultStatusID
+					, rs.SettlementStatusID
+			FROM    dbo.[ResultDetail] rs WITH (NOLOCK)
+				INNER JOIN #tblMatchID m 
+					ON rs.MatchId = m.MatchId  
+    		WHERE m.ResultTable = 1
+    			AND EXISTS (SELECT 1 
+    						FROM #tblMatchID m
+							CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
+    						WHERE rs.ResourceID = f.ResourceID)
 	END
 
-	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.SportType IN (9, 45, 50)	 )
+	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.ResultTable = 2 )
     BEGIN		
 		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
         SELECT    rs.MatchId
@@ -161,31 +170,34 @@ BEGIN
                 , rs.AwayValue
                 , rs.ResultStatusID
                 , rs.SettlementStatusID
-        FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m WHERE SportType IN (9,45,50)	)
+        FROM    dbo.[ResultDetailOS] rs WITH (NOLOCK)
+			INNER JOIN #tblMatchID m 
+				ON rs.MatchId = m.MatchId 
+    	WHERE m.ResultTable = 2
     		AND EXISTS (SELECT 1 
     					FROM #tblMatchID m
 						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
     					WHERE rs.ResourceID = f.ResourceID)
 	END
-	
-	DELETE FROM #tblMatchID WHERE SportType IN (9,43,45,50)
-	
-	INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
-    	SELECT    rs.MatchId
+
+    IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.ResultTable = 3)
+    BEGIN
+		INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+        SELECT    rs.MatchId
 				, 0
                 , rs.ResourceId
                 , rs.HomeValue
                 , rs.AwayValue
                 , rs.ResultStatusID
                 , rs.SettlementStatusID
-        FROM    dbo.[ResultDetail] rs WITH (NOLOCK) 
-    	WHERE MatchID IN (SELECT m.MatchId FROM #tblMatchID m)
+        FROM    dbo.[ResultDetailES] rs WITH (NOLOCK)
+			INNER JOIN #tblMatchID m 
+				ON rs.MatchId = m.MatchId
+    	WHERE m.ResultTable = 3
     		AND EXISTS (SELECT 1 
-    					FROM #tblMatchID m
-						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
+    					FROM dbo.f_Set_MajorRound(43) f 
     					WHERE rs.ResourceID = f.ResourceID)
-
+	END
 	
 	------/END  GET Settled Result
 

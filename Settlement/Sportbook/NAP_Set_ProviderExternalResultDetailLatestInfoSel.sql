@@ -22,9 +22,18 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SportType SMALLINT = 0
+		  ,@ExternalResultTable TINYINT
 
-	SELECT @SportType = m.SportType FROM dbo.Match m WITH(NOLOCK) WHERE m.MatchID = @MatchId
-	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
+	DECLARE @tmpProviderExternalResult AS TABLE 
+		(SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
+
+	SELECT @SportType = m.SportType 
+	FROM dbo.Match m WITH(NOLOCK)
+	WHERE m.MatchID = @MatchId
+
+	SELECT @ExternalResultTable = r.ExternalResultTable 
+	FROM dbo.f_Set_GetResultTable() r 
+	WHERE r.Sporttype = @SportType
 
 	IF @SportType IN ( 2, 5, 9, 50 ) ---Applied SOP
 	BEGIN
@@ -46,10 +55,10 @@ BEGIN
 						,ex.HomeValue
 						,ex.AwayValue
 				FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
-				WHERE ex.MatchID = @MatchId
+				WHERE @ExternalResultTable = 1
+					AND ex.MatchID = @MatchId
 					AND ex.SourceId < 1001
 					AND ex.SourceId <> 100
-					AND @SportType IN (1,3,4,6,8,18,19,24,25)
 
 				UNION ALL
 				SELECT	ROW_NUMBER() OVER (PARTITION BY ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC) AS rn
@@ -59,10 +68,10 @@ BEGIN
 						,ex.HomeValue
 						,ex.AwayValue
 				FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
-				WHERE ex.MatchID = @MatchId
+				WHERE @ExternalResultTable = 2
+					AND ex.MatchID = @MatchId
 					AND ex.SourceId < 1001
 					AND ex.SourceId <> 100
-					AND @SportType NOT IN (1,3,4,6,8,18,19,24,25)
 			)
 		INSERT INTO @tmpProviderExternalResult (SourceId, ResourceId, HomeValue, AwayValue)	
 		SELECT	SourceId
