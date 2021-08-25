@@ -120,7 +120,9 @@ BEGIN
 		,ResultStatusId		TINYINT
 		,SettlementStatusId TINYINT
 	)
-
+	
+	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
+	
 	CREATE TABLE #ConfirmedResources ( MatchId INT, ResourceId VARCHAR(20))
 
 	CREATE TABLE #tmpMatchIds (
@@ -796,6 +798,7 @@ BEGIN
 
 	IF @@ROWCOUNT <> 0
 	BEGIN
+		-- single
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
 		FROM	@tmpMatchCompleted m
@@ -810,18 +813,6 @@ BEGIN
 								AND b.statusID = 0
 								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 								AND b.bettype <> 38 -- BetBuilder
-						UNION ALL
-						SELECT	tmp.ParentId, b.transid, tmp.MatchId
-						FROM	dbo.bettransm bm WITH(NOLOCK)
-							INNER JOIN #tmpAllParentChildMatch tmp
-								ON	bm.matchid = tmp.MatchId
-							INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
-								ON	b.matchid = 29
-									AND b.bettype = 29
-									AND b.refno = bm.refno
-						WHERE	bm.matchid = m.MatchId
-								AND bm.statusID = 0
-								AND tmp.IsMergedParlay = 1
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 mt.transId
@@ -833,6 +824,45 @@ BEGIN
 				GROUP BY b.ParentId
 			) t
 
+		-- parlay
+		INSERT INTO #temp_match_parlay (ParentID, transid, matchid, refno)
+		SELECT	tmp.ParentId, 0, tmp.MatchId, bm.refno
+		FROM @tmpMatchCompleted m
+			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
+			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
+		WHERE	m.IsExistRunningTicket = 0
+				AND bm.statusID = 0
+				AND tmp.IsMergedParlay = 1
+		
+		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
+		BEGIN
+			UPDATE   t
+				SET transid = b.transid
+			FROM   #temp_match_parlay  t
+				INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+			
+			UPDATE m 
+				SET IsExistRunningTicket = t.IsExistRunningTicket
+			FROM	@tmpMatchCompleted m
+					CROSS APPLY (
+								SELECT 1 AS IsExistRunningTicket
+								FROM (
+										SELECT	ParentId, transid, MatchId
+										FROM	#temp_match_parlay p
+										WHERE p.matchid = m.MatchId
+									) b
+									OUTER APPLY (
+										SELECT TOP 1 mt.transId
+										FROM	#tmpMarkedTransaction mt 
+										WHERE	b.transid = mt.TransId
+												AND b.MatchId = mt.matchId
+									)mt
+									WHERE	mt.transId IS NULL
+									GROUP BY b.ParentId
+								) t
+			WHERE m.IsExistRunningTicket = 0
+		END
+				
 		UPDATE m 
 			SET IsExistRunningTicketAfterCompleted = t.IsExistRunningTicket
 		FROM	#tmpMatchIds m
