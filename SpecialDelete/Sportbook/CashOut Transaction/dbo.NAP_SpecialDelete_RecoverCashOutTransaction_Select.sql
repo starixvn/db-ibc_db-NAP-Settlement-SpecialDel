@@ -1,10 +1,4 @@
-USE [bodb02]
-GO
-/****** Object:  StoredProcedure [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Select]    Script Date: 01/25/2016 10:22:54 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+ /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Select]
 	 @Option			BIT			  = 0
 	,@MatchId			INT
@@ -26,6 +20,7 @@ AS
 		- 20170403@Kent: Integrate Cash-out [Redmine:#72059]			
 		- 20170417@Kent: Tune performance [Redmine:#72059]	
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210812@July: Add metadata [Redmine: #157970] 
 
 	Explanation's Param:
 		@Option: 0 - by MatchId

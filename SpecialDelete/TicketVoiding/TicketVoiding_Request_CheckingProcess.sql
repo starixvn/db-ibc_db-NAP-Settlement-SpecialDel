@@ -13,7 +13,7 @@ AS
 		- 20210402@Kathy: Create new SP [Redmine:#152581]
 		- 20210524@July: Lock TempVariableNumber due to duplicate voiding requestid inserted from web special delete [Redmine:#155575]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
-		
+		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 	
 	Param's explanation:	
 		
@@ -31,6 +31,11 @@ BEGIN
 			,@availableProcess	BIT  = 0
 			,@starttime			DATETIME
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@Session			NVARCHAR(50)
+		    ,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
+		    ,@totalSubParlay	INT = 0 
+
+	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	DECLARE @tmpMatchTransIds TABLE (MatchId INT, TransIds VARCHAR(MAX))
 	DECLARE @tmpMatchTransIdsParlay TABLE (MatchId INT, TransIds VARCHAR(MAX))
@@ -45,6 +50,7 @@ BEGIN
 	)
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	INSERT INTO @tmpMatchTransIds (MatchId, TransIds)
 	SELECT	q.MatchId, q.TransIds
@@ -117,6 +123,14 @@ BEGIN
 				  )
 		BEGIN
 			SET @isExistParlay = 1
+
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT p.MatchId, bm.refno
+			FROM @tmpInputTransIdParlay p
+				INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON p.TransId = bm.transid
+			WHERE  bm.statusID <> 102
+
+			SET @totalSubParlay = @@ROWCOUNT
 		END
 	END
 	
@@ -159,11 +173,30 @@ BEGIN
 		BEGIN
 			IF @isExistParlay = 1
 			BEGIN
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistParlay 				= @isExistParlay
-					,@avaiableProcess 			= @availableProcess OUTPUT
-					,@ErrCode					= @ErrCode OUTPUT
-					,@ErrMsg					= @ErrMsg OUTPUT
+				-- Apply new way to lock parlay tickets	
+
+				EXEC dbo.NAP_Set_GlobalSettingSel 
+					 @LockName = 'ParlayRefno'
+					,@ThreadHold = @ThreadHold OUTPUT
+
+				IF @totalSubParlay <= @ThreadHold
+				BEGIN
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@IsLockingByRefno		= 1
+						,@SPName				= @SPName
+						,@Session				= @Session
+						,@avaiableProcess 		= @availableProcess OUTPUT
+						,@ErrCode				= @ErrCode OUTPUT
+						,@ErrMsg				= @ErrMsg OUTPUT					
+				END
+				ELSE --@totalSubParlay > 10K
+				BEGIN
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistParlay 			= @isExistParlay
+						,@avaiableProcess 		= @availableProcess OUTPUT
+						,@ErrCode				= @ErrCode OUTPUT
+						,@ErrMsg				= @ErrMsg OUTPUT
+				END
 
 				IF @availableProcess = 0 OR @ErrCode <> 0
 					CONTINUE
@@ -214,4 +247,5 @@ BEGIN
 	END
 
 	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 END

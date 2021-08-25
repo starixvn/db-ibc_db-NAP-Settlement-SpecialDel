@@ -45,7 +45,8 @@ AS
 		- 20210617@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210619@Helen: SP Tuning [Redmine: #157249]
 		- 20210621@Max: [TVS] EKO & Wrong Kick Off Time - Warning tickets existed on other request not show Transid [Redmine: #156728]
-	
+		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+
 	Param's explanation:
 		+@Filterby:
 			- 0: By BetId (Hide on UI, not use)
@@ -64,7 +65,7 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @IsInvalidTransId     BIT = 0
+	DECLARE @IsInvalidTransId		  BIT = 0
 			,@IsInValidTotalTickets   BIT = 0
 			,@IsInvalidLiveScore	  BIT = 0
 			,@IsExistedInOtherRequest BIT = 0
@@ -75,9 +76,12 @@ BEGIN
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-			,@WrongScoreInfoXML		XML = NULL
-			,@DangerAcceptedInfoXML	XML  = NULL
-	
+			,@WrongScoreInfoXML		  XML = NULL
+			,@DangerAcceptedInfoXML	  XML  = NULL
+			,@MatchParlayProcessXML	  XML  = NULL
+			,@TotalRefnoParlay		  INT = 0
+			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
+
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
 			transid               BIGINT,
@@ -180,22 +184,24 @@ BEGIN
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
-	
+	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
+
 	DECLARE @Validation AS TABLE (
-			livehomescore SMALLINT
-			,liveawayscore SMALLINT
-			,IsInvalidTransId     BIT 
+			livehomescore			 SMALLINT
+			,liveawayscore			 SMALLINT
+			,IsInvalidTransId		 BIT 
 			,IsInValidTotalTickets   BIT 
-			,IsInvalidLiveScore	  BIT
+			,IsInvalidLiveScore		 BIT
 			,IsExistedInOtherRequest BIT 
-			,IsExistSingle			  BIT 
-			,IsExistParlay			  BIT 
-			,IsExistFM				  BIT 
-			,IsExistFM2			  BIT 
-			,MatchProcessXML		  XML 
-			,LiveScores NVARCHAR(300)
-			,MatchId INT
-			,ScoreId INT
+			,IsExistSingle			 BIT 
+			,IsExistParlay			 BIT 
+			,IsExistFM				 BIT 
+			,IsExistFM2				 BIT 
+			,MatchProcessXML		 XML 
+			,MatchParlayProcessXML	 XML
+			,LiveScores				 NVARCHAR(300)
+			,MatchId                 INT
+			,ScoreId                 INT
 		)
 	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
 
@@ -1667,6 +1673,7 @@ BEGIN
 					,@IsExistFM AS IsExistFM
 					,@IsExistFM2 AS IsExistFM2
 					,@MatchProcessXML AS MatchProcessXML
+					,@MatchParlayProcessXML AS MatchParlayProcessXML
 		END
 		ELSE IF @IssueTypeId = 3
 		BEGIN
@@ -1680,6 +1687,7 @@ BEGIN
 				,ISNULL(IsExistFM,0) AS IsExistFM
 				,ISNULL(@IsExistFM2,0) AS IsExistFM2
 				,MatchProcessXML AS MatchProcessXML
+				,MatchParlayProcessXML AS MatchParlayProcessXML
 				,ScoreId
 			FROM @Validation
 		END
@@ -1695,6 +1703,7 @@ BEGIN
 				,ISNULL(IsExistFM,0) AS IsExistFM
 				,ISNULL(@IsExistFM2,0) AS IsExistFM2
 				,MatchProcessXML AS MatchProcessXML
+				,MatchParlayProcessXML AS MatchParlayProcessXML
 			FROM @Validation
 		END
 
@@ -1928,6 +1937,7 @@ BEGIN
 					,@IsExistFM AS IsExistFM
 					,@IsExistFM2 AS IsExistFM2
 					,@MatchProcessXML AS MatchProcessXML
+					,@MatchParlayProcessXML AS MatchParlayProcessXML
 			END
 			ELSE IF @IssueTypeId = 3
 			BEGIN
@@ -1941,6 +1951,7 @@ BEGIN
 					,ISNULL(IsExistFM,0) AS IsExistFM
 					,ISNULL(@IsExistFM2,0) AS IsExistFM2
 					,MatchProcessXML AS MatchProcessXML
+					,MatchParlayProcessXML AS MatchParlayProcessXML
 					,ScoreId
 				FROM @Validation
 			END
@@ -1956,6 +1967,7 @@ BEGIN
 					,ISNULL(IsExistFM,0) AS IsExistFM
 					,ISNULL(@IsExistFM2,0) AS IsExistFM2
 					,MatchProcessXML AS MatchProcessXML
+					,MatchParlayProcessXML AS MatchParlayProcessXML
 				FROM @Validation
 			END
 
@@ -2224,9 +2236,46 @@ BEGIN
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 		FOR XML PATH('r'), ROOT('root')
 		)
+	
+	--Lock Refno process - SportBook
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+		@LockName = 'ParlayRefno'
+		,@ThreadHold = @ThreadHold OUTPUT
+
+	INSERT INTO @tblMatchParlay (MatchId, RefNo)
+	SELECT '' AS MatchId, t.Refno --Many matches with same Refno  
+	FROM #SpecialDeleteBets t
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+			AND t.IsMixParlay = 1
+	GROUP BY t.Refno  
+	HAVING COUNT(*) > 1
+
+	SET @TotalRefnoParlay = @@ROWCOUNT
+	
+	INSERT INTO @tblMatchParlay (MatchId, RefNo)
+	SELECT  t.MatchId, t.RefNo
+	FROM #SpecialDeleteBets t
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+	  AND NOT EXISTS (SELECT 1 FROM @tblMatchParlay m WHERE m.RefNo = t.refno) 
+			AND t.IsMixParlay = 1
+	
+	SELECT @TotalRefnoParlay = @TotalRefnoParlay + @@ROWCOUNT
+
+	IF @TotalRefnoParlay <= @ThreadHold
+	BEGIN
+		SET @MatchParlayProcessXML = (
+		SELECT  DISTINCT MatchId "@MatchId"
+				,refno AS "@RefNo"
+		FROM @tblMatchParlay 
+		FOR XML PATH('r'), ROOT('root'))
+	END	
+	ELSE
+	BEGIN
+		SET @MatchParlayProcessXML = NULL
+	END
 
 	--WC
-	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML
+	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML, MatchParlayProcessXML = @MatchParlayProcessXML
 
 	--Error Table
 	IF @IssueTypeId NOT IN (1,3)
@@ -2240,6 +2289,7 @@ BEGIN
 				,@IsExistFM AS IsExistFM
 				,@IsExistFM2 AS IsExistFM2
 				,@MatchProcessXML AS MatchProcessXML
+				,@MatchParlayProcessXML AS MatchParlayProcessXML
 	END
 	ELSE IF @IssueTypeId = 3
 	BEGIN
@@ -2253,6 +2303,7 @@ BEGIN
 			,ISNULL(IsExistFM,0) AS IsExistFM
 			,ISNULL(@IsExistFM2,0) AS IsExistFM2
 			,MatchProcessXML AS MatchProcessXML
+			,MatchParlayProcessXML AS MatchParlayProcessXML
 			,ScoreId
 		FROM @Validation
 	END
@@ -2268,6 +2319,7 @@ BEGIN
 			,ISNULL(IsExistFM,0) AS IsExistFM
 			,ISNULL(@IsExistFM2,0) AS IsExistFM2
 			,MatchProcessXML AS MatchProcessXML
+			,MatchParlayProcessXML AS MatchParlayProcessXML
 		FROM @Validation
 	END
 

@@ -1,20 +1,16 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
 	@MatchId				INT,
-	
 	@FromTransId			BIGINT = 0, 
 	@ToTransId				BIGINT = 0,			
-	
 	@Bet					VARCHAR(10)		= NULL,
 	@TimeType	 			SMALLINT 		= 0,
 	@FromTransdate			DATETIME 		= NULL,
 	@ToTransdate			DATETIME 		= NULL,
-
 	@LiveIndicator 			SMALLINT 		= 0,
     @LiveHomeScore 			SMALLINT 		= NULL,
     @LiveAwayScore 			SMALLINT 		= NULL,		
     @BetTypes				XML				= NULL,
-	
     @UserName 				NVARCHAR(50),
     @UserPassword			NVARCHAR(50),
     @UserID					INT,
@@ -22,10 +18,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
     @Reason					NVARCHAR(500)	= '',
 	@ReasonSC				NVARCHAR(500)	= '',
 	@SecondAcceptFlag		TINYINT			= 0 ,
-    
 	@TransIds				VARCHAR(MAX)	= '',
 	@TransIdSolds			VARCHAR(MAX)	= '', -- just for BetTrade's subticket (transid of bettype 901)	
-		
 	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
 	@InvalidTransIds		VARCHAR(MAX)	= ''	OUTPUT, -- invalid trans of BTrade
 	@ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
@@ -117,6 +111,7 @@ AS
 		- 20210714@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 		- 20210727@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -200,7 +195,10 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
 
-	DECLARE @session			NVARCHAR(50)	
+	DECLARE @session			NVARCHAR(50)
+		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
+		   ,@totalSubParlay		INT = 0
+
 	DECLARE @CustIds			VARCHAR(MAX) = ''
 	SET @NegativeBalanceUsers = ''
 
@@ -225,6 +223,7 @@ BEGIN
 	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #BetDelete (
 		grouptransid		BIGINT,
@@ -509,11 +508,21 @@ BEGIN
 		WHERE b.matchid = @matchid 
 	 
 		-- Tuning EC2021
-		SELECT TOP 1 @isExistParlay = 1  
+		INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+		SELECT @MatchId, bm.refno
 		FROM #tblTransIds t 
 			INNER LOOP JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid 
 		WHERE bm.matchid  = @matchid  
+			AND bm.statusID NOT IN (101, 102, 103)
+
+		SET @totalSubParlay = @@ROWCOUNT
+		IF @totalSubParlay > 0 
+			SET @isExistParlay = 1
 	END 
+
+	EXEC dbo.NAP_Set_GlobalSettingSel 
+			 @LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistSingle = 1 
@@ -522,21 +531,68 @@ BEGIN
 	UNION ALL
 	SELECT @MatchId AS matchid, 7 AS KeyId WHERE @isExistFM2 = 1
 
-	-- checking SD proccess
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistParlay		= @isExistParlay  
-		,@isExistMatch		= @isExistSingle
-		,@isExistFM			= @isExistFM
-		,@isExistFM2		= @isExistFM2
-		,@spName			= @spName
-		,@avaiableProcess 	= @avaiableProcess OUTPUT
-		,@ErrCode			= @ErrCode OUTPUT
-		,@ErrMsg			= @ErrMsg OUTPUT
+	-- Apply new way to lock parlay tickets	
+	IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+		BEGIN
+			-- checking single proccess
+			EXEC dbo.NAP_Admin_CheckingProcess 
+				 @isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@spName			= @spName
+				,@avaiableProcess 	= @avaiableProcess OUTPUT
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
 
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN	
-		RETURN		
-	END		
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN	
+				RETURN		
+			END	
+		END
+		
+		IF @totalSubParlay > 0
+		BEGIN
+			-- checking Refno parlay proccess
+			EXEC dbo.NAP_Admin_CheckingProcess
+				 @IsLockingByRefno	= 1
+				,@spName			= @spName
+				,@Session			= @Session
+				,@avaiableProcess 	= @avaiableProcess OUTPUT
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
+
+			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+			BEGIN	
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1	
+				RETURN;	
+			END	
+		END
+	END
+	ELSE IF @totalSubParlay > @ThreadHold
+	BEGIN
+		-- checking SD proccess
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistParlay		= @isExistParlay  
+			,@isExistMatch		= @isExistSingle
+			,@isExistFM			= @isExistFM
+			,@isExistFM2		= @isExistFM2
+			,@spName			= @spName
+			,@avaiableProcess 	= @avaiableProcess OUTPUT
+			,@ErrCode			= @ErrCode OUTPUT
+			,@ErrMsg			= @ErrMsg OUTPUT
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		BEGIN	
+			RETURN		
+		END	
+	END
 
 	-- Apply for move match Cricket
 	--Single & Parlay
@@ -553,16 +609,40 @@ BEGIN
 	BEGIN
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Some tickets not found.'
+		
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
 
-		------ releasing SD process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistParlay		= @isExistParlay  
-			,@isExistMatch		= @isExistSingle
-			,@isExistFM			= @isExistFM
-			,@isExistFM2		= @isExistFM2
-			,@IsReleased		= 1
+			IF @totalSubParlay > 0
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
+		END
+		ELSE IF @totalSubParlay > @ThreadHold 
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay		= @isExistParlay  
+				,@isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@IsReleased		= 1
+		END
 
-		RETURN
+		RETURN;
 	END
 
 	------------------***** Insert all data into #BetDelete *****------------------
@@ -1198,13 +1278,38 @@ BEGIN
 			SELECT	@ErrCode = 99
 					,@ErrMsg = 'No ticket found.'
 		
-		------ releasing SD process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch	= @isExistSingle
-			,@isExistParlay = @isExistParlay
-			,@isExistFM		= @isExistFM
-			,@isExistFM2	= @isExistFM2
-			,@IsReleased	= 1
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
+			
+			IF @totalSubParlay > 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END						
+		END
+		ELSE IF @totalSubParlay > @ThreadHold
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay		= @isExistParlay  
+				,@isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@IsReleased		= 1
+
+		END
 			
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2130,13 +2235,38 @@ BEGIN
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-		------ releasing SD process
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch	= @isExistSingle
-			,@isExistFM		= @isExistFM
-			,@isExistParlay = @isExistParlay 
-			,@isExistFM2	= @isExistFM2
-			,@IsReleased	= 1
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
+			
+			IF @totalSubParlay > 0
+			BEGIN
+				------ releasing refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END						
+		END
+		ELSE IF @totalSubParlay > @ThreadHold
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay		= @isExistParlay  
+				,@isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@IsReleased		= 1
+
+		END
 		
 		------ releasing cash-out process
 		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
@@ -2302,5 +2432,6 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #NegativeBalance
 	DROP TABLE #InstantSettlementBettypes
-	
+	DROP TABLE #tblMatchParlayProcess
+
 END
