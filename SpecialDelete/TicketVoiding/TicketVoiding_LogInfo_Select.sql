@@ -1162,7 +1162,7 @@ BEGIN
 				  END
 			) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS SingleCount
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = 1 AND b.MainCashoutId <> tmp.TransId THEN b.transid ELSE NULL END) AS CashOutCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = 1 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL THEN  b.transid ELSE NULL END) AS InstantlySettleCount
 		,MIN(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) NOT IN (1) THEN b.transid ELSE NULL END) AS MaxSingleTransId
@@ -1173,10 +1173,11 @@ BEGIN
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 		OUTER APPLY (
-					SELECT TOP 1 t.TransId
-					FROM #TransidInRequest t 
-					WHERE t.TransId = b.SubTransid
-				)tmp
+				SELECT TOP 1 t.TransId
+				FROM #TransidInRequest t 
+				WHERE t.TransId = b.SubTransid
+					OR (b.betdaqid = 1 AND b.MainCashoutId = t.TransId)
+			)tmp
 	WHERE tmp.TransId IS NULL
 	GROUP BY CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.matchid, b.ScoreId
 	ORDER BY b.ScoreId, CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
