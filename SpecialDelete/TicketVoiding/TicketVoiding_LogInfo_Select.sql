@@ -1844,7 +1844,6 @@ BEGIN
 						where l.MatchId = rd.MatchId
 						FOR XML PATH('')
 						)w (scores)
-		WHERE NOT EXISTS (SELECT 1 FROM @Validation v WHERE v.MatchId = l.MatchId AND v.IsInValidTotalTickets = 1)
 		GROUP BY MatchId, w.scores
 	END
 	ELSE IF @IssueTypeId IN (1,10)
@@ -1869,7 +1868,6 @@ BEGIN
 								where l.MatchId = rd.MatchId
 								FOR XML PATH('')
 								)w (scores) 
-				WHERE NOT EXISTS (SELECT 1 FROM @Validation v WHERE v.MatchId = l.MatchId AND v.IsInValidTotalTickets = 1)
 				GROUP BY MatchId, w.scores
 			)
 		SELECT MatchId
@@ -1924,7 +1922,6 @@ BEGIN
 			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
 			,ScoreId
 		FROM #logInfo l
-		WHERE NOT EXISTS (SELECT 1 FROM @Validation v WHERE v.ScoreId = l.ScoreId AND v.IsInValidTotalTickets = 1)
 		GROUP BY MatchId, LiveScores, ScoreId
 	END
 
