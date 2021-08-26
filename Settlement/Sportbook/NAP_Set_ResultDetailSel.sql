@@ -48,11 +48,11 @@ BEGIN
 
 	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
 	SELECT f.Val
-		  ,m.sporttype 
+		  ,m.sporttype
+		  ,r.ResultTable
 		  ,CASE WHEN m.sporttype IN ( 1, 2, 5, 9, 43, 50 )	THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
-				ELSE r.ResultTable
+				ELSE r.ExternalResultTable
 				END
-		 ,r.ExternalResultTable
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
