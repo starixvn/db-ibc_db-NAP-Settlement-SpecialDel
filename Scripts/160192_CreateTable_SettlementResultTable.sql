@@ -14,6 +14,7 @@
 					2 - ResultDetailOS
 					3 - ResultDetailES
 		ExternalResultTable
+					 0 - Not yet integrate data
 					 1 - ProviderExternalResultDetail
 					 2 - ProviderExternalResultDetailOS
 					 3 - ProviderExternalResultDetailES
@@ -30,11 +31,18 @@ GO
 				, IsSettleByProfile		BIT
 				, IsAppliedSOP			BIT
 				, IsMergedParlay		BIT
-		)
+		) ON [DATA]
 
 GO
 
-BEGIN
+	CREATE CLUSTERED INDEX [IX_SettlementResultTable_Sporttype] ON [dbo].[SettlementResultTable]
+	(
+		[Sporttype] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	ON [DATA]
+
+GO
+
 	INSERT INTO dbo.SettlementResultTable
 				  SELECT 1	, 1 , 3 , 0 , 0 , 0
 		UNION ALL SELECT 2  , 1	, 1 , 1 , 1 , 1
@@ -109,6 +117,7 @@ BEGIN
 		UNION ALL SELECT 69	, 0	, 2 , 0 , 0 , 0
 		UNION ALL SELECT 98	, 0	, 2 , 0 , 0 , 0
 		UNION ALL SELECT 99	, 0	, 2 , 0 , 0 , 0
-END
+
 
 GO
+
