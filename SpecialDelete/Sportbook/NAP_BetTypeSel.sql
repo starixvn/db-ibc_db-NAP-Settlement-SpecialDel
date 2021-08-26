@@ -40,6 +40,7 @@ AS
         - 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
     Param's Explanation:  
     @Mode:   
@@ -63,11 +64,18 @@ BEGIN
         
         SET @Sporttype = 0
         
-        SELECT @Sporttype = sporttype
-        FROM match WITH (NOLOCK)
-        WHERE matchid = @MatchID
+		SELECT @Sporttype = m.sporttype
+        FROM ( 
+			SELECT sporttype
+			FROM dbo.match WITH (NOLOCK)
+			WHERE matchid = @MatchID
+			UNION
+			SELECT sporttype
+			FROM dbo.match3rd WITH (NOLOCK)
+			WHERE match3rdId = @MatchID
+		)m
         
-        IF (@Mode = 9 AND @Sporttype = 50) OR ((@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160))
+        IF (@Mode = 9 AND @Sporttype = 50) OR ((@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160) AND (@Sporttype <> 175))
         BEGIN 
             SET @ErrCode = 100
             SET @ErrMsg ='Invalid match' 
@@ -214,6 +222,18 @@ BEGIN
             ,0 AS liveindicator            
         FROM bettype WITH (NOLOCK)
         WHERE @matchid = 0 AND typeid = 38
+
+		INSERT INTO #TmpBettype (
+            typeid
+            ,type
+            ,liveindicator            
+            )
+        SELECT typeid
+            ,9 AS type -- type = 9: Bitcoin
+            ,0 AS liveindicator            
+        FROM bettype WITH (NOLOCK)
+        WHERE @matchid = 0 AND typeid = 7901
+
     END
     
     IF @Mode = 2

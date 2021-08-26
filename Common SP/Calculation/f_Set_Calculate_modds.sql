@@ -29,6 +29,7 @@ AS
 		- 20200710@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210126@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
+		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		
 */
 RETURN
@@ -431,6 +432,13 @@ RETURN
 					WHEN @betteam IN ( 'AB', 'HL' ) AND @HomeValue = 'A' THEN 1
 					ELSE -1
 				END
+			WHEN @pfId = 7901 THEN
+				CASE
+					WHEN fm = 0 THEN 0
+					WHEN @betteam = 'o' AND fm > 0 THEN 1
+					WHEN @betteam = 'u' AND fm < 0  THEN 1
+					ELSE - 1
+				END
 			ELSE -1 
 		END AS modds
    FROM
@@ -453,7 +461,7 @@ RETURN
 					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
 					--PHAIO 5
 					WHEN @pfID IN (391, 601, 602, 618) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
-					WHEN @pfID IN (387, 386) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
+					WHEN @pfID IN (387, 386, 7901) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID = 401 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
 					WHEN @pfID = 402 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
 

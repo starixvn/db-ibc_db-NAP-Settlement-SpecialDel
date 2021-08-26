@@ -70,14 +70,20 @@ AS;
 		- 20201202@Max: Tuning SP [Redmine: #146485]
 		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
 		- 20210517@July: Enhance performance of Ticket Listing function [Redmine: #154732]
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
 		1: Number Game
 		2: Virtual sports		
+		3: Live casino (Not used)
 		4: MG
 		5: Virtual sports betradar
+		6: Lucky 3 (Not used)
+		7: Bull fighting (Not used)
+		8: Bet Builder 
+		9: Bitcoin
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
 	- @BetTypes: String of bettype for Sportsbook, virtual sports and for Dead Ball - Number game, Live casino	 
@@ -124,7 +130,16 @@ BEGIN
 	SET @p_bettypes = @BetTypes
 
 	DECLARE @SportType SMALLINT = NULL
-	SELECT @SportType = m.sporttype FROM dbo.match m WHERE m.matchid = @MatchId
+	SELECT @Sporttype = m.sporttype
+    FROM ( 
+			SELECT sporttype
+			FROM dbo.match WITH (NOLOCK)
+			WHERE matchid = @MatchID
+			UNION
+			SELECT sporttype
+			FROM dbo.match3rd WITH (NOLOCK)
+			WHERE match3rdId = @MatchID
+		)m
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
 	IF @Type <> 0 SELECT @LiveType = 2
@@ -135,6 +150,7 @@ BEGIN
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
 	CREATE CLUSTERED INDEX IDX_tblSettlementHistory_transid ON #tblSettlementHistory (transid)
+	CREATE TABLE #T_Match (matchtype VARCHAR(10), matchid INT, sporttype SMALLINT, homeid INT, awayid INT, isNeutral BIT)
 
 	IF (@IsReSettled = 1)
 	BEGIN 
@@ -174,13 +190,13 @@ BEGIN
 		END
 	END
 
+	INSERT INTO #T_Match (matchtype, matchid, sporttype, homeid, awayid, isNeutral)
 	SELECT 'match' AS [matchtype]
 	  , matchid
 	  , sporttype
 	  , homeid
 	  , awayid
 	  , isNeutral
-	INTO #T_Match
 	FROM match (NOLOCK)
 	WHERE matchid = @MatchId
 	UNION ALL
@@ -572,7 +588,7 @@ BEGIN
 				FROM	Bettrans b WITH (NOLOCK) 
 				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 					INNER JOIN  #T_Match m WITH (NOLOCK) ON CASE 
-													WHEN b.bettype = 1004 THEN 'match3rd'
+													WHEN b.bettype IN (1004, 7901) THEN 'match3rd' --1004: Bullfighting, 7901: Bitcoin Over/Under
 													ELSE 'match' 
 											    END = m.matchtype 	
 				     LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId											   	
@@ -835,7 +851,7 @@ BEGIN
 				FROM	Bettrans b WITH (NOLOCK) 
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
-													WHEN b.bettype = 1004 THEN 'match3rd'
+													WHEN b.bettype IN (1004, 7901) THEN 'match3rd' --1004: Bullfighting, 7901: Bitcoin Over/Under
 													ELSE 'match' 
 											    END = m.matchtype
 				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId
@@ -1096,7 +1112,7 @@ BEGIN
 						b.oddsspread AS FilterOddsSpread
 				FROM	Bettrans b WITH (NOLOCK) 
 				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
-													WHEN b.bettype = 1004 THEN 'match3rd'
+													WHEN b.bettype IN (1004, 7901) THEN 'match3rd' --1004: Bullfighting, 7901: Bitcoin Over/Under
 													ELSE 'match' 
 											    END = m.matchtype
 				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId
@@ -1351,7 +1367,7 @@ BEGIN
 				FROM	Bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				INNER JOIN  #T_Match m WITH (NOLOCK) on CASE 
-													WHEN b.bettype = 1004 THEN 'match3rd'
+													WHEN b.bettype IN (1004, 7901) THEN 'match3rd' --1004: Bullfighting, 7901: Bitcoin Over/Under
 													ELSE 'match' 
 											    END = m.matchtype 
 				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId				

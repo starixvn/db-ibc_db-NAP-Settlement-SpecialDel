@@ -14,7 +14,9 @@ AS
 	Revisions:
 		- 20170720@Paul: Create new [RedmineID: #77175]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
-
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
+	
+	Param's Explanation:
 */
 
 BEGIN
@@ -49,7 +51,10 @@ BEGIN
 		srecommend		INT,
 		IsNeutral		BIT,
 		CurrencyName	NVARCHAR(50),
-		GroupName		VARCHAR(50)
+		GroupName		VARCHAR(50),
+		EventDate		DATETIME,
+		matchid			INT, 
+		endtime			DATETIME
 	);
 
 	CREATE TABLE #TempBet (
@@ -70,7 +75,9 @@ BEGIN
 		awayid			INT,
 		IsNeutral		BIT,
 		sporttype		SMALLINT,
-		transdate		DATETIME
+		transdate		DATETIME,
+		eventdate		DATETIME,
+		endtime			DATETIME
 	);
 
 	CREATE TABLE #TempBettrans (
@@ -99,9 +106,12 @@ BEGIN
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
 	INSERT INTO #SupportedSports(SportType)
-	VALUES (160); --Lucky3
+	--VALUES (160); --Lucky3
+	VALUES (175); --Bitcoin 
 
-	DECLARE @before_yesterday SMALLDATETIME;
+	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE @before_yesterday SMALLDATETIME
+		   ,@MovebetDate	  DATETIME
 
 	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120);
 
@@ -155,6 +165,7 @@ BEGIN
 			AND b.winlostdate >= @before_yesterday	
 			AND b.betfrom <> 'p';
 
+		------159948 - Support Bitcoin
 		INSERT INTO #TempBet(
 			custid,
 			matchid,
@@ -173,7 +184,9 @@ BEGIN
 			awayid,
 			IsNeutral,
 			sporttype,
-			transdate
+			transdate,
+			eventdate,
+			endtime
 		)
 		SELECT	b.custid,
 				b.matchid,
@@ -186,15 +199,17 @@ BEGIN
 				b.betid,
 				b.transdesc,
 				b.CurrencyName,
-				m.matchcode,
-				m.leagueid,
-				m.homeid,
-				m.awayid,
-				m.IsNeutral,
+				m.MatchNo AS matchcode,
+				m.League3rdId AS leagueid,
+				m.HomeId,
+				m.AwayId,
+				NULL AS IsNeutral,
 				m.sporttype,
-				b.transdate
+				b.transdate,
+				m.eventdate,
+				m.EndTime
 		FROM #TempBettrans b
-			JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
+			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
 
 		CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
@@ -227,7 +242,10 @@ BEGIN
 			awayid,
 			custid,
 			IsNeutral,
-			CurrencyName
+			CurrencyName,
+			EventDate,
+			matchid,
+			endtime
 		)
 		SELECT	z.transid,
 				z.refno,
@@ -256,7 +274,10 @@ BEGIN
 				b.awayid,
 				z.custid,
 				b.IsNeutral,
-				b.CurrencyName
+				b.CurrencyName,
+				b.EventDate,
+				b.matchid,
+				b.endtime
 		FROM dbo.zzzbettrans z WITH(NOLOCK)
 			INNER JOIN #TempBet b
 				ON z.transid = b.transid
@@ -270,13 +291,27 @@ BEGIN
 		SET GroupName = CASE WHEN d.custid IS NULL THEN 'Credit' ELSE 'Deposit' END
 		FROM #RecoverBet t
 			LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid;
+		
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
+		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
+		BEGIN
+			DELETE 
+			FROM #RecoverBet
+				OUTPUT	DELETED.TransId
+				INTO @tmpTransIdMoveBet (TransId)
+			WHERE EventDate <= @MovebetDate
+		END
 
 		INSERT INTO #InvalidTransIds(transid, IsMoved)
 		SELECT	t.transid,
-				CASE WHEN b.transid IS NOT NULL THEN 1 
+				CASE WHEN b.transid IS NOT NULL THEN 1
+					 WHEN m.TransId IS NOT NULL THEN 1
 					ELSE 0 END AS IsMoved
 		FROM #TransIds t
 			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid
+			LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
 		WHERE NOT EXISTS (SELECT 1 FROM #RecoverBet r WHERE r.transid = t.transid);
 	END
 
@@ -306,7 +341,9 @@ BEGIN
 			t.awayid,
 			t.matchcode,
 			t.IsNeutral,
-			t.CurrencyName
+			t.CurrencyName,
+			t.matchid, 
+			t.endtime
 	FROM #RecoverBet t
 	ORDER BY GroupName, transid;
 
@@ -325,6 +362,13 @@ BEGIN
 										WHERE IsMoved = 1
 										FOR XML PATH('')
 									), 1, 1, '');	
+	DROP TABLE #RecoverBet
+	DROP TABLE #TempBet
+	DROP TABLE #TempBettrans
+	DROP TABLE #InvalidTransIds
+	DROP TABLE #TransIds
+	DROP TABLE #TempTransIds
+	DROP TABLE #SupportedSports
 
 	SET NOCOUNT OFF;
 END

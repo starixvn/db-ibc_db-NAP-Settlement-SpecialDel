@@ -95,6 +95,7 @@ AS
 	  - 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 	  - 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	  - 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+	  - 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	 Param's Explanation:   
 	*/
@@ -149,8 +150,6 @@ BEGIN
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
 			,@IsExistBB					BIT = 0
-			,@Remark					VARCHAR (500) = ''
-			,@startTime					DATETIME
 			,@isExistLucky3				BIT = 0
 			,@Lucky3TransIDs			VARCHAR(MAX)
 			,@Lucky3Matches				VARCHAR(MAX) = ''
@@ -158,6 +157,7 @@ BEGIN
 			,@query						NVARCHAR(MAX) = ''
 			,@ExecuteSQL				NVARCHAR(MAX) = ''
 			,@Movebetdate				DATETIME
+			,@isExistMatch3rd			BIT = 0
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))							
 			,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
@@ -278,6 +278,7 @@ BEGIN
 		,MainTransId	BIGINT
 		,IsFinish		BIT
 		,actual_stake   MONEY
+		,EndTime		DATETIME
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -737,7 +738,6 @@ BEGIN
 		FROM	#BetDelete b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		
 		WHERE bettype NOT IN (9, 29, 2799)
 			
 	END
@@ -759,10 +759,8 @@ BEGIN
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	o.leagueid = l.leagueid
-			
 		WHERE bettype IN (10)
 	END
-	
 	
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
 	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238)))
@@ -776,7 +774,6 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,sporttype 	= r.sporttype
-		
 		FROM	#BetDelete b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -786,12 +783,27 @@ BEGIN
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
-		UPDATE b
+		UPDATE d
 		SET sporttype = sb.SportType
-		FROM #BetDelete b
+		FROM #BetDelete d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
+			ON d.bettype = sb.BetType
 		WHERE sb.ProductID = 37
+	END
+	-- UPDATE Sportype, Endtime for Bitcoin 
+	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 7901 AND 7999))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+			,eventdate  = m.EventDate
+			,EndTime    = m.EndTime
+		FROM #BetDelete d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
 	END
 	
 	-- remove un-supported sports & bettype
@@ -848,16 +860,13 @@ BEGIN
 	
 	IF ISNULL(@TransIdSolds,'') <> ''
 	BEGIN
-		
 		INSERT INTO #tblTransIdSolds(grouptransid, transid)
 		SELECT  
 			sub.refno
 			, sub.transid
-		
 		FROM dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN #tblMatch tm 
 			ON sub.matchid 	= tm.matchid
-			
 		WHERE sub.bettype 	= 901
 			AND EXISTS (
 				SELECT TOP 1 1 
@@ -948,6 +957,7 @@ BEGIN
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 		OUTER APPLY (
 					SELECT GroupId
@@ -965,6 +975,7 @@ BEGIN
 					AND Bettype NOT BETWEEN 801 AND 899
 					AND f.GroupId IS NULL
 					AND Bettype NOT IN (1231,1232,1233)
+					AND Bettype NOT BETWEEN 7901 AND 7999
 				THEN 1 --SB,NG,LC
 			WHEN Bettype = 10 THEN 2	-- Outright
 			WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
@@ -972,6 +983,7 @@ BEGIN
 			WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
 			WHEN Bettype = 38 THEN 5 -- Bet Builder
 			WHEN f.GroupId = 2 THEN 7 -- FM 228
+			WHEN Bettype BETWEEN 7901 AND 7999 THEN 8 --Bitcoin
 			ELSE 0
 		END AS KeyID
 	FROM #BetDelete b
@@ -996,7 +1008,7 @@ BEGIN
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN	
 		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
-			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
+			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 OR @isExistMatch3rd = 1
 		BEGIN
 			-- checking single proccess
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -1009,6 +1021,7 @@ BEGIN
 				, @isExistBB				= @isExistBB
 				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 				, @isExistFM2				= @isExistFM2
+				, @isExistMatch3rd			= @isExistMatch3rd
 				, @spName					= @spName
 				, @avaiableProcess 			= @avaiableProcess OUTPUT
 				, @ErrCode					= @ErrCode OUTPUT
@@ -1050,6 +1063,7 @@ BEGIN
 					, @isExistBB				= @isExistBB
 					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 					, @isExistFM2				= @isExistFM2
+					, @isExistMatch3rd			= @isExistMatch3rd
 					, @IsReleased				= 1
 						
 				-------> releasing cash-out process
@@ -1076,6 +1090,7 @@ BEGIN
 			, @isExistBB				= @isExistBB
 			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 			, @isExistFM2				= @isExistFM2
+		    , @isExistMatch3rd			= @isExistMatch3rd
 			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
@@ -1927,7 +1942,7 @@ BEGIN
 	END
 	
 	--Get data before update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -1939,6 +1954,7 @@ BEGIN
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END AS groupId
 		FROM dbo.bettrans b WITH(NOLOCK)
@@ -1949,12 +1965,14 @@ BEGIN
 			OR b.bettype BETWEEN 1201 AND 1299
 			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
+			OR b.bettype BETWEEN 7901 AND 7999
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120THEN 81
 				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
 	END
@@ -1971,7 +1989,7 @@ BEGIN
 		 , custid
 		 , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
+				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
 				ELSE 4  -- Others
 		   END AS balanceType
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
@@ -2087,7 +2105,7 @@ BEGIN
 		   , CustID
 		   , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
+				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
 				ELSE 4  -- Others
 		     END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
@@ -2557,7 +2575,7 @@ BEGIN
 	END
 	
 	--Get data after update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -2569,6 +2587,7 @@ BEGIN
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
 		FROM dbo.bettrans b WITH(NOLOCK)
@@ -2579,12 +2598,14 @@ BEGIN
 			OR tmp.Bettype BETWEEN 1201 AND 1299
 			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
+			OR b.bettype BETWEEN 7901 AND 7999
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
 				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
+				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
 	END
@@ -2601,7 +2622,7 @@ BEGIN
 		 , custid
 		 , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
+				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
 				ELSE 4  -- Others
 		   END AS balanceType
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
@@ -2699,7 +2720,7 @@ BEGIN
 		   , CustID
 		   , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
+				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
 				ELSE 4  -- Others
 			 END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
@@ -2711,7 +2732,7 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1 OR @isExistMatch3rd = 1)
 	BEGIN
 		
 		CREATE TABLE #balanceGameChange (
@@ -2776,7 +2797,7 @@ BEGIN
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN
 		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
-			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
+			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 OR @isExistMatch3rd = 1
 		BEGIN
 			------ releasing single process
 			EXEC dbo.NAP_Admin_CheckingProcess
@@ -2789,6 +2810,7 @@ BEGIN
 				, @isExistBB				= @isExistBB
 				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 				, @isExistFM2				= @isExistFM2
+				, @isExistMatch3rd			= @isExistMatch3rd
 				, @IsReleased				= 1
 		END
 
@@ -2815,6 +2837,7 @@ BEGIN
 			, @isExistBB				= @isExistBB
 			, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 			, @isExistFM2				= @isExistFM2
+		    , @isExistMatch3rd			= @isExistMatch3rd
 			, @IsReleased				= 1
 	END
 		
@@ -2961,6 +2984,7 @@ BEGIN
 			ELSE CAST(0 AS BIT)
 		END AS IsInstantSettlementTicket
 		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
+		,b.EndTime --Support bitcoin
 	FROM	#BetDelete b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid

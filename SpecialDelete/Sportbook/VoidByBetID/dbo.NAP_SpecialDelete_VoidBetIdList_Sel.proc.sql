@@ -61,6 +61,7 @@ AS;
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -162,7 +163,8 @@ BEGIN
               MainTransId           BIGINT,
 			  IsMarked			 	BIT,
 			  ActualStake			MONEY,
-			  eventdate				DATETIME
+			  eventdate				DATETIME,
+			  EndTime				DATETIME, --support Bitcoin
              );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode BIGINT,
@@ -735,7 +737,6 @@ BEGIN
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-			
 		WHERE d.bettype IN (1231,1232,1233,1237,1238)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
@@ -746,6 +747,21 @@ BEGIN
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID = 37
+	END
+	-- UPDATE Sportype, Endtime for Bitcoin 
+	IF(EXISTS(SELECT TOP 1 1 FROM #Data WHERE bettype BETWEEN 7901 AND 7999))
+	BEGIN
+		UPDATE d
+		SET  matchcode 	= m.MatchNo
+			,homeid 	= m.HomeId
+			,awayid 	= m.AwayId
+			,leagueid 	= m.League3rdId
+			,sporttype 	= m.SportType
+			,eventdate  = m.EventDate
+			,EndTime    = m.EndTime
+		FROM #Data d
+			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
+			ON d.matchid = m.Match3rdId
 	END
 
 	IF(EXISTS(SELECT TOP 1 1 FROM #Data WHERE bettype IN (9,29,2799)))
@@ -1137,6 +1153,7 @@ BEGIN
 		,m.GlobalShowTime
 		,c.custid
 		,d.ActualStake
+		,d.EndTime 
 	FROM #Data d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid

@@ -15,6 +15,7 @@ AS
 		- 20180305@Helen: Initialize - [Redmine: 90153]
 		- 20190228@Kathy: Support get match info in table match14 [Redmine:#90155]
 		- 20210106@Charles: Support get match info for another product [Redmine:#143666]
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -58,7 +59,9 @@ BEGIN
 					NULL AS IsNeutral,
 					NULL AS showtime,
 					NULL AS kickofftime,
-					match.sporttype
+					match.sporttype,
+					match.StartTime,
+					match.EndTime
 				FROM dbo.Match3rd AS match WITH (NOLOCK) 
 				WHERE match.Match3rdId = @matchID
 		END
