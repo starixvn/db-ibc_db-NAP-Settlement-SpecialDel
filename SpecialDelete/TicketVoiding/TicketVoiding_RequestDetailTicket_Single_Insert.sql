@@ -53,6 +53,7 @@ AS
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20210827@Max: [TVS] Wrong Score Enhancement 2 - Do not exclude ticket in other request for Take Note action [Redmine: #157096]
 
 	Param's explanation:
 		(+) @FilterBy:	0 - by BetID
@@ -161,7 +162,7 @@ BEGIN
 
 	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 
-	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT, VoidFromTime DATETIME, VoidToTime DATETIME, SubIssueTypeId SMALLINT)
+	CREATE TABLE #DangerAccept_SingleTickets (TransId BIGINT, StatusId INT, MatchId INT, isFinish BIT, VoidFromTime DATETIME, VoidToTime DATETIME, SubIssueTypeId SMALLINT, refno BIGINT)
 	CREATE INDEX IX_TransId ON #DangerAccept_SingleTickets(TransId)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
@@ -270,11 +271,12 @@ BEGIN
 				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
 			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
 
-			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId)
+			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno)
 			SELECT b.transid
 				, b.statusID
 				, b.matchid
 				, t.SubIssueTypeId
+				, b.refno
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid 
@@ -349,7 +351,7 @@ BEGIN
 				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
 			WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
 
-			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId)
+			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno)
 			SELECT b.transid
 				, b.statusID
 				, b.matchId
@@ -368,6 +370,13 @@ BEGIN
 							 ELSE 0 END
 		END
 							  
+		-- delete cash-out member bet tickets
+		DELETE t
+		FROM #DangerAccept_SingleTickets t
+		WHERE EXISTS (SELECT TOP 1 1
+						FROM bettrans sub911 (NOLOCK)
+						WHERE sub911.bettype = 911
+						AND sub911.transid = t.refno)			
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
@@ -417,6 +426,7 @@ BEGIN
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = t.MatchId
 									AND r.ActionId NOT IN (2)
+									AND @ActionId <> 2
 						)tmp
 		WHERE tmp.TransId IS NULL
 		
@@ -1177,12 +1187,13 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 		
-		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, VoidFromTime, VoidToTime)
+		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, VoidFromTime, VoidToTime, refno)
 		SELECT b.transid
 			, b.statusID
 			, @MatchId
 			, s.VoidFromTime
 			, s.VoidToTime
+			, b.refno
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.BetType
@@ -1200,6 +1211,15 @@ BEGIN
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 
+		
+		-- delete cash-out member bet tickets
+		DELETE t
+		FROM #DangerAccept_SingleTickets t
+		WHERE EXISTS (SELECT TOP 1 1
+						FROM bettrans sub911 (NOLOCK)
+						WHERE sub911.bettype = 911
+						AND sub911.transid = t.refno)
+		
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
@@ -1242,6 +1262,7 @@ BEGIN
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = @MatchId
 									AND r.ActionId NOT IN (2)
+									AND @ActionId <> 2
 						)tmp
 		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 
