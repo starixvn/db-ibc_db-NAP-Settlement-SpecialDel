@@ -356,6 +356,7 @@ BEGIN
 				, b.statusID
 				, b.matchId
 				, t.SubIssueTypeId
+				, b.refno
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
