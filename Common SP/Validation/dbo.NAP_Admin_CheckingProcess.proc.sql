@@ -35,7 +35,8 @@ AS
 	- 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
-
+	- 20210828@Helen: Hotfix - keyvalue2 issue [Redmine:#160889]
+	
  Param's Explanation:   
 	@SubParlayKey:
 		1: single
@@ -336,7 +337,7 @@ BEGIN
 						FROM	dbo.TempVariableNumber t
 							INNER JOIN #tblMatchProcessKeyValue2 b
 								ON t.keyid = b.keyid
-									and t.keyvalue = b.keyvalue
+									and t.KeyValue = b.matchid
 									and t.keyvalue2 = b.keyvalue2
 						WHERE	@checkKeyValue2 = 1
 
