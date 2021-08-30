@@ -22,7 +22,8 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SportType SMALLINT = 0
-		  ,@ExternalResultTable TINYINT
+		  ,@ExternalResultTable TINYINT = 0
+		  ,@IsAppliedSOP	BIT = 0
 
 	DECLARE @tmpProviderExternalResult AS TABLE 
 		(SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
@@ -31,11 +32,12 @@ BEGIN
 	FROM dbo.Match m WITH(NOLOCK)
 	WHERE m.MatchID = @MatchId
 
-	SELECT @ExternalResultTable = r.ExternalResultTable 
-	FROM dbo.f_Set_GetResultTable() r 
+	SELECT @ExternalResultTable = r.ExternalResultTable
+		 , @IsAppliedSOP		= r.IsAppliedSOP
+	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
 
-	IF @SportType IN ( 2, 5, 9, 50 ) ---Applied SOP
+	IF @IsAppliedSOP = 1
 	BEGIN
 		INSERT INTO @tmpProviderExternalResult (SourceId, SourceName, Remark, ResourceId, HomeValue, AwayValue, OrderNo)
 		EXEC [dbo].[NAP_Set_ProviderExternalResultDetailOSLatestInfoSel]

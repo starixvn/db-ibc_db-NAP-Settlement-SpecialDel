@@ -17,6 +17,7 @@ AS
 		- 220201113@Louisa: Update Result Setting - Apply for Soccer, Basketball, Badminton, E-Sports[Redmine:#135097]
 		- 20210201@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -48,12 +49,14 @@ BEGIN
 	IF @ActionId IS NULL OR ( @Type = 2 AND @SportType NOT IN ( 5, 43 ) )
 	RETURN
 
-	SELECT @ResultTable =  f.ResultTable FROM [dbo].[f_Set_SettingByProfile] (@Sporttype) f
-							/*@ResultTable:
-								 1: ResultDetail
-								 2: ResultDetailOS
-								 3: ResultDetailES
-							*/
+	SELECT @ResultTable =  r.ResultTable 
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+	WHERE r.Sporttype = @SportType
+	/*@ResultTable:
+			1: ResultDetail
+			2: ResultDetailOS
+			3: ResultDetailES
+	*/
 
 	INSERT INTO @tmpResultDetail ( ResourceId)
 	SELECT DISTINCT

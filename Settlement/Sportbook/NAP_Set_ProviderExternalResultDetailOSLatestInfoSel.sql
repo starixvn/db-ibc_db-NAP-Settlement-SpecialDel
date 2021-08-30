@@ -43,7 +43,7 @@ BEGIN
 				,p.HomeValue
 				,p.AwayValue
 		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
-		WHERE	@SportType IN ( 5, 9, 50 )
+		WHERE	@SportType <> 2
 			AND p.MatchId = @MatchId
 
 		UNION ALL

@@ -24,7 +24,7 @@
 USE bodb02
 GO
 
-	CREATE TABLE dbo.SettlementResultTable ( 
+	CREATE TABLE dbo.SettlementResultTableSetting ( 
 				  Sporttype				SMALLINT
 				, ResultTable			TINYINT
 				, ExternalResultTable	TINYINT
@@ -35,15 +35,15 @@ GO
 
 GO
 
-	CREATE CLUSTERED INDEX [IX_SettlementResultTable_Sporttype] ON [dbo].[SettlementResultTable]
+	CREATE CLUSTERED INDEX [CIX_SettlementResultTable_Sporttype] ON [dbo].[SettlementResultTableSetting]
 	(
 		[Sporttype] ASC
 	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
 	ON [DATA]
 
 GO
-
-	INSERT INTO dbo.SettlementResultTable
+	----70 rows
+	INSERT INTO dbo.SettlementResultTableSetting
 				  SELECT 1	, 1 , 3 , 0 , 0 , 0
 		UNION ALL SELECT 2  , 1	, 1 , 1 , 1 , 1
 		UNION ALL SELECT 3  , 0	, 1 , 0 , 0 , 0
@@ -59,7 +59,7 @@ GO
 
 
 		UNION ALL SELECT 5	, 1	, 2 , 1 , 1 , 1
-		UNION ALL SELECT 7	, 0	, 2 , 0 , 0
+		UNION ALL SELECT 7	, 0	, 2 , 0 , 0 , 1
 		UNION ALL SELECT 9	, 2	, 2 , 1 , 1 , 1
 		UNION ALL SELECT 10	, 0	, 2 , 0 , 0 , 0
 		UNION ALL SELECT 11	, 0	, 2 , 0 , 0 , 0

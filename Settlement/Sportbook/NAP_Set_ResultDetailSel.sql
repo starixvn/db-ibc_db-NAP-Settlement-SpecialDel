@@ -50,13 +50,13 @@ BEGIN
 	SELECT f.Val
 		  ,m.sporttype
 		  ,r.ResultTable
-		  ,CASE WHEN m.sporttype IN ( 1, 2, 5, 9, 43, 50 )	THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+		  ,CASE WHEN m.sporttype =  1 OR ISNULL(r.IsAppliedSOP,0) = 1THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
 				ELSE r.ExternalResultTable
 				END
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
-		INNER JOIN dbo.f_Set_GetResultTable() r
+		LEFT JOIN dbo.SettlementResultTableSetting r WITH(NOLOCK)
 			ON r.Sporttype = m.SportType
 	OPTION (maxrecursion 0)
 

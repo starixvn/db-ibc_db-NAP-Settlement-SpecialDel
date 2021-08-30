@@ -30,6 +30,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 		
     Param's Explanation: 
     
@@ -59,11 +60,11 @@ BEGIN
 			,@htawayscore INT
 			,@othomescore INT
 			,@otawayscore INT
-			,@ResultTable	  TINYINT = 0
+			,@ResultTable TINYINT = 0
 		
     -------------END DECLARE    
     
-	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile(@sporttype) f
+	SELECT @ResultTable = r.ResultTable FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) WHERE r.Sporttype = @Sporttype
 
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
@@ -179,7 +180,7 @@ BEGIN
 		WHERE r.MatchID = @MatchID
 			AND sd.AllowDirectly = 0
     END 
-    ELSE 
+    ELSE IF @ResultTable = 1 
     BEGIN
 	    MERGE dbo.ResultDetail TARGET
 	    USING (
