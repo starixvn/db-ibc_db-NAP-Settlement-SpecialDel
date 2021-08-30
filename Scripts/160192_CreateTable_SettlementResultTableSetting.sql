@@ -1,8 +1,8 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02,DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 /*
-    Created by: 20200824@Louisa
+    Created by: 20210819@Louisa
     Task: Definition for Table stored result
-    DB: DBPRO-bodb02 
+    DB: DBPRO-bodb02,DBTXN-bodb02 
 
 	 Revisions:
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
@@ -23,7 +23,7 @@
 
 USE bodb02
 GO
-
+	
 	CREATE TABLE dbo.SettlementResultTableSetting ( 
 				  Sporttype				SMALLINT
 				, ResultTable			TINYINT
@@ -35,13 +35,13 @@ GO
 
 GO
 
-	CREATE CLUSTERED INDEX [CIX_SettlementResultTable_Sporttype] ON [dbo].[SettlementResultTableSetting]
-	(
-		[Sporttype] ASC
-	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
-	ON [DATA]
-
+ALTER TABLE [dbo].[SettlementResultTableSetting] ADD  CONSTRAINT [PK_SettlementResultTableSetting] PRIMARY KEY CLUSTERED 
+(
+	[Sporttype] ASC
+)
+ON [DATA]
 GO
+
 	----70 rows
 	INSERT INTO dbo.SettlementResultTableSetting
 				  SELECT 1	, 1 , 3 , 0 , 0 , 0

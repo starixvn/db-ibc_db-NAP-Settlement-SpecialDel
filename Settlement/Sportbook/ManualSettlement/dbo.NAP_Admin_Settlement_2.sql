@@ -40,7 +40,7 @@ BEGIN
 	DECLARE @parentmatchId INT, @ResultTable TINYINT = 0
 
 	SELECT @ResultTable = r.ResultTable 
-	FROM   DBPRO.bodb02.dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
 
 	IF @Sporttype = 50
