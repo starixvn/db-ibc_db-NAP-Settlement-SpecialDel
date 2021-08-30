@@ -1,8 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select] @MatchID       INT,
-                                                                @LicenseeNames VARCHAR(MAX),
-                                                                @TicketType    VARCHAR(100) = 'All',
-                                                                @CurrencyIDs   VARCHAR(MAX)
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Select] 
+(
+	@MatchID       INT,
+    @LicenseeNames VARCHAR(MAX),
+    @TicketType    VARCHAR(100) = 'All',
+    @CurrencyIDs   VARCHAR(MAX),
+	@IsOutright		BIT = 0
+)
 AS;
 /*
 	Created: Kent
@@ -26,6 +30,7 @@ AS;
 		- 20200422@Charles: Not support refund status [132661]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
+		- 20210827@Max: [TVS] Support Outright on Void By Currency [Redmine: #159540]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -53,14 +58,29 @@ BEGIN
 		,@IsNeutral			BIT
 		,@SportType			SMALLINT
 
-	SELECT @SettlementStatus = m.SettlementStatus
-			,@GlobalShowTime = m.GlobalShowTime
-			,@HomeId = homeid
-			,@AwayId = awayid
-			,@SportType = sporttype
-			,@IsNeutral = ISNULL(IsNeutral,0)
-	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.matchid = @MatchId
+	IF @IsOutright = 0 
+	BEGIN
+		SELECT @SettlementStatus = m.SettlementStatus
+				,@GlobalShowTime = m.GlobalShowTime
+				,@HomeId = homeid
+				,@AwayId = awayid
+				,@SportType = sporttype
+				,@IsNeutral = ISNULL(IsNeutral,0)
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.matchid = @MatchId
+	END
+	ELSE
+	BEGIN
+		SELECT @SettlementStatus = NULL
+				,@GlobalShowTime = NULL
+				,@HomeId = o.teamid
+				,@AwayId = 0
+				,@SportType = l.sporttype
+				,@IsNeutral = 0
+		FROM	dbo.outright o WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
+		WHERE	o.orid = @MatchId
+	END
 
 	CREATE TABLE #SpecialDeleteBets(
 		GroupID               BIGINT,	
