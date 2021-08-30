@@ -166,9 +166,6 @@ BEGIN
 	SET @AccumTurnover = ISNULL(@AccumTurnover,0) + ISNULL(@AccumTurnover_InQueue,0)
 	SET @AccumPayout = ISNULL(@AccumPayout,0) + ISNULL(@AccumPayout_InQueue,0)
 
-	SELECT @AccumTurnover AS AccumTurnover
-		, @AccumPayout AS AccumPayout 
-
 	DROP TABLE #CustLimitBet_tmp
 END	
 GO
