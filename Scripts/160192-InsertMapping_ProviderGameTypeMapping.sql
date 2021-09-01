@@ -12,8 +12,6 @@
 USE bodb02
 GO
 
-BEGIN
-
 	IF NOT EXISTS ( SELECT TOP 1 1 
 					FROM dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
 					WHERE pgm.sporttype = 5 AND SourceId = 1
@@ -24,11 +22,16 @@ BEGIN
 					SourceId
 					,GameType
 					,Remark
-					,OrderNo
 					,isActive
 					,sporttype
 					)
-		SELECT 1, 0, '', 1, 1, 5
+		SELECT 1, 0, '', 1, 5
 	END
 
-END
+GO
+
+	UPDATE dbo.ProviderGameTypeMapping WITH(ROWLOCK, UPDLOCK)
+	SET OrderNo = SourceId
+	WHERE sporttype <> 43
+
+GO

@@ -115,7 +115,6 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
-	ORDER BY t.ResourceId, t.SourceId
 
 
 
