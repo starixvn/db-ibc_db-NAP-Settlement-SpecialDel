@@ -29,14 +29,13 @@ BEGIN
 	FROM dbo.Match m WITH(NOLOCK) 
 	WHERE m.MatchId = @MatchId
 
-	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), TopSourceId TINYINT)
+	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
 
 	;WITH cteLatestId
 	AS(
 		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
-				,DENSE_RANK() OVER (ORDER BY p.SourceId ) AS TopSourceId
 				,p.SourceId
 				,p.ResourceId
 				,p.ProviderExternalId
@@ -48,7 +47,6 @@ BEGIN
 
 		UNION ALL
 		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
-				,DENSE_RANK() OVER (ORDER BY p.SourceId ) AS TopSourceId
 				,p.SourceId
 				,p.ResourceId
 				,p.ProviderExternalId
@@ -59,15 +57,12 @@ BEGIN
 			AND p.MatchId = @MatchId	
 	)
 
-	INSERT INTO @tmpLatestResult (SourceId,ResourceId, HomeValue, AwayValue, TopSourceId)
-	SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue, l.TopSourceId
+	INSERT INTO @tmpLatestResult (SourceId,ResourceId, HomeValue, AwayValue)
+	SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
 	FROM cteLatestId l	
 		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
 			ON l.ResourceId = fsmr.ResourceId
 	WHERE rn = 1
-		AND 1 = CASE @SportType WHEN 5 THEN CASE WHEN l.TopSourceId <=2  THEN 1
-													ELSE 0 END
-								ELSE 1 END
 		AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
 				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
 				   ELSE 0
@@ -120,6 +115,7 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
+	ORDER BY t.ResourceId, t.SourceId
 
 
 
