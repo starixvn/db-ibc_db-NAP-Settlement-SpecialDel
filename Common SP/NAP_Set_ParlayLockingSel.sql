@@ -51,10 +51,10 @@ BEGIN
 		, COUNT(p.Refno) AS TotalAffectedRefno
 		, p.Session 
 		, p.SPName 
-		, p.CreatedDate
+		, MIN(p.CreatedDate) AS CreatedDate
 	FROM @tmpParlayLocking p
-	GROUP BY p.MatchId, p.Session, p.SPName, p.CreatedDate
-	ORDER BY p.CreatedDate DESC
+	GROUP BY p.MatchId, p.Session, p.SPName
+	ORDER BY CreatedDate DESC
 
 END
 GO
