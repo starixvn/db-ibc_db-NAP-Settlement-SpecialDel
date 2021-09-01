@@ -19,6 +19,7 @@ AS
 		- 20200813@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20210302@July: Integrate Cricket AIO [Redmine:#150075] 
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20210901@July: Integrate Cricket AIO Phase 1.2 [Redmine:#160660] 
 
     Parameters Explanation:    
     
@@ -589,6 +590,19 @@ RETURN (
 	UNION ALL SELECT 9604,'FT',0
 	UNION ALL SELECT 9605,'FT',0
 	UNION ALL SELECT 9606,'FT',0
+	
+	--Integrate Cricket AIO P1.2 [160660]
+	UNION ALL SELECT 9442,'FT',0
+	UNION ALL SELECT 9443,'FT',0
+	UNION ALL SELECT 9607,'Special',1
+	UNION ALL SELECT 9608,'Special',1
+	UNION ALL SELECT 9609,'Special',1
+	UNION ALL SELECT 9610,'Special',1
+	UNION ALL SELECT 9611,'Special',1
+	UNION ALL SELECT 9612,'Special',1
+	UNION ALL SELECT 9613,'Special',1
+	UNION ALL SELECT 9614,'Special',1
+		
 	)
 
 GO
