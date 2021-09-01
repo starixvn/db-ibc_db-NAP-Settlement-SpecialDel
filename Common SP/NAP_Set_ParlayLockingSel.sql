@@ -28,30 +28,31 @@ BEGIN
 	DECLARE @tmpParlayLocking TABLE 
 	(MatchId INT, Refno BIGINT, Session NVARCHAR(100), SPName SYSNAME, CreatedDate DATETIME)
 
-	INSERT INTO @tmpParlayLocking (MatchId, Refno, Session, SPName, CreatedDate)
-	SELECT i.MatchId, i.Refno, i.Session, i.SPName, i.CreatedDate
-	FROM dbo.ParlayLockingHistory i WITH(NOLOCK)
-	WHERE i.Action = 'I'
-		AND i.CreatedDate BETWEEN @FromDateTime AND @ToDatetime
-		AND ( @MatchId = 0 OR  i.MatchId =  @MatchId)
-		AND NOT EXISTS (
-			SELECT TOP 1 1
-			FROM dbo.ParlayLockingHistory d WITH(NOLOCK)
-			WHERE d.MatchId =  d.MatchId
-				AND d.Refno = d.Refno
-				AND d.Action = 'D'
-				AND d.CreatedDate > i.CreatedDate
-		)
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking p WITH(NOLOCK) )
+	BEGIN
+		INSERT INTO @tmpParlayLocking (MatchId, Refno, Session, SPName, CreatedDate)
+		SELECT i.MatchId, i.Refno, i.Session, i.SPName, i.CreatedDate
+		FROM dbo.ParlayLockingHistory i WITH(NOLOCK)
+		WHERE i.Action = 'I'
+			AND i.CreatedDate BETWEEN @FromDateTime AND @ToDatetime
+			AND ( @MatchId = 0 OR  i.MatchId =  @MatchId)
+			AND NOT EXISTS (
+				SELECT TOP 1 1
+				FROM dbo.ParlayLockingHistory d WITH(NOLOCK)
+				WHERE d.MatchId =  i.MatchId
+					AND d.Refno =  i.Refno
+					AND d.Session = i.Session
+					AND d.Action = 'D'
+					AND d.CreatedDate > i.CreatedDate
+			)
+	END
 	
 	SELECT p.MatchID
-		, COUNT(bm.Refno) AS TotalAffectedRefno
+		, COUNT(p.Refno) AS TotalAffectedRefno
 		, p.Session 
 		, p.SPName 
 		, p.CreatedDate
 	FROM @tmpParlayLocking p
-		INNER JOIN Bettransm bm WITH(NOLOCK)
-				ON bm.Refno = p.Refno
-	WHERE bm.matchid =  p.MatchId
 	GROUP BY p.MatchId, p.Session, p.SPName, p.CreatedDate
 	ORDER BY p.CreatedDate DESC
 
