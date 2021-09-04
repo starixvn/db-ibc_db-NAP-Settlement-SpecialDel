@@ -16,10 +16,11 @@ AS
 		- 20160419@Kathy: change main SP to NAP_Admin_Settlem [Redmine:#52426]
 		- 20161205@Bobby: #61352 - Apply settle determined for parlay bet types
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210904@Kathy: Data is Inserted into Table Settled_Message Continuously [Redmine:#161175]
 */
 BEGIN
 	SET NOCOUNT ON
-
+	
 	DECLARE @matchid VARCHAR(2000)
 		,@creator INT
 		,@action VARCHAR(20)
@@ -32,6 +33,7 @@ BEGIN
 		,@Sporttype SMALLINT
 		,@sqlCommand NVARCHAR(MAX)
 		,@LockedByRefno BIT = 0
+		,@LockedBySystemSetting BIT = 0
 	
 	IF EXISTS (
 			SELECT TOP 1 1
@@ -71,6 +73,7 @@ BEGIN
 				SET VValue = 1
 			WHERE VName = 'isCalculatingParlay'
 		
+			SET @LockedBySystemSetting = 1
 		END
 		ELSE
 			RETURN
@@ -85,6 +88,16 @@ BEGIN
 			,@IP = IP
 			,@sqlCommand = sqlCommand
 	WHERE keyid = @keyId
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		IF @LockedBySystemSetting = 1
+			UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+				SET VValue = 0
+			WHERE VName = 'isCalculatingParlay'
+
+		RETURN
+	END
 
 	BEGIN TRY
 		IF ISNULL(@sqlCommand,'') <> ''
@@ -121,7 +134,7 @@ BEGIN
 	BEGIN CATCH
 		SET @ErrMsg = ERROR_MESSAGE()
 	END CATCH
-
+	
 	IF ISNULL(@ErrCode, 0) <> 0 OR ISNULL(@ErrMsg, '') <> '' --- calculate failed set calculating = 0 back
 	BEGIN
 		UPDATE Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
@@ -172,7 +185,7 @@ BEGIN
 				AND IsCalculating = 1
 	END
 	
-	IF ISNULL(@LockedByRefno,0) = 0
+	IF @LockedBySystemSetting = 1
 		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
 			SET VValue = 0
 		WHERE VName = 'isCalculatingParlay'
