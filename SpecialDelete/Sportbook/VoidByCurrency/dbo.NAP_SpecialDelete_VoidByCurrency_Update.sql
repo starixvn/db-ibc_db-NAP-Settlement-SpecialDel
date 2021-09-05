@@ -109,6 +109,10 @@ BEGIN
 		   ,@sporttype SMALLINT = NULL
 		   ,@ParentID INT = NULL
 		   ,@ChildMatchType TINYINT = NULL
+		   ,@HomeId				INT
+		   ,@AwayId				INT
+		   ,@IsNeutral		BIT
+		   ,@Sporttype		SMALLINT
 
 	IF @IsOutright = 0
 	BEGIN
@@ -118,6 +122,10 @@ BEGIN
 		  ,@sporttype = m.sporttype
 		  ,@ParentID = ISNULL(m.ParentID, 0)
 		  ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
+			  ,@HomeId = m.homeid
+			  ,@AwayId = m.awayid
+			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			  ,@Sporttype = m.sporttype
 		FROM dbo.match m WHERE m.matchid = @MatchId
 	END
 	ELSE
@@ -125,7 +133,14 @@ BEGIN
 		SELECT @SettlementStatus = NULL
 			  ,@GlobalShowTime = NULL
 			  ,@Eventdate = o.eventdate
-		FROM dbo.outright o WHERE o.orid = @MatchId
+			  ,@HomeId = o.teamid
+			  ,@AwayId = 0
+			  ,@IsNeutral = 0
+			  ,@Sporttype = l.sporttype
+		FROM dbo.outright o WITH (NOLOCK)
+			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
+		WHERE o.orid = @MatchId
+			
 	END
 
 	/*Modify the way to get move bet date*/
@@ -502,7 +517,7 @@ BEGIN
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
-					m.AwayId,
+					@AwayId,
 					b.BetCheck,
 					b.BetId,
 					b.BetTeam,
@@ -512,16 +527,16 @@ BEGIN
 					b.Creator,
 					b.Hdp1,
 					b.Hdp2,
-					m.HomeId,
+					@HomeId,
 					b.LiveIndicator AS IsLiveIndicator,
-					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+					@IsNeutral,
 					b.LiveAwayScore,
 					b.LiveHomeScore,
 					b.Odds,	
 					b.Oddsspread,
 					b.OddsType,
 					b.RefNo,
-					m.SportType,
+					@Sporttype,
 					b.status AS STATUS,
 					b.TransDate,
 					b.TransDesc,
@@ -563,9 +578,7 @@ BEGIN
 						 ON b.recommend = c.custid
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
-				 INNER JOIN match m WITH (NOLOCK)
-						 ON b.matchid = m.matchid
-			WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only				
+			WHERE @Sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
 				AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket
@@ -649,7 +662,7 @@ BEGIN
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
-						m.AwayId,
+						@AwayId,
 						b.BetCheck,
 						b.BetId,
 						b.BetTeam,
@@ -659,15 +672,15 @@ BEGIN
 						b.Creator,					
 						b.Hdp1,
 						b.Hdp2,
-						m.HomeId,
+						@HomeId,
 						b.LiveIndicator AS IsLiveIndicator,
-						ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+						@IsNeutral,					
 						b.LiveAwayScore,
 						b.LiveHomeScore,
 						b.Odds,					
 						b.OddsType,
 						b.RefNo,
-						m.SportType,
+						@Sporttype,
 						b.status AS STATUS,
 						b.TransDate,
 						b.TransDesc,
@@ -718,8 +731,6 @@ BEGIN
 							 ON b.recommend = c.custid
 					 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 							 ON tl.LicenseeName = c.site
-					 INNER JOIN match m WITH (NOLOCK)
-							 ON b.matchid = m.matchid
 				WHERE b.statusID NOT IN (101,102,103) -- reject, void, refund
 			END
 			
@@ -1359,7 +1370,7 @@ BEGIN
 						ActualStake
 					)
 			SELECT  main.Stake,
-					m.AwayId,
+					@AwayId,
 					main.BetCheck,
 					main.BetId,
 					main.BetTeam,
@@ -1369,16 +1380,16 @@ BEGIN
 					main.Creator,					
 					main.Hdp1,
 					main.Hdp2,
-					m.HomeId,
+					@HomeId,
 					sub.LiveIndicator AS IsLiveIndicator,
-					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+					@IsNeutral,					
 					sub.LiveAwayScore,
 					sub.LiveHomeScore,
 					main.Odds,
 					main.Oddsspread,					
 					main.OddsType,
 					main.RefNo,
-					m.SportType,
+					@Sporttype,
 					main.status AS STATUS,
 					main.transdate AS TransDate,
 					main.transdesc AS TransDesc,
@@ -1409,8 +1420,6 @@ BEGIN
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
-				 INNER JOIN match m WITH (NOLOCK)
-						 ON sub.matchid = m.matchid
 				
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
 					     ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
@@ -1421,7 +1430,7 @@ BEGIN
 			WHERE main.matchid =29 AND main.bettype = 29 -- parlay
 				AND main.statusID NOT IN (101, 102) -- reject, void				
 				AND main.betfrom <> 'P' -- exclude phone betting
-				AND m.sporttype BETWEEN 1 AND 99 -- sportbook only				
+				AND @Sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND sub.matchid = @matchid -- filer for @MatchID
 				AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND sub.betfrom <> 'P' -- exclude phone betting	
