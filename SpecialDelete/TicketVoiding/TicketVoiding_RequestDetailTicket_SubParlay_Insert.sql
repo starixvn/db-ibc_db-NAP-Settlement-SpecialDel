@@ -16,7 +16,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@FilterToTransTime		DATETIME = NULL
 	,@FilterBy				TINYINT = 1 
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
+	,@RedCardInfo			VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -40,6 +41,7 @@ AS
 		- 20210525@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -56,8 +58,9 @@ BEGIN
 			,@MarkedTransIds	  VARCHAR(MAX) = NULL
 			,@RemoveTransIds	  VARCHAR(MAX) = ''
 			,@IsLockMatch		  BIT = 0
-			,@WrongScoreInfoXML XML = NULL
+			,@WrongScoreInfoXML   XML = NULL
 			,@DangerAcceptedInfoXML		XML  = NULL
+			,@RedCardInfoXML	  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -113,10 +116,9 @@ BEGIN
 			MainTransId           BIGINT,
 			WinLost               MONEY,
 			IsMarked              BIT,
-			LiveIndicator			BIT
+			LiveIndicator		  BIT
 	)
 
-	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #DangerAccept_SubParlayTickets (TransId BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT, isFinish BIT, VoidFromTime DATETIME, VoidToTime DATETIME, SubIssueTypeId SMALLINT)
 	CREATE INDEX IX_TransId ON #DangerAccept_SubParlayTickets(TransId)
 
@@ -236,8 +238,48 @@ BEGIN
 								    ELSE 0
 							  END
 		END
-		ELSE
+		IF @IssueTypeId = 10
 		BEGIN
+			SET @RedCardInfoXML = CONVERT(XML, @RedCardInfo)
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,LiveScores					
+					,TypeAccept
+					,SubIssueTypeId
+				)
+			SELECT @RequestId AS RequestId
+					,t.c.value('@MatchId','INT') AS MatchID
+					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+					,t.c.value('@FilterBy','TINYINT') AS FilterBy
+					,t.c.value('@SingleCount','INT') AS SingleCount
+					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+					,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+					,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+					,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+					,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' 
+						AS TypeAccept
+					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @RedCardInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
+
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT tmp.transid
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
@@ -247,22 +289,23 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 							WHERE RequestId = req.RequestId
 						) AS tmp
-			WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
+			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
 
 			INSERT INTO #DangerAccept_SubParlayTickets (TransId, StatusId, MatchId, MainTransId, SubIssueTypeId)
 			SELECT sub.transid
 				, sub.statusID
-				, @MatchId
+				, sub.matchid
 				, main.transid
-				, @SubIssueTypeId
-			FROM dbo.bettransm sub WITH (NOLOCK)
-				INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
-								ON	main.refno = sub.refno				
-									AND sub.matchid = @matchid
-			WHERE 1 = CASE WHEN @FilterBy IN (0,1) AND main.transid BETWEEN @MinMainParlayTransId AND @MaxMainParlayTransId THEN 1
-							WHEN @FilterBy = 2 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-							WHEN @FilterBy = 2 AND sub.checktime IS NULL AND sub.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime THEN 1
-							ELSE 0 END
+				, l.SubIssueTypeId
+			FROM #tblGetLogInfo l
+				INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = l.MatchId
+				INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON main.refno = sub.refno 
+			WHERE CASE WHEN l.FilterBy IN (0,1) THEN sub.transdate
+							WHEN l.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
+							WHEN l.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
+							END BETWEEN l.VoidFromTime AND l.VoidToTime
+				AND main.transid BETWEEN l.MinMainParlayTransId AND l.MaxMainParlayTransId
 				AND 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1
 							 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
@@ -710,7 +753,6 @@ BEGIN
 	END
 
 	DROP TABLE #SpecialDeleteBets
-	DROP TABLE #tblSoldTicket
 	DROP TABLE #DangerAccept_SubParlayTickets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tblGetLogInfo

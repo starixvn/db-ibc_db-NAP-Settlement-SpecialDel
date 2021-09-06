@@ -49,8 +49,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@IsExistBB				BIT           = 0
 	,@IsVoidVIPMember		BIT			  = 0
 	,@TypeAccept			VARCHAR(MAX)  = NULL
-	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
+	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
+	,@RedCardInfo			VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -72,6 +73,7 @@ AS
 		- 20210531@July: TVS - Danger Accept Enhancement - Phase 8 [Redmine: #152051]
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -87,7 +89,11 @@ AS
 			</root>
 		+ @DangerAcceptInfo:
 			<root>
-				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+			</root>
+		+ @RedCardInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
 			</root>
 */
 BEGIN
@@ -101,6 +107,7 @@ BEGIN
 			,@avaiableProcess	BIT
 			,@WrongScoreInfoXML XML = NULL
 			,@DangerAcceptedInfoXML	XML = NULL
+			,@RedCardInfoXML	XML = NULL
 			,@TotalParlay		INT = 0
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -239,6 +246,14 @@ BEGIN
 		FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
 	END
+	IF @IssueTypeId = 10 --Red Card
+	BEGIN
+		SET @RedCardInfoXML = CONVERT(xml, @RedCardInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @RedCardInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))	
+	END
 
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
 	SELECT @Sporttype, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
@@ -278,6 +293,7 @@ BEGIN
 				,@TypeAccept = @TypeAccept
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
 	
 	IF (@IssueTypeId IN(8,9,11,13,15) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
 	BEGIN
@@ -304,6 +320,7 @@ BEGIN
 				,@ToDate = @ToDate
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
 	END
 
 	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3) AND @MainParlayCount > 0))
@@ -325,6 +342,7 @@ BEGIN
 				,@FilterBy = @FilterBy
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
 	END
 
 

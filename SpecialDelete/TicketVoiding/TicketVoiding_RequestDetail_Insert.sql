@@ -32,7 +32,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@IsVoidVIPMember		BIT = 0
 	,@TypeAccept			VARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
-	,@DangerAcceptedInfo		VARCHAR(MAX)  = NULL
+	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
+	,@RedCardInfo			VARCHAR(MAX) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -73,18 +74,22 @@ AS
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 
 	Param's explanation:
-		@WrongScoreInfo: 
+		+ @WrongScoreInfo: 
 		<root>
 			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore=""/>
 		</root>
-		@DangerAcceptInfo:
+		+ @DangerAcceptInfo:
 			<root>
-				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' AA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
 			</root>
-
+		+ @RedCardInfo:
+			<root>
+				<r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
+			</root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -113,8 +118,9 @@ BEGIN
 			,@maxdate 			DATETIME = '9999-01-01'
 			,@FromWinlostDate    DATETIME
 			,@LogDataContent	 VARCHAR(MAX)
-			,@WrongScoreInfoXML	XML = NULL
-			,@DangerAcceptedInfoXML		XML  = NULL
+			,@WrongScoreInfoXML	 XML = NULL
+			,@DangerAcceptedInfoXML	XML  = NULL
+			,@RedCardInfoXML	 XML = NULL
 
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
@@ -153,7 +159,7 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	IF @IssueTypeId <> 1
+	IF @IssueTypeId NOT IN (1,10,3) --DA,RC,WC
 	BEGIN
 		-- get match info
 		SELECT	@LeagueId = leagueid
@@ -228,10 +234,8 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
-	ELSE IF @IssueTypeId IN (1,10)
+	ELSE IF @IssueTypeId = 1 --Danger Accept
 	BEGIN
-		IF @IssueTypeId = 1 
-		BEGIN
 			SET @DangerAcceptedInfoXML = CONVERT(XML, @DangerAcceptedInfo)
 			INSERT INTO #tblGetLogInfo( 
 					RequestID				
@@ -270,33 +274,50 @@ BEGIN
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #tblGetLogInfo( 
-				   RequestID				
-				  ,MatchID				
-				  ,FilterFromTransTime	
-				  ,FilterToTransTime		
-				  ,FilterFromBetId		
-				  ,FilterToBetId			
-				  ,FilterBy				
-				  ,SingleCount			
-				  ,MainParlayCount		
-				  ,MinSingleTransId		
-				  ,MaxSingleTransId		
-				  ,MinMainParlayTransId	
-				  ,MaxMainParlayTransId	
-				  ,VoidFromTime			
-				  ,VoidToTime				
-				  ,LiveScores					
-				  ,TypeAccept
-				  ,SubIssueTypeId
-				)
-			SELECT @RequestId, @MatchId, @FilterFromTransTime, @FilterToTransTime, @FilterFromBetId, @FilterToBetId, @FilterBy, @SingleCount, @MainParlayCount, @MinSingleTransId, @MaxSingleTransId
-				, @MinMainParlayTransId, @MaxMainParlayTransId, @VoidFromTime, @VoidToTime, @LiveScores, @TypeAccept, @SubIssueTypeId
-		END
 	END
+	ELSE IF @IssueTypeId = 10 --Red Card
+	BEGIN
+			SET @RedCardInfoXML = CONVERT(XML, @RedCardInfo)
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,LiveScores					
+					,TypeAccept
+					,SubIssueTypeId
+				)
+			SELECT @RequestId AS RequestId
+					,t.c.value('@MatchId','INT') AS MatchID
+					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+					,t.c.value('@FilterBy','TINYINT') AS FilterBy
+					,t.c.value('@SingleCount','INT') AS SingleCount
+					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+					,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+					,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+					,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+					,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
+						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' 
+						AS TypeAccept
+					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @RedCardInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
+	END
+	
 
 	IF @IssueTypeId IN (8,9,11,15) --EKO,WKO,AB,AB(RealMember)
 	BEGIN
@@ -676,7 +697,7 @@ BEGIN
 					           + ', MaxMainParlayTransId: ' + CAST(l.MaxMainParlayTransId AS VARCHAR(20))
 							   + ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							   + ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							   + CASE WHEN @IssueTypeId = 1 THEN ', TypeAccept: ' + l.TypeAccept ELSE '' END
+							   + ', TypeAccept: ' + l.TypeAccept
 								FROM #tblGetLogInfo l
 	END
 	ELSE IF @IssueTypeId = 13
