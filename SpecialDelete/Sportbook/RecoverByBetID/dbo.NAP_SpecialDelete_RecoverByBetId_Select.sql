@@ -110,10 +110,11 @@ BEGIN
 	VALUES (175); --Bitcoin 
 
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	DECLARE @before_yesterday SMALLDATETIME
+	DECLARE @MovedBetDay	  SMALLDATETIME
 		   ,@MovebetDate	  DATETIME
 
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120);
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
 
 	--Parse trans ID string
 	INSERT INTO #TempTransIds(transid, IsNum)
@@ -162,7 +163,7 @@ BEGIN
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
-			AND b.winlostdate >= @before_yesterday	
+			AND b.winlostdate >= @MovedBetDay	
 			AND b.betfrom <> 'p';
 
 		------159948 - Support Bitcoin

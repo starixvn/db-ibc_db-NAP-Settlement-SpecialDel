@@ -116,7 +116,7 @@ BEGIN
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
 
-	DECLARE @before_yesterday	  SMALLDATETIME,
+	DECLARE @MovedBetDay	      SMALLDATETIME,
 			@avaiableProcess	  BIT = 0,
 			@isITAdmin			  BIT = 0,
 			@ValidTransIDs		  VARCHAR(MAX),
@@ -128,7 +128,8 @@ BEGIN
 			@SPName				  VARCHAR(500) = OBJECT_NAME(@@PROCID),
 			@MatchId			  INT
 
-	SELECT @before_yesterday = CONVERT(VARCHAR(10), DATEADD(DAY, -2, GETDATE()), 120);		
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0) --Return data for mailing
 
 	INSERT INTO #SupportedSports(SportType)
@@ -172,7 +173,7 @@ BEGIN
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
-			AND b.winlostdate >= @before_yesterday	
+			AND b.winlostdate >= @MovedBetDay	
 			AND b.betfrom <> 'p';
 
 		------159948 - Support Bitcoin
