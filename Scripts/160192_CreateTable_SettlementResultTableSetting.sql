@@ -44,7 +44,7 @@ GO
 
 	----70 rows
 	INSERT INTO dbo.SettlementResultTableSetting
-				  SELECT 1	, 1 , 3 , 0 , 0 , 0
+				  SELECT 1	, 1 , 1 , 0 , 0 , 0
 		UNION ALL SELECT 2  , 1	, 1 , 1 , 1 , 1
 		UNION ALL SELECT 3  , 0	, 1 , 0 , 0 , 0
 		UNION ALL SELECT 4  , 0	, 1 , 0 , 0 , 0
@@ -59,7 +59,7 @@ GO
 
 
 		UNION ALL SELECT 5	, 1	, 2 , 1 , 1 , 1
-		UNION ALL SELECT 7	, 0	, 2 , 0 , 0 , 1
+		UNION ALL SELECT 7	, 0	, 2 , 0 , 0 , 0
 		UNION ALL SELECT 9	, 2	, 2 , 1 , 1 , 1
 		UNION ALL SELECT 10	, 0	, 2 , 0 , 0 , 0
 		UNION ALL SELECT 11	, 0	, 2 , 0 , 0 , 0
