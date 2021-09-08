@@ -57,6 +57,7 @@ AS
 	- 20200904@Louisa: Get external score [Redmine:#139979]
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
+	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 
 	
  Param explanation:  
@@ -305,6 +306,7 @@ BEGIN
 		AND 1 = CASE
 					WHEN @UncalMultiOnly = 1 
 						THEN CASE
+								WHEN m.sporttype = 1 AND l.LeagueGroupID = 113 THEN 0 --PinGoal
 								WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
 									AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
 								ELSE 0
