@@ -16,6 +16,7 @@ Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Parlay_Cal
 Settlement\Sportbook\NAP_Set_MatchSelCompleted.sql
 Settlement\Sportbook\NAP_Set_MatchSelCompletedHT.sql
 Settlement\Sportbook\NAP_Set_MatchSelDetail.sql
+Settlement\Sportbook\NAP_Set_MatchOtherSportsSel.sql
 Settlement\Sportbook\NAP_Set_WaitingOtherSportSel.sql
 Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
 

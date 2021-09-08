@@ -30,7 +30,6 @@ AS
 			- 20210628@Louisa: Include new Filter [Redmine: #157541]
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
-			- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -130,7 +129,6 @@ BEGIN
 		matchid							INT
 		,matchcode						NVARCHAR(50)
 		,leagueid						INT
-		,LeagueGroupID					INT
 		,sporttype						SMALLINT
 		,kickofftime					DATETIME
 		,homeid							INT
@@ -241,7 +239,6 @@ BEGIN
 		INSERT INTO #tmpMatchIds(matchid
 			,matchcode
 			,leagueid
-			,LeagueGroupID
 			,sporttype
 			,kickofftime
 			,homeid
@@ -270,7 +267,6 @@ BEGIN
 		)
 		SELECT	m.matchid
 				,m.matchcode
-				,l.LeagueGroupID
 				,m.LeagueId
 				,m.sporttype
 				,m.kickofftime
@@ -339,7 +335,6 @@ BEGIN
 		INSERT INTO #tmpMatchIds(matchid
 			,matchcode
 			,leagueid
-			,LeagueGroupID
 			,sporttype
 			,kickofftime
 			,homeid
@@ -371,7 +366,6 @@ BEGIN
 		SELECT	m.matchid
 				,m.matchcode
 				,m.LeagueId
-				,l.LeagueGroupID
 				,m.sporttype
 				,m.kickofftime
 				,m.homeid
@@ -473,7 +467,7 @@ BEGIN
 			FROM #tmpMatchIds m
 			WHERE 	ISNULL(m.IsCalculated,0) = 0 
 					AND ISNULL(m.IsCalRefund,0) = 0
-					AND m.eventstatus  <> 'Completed'
+					AND m.eventstatus IN ( 'running', 'closed')
 					AND ( m.ConfirmFT > 0 OR DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 )
 		END
 
@@ -789,12 +783,8 @@ BEGIN
 							WHEN t.Id = 1 AND (m.IsExistMarkedTicket > 0 OR m.IsExistMarkedTicketParlay > 0) THEN 1 -- marked ticket
 							WHEN t.Id = 2 AND m.IsExistEarlyBettypesSingle > 0 AND m.IsRunningEarlyBettypesSingle > 0 THEN 1 -- un-calculated early
 							WHEN t.Id = 3 AND m.IsExistRunningBettypeSingle = 1 THEN 1 -- un-calculate single
-							WHEN t.Id = 4 THEN CASE WHEN m.sporttype = 1 AND m.LeagueGroupID = 113 THEN 0 -- PinGoal
-													WHEN (ISNULL(m.IsCalculated,0) = 1 OR ISNULL(m.IsCalRefund,0) = 1) 
-														 AND (ISNULL(m.IsMultiCaled,0) = 0 AND ISNULL(m.IsRefund,0) = 0) 
-														 AND m.IsMergedParlay = 0 THEN 1 -- un-calculate parlay
-													ELSE 0
-													END
+							WHEN t.Id = 4 AND (ISNULL(m.IsCalculated,0) = 1 OR ISNULL(m.IsCalRefund,0) = 1) AND (ISNULL(m.IsMultiCaled,0) = 0 AND ISNULL(m.IsRefund,0) = 0) AND m.IsMergedParlay = 0 THEN 1 -- un-calculate parlay
+							ELSE 0
 						END
 		)
 	END
