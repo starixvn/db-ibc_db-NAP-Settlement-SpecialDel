@@ -24,7 +24,7 @@ BEGIN
 
 	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
 
-	CREATE TABLE #CompletedMatches (matchid INT, isFinish BIT);
+	CREATE TABLE #CompletedMatches (matchid INT, TransIds VARCHAR(MAX), [Action] VARCHAR(20), isFinish BIT);
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	CREATE TABLE #RecoverBet (
@@ -126,14 +126,15 @@ BEGIN
 			@LogData			  NVARCHAR(MAX),
 			@MovebetDate		  DATETIME,
 			@SPName				  VARCHAR(500) = OBJECT_NAME(@@PROCID),
-			@MatchId			  INT
+			@MatchId			  INT,
+			@ResettleTransIds	  VARCHAR(MAX) = '',
+			@Action				  VARCHAR(20)
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0) --Return data for mailing
 
 	INSERT INTO #SupportedSports(SportType)
-	--VALUES (160); --Lucky3
 	VALUES (175); --Bitcoin
 
 	BEGIN TRY
@@ -383,17 +384,24 @@ BEGIN
 		FROM zzzbettrans z
 			INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid;
 
-		--Check SD process and release
-		EXEC dbo.NAP_Admin_CheckingProcess 
-			  @isExistMatch3rd = 1
-			, @IsReleased = 1;
-	
 		--Return completed matches to resettle
-		INSERT INTO #CompletedMatches(matchid)
+		INSERT INTO #CompletedMatches(matchid, [Action])
 		SELECT m.Match3rdId
+			  ,CASE WHEN m.BetStatus LIKE 'Refund%' THEN 'REFUND'
+					WHEN m.BetStatus IS NULL THEN 'CAL' 
+					END AS [Action]
 		FROM dbo.Match3rd m WITH(NOLOCK)
 		WHERE m.EventStatus = 'completed'
 			AND EXISTS (SELECT 1 FROM #RecoverBet r WHERE r.matchid = m.Match3rdId);
+		
+		UPDATE m
+		SET TransIds = STUFF(ts.TransIds,1,1,'')
+		FROM #CompletedMatches m
+		CROSS APPLY (SELECT ',' + CAST(r.TransId AS VARCHAR(MAX)) 
+					 FROM #RecoverBet r
+					 WHERE r.matchid = m.matchid
+					 FOR XML PATH('')
+					 )ts(TransIds)
 
 		SELECT @ReCalcMatches = STUFF((SELECT ', ' + CAST(matchid AS VARCHAR(MAX))
 										FROM #CompletedMatches
@@ -403,22 +411,24 @@ BEGIN
 		--> automatically re-settlement Bitcoin
 		WHILE (1=1)
 		BEGIN
-			UPDATE TOP(1) m SET isFinish = 1, @MatchId = m.matchid
+			UPDATE TOP(1) m SET isFinish = 1, @MatchId = m.matchid, @ResettleTransIds = m.TransIds, @Action = m.[Action]
 			FROM #CompletedMatches m
 			WHERE isFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK
 
-			EXEC dbo.NAP_Admin_Settlement_s175
+			EXEC dbo.NAP_SpecialDelete_RecoverByBetId_ReCal_s175
 			        @MatchId      = @MatchId
-			       ,@Action       = 'CAL'
-			       ,@ResultId     = 49388
-			       ,@IsAuto       = 0
-			       ,@AdminId      = @isITAdmin
-			       ,@IP           = @IP
+				   ,@TransIds	  = @ResettleTransIds
+			       ,@Action       = @Action
 			       ,@ErrCode      = @ErrCode OUTPUT
 			       ,@ErrMsg       = @ErrMsg OUTPUT
 		END
+
+		--Check SD process and release
+		EXEC dbo.NAP_Admin_CheckingProcess 
+			  @isExistMatch3rd = 1
+			, @IsReleased = 1;
 
 		SELECT @LogData = 'Recovered bets having transid: ' + @ValidTransIDs + ' IP: ' + @Ip;
 	
