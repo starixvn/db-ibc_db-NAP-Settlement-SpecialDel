@@ -25,7 +25,7 @@ USE bodb02
 GO
 	
 	CREATE TABLE dbo.SettlementResultTableSetting ( 
-				  Sporttype				SMALLINT
+				  Sporttype				SMALLINT NOT NULL
 				, ResultTable			TINYINT
 				, ExternalResultTable	TINYINT
 				, IsSettleByProfile		BIT
@@ -43,7 +43,16 @@ ON [DATA]
 GO
 
 	----70 rows
-	INSERT INTO dbo.SettlementResultTableSetting
+	INSERT INTO dbo.SettlementResultTableSetting 
+	( 
+			Sporttype			
+			,ResultTable		
+			,ExternalResultTable
+			,IsSettleByProfile	
+			,IsAppliedSOP		
+			,IsMergedParlay	
+	)
+
 				  SELECT 1	, 1 , 1 , 0 , 0 , 0
 		UNION ALL SELECT 2  , 1	, 1 , 1 , 1 , 1
 		UNION ALL SELECT 3  , 0	, 1 , 0 , 0 , 0
