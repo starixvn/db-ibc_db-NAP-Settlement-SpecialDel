@@ -55,14 +55,9 @@ RETURN
 				b.winlostdate,
 				b.ruben,
 				b.bettype,
-				m.sporttype
+				m.SportType
 		FROM cteBettrans b
-			INNER JOIN ( SELECT matchid, sporttype
-						 FROM dbo.match WITH(NOLOCK)
-						 UNION 
-						 SELECT Match3rdId AS matchid, sporttype
-						 FROM dbo.Match3rd WITH(NOLOCK) 
-					   )m ON m.matchid = b.matchid
+			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		UNION ALL
 
 		SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
