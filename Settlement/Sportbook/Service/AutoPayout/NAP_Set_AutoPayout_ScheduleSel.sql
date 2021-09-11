@@ -17,6 +17,7 @@ AS
 		- 20200723@Kathy: Exclude ET and PEN matches [Redmine:#136350]
 		- 20200915@Kathy: Exclude HT score of SABA Soccer match from the Auto Payout's Direct Settlement flow [Redmine:#141340]
 		- 20210116@Louisa: Exclude HT score of SABA Soccer LeagueGroupID 108 [Redmine:#145597]
+		- 20210912@Helen: fix score NULL [Redmine:#161472]
 
 	Param's Explanation:
  
@@ -73,6 +74,10 @@ BEGIN
 						ELSE 1 
 					END
 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
+			AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
+						 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
+						 ELSE 1
+					END
 			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
 			AND NOT EXISTS (SELECT TOP 1 1 
 								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
