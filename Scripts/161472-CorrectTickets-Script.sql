@@ -9,7 +9,7 @@ go
 UPDATE b
 SET 
 		ruben = 0
-		,STATUS = 0
+		,STATUS = 'running'
 		,statusID = 0
 		,winlost = 0
 		,awinlost = 0
