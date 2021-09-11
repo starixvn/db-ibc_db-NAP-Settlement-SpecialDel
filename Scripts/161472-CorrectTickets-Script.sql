@@ -20,6 +20,7 @@ SET
 		,acomm = 0
 		,scomm = 0
 		,statuswinlost = NULL
+		,modds = 1
 		,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
 FROM dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 WHERE transid in (113208393469,
