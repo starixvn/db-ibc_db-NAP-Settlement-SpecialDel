@@ -4,7 +4,7 @@ go
 
 ALTER DATABASE bodb02 ADD FILEGROUP serviceBroker 
 ALTER DATABASE bodb02 
-	ADD FILE (NAME = N'serviceBroker_01', FILENAME = N'D:\IBC_DB\bodb02\serviceBroker\serviceBroker_01.ndf'  
+	ADD FILE (NAME = N'serviceBroker_01', FILENAME = N'E:\IBC_DB\bodb02\serviceBroker\serviceBroker_01.ndf'  
 		, SIZE = 512KB, MAXSIZE = UNLIMITED, FILEGROWTH = 32768KB) TO FILEGROUP [serviceBroker]
 
 GO
@@ -95,21 +95,18 @@ ALTER DATABASE bodb02 SET ENABLE_BROKER WITH ROLLBACK IMMEDIATE;
 
 go
 
---alter table dbo.SSB_SettlementLogs add MessageBody nvarchar(max) null
---alter table dbo.SSB_SettlementLogs add QueueNo tinyint null
 create table dbo.SSB_SettlementLogs
 (
 	MessageId varchar(128) null,
 	MessageType varchar(200) null,
-	MessageBody nvarchar(max) null,
+	MessageBoby nvarchar(max) null,
 	StartTime datetime2 null,
 	EndTime datetime2 null,
 	MatchId int null,
 	SessionId bigint,
 	ErrorMessage varchar(1024),
 	ConversationHandle varchar(128),
-	Resolved bit,
-	QueueNo tinyint
+	Resolved bit
 )ON [serviceBroker]
 
 create clustered index cix_SSB_SettlementLogs on SSB_SettlementLogs(StartTime) on [serviceBroker]
@@ -151,38 +148,10 @@ CREATE TABLE [dbo].[SettlementProcessing](
 ) ON [DATA]
 GO
 
-CREATE CLUSTERED INDEX [CIX_SettlementProcessing] ON [dbo].[SettlementProcessing]
-(
-	[SessionId] ASC,
-	[MessageType] ASC,
-	[modds] DESC
-) ON [DATA]
-GO
-
+CREATE CLUSTERED INDEX CIX_SettlementProcessing ON SettlementProcessing(SessionId, MessageType) ON [DATA]
 
 ALTER TABLE [dbo].[SettlementProcessing] ADD CONSTRAINT [DF_SettlementProcessing_StatusId]  DEFAULT ((0)) FOR [StatusId]
 GO
 
 ALTER TABLE [dbo].[SettlementProcessing] ADD CONSTRAINT [DF_SettlementProcessing_IsMarked] DEFAULT ((0)) FOR [IsMarked]
 GO
-
-
-CREATE TABLE [dbo].[SettlementBettypeResult](
-	[MatchId] [int] NOT NULL,
-	[BetType] [smallint] NOT NULL,
-	[pfID] [smallint] NULL,
-	[HomeValue] [varchar](50) NULL,
-	[AwayValue] [varchar](50) NULL,
-	[OddsType] [smallint] NULL,
-	[SessionId] [bigint] NULL
-) ON [DATA]
-GO
-
-/****** Object:  Index [CIX_SettlementBettypeResult_MatchId]    Script Date: 10/19/2021 9:30:19 AM ******/
-CREATE CLUSTERED INDEX [CIX_SettlementBettypeResult_MatchId] ON [dbo].[SettlementBettypeResult]
-(
-	[MatchId] ASC
-)ON [DATA]
-GO
-
-

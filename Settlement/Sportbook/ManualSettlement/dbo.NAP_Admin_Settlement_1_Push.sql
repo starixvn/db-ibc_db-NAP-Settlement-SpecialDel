@@ -151,7 +151,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId	= @MatchId
     , @Action = @Action
     , @Mode = 'CAL'
-	, @SelectedQuarter = @SelectedQuarter
     , @ErrCode = @ErrCode OUTPUT
     , @ErrMsg = @ErrMsg OUTPUT
         
@@ -176,11 +175,7 @@ BEGIN
                                                                                       ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
                                                           + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
                                                                                      ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
-                                                          + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
-                                                          + ', @SelectedQuarter = ' + CASE WHEN @SelectedQuarter IS NULL THEN 'NULL'
-                                                                                     ELSE '''' + @SelectedQuarter + '''' END 
-														  + ', @QuarterResult = ' + CASE WHEN @QuarterResult IS NULL THEN 'NULL'
-                                                                                     ELSE '''' + @QuarterResult + '''' END 
+                                                          + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''                                                          
 														  + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @ResourceResult + '''' END 
                                                           + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
