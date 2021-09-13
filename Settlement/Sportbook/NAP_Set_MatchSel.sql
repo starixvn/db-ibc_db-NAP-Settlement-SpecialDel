@@ -59,6 +59,7 @@ AS
 		- 20210324@Louisa: Enhancement [Redmine:#151545]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 
       
  Param explanation:  
@@ -356,7 +357,8 @@ BEGIN
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	OUTER APPLY (
 			SELECT	IsMergedParlay
-			FROM	dbo.f_Set_SettingByProfile(tmp.sporttype) f
+			FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK) 
+			WHERE ss.Sporttype = tmp.sporttype
 		)f
 	WHERE	(@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
 			AND 1 = CASE

@@ -26,16 +26,22 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
-		
+		- 20210906@Louisa: Settle y profile for Volleyball, Squash, and Sepak Takraw [Redmine:#160478]
+
 */
 BEGIN
 	SET NOCOUNT ON
     
-	DECLARE @BetTypeList VARCHAR(MAX) = ''
-        	,@isShowAll BIT = 0
-        	,@BestOfMap TINYINT = NULL
+	DECLARE @BetTypeList	VARCHAR(MAX) = ''
+        	,@isShowAll		BIT = 0
+        	,@BestOfMap		TINYINT = NULL
 			,@IsMergedParlay BIT = 0
-			,@OpenQuery	NVARCHAR(MAX)
+			,@OpenQuery		NVARCHAR(MAX)
+			,@ResultTable	TINYINT = 0
+			,@IsConfirmFT	BIT = 0
+			,@betstatus		NVARCHAR(100)
+			,@FinalHomeScore INT
+			,@FinalAwayScore INT
 
     DECLARE @tmpTicketStatus TABLE	(
 		ResourceID VARCHAR(20)
@@ -49,23 +55,60 @@ BEGIN
 		, IsSpecialBettype TINYINT
 	) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
 
+	DECLARE @tmpBetStatus TABLE 
+	(
+		 val VARCHAR(20)
+		,ResourceID NVARCHAR(50)
+		,HomeValue VARCHAR(20)
+		,AwayValue VARCHAR(20)
+		,ID INT IDENTITY
+		,chk int 
+	)
+
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT)
-    DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
+
+	DECLARE @tmbResultDetail TABLE 
+	(
+			ResourceID			VARCHAR(20)
+			,HomeValue			VARCHAR(50)
+			,AwayValue			VARCHAR(50)
+			,ResultStatusId		TINYINT
+			,SettlementStatusId	TINYINT
+			,ResultSetting		TINYINT
+			,TicketStatus		VARCHAR(20)
+			,IsSpecialBettype	BIT
+	)
+
     DECLARE @tblMajorRound TABLE (ResourceID VARCHAR(20), Bettype SMALLINT, BetID BIGINT, OrdNo INT)
 	DECLARE @tblOddsES TABLE (ResourceID VARCHAR(20), bettype SMALLINT)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
     ---------------------------------------------------------------------------------------------
-    IF @SportType =0
+    IF @SportType = 0
         SELECT @SportType = SportType FROM Match WITH(NOLOCK) WHERE matchID = @matchid
 	
     --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
+		 , @IsConfirmFT  = CASE WHEN ConfirmFT > 0 THEN 1 ELSE 0 END
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
 	WHERE matchid = @matchid    
 
-	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@sporttype)
+	SELECT @ResultTable =  r.ResultTable
+		  ,@IsMergedParlay = r.IsMergedParlay
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE r.Sporttype = @SportType
+		/*@ResultTable:
+				1: ResultDetail
+				2: ResultDetailOS
+				3: ResultDetailES
+		*/
+	
+	IF @SportType IN ( 6, 30, 48 )
+	SELECT @betstatus =  m.betstatus 
+		, @FinalHomeScore = m.finalhomescore
+		, @FinalAwayScore = m.finalawayscore
+	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid
+		
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID
@@ -256,7 +299,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InWaiting, InRunning, BetSettledCount, BetRefundedCount, OrdNo, BetMarkedCount, IsSpecialBettype)
 		SELECT CASE 
-						WHEN sp.ResourceID = '70400' THEN '00'  
+					WHEN sp.ResourceID = '70400' THEN '00'  
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END     
@@ -297,7 +340,7 @@ BEGIN
 	WHERE bt.ResourceID IS NULL
 
     ---return
-    IF @Sporttype = 43
+    IF @ResultTable = 3 --E-Sports only
     BEGIN
 	
 		IF @BestOfMap IS NOT NULL
@@ -308,6 +351,16 @@ BEGIN
 			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
 		END
 
+		INSERT INTO @tmbResultDetail 
+		(
+				ResourceID			
+				,HomeValue			
+				,AwayValue			
+				,ResultStatusId		
+				,SettlementStatusId	
+				,ResultSetting		
+				,TicketStatus	
+		)
 	    SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue
 				,rs.AwayValue
@@ -330,9 +383,19 @@ BEGIN
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 	END
 	
-	---Badminton AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType IN (9, 45, 50)
+	ELSE IF @ResultTable = 2 ---dbo.ResultDetailOS
 	BEGIN
+		INSERT INTO @tmbResultDetail
+		(
+				ResourceID			
+				,HomeValue			
+				,AwayValue			
+				,ResultStatusId		
+				,SettlementStatusId	
+				,ResultSetting		
+				,TicketStatus		
+				,IsSpecialBettype	
+		)
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue
 				,rs.AwayValue
@@ -361,10 +424,48 @@ BEGIN
 		  				AND rd.matchid = @matchid
 		  		) AS rs
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
+
+
+		---This block code support until Adminsite confirmed result inot ResultDetailOS for Volleyball
+		IF @SportType IN ( 6, 30, 48 ) AND ISNULL(@betstatus,'') <>'' AND EXISTS (SELECT TOP 1 1 FROM @tmbResultDetail r WHERE r.HomeValue IS NULL) 
+		BEGIN
+			INSERT INTO @tmpBetStatus (val, chk )
+			SELECT f.val , CHARINDEX('-', val)  
+			FROM dbo.f_SplitString( @betstatus, ',') f 
+			OPTION (MAXRECURSION 0)
+
+			UPDATE @tmpBetStatus
+			SET  HomeValue = CASE WHEN chk = 0 THEN '' ELSE LEFT (val, chk-1) END
+				,AwayValue = CASE WHEN chk = 0 THEN '' ELSE RIGHT ( val , len(val)-chk ) END
+
+			UPDATE @tmpBetStatus 
+				SET ResourceID = '010' + CAST(Id AS VARCHAR(1))
+
+			INSERT INTO @tmpBetStatus ( ResourceID, HomeValue, AwayValue )
+			SELECT '00', CAST( @FinalHomeScore AS VARCHAR(20) ), CAST( @FinalAwayScore AS VARCHAR(20) )
+			WHERE @FinalHomeScore IS NOT NULL
+
+			UPDATE r
+			SET HomeValue = b.HomeValue			
+				,AwayValue = b.AwayValue			
+			FROM @tmbResultDetail r
+			INNER JOIN @tmpBetStatus b ON r.ResourceID = b.ResourceID
+			WHERE r.HomeValue IS NULL
+		END
 	END
 	
 	ELSE
 	BEGIN
+		INSERT INTO @tmbResultDetail (
+				ResourceID			
+				,HomeValue			
+				,AwayValue			
+				,ResultStatusId		
+				,SettlementStatusId	
+				,ResultSetting		
+				,TicketStatus		
+				,IsSpecialBettype	
+		)
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue
 				,rs.AwayValue
@@ -394,6 +495,16 @@ BEGIN
 		  		) AS rs
 	  	ORDER BY COALESCE(bt.OrdNo, p.OrdNo) 
 	END
+
+	SELECT ResourceID			
+		  ,HomeValue			
+		  ,AwayValue			
+		  ,ResultStatusId		
+		  ,SettlementStatusId	
+		  ,ResultSetting		
+		  ,TicketStatus		
+		  ,IsSpecialBettype	
+	FROm @tmbResultDetail
 
 	-- number of ticket
 	SELECT	0 AS GroupId 

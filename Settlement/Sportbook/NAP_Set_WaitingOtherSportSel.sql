@@ -15,6 +15,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 
 	Param's explanation:  
 		
@@ -227,8 +228,9 @@ BEGIN
 		INNER JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
 		OUTER APPLY(
-				SELECT	f.IsMergedParlay
-				FROM	dbo.f_Set_SettingByProfile (m.sporttype) f
+				SELECT	ss.IsMergedParlay
+				FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+				WHERE ss.Sporttype = m.sporttype
 			)f
 	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket

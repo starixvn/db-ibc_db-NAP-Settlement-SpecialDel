@@ -31,6 +31,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
+		- 20210906@Louisa: Settle by profile for Volleyball, Squash, Sepak Takraw [Redmine:#160478]
 		
     Param's Explanation: 
     
@@ -64,7 +65,14 @@ BEGIN
 		
     -------------END DECLARE    
     
-	SELECT @ResultTable = r.ResultTable FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) WHERE r.Sporttype = @Sporttype
+	SELECT @ResultTable =  r.ResultTable
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE r.Sporttype = @SportType
+		/*@ResultTable:
+				1: ResultDetail
+				2: ResultDetailOS
+				3: ResultDetailES
+		*/
 
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID

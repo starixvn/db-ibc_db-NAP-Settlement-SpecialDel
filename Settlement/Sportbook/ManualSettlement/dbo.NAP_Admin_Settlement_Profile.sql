@@ -41,6 +41,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -158,7 +159,8 @@ BEGIN
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
 	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@sportType)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @sportType
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp

@@ -42,6 +42,7 @@ AS
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 	
 	Param's explanation:  
 		
@@ -196,8 +197,8 @@ BEGIN
 	) q
 		INNER JOIN dbo.Match m WITH(NOLOCK) ON	q.MatchId = m.matchid
 		OUTER APPLY(
-			SELECT	f.IsMergedParlay
-			FROM	dbo.f_Set_SettingByProfile (m.sporttype) f
+			SELECT	s.IsMergedParlay
+			FROM	dbo.SettlementResultTableSetting s WITH(NOLOCK) WHERE s.Sporttype = @SportType
 		)f
 	WHERE m.sporttype = @sporttype
 		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)

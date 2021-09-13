@@ -51,6 +51,7 @@ AS
 		- 20210310@Kathy: Show Unconfirmed FT Match after KO 30 minutes [Redmine:#147230]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -78,7 +79,8 @@ BEGIN
 	DECLARE @SqlQuery VARCHAR(4000)
 	
 	SELECT	@IsMergedParlay = IsMergedParlay 
-	FROM	dbo.f_Set_SettingByProfile(@sporttype)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @SportType
 	
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '

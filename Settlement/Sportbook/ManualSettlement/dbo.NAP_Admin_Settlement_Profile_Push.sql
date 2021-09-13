@@ -32,6 +32,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -184,7 +185,8 @@ BEGIN
 	END
 
 	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @sporttype
 
 	-- check movebet day
 	IF @IsMergedParlay = 1

@@ -41,6 +41,7 @@ AS
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -85,8 +86,9 @@ BEGIN
     WHERE	matchid = @matchid
     
 	SELECT	@isSettingByProfile = 1
-			,@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
+			,@IsMergedParlay = ss.IsMergedParlay
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @Sporttype
 
 	
 	IF @Mode IN ('CAL', 'REFUND')

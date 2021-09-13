@@ -14,6 +14,7 @@ AS
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
+		- 20210906@Louisa: Settle by profile for Volleyball, Squash, Sepak Takraw [Redmine:#160478]
 
 	Param's explanation:
 		
@@ -33,6 +34,27 @@ BEGIN
 		,SettlementStatusID TINYINT
 	)
 
+	--- Generate ResultDetail from Betsatus
+	DECLARE @tmpBetStatus TABLE 
+	(	
+		Id			INT
+		,charIdx	INT 
+		,MatchId	INT
+		,val		VARCHAR(20)
+		,HomeValue  VARCHAR(20)
+		,AwayValue  VARCHAR(20)
+	)
+	 
+    CREATE TABLE #tblMatchID 
+	(	MatchId				VARCHAR(20)
+		,SportType			INT
+		,ResultTable		TINYINT
+		,ExternalResultTable TINYINT
+		,betstatus			NVARCHAR(100)
+		,FinalHomeScore	INT
+		,FinalAwayScore	INT
+	)
+
 	DECLARE @tmpExternalResult TABLE 
 	(
 		 rn			 INT
@@ -43,8 +65,6 @@ BEGIN
 		,HomeValue	 VARCHAR(50)
 		,AwayValue   VARCHAR(50)
 	)
-  
-    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT, ResultTable TINYINT, ExternalResultTable TINYINT)
 
 	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
 	SELECT f.Val
@@ -56,8 +76,8 @@ BEGIN
 	FROM dbo.f_SplitString(@matchidList, ',') f
 		INNER JOIN Match m WITH(NOLOCK)
 			ON m.matchid = f.val
-		LEFT JOIN dbo.SettlementResultTableSetting r WITH(NOLOCK)
-			ON r.Sporttype = m.SportType
+	LEFT JOIN dbo.SettlementResultTableSetting r WITH(NOLOCK)
+		ON r.Sporttype = m.SportType
 	OPTION (maxrecursion 0)
 
 
@@ -137,7 +157,6 @@ BEGIN
 
 	------/END  GET EXTERNAL Result
 
-
 	------ GET Settled Result
 
 	IF EXISTS ( SELECT TOP  1 1 FROM #tblMatchID m WHERE m.ResultTable = 1 )
@@ -178,6 +197,54 @@ BEGIN
     					FROM #tblMatchID m
 						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
     					WHERE rs.ResourceID = f.ResourceID)
+		
+		IF EXISTS (	SELECT TOP 1 1 FROM #tblMatchID m WHERE sporttype IN ( 6, 30, 48 ) )
+		BEGIN
+			INSERT INTO @tmpBetStatus ( Id, charIdx, MatchId, val )
+			SELECT ROW_NUMBER() OVER(PARTITION BY MatchId ORDER BY MatchId )
+					, CHARINDEX('-', val) 
+					, m.MatchId 
+					,f.val  
+			FROM #tblMatchID m
+				CROSS APPLY ( SELECT val FROM dbo.f_SplitString( m.betstatus, ',') ) f 
+			WHERE m.SportType IN ( 6, 30, 48 )
+				AND m.FinalAwayScore IS NOT NULL
+				AND NOT EXISTS(SELECT TOP 1 r.MatchId FROM @tmpResultDetail r 
+								WHERE r.Matchid = m.MatchId
+								AND r.ResourceId = 0)
+			OPTION (MAXRECURSION 0)
+
+			UPDATE @tmpBetStatus
+			SET  HomeValue = CASE WHEN charIdx = 0 THEN '' ELSE LEFT (val, charIdx-1) END
+			,AwayValue = CASE WHEN charIdx = 0 THEN '' ELSE RIGHT ( val , len(val)-charIdx ) END
+
+			INSERT INTO @tmpResultDetail (Matchid, SourceId, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID )
+			SELECT DISTINCT m.Matchid
+				, 0
+				,CASE WHEN ISNULL(charIdx,0) = 0 THEN NULL
+						ELSE '010' + CAST(tmp.Id AS VARCHAR(1) )		
+						END AS ResourceID
+				, tmp.HomeValue
+				, tmp.AwayValue
+				, NULL AS ResultStatusID
+				, NULL AS SettlementStatusID
+			FROM #tblMatchID m
+				INNER JOIN @tmpBetStatus tmp ON m.MatchId = tmp.MatchId
+			WHERE tmp.Id <=5
+
+			UNION ALL
+			SELECT DISTINCT m.Matchid
+				, 0
+				,'00' AS ResourceID
+				, m.FinalHomeScore
+				, m.FinalAwayScore
+				, NULL AS ResultStatusID
+				, NULL AS SettlementStatusID
+			FROM #tblMatchID m
+			WHERE m.SportType IN ( 6, 30, 48 )
+				AND m.FinalHomeScore IS NOT NULL
+
+		END
 	END
 
     IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.ResultTable = 3)
@@ -191,11 +258,11 @@ BEGIN
                 , rs.ResultStatusID
                 , rs.SettlementStatusID
         FROM    dbo.[ResultDetailES] rs WITH (NOLOCK)
-			INNER JOIN #tblMatchID m 
-				ON rs.MatchId = m.MatchId
+    		INNER JOIN #tblMatchID m ON rs.MatchID = m.MatchId
     	WHERE m.ResultTable = 3
     		AND EXISTS (SELECT 1 
-    					FROM dbo.f_Set_MajorRound(43) f 
+    					FROM #tblMatchID m
+						CROSS APPLY dbo.f_Set_MajorRound(m.SportType) f	
     					WHERE rs.ResourceID = f.ResourceID)
 	END
 	
