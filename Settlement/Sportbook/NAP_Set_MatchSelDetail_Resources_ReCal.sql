@@ -14,7 +14,7 @@ AS
 		- 20201211@Max: Support to Re-calculate Settled Tickets [Redmine: #145669]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
-		
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 */
 BEGIN
 	SET NOCOUNT ON
@@ -24,7 +24,9 @@ BEGIN
 	IF @SportType = 0
         SELECT @SportType = SportType FROM dbo.match WITH (NOLOCK) WHERE matchID = @matchid
 
-	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile (@SportType) f
+	SELECT @ResultTable = r.ResultTable 
+	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+	WHERE r.Sporttype = @SportType
 
     ---return
     IF @ResultTable = 3
@@ -50,7 +52,7 @@ BEGIN
 	  	FROM dbo.ResultDetailOS rs WITH (NOLOCK) 
 		WHERE rs.matchid = @matchid
 	END
-	ELSE
+	ELSE IF @ResultTable = 1
 	BEGIN
 		SELECT rs.ResourceId AS ResourceID
 	    		,rs.HomeValue

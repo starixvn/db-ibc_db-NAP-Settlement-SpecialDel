@@ -12,6 +12,7 @@ AS
 		- 20200908@Louisa: get latest LSports result [Redmine:#139979]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155360,#155361]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 
 	Param's Explanation:
 		
@@ -28,7 +29,7 @@ BEGIN
 	FROM dbo.Match m WITH(NOLOCK) 
 	WHERE m.MatchId = @MatchId
 
-	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
 
@@ -41,7 +42,7 @@ BEGIN
 				,p.HomeValue
 				,p.AwayValue
 		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
-		WHERE	@SportType IN ( 5, 9, 50 )
+		WHERE	@SportType <> 2
 			AND p.MatchId = @MatchId
 
 		UNION ALL
@@ -62,7 +63,7 @@ BEGIN
 		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
 			ON l.ResourceId = fsmr.ResourceId
 	WHERE rn = 1
-		 AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+		AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
 				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
 				   ELSE 0
 				   END
@@ -102,8 +103,9 @@ BEGIN
 	FROM	@tmpLatestResult l
 		RIGHT JOIN @tmpSourceId s 
 			ON s.SourceId = l.SourceId
-	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL)
+	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL )
 		OR s.SourceId >= 1001
+					 
 				
 	SELECT	t.SourceId
 			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Info Site' ELSE t.SourceName END AS SourceName

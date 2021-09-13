@@ -58,6 +58,7 @@ AS
 		- 20210312@Louisa: Ignore filter  "Include Test Matches" when user input Match Code/ID [Readmine:#150425]
 		- 20210324@Louisa: Enhancement [Redmine:#151545]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 
       
  Param explanation:  
@@ -298,6 +299,7 @@ BEGIN
 			,htawayscore			
 			,m.matchid
 			,m.leagueid
+			,l.LeagueGroupID
 			,m.homeid
 			,m.awayid
 			,m.matchcode
@@ -360,6 +362,7 @@ BEGIN
 			AND 1 = CASE
 						WHEN @UncalMultiOnly = 1 AND ISNULL(f.IsMergedParlay,0) = 0
 							THEN CASE
+									WHEN tmp.sporttype = 1 AND tmp.LeagueGroupID = 113 THEN 0 --PinGoal
 									WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
 										AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
 									ELSE 0

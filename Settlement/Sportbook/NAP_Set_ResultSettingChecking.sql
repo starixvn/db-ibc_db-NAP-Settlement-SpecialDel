@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -32,7 +33,10 @@ BEGIN
 	DECLARE @tmpResultSetting TABLE ( ResultSetting VARCHAR(20) )
 
 	SELECT @Sporttype	= m.Sporttype FROM dbo.match m WITH(NOLOCK) where m.matchid = @MatchId
-	SELECT @ResultTable = f.ResultTable FROM [dbo].[f_Set_SettingByProfile] (@Sporttype) f
+	
+	SELECT @ResultTable = r.ResultTable
+	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+	WHERE r.Sporttype = @SportType
 
 	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources

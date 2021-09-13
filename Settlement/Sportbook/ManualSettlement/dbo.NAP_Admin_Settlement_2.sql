@@ -27,6 +27,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210203@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		
 	Param's Explanation:
 		+ @betstatus: Used for score table, FGLG status, refund status
@@ -38,7 +39,9 @@ BEGIN
 	DECLARE @temp_resultDetail as TABLE (rID varchar(20) PRIMARY KEY, H varchar(50), A varchar(50), ssID tinyint)
 	DECLARE @parentmatchId INT, @ResultTable TINYINT = 0
 
-	SELECT @ResultTable = f.ResultTable FROM dbo.f_Set_SettingByProfile (@SportType) f
+	SELECT @ResultTable = r.ResultTable 
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+	WHERE r.Sporttype = @SportType
 
 	IF @Sporttype = 50
 	BEGIN
@@ -94,7 +97,7 @@ BEGIN
 			FROM DBPRO.bodb02.dbo.ResultDetailOS  WITH(ROWLOCK)
 			WHERE	matchid = @matchid
 					AND SettlementStatusId > 0
-		ELSE --ResultDetail
+		ELSE IF @ResultTable = 1 --ResultDetail
 			SELECT	ResourceId
 					,HomeValue
 					,AwayValue
@@ -127,7 +130,7 @@ BEGIN
 			WHERE	matchid = @matchid
 					AND @resourceid LIKE '%,' + ResourceID + ',%'
 		END
-		ELSE --ResultDetail
+		ELSE IF @ResultTable = 1 --ResultDetail
 		BEGIN
 			SELECT	ResourceId
 					,HomeValue
