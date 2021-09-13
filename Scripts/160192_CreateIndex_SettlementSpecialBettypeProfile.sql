@@ -16,6 +16,7 @@ GO
 CREATE NONCLUSTERED INDEX [IX_SettlementSpecialBettypeProfile_SportType]
 ON [dbo].[SettlementSpecialBettypeProfile] ([SportType])
 INCLUDE ( [BetType],[BetID] )
+WITH ( ONLINE = ON )
 ON [DATA]
 
 GO
