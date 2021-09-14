@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CheckingProcess]
 	, @IsReleased				BIT	= 0
 	, @IsExistFM				BIT = 0	
 	, @IsExistFM2				BIT = 0
+	, @isExistMatch3rd			BIT = 0
 	, @spName					VARCHAR(500) = ''
 	, @session					NVARCHAR(50) = ''
 	, @IsLockingByRefno			BIT = 0
@@ -35,11 +36,10 @@ AS
 	- 20201013@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+	- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 	- 20210828@Helen: Hotfix - keyvalue2 issue [Redmine:#160889]
 	
  Param's Explanation:   
-	@SubParlayKey:
-		1: single
  
  Dependences:
 	1. CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -65,6 +65,7 @@ BEGIN
 										OR @IsExistFM = 1
 										OR @isExistBB = 1
 										OR @IsExistFM2 = 1
+										OR @isExistMatch3rd = 1
 									) THEN 1 ELSE 0 
 								END
 	-- checking dependency				
@@ -217,13 +218,14 @@ BEGIN
 					WHEN @isExistFM = 1 		AND ck.KeyId = 6 THEN 6	-- Fast market
 					WHEN @IsExistBB = 1			AND ck.KeyId = 5 THEN 5 -- BetBuilder
 					WHEN @IsExistFM2 = 1		AND ck.KeyID = 7 THEN 7 -- Fast market 228
+					WHEN @isExistMatch3rd = 1	AND ck.KeyID = 8 THEN 8 -- match3rd
 					ELSE 0
 				END AS KeyId
 			FROM dbo.TempVariableNumber ck WITH(ROWLOCK)
 				INNER JOIN #tblMatchProcess tp 
 				ON ck.KeyValue = tp.matchid AND ck.KeyID = tp.KeyID
 				
-			WHERE tp.KeyID > 0 AND tp.KeyId < 100
+			WHERE tp.KeyID > 0
 			
 			IF ( NOT EXISTS (SELECT TOP 1 1 FROM #checkProcess))
 			BEGIN

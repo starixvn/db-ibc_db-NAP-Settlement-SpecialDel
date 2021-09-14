@@ -15,6 +15,7 @@ AS
 
 	Revisions:			
 		- 20170726@Paul: Create new [RedmineID: #77175]
+		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	Param's Explanation:      
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels
@@ -54,10 +55,9 @@ RETURN
 				b.winlostdate,
 				b.ruben,
 				b.bettype,
-				m.sporttype
+				m.SportType
 		FROM cteBettrans b
-			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
-
+			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		UNION ALL
 
 		SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
