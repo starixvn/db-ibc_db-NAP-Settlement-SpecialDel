@@ -70,17 +70,17 @@ BEGIN
 		RETURN;
 
 	--Main table
-	INSERT INTO CustLimitBet_789(Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate)
-	SELECT at.Matchid, at.CustID, at.TurnoverAdjust, at.PayoutAdjust, 2 EventTypeID, 0 LastQueueID, GETDATE() ModifiedDate
-	FROM #AdjustTemp at
-		LEFT JOIN CustLimitBet_789 lm WITH (NOLOCK) ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
-	WHERE lm.Matchid IS NULL
-
 	UPDATE lm SET lm.AccumTurnover = (lm.AccumTurnover + at.TurnoverAdjust),
 					lm.AccumPayout = (lm.AccumPayout + at.PayoutAdjust)
 	FROM CustLimitBet_789 lm WITH (ROWLOCK,UPDLOCK)
 		INNER JOIN #AdjustTemp at ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
 	WHERE at.PayoutAdjust <> 0 AND at.TurnoverAdjust <> 0
+
+	INSERT INTO CustLimitBet_789(Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate)
+	SELECT at.Matchid, at.CustID, at.TurnoverAdjust, at.PayoutAdjust, 2 EventTypeID, 0 LastQueueID, GETDATE() ModifiedDate
+	FROM #AdjustTemp at
+		LEFT JOIN CustLimitBet_789 lm WITH (NOLOCK) ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
+	WHERE lm.Matchid IS NULL
 
 	--History table
 	INSERT INTO CustLimitBetHistory_789(Matchid, CustID, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, CreatedDate)
@@ -120,17 +120,17 @@ BEGIN
 		RETURN;
 
 	--Main table
-	INSERT INTO CustLimitBet_MBC(Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate)
-	SELECT at.Matchid, at.CustID, at.TurnoverAdjust, at.PayoutAdjust, 2 EventTypeID, 0 LastQueueID, GETDATE() ModifiedDate
-	FROM #AdjustTemp at
-		LEFT JOIN CustLimitBet_MBC lm WITH (NOLOCK) ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
-	WHERE lm.Matchid IS NULL
-
 	UPDATE lm SET lm.AccumTurnover = (lm.AccumTurnover + at.TurnoverAdjust),
 					lm.AccumPayout = (lm.AccumPayout + at.PayoutAdjust)
 	FROM CustLimitBet_MBC lm WITH (ROWLOCK,UPDLOCK)
 		INNER JOIN #AdjustTemp at ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
 	WHERE at.PayoutAdjust <> 0 AND at.TurnoverAdjust <> 0
+
+	INSERT INTO CustLimitBet_MBC(Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate)
+	SELECT at.Matchid, at.CustID, at.TurnoverAdjust, at.PayoutAdjust, 2 EventTypeID, 0 LastQueueID, GETDATE() ModifiedDate
+	FROM #AdjustTemp at
+		LEFT JOIN CustLimitBet_MBC lm WITH (NOLOCK) ON at.MatchID = lm.Matchid AND at.CustID = lm.CustID AND lm.EventTypeID = 2
+	WHERE lm.Matchid IS NULL
 
 	--History table
 	INSERT INTO CustLimitBetHistory_MBC(Matchid, CustID, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, CreatedDate)
