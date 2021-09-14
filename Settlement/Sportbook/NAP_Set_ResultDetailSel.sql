@@ -208,10 +208,14 @@ BEGIN
 			FROM #tblMatchID m
 				CROSS APPLY ( SELECT val FROM dbo.f_SplitString( m.betstatus, ',') ) f 
 			WHERE m.SportType IN ( 6, 30, 48 )
+				AND ISNULL(m.betstatus,'') <> ''
+				AND m.betstatus NOT LIKE '%Refund%' 
 				AND m.FinalAwayScore IS NOT NULL
-				AND NOT EXISTS(SELECT TOP 1 r.MatchId FROM @tmpResultDetail r 
+				AND NOT EXISTS( SELECT TOP 1 r.MatchId FROM @tmpResultDetail r 
 								WHERE r.Matchid = m.MatchId
-								AND r.ResourceId = 0)
+								AND r.ResourceId = 0
+								AND r.HomeValue IS NOT NULL
+								)
 			OPTION (MAXRECURSION 0)
 
 			UPDATE @tmpBetStatus

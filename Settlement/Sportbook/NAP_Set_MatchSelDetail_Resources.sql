@@ -26,7 +26,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
-		- 20210906@Louisa: Settle y profile for Volleyball, Squash, and Sepak Takraw [Redmine:#160478]
+		- 20210906@Louisa: Settle by profile for Volleyball, Squash, and Sepak Takraw [Redmine:#160478]
 
 */
 BEGIN
@@ -38,7 +38,6 @@ BEGIN
 			,@IsMergedParlay BIT = 0
 			,@OpenQuery		NVARCHAR(MAX)
 			,@ResultTable	TINYINT = 0
-			,@IsConfirmFT	BIT = 0
 			,@betstatus		NVARCHAR(100)
 			,@FinalHomeScore INT
 			,@FinalAwayScore INT
@@ -84,13 +83,17 @@ BEGIN
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
     ---------------------------------------------------------------------------------------------
-    IF @SportType = 0
-        SELECT @SportType = SportType FROM Match WITH(NOLOCK) WHERE matchID = @matchid
-	
+
+	IF @SportType = 0 OR @SportType IN ( 6, 30, 48 ) 
+	SELECT @SportType = SportType 
+		, @betstatus =  m.betstatus
+		, @FinalHomeScore = m.finalhomescore
+		, @FinalAwayScore = m.finalawayscore
+	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid
+
     --Use @BestOfMap for E-sport only
 	SELECT @BestOfMap = BestOfMap
-		 , @IsConfirmFT  = CASE WHEN ConfirmFT > 0 THEN 1 ELSE 0 END
-	FROM [dbo].[match_remark] WITH (NOLOCK) 
+	FROM [dbo].[match_remark] WITH (NOLOCK)
 	WHERE matchid = @matchid    
 
 	SELECT @ResultTable =  r.ResultTable
@@ -102,12 +105,6 @@ BEGIN
 				2: ResultDetailOS
 				3: ResultDetailES
 		*/
-	
-	IF @SportType IN ( 6, 30, 48 )
-	SELECT @betstatus =  m.betstatus 
-		, @FinalHomeScore = m.finalhomescore
-		, @FinalAwayScore = m.finalawayscore
-	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid
 		
     ---------------------------------------------------------------------------------------------
 
@@ -426,8 +423,12 @@ BEGIN
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 
 
-		---This block code support until Adminsite confirmed result inot ResultDetailOS for Volleyball
-		IF @SportType IN ( 6, 30, 48 ) AND ISNULL(@betstatus,'') <>'' AND EXISTS (SELECT TOP 1 1 FROM @tmbResultDetail r WHERE r.HomeValue IS NULL) 
+		---This block code support until Adminsite confirmed result to ResultDetailOS for Volleyball, Squash, Sepak Takrow
+		IF 	(	@SportType IN ( 6, 30, 48 ) 
+				AND ISNULL(@betstatus,'') <>''
+				AND @betstatus NOT LIKE '%Refund%'
+				AND EXISTS (SELECT TOP 1 1 FROM @tmbResultDetail r WHERE r.HomeValue IS NULL AND r.ResultSetting IS NULL) 
+			)
 		BEGIN
 			INSERT INTO @tmpBetStatus (val, chk )
 			SELECT f.val , CHARINDEX('-', val)  

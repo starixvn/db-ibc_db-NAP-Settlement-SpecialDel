@@ -11,31 +11,27 @@
 USE bodb02
 GO
 
-IF OBJECT_ID('tempdb..#tmpBettypeVolleyball') IS NOT NULL
-DROP TABLE #tmpBettypeVolleyball
+IF OBJECT_ID('tempdb..#tmpBettype') IS NOT NULL
+DROP TABLE #tmpBettype
 
-CREATE TABLE #tmpBettypeVolleyball ( sporttype SMALLINT, pfID SMALLINT, BetType SMALLINT, BetID BIGINT, ResourceID VARCHAR(20), OrdNo SMALLINT, RoundID VARCHAR(10), GroupType CHAR(2)	)
+CREATE TABLE #tmpBettype ( sporttype SMALLINT, pfID SMALLINT, BetType SMALLINT, BetID BIGINT, ResourceID VARCHAR(20), OrdNo SMALLINT, RoundID VARCHAR(10), GroupType CHAR(2), RefResourceId VARCHAR(20)	)
 
-INSERT INTO #tmpBettypeVolleyball ( sporttype, pfID, BetType, BetID, ResourceID, OrdNo, RoundID, GroupType )
----BetType		 Enabled
-VALUES ( 6	,1	,1	,0	,'00'		,99		,NULL	,'FT' ) --1	
-	,  ( 6	,2	,2	,0	,'00'		,99		,NULL	,'FT' ) --1	
-	,  ( 6	,2	,2	,0	,'0100'		,99		,NULL	,'FT' )
-	,  ( 6	,3	,3	,0	,'00'		,99		,NULL	,'FT' )
-	,  ( 6	,3	,3	,0	,'0100'		,99		,NULL	,'FT' ) --1
-	,  ( 6	,20 ,20 ,0	,'00'		,99		,NULL	,'FT' ) --1	Moneyline
-	, ( 30	,1	,1	,0  ,'00'		,99		,NULL	,'FT' ) 
-	, ( 30	,2	,2	,0  ,'00'		,99		,NULL	,'FT' ) 
-	, ( 30	,2	,2	,0  ,'0100'		,99		,NULL	,'FT' )
-	, ( 30	,3	,3	,0  ,'00'		,99		,NULL	,'FT' )
-	, ( 30	,3	,3	,0  ,'0100'		,99		,NULL	,'FT' ) 
-	, ( 30	,20	,20 ,0  ,'00'		,99		,NULL	,'FT' ) 
-	, ( 48	,1	,1	,0  ,'00'		,99		,NULL	,'FT' ) 
-	, ( 48	,2	,2	,0  ,'00'		,99		,NULL	,'FT' ) 
-	, ( 48	,2	,2	,0  ,'0100'		,99		,NULL	,'FT' )
-	, ( 48	,3	,3	,0  ,'00'		,99		,NULL	,'FT' )
-	, ( 48	,3	,3	,0  ,'0100'		,99		,NULL	,'FT' ) 
-	, ( 48	,20	,20 ,0  ,'00'		,99		,NULL	,'FT' ) 
+INSERT INTO #tmpBettype ( sporttype, pfID, BetType, BetID, ResourceID, OrdNo, RoundID, GroupType, RefResourceId )
+
+VALUES ( 6	,1	,1	,0	,'00'		,99		,NULL	,'FT' , NULL) 
+	,  ( 6	,2	,2	,0	,'0100'		,99		,NULL	,'FT' , '00')
+	,  ( 6	,3	,3	,0	,'0100'		,99		,NULL	,'FT' , '00') 
+	,  ( 6	,20 ,20 ,0	,'00'		,99		,NULL	,'FT' , NULL) 
+
+	, ( 30	,1	,1	,0  ,'00'		,99		,NULL	,'FT' ,NULL) 
+	, ( 30	,2	,2	,0  ,'0100'		,99		,NULL	,'FT' ,'00')
+	, ( 30	,3	,3	,0  ,'0100'		,99		,NULL	,'FT' ,'00') 
+	, ( 30	,20	,20 ,0  ,'00'		,99		,NULL	,'FT' ,NULL) 
+
+	, ( 48	,1	,1	,0  ,'00'		,99		,NULL	,'FT' ,NULL) 
+	, ( 48	,2	,2	,0  ,'0100'		,99		,NULL	,'FT' ,'00')
+	, ( 48	,3	,3	,0  ,'0100'		,99		,NULL	,'FT' ,'00') 
+	, ( 48	,20	,20 ,0  ,'00'		,99		,NULL	,'FT' ,NULL) 
 
 
 	INSERT INTO dbo.SettlementSpecialBettypeProfile 
@@ -49,9 +45,10 @@ VALUES ( 6	,1	,1	,0	,'00'		,99		,NULL	,'FT' ) --1
 					  ,OrdNo
 					  ,RoundID
 					  ,OddsType
+					  ,RefResourceId
 					)
-	SELECT tmp.pfID, tmp.sporttype, tmp.BetType, tmp.BetID, tmp.ResourceID, 'MNL', '', tmp.OrdNo, tmp.RoundID, NULL
-	FROM #tmpBettypeVolleyball tmp 
+	SELECT tmp.pfID, tmp.sporttype, tmp.BetType, tmp.BetID, tmp.ResourceID, 'MNL', '', tmp.OrdNo, tmp.RoundID, NULL, tmp.RefResourceId
+	FROM #tmpBettype tmp 
 		LEFT JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK) 
 			ON sp.SportType = tmp.sporttype
 				AND sp.BetType  = tmp.BetType

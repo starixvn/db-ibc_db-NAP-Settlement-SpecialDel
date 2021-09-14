@@ -89,7 +89,15 @@ BEGIN
 			ON m.matchid = r.MatchID
 	WHERE ISNULL(m.ParentID,0) = @MatchId
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildmatchInfo m WHERE m.Sporttype = 6 AND m.ResourceID IS NULL AND ISNULL(m.betstatus,'') <> '' AND m.betstatus NOT LIKE '%Refund%')
+	IF EXISTS 
+	(
+		SELECT TOP 1 1 FROM @tmpChildmatchInfo m 
+		WHERE m.Sporttype = 6 
+		AND m.ResourceID IS NULL 
+		AND ISNULL(m.betstatus,'') <> '' 
+		AND m.betstatus NOT LIKE '%Refund%' 
+		AND m.ResultSetting IS NULL
+	)
 	BEGIN
 
 		SELECT DISTINCT m.matchid			
