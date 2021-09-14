@@ -42,6 +42,7 @@ AS
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20210906@Louisa: Settle by profile for Volleyball, Squash, Sepak Takraw [Redmine:#160478]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -777,7 +778,7 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
-	IF @sportType = 45 ---for Log Only
+	IF @sportType IN ( 6, 30, 45, 48 ) ---for Log Only
 	BEGIN
 		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
 		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
