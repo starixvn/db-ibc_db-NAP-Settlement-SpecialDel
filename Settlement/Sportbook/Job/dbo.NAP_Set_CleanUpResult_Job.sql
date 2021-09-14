@@ -13,6 +13,7 @@ AS
 		- 20201223@Louisa: Cleanup data for Other Sports [Redmine:#145651]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:##161455]
 
 	Param's Explanation: 
 
@@ -25,12 +26,20 @@ BEGIN
 
 	SET @compareDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 102)
 	
-	----- ESports 
+	----- ESports
+	INSERT INTO #tmpDataNotExits(ProviderExternalId)
+	SELECT es.ProviderExternalId
+	FROM dbo.ProviderExternalResultDetailES es WITH(NOLOCK)
+		LEFT JOIN dbo.match m WITH(NOLOCK)
+			ON es.MatchId = m.matchid
+	WHERE m.matchid IS NULL
+		AND es.CreateDate < @compareDate
+
 	WHILE (1=1)
 	BEGIN
+
 		DELETE TOP(@batch) FROM dbo.ProviderExternalResultDetailES WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchID IN (0,-1)
-			AND CreateDate < @compareDate
+		WHERE ProviderExternalId IN ( SELECT ProviderExternalId FROM #tmpDataNotExits )
 	
 		IF @@ROWCOUNT = 0
 			BREAK			
@@ -40,6 +49,8 @@ BEGIN
 	END
 
 	----Tennis, Badminton
+	TRUNCATE TABLE #tmpDataNotExits
+
 	INSERT INTO #tmpDataNotExits (ProviderExternalId)
 	SELECT ex.ProviderExternalId 
 	FROM dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
