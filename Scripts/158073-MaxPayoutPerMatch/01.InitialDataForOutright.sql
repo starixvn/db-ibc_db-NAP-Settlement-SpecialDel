@@ -67,7 +67,7 @@ BEGIN
 	WHERE IsFinished = 0
 
 	IF @@ROWCOUNT = 0
-		RETURN;
+		BREAK;
 
 	--Main table
 	UPDATE lm SET lm.AccumTurnover = (lm.AccumTurnover + at.TurnoverAdjust),
@@ -117,7 +117,7 @@ BEGIN
 	WHERE IsFinished = 0
 
 	IF @@ROWCOUNT = 0
-		RETURN;
+		BREAK;
 
 	--Main table
 	UPDATE lm SET lm.AccumTurnover = (lm.AccumTurnover + at.TurnoverAdjust),
