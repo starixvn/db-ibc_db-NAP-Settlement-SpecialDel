@@ -213,7 +213,7 @@ BEGIN
 				AND m.FinalAwayScore IS NOT NULL
 				AND NOT EXISTS( SELECT TOP 1 r.MatchId FROM @tmpResultDetail r 
 								WHERE r.Matchid = m.MatchId
-								AND r.ResourceId = 0
+								AND r.SourceId = 0
 								AND r.HomeValue IS NOT NULL
 								)
 			OPTION (MAXRECURSION 0)
@@ -247,6 +247,12 @@ BEGIN
 			FROM #tblMatchID m
 			WHERE m.SportType IN ( 6, 30, 48 )
 				AND m.FinalHomeScore IS NOT NULL
+				AND NOT EXISTS( SELECT TOP 1 r.MatchId FROM @tmpResultDetail r 
+								WHERE r.Matchid = m.MatchId
+								AND r.ResourceId = 0
+								AND r.SourceId = 0
+								AND r.HomeValue IS NOT NULL
+								)
 
 		END
 	END

@@ -424,15 +424,15 @@ BEGIN
 
 
 		---This block code support until Adminsite confirmed result to ResultDetailOS for Volleyball, Squash, Sepak Takrow
-		IF 	(	@SportType IN ( 6, 30, 48 ) 
-				AND ISNULL(@betstatus,'') <>''
-				AND @betstatus NOT LIKE '%Refund%'
-				AND EXISTS (SELECT TOP 1 1 FROM @tmbResultDetail r WHERE r.HomeValue IS NULL AND r.ResultSetting IS NULL) 
+		IF 	(	@SportType IN ( 6, 30, 48 )
+				AND EXISTS (SELECT TOP 1 1 FROM @tmbResultDetail r WHERE r.HomeValue IS NULL AND r.ResultSetting IS NULL)
 			)
 		BEGIN
 			INSERT INTO @tmpBetStatus (val, chk )
 			SELECT f.val , CHARINDEX('-', val)  
-			FROM dbo.f_SplitString( @betstatus, ',') f 
+			FROM dbo.f_SplitString( @betstatus, ',') f
+			WHERE ISNULL(@betstatus,'') <>''
+				AND @betstatus NOT LIKE '%Refund%'
 			OPTION (MAXRECURSION 0)
 
 			UPDATE @tmpBetStatus
