@@ -13,6 +13,7 @@ AS
 	
 	Revisions:
 		- 20210514@Kathy: Set waiting time for SP [Redmine:#153155]
+		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -32,6 +33,10 @@ BEGIN
 	-- Auto PinGoal
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 0	
+
+	-- Bitcoin
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_s175', @WaitingTime, 0	
 
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
