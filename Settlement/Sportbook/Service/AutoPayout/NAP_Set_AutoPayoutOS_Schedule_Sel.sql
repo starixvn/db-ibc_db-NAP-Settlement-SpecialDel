@@ -8,6 +8,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20210915@Louisa: Checking invalid result of Virtual Cricket [Redmine:#161640]
 
 */
 BEGIN
@@ -51,6 +52,8 @@ BEGIN
 	 	AND r.ResultStatusID = 3
 		AND ISNULL(r.ResultSetting,0) & 1  = 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
+		AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') IS NULL THEN 0
+				 ELSE 1 END 
 
 	SELECT m.matchid
 		, m.leagueid
