@@ -15,9 +15,6 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @Sporttype		SMALLINT
-		 ,	@ResultTable	TINYINT
-
 	DECLARE @tmpChildmatchInfo TABLE
 	(
 	  matchid			INT
@@ -38,12 +35,6 @@ BEGIN
 	 ,ResultStatusID	TINYINT
 	 ,ResultSetting		TINYINT
 	)
-
-	SELECT  @Sporttype = m.sporttype
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE ISNULL(m.ParentId,0)  = @MatchId
-
-	SELECT  @ResultTable = r.ResultTable FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) WHERE r.Sporttype = @Sporttype
 
 	INSERT INTO @tmpChildmatchInfo
 	(
@@ -92,11 +83,10 @@ BEGIN
 	IF EXISTS 
 	(
 		SELECT TOP 1 1 FROM @tmpChildmatchInfo m 
-		WHERE m.Sporttype = 6 
-		AND m.ResourceID IS NULL 
-		AND ISNULL(m.betstatus,'') <> '' 
-		AND m.betstatus NOT LIKE '%Refund%' 
-		AND m.ResultSetting IS NULL
+		WHERE m.HomeValue IS NULL				--- not exists data in resultDetail	 
+		AND m.ResultSetting IS NULL	
+		AND ISNULL(m.finalhomescore,'') <> ''	--- exist confirmed score or settled score
+		AND m.betstatus NOT LIKE '%Refund%'			
 	)
 	BEGIN
 

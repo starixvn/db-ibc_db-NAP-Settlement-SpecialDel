@@ -67,20 +67,39 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    DECLARE	@sporttype INT, @XmlData XML, @IsSettleByProfile BIT
+    DECLARE	@sporttype INT
+		, @queryMatch NVARCHAR(MAX) = ''
+		, @XmlData XML
+		, @IsSettleByProfile BIT
+		, @oddsTable TINYINT = 0
+		, @ChildMatchList	VARCHAR(200)
+	
+	DECLARE @tmpMatchRunningOdds TABLE ( Matchid INT )
 
+	SELECT	@sporttype   = m.sporttype
+		FROM	dbo.match m WITH (NOLOCK)
+		WHERE	m.matchid = @MatchId
 
-	IF	( @CheckType = 0 AND ISNULL(@SelectedResource,'') = '' ) 
-		OR (@CheckType = 1 AND ISNULL(@SelectedMatchResource,'') = '' )
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 6, 30, 48)	THEN 1 --Odds
+							 WHEN @sporttype IN ( 9, 45, 50 )		THEN 2 --OddsOS
+							 WHEN @sporttype = 43					THEN 3 --OddsES
+							 ELSE 0 END -- not checking
+
+	IF	(
+			@oddsTable = 0
+			OR ( @CheckType = 0 AND ISNULL(@SelectedResource,'') = '' ) 
+			OR ( @CheckType = 1 AND ISNULL(@SelectedMatchResource,'') = '' )
+		) 
 	RETURN
 
 	IF OBJECT_ID('tempdb..#SelectedMatchResource') IS NOT NULL
-	DROP TABLE #SelectedMatchResource
+		DROP TABLE #SelectedMatchResource
 
 	IF OBJECT_ID('tempdb..#Resource') IS NOT NULL
-	DROP TABLE #Resource
+		DROP TABLE #Resource
 
 	CREATE TABLE #SelectedMatchResource ( Matchid INT, ResourceId VARCHAR(20) )
+	CREATE TABLE #Resources ( ResourceId VARCHAR(20), Bettype SMALLINT, BetID BIGINT )
 
 	IF @CheckType = 1
 	BEGIN
@@ -96,12 +115,7 @@ BEGIN
 		INSERT INTO #SelectedMatchResource ( Matchid, ResourceId )
 		SELECT	Matchid, ResourceId
 		FROM TmpData
-		OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )
-
-		SELECT	@sporttype   = ( SELECT TOP 1 m.sporttype 
-								FROM	#SelectedMatchResource r
-								INNER JOIN dbo.match m WITH (NOLOCK) 
-									ON m.matchid = r.Matchid )	
+		OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )	
 
 		SELECT @SelectedResource = STUFF((
 				SELECT DISTINCT ',' + ResourceId
@@ -110,16 +124,10 @@ BEGIN
 			), 1,1,'')
 	END
 
-	ELSE	
-		SELECT	@sporttype   = m.sporttype
-		FROM	dbo.match m WITH (NOLOCK)
-		WHERE	m.matchid = @MatchId
+	IF @sporttype = 9 AND @SelectedResource LIKE '%00%'
+		SELECT @SelectedResource = @SelectedResource + ',70400' ---Special resource FT
 
-	
-	SELECT @IsSettleByProfile = ss.IsSettleByProfile 
-	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-	WHERE ss.Sporttype = @sporttype
-
+	----------------- Checking Odds for Basketball
 	IF @sporttype = 2
 	BEGIN
 		IF @Action = 'CAL_EAR'
@@ -152,46 +160,34 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 							)	
-		END		
+		END
+		
+		IF @ErrCode > 0
+			SELECT @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+
+		RETURN
+
 	END
 
-	ELSE IF @IsSettleByProfile = 1
+	----------------- Checking Odds for other sports
+	SET	@queryMatch = N'INSERT INTO #Resources ( ResourceId, Bettype , BetID )
+						SELECT   ResourceId
+								, BetType
+								, BetID
+						FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.BetType , sp.BetID
+						FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+								INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
+														ON sp.ResourceID = tm.val
+						WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
+						OPTION (MAXRECURSION 0)
+						'')'
+
+	EXECUTE	sys.sp_executesql @queryMatch
+
+
+	IF @CheckType = 0
 	BEGIN
-		DECLARE @queryMatch NVARCHAR(MAX) = ''
-
-		IF @sporttype = 9 AND @SelectedResource LIKE '%00%'
-			SELECT @SelectedResource = @SelectedResource + ',70400' ---Special resource FT
-
-		CREATE TABLE #Resources ( ResourceId VARCHAR(20), Bettype SMALLINT, BetID BIGINT )
-
-		SET	@queryMatch = N'INSERT INTO #Resources ( ResourceId, Bettype , BetID )
-							SELECT   ResourceId
-									, BetType
-									, BetID
-							FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.BetType , sp.BetID
-							FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-									INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.val
-							WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
-							OPTION (MAXRECURSION 0)
-							'')'
-
-		EXECUTE	sys.sp_executesql @queryMatch
-
-		IF( @sporttype = 43)
-		BEGIN
-		SET @ErrCode = (SELECT TOP (1) 1001018
-							FROM dbo.oddsES o WITH (NOLOCK)
-								INNER JOIN #Resources	r
-									ON o.bettype = r.Bettype
-							WHERE o.matchid = @Matchid
-								AND o.liveindicator = 1
-								AND o.oddsstatus <> 'closed'
-								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
-							)
-		END
-
-		ELSE IF( @sporttype = 5)
+		IF @oddsTable = 1
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.odds o WITH (NOLOCK)
@@ -204,7 +200,7 @@ BEGIN
 							)
 		END
 
-		ELSE IF( @sporttype IN (9, 45, 50 ) )
+		ELSE IF @oddsTable = 2
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
@@ -217,28 +213,46 @@ BEGIN
 							)
 		END
 
-		ELSE IF @sporttype IN ( 6, 30, 48 )
+		ELSE IF @oddsTable = 3
 		BEGIN
-			SET @ErrCode = (SELECT TOP (1) 1001018
-							FROM dbo.odds o WITH (NOLOCK)								
-								INNER JOIN #SelectedMatchResource mr
-									ON o.matchid = mr.Matchid
+		SET @ErrCode = (SELECT TOP (1) 1001018
+							FROM dbo.oddsES o WITH (NOLOCK)
 								INNER JOIN #Resources	r
 									ON o.bettype = r.Bettype
-										AND mr.ResourceId = r.ResourceId									
-							WHERE o.liveindicator = 1
+							WHERE o.matchid = @Matchid
+								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
+								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
 		END
 
 	END
-
-
 	
-	IF @ErrCode > 0
+	ELSE
 	BEGIN
-		SET @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+		INSERT INTO @tmpMatchRunningOdds ( Matchid )
+				SELECT DISTINCT o.matchid
+				FROM dbo.odds o WITH (NOLOCK)							
+					INNER JOIN #SelectedMatchResource mr
+						ON o.matchid = mr.Matchid
+					INNER JOIN #Resources	r
+						ON o.bettype = r.Bettype
+							AND mr.ResourceId = r.ResourceId									
+				WHERE o.liveindicator = 1
+					AND o.oddsstatus <> 'closed'
+
+				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)
+					SET  @ErrCode = 1001057
+					SET @ErrMsg ='WARNING! Cannot continue due main match and related matches have inconsistent resuls.'
+
+				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid <> @Matchid )
+					SELECT @ChildMatchList = @ChildMatchList + '<br/>' + CAST(matchid AS VARCHAR(20) ) FROM @tmpMatchRunningOdds
+					SET  @ErrCode = 1001058
+					SET  @ErrMsg = 'WARNING! Cannot continue due to following matches have unclosed odds:'+ '<br/>'
+									+ @ChildMatchList
+				
 	END
+
 END
 
 GO

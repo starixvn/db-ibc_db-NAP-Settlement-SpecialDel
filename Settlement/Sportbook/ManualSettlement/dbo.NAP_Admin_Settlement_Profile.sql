@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+	,@ChildMatchIds		VARCHAR(500)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -784,7 +785,7 @@ BEGIN
 		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
 		FROM @tmpResourcesWeb r
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-		WHERE r.ResourceID IN ('0101','0102','0103')
+		WHERE r.ResourceID IN ('0101','0102','0103','0104','0105')
 	END
 
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
@@ -809,8 +810,14 @@ BEGIN
 			 
 								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
 									ELSE ' Selected:' 
-								END 
-								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog)) 
+									END 
+								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+								+ CASE WHEN @sportType = 6 THEN 'CalcChild: ' + CASE WHEN @ChildMatchIds IS NULL THEN 0
+																					 ELSE @ChildMatchIds
+																					 END
+										ELSE '' 
+										END
+	
 	SELECT @logdata = CASE WHEN @sportType = 50 AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
