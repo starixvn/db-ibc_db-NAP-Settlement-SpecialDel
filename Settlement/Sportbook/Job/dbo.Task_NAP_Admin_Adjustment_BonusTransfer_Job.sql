@@ -414,10 +414,10 @@ BEGIN
 			SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 			
 			EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-				, @recipients			 = 'patrick.pham@starixvn.com;lukas.luu@starixvn.com;daniel.truong@starixvn.com;billy.bui@starixvn.com;'
+				, @recipients			 = 'dbaadmin@starixvn.com'
 				--LOCAL: dba_local@starixvn.com
 				--TEST version UAT (UAT1, UAT2...): 'qa@starixvn.com'
-				--PRODUCTION: 'patrick.pham@starixvn.com;lukas.luu@starixvn.com;daniel.truong@starixvn.com;billy.bui@starixvn.com;'
+				--PRODUCTION: 'dbaadmin@starixvn.com'
 				, @copy_recipients		 = ''
 				, @blind_copy_recipients = ''
 				, @subject				 = @subject
