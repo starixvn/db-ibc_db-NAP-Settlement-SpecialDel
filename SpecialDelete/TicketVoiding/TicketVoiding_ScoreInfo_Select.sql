@@ -15,6 +15,7 @@ AS
 		- 20210527@Max: Exclude 2H ticket from get score & time range [Redmine: #155598]
 		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
 		- 20210616@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
+		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 	
 	Param's explanation:
 		
