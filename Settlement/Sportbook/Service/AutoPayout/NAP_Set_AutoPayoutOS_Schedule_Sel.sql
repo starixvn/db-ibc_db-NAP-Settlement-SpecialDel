@@ -52,7 +52,7 @@ BEGIN
 	 	AND r.ResultStatusID = 3
 		AND ISNULL(r.ResultSetting,0) & 1  = 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
-		AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') IS NULL THEN 0
+		AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0
 				 ELSE 1 END 
 
 	SELECT m.matchid
