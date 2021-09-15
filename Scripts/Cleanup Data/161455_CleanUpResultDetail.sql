@@ -15,6 +15,8 @@ USE [bodb02]
 GO
 	
 	DECLARE @batch INT = 1000
+			,@minMatchId	INT
+			,@maxMatchId	INT
 	
 	IF OBJECT_ID('tempdb..#Active') IS not NULL
 	DROP TABLE #Active
@@ -27,12 +29,16 @@ GO
 		INNER JOIN dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 			ON m.sporttype = ss.Sporttype OR m.sporttype = 1
 
+	SELECT @minMatchId = MIN(m.Matchid)
+		 , @maxMatchId = MAX (matchid) 
+	FROM #Active m
 	
+	----- Delete junk data < range active
 	WHILE (1=1)
 	BEGIN
 		DELETE TOP(@batch)
 		FROM dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchId NOT IN (SELECT MatchId FROM #Active)
+		WHERE MatchId < @minMatchId 
 	
 		IF @@ROWCOUNT = 0
 			BREAK			
@@ -41,5 +47,19 @@ GO
 
 	END
 
+	--- delete junk data in range active
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@batch)
+		FROM dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
+		WHERE MatchId NOT IN (SELECT MatchId FROM #Active)
+		AND MatchId <= @maxMatchId
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
 
+		WAITFOR DELAY '00:00:00:280'
+
+	END
+	
 GO
