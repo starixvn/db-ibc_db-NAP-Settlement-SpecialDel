@@ -47,6 +47,7 @@ AS
 		- 20210619@Helen: SP Tuning [Redmine: #157249]
 		- 20210621@Max: [TVS] EKO & Wrong Kick Off Time - Warning tickets existed on other request not show Transid [Redmine: #156728]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 
 	Param's explanation:
@@ -95,44 +96,14 @@ BEGIN
 			SubTransid            BIGINT,
 			refno                 BIGINT,
 			custid                INT,
-			username              VARCHAR(30),
-			odds                  MONEY,
-			SubOdds               MONEY,
-			oddsspread            MONEY,
-			OddsType              INT,
 			transdate             DATETIME,
 			bettype               SMALLINT,
 			OriginalBetType       SMALLINT,
-			betteam               NVARCHAR(10),
-			SubBetTeam            NVARCHAR(10),
-			betcheck              NVARCHAR(50),
-			SubBetcheck           NVARCHAR(50),
-			Subhdp1               SMALLMONEY,
-			Subhdp2               SMALLMONEY,
-			hdp1                  SMALLMONEY,
-			hdp2                  SMALLMONEY,
 			livehomescore         SMALLINT,
 			liveawayscore         SMALLINT,
-			creator               INT,
-			creatorName           VARCHAR(30),
-			Stake                 MONEY,
-			currencyname          VARCHAR(20),
-			IsDeposit             BIT DEFAULT(0),
-			STATUS                NVARCHAR(10),
-			SubStatus             NVARCHAR(10),
-			srecommend            INT,
-			mrecommend            INT,
-			recommend             INT,
-			SubLeagueId           INT,
-			betid                 BIGINT DEFAULT(0),
-			Transdesc             NVARCHAR(1000),
 			betdaqid              BIGINT,
-			ParlayType            SMALLINT DEFAULT(0)
-			, -- sub bettype of parlay 
 			IsMixParlay           BIT DEFAULT(0),
-			SoldId                BIGINT,
 			sporttype             SMALLINT,
-			modds                 MONEY,
 			ExtraInfo             VARCHAR(1000),
 			IsCashOutMemberTicket BIT DEFAULT 0,
 			MainCashoutId         BIGINT,
@@ -141,8 +112,6 @@ BEGIN
 			RefCode               BIGINT,
 			BonusID               INT,
 			MainTransId           BIGINT,
-			WinLost               MONEY,
-			IsMarked              BIT,
 			LiveIndicator		  BIT,
 			StatusId			  TINYINT,
 			checktime			  DATETIME,
@@ -156,7 +125,6 @@ BEGIN
 			custid   INT,
 			bettype  SMALLINT,
 			transid  BIGINT,
-			IsMarked BIT,
 			MatchId	INT,
 			SubIssueTypeId SMALLINT,
 			ScoreId		INT
@@ -323,39 +291,17 @@ BEGIN
 				,transid		
 				,SubTransid		
 				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread			
-				,OddsType		
+				,custid				
 				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
+				,bettype 					
 				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
+				,liveawayscore 			
 				,betdaqid	
 				,ExtraInfo
 				,MainCashoutId
 				,WalletType
 				,RefCode
 				,BonusID
-				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -369,34 +315,10 @@ BEGIN
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,b.oddsspread			
-				,b.OddsType
 				,b.transdate
 				,b.bettype
-				,b.betteam
-				,b.betteam AS SubBetteam
-				,b.betcheck
-				,b.betcheck AS SubBetcheck
-				,b.hdp1
-				,b.hdp2
 				,b.livehomescore
 				,b.liveawayscore
-				,b.creator
-				,b.stake
-				,b.CurrencyName
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS STATUS
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
-				,b.betid
-				,b.Transdesc
 				,b.betdaqid
 				,b.ExtraInfo
 				,CASE
@@ -407,8 +329,6 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
-				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.matchid
 				,b.statusID
@@ -459,37 +379,12 @@ BEGIN
 					,transid		
 					,SubTransid		
 					,refno			
-					,custid					
-					,odds			
-					,SubOdds	
-					,oddsspread
-					,OddsType		
+					,custid						
 					,transdate		
-					,bettype		
-					,betteam		
-					,SubBetTeam
-					,betcheck	
-					,SubBetcheck	
-					,Subhdp1
-					,Subhdp2
-					,hdp1 			
-					,hdp2 			
+					,bettype					
 					,livehomescore	
-					,liveawayscore	
-					,creator		
-					,Stake			
-					,currencyname						
-					,STATUS			
-					,SubStatus	
-					,srecommend		
-					,mrecommend		
-					,recommend						
-					,Transdesc		
-					,ParlayType		
+					,liveawayscore			
 					,IsMixParlay
-					,modds
-					,WinLost
-					,IsMarked
 					,LiveIndicator
 					,matchid
 					,StatusId
@@ -503,36 +398,11 @@ BEGIN
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
-					,main.odds
-					,sub.odds AS SubOdds
-					,sub.oddsspread
-					,main.OddsType
 					,sub.transdate
 					,main.bettype
-					,main.betteam
-					,sub.betteam
-					,main.betcheck				
-					,sub.betcheck
-					,sub.hdp1
-					,sub.hdp2
-					,main.hdp1
-					,main.hdp2
 					,sub.livehomescore
 					,sub.liveawayscore
-					,main.creator
-					,main.stake
-					,main.currencyname				
-					,main.STATUS
-					,sub.STATUS AS SubStatus
-					,main.srecommend
-					,main.mrecommend
-					,main.recommend
-					,sub.Transdesc
-					,sub.bettype AS parlaytype
 					,1 AS IsMixParlay
-					,main.modds
-					,main.winlost -main.actual_stake AS WinLost
-					,0
 					,sub.liveindicator
 					,sub.matchid
 					,main.statusID
@@ -579,39 +449,17 @@ BEGIN
 				,transid		
 				,SubTransid		
 				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread			
-				,OddsType		
+				,custid					
 				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
+				,bettype 				
 				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
+				,liveawayscore 		
 				,betdaqid	
 				,ExtraInfo
 				,MainCashoutId
 				,WalletType
 				,RefCode
 				,BonusID
-				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -623,34 +471,10 @@ BEGIN
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,b.oddsspread			
-				,b.OddsType
 				,b.transdate
 				,b.bettype
-				,b.betteam
-				,b.betteam AS SubBetteam
-				,b.betcheck
-				,b.betcheck AS SubBetcheck
-				,b.hdp1
-				,b.hdp2
 				,b.livehomescore
 				,b.liveawayscore
-				,b.creator
-				,b.stake
-				,b.CurrencyName
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS STATUS
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
-				,b.betid
-				,b.Transdesc
 				,b.betdaqid
 				,b.ExtraInfo
 				,CASE
@@ -661,8 +485,6 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
-				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
@@ -695,34 +517,12 @@ BEGIN
 				,transid		
 				,SubTransid		
 				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread							
-				,OddsType		
+				,custid					
 				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
+				,bettype 				
 				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
+				,liveawayscore 		
 				,betdaqid
-				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -734,33 +534,11 @@ BEGIN
 				,b.TranslogID AS SubTransID
 				,b.TranslogID refno
 				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,0 AS oddsspread			
-				,b.custom1 OddsType
 				,b.transdate
 				,b.GameID
-				,NULL betteam
-				,NULL Subbetteam
-				,NULL betcheck
-				,NULL Subbetcheck
-				,0 hdp1
-				,0 hdp2
 				,NULL livehomescore
 				,NULL liveawayscore
-				,b.creator
-				,b.stake			
-				,b.currencyname			
-				,b.STATUS
-				,b.Status AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend		
-				,NULL betid
-				,b.Transdesc
 				,-1 AS betdaqid -- normal ticket
-				,- b.actual_stake as winlost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
@@ -794,37 +572,12 @@ BEGIN
 					,transid		
 					,SubTransid		
 					,refno			
-					,custid					
-					,odds			
-					,SubOdds	
-					,oddsspread
-					,OddsType		
+					,custid							
 					,transdate		
-					,bettype		
-					,betteam		
-					,SubBetTeam
-					,betcheck	
-					,SubBetcheck	
-					,Subhdp1
-					,Subhdp2
-					,hdp1 			
-					,hdp2 			
+					,bettype					
 					,livehomescore	
-					,liveawayscore	
-					,creator		
-					,Stake			
-					,currencyname						
-					,STATUS			
-					,SubStatus	
-					,srecommend		
-					,mrecommend		
-					,recommend						
-					,Transdesc		
-					,ParlayType		
+					,liveawayscore		
 					,IsMixParlay
-					,modds
-					,WinLost
-					,IsMarked
 					,LiveIndicator
 					,matchid
 					,StatusId
@@ -836,36 +589,11 @@ BEGIN
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
-					,main.odds
-					,sub.odds AS SubOdds
-					,sub.oddsspread
-					,main.OddsType
 					,sub.transdate
 					,main.bettype
-					,main.betteam
-					,sub.betteam
-					,main.betcheck				
-					,sub.betcheck
-					,sub.hdp1
-					,sub.hdp2
-					,main.hdp1
-					,main.hdp2
 					,sub.livehomescore
 					,sub.liveawayscore
-					,main.creator
-					,main.stake
-					,main.currencyname				
-					,main.STATUS
-					,sub.STATUS AS SubStatus
-					,main.srecommend
-					,main.mrecommend
-					,main.recommend
-					,sub.Transdesc
-					,sub.bettype AS parlaytype
 					,1 AS IsMixParlay
-					,main.modds
-					,main.winlost -main.actual_stake AS WinLost
-					,0
 					,sub.liveindicator
 					,@MatchId
 					,main.statusID
@@ -932,39 +660,17 @@ BEGIN
 				,transid		
 				,SubTransid		
 				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread			
-				,OddsType		
+				,custid				
 				,transdate		
-				,bettype 		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
+				,bettype 					
 				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
+				,liveawayscore 			
 				,betdaqid	
 				,ExtraInfo
 				,MainCashoutId
 				,WalletType
 				,RefCode
 				,BonusID
-				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -977,34 +683,10 @@ BEGIN
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,b.oddsspread			
-				,b.OddsType
 				,b.transdate
 				,b.bettype
-				,b.betteam
-				,b.betteam AS SubBetteam
-				,b.betcheck
-				,b.betcheck AS SubBetcheck
-				,b.hdp1
-				,b.hdp2
 				,b.livehomescore
 				,b.liveawayscore
-				,b.creator
-				,b.stake
-				,b.CurrencyName
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS STATUS
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
-				,b.betid
-				,b.Transdesc
 				,b.betdaqid
 				,b.ExtraInfo
 				,CASE
@@ -1015,8 +697,6 @@ BEGIN
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
-				,b.WinLost - b.actual_stake AS WinLost
-				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
@@ -1059,37 +739,12 @@ BEGIN
 					,transid		
 					,SubTransid		
 					,refno			
-					,custid					
-					,odds			
-					,SubOdds	
-					,oddsspread
-					,OddsType		
+					,custid						
 					,transdate		
-					,bettype		
-					,betteam		
-					,SubBetTeam
-					,betcheck	
-					,SubBetcheck	
-					,Subhdp1
-					,Subhdp2
-					,hdp1 			
-					,hdp2 			
+					,bettype					
 					,livehomescore	
-					,liveawayscore	
-					,creator		
-					,Stake			
-					,currencyname						
-					,STATUS			
-					,SubStatus	
-					,srecommend		
-					,mrecommend		
-					,recommend						
-					,Transdesc		
-					,ParlayType		
+					,liveawayscore		
 					,IsMixParlay
-					,modds
-					,WinLost
-					,IsMarked
 					,LiveIndicator
 					,matchid
 					,StatusId
@@ -1102,36 +757,11 @@ BEGIN
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
-					,main.odds
-					,sub.odds AS SubOdds
-					,sub.oddsspread
-					,main.OddsType
 					,sub.transdate
 					,main.bettype
-					,main.betteam
-					,sub.betteam
-					,main.betcheck				
-					,sub.betcheck
-					,sub.hdp1
-					,sub.hdp2
-					,main.hdp1
-					,main.hdp2
 					,sub.livehomescore
 					,sub.liveawayscore
-					,main.creator
-					,main.stake
-					,main.currencyname				
-					,main.STATUS
-					,sub.STATUS AS SubStatus
-					,main.srecommend
-					,main.mrecommend
-					,main.recommend
-					,sub.Transdesc
-					,sub.bettype AS parlaytype
 					,1 AS IsMixParlay
-					,main.modds
-					,main.winlost -main.actual_stake AS WinLost
-					,0
 					,sub.liveindicator
 					,@MatchId
 					,main.statusID
@@ -1184,13 +814,13 @@ BEGIN
 		WHERE main.WalletType = 1					
 		  
 		-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets  
-		INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, IsMarked, transid, MatchId, SubIssueTypeId, ScoreId)
-		SELECT RefCode, custid, bettype, IsMarked
+		INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, transid, MatchId, SubIssueTypeId, ScoreId)
+		SELECT RefCode, custid, bettype
 				, MAX(transid) AS transid
 				, matchid, SubIssueTypeId, ScoreId
 		FROM #SpecialDeleteBets
 		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype, IsMarked, matchid, SubIssueTypeId, ScoreId
+		GROUP BY RefCode, custid, bettype, matchid, SubIssueTypeId, ScoreId
 		HAVING COUNT(*) = 1
 
 		IF @@ROWCOUNT > 0
@@ -1200,31 +830,11 @@ BEGIN
 						,transid		
 						,SubTransid		
 						,refno			
-						,custid			
-						,odds			
-						,SubOdds		
-						,oddsspread
-						,OddsType		
+						,custid					
 						,transdate		
-						,bettype 		
-						,betteam 		
-						,SubBetTeam
-						,betcheck	
-						,SubBetcheck	
-						,hdp1 			
-						,hdp2 			
+						,bettype 					
 						,livehomescore 	
-						,liveawayscore 	
-						,creator		
-						,Stake			
-						,currencyname		
-						,STATUS			
-						,SubStatus	
-						,srecommend
-						,mrecommend		
-						,recommend		
-						,betid			
-						,Transdesc		
+						,liveawayscore 			
 						,betdaqid
 						,ExtraInfo	
 						,MainCashoutId
@@ -1232,8 +842,6 @@ BEGIN
 						,RefCode
 						,BonusID
 						,MainTransId
-						,WinLost
-						,IsMarked
 						,LiveIndicator
 						,matchid
 						,StatusId
@@ -1247,34 +855,10 @@ BEGIN
 						,b.transid AS SubTransID
 						,b.refno
 						,b.custid
-						,b.odds
-						,b.odds AS SubOdds
-						,b.oddsspread
-						,b.OddsType
 						,b.transdate
 						,b.bettype
-						,b.betteam
-						,b.betteam AS SubBetteam
-						,b.betcheck
-						,b.betcheck AS SubBetcheck
-						,b.hdp1
-						,b.hdp2
 						,b.livehomescore
 						,b.liveawayscore
-						,b.creator
-						,b.stake
-						,b.CurrencyName
-						,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-								ELSE b.STATUS
-							END AS STATUS
-						,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-								ELSE b.STATUS
-							END AS SubStatus
-						,b.srecommend
-						,b.mrecommend
-						,b.recommend
-						,b.betid
-						,b.Transdesc
 						,b.betdaqid
 						,b.ExtraInfo
 						,CASE
@@ -1286,8 +870,6 @@ BEGIN
 						,b.RefCode
 						,b.BonusID
 						,t.transid AS MainTransId
-						,b.winlost - b.actual_stake AS WinLost
-						,t.IsMarked
 						,b.liveindicator
 						,b.matchid
 						,b.statusID
@@ -1322,32 +904,12 @@ BEGIN
 			,transid		
 			,SubTransid		
 			,refno			
-			,custid			
-			,odds					
-			,SubOdds
-			,oddsspread				
-			,OddsType		
+			,custid					
 			,transdate		
 			,bettype
-			,OriginalBetType 		
-			,betteam 		
-			,SubBetTeam
-			,betcheck	
-			,SubBetcheck	
-			,hdp1 			
-			,hdp2 			
+			,OriginalBetType 					
 			,livehomescore 	
-			,liveawayscore 	
-			,creator		
-			,Stake			
-			,currencyname		
-			,STATUS			
-			,SubStatus	
-			,srecommend
-			,mrecommend		
-			,recommend		
-			,betid			
-			,Transdesc		
+			,liveawayscore 		
 			,betdaqid
 			,ExtraInfo	
 			,MainCashoutId
@@ -1356,8 +918,6 @@ BEGIN
 			,RefCode
 			,BonusID
 			,MainTransId
-			,WinLost
-			,IsMarked
 			,LiveIndicator
 			,StatusId
 			,checktime
@@ -1369,31 +929,11 @@ BEGIN
 			,sub911.transid AS SubTransId
 			,sub911.refno
 			,sub911.custid
-			,main.odds
-			,main.odds AS SubOdds
-			,main.oddsspread
-			,main.OddsType
 			,sub911.transdate
 			,sub911.bettype
-			,main.bettype AS OriginalBetType
-			,main.betteam
-			,main.SubBetTeam
-			,main.betcheck
-			,main.SubBetcheck
-			,main.hdp1
-			,main.hdp2			
+			,main.bettype AS OriginalBetType		
 			,main.livehomescore
 			,main.liveawayscore
-			,sub911.creator
-			,sub911.Stake
-			,main.CurrencyName
-			,'Cash out'
-			,'Cash out' AS SubStatus
-			,main.srecommend
-			,main.mrecommend
-			,main.recommend			
-			,main.bettype AS betid
-			,sub911.transdesc
 			,sub911.betdaqid
 			,sub911.ExtraInfo
 			,main.transid AS MainCashoutId
@@ -1402,8 +942,6 @@ BEGIN
 			,sub911.RefCode
 			,sub911.BonusID
 			,main.transid AS MainTransId
-			,sub911.winlost - sub911.actual_stake AS WinLost
-			,main.IsMarked
 			,main.LiveIndicator
 			,main.StatusId
 			,sub911.checktime
@@ -1435,32 +973,12 @@ BEGIN
 				,transid		
 				,SubTransid		
 				,refno			
-				,custid			
-				,odds			
-				,SubOdds	
-				,oddsspread				
-				,OddsType		
+				,custid					
 				,transdate		
 				,bettype 
-				,OriginalBetType		
-				,betteam 		
-				,SubBetTeam
-				,betcheck	
-				,SubBetcheck	
-				,hdp1 			
-				,hdp2 			
+				,OriginalBetType					
 				,livehomescore 	
-				,liveawayscore 	
-				,creator		
-				,Stake			
-				,currencyname		
-				,STATUS			
-				,SubStatus	
-				,srecommend
-				,mrecommend		
-				,recommend		
-				,betid			
-				,Transdesc		
+				,liveawayscore 			
 				,betdaqid
 				,ExtraInfo
 				,IsCashOutMemberTicket
@@ -1469,8 +987,6 @@ BEGIN
 				,RefCode
 				,BonusID
 				,MainTransId
-				,WinLost
-				,IsMarked
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -1483,35 +999,11 @@ BEGIN
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
-				,b.odds
-				,b.odds AS SubOdds
-				,b.oddsspread
-				,b.OddsType
 				,b.transdate
 				,b.bettype
 				,sub911.OriginalBetType
-				,b.betteam
-				,b.betteam AS SubBetteam
-				,b.betcheck
-				,b.betcheck AS SubBetcheck
-				,b.hdp1
-				,b.hdp2
 				,b.livehomescore
 				,b.liveawayscore
-				,b.creator
-				,b.stake
-				,b.CurrencyName
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS STATUS
-				,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS
-					END AS SubStatus
-				,b.srecommend
-				,b.mrecommend
-				,b.recommend
-				,b.betid
-				,b.Transdesc
 				,b.betdaqid
 				,b.ExtraInfo
 				,CAST(1 AS BIT)  AS IsCashOutMemberTicket
@@ -1520,8 +1012,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,sub911.MainTransId
-				,b.winlost - b.actual_stake AS WinLost
-				,sub911.IsMarked
 				,b.liveindicator
 				,sub911.matchid
 				,b.statusID
@@ -1530,9 +1020,8 @@ BEGIN
 				,sub911.ScoreId
 	FROM #SpecialDeleteBets sub911
 			CROSS APPLY (
-							SELECT b.transid, b.refno, b.custid, b.oddsid, b.oddsspread, b.oddstype, b.transdate, b.bettype, b.betteam, b.betcheck, b.status
-								,b.hdp1, b.hdp2, b.livehomescore, b.liveawayscore, b.creator, b.stake, b.CurrencyName, b.SecAcceptFlag, b.checktime, b.odds
-								,b.srecommend, b.mrecommend, b.recommend, b.betid, b.transdesc, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, b.winlost, b.actual_stake,liveindicator,statusID
+							SELECT b.transid, b.refno, b.custid, b.transdate, b.bettype, b.livehomescore, b.liveawayscore, b.checktime
+								, b.betdaqid, b.ExtraInfo, b.WalletType, b.RefCode, b.BonusID, liveindicator, statusID
 							FROM dbo.bettrans b WITH (NOLOCK)
 							WHERE b.refno = sub911.transid
 								AND b.matchid = sub911.matchid					
@@ -1620,6 +1109,7 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId
 								AND rs.MatchId = @MatchId
+								AND rs.RequestDetailId = rd.Id
 							UNION ALL
 							SELECT rp.TransId, b.transid AS MainTransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
@@ -1627,6 +1117,7 @@ BEGIN
 								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
+								AND rp.RequestDetailId = rd.Id
 					)tmp
 				INNER JOIN #SpecialDeleteBets t ON t.SubTransid = tmp.transid
 			WHERE rd.MatchId = @MatchId
@@ -1681,7 +1172,13 @@ BEGIN
 		,b.ScoreId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest t WHERE t.TransId = b.SubTransid)
+		OUTER APPLY (
+				SELECT TOP 1 t.TransId
+				FROM #TransidInRequest t 
+				WHERE t.TransId = b.SubTransid
+					OR (b.betdaqid = 1 AND b.MainCashoutId = t.TransId)
+			)tmp
+	WHERE tmp.TransId IS NULL
 	GROUP BY CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.matchid, b.ScoreId
 	ORDER BY b.ScoreId, CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
 
@@ -1750,9 +1247,18 @@ BEGIN
 
 		/*Get log info for Void Page*/
 		INSERT INTO #CashOuts (RequestId, MatchId, transid, bettype, IsCOTicket, ScoreId)
-		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN rd.TransIds ELSE NULL END AS ScoreId 
+		SELECT @RequestId, s.MatchId, s.TransId, b.bettype, 0, CASE WHEN @IssueTypeId = 3 THEN tmp.ScoreId ELSE NULL END AS ScoreId 
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
+			CROSS APPLY (
+						SELECT CONVERT(XML, r.TransIds)
+						FROM dbo.TicketVoiding_RequestDetail r WITH (NOLOCK)
+						WHERE r.Id = s.RequestDetailId
+							AND r.RequestId = @RequestId
+				)AS t(xDATA)
+			CROSS APPLY (
+					SELECT t.c.value('@ScoreId','INT') AS ScoreId
+					FROM t.xDATA.nodes('/r') t(c)
+				) tmp (ScoreId)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND b.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
 			AND b.betdaqid = 0
@@ -1841,7 +1347,7 @@ BEGIN
 											 END
 									END AS AcceptType, rd.VoidFromTime
 					FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId
+					INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH(NOLOCK) ON rd.MatchId = s.MatchId AND rd.MinMainParlayTransId = s.MainTransId AND s.RequestId = @RequestId
 					CROSS APPLY  (
 								SELECT bm.matchid, NULL AS transid, bm.transid AS subtransid, bm.bettype, bm.transdate, bm.checktime, bm.LiveBetAcceptTime, bm.SecAcceptTime
 								FROM dbo.bettransm bm WITH(NOLOCK)
@@ -1896,9 +1402,18 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO @InstantlySettleCount_tmp (transidCount, ScoreId, RequestId)
-			SELECT COUNT(s.TransId), rd.TransIds, @RequestId
+			SELECT COUNT(s.TransId), tmp.ScoreId, @RequestId
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH  (NOLOCK) ON rd.RequestId = @RequestId AND rd.Id = s.RequestDetailId
+				CROSS APPLY (
+							SELECT CONVERT(XML, r.TransIds)
+							FROM dbo.TicketVoiding_RequestDetail r WITH (NOLOCK)
+							WHERE r.Id = s.RequestDetailId
+								AND r.RequestId = @RequestId
+					)AS t(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+						FROM t.xDATA.nodes('/r') t(c)
+					) tmp (ScoreId)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 			WHERE s.RequestId = @RequestId
 				AND s.MatchId = @MatchId
@@ -1906,7 +1421,7 @@ BEGIN
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
-			GROUP BY rd.TransIds
+			GROUP BY tmp.ScoreId
 
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
@@ -1921,17 +1436,24 @@ BEGIN
 				,rd.MaxSingleTransId
 				,rd.MinMainParlayTransId
 				,rd.MaxMainParlayTransId
-				,rd.TransIds AS ScoreId
+				,tmp.ScoreId AS ScoreId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+				CROSS APPLY (
+						SELECT CONVERT(XML, rd.TransIds)
+					)AS t1(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+						FROM t1.xDATA.nodes('/r') t(c)
+					) tmp (ScoreId)
 				OUTER APPLY (
 						SELECT COUNT(CASE WHEN IsCOTicket = 1 THEN transid ELSE NULL END) AS CashOutCount
 						FROM #CashOuts
 						WHERE RequestId = rd.RequestId	
 							AND MatchId = rd.MatchId
-							AND ScoreId = rd.TransIds
+							AND ScoreId = tmp.ScoreId
 						GROUP BY ScoreId
 					) c
-				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = rd.TransIds
+				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.ScoreId = tmp.ScoreId
 			WHERE rd.RequestId = @RequestId
 		END
 
@@ -1941,10 +1463,9 @@ BEGIN
 	--For case no ticket valid
 	IF @IssueTypeId IN (1, 10, 3)
 	BEGIN
-		SELECT @SingleCount = SUM(SingleCount)
-			,@MainParlayCount = SUM(MainParlayCount)
+		SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
+			,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
 		FROM #logInfo
-		GROUP BY MatchId
 
 		IF @SingleCount = 0 AND @MainParlayCount = 0
 		BEGIN
@@ -2019,7 +1540,7 @@ BEGIN
 						STUFF((
 						SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 						FROM #TransidInRequest
-						WHERE (RequestId = r.RequestId) 
+						WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
 						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 						,1,2,'') AS TransIds
 						,NULL AS LiveScores
@@ -2047,109 +1568,9 @@ BEGIN
 			END
 			
 			--Loginfo Table
-			IF @IssueTypeId NOT IN (1,3,10)
-			BEGIN
-				SELECT MatchId
-					,STUFF(w.scores,1,1,'') AS LiveScores
-					,MIN(VoidFromTime) AS VoidFromTime
-					,MAX(VoidToTime) AS VoidToTime
-					,SUM(SingleCount) AS SingleCount
-					,SUM(CashOutCount) AS CashOutCount
-					,SUM(InstantlySettleCount) AS InstantlySettleCount
-					,SUM(MainParlayCount) AS MainParlayCount
-					,MIN(MinSingleTransId) AS MinSingleTransId
-					,MAX(MaxSingleTransId) AS MaxSingleTransId
-					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-					,MIN(HighLightTransId) AS HighLightTransId
-					,MIN(HighlightAcceptType) AS HighlightAcceptType
-				FROM #logInfo l
-					CROSS APPLY(
-								SELECT '|' + LiveScores
-								FROM #logInfo rd WITH(NOLOCK)
-								where l.MatchId = rd.MatchId
-								FOR XML PATH('')
-								)w (scores)
-				GROUP BY MatchId, w.scores
-			END
-			ELSE IF @IssueTypeId IN (1,10)
-			BEGIN
-				;WITH _cte AS (
-						SELECT MatchId
-							,STUFF(w.scores,1,1,'') AS LiveScores
-							,MIN(VoidFromTime) AS VoidFromTime
-							,MAX(VoidToTime) AS VoidToTime
-							,SUM(SingleCount) AS SingleCount
-							,SUM(CashOutCount) AS CashOutCount
-							,SUM(InstantlySettleCount) AS InstantlySettleCount
-							,SUM(MainParlayCount) AS MainParlayCount
-							,MIN(MinSingleTransId) AS MinSingleTransId
-							,MAX(MaxSingleTransId) AS MaxSingleTransId
-							,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-							,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-						FROM #logInfo l
-							CROSS APPLY(
-										SELECT '|' + LiveScores
-										FROM #logInfo rd WITH(NOLOCK)
-										where l.MatchId = rd.MatchId
-										FOR XML PATH('')
-										)w (scores) 
-						GROUP BY MatchId, w.scores
-					)
-				SELECT MatchId
-					, LiveScores
-					,VoidFromTime
-					,VoidToTime
-					,SingleCount
-					,CashOutCount
-					,InstantlySettleCount
-					,MainParlayCount
-					,MinSingleTransId
-					,MaxSingleTransId
-					,MinMainParlayTransId
-					,MaxMainParlayTransId
-					,tmpHighlight.HighLightTransId AS HighLightTransId
-					,tmpHighlight.HighlightAcceptType AS HighlightAcceptType
-				FROM _cte l
-					CROSS APPLY (SELECT MIN(VoidFromTime) AS VoidFromTime_min
-								 FROM #logInfo lg 
-								 WHERE l.matchid = lg.matchid
-								 ) AS Voidtime
-					OUTER APPLY (SELECT TOP 1 b.transid AS HighLightTransId
-									 ,b.accepttype HighlightAcceptType
-								FROM #SpecialDeleteBets b 
-										CROSS APPLY (SELECT CASE WHEN @FilterBy = 1 THEN b.transdate
-																 WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-																 WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-																 END AS VoidTime
-										)act
-								WHERE l.MatchId = b.matchid AND Voidtime.VoidFromTime_min = act.VoidTime 
-									AND 1 = (CASE WHEN l.MinSingleTransId IS NOT NULL AND b.transid = l.MinSingleTransId  THEN 1
-												  WHEN l.MinMainParlayTransId IS NOT NULL AND b.transid = l.MinMainParlayTransId THEN 1
-												END
-											)
-									ORDER BY CASE WHEN l.MinSingleTransId IS NOT NULL THEN 1 ELSE 0 END DESC
-							
-						) AS tmpHighlight
-			END
-			ELSE IF @IssueTypeId = 3
-			BEGIN
-				SELECT MatchId
-					,LiveScores
-					,MIN(VoidFromTime) AS VoidFromTime
-					,MAX(VoidToTime) AS VoidToTime
-					,SUM(SingleCount) AS SingleCount
-					,SUM(CashOutCount) AS CashOutCount
-					,SUM(InstantlySettleCount) AS InstantlySettleCount
-					,SUM(MainParlayCount) AS MainParlayCount
-					,MIN(MinSingleTransId) AS MinSingleTransId
-					,MAX(MaxSingleTransId) AS MaxSingleTransId
-					,MIN(MinMainParlayTransId) AS MinMainParlayTransId
-					,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-					,ScoreId
-				FROM #logInfo
-				GROUP BY MatchId, LiveScores, ScoreId
-			END
+			DELETE #logInfo
+			SELECT MatchId, ScoreId FROM #logInfo
+
 			RETURN;
 		END
 	END
@@ -2372,7 +1793,7 @@ BEGIN
 				STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId) 
+				WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,NULL AS LiveScores
@@ -2500,7 +1921,7 @@ BEGIN
 			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
 			,ScoreId
-		FROM #logInfo
+		FROM #logInfo l
 		GROUP BY MatchId, LiveScores, ScoreId
 	END
 

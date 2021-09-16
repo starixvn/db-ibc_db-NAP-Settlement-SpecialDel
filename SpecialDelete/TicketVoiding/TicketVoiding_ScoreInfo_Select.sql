@@ -15,6 +15,7 @@ AS
 		- 20210527@Max: Exclude 2H ticket from get score & time range [Redmine: #155598]
 		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
 		- 20210616@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
+		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 	
 	Param's explanation:
 		
@@ -43,7 +44,8 @@ BEGIN
 		AND md.Score IS NOT NULL
 	ORDER BY md.id
 	
-	SELECT w1.ScoreId
+	SELECT @MatchId AS MatchId 
+		, w1.ScoreId
 		, w1.Score AS WrongScore
 		, CASE WHEN w1.updatetime IS NULL THEN w1.KickOffTime ELSE w1.updatetime END AS FilterFromTransTime
 		, DATEADD(MS, -100, w2.updatetime) AS FilterToTransTime

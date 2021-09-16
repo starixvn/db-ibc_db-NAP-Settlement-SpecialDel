@@ -42,6 +42,7 @@ AS
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210714@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20210827@Max: [TVS] Wrong Score Enhancement 2 - Do not exclude ticket in other request for Take Note action [Redmine: #157096]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -200,6 +201,7 @@ BEGIN
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			FROM @DangerAcceptedInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@DangerAcceptedInfoXML = NULL))
+			
 			INSERT INTO #TransidInRequest (TransId)
 			SELECT tmp.transid
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
@@ -362,6 +364,7 @@ BEGIN
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = t.MatchId
 									AND r.ActionId NOT IN (2)
+									AND @ActionId <> 2
 						)tmp
 		WHERE tmp.TransId IS NULL
 
@@ -558,6 +561,7 @@ BEGIN
 								WHERE rs.TransId = t.transid
 									AND rs.MatchId = @MatchId
 									AND r.ActionId NOT IN (2)
+									AND @ActionId <> 2
 						)tmp
 		WHERE rd.RequestId = @RequestId AND tmp.TransId IS NULL
 
