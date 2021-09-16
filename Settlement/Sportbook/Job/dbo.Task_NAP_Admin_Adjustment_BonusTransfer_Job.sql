@@ -155,6 +155,9 @@ BEGIN
 			FROM #tempAdjustment AS temp
 				INNER JOIN @tempCoupleTransfer AS trans
 				ON temp.custid = trans.custid AND temp.ExecID = trans.ExecID
+			
+			IF NOT EXISTS(SELECT TOP 1 1 FROM @tempTransfer	WHERE isValidDummy = 1)
+			BREAK
 				
 			--RAISE error with invalid dummy account
 			INSERT INTO @tempInvalidDummy (site, username, currencyName, isDummy)
