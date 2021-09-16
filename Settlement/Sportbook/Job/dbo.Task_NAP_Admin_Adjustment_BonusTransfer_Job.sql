@@ -14,6 +14,7 @@ AS
 		- 20180326@Kathy: Change bonus transfer bettypeId [Redmine:#92592]
 		- 20180529@Kathy: Change email list on production [Redmine:#92592]
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20210817@Louisa: HF-Change datatype from INT to BIGINT [Redmine:#160262]
 
     Parameters Explanation:   
 		@Mode:	- Adjustment
@@ -25,15 +26,15 @@ BEGIN
 	
 	IF @Mode = 'Adjustment'
 	BEGIN
-		DECLARE @execRefno 		INT
+		DECLARE @execRefno 		BIGINT
 			, @transCount 		INT
-			, @maxExecID		INT
+			, @maxExecID		BIGINT
 			, @batchExec		INT
 			, @batchCount		INT
 			, @bettype   		SMALLINT
 			
 		
-		DECLARE @transExecNo	TABLE (ExecID BIGINT, refno INT)
+		DECLARE @transExecNo	TABLE (ExecID BIGINT, refno BIGINT)
 		DECLARE @tempInvalidDummy TABLE ([site] VARCHAR(30), username VARCHAR(30), currencyName VARCHAR(10), isDummy BIT)
 		
 		DECLARE @tempTransfer 	TABLE (
@@ -154,6 +155,9 @@ BEGIN
 			FROM #tempAdjustment AS temp
 				INNER JOIN @tempCoupleTransfer AS trans
 				ON temp.custid = trans.custid AND temp.ExecID = trans.ExecID
+			
+			IF NOT EXISTS(SELECT TOP 1 1 FROM @tempTransfer	WHERE isValidDummy = 1)
+			BREAK
 				
 			--RAISE error with invalid dummy account
 			INSERT INTO @tempInvalidDummy (site, username, currencyName, isDummy)
@@ -413,10 +417,10 @@ BEGIN
 			SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 			
 			EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-				, @recipients			 = 'patrick.pham@starixvn.com;lukas.luu@starixvn.com;daniel.truong@starixvn.com;billy.bui@starixvn.com;'
+				, @recipients			 = 'dbaadmin@starixvn.com'
 				--LOCAL: dba_local@starixvn.com
 				--TEST version UAT (UAT1, UAT2...): 'qa@starixvn.com'
-				--PRODUCTION: 'patrick.pham@starixvn.com;lukas.luu@starixvn.com;daniel.truong@starixvn.com;billy.bui@starixvn.com;'
+				--PRODUCTION: 'dbaadmin@starixvn.com'
 				, @copy_recipients		 = ''
 				, @blind_copy_recipients = ''
 				, @subject				 = @subject
