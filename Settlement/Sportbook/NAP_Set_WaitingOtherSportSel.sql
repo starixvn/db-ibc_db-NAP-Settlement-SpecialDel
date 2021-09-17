@@ -528,7 +528,7 @@ BEGIN
 	DROP TABLE #tmpMarkedTransaction
 
 	SET @EndTime = GETDATE()
-	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
+	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
 		SET @SqlCommand = 'EXEC NAP_Set_WaitingOtherSportSel @MatchCode =''' + ISNULL(@MatchCode,'')  + ', @LeagueIds =' + @LeagueIds
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)

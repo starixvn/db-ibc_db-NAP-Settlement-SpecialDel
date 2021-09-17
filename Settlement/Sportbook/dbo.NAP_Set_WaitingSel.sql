@@ -553,7 +553,7 @@ BEGIN
 
 
 	SET @EndTime = GETDATE()
-	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
+	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
 		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ''', @SportType = ' + CONVERT(VARCHAR(10),@SportType) + ', @LeagueId =' + CONVERT(VARCHAR(10),@LeagueId)
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
