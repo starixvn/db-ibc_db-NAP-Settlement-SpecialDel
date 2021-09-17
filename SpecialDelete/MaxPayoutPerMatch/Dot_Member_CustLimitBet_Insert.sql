@@ -27,12 +27,12 @@ BEGIN
 	SET @EventTypeID = CASE WHEN @bettype = 10 THEN 2 ELSE 1 END
 	
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,168,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
 		OR (@bettype IN(29, 2799, 38)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
-	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) OR (@sporttype IN (43,44,164,168,180,186)) OR (@sporttype BETWEEN 190 AND 197)
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) OR (@sporttype IN (43,44,164,180,186)) OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
 	END
