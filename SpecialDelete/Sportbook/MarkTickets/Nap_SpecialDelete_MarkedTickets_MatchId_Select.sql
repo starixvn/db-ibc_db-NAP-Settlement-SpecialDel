@@ -418,11 +418,13 @@ BEGIN
 
 	IF @Bet = 'All' OR @Bet = 'Parlay'
 	BEGIN
-		IF @FromTransId > 0 
+		IF @FromTransId > 0
 		BEGIN
 			INSERT INTO #Durations(FromTransDate, ToTransDate)
-			SELECT MIN(t.transdate), MAX(t.transdate)
-			FROM #Tickets t
+			SELECT MIN(b.transdate), MAX(b.transdate)
+			FROM dbo.bettrans b
+			WHERE b.matchid = @MatchId
+				AND b.transid BETWEEN @FromTransId AND @ToTransId
 		END
 
 		INSERT INTO #Tickets (
