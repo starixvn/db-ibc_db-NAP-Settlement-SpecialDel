@@ -15,6 +15,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210917@Kathy: write log if SP run too long
 
 	Param's explanation:  
 		
@@ -34,6 +35,9 @@ BEGIN
 		,@strEarlyBettypes	VARCHAR(MAX)
 		,@strResourceIds	VARCHAR(MAX)
 		,@CheckDate			VARCHAR(10)
+		,@SqlCommand		VARCHAR(MAX)
+
+	SET @StartTime = GETDATE()
 		
 	DECLARE @tmpLeagueIds TABLE(LeagueId INT)
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
@@ -522,6 +526,14 @@ BEGIN
 		@matchidList = @matchidList
 
 	DROP TABLE #tmpMarkedTransaction
+
+	SET @EndTime = GETDATE()
+	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
+	BEGIN
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingOtherSportSel @MatchCode =''' + ISNULL(@MatchCode,'')  + ', @LeagueIds =' + @LeagueIds
+		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
+		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
+	END
 
 END
 GO
