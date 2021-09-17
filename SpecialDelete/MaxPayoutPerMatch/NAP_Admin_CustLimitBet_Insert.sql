@@ -108,7 +108,7 @@ BEGIN
 		--Remove unsupport sporttype/bettype
 		DELETE t
 		FROM #CustLimitBet_tmp t
-		WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,168,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
+		WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
 			OR (t.bettype IN(29, 2799, 38) OR (t.bettype BETWEEN 801 AND 806))
 	END
 

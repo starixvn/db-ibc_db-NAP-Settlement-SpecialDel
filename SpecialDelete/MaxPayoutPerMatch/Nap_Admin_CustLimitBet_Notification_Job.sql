@@ -16,10 +16,12 @@ BEGIN
 	DECLARE @List_Waiting_5minutes VARCHAR(MAX) = '',
 			@List_Failed VARCHAR(MAX) = ''
 			
-	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
+	--SEND NOTIFICATION VIA EMAIL
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
+	
+	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
@@ -35,7 +37,9 @@ BEGIN
 	--Sending notification if failed
 	SET @List_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(QueueID  AS VARCHAR(50))
 												FROM dbo.CustLimitBetQueue WITH (NOLOCK)
-												WHERE StatusId = 2											
+												WHERE 1 = CASE WHEN StatusId = 2 AND ErrMsg NOT LIKE 'Some transids not found%' THEN 1
+																WHEN Statusid = 2 AND ErrMsg LIKE 'Some transids not found%' AND CreatedDate > '2021-10-04' THEN 1 --Temp config for release
+															ELSE 0 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
@@ -55,11 +59,6 @@ BEGIN
 			
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
-			-- For testing------------
-			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
-			*/
-			-- For Production -----------
-			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
 			
 			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes
 						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 5 )'
@@ -73,18 +72,11 @@ BEGIN
 					,@body_format = 'HTML'
 					,@profile_name =DEFAULT;
 					
-
 		END
 		ELSE
 		BEGIN
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
-			-- For testing------------
-			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
-			*/
-			-- For Production -----------
-			
-			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
 			
 			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes
 						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 5 )'
@@ -117,12 +109,6 @@ BEGIN
 			
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Failed !'	
-			-- For testing------------
-			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
-			*/		
-			-- For Production -----------
-			
-			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
 			
 			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)
 							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK) )'
@@ -134,20 +120,13 @@ BEGIN
 					,@importance ='High'
 					,@subject =@Subject
 					,@body_format = 'HTML'
-					,@profile_name =DEFAULT;
-					
+					,@profile_name =DEFAULT			
 
 		END
 		ELSE
 		BEGIN
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Failed !'	
-			-- For testing------------
-			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
-			*/		
-			-- For Production -----------
-			
-			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
 			
 			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)
 							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK) )'
