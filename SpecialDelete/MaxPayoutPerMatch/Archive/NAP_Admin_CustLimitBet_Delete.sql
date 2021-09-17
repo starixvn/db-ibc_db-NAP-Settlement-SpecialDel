@@ -80,6 +80,7 @@ BEGIN
 	--Check delete rule
 	DELETE #match_tmp WHERE Eventdate > @Archive_Date
 	
+	DECLARE @row_cnt INT = 0
 	--Delete data
 	WHILE (1=1)
 	BEGIN
@@ -98,25 +99,37 @@ BEGIN
 		FROM dbo.CustLimitBet_MBC mbc WITH(ROWLOCK, UPDLOCK) 
 			INNER JOIN @tmp_batch t ON t.MatchId = mbc.Matchid AND t.EventTypeID = mbc.EventTypeID
 
-		--CustLimitBetHistory_MBC
-		DELETE	mbc
-		FROM dbo.CustLimitBetHistory_MBC mbc WITH(ROWLOCK, UPDLOCK) 
-			INNER JOIN @tmp_batch t ON t.MatchId = mbc.Matchid AND t.EventTypeID = mbc.EventTypeID
-
 		--CustLimitBet_789
 		DELETE	m789
 		FROM dbo.CustLimitBet_789 m789 WITH(ROWLOCK, UPDLOCK) 
 			INNER JOIN @tmp_batch t ON t.MatchId = m789.Matchid AND t.EventTypeID = m789.EventTypeID
 
-		--CustLimitBetHistory_789
-		DELETE	m789
-		FROM dbo.CustLimitBetHistory_789 m789 WITH(ROWLOCK, UPDLOCK) 
-			INNER JOIN @tmp_batch t ON t.MatchId = m789.Matchid AND t.EventTypeID = m789.EventTypeID
+		--Loop for History & queue
+		WHILE (1=1)
+		BEGIN
+			--CustLimitBetHistory_MBC
+			DELETE TOP(1000) mbc
+			FROM dbo.CustLimitBetHistory_MBC mbc WITH(ROWLOCK, UPDLOCK) 
+				INNER JOIN @tmp_batch t ON t.MatchId = mbc.Matchid AND t.EventTypeID = mbc.EventTypeID
+				
+			SELECT @row_cnt = @row_cnt + @@ROWCOUNT
+			
+			--CustLimitBetHistory_789
+			DELETE TOP(1000) m789
+			FROM dbo.CustLimitBetHistory_789 m789 WITH(ROWLOCK, UPDLOCK) 
+				INNER JOIN @tmp_batch t ON t.MatchId = m789.Matchid AND t.EventTypeID = m789.EventTypeID
 
-		--CustLimitBetQueue
-		DELETE	q
-		FROM dbo.CustLimitBetQueue q WITH(ROWLOCK, UPDLOCK) 
-			INNER JOIN @tmp_batch t ON t.MatchId = q.Matchid AND t.EventTypeID = q.EventTypeID
+			SELECT @row_cnt = @row_cnt + @@ROWCOUNT
+
+			--CustLimitBetQueue
+			DELETE TOP(1000) q
+			FROM dbo.CustLimitBetQueue q WITH(ROWLOCK, UPDLOCK) 
+				INNER JOIN @tmp_batch t ON t.MatchId = q.Matchid AND t.EventTypeID = q.EventTypeID
+			
+			SELECT @row_cnt = @row_cnt + @@ROWCOUNT
+			IF @row_cnt < 1000
+			BREAK
+		END
 	
 	END
 
