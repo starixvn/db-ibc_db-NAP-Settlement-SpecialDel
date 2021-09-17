@@ -14,6 +14,7 @@ AS
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 */
 
 BEGIN
@@ -413,7 +414,7 @@ BEGIN
         END 
 	END
 
-	ELSE IF @Sporttype = 45
+	ELSE IF @Sporttype IN ( 6, 45 )
 	BEGIN
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 		SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID

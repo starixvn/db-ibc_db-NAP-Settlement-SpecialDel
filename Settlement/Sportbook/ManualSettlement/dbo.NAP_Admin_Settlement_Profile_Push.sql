@@ -9,7 +9,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsAuto			BIT				= 0
-	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+	,@IsDirectly		BIT				= 0
+	,@ChildMatchIds		VARCHAR(200)	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -32,6 +33,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Settle by profile for Volleyball, Squash, Sepak Takraw [Redmine:#160478]
 		
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -184,7 +186,8 @@ BEGIN
 	END
 
 	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@Sporttype)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @sporttype
 
 	-- check movebet day
 	IF @IsMergedParlay = 1
@@ -220,6 +223,10 @@ BEGIN
 															+ CASE 
 																	WHEN @IsDirectly = 1 THEN ', @IsDirectly = ' + CONVERT(NVARCHAR(1), @IsDirectly)
 																ELSE ''
+															END
+															+ CASE 
+																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ' + CONVERT(NVARCHAR(200),@ChildMatchIds )
+																	ELSE ''
 															END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'

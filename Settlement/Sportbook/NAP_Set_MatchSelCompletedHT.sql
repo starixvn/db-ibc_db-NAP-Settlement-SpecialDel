@@ -45,6 +45,7 @@ AS
 		- 20200904@Louisa: Get external score [Redmine:#139979]
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		
 */
 BEGIN
@@ -84,7 +85,8 @@ BEGIN
 	DECLARE @SqlQuery VARCHAR(4000)
 
 	SELECT	@IsMergedParlay = IsMergedParlay 
-	FROM	dbo.f_Set_SettingByProfile(@sporttype)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @SportType
 
 	SET @SqlQuery = ''
 	SELECT @SqlQuery = '
