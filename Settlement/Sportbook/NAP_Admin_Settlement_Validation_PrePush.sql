@@ -65,7 +65,7 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    DECLARE	@sporttype INT
+    DECLARE	@sporttype SMALLINT
 		, @queryMatch NVARCHAR(MAX) = ''
 		, @XmlData XML
 		, @oddsTable TINYINT = 0
@@ -77,7 +77,7 @@ BEGIN
 	FROM	dbo.match m WITH (NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 6 )	THEN 1 --Odds
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 6 )			THEN 1 --Odds
 							 WHEN @sporttype IN ( 9, 45, 50 )		THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
@@ -167,7 +167,7 @@ BEGIN
 						SELECT   sp.ResourceId
 								, sp.BetType
 								, sp.BetID
-						FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.RefResourceId, sp.BetType , sp.BetID
+						FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.sporttype, sp.RefResourceId, sp.BetType , sp.BetID
 										FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
 										OPTION (MAXRECURSION 0)
