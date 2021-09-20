@@ -32,6 +32,7 @@ BEGIN
 		LEFT JOIN dbo.ResultDetailOS r WITH(NOLOCK)
 			ON m.matchid = r.MatchID
 	WHERE ISNULL(m.ParentID,0) = @MatchId
+		AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17)
 
 END
 GO
