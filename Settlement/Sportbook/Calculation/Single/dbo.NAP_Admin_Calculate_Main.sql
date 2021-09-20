@@ -202,17 +202,20 @@ BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
 		IF @SettlementProcessingId IS NOT NULL AND @Mode = 'profile-major'
 		BEGIN
-			DECLARE @MessageTypeNew VARCHAR(200) 
-				,@QueueNoNew INT 
+			IF OBJECT_ID('SettlementProcessing', 'U') IS NOT NULL
+			BEGIN
+				DECLARE @MessageTypeNew VARCHAR(200) 
+					,@QueueNoNew INT 
 			
-			SET @QueueNoNew = @SettlementProcessingId%@totalqueue 
-								+ CASE WHEN @SettlementProcessingId%@totalqueue = 0 THEN @TotalQueue ELSE 0 END
+				SET @QueueNoNew = @SettlementProcessingId%@totalqueue 
+									+ CASE WHEN @SettlementProcessingId%@totalqueue = 0 THEN @TotalQueue ELSE 0 END
 
-			SET @MessageTypeNew = 'bet_settle_msg_type_' 
-									+ CASE WHEN @QueueNoNew < 10 THEN '0' ELSE '' END + CAST(@QueueNoNew AS VARCHAR)
-
-			INSERT INTO dbo.SettlementProcessing (SessionId, TransIds, OddsType, modds, IsMarked, MessageType)
-			SELECT @SessionId, @strTransIds, @oddstype, @modds, @ismarked,  @MessageTypeNew
+				SET @MessageTypeNew = 'bet_settle_msg_type_' 
+										+ CASE WHEN @QueueNoNew < 10 THEN '0' ELSE '' END + CAST(@QueueNoNew AS VARCHAR)
+			
+				INSERT INTO dbo.SettlementProcessing (SessionId, TransIds, OddsType, modds, IsMarked, MessageType)
+				SELECT @SessionId, @strTransIds, @oddstype, @modds, @ismarked,  @MessageTypeNew
+			END
 		END
 		ELSE
 		BEGIN
@@ -377,162 +380,165 @@ BEGIN
 		
         IF @action = 'CAL' 
         BEGIN
-            IF @Mode <> 'UNDO'
-            BEGIN
-                SET @xml = CONVERT(XML, REPLACE('<root><r t="' + @strBettypes + '"/></root>', ',','"/><r t="'))
+			IF @sporttype <> 1
+			BEGIN
+				IF @Mode <> 'UNDO' 
+				BEGIN
+					SET @xml = CONVERT(XML, REPLACE('<root><r t="' + @strBettypes + '"/></root>', ',','"/><r t="'))
 
-                INSERT INTO @tblBettypes (bettype)
-                SELECT T.c.value('./@t','SMALLINT')
-                FROM @xml.nodes('/root/r') AS T(c)
-                OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-            END
+					INSERT INTO @tblBettypes (bettype)
+					SELECT T.c.value('./@t','SMALLINT')
+					FROM @xml.nodes('/root/r') AS T(c)
+					OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
+				END
 
-            IF @Mode IN ('CAL-FT', 'CAL') AND @sporttype <> 1
-            BEGIN
+				IF @Mode IN ('CAL-FT', 'CAL') 
+				BEGIN
                 
-                -- bettype 1 : Handicap
-                -- IF @betcount_1 > 0
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 1)
-                    EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
-                        ,@bettype = 1
-                        ,@fth = @fth
-                        ,@fta = @fta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-						,@SportType = @Sporttype
+					-- bettype 1 : Handicap
+					-- IF @betcount_1 > 0
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 1)
+						EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
+							,@bettype = 1
+							,@fth = @fth
+							,@fta = @fta
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
+							,@SportType = @Sporttype
                
-                -- bettype 20 : Money Line
-                -- IF @betcount_20 > 0
-                IF @SportType = 154
-                BEGIN
-                    -- for horse racing fixodds swap win positions to resuse calculating SP
-                    IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 20)
-                        EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
-                            ,@bettype = 20
-                            ,@fth = @fta
-                            ,@fta = @fth
-                            ,@betcount = 1
-                END
-                ELSE
-                    IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 20)
-                        EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
-                            ,@bettype = 20
-                            ,@fth = @fth
-                            ,@fta = @fta
-                            ,@betcount = 1
+					-- bettype 20 : Money Line
+					-- IF @betcount_20 > 0
+					IF @SportType = 154
+					BEGIN
+						-- for horse racing fixodds swap win positions to resuse calculating SP
+						IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 20)
+							EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
+								,@bettype = 20
+								,@fth = @fta
+								,@fta = @fth
+								,@betcount = 1
+					END
+					ELSE
+						IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 20)
+							EXEC dbo.NAP_Admin_Calculate_1 @matchid = @matchid
+								,@bettype = 20
+								,@fth = @fth
+								,@fta = @fta
+								,@betcount = 1
+								,@IsReSettledTickets = @IsReSettledTickets
+
+					-- bettype 2 : Odd/Even
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 2)
+											EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+							,@bettype = 2
+							,@oddeven = @oddeven
+							,@betcount = 1
 							,@IsReSettledTickets = @IsReSettledTickets
 
-                -- bettype 2 : Odd/Even
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 2)
-                                        EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                        ,@bettype = 2
-                        ,@oddeven = @oddeven
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					-- bettype 3 : Over/Under
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 3)
+						EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+							,@bettype = 3
+							,@totalgoal = @totalgoal
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets            
 
-                -- bettype 3 : Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 3)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 3
-                        ,@totalgoal = @totalgoal
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets            
-
-                -- bettype 5 : 1x2
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 5)
-                                        EXEC dbo.NAP_Admin_Calculate_5 @matchid = @matchid
-                        ,@bettype = 5
-                        ,@whowin = @scorediff
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					-- bettype 5 : 1x2
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 5)
+											EXEC dbo.NAP_Admin_Calculate_5 @matchid = @matchid
+							,@bettype = 5
+							,@whowin = @scorediff
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
            
-                --Home Team Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 401)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 401
-                        ,@totalgoal = @totalhome
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					--Home Team Over/Under
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 401)
+						EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+							,@bettype = 401
+							,@totalgoal = @totalhome
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
                
-                --Away Team Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 402)
-                    EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
-                        ,@bettype = 402
-                        ,@totalgoal = @totalaway
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets                
+					--Away Team Over/Under
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 402)
+						EXEC dbo.NAP_Admin_Calculate_3 @matchid = @matchid
+							,@bettype = 402
+							,@totalgoal = @totalaway
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets                
 
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 501)
-                    EXEC dbo.NAP_Admin_Calculate_501 @matchid = @matchid
-                        ,@bettype = 501
-                        ,@betcount = 1
-                        ,@ScoreDiff = @ScoreDiff
-						,@IsReSettledTickets = @IsReSettledTickets
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 501)
+						EXEC dbo.NAP_Admin_Calculate_501 @matchid = @matchid
+							,@bettype = 501
+							,@betcount = 1
+							,@ScoreDiff = @ScoreDiff
+							,@IsReSettledTickets = @IsReSettledTickets
 
-            END -- END CAL/CAL-FT
+				END -- END CAL/CAL-FT
 
-            IF @Mode IN ('CAL-HT', 'CAL')
-                AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186, 1)
-            BEGIN
-                -- exec in all cases, both 'FT' and 'HT'
-               IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 7)
-                    EXEC dbo.NAP_Admin_Calculate_7 @matchid = @matchid
-                        ,@bettype = 7
-                        ,@hth = @hth
-                        ,@hta = @hta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-						,@Sporttype = @Sporttype
+				IF @Mode IN ('CAL-HT', 'CAL')
+					AND @SportType NOT IN (180, 181, 182, 183, 184, 185, 186)
+				BEGIN
+					-- exec in all cases, both 'FT' and 'HT'
+				   IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 7)
+						EXEC dbo.NAP_Admin_Calculate_7 @matchid = @matchid
+							,@bettype = 7
+							,@hth = @hth
+							,@hta = @hta
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
+							,@Sporttype = @Sporttype
 
-                -- bettype 21: 1st moneyline
-               IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 21)
-                    EXEC dbo.NAP_Admin_Calculate_7 @matchid = @matchid
-                        ,@bettype = 21
-                        ,@hth = @hth
-                        ,@hta = @hta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					-- bettype 21: 1st moneyline
+				   IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 21)
+						EXEC dbo.NAP_Admin_Calculate_7 @matchid = @matchid
+							,@bettype = 21
+							,@hth = @hth
+							,@hta = @hta
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
                
-                -- bettype 8 : 1st Over/Under
-                IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 8)
-                                        EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
-                        ,@bettype = 8
-                        ,@totalht = @totalht
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					-- bettype 8 : 1st Over/Under
+					IF EXISTS (SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 8)
+											EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
+							,@bettype = 8
+							,@totalht = @totalht
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
 
-                -- bettype 12 : 1st Odd/Even
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 12)
-                                        EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
-                        ,@bettype = 12
-                        ,@oddeven = @oddevenht
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					-- bettype 12 : 1st Odd/Even
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 12)
+											EXEC dbo.NAP_Admin_Calculate_2 @matchid = @matchid
+							,@bettype = 12
+							,@oddeven = @oddevenht
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
 
-                -- bettype 15 : 1st 1x2
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 15)
-                                        EXEC dbo.NAP_Admin_Calculate_5 @matchid = @matchid
-                        ,@bettype = 15
-                        ,@whowin = @scorediff_ht
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets          
+					-- bettype 15 : 1st 1x2
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 15)
+											EXEC dbo.NAP_Admin_Calculate_5 @matchid = @matchid
+							,@bettype = 15
+							,@whowin = @scorediff_ht
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets          
                
-                --1H Home Team Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 403)
-                                        EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
-                        ,@bettype = 403
-                        ,@totalht = @hth
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
+					--1H Home Team Over/Under
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 403)
+											EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
+							,@bettype = 403
+							,@totalht = @hth
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
 
-                --1H Away Team Over/Under
-                IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 404)
-                                        EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
-                        ,@bettype = 404
-                        ,@totalht = @hta
-                        ,@betcount = 1
-						,@IsReSettledTickets = @IsReSettledTickets
-            END
+					--1H Away Team Over/Under
+					IF EXISTS(SELECT TOP 1 1 FROM @tblBettypes WHERE bettype = 404)
+											EXEC dbo.NAP_Admin_Calculate_8 @matchid = @matchid
+							,@bettype = 404
+							,@totalht = @hta
+							,@betcount = 1
+							,@IsReSettledTickets = @IsReSettledTickets
+				END
+			END
             
             IF @Mode = 'UNDO'
             BEGIN

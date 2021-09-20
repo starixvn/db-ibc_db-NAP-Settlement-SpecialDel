@@ -391,7 +391,7 @@ BEGIN
 					@creator        = @creator
 			END	
 		END
-
+		
 		IF @IsReSettledTickets = 0
 		BEGIN
 			INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
@@ -459,7 +459,7 @@ BEGIN
 				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
 				,BatchNo = @batchNo
 				,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
-		
+	
 		;WITH cteBatchNo
 		AS(
 			SELECT	BatchNo, MIN(custid) minCustId, MAX(custid) maxCustId
@@ -491,7 +491,8 @@ BEGIN
 			,@mode = 'LockMatch'
 			,@IsSettingByProfile = 1
 			,@SessionId = @SessionId	
-	
+		
+		
 		SELECT	@BatchNo = 1
 				,@QueueNo = 1	
 		WHILE(1=1)
@@ -528,11 +529,11 @@ BEGIN
 			SET @BatchNo = @BatchNo + 1
 			SET @QueueNo = CASE WHEN @QueueNo >= @QueueSize THEN 1 ELSE @QueueNo + 1 END
 		END
-
+		
 		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'cal - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
 	
 		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'others - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-
+		
 		IF @strCashoutBettype <> ''
 		BEGIN
 			EXEC dbo.NAP_Admin_Calculate_Main -- 911
@@ -542,7 +543,7 @@ BEGIN
 				,@strBettypes   = @strCashoutBettype
 				,@sporttype		= @sporttype
 		END
-
+		
 		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'others - end', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
 	END TRY
 	BEGIN CATCH
@@ -555,7 +556,7 @@ BEGIN
 							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
 							+ CASE 
 								WHEN @ErrCode <> 0 THEN ', @HasError = 1' 
-								ELSE ', @LogData = ' + @LogData
+								ELSE ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
 							END
 
 	EXEC [sb].[SSB_Send_Message] @MessageContent = @messageBody
