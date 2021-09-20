@@ -42,6 +42,7 @@ AS
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20210205@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210917@Kathy: write log if SP run too long
 	
 	Param's explanation:  
 		
@@ -53,6 +54,8 @@ BEGIN
 	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
 		,@MinBettype SMALLINT, @MaxBettype SMALLINT,@isSettingByProfile BIT = 0, @n	INT = 2147483647
 		
+	SET @StartTime = GETDATE()
+
 	SELECT @MatchCode = ISNULL(@MatchCode, ''), @LeagueId = ISNULL(@LeagueID, 0), @SportType = ISNULL(@SportType, 0)
 
 	IF ISNUMERIC(@MatchCode) = 1
@@ -550,7 +553,7 @@ BEGIN
 
 
 	SET @EndTime = GETDATE()
-	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
+	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
 		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ''', @SportType = ' + CONVERT(VARCHAR(10),@SportType) + ', @LeagueId =' + CONVERT(VARCHAR(10),@LeagueId)
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
