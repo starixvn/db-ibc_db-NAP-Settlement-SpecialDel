@@ -51,32 +51,6 @@ BEGIN
 			WHERE mc.EventTypeID = 2 AND o14.orid = mc.Matchid
 		)m
 
-	--Get bonus matches in queue if matchid not in CustLimitBet_xxx
-	INSERT INTO #match_tmp (MatchId, EventTypeID, Eventdate)
-	SELECT DISTINCT q.Matchid, q.EventTypeID, m.eventdate
-	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
-		OUTER APPLY (
-			SELECT eventdate
-			FROM dbo.match m WITH (NOLOCK)
-			WHERE q.EventTypeID = 1 AND q.Matchid = m.matchid
-
-			UNION ALL
-			SELECT eventdate
-			FROM dbo.match14 m14 WITH (NOLOCK)
-			WHERE q.EventTypeID = 1 AND q.Matchid = m14.matchid
-
-			UNION ALL
-			SELECT o.eventdate
-			FROM dbo.outright o WITH (NOLOCK)
-			WHERE q.EventTypeID = 2 AND o.orid = q.Matchid
-
-			UNION ALL
-			SELECT o14.eventdate
-			FROM dbo.outright14 o14 WITH (NOLOCK)
-			WHERE q.EventTypeID = 2 AND o14.orid = q.Matchid
-		)m
-	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #match_tmp m1 WHERE m1.MatchId = q.Matchid)
-
 	--Check delete rule
 	DELETE #match_tmp WHERE Eventdate > @Archive_Date
 	
