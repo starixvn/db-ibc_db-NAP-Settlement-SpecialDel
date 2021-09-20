@@ -1,5 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
+(
 	@RequestId				INT
 	,@SubIssueTypeId		SMALLINT	  = NULL
 	,@ActionId				TINYINT		  = NULL
@@ -55,8 +56,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
 	,@RedCardInfo			VARCHAR(MAX)  = NULL
+	,@IsVoided				BIT			  = 0
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
+)
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -80,6 +83,7 @@ AS
 		- 20210622@Max: [TVS] Submit new allowance setting for Main Match [Redmine: #157226]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20210920@Max: TVS - Update other info of request after voided always loading [Redmine: #161852]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -147,92 +151,36 @@ BEGIN
 	SET @LogActionId = 90002
 	SET @SB_Error = 0
 
-
-	INSERT INTO #tblMatchProcess (Matchid, KeyID)
-	SELECT   T.C.value('@MatchId', 'INT') AS MatchId
-			,T.C.value('@KeyID', 'INT') AS KeyID
-	FROM @MatchProcessXML.nodes('/root/r') as [T](C)
-
-	IF @MatchParlayProcessXML IS NOT NULL 
+	IF @IsVoided = 0
 	BEGIN
-		INSERT INTO #tblMatchParlayProcess (MatchId, RefNo)
+		INSERT INTO #tblMatchProcess (Matchid, KeyID)
 		SELECT   T.C.value('@MatchId', 'INT') AS MatchId
-				,T.C.value('@RefNo', 'BIGINT') AS RefNo
-		FROM @MatchParlayProcessXML.nodes('/root/r') as [T](C)
+				,T.C.value('@KeyID', 'INT') AS KeyID
+		FROM @MatchProcessXML.nodes('/root/r') as [T](C)
 
-		SET @TotalParlay = @@ROWCOUNT
-	END
-
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-			@LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
-
-	/*Apply new way to lock parlay tickets - SportBook*/
-	IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
-	BEGIN
-		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
-			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
+		IF @MatchParlayProcessXML IS NOT NULL 
 		BEGIN
-			-- checking single proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistOutright			= @isExistOutright
-				,@isExistMG					= @isExistMG
-				,@isExistFM					= @isExistFM
-				,@isExistMatch				= @IsExistSingle
-				,@isExistNG					= @isExistNG
-				,@isExistVS					= @isExistVS
-				,@isExistBB					= @isExistBB
-				,@IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-				,@isExistFM2				= @isExistFM2
-				,@SPName					= @SPName
-				,@avaiableProcess			= @avaiableProcess OUTPUT
-				,@ErrCode					= @ErrCode OUTPUT
-				,@ErrMsg					= @ErrMsg OUTPUT;
+			INSERT INTO #tblMatchParlayProcess (MatchId, RefNo)
+			SELECT   T.C.value('@MatchId', 'INT') AS MatchId
+					,T.C.value('@RefNo', 'BIGINT') AS RefNo
+			FROM @MatchParlayProcessXML.nodes('/root/r') as [T](C)
 
-			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-			BEGIN
-				RETURN;
-			END;
+			SET @TotalParlay = @@ROWCOUNT
 		END
 
-		IF @TotalParlay > 0 
-		BEGIN
-			-- checking Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno		= 1
-				,@SPName				= @SPName
-				,@Session				= @Session
-				,@avaiableProcess 		= @avaiableProcess OUTPUT
-				,@ErrCode				= @ErrCode OUTPUT
-				,@ErrMsg				= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+				@LockName = 'ParlayRefno'
+				,@ThreadHold = @ThreadHold OUTPUT
 
-			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+		/*Apply new way to lock parlay tickets - SportBook*/
+		IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+		BEGIN
+			IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
+				OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
 			BEGIN
-				------ releasing single process
+				-- checking single proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
-					, @isExistFM				= @isExistFM
-					, @isExistMatch				= @IsExistSingle
-					, @isExistNG				= @isExistNG
-					, @isExistVS				= @isExistVS
-					, @isExistBB				= @isExistBB
-					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-					, @isExistFM2				= @isExistFM2
-					, @IsReleased				= 1
-				RETURN;	
-			END
-		END
-	END
-	ELSE IF @TotalParlay > @ThreadHold
-	BEGIN
-		IF @isExistParlay = 1 OR @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 
-			OR @isExistNG = 1 OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
-		BEGIN
-			-- Check Lock Match
-			EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistParlay 				= @isExistParlay
-					,@isExistOutright			= @isExistOutright
+					@isExistOutright			= @isExistOutright
 					,@isExistMG					= @isExistMG
 					,@isExistFM					= @isExistFM
 					,@isExistMatch				= @IsExistSingle
@@ -246,175 +194,261 @@ BEGIN
 					,@ErrCode					= @ErrCode OUTPUT
 					,@ErrMsg					= @ErrMsg OUTPUT;
 
-			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+				IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+				BEGIN
+					RETURN;
+				END;
+			END
+
+			IF @TotalParlay > 0 
 			BEGIN
-				RETURN
+				-- checking Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno		= 1
+					,@SPName				= @SPName
+					,@Session				= @Session
+					,@avaiableProcess 		= @avaiableProcess OUTPUT
+					,@ErrCode				= @ErrCode OUTPUT
+					,@ErrMsg				= @ErrMsg OUTPUT
+
+				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+				BEGIN
+					------ releasing single process
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistOutright 			= @isExistOutright
+						, @isExistMG				= @isExistMG
+						, @isExistFM				= @isExistFM
+						, @isExistMatch				= @IsExistSingle
+						, @isExistNG				= @isExistNG
+						, @isExistVS				= @isExistVS
+						, @isExistBB				= @isExistBB
+						, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+						, @isExistFM2				= @isExistFM2
+						, @IsReleased				= 1
+					RETURN;	
+				END
 			END
 		END
-	END
-
-	UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
-		SET @OldActionId = ActionId
-			--,@OldSubIssueTypeId = SubIssueTypeId
-			,@OldCheckedBy = CheckedBy
-			,@OldSportType = Sporttype
-			,@OldMistakenBy = MistakenBy
-			,@OldDecidedBy = DecidedBy
-			,@OldProvider = Provider
-			,@OldSource = Source
-			,@OldRemark = Remark
-			,@OldIsTest = IsTest
-			,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
-			,ActionId = ISNULL(@ActionId, ActionId)
-			,Provider = ISNULL(@Provider, Provider)
-			,Source = ISNULL(@Source, Source)
-			,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
-			,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
-			-- @SubIssueTypeId IS NULL update @CheckBy
-			,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
-			,Remark = ISNULL(@Remark, Remark)
-			,IsTest = ISNULL(@IsTest, IsTest)
-			,Sporttype =  ISNULL(@SportType, Sporttype)
-			,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
-			,LastModifiedDate = GETDATE()
-	WHERE	RequestId = @RequestId
-
-	EXEC dbo.TicketVoiding_RequestDetail_Update
-			@RequestId = @RequestId
-			,@MatchId = @MatchId				
-			,@KickOffTime = @KickOffTime			
-			,@UserId = @UserId				
-			,@IP = @IP					
-			,@TransIds = @TransIds 				
-			,@ActionId = @ActionId				
-			,@IssueTypeId = @IssueTypeId			
-			,@FilterFromTransTime = @FilterFromTransTime
-			,@FilterToTransTime	= @FilterToTransTime		
-			,@FilterFromBetId = @FilterFromBetId		
-			,@FilterToBetId	= @FilterToBetId			
-			,@FilterBy = @FilterBy				
-			,@SingleCount = @SingleCount			
-			,@MainParlayCount = @MainParlayCount		
-			,@MinSingleTransId = @MinSingleTransId		
-			,@MaxSingleTransId = @MaxSingleTransId		
-			,@MinMainParlayTransId = @MinMainParlayTransId
-			,@MaxMainParlayTransId = @MaxMainParlayTransId
-			,@VoidFromTime = @VoidFromTime			
-			,@VoidToTime = @VoidToTime			
-			,@LiveScores = @LiveScores					
-			,@SubIssueTypeId = @SubIssueTypeId		
-			,@IsConfirmCalculator = @IsConfirmCalculator
-			,@UserNames	= @UserNames				
-			,@ProductIds = @ProductIds			
-			,@StatusIds	= @StatusIds				
-			,@FromDate = @FromDate				
-			,@ToDate = @ToDate
-			,@IsVoidVIPMember = @IsVoidVIPMember
-			,@TypeAccept = @TypeAccept		
-			,@WrongScoreInfo = @WrongScoreInfo	
-			,@DangerAcceptedInfo = @DangerAcceptedInfo
-			,@RedCardInfo = @RedCardInfo
-			,@ErrMsg = @ErrMsg	OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@FailedTransIds = @FailedTransIds OUTPUT
-			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-			;
-
-	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
-			@RequestId = @RequestId			
-			,@MatchId = @MatchId			
-			,@KickOffTime = @KickOffTime		
-			,@IssueTypeId = @IssueTypeId		
-			,@SubIssueTypeId = @SubIssueTypeId	
-			,@MinSingleTransId = @MinSingleTransId	
-			,@MaxSingleTransId = @MaxSingleTransId	
-			,@TransIds = @TransIds			
-			,@IsEditRequest	= 1		
-			,@UserId = @UserId			
-			,@IP = @IP				
-			,@ActionId = @ActionId			
-			,@FilterFromTransTime = @VoidFromTime
-			,@FilterToTransTime = @VoidToTime	
-			,@FilterBy = @FilterBy			
-			,@UserNames	= @UserNames			
-			,@ProductIds = @ProductIds		
-			,@StatusIds = @StatusIds			
-			,@FromDate = @FromDate			
-			,@ToDate = @ToDate
-			,@WrongScoreInfo = @WrongScoreInfo
-			,@DangerAcceptedInfo = @DangerAcceptedInfo
-			,@RedCardInfo = @RedCardInfo
-
-	IF @IssueTypeId IN (1,8,9,10,3)
-	BEGIN
-	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
-			@RequestId = @RequestId		
-			,@MatchId = @MatchId				
-			,@KickOffTime = @KickOffTime			
-			,@IssueTypeId = @IssueTypeId			
-			,@SubIssueTypeId = @SubIssueTypeId		
-			,@MinMainParlayTransId = @MinMainParlayTransId	
-			,@MaxMainParlayTransId = @MaxMainParlayTransId	
-			,@IsEditRequest	= 1		
-			,@UserId = @UserId				
-			,@IP = @IP					
-			,@ActionId = @ActionId				
-			,@FilterFromTransTime = @VoidFromTime	
-			,@FilterToTransTime = @VoidToTime		
-			,@FilterBy = @FilterBy
-			,@WrongScoreInfo = @WrongScoreInfo
-			,@DangerAcceptedInfo = @DangerAcceptedInfo
-			,@RedCardInfo = @RedCardInfo
-	END
-
-	IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
-	BEGIN
-		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
-			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
+		ELSE IF @TotalParlay > @ThreadHold
 		BEGIN
-			------ releasing single process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistOutright 			= @isExistOutright
-				, @isExistMG				= @isExistMG
-				, @isExistFM				= @isExistFM
-				, @isExistMatch				= @IsExistSingle
-				, @isExistNG				= @isExistNG
-				, @isExistVS				= @isExistVS
-				, @isExistBB				= @isExistBB
-				, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-				, @isExistFM2				= @isExistFM2
-				, @IsReleased				= 1
-		END
-		IF @TotalParlay > 0
-		BEGIN
-			------ releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-				,@Session	= @Session
-				,@IsReleased = 1
-		END
-	END
-	ELSE IF @TotalParlay  > @ThreadHold
-	BEGIN
-		IF @isExistParlay = 1 OR @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 
-			OR @isExistNG = 1 OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
-		BEGIN
-			-- Release Match
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay 				= @isExistParlay
-				,@isExistOutright			= @isExistOutright
-				,@isExistMG					= @isExistMG
-				,@isExistFM					= @isExistFM
-				,@isExistMatch				= @IsExistSingle
-				,@isExistNG					= @isExistNG
-				,@isExistVS					= @isExistVS
-				,@isExistBB					= @isExistBB
-				,@IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
-				,@isExistFM2				= @isExistFM2
-				,@IsReleased				= 1;
-		END
-	END	
+			IF @isExistParlay = 1 OR @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 
+				OR @isExistNG = 1 OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
+			BEGIN
+				-- Check Lock Match
+				EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistParlay 				= @isExistParlay
+						,@isExistOutright			= @isExistOutright
+						,@isExistMG					= @isExistMG
+						,@isExistFM					= @isExistFM
+						,@isExistMatch				= @IsExistSingle
+						,@isExistNG					= @isExistNG
+						,@isExistVS					= @isExistVS
+						,@isExistBB					= @isExistBB
+						,@IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+						,@isExistFM2				= @isExistFM2
+						,@SPName					= @SPName
+						,@avaiableProcess			= @avaiableProcess OUTPUT
+						,@ErrCode					= @ErrCode OUTPUT
+						,@ErrMsg					= @ErrMsg OUTPUT;
 
+				IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+				BEGIN
+					RETURN
+				END
+			END
+		END
+
+		UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
+			SET @OldActionId = ActionId
+				--,@OldSubIssueTypeId = SubIssueTypeId
+				,@OldCheckedBy = CheckedBy
+				,@OldSportType = Sporttype
+				,@OldMistakenBy = MistakenBy
+				,@OldDecidedBy = DecidedBy
+				,@OldProvider = Provider
+				,@OldSource = Source
+				,@OldRemark = Remark
+				,@OldIsTest = IsTest
+				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
+				,ActionId = ISNULL(@ActionId, ActionId)
+				,Provider = ISNULL(@Provider, Provider)
+				,Source = ISNULL(@Source, Source)
+				,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
+				,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
+				-- @SubIssueTypeId IS NULL update @CheckBy
+				,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
+				,Remark = ISNULL(@Remark, Remark)
+				,IsTest = ISNULL(@IsTest, IsTest)
+				,Sporttype =  ISNULL(@SportType, Sporttype)
+				,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
+				,LastModifiedDate = GETDATE()
+		WHERE	RequestId = @RequestId
+
+		EXEC dbo.TicketVoiding_RequestDetail_Update
+				@RequestId = @RequestId
+				,@MatchId = @MatchId				
+				,@KickOffTime = @KickOffTime			
+				,@UserId = @UserId				
+				,@IP = @IP					
+				,@TransIds = @TransIds 				
+				,@ActionId = @ActionId				
+				,@IssueTypeId = @IssueTypeId			
+				,@FilterFromTransTime = @FilterFromTransTime
+				,@FilterToTransTime	= @FilterToTransTime		
+				,@FilterFromBetId = @FilterFromBetId		
+				,@FilterToBetId	= @FilterToBetId			
+				,@FilterBy = @FilterBy				
+				,@SingleCount = @SingleCount			
+				,@MainParlayCount = @MainParlayCount		
+				,@MinSingleTransId = @MinSingleTransId		
+				,@MaxSingleTransId = @MaxSingleTransId		
+				,@MinMainParlayTransId = @MinMainParlayTransId
+				,@MaxMainParlayTransId = @MaxMainParlayTransId
+				,@VoidFromTime = @VoidFromTime			
+				,@VoidToTime = @VoidToTime			
+				,@LiveScores = @LiveScores					
+				,@SubIssueTypeId = @SubIssueTypeId		
+				,@IsConfirmCalculator = @IsConfirmCalculator
+				,@UserNames	= @UserNames				
+				,@ProductIds = @ProductIds			
+				,@StatusIds	= @StatusIds				
+				,@FromDate = @FromDate				
+				,@ToDate = @ToDate
+				,@IsVoidVIPMember = @IsVoidVIPMember
+				,@TypeAccept = @TypeAccept		
+				,@WrongScoreInfo = @WrongScoreInfo	
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
+				,@ErrMsg = @ErrMsg	OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@FailedTransIds = @FailedTransIds OUTPUT
+				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+				;
+
+		EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
+				@RequestId = @RequestId			
+				,@MatchId = @MatchId			
+				,@KickOffTime = @KickOffTime		
+				,@IssueTypeId = @IssueTypeId		
+				,@SubIssueTypeId = @SubIssueTypeId	
+				,@MinSingleTransId = @MinSingleTransId	
+				,@MaxSingleTransId = @MaxSingleTransId	
+				,@TransIds = @TransIds			
+				,@IsEditRequest	= 1		
+				,@UserId = @UserId			
+				,@IP = @IP				
+				,@ActionId = @ActionId			
+				,@FilterFromTransTime = @VoidFromTime
+				,@FilterToTransTime = @VoidToTime	
+				,@FilterBy = @FilterBy			
+				,@UserNames	= @UserNames			
+				,@ProductIds = @ProductIds		
+				,@StatusIds = @StatusIds			
+				,@FromDate = @FromDate			
+				,@ToDate = @ToDate
+				,@WrongScoreInfo = @WrongScoreInfo
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
+
+		IF @IssueTypeId IN (1,8,9,10,3)
+		BEGIN
+		EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
+				@RequestId = @RequestId		
+				,@MatchId = @MatchId				
+				,@KickOffTime = @KickOffTime			
+				,@IssueTypeId = @IssueTypeId			
+				,@SubIssueTypeId = @SubIssueTypeId		
+				,@MinMainParlayTransId = @MinMainParlayTransId	
+				,@MaxMainParlayTransId = @MaxMainParlayTransId	
+				,@IsEditRequest	= 1		
+				,@UserId = @UserId				
+				,@IP = @IP					
+				,@ActionId = @ActionId				
+				,@FilterFromTransTime = @VoidFromTime	
+				,@FilterToTransTime = @VoidToTime		
+				,@FilterBy = @FilterBy
+				,@WrongScoreInfo = @WrongScoreInfo
+				,@DangerAcceptedInfo = @DangerAcceptedInfo
+				,@RedCardInfo = @RedCardInfo
+		END
+
+		IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+		BEGIN
+			IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
+				OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistOutright 			= @isExistOutright
+					, @isExistMG				= @isExistMG
+					, @isExistFM				= @isExistFM
+					, @isExistMatch				= @IsExistSingle
+					, @isExistNG				= @isExistNG
+					, @isExistVS				= @isExistVS
+					, @isExistBB				= @isExistBB
+					, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+					, @isExistFM2				= @isExistFM2
+					, @IsReleased				= 1
+			END
+			IF @TotalParlay > 0
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+			END
+		END
+		ELSE IF @TotalParlay  > @ThreadHold
+		BEGIN
+			IF @isExistParlay = 1 OR @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 
+				OR @isExistNG = 1 OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
+			BEGIN
+				-- Release Match
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistParlay 				= @isExistParlay
+					,@isExistOutright			= @isExistOutright
+					,@isExistMG					= @isExistMG
+					,@isExistFM					= @isExistFM
+					,@isExistMatch				= @IsExistSingle
+					,@isExistNG					= @isExistNG
+					,@isExistVS					= @isExistVS
+					,@isExistBB					= @isExistBB
+					,@IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
+					,@isExistFM2				= @isExistFM2
+					,@IsReleased				= 1;
+			END
+		END	
+	END
+	--No need lock match if request voided
+	ELSE
+	BEGIN
+		UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
+			SET @OldActionId = ActionId
+				--,@OldSubIssueTypeId = SubIssueTypeId
+				,@OldCheckedBy = CheckedBy
+				,@OldSportType = Sporttype
+				,@OldMistakenBy = MistakenBy
+				,@OldDecidedBy = DecidedBy
+				,@OldProvider = Provider
+				,@OldSource = Source
+				,@OldRemark = Remark
+				,@OldIsTest = IsTest
+				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
+				,ActionId = ISNULL(@ActionId, ActionId)
+				,Provider = ISNULL(@Provider, Provider)
+				,Source = ISNULL(@Source, Source)
+				,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
+				,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
+				-- @SubIssueTypeId IS NULL update @CheckBy
+				,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
+				,Remark = ISNULL(@Remark, Remark)
+				,IsTest = ISNULL(@IsTest, IsTest)
+				,Sporttype =  ISNULL(@SportType, Sporttype)
+				,LastModifiedBy = ISNULL(@UserId, LastModifiedBy)
+				,LastModifiedDate = GETDATE()
+		WHERE	RequestId = @RequestId
+	END
 
 	IF @Operators IS NOT NULL
 	BEGIN
