@@ -1,24 +1,25 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
-/* 
-	Created:20210915@Louisa
-    Task: Cleanup data in ResultDetail [Redmine:#161455]
-    DB: DBPRO/bodb02
+ALTER PROCEDURE [dbo].[ExecRep_APL_00]
+AS
+/*
+	Creator:	20210920@Louisa
+	Task:		Cleanup data in ResultDetail - [Redmine:#161455]
+	Database:	DBPRO.bodb02
 	
 	Revisions:
-		- 20200904@Louisa: Cleanup data in ResultDetail [Redmine:#161455]
-	
-	Param's Explanation: 
+		- 20210920@Louisa:	Cleanup data in ResultDetail - [Redmine:#161455]
+		
+	Developer's Notes:
+		- @Example:			NULL		- Explaination [DEFAULT]
 		
 */
-
-USE [bodb02]
-GO
+BEGIN;
 	
 	DECLARE @batch INT = 1000
-			,@minMatchId	INT
-			,@maxMatchId	INT
+		,@minMatchId	INT
+		,@maxMatchId	INT
 	
-	IF OBJECT_ID('tempdb..#Active') IS not NULL
+	IF OBJECT_ID('tempdb..#Active') IS NOT NULL
 	DROP TABLE #Active
 	
 	CREATE TABLE #Active( Matchid INT)
@@ -26,8 +27,6 @@ GO
 	INSERT INTO #Active (Matchid)
 	SELECT  m.Matchid
 	FROM dbo.match m WITH(NOLOCK)
-		INNER JOIN dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-			ON m.sporttype = ss.Sporttype OR m.sporttype = 1
 
 	SELECT @minMatchId = MIN(m.Matchid)
 		 , @maxMatchId = MAX (matchid) 
@@ -60,6 +59,8 @@ GO
 
 		WAITFOR DELAY '00:00:00:280'
 
-	END
+	END	
 	
+	
+END
 GO
