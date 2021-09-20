@@ -29,9 +29,6 @@ AS
 
 		@CheckType: 0 : Check for single match
 					1 : Check for multiple match
-
-		* basketball: manual ResourceId:	801,802,1H,803,804,FT
-		* basketball: early ResourceId:		604,6130215,6130115,6130110
 					
 		@SelectedResource
 				'<Resources>
@@ -112,59 +109,10 @@ BEGIN
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )	
 
-	IF @sporttype = 2 --Basketball
-	SELECT @SelectedResource = STUFF((
-			SELECT DISTINCT ',' + ResourceId
-			FROM #SelectedMatchResource
-			FOR XML PATH('')
-		), 1,1,'')
 
-
-	----------------- Checking Odds for Basketball
-	IF @sporttype = 2
-	BEGIN
-		IF @Action = 'CAL_EAR'
-		BEGIN
-			SET @ErrCode = (SELECT TOP (1) 1001018
-							FROM dbo.odds o WITH (NOLOCK)
-							WHERE o.matchid = @Matchid 
-								AND 1 = CASE 
-											WHEN CHARINDEX (CONVERT(VARCHAR(10), o.bettype) + ISNULL(o.Resourceid,''),@SelectedResource) > 0
-												AND o.bettype IN(604, 606, 607, 613, 605, 617) THEN 1 -- Early bettype
-											ELSE 0
-										END	
-								AND o.liveindicator = 1
-								AND o.oddsstatus <> 'closed'
-							)	
-		END
-		ELSE  
-		BEGIN
-			SET @ErrCode = (SELECT TOP (1) 1001018
-							FROM dbo.odds o WITH (NOLOCK)
-								INNER JOIN dbo.f_Set_GetGroupBettypes () f ON o.bettype = f.BetType
-							WHERE o.matchid = @Matchid 
-								AND 1 = CASE 
-											WHEN GroupId = 10 AND CHARINDEX (o.Resourceid,@SelectedResource ) > 0 THEN 1 -- special -> Calculate Quarter X
-											WHEN CHARINDEX ('1H',@SelectedResource) > 0 AND f.GroupName = '1H' THEN 1 -- HT
-											WHEN CHARINDEX ('FT',@SelectedResource) > 0 AND f.GroupName IN ('FT', '2H') THEN 1 -- FT
-											ELSE 0
-										END	
-								AND f.IsAuto = 0
-								AND o.liveindicator = 1
-								AND o.oddsstatus <> 'closed'
-							)	
-		END
-		
-		IF @ErrCode > 0
-			SELECT @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
-
-		RETURN
-
-	END
-
-	----------------- Checking Odds for other sports
+	----------------- Checking running Odds
 	SET	@queryMatch = N'INSERT INTO #Resources ( ResourceId, Bettype , BetID )
-						SELECT   sp.ResourceId
+						SELECT  DISTINCT sp.ResourceId
 								, sp.BetType
 								, sp.BetID
 						FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.sporttype, sp.RefResourceId, sp.BetType , sp.BetID
@@ -172,9 +120,9 @@ BEGIN
 										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
 										OPTION (MAXRECURSION 0)
 										'') sp
-						CROSS APPLY ( SELECT TOP 1 r.ResourceId FROM  #SelectedMatchResource r
+						CROSS APPLY ( SELECT r.ResourceId FROM  #SelectedMatchResource r
 										WHERE r.ResourceId = sp.ResourceId
-											OR ( sp.Sporttype = 9 AND sp.RefResourceId IS NOT NULL AND r.ResourceId = sp.RefResourceId )
+											OR ( sp.RefResourceId IS NOT NULL AND r.ResourceId = sp.RefResourceId )
 									 )r '
 
 	EXECUTE	sys.sp_executesql @queryMatch
@@ -220,6 +168,9 @@ BEGIN
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 							)
 		END
+
+		IF 	@ErrCode > 0
+			SELECT @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 
 	END
 	
