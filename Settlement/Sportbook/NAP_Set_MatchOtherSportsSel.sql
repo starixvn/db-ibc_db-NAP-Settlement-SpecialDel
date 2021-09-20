@@ -322,7 +322,7 @@ BEGIN
 			OUTER APPLY(
 				SELECT	ss.IsMergedParlay
 				FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-				WHERE s.Sporttype = m.sporttype
+				WHERE ss.Sporttype = m.sporttype
 			)f
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
