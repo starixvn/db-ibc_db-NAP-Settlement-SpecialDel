@@ -164,6 +164,13 @@ RETURN
 					WHEN tbl.fm < 0 AND @betteam = '2' THEN 1
 					ELSE -1
 					END
+			WHEN @pfID IN (468, 469) THEN
+				CASE 
+					WHEN o.odds > 0 THEN 1
+					WHEN o.odds < 0 THEN -1
+					WHEN o.odds = 0 THEN 0
+					ELSE - 1
+				END
 			ELSE -1
 		END AS modds
    FROM
@@ -175,11 +182,34 @@ RETURN
 					WHEN @pfID IN (5, 408, 4) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)					
 					WHEN @pfID IN (407) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID IN (6, 412, 406) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
-					ELSE -1 END)
+					WHEN @pfID = 468 
+						THEN CASE	
+								WHEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY) - (@LiveHomeScore - @LiveAwayScore) > @hdp1 THEN @hdp1
+								WHEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY) - (@LiveHomeScore - @LiveAwayScore) < @hdp1 - @hdp2 + 1 THEN @hdp1 - @hdp2 + 1
+								ELSE CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY) - (@LiveHomeScore - @LiveAwayScore)
+							END
+					WHEN @pfID = 469
+						THEN CASE
+								WHEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) > @hdp1 THEN @hdp1
+								WHEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) < @hdp1 - @hdp2 + 1 THEN @hdp1 - @hdp2 + 1
+								ELSE CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+							END
+					ELSE -1 END
+					)
 			AS fm
 			,MAX(CASE WHEN @pfID = 416 THEN SUBSTRING(@transdesc,0, CHARINDEX('/',@transdesc)) ELSE NULL END) AS ExcludingHTChoice
 			,MAX(CASE WHEN @pfID = 416 THEN SUBSTRING(@transdesc,CHARINDEX('/',@transdesc)+1,LEN(@transdesc)) ELSE NULL END) AS ExcludingFTChoice
 	) tbl
+	OUTER APPLY
+	(
+		SELECT CHARINDEX(CAST(CAST(fm AS INT) AS VARCHAR(10)) + ':', @betcheck) + LEN(CAST(fm AS INT)) + 1 AS posOdds
+		WHERE @pfID IN (468, 469)
+	)po
+	OUTER APPLY
+	(
+		SELECT SUBSTRING(@betcheck, po.posOdds, (CHARINDEX(',', @betcheck + ',', po.posOdds)) - po.posOdds) odds
+		WHERE @pfID IN (468, 469)
+	)o
 
 	
 

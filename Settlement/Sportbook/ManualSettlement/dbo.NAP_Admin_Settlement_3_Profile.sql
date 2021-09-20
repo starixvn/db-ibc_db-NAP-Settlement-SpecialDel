@@ -52,7 +52,6 @@ BEGIN
 			,@MinThreadHold INT
 			,@TotalTicket	INT
 			,@ThreadHold	INT
-			,@IsExistSpecialBettype BIT
 			,@IsExistCashout BIT
 			,@xmlResourceResult		XML
 			,@ChildMatchType		TINYINT
@@ -84,7 +83,6 @@ BEGIN
 		,BetID			BIGINT
 		,pfID			SMALLINT
 		,OddsType		SMALLINT
-		,IsSpecialBettype BIT DEFAULT(0)
 		,IsHT			BIT DEFAULT(0)
 		,PRIMARY KEY (BetType,BetID)
 	)	
@@ -112,7 +110,6 @@ BEGIN
 			,@MinThreadHold = 10000
 			,@BatchNo = 0
 			,@TotalTicket = 0
-			,@IsExistSpecialBettype = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			,@strSpecialBettype = ''
 			,@strCashoutBettype = ''
@@ -206,16 +203,14 @@ BEGIN
 			,BetType
 			,BetID
 			,pfID
-			,OddsType
-			,IsSpecialBettype
+			,OddsType	
 			,IsHT
 		)
 		SELECT DISTINCT tbl.ResourceID
 				,tbl.HomeValue
 				,tbl.AwayValue
 				,sp.BetType, sp.BetID, sp.pfID
-				, sp.OddsType
-				,CASE WHEN sp.BetType IN (468, 469) THEN 1 ELSE 0 END AS IsSpecialBettype
+				, sp.OddsType				
 				,CASE WHEN f.groupId IN (1,3,5) THEN 1 ELSE 0 END AS IsHT
 		FROM	@tmpResources tbl
 			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
@@ -240,7 +235,6 @@ BEGIN
 					,OddsType
 					,IsHT
 			FROM	#tmpSelectedRID
-			WHERE	IsSpecialBettype = 0
 		) AS SOURCE
 			ON	TARGET.MatchId = SOURCE.MatchId
 				AND TARGET.Bettype = SOURCE.Bettype
@@ -423,10 +417,6 @@ BEGIN
 	
 		IF @action IN ('CAL', 'CAL-FT')
 		BEGIN
-			SELECT @IsExistSpecialBettype = 1
-			FROM	#tmpCustBettypes
-			WHERE	EXISTS (SELECT TOP 1 1 FROM #tmpSelectedRID WHERE IsSpecialBettype = 1)
-
 			SELECT @strCashoutBettype = CAST(
 									(SELECT  Bettype AS '@t' 
 									FROM	(VALUES (1), (3), (5), (7), (8), (15)) AS b(bettype)
@@ -445,7 +435,7 @@ BEGIN
 
 		DELETE	
 		FROM	#tmpCustBettypes
-		WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM #tmpSelectedRID WHERE IsSpecialBettype = 0)
+		WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM #tmpSelectedRID)
 
 		INSERT INTO #tmpCustIds (CustId, TotalTicket)
 		SELECT	CustId, SUM(TotalTicket)
@@ -542,56 +532,6 @@ BEGIN
 		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'cal - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
 	
 		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'others - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-
-		-- CAL for special bettype
-		IF @IsExistSpecialBettype = 1
-		BEGIN
-			DECLARE @tmpSpecialTransIds TABLE (Id INT IDENTITY(1,1), TransId BIGINT)
-			DECLARE @strTransIds VARCHAR(MAX) = ''
-			DECLARE @rowId INT = 1
-
-			INSERT INTO @tmpSpecialTransIds(TransId)
-			SELECT	transid
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.statusID <> 101
-					AND b.bettype IN (468, 469)
-					AND 1  = CASE
-								WHEN @IsReSettledTickets = 1 THEN 1
-								WHEN @IsReSettledTickets = 0 AND b.statusID IN (0,102) THEN 1
-								ELSE 0
-							END
-			SET @rowId = @@ROWCOUNT
-
-			IF @rowId > 0
-			BEGIN
-				WHILE (@rowId > 0)
-				BEGIN
-					SET @strTransIds = ''
-
-					SET @strTransIds = (
-										SELECT	TOP (@batchNo) transid AS '@t'
-										FROM	@tmpSpecialTransIds
-										WHERE	Id BETWEEN @rowId - @ThreadHold + 1 AND @rowId
-										FOR XML PATH('r'), ROOT('root')
-									)
-
-					IF @strTransIds = ''
-						BREAK
-
-					EXEC dbo.NAP_Admin_Calculate_Main
-								@matchid	  		 = @matchid
-								,@action			 = @action
-								,@IsSettingByProfile = 1
-								,@strTransIds		 = @strTransIds
-								,@mode				 = 'SpecialBettype'
-								,@fth = @fth
-								,@fta = @fta
-
-					SET @rowId = @rowId - @ThreadHold
-				END				
-			END							
-		END
 
 		IF @strCashoutBettype <> ''
 		BEGIN

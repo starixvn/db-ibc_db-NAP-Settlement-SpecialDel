@@ -94,43 +94,75 @@ BEGIN
 			,@QueueSize = 6
 			,@TotalBatch = 0
 
-	INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
-		,livehomescore, liveawayscore, transdesc, betid
-		,pfID, HomeValue, AwayValue, oddstype
-		)
-	SELECT	 b.transid
-			,b.custid
-			,b.bettype
-			,b.betteam 
-			,b.hdp1 
-			,b.hdp2 
-			,b.livehomescore
-			,b.liveawayscore
-			,b.transdesc 
-			,b.betid
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
+			,livehomescore, liveawayscore, transdesc, betid
+			,pfID, HomeValue, AwayValue, oddstype
+			)
+		SELECT	 b.transid
+				,b.custid
+				,b.bettype
+				,b.betteam 
+				,b.hdp1 
+				,b.hdp2 
+				,b.livehomescore
+				,b.liveawayscore
+				,b.transdesc 
+				,b.betid
 			
-			,sr.pfID
-			,sr.HomeValue 
-			,sr.AwayValue 
-			,sr.oddstype			
-	FROM	dbo.bettrans b WITH (NOLOCK)		
-	  	INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
-	  		ON	sr.BetType = b.bettype
-				AND sr.matchid = b.matchid
-	  WHERE	b.matchid = @MatchId
-	  		AND b.statusID NOT IN (101)
-			AND 1 = CASE 
-						WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-						WHEN @IsReSettledTickets = 1 THEN 1
-						ELSE 0
-					END		
-			AND b.custid BETWEEN @MinCustId AND @MaxCusId
-			AND sr.IsHT = CASE 
-								WHEN @action = 'CAL-HT' THEN 1
-								WHEN @action = 'CAL-FT' THEN 0
-								ELSE sr.isht
-							END
-	
+				,sr.pfID
+				,sr.HomeValue 
+				,sr.AwayValue 
+				,sr.oddstype			
+		FROM	dbo.bettrans b WITH (NOLOCK)		
+	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  			ON	sr.BetType = b.bettype
+					AND sr.matchid = b.matchid
+		  WHERE	b.matchid = @MatchId
+	  			AND b.statusID IN (0,102)	
+				AND b.custid BETWEEN @MinCustId AND @MaxCusId
+				AND sr.IsHT = CASE 
+									WHEN @action = 'CAL-HT' THEN 1
+									WHEN @action = 'CAL-FT' THEN 0
+									ELSE sr.isht
+								END
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
+			,livehomescore, liveawayscore, transdesc, betid
+			,pfID, HomeValue, AwayValue, oddstype
+			)
+		SELECT	 b.transid
+				,b.custid
+				,b.bettype
+				,b.betteam 
+				,b.hdp1 
+				,b.hdp2 
+				,b.livehomescore
+				,b.liveawayscore
+				,b.transdesc 
+				,b.betid
+			
+				,sr.pfID
+				,sr.HomeValue 
+				,sr.AwayValue 
+				,sr.oddstype			
+		FROM	dbo.bettrans b WITH (NOLOCK)		
+	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  			ON	sr.BetType = b.bettype
+					AND sr.matchid = b.matchid
+		  WHERE	b.matchid = @MatchId
+	  			AND b.statusID NOT IN (101)
+				AND b.custid BETWEEN @MinCustId AND @MaxCusId
+				AND sr.IsHT = CASE 
+									WHEN @action = 'CAL-HT' THEN 1
+									WHEN @action = 'CAL-FT' THEN 0
+									ELSE sr.isht
+								END
+	END
+
 	INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype)
 	SELECT	b.transid
 			,CASE 

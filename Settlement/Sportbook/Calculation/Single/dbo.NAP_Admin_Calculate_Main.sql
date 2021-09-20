@@ -339,16 +339,6 @@ BEGIN
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@ActionId = @ActionId
 			END
-			ELSE IF @Mode = 'SpecialBettype'
-			BEGIN
-				EXEC dbo.ExecRep_NAP_Admin_04
-					@matchid	= @matchid
-					,@actionId	= @actionId
-					,@ServerAlias = @ServerAlias
-					,@transIds	= @strTransIds
-					,@fth		= @fth
-					,@fta		= @fta
-			END
 			ELSE
 			BEGIN
 				IF @action LIKE 'CAL%' AND @strTransIds IS NOT NULL
