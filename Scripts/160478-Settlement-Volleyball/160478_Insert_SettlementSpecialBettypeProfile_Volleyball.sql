@@ -18,7 +18,7 @@ CREATE TABLE #tmpBettype ( sporttype SMALLINT, pfID SMALLINT, BetType SMALLINT, 
 
 INSERT INTO #tmpBettype ( sporttype, pfID, BetType, BetID, ResourceID, OrdNo, RoundID, GroupType, RefResourceId )
 
-VALUES ( 6	,1	,1	,0	,'00'		,99		,NULL	,'FT' , NULL) 
+VALUES ( 6	,10	,1	,0	,'00'		,99		,NULL	,'FT' , NULL) 
 	,  ( 6	,2	,2	,0	,'0100'		,99		,NULL	,'FT' , '00')
 	,  ( 6	,3	,3	,0	,'0100'		,99		,NULL	,'FT' , '00') 
 	,  ( 6	,20 ,20 ,0	,'00'		,99		,NULL	,'FT' , NULL)
