@@ -1,0 +1,105 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Set_FantasyMatchSel]
+	@matchid INT
+AS
+/* 
+	Created by: 20210920@Louisa
+    Task: 20210920@Louisa: Linked result for Fantasy match [Redmine:#161268]
+    DB: DBPRO/bodb02
+	
+	Revisions:
+		- 20210920@Louisa:  Linked result for Fantasy match [Redmine:#161268]
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE  @fantasy	VARCHAR(100)
+			,@fantasyh	VARCHAR(100)
+			,@fantasya	VARCHAR(100)
+	
+	DECLARE @tmpRelatedMatchIds  TABLE ( MatchId INT )
+	DECLARE @tmpRelatedMatchInfo TABLE 
+	( 
+		  matchid		 INT
+		, matchcode		 NVARCHAR(100)
+		, eventstatus	 NVARCHAR(100)
+		, betstatus		 NVARCHAR(100)
+		, SettlementStatus	TINYINT
+		, homeid		 INT
+		, awayid		 INT
+		, hthomescore	 INT
+		, htawayscore	 INT
+		, finalhomescore INT
+		, finalawayscore INT
+	)
+
+	SELECT   @fantasy = pv.fantasy
+			, @fantasyh = pv.fantasyh
+			, @fantasya = pv.fantasya
+	FROM dbo.Match_Property mp WITH(NOLOCK)
+	PIVOT 
+	( 
+		MAX( mp.Value) 
+		FOR [key] IN ([fantasy],[fantasyh],[fantasya] )
+	
+	) pv
+	WHERE  pv.matchid = @matchid
+
+	IF ISNULL(@fantasy,'') <> ''
+	BEGIN
+		INSERT INTO @tmpRelatedMatchIds ( MatchId )
+		SELECT f.val FROM dbo.f_SplitString ( @fantasy, ',' ) f
+		OPTION (MAXRECURSION 0)
+
+		INSERT INTO @tmpRelatedMatchInfo
+		(
+			  matchid		 
+			, matchcode		 
+			, eventstatus	 
+			, betstatus		 
+			, SettlementStatuS
+			, homeid		 
+			, awayid		 
+			, hthomescore	 
+			, htawayscore	 
+			, finalhomescore 
+			, finalawayscore 
+		)
+		SELECT m.matchid
+			, m.matchcode
+			, m.eventstatus
+			, m.betstatus
+			, m.SettlementStatus
+			, m.homeid
+			, m.awayid
+			, m.hthomescore
+			, m.htawayscore
+			, m.finalhomescore
+			, m.finalawayscore
+		FROM dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
+			INNER JOIN @tmpRelatedMatchIds tmp
+				ON m.matchid = tmp.MatchId
+		WHERE m.sporttype = 1
+			AND l.LeagueGroupID IN ( 16371,	65550, 89611 ) --- Fantasy LeagroupId
+	END
+
+	---- Return data
+	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
+
+	SELECT   matchid		 
+			, matchcode		 
+			, eventstatus	 
+			, betstatus		 
+			, SettlementStatus
+			, homeid		 
+			, awayid		 
+			, hthomescore	 
+			, htawayscore	 
+			, finalhomescore 
+			, finalawayscore 
+	FROM @tmpRelatedMatchInfo
+
+END
+GO
