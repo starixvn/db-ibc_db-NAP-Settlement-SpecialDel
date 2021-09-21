@@ -22,6 +22,7 @@ BEGIN
 	( 
 		  matchid		 INT
 		, matchcode		 NVARCHAR(100)
+		, kickofftime	 DATETIME
 		, eventstatus	 NVARCHAR(100)
 		, betstatus		 NVARCHAR(100)
 		, SettlementStatus	TINYINT
@@ -54,7 +55,8 @@ BEGIN
 		INSERT INTO @tmpRelatedMatchInfo
 		(
 			  matchid		 
-			, matchcode		 
+			, matchcode
+			, kickofftime	 
 			, eventstatus	 
 			, betstatus		 
 			, SettlementStatuS
@@ -67,6 +69,7 @@ BEGIN
 		)
 		SELECT m.matchid
 			, m.matchcode
+			, m.kickofftime
 			, m.eventstatus
 			, m.betstatus
 			, m.SettlementStatus
@@ -89,7 +92,8 @@ BEGIN
 	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
 
 	SELECT   matchid		 
-			, matchcode		 
+			, matchcode
+			, kickofftime		 
 			, eventstatus	 
 			, betstatus		 
 			, SettlementStatus
