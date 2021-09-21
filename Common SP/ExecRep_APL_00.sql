@@ -16,8 +16,9 @@ AS
 BEGIN;
 	
 	DECLARE @batch INT = 1000
-		,@minMatchId	INT
-		,@maxMatchId	INT
+		,@minMatchId	INT		
+		,@maxMatchId	INT		
+		,@MaxProviderExternalId INT  
 	
 	IF OBJECT_ID('tempdb..#Active') IS NOT NULL
 	DROP TABLE #Active
@@ -31,8 +32,12 @@ BEGIN;
 	SELECT @minMatchId = MIN(m.Matchid)
 		 , @maxMatchId = MAX (matchid) 
 	FROM #Active m
+
+	SELECT @MaxProviderExternalId = MAX(ProviderExternalId) 
+	FROM dbo.ProviderExternalResultDetailES r WITH(NOLOCK)
+	WHERE r.MatchId < @minMatchId
 	
-	----- Delete junk data < range active
+	-----1.  Delete ResultDetail:  all data < range active
 	WHILE (1=1)
 	BEGIN
 		DELETE TOP(@batch)
@@ -46,7 +51,7 @@ BEGIN;
 
 	END
 
-	--- delete junk data in range active
+	---2.  Delete ResultDetail: junk data in range active
 	WHILE (1=1)
 	BEGIN
 		DELETE TOP(@batch)
@@ -59,7 +64,21 @@ BEGIN;
 
 		WAITFOR DELAY '00:00:00:280'
 
-	END	
+	END
+	
+	---3. Delete ProviderExternalResultDetailES: all data < range active
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@batch)
+		FROM dbo.ProviderExternalResultDetailES WITH(ROWLOCK, UPDLOCK)
+		WHERE ProviderExternalId <= @MaxProviderExternalId
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+
+	END		
 	
 	
 END
