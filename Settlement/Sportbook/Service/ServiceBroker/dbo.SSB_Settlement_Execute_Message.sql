@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02, SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
-create procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueidentifier
+alter procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
 	, @MessageBoby nvarchar(max)
 	, @MessageId varchar(128)
@@ -32,5 +32,6 @@ begin
 		, @StartTime = @__startTime
 		, @EndTime = @__endtime
 		, @ErrorMessage = @__errmsg
+		, @ConversationHandle = @ConversationHandle
 end
 go
