@@ -79,20 +79,17 @@ BEGIN
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
 
-	IF	(
-			@oddsTable = 0
-			OR ( @CheckType = 0 AND ISNULL(@SelectedResource,'') = '' )
-		) 
+	IF	(	@oddsTable = 0	OR ISNULL(@SelectedResource,'') = '' )
 	RETURN
 
 	IF OBJECT_ID('tempdb..#SelectedMatchResource') IS NOT NULL
 		DROP TABLE #SelectedMatchResource
 
-	IF OBJECT_ID('tempdb..#Resource') IS NOT NULL
-		DROP TABLE #Resource
+	IF OBJECT_ID('tempdb..#Bettype') IS NOT NULL
+		DROP TABLE #Bettype
 
 	CREATE TABLE #SelectedMatchResource ( Matchid INT, ResourceId VARCHAR(20) )
-	CREATE TABLE #Resources ( ResourceId VARCHAR(20), Bettype SMALLINT, BetID BIGINT )
+	CREATE TABLE #Bettypes ( Bettype SMALLINT, BetID BIGINT )
 
 
 	SET @XmlData =  CONVERT(XML, @SelectedResource)
@@ -109,21 +106,24 @@ BEGIN
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )	
 
+	SELECT @SelectedResource = STUFF((
+			SELECT DISTINCT ',' + ResourceId
+			FROM #SelectedMatchResource
+			FOR XML PATH('')
+		), 1,1,'')
+
 
 	----------------- Checking running Odds
-	SET	@queryMatch = N'INSERT INTO #Resources ( ResourceId, Bettype , BetID )
-						SELECT  DISTINCT sp.ResourceId
-								, sp.BetType
-								, sp.BetID
-						FROM	OPENQUERY(DBTXN, '' SELECT  sp.ResourceId, sp.sporttype, sp.RefResourceId, sp.BetType , sp.BetID
+	SET	@queryMatch = N'INSERT INTO #Bettypes ( Bettype , BetID )
+						SELECT   BetType
+								, BetID
+						FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType , sp.BetID
 										FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+										INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
+															ON sp.ResourceID = tm.val OR sp.RefResourceID = tm.val
 										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
 										OPTION (MAXRECURSION 0)
-										'') sp
-						CROSS APPLY ( SELECT r.ResourceId FROM  #SelectedMatchResource r
-										WHERE r.ResourceId = sp.ResourceId
-											OR ( sp.RefResourceId IS NOT NULL AND r.ResourceId = sp.RefResourceId )
-									 )r '
+										'')'
 
 	EXECUTE	sys.sp_executesql @queryMatch
 
@@ -134,7 +134,7 @@ BEGIN
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.odds o WITH (NOLOCK)
-								INNER JOIN #Resources	r
+								INNER JOIN #Bettypes	r
 									ON o.bettype = r.Bettype
 							WHERE o.matchid = @Matchid
 								AND o.liveindicator = 1
@@ -147,7 +147,7 @@ BEGIN
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
-								INNER JOIN #Resources	r
+								INNER JOIN #Bettypes	r
 									ON o.bettype = r.Bettype
 							WHERE o.matchid = @Matchid
 								AND o.liveindicator = 1
@@ -160,7 +160,7 @@ BEGIN
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsES o WITH (NOLOCK)
-								INNER JOIN #Resources	r
+								INNER JOIN #Bettypes	r
 									ON o.bettype = r.Bettype
 							WHERE o.matchid = @Matchid
 								AND o.liveindicator = 1
@@ -179,17 +179,17 @@ BEGIN
 		INSERT INTO @tmpMatchRunningOdds ( Matchid )
 				SELECT DISTINCT o.matchid
 				FROM dbo.odds o WITH (NOLOCK)
-					CROSS APPLY 
-					(
-						SELECT TOP 1 matchid
-						FROM #SelectedMatchResource mr
-							INNER JOIN #Resources	r
-								ON mr.ResourceId = r.ResourceId
-							WHERE o.matchid = mr.Matchid
-							AND o.bettype = r.Bettype
-					) r									
-				WHERE o.liveindicator = 1
-					AND o.oddsstatus <> 'closed'
+				INNER JOIN #Bettypes b
+					ON o.bettype = b.Bettype
+				CROSS APPLY 
+				(
+					SELECT TOP 1 matchid
+					FROM #SelectedMatchResource mr
+						WHERE o.matchid = mr.Matchid
+						AND ( b.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+						AND o.liveindicator = 1
+						AND o.oddsstatus <> 'closed'
+				) r
 
 				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)
 					SELECT  @ErrCode = 1001057

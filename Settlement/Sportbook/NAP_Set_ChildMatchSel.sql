@@ -6,8 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_Set_ChildMatchSel]
 AS
 /* 
 	Created by: 20210906@Louisa
-    Task: 20210906@Louisa: Settle by profile for Volleyball, Squash, Sepak Takraw [Redmine:#160478]
-    DB: DBTXN/bodb02
+    Task: 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+    DB: DBPRO/bodb02
 	
 	Revisions:
 		- 20210906@Louisa: Get child match for Volleyball [Redmine:#160478]
@@ -32,7 +32,7 @@ BEGIN
 		LEFT JOIN dbo.ResultDetailOS r WITH(NOLOCK)
 			ON m.matchid = r.MatchID
 	WHERE ParentID IS NOT NULL
-		AND m.ParentID = 701013940
+		AND m.ParentID = @MatchId
 		AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17)
 		AND r.ResourceID = '00'
 
