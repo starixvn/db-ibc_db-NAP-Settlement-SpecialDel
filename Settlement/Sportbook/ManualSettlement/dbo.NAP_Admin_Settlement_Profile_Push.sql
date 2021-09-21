@@ -225,7 +225,7 @@ BEGIN
 																ELSE ''
 															END
 															+ CASE 
-																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ' + CONVERT(NVARCHAR(200),@ChildMatchIds )
+																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ''' + CONVERT(NVARCHAR(200),@ChildMatchIds ) + ''''
 																	ELSE ''
 															END
 															+ ', @ErrCode = @ErrCode OUTPUT' 

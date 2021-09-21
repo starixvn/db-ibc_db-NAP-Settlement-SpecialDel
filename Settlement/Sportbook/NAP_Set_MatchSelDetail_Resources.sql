@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources] 
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources]
 	@matchid 			   INT
 	,@SportType            INT = 0
 	,@SettleType		   VARCHAR(10) = 'MNL'
@@ -26,6 +26,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
+		- 20210906@Louisa: Settle by profile for Volleybal [Redmine:#160478]
 		
 */
 BEGIN
@@ -36,6 +37,7 @@ BEGIN
         	,@BestOfMap TINYINT = NULL
 			,@IsMergedParlay BIT = 0
 			,@OpenQuery	NVARCHAR(MAX)
+			,@ResultTable	TINYINT = 0
 
     DECLARE @tmpTicketStatus TABLE	(
 		ResourceID VARCHAR(20)
@@ -64,8 +66,16 @@ BEGIN
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
 	WHERE matchid = @matchid    
 
-	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@sporttype)
+	SELECT @ResultTable =  r.ResultTable
+		  ,@IsMergedParlay = r.IsMergedParlay
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE r.Sporttype = @SportType
+		/*@ResultTable:
+				1: ResultDetail
+				2: ResultDetailOS
+				3: ResultDetailES
+		*/
+
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID
@@ -297,7 +307,7 @@ BEGIN
 	WHERE bt.ResourceID IS NULL
 
     ---return
-    IF @Sporttype = 43
+    IF @ResultTable = 3 --E-Sports only
     BEGIN
 	
 		IF @BestOfMap IS NOT NULL
@@ -330,8 +340,7 @@ BEGIN
 	  	ORDER BY COALESCE(bt.OrdNo,p.OrdNo)
 	END
 	
-	---Badminton AIO - get data from dbo.ResultDetailOS
-	ELSE IF @SportType IN (9, 45, 50)
+	ELSE IF @ResultTable = 2 ---dbo.ResultDetailOS
 	BEGIN
 		SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 	    		,rs.HomeValue

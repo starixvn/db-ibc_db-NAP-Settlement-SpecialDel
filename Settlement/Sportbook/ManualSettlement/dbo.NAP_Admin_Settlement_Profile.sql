@@ -854,7 +854,7 @@ BEGIN
 									ELSE ' Selected:' 
 									END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN 'CalcChild: ' + @ChildMatchIds
+								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
 										ELSE '' 
 										END
 	

@@ -31,10 +31,10 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK)
 		LEFT JOIN dbo.ResultDetailOS r WITH(NOLOCK)
 			ON m.matchid = r.MatchID
+			AND r.ResourceID = '00'
 	WHERE ParentID IS NOT NULL
 		AND m.ParentID = @MatchId
 		AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17)
-		AND r.ResourceID = '00'
 
 END
 GO
