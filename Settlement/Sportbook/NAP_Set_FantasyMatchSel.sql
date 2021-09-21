@@ -85,7 +85,7 @@ BEGIN
 			INNER JOIN @tmpRelatedMatchIds tmp
 				ON m.matchid = tmp.MatchId
 		WHERE m.sporttype = 1
-			AND l.LeagueGroupID IN ( 16371,	65550, 89611 ) --- Fantasy LeagroupId
+			AND l.leagueid IN ( 16371,	65550, 89611 ) --- Fantasy League
 	END
 
 	---- Return data
