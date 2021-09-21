@@ -46,7 +46,7 @@ BEGIN
 	) pv
 	WHERE  pv.matchid = @matchid
 
-	IF ISNULL(@fantasy,'') <> ''
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,	65550, 89611 )) --- Fantasy League
 	BEGIN
 		INSERT INTO @tmpRelatedMatchIds ( MatchId )
 		SELECT f.val FROM dbo.f_SplitString ( @fantasy, ',' ) f
@@ -80,12 +80,9 @@ BEGIN
 			, m.finalhomescore
 			, m.finalawayscore
 		FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN dbo.League l WITH(NOLOCK)
-				ON m.leagueid = l.leagueid
 			INNER JOIN @tmpRelatedMatchIds tmp
 				ON m.matchid = tmp.MatchId
 		WHERE m.sporttype = 1
-			AND l.leagueid IN ( 16371,	65550, 89611 ) --- Fantasy League
 	END
 
 	---- Return data
