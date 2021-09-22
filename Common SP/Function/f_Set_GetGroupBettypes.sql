@@ -35,6 +35,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+		- 20210521@Louisa: Cricket AIO - Phase 1.2 [Redmine:#154811]
 		
 	
     Parameters Explanation:    
@@ -516,9 +517,10 @@ RETURN (
 		--Group 1: Cricket AIO Major round (ResourceID = '00')
 	UNION ALL SELECT 2, 9538, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
 	UNION ALL SELECT 2, 9539, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
-	UNION ALL SELECT 2, 9604, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
-	UNION ALL SELECT 2, 9605, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
 	UNION ALL SELECT 2, 9606, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
+	UNION ALL SELECT 2 ,9604, 0, 0, 0, 0, 'FT' ,0 ,0 ,0 ,0 --Phase 1.2
+	UNION ALL SELECT 2 ,9605, 0, 0, 0, 0, 'FT' ,0 ,0 ,0 ,0 --Phase 1.2
+
 		--Group 1: Cricket AIO Major round (Innings)
 	UNION ALL SELECT 12, 9404, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9405, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -561,22 +563,22 @@ RETURN (
 	UNION ALL SELECT 12, 9431, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9432, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9433, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9434, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9435, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9436, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9437, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9438, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9439, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9446, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9447, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9449, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9450, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9452, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9453, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9454, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9455, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9460, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9461, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9434, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9435, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9436, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9437, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9438, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9439, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9446, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9447, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9449, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9450, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9452, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9453, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9454, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9455, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9460, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9461, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
 	UNION ALL SELECT 12, 9490, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9491, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9502, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -597,11 +599,11 @@ RETURN (
 	UNION ALL SELECT 12, 9517, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9518, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9519, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9527, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9528, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9530, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9532, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9533, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9527, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9528, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9530, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9532, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
+	UNION ALL SELECT 12, 9533, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
 	UNION ALL SELECT 12, 9540, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9547, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9548, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -631,6 +633,18 @@ RETURN (
 	UNION ALL SELECT 12, 9575, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9580, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9581, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	--Cricket AIO Phase 1.2 (31 bettype)
+	UNION ALL SELECT 12, 9442, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9443, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9607, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9608, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9609, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9610, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9611, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9612, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9613, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9614, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+
 	-- End: Cricket AIO
 
 	)										 
