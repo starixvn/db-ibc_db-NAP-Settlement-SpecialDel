@@ -66,7 +66,7 @@ BEGIN
 		, @queryMatch NVARCHAR(MAX) = ''
 		, @XmlData XML
 		, @oddsTable TINYINT = 0
-		, @ChildMatchList	VARCHAR(200)
+		, @ChildMatchList	VARCHAR(200) = ''
 	
 	DECLARE @tmpMatchRunningOdds TABLE ( Matchid INT )
 
@@ -199,7 +199,7 @@ BEGIN
 				BEGIN
 					SELECT @ChildMatchList = @ChildMatchList + '<br/>' + CAST(matchid AS VARCHAR(20) ) FROM @tmpMatchRunningOdds
 					SELECT  @ErrCode = 1001058
-							,@ErrMsg = 'WARNING! Cannot continue due to following matches have unclosed odds:'+ '<br/>'
+							,@ErrMsg = 'WARNING! Cannot continue due to following matches have unclosed odds:'
 									+ @ChildMatchList
 				END
 				
