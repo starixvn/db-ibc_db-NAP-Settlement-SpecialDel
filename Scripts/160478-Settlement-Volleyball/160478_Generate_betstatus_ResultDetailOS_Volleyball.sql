@@ -70,7 +70,6 @@ GO
 							  END AS SettlementStatusID
 	FROM #tmpMatchVolleyball m
 		INNER JOIN #tmpBetStatus b ON m.MatchId = b.MatchId
-	WHERE b.Id <= 5
 
 	---- Generate score Full Time
 	UNION ALL
