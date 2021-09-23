@@ -76,7 +76,7 @@ AS
 		- 20210714@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
-
+		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -339,7 +339,7 @@ BEGIN
 			, @AwayId
 			, @KickOffTime
 			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
-				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7) THEN 1
+				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7,8) THEN 1
 				   ELSE 0
 				END
 			, @SubIssueTypeId
@@ -668,13 +668,15 @@ BEGIN
 			END		
 		END
 		
-		IF @ActionId IN (4,6,7) OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			VALUES(@RequestId, @MatchId, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
 											  WHEN @ActionId = 4 THEN 'VoidInstant'
 											  WHEN @ActionId = 6 THEN 'VoidInstant5m'
-											  ELSE 'VoidInstant10m' END --@ActionId = 7
+											  WHEN @ActionId = 7 THEN 'VoidInstant10m' 
+											  WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
+											  ELSE '' END 
 			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
 		END
 	END
