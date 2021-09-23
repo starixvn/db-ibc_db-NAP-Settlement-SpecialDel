@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select
-	@LogDateFrom DATE
-	,@LogDateTo DATE
+	@LogDateFrom DATETIME
+	,@LogDateTo DATETIME
 	,@MatchId INT = NULL
 	,@LogActionIds VARCHAR(MAX)
 	,@DoneBy VARCHAR(30) = NULL
@@ -18,6 +18,7 @@ AS
 		- 20191126@Charles: Show DoneBy column when return results [124451]
 		- 20200414@Charles: Separate single tickets with parlay tickets on LogData [131670]
 		- 20200914@Zane: Return logdata [Redmine: #141235]
+		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
 
 	Param's explanation:
 */
@@ -25,12 +26,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #LogActionId (Id INT);
-
-	DECLARE @LogDateFromGMTMinus4 DATETIME
-		,@LogDateToGMTMinus4 DATETIME
-
-	SELECT @LogDateFromGMTMinus4 = DATEADD(HOUR, - 12, @LogDateFrom + CAST('00:00:00.000' AS DATETIME))
-		,@LogDateToGMTMinus4 = DATEADD(HOUR, - 12,  @LogDateTo + CAST('23:59:59.997' AS DATETIME))
 
 	INSERT INTO #LogActionId (Id)
 	SELECT DISTINCT val
@@ -81,7 +76,7 @@ BEGIN
 			LEFT JOIN bodb02.dbo.Customer AS c WITH (NOLOCK) ON l.UserId = c.custid
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdHT WITH (NOLOCK) ON rdHT.MatchId = m.matchid AND rdHT.ResourceID = '01'
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
-		WHERE l.CreatedDate BETWEEN @LogDateFromGMTMinus4 AND @LogDateToGMTMinus4
+		WHERE l.CreatedDate BETWEEN @LogDateFrom AND @LogDateTo
 			AND (@MatchId IS NULL OR l.MatchId = @MatchId)
 			AND EXISTS (
 				SELECT TOP 1 1
