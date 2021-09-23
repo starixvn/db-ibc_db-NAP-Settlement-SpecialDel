@@ -3,6 +3,7 @@ ALTER PROCEDURE dbo.NAP_Set_ServerInfo
 	@ServerAlias VARCHAR(50) = '' OUTPUT
 	,@IsEnableServiceBroker BIT = 0 OUTPUT
 	,@TotalQueue INT = 0 OUTPUT
+	,@Environment VARCHAR(50) = '' OUTPUT
 AS
 /*
     Created: 20200825@Kathy
@@ -10,9 +11,10 @@ AS
     DB: execrep SP
 
     Revisions: 
-		20200825@Kathy: Server is using service broker for settlement [Redmine:#140045]
-		20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
-		20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
+		- 20200825@Kathy: Server is using service broker for settlement [Redmine:#140045]
+		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -23,86 +25,89 @@ BEGIN
 		, ServerAlias VARCHAR(50)
 		, IsEnableServiceBroker BIT DEFAULT(0)
 		, TotalQueue INT
+		, Environment VARCHAR(50)
 		)
 
 	SET @ServerName = @@SERVERNAME
 
-	INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue)
+	INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment)
 	-- local dev
-	SELECT 'DEVDB053', 'DBEXT', 1, 4
+	SELECT 'DEVDB053', 'DBEXT', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'DB-61\DEVDB053', 'DBEXT', 1, 4
+	SELECT 'DB-61\DEVDB053', 'DBEXT', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'DB232', 'DBACC', 1, 4
+	SELECT 'DB232', 'DBACC', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'devdb055', 'DBBOF', 1, 6
+	SELECT 'devdb055', 'DBBOF', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB230', 'DBTXN', 0, 6
+	SELECT 'DB230', 'DBTXN', 0, 6, 'Local'
 	UNION ALL
-	SELECT 'DB-60\DEVDBTRANS', 'DBTXN', 0, 6	
+	SELECT 'DB-60\DEVDBTRANS', 'DBTXN', 0, 6, 'Local'	
 
 	UNION ALL -- local test
-	SELECT 'DB215', 'DBEXT', 1, 6
+	SELECT 'DB215', 'DBEXT', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB215\SQLSERVER2008R2', 'DBAGE', 1, 6
+	SELECT 'DB215\SQLSERVER2008R2', 'DBAGE', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB234', 'DBACC', 1, 6
+	SELECT 'DB234', 'DBACC', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB233\SQLSERVER2008R2', 'DBBOF', 1, 6
+	SELECT 'DB233\SQLSERVER2008R2', 'DBBOF', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB206', 'DBTXN', 0, 6
+	SELECT 'DB206', 'DBTXN', 0, 6, 'Local'
 
 	UNION ALL -- SIT
-	SELECT 'SITDB052', 'DBEXT', 1, 6
+	SELECT 'SITDB052', 'DBEXT', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDB053', 'DBAGE', 1, 6
+	SELECT 'SITDB053', 'DBAGE', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDB06', 'DBACC', 1, 6
+	SELECT 'SITDB06', 'DBACC', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDB055', 'DBBOF', 1, 6
+	SELECT 'SITDB055', 'DBBOF', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDBAWS', 'DBBAL', 1, 6
+	SELECT 'SITDBAWS', 'DBBAL', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDBBAL', 'DBBAL', 1, 6
+	SELECT 'SITDBBAL', 'DBBAL', 1, 6, 'SIT'
 	UNION ALL
-	SELECT 'SITDBTRANS', 'DBTXN', 0, 6
+	SELECT 'SITDBTRANS', 'DBTXN', 0, 6, 'SIT'
 	
 	UNION ALL -- PROD
-	SELECT 'DB052', 'DBEXT', 1, 6
+	SELECT 'DB052', 'DBEXT', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB053', 'DBAGE', 1, 6
+	SELECT 'DB053', 'DBAGE', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB054', 'DBBOF', 1, 6
+	SELECT 'DB054', 'DBBOF', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB054C2\DB054', 'DBBOF', 1, 6
+	SELECT 'DB054C2\DB054', 'DBBOF', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB055', 'DBBOF', 1, 6
+	SELECT 'DB055', 'DBBOF', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB06C2\DB06', 'DBACC', 1, 6
+	SELECT 'DB06C2\DB06', 'DBACC', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB06', 'DBACC', 1, 6
+	SELECT 'DB06', 'DBACC', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DBTP', 'DBACC', 1, 6
+	SELECT 'DBTP', 'DBACC', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB061', 'DBACC', 1, 6
+	SELECT 'DB061', 'DBACC', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB062', 'DBACC', 1, 6
+	SELECT 'DB062', 'DBACC', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DB042', 'DB042', 1, 6
+	SELECT 'DB042', 'DB042', 1, 6, 'PROD'
 	UNION ALL
-	SELECT 'DBTRANS', 'DBTXN', 0, 6
+	SELECT 'DBTRANS', 'DBTXN', 0, 6, 'PROD'
 
 	UNION ALL
-	SELECT 'DBBAL', 'DBBAL', 1, 6
+	SELECT 'DBBAL', 'DBBAL', 1, 6, 'DBBAL'
 
 	SELECT	@ServerAlias = ServerAlias
 			,@IsEnableServiceBroker = IsEnableServiceBroker
 			,@TotalQueue = TotalQueue
+			,@Environment = Environment
 	FROM	@tmpServerInfo
 	WHERE	ServerName = @ServerName
 
 	SET @ServerAlias = CASE WHEN ISNULL(@ServerAlias, '') = '' THEN @ServerName ELSE @ServerAlias END
 	SET @IsEnableServiceBroker = ISNULL(@IsEnableServiceBroker, 0)
 	SET @TotalQueue = ISNULL(@TotalQueue,0)
+	SET @Environment = ISNULL(@Environment, '')
 END
 GO

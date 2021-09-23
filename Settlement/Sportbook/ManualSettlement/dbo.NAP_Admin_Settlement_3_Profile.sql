@@ -7,8 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@IsReSettledTickets BIT = 1
 	,@ResourceResult VARCHAR(MAX) = NULL
 	,@LogData XML
-	,@ErrCode INT = 0 OUTPUT
-	,@ErrMsg VARCHAR(300) = '' OUTPUT
+	,@KeyId	INT
 AS
 /*
     Created: 20201123@Kathy
@@ -63,6 +62,8 @@ BEGIN
 			,@MinCustId int
 			,@MaxCustId int
 			,@SettlementProcessingId BIGINT
+			,@ErrCode INT 
+			,@ErrMsg VARCHAR(300)
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -105,7 +106,7 @@ BEGIN
 			,@ErrCode = 0
 			,@ErrMsg = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@queueSize = 6
+			,@queueSize = 4
 			,@MaxThreadHold = 50000
 			,@MinThreadHold = 10000
 			,@BatchNo = 0
@@ -549,18 +550,18 @@ BEGIN
 	BEGIN CATCH
 		SELECT @ErrCode = 1001017
 				,@ErrMsg = ERROR_MESSAGE()
+
+		SET @LogData.modify('insert(attribute ErrMsg {"1"}) into (/root/r)[1]')
 	END CATCH
 
-	-- Release lock match
-	SET @messageBody = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
+	UPDATE dbo.Single_Calculate_Queue 
+		SET SSBCommand = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
 							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
-							+ CASE 
-								WHEN @ErrCode <> 0 THEN ', @HasError = 1' 
-								ELSE ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
-							END
-
-	EXEC [sb].[SSB_Send_Message] @MessageContent = @messageBody
-		, @FunctionName = 'settlement'
-		, @MessageType = 'bet_settle_msg_type_complete'
+							+ ', @ErrCode = @ErrCode OUTPUT' 
+                            + ', @ErrMsg = @ErrMsg OUTPUT'
+							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
+							+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
+							
+	WHERE	keyid = @KeyId
 
 END

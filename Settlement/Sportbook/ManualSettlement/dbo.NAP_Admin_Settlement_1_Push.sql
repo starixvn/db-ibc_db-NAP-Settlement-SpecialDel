@@ -49,6 +49,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -77,6 +78,7 @@ BEGIN
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsSystemSettlement	BIT
 			,@LeagueGroupID			SMALLINT
+			,@KeyId					INT
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -249,13 +251,20 @@ BEGIN
             )
         SELECT	@MatchId
 				,@matchcode
-				,0
+				,CASE WHEN @sporttype = 1 THEN 99 ELSE 0 END
 				,@leagueid
 				,@sporttype
 				,@AdminId
 				,@IP
 				,@Action
 				,@sqlCommand
+
+		SET @KeyId = SCOPE_IDENTITY()
+
+		IF @sporttype = 1
+			UPDATE Single_Calculate_Queue 
+				SET sqlCommand = @sqlCommand + ', @KeyId = ' + CAST(@KeyId AS VARCHAR)
+			WHERE	keyid = @KeyId
     END
 END
 GO

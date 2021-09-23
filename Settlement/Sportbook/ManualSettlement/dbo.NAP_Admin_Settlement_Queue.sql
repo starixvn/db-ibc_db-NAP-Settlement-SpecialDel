@@ -79,7 +79,7 @@ BEGIN
 	)
 	
 	SELECT	@strTransIds = ''
-			,@QueueSize = 6
+			,@QueueSize = 4
 			,@QueueExecNo = 0
 			,@batchSize = 2000
 			,@messageBody = ''
@@ -91,7 +91,6 @@ BEGIN
 			,@PreviousFilter = 0
 			,@MessageTypePattern = 'bet_settle_msg_type_0'
 			,@MessageType = ''
-			,@QueueSize = 6
 			,@TotalBatch = 0
 
 	IF @IsReSettledTickets = 0

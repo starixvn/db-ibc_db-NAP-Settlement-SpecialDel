@@ -73,9 +73,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@TotalCommands					INT			= NULL
 	,@SessionId						BIGINT		 = NULL
 	,@MessageType					VARCHAR(200) = NULL
-	,@oddstype smallint = null
-	,@ismarked bit = null
-	,@modds money = null
+	,@oddstype						SMALLINT = NULL
+	,@ismarked						BIT = NULL
+	,@modds							MONEY = NULL
+	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 AS
 /*
     Created: Viet
@@ -188,7 +189,7 @@ BEGIN
 	END
 
 	IF @IsSkipValidation = 0
-		IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055' ) AND @isUndo = 0
+		IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'SITDB055', 'DB055', 'DB-61\DEVDB055' ) AND @isUndo = 0
 			RETURN
 
 	EXEC dbo.NAP_Set_ServerInfo 
@@ -341,6 +342,7 @@ BEGIN
 					,@ServerAlias = @ServerAlias
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@ActionId = @ActionId
+					,@ErrMessage = @ErrMessage OUTPUT 
 			END
 			ELSE
 			BEGIN
