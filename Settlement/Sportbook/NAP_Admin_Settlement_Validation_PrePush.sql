@@ -192,13 +192,13 @@ BEGIN
 				) r
 
 				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)
-					SELECT  @ErrCode = 1001057
-							,@ErrMsg ='WARNING! Cannot continue due main match and related matches have inconsistent resuls.'
+					SELECT  @ErrCode = 1001018
+							,@ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 
 				ELSE IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid <> @Matchid )
 				BEGIN
-					SELECT @ChildMatchList = @ChildMatchList + '<br/>' + CAST(matchid AS VARCHAR(20) ) FROM @tmpMatchRunningOdds
-					SELECT  @ErrCode = 1001058
+					SELECT @ChildMatchList = @ChildMatchList + '<br/>' + CAST(matchid AS VARCHAR(20) ) FROM @tmpMatchRunningOdds ORDER BY Matchid
+					SELECT  @ErrCode = 1001057
 							,@ErrMsg = 'WARNING! Cannot continue due to following matches have unclosed odds:'
 									+ @ChildMatchList
 				END
