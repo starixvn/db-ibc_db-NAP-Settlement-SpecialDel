@@ -3,6 +3,7 @@ CREATE PROCEDURE [dbo].[Dot_Admin_CustLimitBetQueue_Insert]
 (
 	@MatchId			INT
 	,@RejectList		VARCHAR(MAX)
+	,@EventTypeID		TINYINT = NULL
 )
 AS
 /*	
@@ -11,6 +12,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	
 	Param's explanation:	
 		
@@ -19,7 +21,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-	SELECT @MatchId, 1, @RejectList, 2, 0, GETDATE()
+	SELECT @MatchId, ISNULL(@EventTypeID, 1), @RejectList, 2, 0, GETDATE()
 END
 GO
 	
