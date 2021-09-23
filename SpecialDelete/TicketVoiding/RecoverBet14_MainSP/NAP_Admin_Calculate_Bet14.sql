@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
+		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		
 	Param's Explanation:  
 		   
@@ -22,7 +23,6 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
 
 	SET @ServerName = @@SERVERNAME
 
@@ -61,8 +61,7 @@ BEGIN
 	---parse XML
 	INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
 	SELECT t.TransID
-	, CASE	WHEN b14.bettype = 501 AND b14.transdate < @CutOffDate THEN 0
-			WHEN ot.oddstype = 1 THEN 1 
+	, CASE	WHEN ot.oddstype = 1 THEN 1 
 			ELSE 0 
 		END AS isDecimalOdd
 	, srecommend, b14.bettype
