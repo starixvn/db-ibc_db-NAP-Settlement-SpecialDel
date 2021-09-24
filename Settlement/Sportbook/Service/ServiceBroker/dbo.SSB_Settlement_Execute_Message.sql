@@ -1,8 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02, SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
 alter procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
-	, @MessageBoby nvarchar(max)
+	, @MessageBody nvarchar(max)
 	, @MessageId varchar(128)
+	, @QueueNo tinyint = null
 as
 /*  Created: Patrick@20210801
 	Task: Execute message
@@ -28,10 +29,11 @@ begin
 	select @__endtime = sysdatetime()
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType = @MessageType
-		, @MessageBoby = @MessageBoby
+		, @MessageBody = @MessageBody
 		, @StartTime = @__startTime
 		, @EndTime = @__endtime
 		, @ErrorMessage = @__errmsg
 		, @ConversationHandle = @ConversationHandle
+		, @QueueNo = @QueueNo
 end
 go

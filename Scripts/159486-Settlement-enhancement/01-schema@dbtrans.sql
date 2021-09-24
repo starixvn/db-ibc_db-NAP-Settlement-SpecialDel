@@ -95,18 +95,21 @@ ALTER DATABASE bodb02 SET ENABLE_BROKER WITH ROLLBACK IMMEDIATE;
 
 go
 
+--alter table dbo.SSB_SettlementLogs add MessageBody nvarchar(max) null
+--alter table dbo.SSB_SettlementLogs add QueueNo tinyint null
 create table dbo.SSB_SettlementLogs
 (
 	MessageId varchar(128) null,
 	MessageType varchar(200) null,
-	MessageBoby nvarchar(max) null,
+	MessageBody nvarchar(max) null,
 	StartTime datetime2 null,
 	EndTime datetime2 null,
 	MatchId int null,
 	SessionId bigint,
 	ErrorMessage varchar(1024),
 	ConversationHandle varchar(128),
-	Resolved bit
+	Resolved bit,
+	QueueNo tinyint
 )ON [serviceBroker]
 
 create clustered index cix_SSB_SettlementLogs on SSB_SettlementLogs(StartTime) on [serviceBroker]
