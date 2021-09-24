@@ -8,6 +8,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@ResourceResult VARCHAR(MAX) = NULL
 	,@LogData XML
 	,@KeyId	INT
+	,@ErrCode INT = 0 OUTPUT
+	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
 /*
     Created: 20201123@Kathy
@@ -62,8 +64,6 @@ BEGIN
 			,@MinCustId int
 			,@MaxCustId int
 			,@SettlementProcessingId BIGINT
-			,@ErrCode INT 
-			,@ErrMsg VARCHAR(300)
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -554,14 +554,26 @@ BEGIN
 		SET @LogData.modify('insert(attribute ErrMsg {"1"}) into (/root/r)[1]')
 	END CATCH
 
-	UPDATE dbo.Single_Calculate_Queue 
-		SET SSBCommand = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
+	SET @MessageBody = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
 							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
 							+ ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 							+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
-							
+
+	UPDATE dbo.Single_Calculate_Queue 
+		SET SSBCommand = @MessageBody
+			,SSBStatus = 1
 	WHERE	keyid = @KeyId
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SET @MessageBody = @MessageBody + ', @NeedWaiting = 1' 
+
+		EXEC sys.sp_executesql @MessageBody
+			, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
+			, @ErrMsg	= @ErrMsg	OUTPUT
+			, @ErrCode	= @ErrCode	OUTPUT
+	END
 
 END

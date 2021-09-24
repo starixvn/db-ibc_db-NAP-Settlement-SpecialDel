@@ -260,11 +260,13 @@ BEGIN
 				,@sqlCommand
 
 		SET @KeyId = SCOPE_IDENTITY()
-
+		
 		IF @sporttype = 1
 			UPDATE Single_Calculate_Queue 
 				SET sqlCommand = @sqlCommand + ', @KeyId = ' + CAST(@KeyId AS VARCHAR)
+					,IsCalculating = 0
 			WHERE	keyid = @KeyId
+		
     END
 END
 GO
