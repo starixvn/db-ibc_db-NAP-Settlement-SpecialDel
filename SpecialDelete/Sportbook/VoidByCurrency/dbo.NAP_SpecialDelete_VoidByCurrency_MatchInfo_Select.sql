@@ -47,20 +47,6 @@ BEGIN
 		,0 AS IsOutright
 	FROM	dbo.match AS m WITH (NOLOCK) 
 	WHERE	m.matchid = @matchID
-	UNION ALL
-	SELECT	m14.matchid
-		,m14.homeid
-		,m14.awayid
-		,m14.matchcode
-		,m14.eventdate
-		,m14.leagueid
-		,isnull(m14.isNeutral, CONVERT(BIT,0)) as IsNeutral
-		,m14.showtime
-		,m14.kickofftime
-		,m14.sporttype
-		,0 AS IsOutright
-	FROM	dbo.match14 AS m14 WITH (NOLOCK) 
-	WHERE	m14.matchid = @matchID	
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM @tmpMatch_info)
 	BEGIN
