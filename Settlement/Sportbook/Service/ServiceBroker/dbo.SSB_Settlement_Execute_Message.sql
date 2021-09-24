@@ -18,7 +18,7 @@ begin
 	
 	set deadlock_priority high
 	begin try
-		exec sp_executesql @MessageBoby
+		exec sp_executesql @MessageBody
 	end try
 	begin catch
 		set @__errmsg = error_message()
