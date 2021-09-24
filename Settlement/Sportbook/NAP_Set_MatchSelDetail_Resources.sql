@@ -26,7 +26,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
-		- 20210906@Louisa: Settle by profile for Volleybal [Redmine:#160478]
+		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		
 */
 BEGIN
