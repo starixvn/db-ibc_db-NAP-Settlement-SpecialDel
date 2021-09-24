@@ -37,14 +37,17 @@ BEGIN
 	SELECT   @fantasy = pv.fantasy
 			, @fantasyh = pv.fantasyh
 			, @fantasya = pv.fantasya
-	FROM dbo.Match_Property mp WITH(NOLOCK)
+	FROM 
+	(		SELECT mp.MatchId, mp.[key], mp.Value
+			FROM dbo.Match_Property mp WITH(NOLOCK)
+			WHERE  mp.matchid = @matchid
+	) f
 	PIVOT 
 	( 
-		MAX( mp.Value) 
-		FOR [key] IN ([fantasy],[fantasyh],[fantasya] )
-	
+		MAX( f.Value) 
+		FOR f.[key] IN ([fantasy],[fantasyh],[fantasya] )
 	) pv
-	WHERE  pv.matchid = @matchid
+	
 
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,	65550, 89611 )) --- Fantasy League
 	BEGIN
