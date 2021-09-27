@@ -120,19 +120,17 @@ BEGIN
 		UPDATE b
 		SET @modds = CASE betteam
 				WHEN 'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE 
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
-																		OR @bettype = 21
-																		OR (@Sporttype IN (4,26) AND b.transdate >= @CutOffDate)
-																		THEN 0 
+																		OR @bettype = 21 THEN 0 
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				WHEN 'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE 
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
-																		OR @bettype = 21
-																		OR (@Sporttype IN (4,26) AND b.transdate >= @CutOffDate)
-																		THEN 0 
+																		OR @bettype = 21 THEN 0 
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				END

@@ -151,19 +151,17 @@ BEGIN
 							ELSE @fta END        
 			,@modds = CASE betteam
 				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
-																		OR @bettype = 20
-																		OR (@Sporttype IN (4,26) AND b.transdate >= @CutOffDate)
-																		THEN 0
+																		OR @bettype = 20 THEN 0
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
-																		OR @bettype = 20
-																		OR (@Sporttype IN (4,26) AND b.transdate >= @CutOffDate)
-																		THEN 0 
+																		OR @bettype = 20 THEN 0 
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				END

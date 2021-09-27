@@ -742,34 +742,30 @@ BEGIN
                         WHEN 1 THEN -- Handicap
                             CASE betteam
 								WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
-																						OR @Sporttype = 99
-																						OR (@Sporttype IN (4,26) AND bm.transdate >= @CutOffDate)
-																						THEN 0 
+																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END																
 								WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
-																						OR @Sporttype = 99
-																						OR (@Sporttype IN (4,26) AND bm.transdate >= @CutOffDate)
-																						THEN 0 
+																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END
                                 END
                         WHEN 7 THEN -- 1st Handicap
                             CASE betteam
 								WHEN N'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE 
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
-																						OR @Sporttype = 99
-																						OR (@Sporttype IN (4,26) AND bm.transdate >= @CutOffDate)
-																						THEN 0 
+																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END	
 								WHEN N'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE 
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
-																						OR @Sporttype = 99
-																						OR (@Sporttype IN (4,26) AND bm.transdate >= @CutOffDate)
-																						THEN 0 
+																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END
                                 END
