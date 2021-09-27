@@ -80,13 +80,13 @@ BEGIN --ResultDetail
 
 	--backup data if can
 	IF OBJECT_ID('MonDB.dbo.__ResultDetail_161455') IS NOT NULL
-	BEGIN
-		SELECT r.* INTO MonDB.dbo.__ResultDetail_161455
-		FROM dbo.Louisa_ResultDetail r WITH(NOLOCK)	 ----- *******************
-		WHERE EXISTS (
-			SELECT TOP 1 1 FROM #__resultData t WHERE t.matchId = r.MatchId AND t.resourceId = r.ResourceId
-		)
-	END
+	DROP TABLE MonDB.dbo.__ResultDetail_161455
+
+	SELECT r.* INTO MonDB.dbo.__ResultDetail_161455
+	FROM dbo.Louisa_ResultDetail r WITH(NOLOCK)	 ----- *******************
+	WHERE EXISTS (
+		SELECT TOP 1 1 FROM #__resultData t WHERE t.matchId = r.MatchId AND t.resourceId = r.ResourceId
+	)
 
 	DECLARE  @__rowId INT			= 1
 			,@__batch INT			= 2000
