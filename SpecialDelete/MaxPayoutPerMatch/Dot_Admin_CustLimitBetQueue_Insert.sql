@@ -21,7 +21,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-	SELECT @MatchId, ISNULL(@EventTypeID, 1), @RejectList, 2, 0, GETDATE()
+	SELECT @MatchId, ISNULL(@EventTypeID, 0), @RejectList, 2, 0, GETDATE()
 END
 GO
 	
