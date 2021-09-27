@@ -51,7 +51,7 @@ BEGIN
 			FOR XML RAW ('r'), root ('root')
 		)
 
-		IF @@ROWCOUNT = 0
+		IF @__tempData IS NULL
 			BREAK
 
 		--call SP excep rep
@@ -102,7 +102,7 @@ BEGIN --ResultDetail
 			FOR XML RAW ('r'), root ('root')
 		)
 		
-		IF @@ROWCOUNT = 0
+		IF @__tempData IS NULL
 			BREAK
 
 		--call SP excep rep
