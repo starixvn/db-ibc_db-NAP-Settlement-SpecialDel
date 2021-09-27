@@ -1,4 +1,4 @@
-﻿﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -173,6 +173,8 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
+				,ResultSetting		 = CASE WHEN @Sporttype IN ( 6, 45) AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+											ELSE ResultSetting END
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);

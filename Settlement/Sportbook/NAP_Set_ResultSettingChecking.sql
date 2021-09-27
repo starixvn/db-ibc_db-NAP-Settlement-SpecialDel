@@ -15,6 +15,8 @@ AS
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210925@Helen: Nap Settlement - Cricket - Cannot refund due to selected results are not confirmed to refund - [162244]
+		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
+
 	Param's Explanation:
 		  @SelectedResources: <Resources>
 						    	<Resource Id="M1" Home="1" Away="3" />
@@ -35,7 +37,7 @@ BEGIN
 
 	SELECT @Sporttype	= m.Sporttype FROM dbo.match m WITH(NOLOCK) where m.matchid = @MatchId
 	
-	IF @Sporttype NOT IN (5,43) RETURN
+	IF @Sporttype NOT IN (5, 6, 43, 45) RETURN
 
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
