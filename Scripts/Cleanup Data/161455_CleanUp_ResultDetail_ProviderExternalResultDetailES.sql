@@ -10,6 +10,7 @@
 */
 
 USE bodb02
+GO
 
 SET NOCOUNT ON
 
