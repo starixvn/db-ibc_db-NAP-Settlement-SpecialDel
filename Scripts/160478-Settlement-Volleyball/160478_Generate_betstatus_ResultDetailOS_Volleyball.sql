@@ -29,12 +29,12 @@ GO
 
 	CREATE TABLE #tmpResultDetail ( MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusID TINYINT, SettlementStatusID TINYINT	)
 	
-	-- match completed or match exists scores in table match
+	-- match exists scores in table match
 	INSERT INTO #tmpMatchVolleyball ( MatchId, eventstatus, betstatus, finalhomescore, finalawayscore )
 	SELECT   m.MatchId,  m.eventstatus,  m.betstatus,  m.finalhomescore,  m.finalawayscore 
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.sporttype = 6 --Volleyball
-		AND	( m.eventstatus = 'completed' OR ISNULL(m.betstatus,'') <> ''  OR ISNULL(m.finalhomescore, '') <> '')
+		AND	( ISNULL(m.betstatus,'') <> ''  OR ISNULL(m.finalhomescore, '') <> '')
 
 	-- Generate ResourceId 0101 ~ 0105 from betsatus
 	INSERT INTO #tmpBetStatus ( Id, charIdx, MatchId, val )
