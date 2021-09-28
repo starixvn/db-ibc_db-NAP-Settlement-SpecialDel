@@ -62,6 +62,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 
 	Param's Explanation:
 */
@@ -79,7 +80,9 @@ BEGIN
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT	= 0
 			,@isExistFM2		BIT = 0
-			,@Movebetdate		DATETIME    
+			,@Movebetdate		DATETIME  
+	
+	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
@@ -136,6 +139,8 @@ BEGIN
 		,BonusID		INT		
 		,MainTransId	BIGINT
 		,winlostdate	DATETIME
+		,ParentID		INT
+		,ChildMatchType TINYINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -399,6 +404,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,winlostdate
+				,SportType
 		)
 		SELECT	z.transid
 				,z.transid
@@ -439,6 +445,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,o.eventdate
+				,l.sporttype
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -449,6 +456,7 @@ BEGIN
 					AND z.bettype = b.bettype			
 			INNER JOIN dbo.outright o WITH(NOLOCK)
 				ON o.orid = b.matchid
+			INNER JOIN dbo.League l WITH (NOLOCK) ON o.leagueid = l.leagueid
 		WHERE	z.bettype = 10
 				AND b.betfrom <> 'p'
 				
@@ -1077,6 +1085,7 @@ BEGIN
 		, @isExistFM 		= @isExistFM
 		, @isExistBB		= @isExistBB
 		, @isExistFM2		= @isExistFM2
+		, @spName			= @spName
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -1178,6 +1187,8 @@ BEGIN
 			,homeid = m.homeid
 			,awayid = m.awayid
 			,SportType = m.sporttype
+			,ParentID = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
+			,ChildMatchType = CASE WHEN m.SportType = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
 	FROM	#tblTransInfo t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
@@ -1849,6 +1860,48 @@ BEGIN
 		  , @IsReleased = 1							
 	
 	DECLARE @IsITAdmin BIT = 0
+	
+	
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL, @ParentID INT= NULL, @ChildMatchType TINYINT = NULL
+	DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, ParentID INT, ChildMatchType TINYINT, IsFinish BIT)
+
+	INSERT INTO @Match_tmp (MatchId, sporttype, ParentID, ChildMatchType)
+	SELECT DISTINCT t.matchid, t.sporttype, t.ParentID, t.ChildMatchType
+	FROM #tblTransInfo t
+		
+	WHILE (1=1)
+	BEGIN
+		SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL, @ParentID = NULL, @ChildMatchType = NULL
+		
+		UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype, @ParentID = mt.ParentID, @ChildMatchType = mt.ChildMatchType
+		FROM @Match_tmp mt
+		WHERE mt.IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,b.bettype AS '@bettype'
+				FROM #tblTransInfo b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
+		
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Recover
+			@MatchId = @MatchId_MaxPO
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+	END
+	-------------------------------------------------------
 	
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 	

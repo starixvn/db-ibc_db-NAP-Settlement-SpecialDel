@@ -55,6 +55,7 @@ AS
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 			
 	Param's Explanation:
 */
@@ -100,10 +101,16 @@ BEGIN
 		   ,@GlobalShowTime   SMALLDATETIME
 		   ,@Movebetdate	  DATETIME
 		   ,@Eventdate		  DATETIME
+		   ,@sporttype SMALLINT = NULL
+		   ,@ParentID INT = NULL
+		   ,@ChildMatchType TINYINT = NULL
 
 	SELECT @SettlementStatus = m.SettlementStatus
 		  ,@GlobalShowTime = m.GlobalShowTime
 		  ,@Eventdate = m.eventdate
+		  ,@sporttype = m.sporttype
+		  ,@ParentID = ISNULL(m.ParentID, 0)
+		  ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
 	FROM dbo.match m WHERE m.matchid = @MatchId
 
 	/*Modify the way to get move bet date*/
@@ -2351,6 +2358,31 @@ BEGIN
 			  , @Action = 'Void'
 			  , @IsReleased = 1				 
 			
+		----------------Insert Max Payout Queue----------------
+		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL 
+
+		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId END
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+						,CASE 
+							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+							WHEN c.site = '789y' THEN 2 --789y
+							ELSE 1 END AS '@sitetype'
+						,b.TransId AS '@transid'
+						,b.BetType AS '@bettype'
+					FROM #SpecialDeleteBets_Single b
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					FOR XML PATH('r'), ROOT('root')
+				)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+			@MatchId = @MatchId_MaxPO
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+		-------------------------------------------------------
+		
+		
 		-------> write log		
 		EXEC WriteLog_UserLog 
 			 @UserId = @UserId,
