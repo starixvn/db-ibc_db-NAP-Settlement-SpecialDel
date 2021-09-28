@@ -5,11 +5,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@IsReSettledTickets BIT = 1
+	,@SessionId	BIGINT = NULL
 	,@ResourceResult VARCHAR(MAX) = NULL
-	,@LogData XML
-	,@KeyId	INT
-	,@ErrCode INT = 0 OUTPUT
-	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
 /*
     Created: 20201123@Kathy
@@ -44,7 +41,7 @@ BEGIN
 			,@AwayValue		VARCHAR(20)
 			,@OddsType		SMALLINT
 			,@MessageTypePattern VARCHAR(200)
-			,@QueueSize		SMALLINT
+			,@PrepareDataQueueSize	SMALLINT
 			,@QueueNo		SMALLINT
 			,@BatchNo		INT 
 			,@MessageType	VARCHAR(50)	
@@ -59,11 +56,12 @@ BEGIN
 			,@strSpecialBettype VARCHAR(MAX) 
 			,@strCashoutBettype VARCHAR(MAX)
 			,@TotalCommands INT
-			,@SessionId BIGINT
 			,@MessageBody VARCHAR(MAX)
 			,@MinCustId int
 			,@MaxCustId int
 			,@SettlementProcessingId BIGINT
+			,@SPName NVARCHAR(128)
+			,@RunPrepareDataBySSB BIT
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -103,10 +101,7 @@ BEGIN
 	SELECT	
 			@DummyResourceIds = ''
 			,@DummyResourceResults = ''
-			,@ErrCode = 0
-			,@ErrMsg = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@queueSize = 4
 			,@MaxThreadHold = 50000
 			,@MinThreadHold = 10000
 			,@BatchNo = 0
@@ -118,382 +113,403 @@ BEGIN
 			
 			,@messageBody = ''
 			,@SettlementProcessingId = 0
-	
-	BEGIN TRY
-		INSERT INTO dbo.Settlement_SettledSession (MatchId)
-		SELECT @matchid
-		SET @SessionId = SCOPE_IDENTITY()
-
-		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'prepare data - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
+			,@SPName = OBJECT_NAME(@@PROCID)
 		
-		SELECT	@fth = FinalHomeScore
-				,@fta = FinalAwayScore
-				,@hth = HTHomeScore
-				,@hta = HTAwayScore
-				,@sporttype = sporttype
-				,@goalrecord = goalrecord
-				,@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
-				,@ChildMatchType = ChildMatchType
-		FROM	 DBPRO.bodb02.dbo.match WITH (NOLOCK) 
-		WHERE	matchid = @matchid
+	SELECT	@fth = FinalHomeScore
+			,@fta = FinalAwayScore
+			,@hth = HTHomeScore
+			,@hta = HTAwayScore
+			,@sporttype = sporttype
+			,@goalrecord = goalrecord
+			,@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
+			,@ChildMatchType = ChildMatchType
+	FROM	 DBPRO.bodb02.dbo.match WITH (NOLOCK) 
+	WHERE	matchid = @matchid
    
-		;WITH cteGoalResource
-		AS
-		(
-			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-					,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
-					,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
-					,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
-			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
-		)
-		,cteResource
-		AS
-		(
-			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
-					,CAST( @hth AS VARCHAR(50)) AS HomeValue
-					,CAST( @hta AS VARCHAR(50)) AS AwayValue
-			WHERE	@action IN ('CAL', 'CAL-HT')
-			UNION ALL
-			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
-					,CAST( @fth AS VARCHAR(50)) AS HomeValue
-					,CAST( @fta AS VARCHAR(50)) AS AwayValue
-			WHERE	@action IN ('CAL', 'CAL-FT')
-			UNION ALL
-			SELECT  ResourceId, HomeValue, AwayValue
-			FROM	cteGoalResource
-			WHERE   ResourceID IS NOT NULL
-					AND SettlementStatusId = 4
-		)
-		INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
-		SELECT	ResourceID, HomeValue, AwayValue
-		FROM	cteResource
+	;WITH cteGoalResource
+	AS
+	(
+		SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+				,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+				,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+				,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
+		FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
+	)
+	,cteResource
+	AS
+	(
+		SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
+				,CAST( @hth AS VARCHAR(50)) AS HomeValue
+				,CAST( @hta AS VARCHAR(50)) AS AwayValue
+		WHERE	@action IN ('CAL', 'CAL-HT')
+		UNION ALL
+		SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
+				,CAST( @fth AS VARCHAR(50)) AS HomeValue
+				,CAST( @fta AS VARCHAR(50)) AS AwayValue
+		WHERE	@action IN ('CAL', 'CAL-FT')
+		UNION ALL
+		SELECT  ResourceId, HomeValue, AwayValue
+		FROM	cteGoalResource
+		WHERE   ResourceID IS NOT NULL
+				AND SettlementStatusId = 4
+	)
+	INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
+	SELECT	ResourceID, HomeValue, AwayValue
+	FROM	cteResource
 
-		-- insert dummy resouceid
-		-----------------------------------------add more info-----------------------------------------
-		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
-		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			INNER JOIN @tmpResources t
-				ON s.RefResourceId = t.ResourceID
-		WHERE	s.SportType = @sportType
-				AND s.SettleType = 'MNL'
-				AND s.RefResourceId IS NOT NULL
+	-- insert dummy resouceid
+	-----------------------------------------add more info-----------------------------------------
+	SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
+	FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+		INNER JOIN @tmpResources t
+			ON s.RefResourceId = t.ResourceID
+	WHERE	s.SportType = @sportType
+			AND s.SettleType = 'MNL'
+			AND s.RefResourceId IS NOT NULL
 
-		IF @DummyResourceIds <> ''
-		BEGIN
-			EXEC dbo.NAP_Set_DummyResourceResult
-				@MatchID = @MatchID
-				,@sportType = @sportType
-				,@DummyResourceIds = @DummyResourceIds
-				,@DummyResourceResults = @DummyResourceResults OUTPUT
+	IF @DummyResourceIds <> ''
+	BEGIN
+		EXEC dbo.NAP_Set_DummyResourceResult
+			@MatchID = @MatchID
+			,@sportType = @sportType
+			,@DummyResourceIds = @DummyResourceIds
+			,@DummyResourceResults = @DummyResourceResults OUTPUT
 
-			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
-			INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
-			SELECT Id, Home, Away
-			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-																,Home VARCHAR(50)
-																,Away VARCHAR(50)
-												) AS tbl
-			EXEC sp_xml_removedocument @handle
-		END
+		EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+		INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
+		SELECT Id, Home, Away
+		FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+															,Home VARCHAR(50)
+															,Away VARCHAR(50)
+											) AS tbl
+		EXEC sp_xml_removedocument @handle
+	END
 
-		-- insert selectedRid
-		INSERT INTO #tmpSelectedRID(
-			ResourceID
-			,HomeValue
-			,AwayValue
-			,BetType
-			,BetID
-			,pfID
-			,OddsType	
-			,IsHT
-		)
-		SELECT DISTINCT tbl.ResourceID
-				,tbl.HomeValue
-				,tbl.AwayValue
-				,sp.BetType, sp.BetID, sp.pfID
-				, sp.OddsType				
-				,CASE WHEN f.groupId IN (1,3,5) THEN 1 ELSE 0 END AS IsHT
-		FROM	@tmpResources tbl
-			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
-				ON	sp.ResourceID = tbl.ResourceID
-			INNER JOIN dbo.f_Set_GetGroupBettypes() AS f
-				ON	sp.bettype = f.BetType
-		WHERE	sp.SportType = @SportType
-				AND 1 = CASE	
-							WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 
-							ELSE 1
-						END
-				AND SettleType = 'MNL'
-				AND pfID > 0
+	-- insert selectedRid
+	INSERT INTO #tmpSelectedRID(
+		ResourceID
+		,HomeValue
+		,AwayValue
+		,BetType
+		,BetID
+		,pfID
+		,OddsType	
+		,IsHT
+	)
+	SELECT DISTINCT tbl.ResourceID
+			,tbl.HomeValue
+			,tbl.AwayValue
+			,sp.BetType, sp.BetID, sp.pfID
+			, sp.OddsType				
+			,CASE WHEN f.groupId IN (1,3,5) THEN 1 ELSE 0 END AS IsHT
+	FROM	@tmpResources tbl
+		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+			ON	sp.ResourceID = tbl.ResourceID
+		INNER JOIN dbo.f_Set_GetGroupBettypes() AS f
+			ON	sp.bettype = f.BetType
+	WHERE	sp.SportType = @SportType
+			AND 1 = CASE	
+						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 
+						ELSE 1
+					END
+			AND SettleType = 'MNL'
+			AND pfID > 0
 	
-		MERGE dbo.SettlementBettypeResult AS TARGET
-		USING (
-			SELECT	@MatchId AS MatchId
-					,BetType
-					,pfID
-					,HomeValue
-					,AwayValue
-					,OddsType
-					,IsHT
-			FROM	#tmpSelectedRID
-		) AS SOURCE
-			ON	TARGET.MatchId = SOURCE.MatchId
-				AND TARGET.Bettype = SOURCE.Bettype
-				AND TARGET.Pfid = SOURCE.pfId
-		WHEN MATCHED THEN 
-			UPDATE SET TARGET.HomeValue = SOURCE.HomeValue
-						,TARGET.AwayValue = SOURCE.AwayValue
-						,TARGET.OddsType = SOURCE.OddsType
-		WHEN NOT MATCHED BY TARGET THEN
-			INSERT (MatchId,  BetType, pfID, HomeValue, AwayValue, OddsType, IsHT)
-				VALUES (SOURCE.MatchId, SOURCE.Bettype, SOURCE.pfId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.OddsType, SOURCE.IsHT);
+	MERGE dbo.SettlementBettypeResult AS TARGET
+	USING (
+		SELECT	@MatchId AS MatchId
+				,BetType
+				,pfID
+				,HomeValue
+				,AwayValue
+				,OddsType
+				,IsHT
+		FROM	#tmpSelectedRID
+	) AS SOURCE
+		ON	TARGET.MatchId = SOURCE.MatchId
+			AND TARGET.Bettype = SOURCE.Bettype
+			AND TARGET.Pfid = SOURCE.pfId
+	WHEN MATCHED THEN 
+		UPDATE SET TARGET.HomeValue = SOURCE.HomeValue
+					,TARGET.AwayValue = SOURCE.AwayValue
+					,TARGET.OddsType = SOURCE.OddsType
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (MatchId,  BetType, pfID, HomeValue, AwayValue, OddsType, IsHT)
+			VALUES (SOURCE.MatchId, SOURCE.Bettype, SOURCE.pfId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.OddsType, SOURCE.IsHT);
 	
-		IF @ChildMatchType = 204 AND @Action IN ('CAL', 'CAL-FT')
-		BEGIN
-			DECLARE @CornerResultString VARCHAR(50)
-					,@Position				TINYINT
-					,@HomeRaceTo			TINYINT
-					,@AwayRaceTo			TINYINT
-					,@LenResultString		TINYINT
-					,@hdp					VARCHAR(5) = ''
-					,@Index_Round_tmp		TINYINT = 0
-					,@Index_Round			TINYINT = 1
-					,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
-					,@Char					VARCHAR(1)
+	IF @ChildMatchType = 204 AND @Action IN ('CAL', 'CAL-FT')
+	BEGIN
+		DECLARE @CornerResultString VARCHAR(50)
+				,@Position				TINYINT
+				,@HomeRaceTo			TINYINT
+				,@AwayRaceTo			TINYINT
+				,@LenResultString		TINYINT
+				,@hdp					VARCHAR(5) = ''
+				,@Index_Round_tmp		TINYINT = 0
+				,@Index_Round			TINYINT = 1
+				,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
+				,@Char					VARCHAR(1)
 
-			DECLARE @tmpCornerRaceToResult TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
-			DECLARE @tmpCornerResultDetail AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
-			DECLARE @tmpCornerBettype TABLE (Bettype SMALLINT, ResourceId VARCHAR(20))
+		DECLARE @tmpCornerRaceToResult TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
+		DECLARE @tmpCornerResultDetail AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
+		DECLARE @tmpCornerBettype TABLE (Bettype SMALLINT, ResourceId VARCHAR(20))
 
-			;WITH cteCornerBettypes 
-			AS (
-				SELECT	bettype
-						,CAST(bettype AS VARCHAR) 
-							+ CASE 
-								WHEN bettype IN (486,487) 
-									THEN CASE
-											WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
-								ELSE '' 
-							END AS ResouceId
-				FROM	dbo.bettrans b WITH(NOLOCK)
-				WHERE	bettype BETWEEN 486 AND 490
-						AND matchid = @matchid
-						AND EXISTS (SELECT TOP 1 1 FROM #tmpSelectedRID s WHERE s.BetType = b.bettype) 
-				GROUP BY bettype
-						,CAST(bettype AS VARCHAR) 
-							+ CASE 
-								WHEN bettype IN (486,487) 
-									THEN CASE
-											WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
-								ELSE '' 
-							END
-			)
-			INSERT INTO @tmpCornerBettype(Bettype, ResourceId)
+		;WITH cteCornerBettypes 
+		AS (
 			SELECT	bettype
-					,ResouceId
-			FROM	cteCornerBettypes		
-
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpCornerBettype WHERE bettype IN (486, 487))
-			BEGIN
-				SELECT	@CornerResultString = ISNULL(CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END, '')
-						,@Position = 1
-						,@HomeRaceTo = 0
-						,@AwayRaceTo = 0					
-				
-				SELECT @LenResultString = LEN(@CornerResultString)
-
-				SET @Index_Round_tmp =  CASE WHEN CHARINDEX(';',@GoalRecord) = 0 THEN LEN(@GoalRecord) + 1 ELSE CHARINDEX(';',@GoalRecord) END
-
-				WHILE (@Position <= @LenResultString)
-				BEGIN
-					SET @Char = SUBSTRING(@CornerResultString, @Position, 1)
-				
-					IF @Char = 'H'	
-					BEGIN
-						SET @HomeRaceTo = @HomeRaceTo + 1
-
-						IF @HomeRaceTo > @AwayRaceTo
-						BEGIN
-							IF @HomeRaceTo < 10  
-								SET @hdp = '0' + CAST(@HomeRaceTo AS VARCHAR(5))
-							ELSE 
-								SET @hdp = CAST(@HomeRaceTo AS VARCHAR(5))
-						
-							IF @Position <= @Index_Round_tmp
-								SET @Index_Round = 1
-							ELSE 
-								SET @Index_Round = 2
-								 
-							INSERT INTO @tmpCornerRaceToResult (HDP, ResourceID, HomeValue,Index_Round)
-							VALUES (@HomeRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round )
-						
-						END	
-					END
-					ELSE IF @Char = 'A' 
-					BEGIN
-						SET @AwayRaceTo = @AwayRaceTo + 1
-						IF @AwayRaceTo > @HomeRaceTo
-						BEGIN
-							IF @AwayRaceTo < 10  
-								SET @hdp = '0' + CAST(@AwayRaceTo AS VARCHAR(5))
-							ELSE 
-								SET @hdp = CAST(@AwayRaceTo AS VARCHAR(5))
-						
-							IF @Position <= @Index_Round_tmp
-								SET @Index_Round = 1
-							ELSE 
-								SET @Index_Round = 2
-								
-							INSERT INTO @tmpCornerRaceToResult (HDP,ResourceID, HomeValue, Index_Round)
-							VALUES (@AwayRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round)
-
+					,CAST(bettype AS VARCHAR) 
+						+ CASE 
+							WHEN bettype IN (486,487) 
+								THEN CASE
+										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
+							ELSE '' 
+						END AS ResouceId
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	bettype BETWEEN 486 AND 490
+					AND matchid = @matchid
+					AND EXISTS (SELECT TOP 1 1 FROM #tmpSelectedRID s WHERE s.BetType = b.bettype) 
+			GROUP BY bettype
+					,CAST(bettype AS VARCHAR) 
+						+ CASE 
+							WHEN bettype IN (486,487) 
+								THEN CASE
+										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
+							ELSE '' 
 						END
-					END
+		)
+		INSERT INTO @tmpCornerBettype(Bettype, ResourceId)
+		SELECT	bettype
+				,ResouceId
+		FROM	cteCornerBettypes		
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpCornerBettype WHERE bettype IN (486, 487))
+		BEGIN
+			SELECT	@CornerResultString = ISNULL(CASE WHEN LEFT(@GoalRecord, 1) = ';' THEN SUBSTRING(@GoalRecord,2,LEN(@GoalRecord) - 1) ELSE @GoalRecord END, '')
+					,@Position = 1
+					,@HomeRaceTo = 0
+					,@AwayRaceTo = 0					
 				
-					SET @Position = @Position + 1	 	
+			SELECT @LenResultString = LEN(@CornerResultString)
+
+			SET @Index_Round_tmp =  CASE WHEN CHARINDEX(';',@GoalRecord) = 0 THEN LEN(@GoalRecord) + 1 ELSE CHARINDEX(';',@GoalRecord) END
+
+			WHILE (@Position <= @LenResultString)
+			BEGIN
+				SET @Char = SUBSTRING(@CornerResultString, @Position, 1)
+				
+				IF @Char = 'H'	
+				BEGIN
+					SET @HomeRaceTo = @HomeRaceTo + 1
+
+					IF @HomeRaceTo > @AwayRaceTo
+					BEGIN
+						IF @HomeRaceTo < 10  
+							SET @hdp = '0' + CAST(@HomeRaceTo AS VARCHAR(5))
+						ELSE 
+							SET @hdp = CAST(@HomeRaceTo AS VARCHAR(5))
+						
+						IF @Position <= @Index_Round_tmp
+							SET @Index_Round = 1
+						ELSE 
+							SET @Index_Round = 2
+								 
+						INSERT INTO @tmpCornerRaceToResult (HDP, ResourceID, HomeValue,Index_Round)
+						VALUES (@HomeRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round )
+						
+					END	
+				END
+				ELSE IF @Char = 'A' 
+				BEGIN
+					SET @AwayRaceTo = @AwayRaceTo + 1
+					IF @AwayRaceTo > @HomeRaceTo
+					BEGIN
+						IF @AwayRaceTo < 10  
+							SET @hdp = '0' + CAST(@AwayRaceTo AS VARCHAR(5))
+						ELSE 
+							SET @hdp = CAST(@AwayRaceTo AS VARCHAR(5))
+						
+						IF @Position <= @Index_Round_tmp
+							SET @Index_Round = 1
+						ELSE 
+							SET @Index_Round = 2
+								
+						INSERT INTO @tmpCornerRaceToResult (HDP,ResourceID, HomeValue, Index_Round)
+						VALUES (@AwayRaceTo,CAST(@hdp AS VARCHAR), @Char,@Index_Round)
+
+					END
+				END
+				
+				SET @Position = @Position + 1	 	
+			END
+
+			INSERT INTO @tmpCornerResultDetail (ResourceID, HomeValue)
+			SELECT	CASE WHEN Index_Round = 1 THEN '487' ELSE '486' END + ResourceID
+					,HomeValue
+			FROM	@tmpCornerRaceToResult
+		END
+								
+		INSERT INTO @tmpCornerResultDetail(ResourceID, HomeValue)
+		SELECT  CAST(bettype AS VARCHAR)
+				,CASE 
+					WHEN bettype = 490 AND CHARINDEX(';', @CornerResultString) > 0 THEN SUBSTRING(@CornerResultString,CHARINDEX(';', @CornerResultString) + 1, 1)
+					ELSE LEFT (@CornerResultString, 1)
+				END	 AS HomeValue
+		FROM	@tmpCornerBettype
+		WHERE	bettype IN (488,489,490)
+
+		SET @ResourceResult_Corner_Result = ''
+		SELECT @ResourceResult_Corner_Result = (
+												SELECT DISTINCT c1.ResourceID AS Id
+													, CASE 
+														WHEN c2.HomeValue IS NULL THEN 'N'
+														WHEN c2.HomeValue IN (';','') THEN 'N' 
+														ELSE c2.HomeValue
+														END AS HomeValue
+													, 4 AS SettlementStatusId
+													, 5 AS ResultStatusId
+												FROM @tmpCornerBettype  c1
+													LEFT JOIN @tmpCornerResultDetail c2 ON c1.ResourceID = c2.ResourceID
+												FOR XML RAW ('Resource'), ROOT ('Results')
+												)
+
+		IF @ResourceResult_Corner_Result IS NOT NULL
+		BEGIN	
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
+				@MatchID        = @MatchID,                  
+				@ResourceResult	= @ResourceResult_Corner_Result,                    
+				@creator        = @creator
+		END	
+	END
+		
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		SELECT	b.custid
+				,b.bettype
+				,COUNT(1) AS TotalTicket
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.statusID IN (0,102)
+		GROUP BY b.custid, b.bettype
+	END 
+	ELSE
+	BEGIN
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		SELECT	b.custid
+				,b.bettype
+				,COUNT(1) AS TotalTicket
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.statusID <> 101
+		GROUP BY b.custid, b.bettype
+	END
+	
+	IF @action IN ('CAL', 'CAL-FT')
+	BEGIN
+		SELECT @strCashoutBettype = CAST(
+								(SELECT  Bettype AS '@t' 
+								FROM	(VALUES (1), (3), (5), (7), (8), (15)) AS b(bettype)
+								WHERE	1 = CASE WHEN @Action = 'CAL-FT' AND bettype IN(7,8,15) THEN 0 ELSE 1 END
+								FOR XML PATH ('r'),ROOT ('root'), TYPE
+							) AS VARCHAR(MAX))
+	END
+	ELSE 
+	BEGIN
+		SELECT @strCashoutBettype = CAST(
+							(SELECT  Bettype AS '@t' 
+							FROM	(VALUES (7), (8), (15)) AS b(bettype)
+							FOR XML PATH ('r'),ROOT ('ROOT'), TYPE
+						) AS VARCHAR(MAX))
+	END
+
+	DELETE	
+	FROM	#tmpCustBettypes
+	WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM #tmpSelectedRID)
+
+	INSERT INTO #tmpCustIds (CustId, TotalTicket)
+	SELECT	CustId, SUM(TotalTicket)
+	FROM	#tmpCustBettypes
+	GROUP BY CustId
+	ORDER BY CustId
+
+	SELECT @TotalAffectedTicket = SUM(TotalTicket)
+	FROM	#tmpCustIds
+	
+	EXEC dbo.NAP_Set_GlobalSettingSel	
+		@LockName = 'SettlementSSB'
+		,@PrepareDataQueueSize =  @PrepareDataQueueSize OUTPUT
+		,@RunPrepareDataBySSB = @RunPrepareDataBySSB OUTPUT
+
+	SELECT @ThreadHold = CASE 
+							WHEN @TotalAffectedTicket > @MaxThreadHold * @PrepareDataQueueSize THEN @MaxThreadHold 
+							WHEN @TotalAffectedTicket/@PrepareDataQueueSize <= @MinThreadHold THEN @MinThreadHold
+							ELSE @TotalAffectedTicket/@PrepareDataQueueSize 
+						END
+		,@QueueNo = 0
+		,@BatchNo = 0
+	
+	UPDATE	#tmpCustIds
+		SET runningtotal = @TotalTicket  
+			,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
+			,BatchNo = @batchNo
+			,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
+	
+	;WITH cteBatchNo
+	AS(
+		SELECT	BatchNo, MIN(custid) minCustId, MAX(custid) maxCustId
+		FROM	#tmpCustIds
+		GROUP BY BatchNo
+	)
+	INSERT INTO @tmpBatchMinMaxCustId (BatchNo, MinCustId, MaxCustId)	
+	SELECT CASE
+				WHEN BatchNo <= @PrepareDataQueueSize THEN BatchNo
+				ELSE CASE 
+						WHEN @PrepareDataQueueSize%2 = 0 THEN (BatchNo + 1)/2 + @PrepareDataQueueSize/2 
+						ELSE BatchNo/2 + (@PrepareDataQueueSize+1)/2
+						END
+				END batchno
+			,MIN(mincustId)
+			,MAX(maxcustid)
+	FROM cteBatchNo
+	GROUP BY CASE
+				WHEN batchno <= @PrepareDataQueueSize THEN BatchNo
+				ELSE CASE 
+						WHEN @PrepareDataQueueSize%2 = 0 THEN (BatchNo + 1)/2 + @PrepareDataQueueSize/2 
+						ELSE BatchNo/2 + (@PrepareDataQueueSize+1)/2
+						END
 				END
 
-				INSERT INTO @tmpCornerResultDetail (ResourceID, HomeValue)
-				SELECT	CASE WHEN Index_Round = 1 THEN '487' ELSE '486' END + ResourceID
-						,HomeValue
-				FROM	@tmpCornerRaceToResult
-			END
-								
-			INSERT INTO @tmpCornerResultDetail(ResourceID, HomeValue)
-			SELECT  CAST(bettype AS VARCHAR)
-					,CASE 
-						WHEN bettype = 490 AND CHARINDEX(';', @CornerResultString) > 0 THEN SUBSTRING(@CornerResultString,CHARINDEX(';', @CornerResultString) + 1, 1)
-						ELSE LEFT (@CornerResultString, 1)
-					END	 AS HomeValue
-			FROM	@tmpCornerBettype
-			WHERE	bettype IN (488,489,490)
-
-			SET @ResourceResult_Corner_Result = ''
-			SELECT @ResourceResult_Corner_Result = (
-													SELECT DISTINCT c1.ResourceID AS Id
-														, CASE 
-															WHEN c2.HomeValue IS NULL THEN 'N'
-															WHEN c2.HomeValue IN (';','') THEN 'N' 
-															ELSE c2.HomeValue
-															END AS HomeValue
-														, 4 AS SettlementStatusId
-														, 5 AS ResultStatusId
-													FROM @tmpCornerBettype  c1
-														LEFT JOIN @tmpCornerResultDetail c2 ON c1.ResourceID = c2.ResourceID
-													FOR XML RAW ('Resource'), ROOT ('Results')
-													)
-
-			IF @ResourceResult_Corner_Result IS NOT NULL
-			BEGIN	
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
-					@MatchID        = @MatchID,                  
-					@ResourceResult	= @ResourceResult_Corner_Result,                    
-					@creator        = @creator
-			END	
-		END
+	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
+		,@mode = 'LockMatch'
+		,@IsSettingByProfile = 1
+		,@SessionId = @SessionId	
 		
-		IF @IsReSettledTickets = 0
-		BEGIN
-			INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
-			SELECT	b.custid
-					,b.bettype
-					,COUNT(1) AS TotalTicket
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.statusID IN (0,102)
-			GROUP BY b.custid, b.bettype
-		END 
-		ELSE
-		BEGIN
-			INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
-			SELECT	b.custid
-					,b.bettype
-					,COUNT(1) AS TotalTicket
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.statusID <> 101
-			GROUP BY b.custid, b.bettype
-		END
-	
-		IF @action IN ('CAL', 'CAL-FT')
-		BEGIN
-			SELECT @strCashoutBettype = CAST(
-									(SELECT  Bettype AS '@t' 
-									FROM	(VALUES (1), (3), (5), (7), (8), (15)) AS b(bettype)
-									WHERE	1 = CASE WHEN @Action = 'CAL-FT' AND bettype IN(7,8,15) THEN 0 ELSE 1 END
-									FOR XML PATH ('r'),ROOT ('root'), TYPE
-								) AS VARCHAR(MAX))
-		END
-		ELSE 
-		BEGIN
-			SELECT @strCashoutBettype = CAST(
-								(SELECT  Bettype AS '@t' 
-								FROM	(VALUES (7), (8), (15)) AS b(bettype)
-								FOR XML PATH ('r'),ROOT ('ROOT'), TYPE
-							) AS VARCHAR(MAX))
-		END
+	IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
+		OR @RunPrepareDataBySSB = 0
+	BEGIN
+		SELECT	@MinCustId = MIN(CustId)
+				,@MaxCustId = MAX(CustId)
+		FROM #tmpCustIds
 
-		DELETE	
-		FROM	#tmpCustBettypes
-		WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM #tmpSelectedRID)
+		INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
+		SELECT '', 0,0,0,'',@SessionId,0
 
-		INSERT INTO #tmpCustIds (CustId, TotalTicket)
-		SELECT	CustId, SUM(TotalTicket)
-		FROM	#tmpCustBettypes
-		GROUP BY CustId
-		ORDER BY CustId
+		SET @SettlementProcessingId = SCOPE_IDENTITY()
 
-		SELECT @TotalAffectedTicket = SUM(TotalTicket)
-		FROM	#tmpCustIds
-	
-		SELECT @ThreadHold = CASE 
-								WHEN @TotalAffectedTicket > @MaxThreadHold * @QueueSize THEN @MaxThreadHold 
-								WHEN @TotalAffectedTicket/@QueueSize <= @MinThreadHold THEN @MinThreadHold
-								ELSE @TotalAffectedTicket/@QueueSize 
-							END
-			,@QueueNo = 0
-			,@BatchNo = 0
-	
-		UPDATE	#tmpCustIds
-			SET runningtotal = @TotalTicket  
-				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
-				,BatchNo = @batchNo
-				,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
-	
-		;WITH cteBatchNo
-		AS(
-			SELECT	BatchNo, MIN(custid) minCustId, MAX(custid) maxCustId
-			FROM	#tmpCustIds
-			GROUP BY BatchNo
-		)
-		INSERT INTO @tmpBatchMinMaxCustId (BatchNo, MinCustId, MaxCustId)	
-		SELECT CASE
-					WHEN BatchNo <= @QueueSize THEN BatchNo
-					ELSE CASE 
-							WHEN @QueueSize%2 = 0 THEN (BatchNo + 1)/2 + @QueueSize/2 
-							ELSE BatchNo/2 + (@QueueSize+1)/2
-						 END
-					END batchno
-				,MIN(mincustId)
-				,MAX(maxcustid)
-		FROM cteBatchNo
-		GROUP BY CASE
-					WHEN batchno <= @QueueSize THEN BatchNo
-					ELSE CASE 
-							WHEN @QueueSize%2 = 0 THEN (BatchNo + 1)/2 + @QueueSize/2 
-							ELSE BatchNo/2 + (@QueueSize+1)/2
-						 END
-					END
+		EXEC dbo.NAP_Admin_Settlement_Queue @matchid = @matchid
+			,@action  = @action
+			,@MinCustId = @MinCustId
+			,@MaxCusId = @MaxCustId
+			,@IsReSettledTickets = @IsReSettledTickets
+			,@QueueNo  = 1
+			,@SessionId  = @SessionId
+			,@ActionId  = @ActionID
+			,@SettlementProcessingId  = @SettlementProcessingId
 
-		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'prepare data - end', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-	
-		EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
-			,@mode = 'LockMatch'
-			,@IsSettingByProfile = 1
-			,@SessionId = @SessionId	
-		
-		
+	END
+	ELSE
+	BEGIN
 		SELECT	@BatchNo = 1
 				,@QueueNo = 1	
 		WHILE(1=1)
@@ -528,52 +544,17 @@ BEGIN
 				, @MessageType = @MessageType 
 		
 			SET @BatchNo = @BatchNo + 1
-			SET @QueueNo = CASE WHEN @QueueNo >= @QueueSize THEN 1 ELSE @QueueNo + 1 END
+			SET @QueueNo = CASE WHEN @QueueNo >= @PrepareDataQueueSize THEN 1 ELSE @QueueNo + 1 END
 		END
-		
-		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'cal - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-	
-		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'others - start', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-		
-		IF @strCashoutBettype <> ''
-		BEGIN
-			EXEC dbo.NAP_Admin_Calculate_Main -- 911
-				@matchid        = @matchid
-				,@action        = 'CAL'
-				,@mode          = @action
-				,@strBettypes   = @strCashoutBettype
-				,@sporttype		= @sporttype
-		END
-		
-		insert into SettlementTestLog (matchid, stepname, session, logtime, doing) values (@matchid, 'others - end', @SessionId, getdate(), 'threads: ' + cast (@queuesize as varchar))
-	END TRY
-	BEGIN CATCH
-		SELECT @ErrCode = 1001017
-				,@ErrMsg = ERROR_MESSAGE()
-
-		SET @LogData.modify('insert(attribute ErrMsg {"1"}) into (/root/r)[1]')
-	END CATCH
-
-	SET @MessageBody = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
-							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
-							+ ', @ErrCode = @ErrCode OUTPUT' 
-                            + ', @ErrMsg = @ErrMsg OUTPUT'
-							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
-							+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
-
-	UPDATE dbo.Single_Calculate_Queue 
-		SET SSBCommand = @MessageBody
-			,SSBStatus = 1
-	WHERE	keyid = @KeyId
-
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SET @MessageBody = @MessageBody + ', @NeedWaiting = 1' 
-
-		EXEC sys.sp_executesql @MessageBody
-			, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
-			, @ErrMsg	= @ErrMsg	OUTPUT
-			, @ErrCode	= @ErrCode	OUTPUT
 	END
 
+	IF @strCashoutBettype <> ''
+	BEGIN
+		EXEC dbo.NAP_Admin_Calculate_Main -- 911
+			@matchid        = @matchid
+			,@action        = 'CAL'
+			,@mode          = @action
+			,@strBettypes   = @strCashoutBettype
+			,@sporttype		= @sporttype
+	END
 END

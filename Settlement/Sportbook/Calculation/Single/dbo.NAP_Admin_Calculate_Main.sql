@@ -322,7 +322,7 @@ BEGIN
 		
         IF @IsSettingByProfile IS NOT NULL
         BEGIN
-			IF @ServerAlias <> 'DBTXN' AND @IsEnableServiceBroker = 1
+			IF @mode IN ('LockMatch', 'ReleaseMatch') AND @ServerAlias <> 'DBTXN' AND @IsEnableServiceBroker = 1
 			BEGIN
 				EXEC dbo.ExecRep_NAP_Admin_01 
 					@MatchId = @MatchId

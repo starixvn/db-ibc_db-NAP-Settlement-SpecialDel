@@ -27,8 +27,8 @@ BEGIN
 	DECLARE @MinRowId INT
 			,@MaxRowId INT
 			,@strTransIds VARCHAR(MAX)
-			,@QueueSize INT
-			,@QueueExecNo INT
+			,@ExecDataQueueSize SMALLINT
+			,@QueueExecNo SMALLINT
 			,@batchNo INT
 			,@batchSize INT			
 			,@messageBody VARCHAR(MAX)
@@ -41,6 +41,8 @@ BEGIN
 			,@MessageTypePattern VARCHAR(200)
 			,@MessageType VARCHAR(200)
 			,@TotalBatch INT
+			,@SPName NVARCHAR(128)
+			,@RunExecDataBySSB BIT
 
 	DECLARE @tmpBatchNo TABLE (
 		BatchNo INT
@@ -79,7 +81,6 @@ BEGIN
 	)
 	
 	SELECT	@strTransIds = ''
-			,@QueueSize = 4
 			,@QueueExecNo = 0
 			,@batchSize = 2000
 			,@messageBody = ''
@@ -92,6 +93,7 @@ BEGIN
 			,@MessageTypePattern = 'bet_settle_msg_type_0'
 			,@MessageType = ''
 			,@TotalBatch = 0
+			,@SPName = OBJECT_NAME(@@procId)
 
 	IF @IsReSettledTickets = 0
 	BEGIN
@@ -114,7 +116,7 @@ BEGIN
 				,sr.HomeValue 
 				,sr.AwayValue 
 				,sr.oddstype			
-		FROM	dbo.bettrans b WITH (NOLOCK)		
+		FROM	dbo.bettrans b WITH (NOLOCK, index=IX_customerinfo)		
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
 					AND sr.matchid = b.matchid
@@ -126,6 +128,7 @@ BEGIN
 									WHEN @action = 'CAL-FT' THEN 0
 									ELSE sr.isht
 								END
+		OPTION (MAXDOP 1)
 	END
 	ELSE
 	BEGIN
@@ -148,18 +151,19 @@ BEGIN
 				,sr.HomeValue 
 				,sr.AwayValue 
 				,sr.oddstype			
-		FROM	dbo.bettrans b WITH (NOLOCK)		
+		FROM	dbo.bettrans b WITH (NOLOCK, index=IX_customerinfo)		
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
 					AND sr.matchid = b.matchid
-		  WHERE	b.matchid = @MatchId
-	  			AND b.statusID NOT IN (101)
-				AND b.custid BETWEEN @MinCustId AND @MaxCusId
-				AND sr.IsHT = CASE 
-									WHEN @action = 'CAL-HT' THEN 1
-									WHEN @action = 'CAL-FT' THEN 0
-									ELSE sr.isht
-								END
+		WHERE	b.matchid = @MatchId
+	  		AND b.statusID NOT IN (101)
+			AND b.custid BETWEEN @MinCustId AND @MaxCusId
+			AND sr.IsHT = CASE 
+								WHEN @action = 'CAL-HT' THEN 1
+								WHEN @action = 'CAL-FT' THEN 0
+								ELSE sr.isht
+							END
+		OPTION (MAXDOP 1)
 	END
 
 	INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype)
@@ -201,6 +205,11 @@ BEGIN
 	FROM	#tmpFinalResult
 	GROUP BY BatchNo
 	
+	EXEC dbo.NAP_Set_GlobalSettingSel	
+		@LockName = 'SettlementSSB'
+		,@ExecDataQueueSize =  @ExecDataQueueSize OUTPUT
+		,@RunExecDataBySSB = @RunExecDataBySSB OUTPUT
+
 	INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
 	SELECT	CAST((SELECT	t.transid AS '@t'						
 					FROM	#tmpFinalResult t
@@ -211,30 +220,44 @@ BEGIN
 			,b.oddstype
 			,@MessageTypePattern 
 				+ CAST(CASE 
-							WHEN (b.BatchNo + @QueueNo - 1)%@QueueSize = 0 THEN @QueueSize  
-							ELSE (b.BatchNo + @QueueNo - 1) %@QueueSize END AS VARCHAR)
+							WHEN (b.BatchNo + @QueueNo - 1)%@ExecDataQueueSize = 0 THEN @ExecDataQueueSize  
+							ELSE (b.BatchNo + @QueueNo - 1) %@ExecDataQueueSize END AS VARCHAR)
 			,@SessionId
 			,@ActionId
 	FROM	@tmpBatchNo b
 
 	SELECT @TotalBatch = @@ROWCOUNT
 	
-	IF @TotalBatch < @QueueSize
-		SET @QueueSize = @TotalBatch
+	IF @TotalBatch < @ExecDataQueueSize
+		SET @ExecDataQueueSize = @TotalBatch
 		
 	SET @QueueExecNo = 1
-	WHILE(1=1)
+
+	IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
+		OR @RunExecDataBySSB = 0
 	BEGIN
 		SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
 		
-		EXEC [sb].[SSB_Send_Message] @MessageContent = @SessionId
-			, @FunctionName = 'settlement'
-			, @MessageType = @MessageType
+		EXEC dbo.SSB_Settlement_UpdateData @ConversationHandle = NULL
+			,@MessageType = @MessageType
+			,@MessageBody = @SessionId
+			,@MessageId = NULL
+	END
+	ELSE
+	BEGIN	
+		WHILE(1=1)
+		BEGIN
+			SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
+		
+			EXEC [sb].[SSB_Send_Message] @MessageContent = @SessionId
+				, @FunctionName = 'settlement'
+				, @MessageType = @MessageType
 			
-		IF @QueueExecNo = @QueueSize
-			BREAK
+			IF @QueueExecNo = @ExecDataQueueSize
+				BREAK
 
-		SET @QueueExecNo = @QueueExecNo + 1
+			SET @QueueExecNo = @QueueExecNo + 1
+		END
 	END
 
 	DELETE FROM dbo.SettlementProcessing WHERE id = @SettlementProcessingId

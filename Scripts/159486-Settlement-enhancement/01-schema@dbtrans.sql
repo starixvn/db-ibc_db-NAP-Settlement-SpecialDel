@@ -4,7 +4,7 @@ go
 
 ALTER DATABASE bodb02 ADD FILEGROUP serviceBroker 
 ALTER DATABASE bodb02 
-	ADD FILE (NAME = N'serviceBroker_01', FILENAME = N'E:\IBC_DB\bodb02\serviceBroker\serviceBroker_01.ndf'  
+	ADD FILE (NAME = N'serviceBroker_01', FILENAME = N'D:\IBC_DB\bodb02\serviceBroker\serviceBroker_01.ndf'  
 		, SIZE = 512KB, MAXSIZE = UNLIMITED, FILEGROWTH = 32768KB) TO FILEGROUP [serviceBroker]
 
 GO
