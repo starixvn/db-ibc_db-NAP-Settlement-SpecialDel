@@ -112,7 +112,6 @@ BEGIN
 		   ,@HomeId				INT
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
-		   ,@Sporttype		SMALLINT
 
 	IF @IsOutright = 0
 	BEGIN
@@ -125,7 +124,6 @@ BEGIN
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			  ,@Sporttype = m.sporttype
 		FROM dbo.match m WHERE m.matchid = @MatchId
 	END
 	ELSE
