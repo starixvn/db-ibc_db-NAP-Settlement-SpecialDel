@@ -1,12 +1,14 @@
 
 /*
 	Creator:	20210920@Louisa
-	Task:		Cleanup data in dbo.ResultDetail, dbo.ProviderExternalResultDetailES - [Redmine:#161455]
+	Task:		Cleanup data - [Redmine:#161455]
 	Database:	DBPRO.bodb02
 	
 	Revisions:
 		Cleanup data in dbo.ResultDetail, dbo.ProviderExternalResultDetailES - [Redmine:#161455]
-		
+	
+	Param's Explanation: 
+		- SP test execrep local DB206, 215, db233\sqlserver2008R2 : QC_Local_ExecRep10	
 */
 
 USE bodb02
@@ -21,7 +23,7 @@ BEGIN
 	--collect redundant data
 	INSERT INTO #__resultESData(providerExternalId)
 	SELECT p.ProviderExternalId
-	FROM dbo.Louisa_ProviderExternalResultDetailES p WITH(NOLOCK) ----- *******************
+	FROM dbo.ProviderExternalResultDetailES p WITH(NOLOCK) ----- table local test: Louisa_ProviderExternalResultDetailES
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON p.MatchId = m.matchid
 	WHERE m.matchid IS NULL
 
@@ -30,7 +32,7 @@ BEGIN
 	DROP TABLE MonDB.dbo.__ProviderExternalResultDetailES_161455
 
 	SELECT p.* INTO MonDB.dbo.__ProviderExternalResultDetailES_161455
-	FROM dbo.Louisa_ProviderExternalResultDetailES p WITH(NOLOCK)				 ----- *******************
+	FROM dbo.ProviderExternalResultDetailES p WITH(NOLOCK)	----- table local test: Louisa_ProviderExternalResultDetailES
 	WHERE EXISTS (
 		SELECT TOP 1 1 FROM #__resultESData t WHERE t.providerExternalId = p.ProviderExternalId
 	)
@@ -56,7 +58,9 @@ BEGIN
 			BREAK
 
 		--call SP excep rep
-		EXEC dbo.QC_Local_ExecRep10 @TableName = 'Louisa_ProviderExternalResultDetailES' --ExecRep_APL_00  ----- *******************
+		--local test: EXEC dbo.QC_Local_ExecRep10 @TableName = 'Louisa_ProviderExternalResultDetailES'
+
+		EXEC dbo.ExecRep_APL_00 @TableName = 'ProviderExternalResultDetailES' 
 			, @data = @__tempData
 
 		SELECT @__rowId = @__rowId + @__batch
@@ -75,7 +79,7 @@ BEGIN --ResultDetail
 	--collect redundant data
 	INSERT INTO #__resultData(matchId, resourceId)
 	SELECT r.MatchId, r.ResourceId
-	FROM dbo.Louisa_ResultDetail r WITH(NOLOCK)		 ----- *******************
+	FROM dbo.ResultDetail r WITH(NOLOCK) ----- table local test: Louisa_ResultDetail
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON r.MatchId = m.matchid
 	WHERE m.matchid IS NULL
 
@@ -84,7 +88,7 @@ BEGIN --ResultDetail
 	DROP TABLE MonDB.dbo.__ResultDetail_161455
 
 	SELECT r.* INTO MonDB.dbo.__ResultDetail_161455
-	FROM dbo.Louisa_ResultDetail r WITH(NOLOCK)	 ----- *******************
+	FROM dbo.ResultDetail r WITH(NOLOCK)	  ----- table local test: Louisa_ResultDetail
 	WHERE EXISTS (
 		SELECT TOP 1 1 FROM #__resultData t WHERE t.matchId = r.MatchId AND t.resourceId = r.ResourceId
 	)
@@ -107,7 +111,9 @@ BEGIN --ResultDetail
 			BREAK
 
 		--call SP excep rep
-		EXEC dbo.QC_Local_ExecRep10 @TableName = 'Louisa_ResultDetail'	 --ExecRep_APL_00  ----- *******************
+		--local test: EXEC dbo.QC_Local_ExecRep10 @TableName = 'Louisa_ResultDetail'
+
+		EXEC dbo.ExecRep_APL_00 @TableName = 'ResultDetail'
 			, @data = @__tempData
 
 		SELECT @__rowId = @__rowId + @__batch

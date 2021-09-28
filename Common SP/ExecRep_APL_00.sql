@@ -1,85 +1,67 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_APL_00]
+	@TableName VARCHAR(200)
+	, @data VARCHAR(MAX)
 AS
 /*
 	Creator:	20210920@Louisa
-	Task:		Cleanup data in ResultDetail - [Redmine:#161455]
+	Task:		Cleanup data - [Redmine:#161455]
 	Database:	DBPRO.bodb02
-	
-	Revisions:
-		- 20210920@Louisa:	Cleanup data in ResultDetail - [Redmine:#161455]
 		
-	Developer's Notes:
-		- @Example:			NULL		- Explaination [DEFAULT]
+	Revisions:
+		- 20210920@Louisa:	Delete ResultDetail/ProviderExternalResultDetailES - [Redmine:#161455]
+	
+	Param's Explanation: 
+		- SP test execrep local DB206, 215, db233\sqlserver2008R2 : QC_Local_ExecRep10
 		
 */
 BEGIN;
-	
-	DECLARE @batch INT = 1000
-		,@minMatchId	INT		
-		,@maxMatchId	INT		
-		,@MaxProviderExternalId INT  
-	
-	IF OBJECT_ID('tempdb..#Active') IS NOT NULL
-	DROP TABLE #Active
-	
-	CREATE TABLE #Active( Matchid INT)
 
-	INSERT INTO #Active (Matchid)
-	SELECT  m.Matchid
-	FROM dbo.match m WITH(NOLOCK)
+	SET NOCOUNT ON;
 
-	SELECT @minMatchId = MIN(m.Matchid)
-		 , @maxMatchId = MAX (matchid) 
-	FROM #Active m
-
-	SELECT @MaxProviderExternalId = MAX(ProviderExternalId) 
-	FROM dbo.ProviderExternalResultDetailES r WITH(NOLOCK)
-	WHERE r.MatchId < @minMatchId
-	
-	-----1.  Delete ResultDetail:  all data < range active
-	WHILE (1=1)
+	IF NOT EXISTS (
+		SELECT 1 FROM sysobjects WHERE name = @TableName AND [type] = 'U'
+	)
 	BEGIN
-		DELETE TOP(@batch)
-		FROM dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchId < @minMatchId 
-	
-		IF @@ROWCOUNT = 0
-			BREAK			
-
-		WAITFOR DELAY '00:00:00:280'
-
+		RETURN -- no table name exists, do nothing
 	END
 
-	---2.  Delete ResultDetail: junk data in range active
-	WHILE (1=1)
+	DECLARE @xmlData XML
+	SET @xmlData = CAST(@data AS XML)
+
+	IF @TableName = 'ResultDetail'
 	BEGIN
-		DELETE TOP(@batch)
-		FROM dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
-		WHERE MatchId NOT IN (SELECT MatchId FROM #Active)
-		AND MatchId <= @maxMatchId
-	
-		IF @@ROWCOUNT = 0
-			BREAK			
+		DECLARE @__resultIds TABLE(matchId INT, resourceId VARCHAR(20))
+		INSERT INTO @__resultIds (matchId, resourceId)
+		SELECT T.c.value('@m','int') matchId, T.c.value('@r','varchar(20)') resourceId
+		FROM @xmlData.nodes('/root/r') AS T(c)
+		OPTION (optimize FOR (@xmlData = NULL))
 
-		WAITFOR DELAY '00:00:00:280'
+		DELETE r 
+		FROM dbo.ResultDetail r WITH(ROWLOCK)
+		WHERE EXISTS (
+			SELECT TOP 1 1 FROM @__resultIds t 
+			WHERE t.matchId = r.MatchId AND t.resourceId = r.ResourceId
+		)
 
+		RETURN
 	END
-	
-	---3. Delete ProviderExternalResultDetailES: all data < range active
-	WHILE (1=1)
+
+	ELSE IF @TableName = 'ProviderExternalResultDetailES'
 	BEGIN
-		DELETE TOP(@batch)
-		FROM dbo.ProviderExternalResultDetailES WITH(ROWLOCK, UPDLOCK)
-		WHERE ProviderExternalId <= @MaxProviderExternalId
-	
-		IF @@ROWCOUNT = 0
-			BREAK			
+		DECLARE @__resultESIds TABLE(providerExternalId INT)
+		INSERT INTO @__resultESIds (providerExternalId)
+		SELECT T.c.value('@id','int') providerExternalId
+		FROM @xmlData.nodes('/root/r') AS T(c)
+		OPTION (optimize FOR (@xmlData = NULL))
 
-		WAITFOR DELAY '00:00:00:280'
+		DELETE r 
+		FROM dbo.ProviderExternalResultDetailES r WITH(ROWLOCK)
+		WHERE EXISTS (
+			SELECT TOP 1 1 FROM @__resultESIds t WHERE t.providerExternalId = r.ProviderExternalId
+		)
 
-	END		
-	
-	
+		RETURN
+	END
 END
 GO
