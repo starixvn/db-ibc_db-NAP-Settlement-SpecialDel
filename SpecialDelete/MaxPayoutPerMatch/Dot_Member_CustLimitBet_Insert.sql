@@ -1,0 +1,82 @@
+/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBet_Insert]
+(
+	@MatchId		INT
+	,@sporttype		SMALLINT
+	,@custid		INT
+	,@sitetype		TINYINT
+	,@bettype		SMALLINT
+	,@payout		MONEY
+	,@turnover		MONEY
+)
+AS
+/*	
+	Created: 20210726@Max
+    Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+    DB: DBTXN/bodb02
+    Revisions:
+		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+	
+	Param's explanation:	
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @EventTypeID TINYINT
+	SET @EventTypeID = CASE WHEN @bettype = 10 THEN 2 ELSE 1 END
+	
+
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
+		OR (@bettype IN(29, 2799, 38)) OR (@bettype BETWEEN 801 AND 806)
+	BEGIN
+		RETURN
+	END
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) OR (@sporttype IN (43,44,164,180,186)) OR (@sporttype BETWEEN 190 AND 197)
+	BEGIN
+		SET @payout = 0
+	END
+
+	IF @sitetype = 1 --MBC
+	BEGIN
+		--CustLimitBet
+		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_MBC cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
+		BEGIN
+			INSERT INTO dbo.CustLimitBet_MBC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
+			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+		END
+		ELSE
+		BEGIN
+			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+					, cm.AccumPayout = cm.AccumPayout + @payout
+					, cm.ModifiedDate = GETDATE()
+			FROM dbo.CustLimitBet_MBC cm
+			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+		END		
+	END
+	ELSE IF @sitetype = 2 --789y
+	BEGIN
+		--CustLimitBet
+		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_789 cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
+		BEGIN
+			INSERT INTO dbo.CustLimitBet_789 (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
+			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
+		END
+		ELSE
+		BEGIN
+			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
+				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
+					, cm.AccumPayout = cm.AccumPayout + @payout
+					, cm.ModifiedDate = GETDATE()
+			FROM dbo.CustLimitBet_789 cm
+			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
+		END
+	END
+	ELSE IF @sitetype = 3 --licensee (next phase)
+	BEGIN
+		RETURN
+	END
+END
+GO
+	

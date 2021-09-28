@@ -1,0 +1,173 @@
+/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Dot_Member_CustLimitBet_Select]
+(
+	@MatchId		INT = NULL
+	,@custid		INT
+	,@sitetype		TINYINT
+	,@EventTypeID	TINYINT
+	,@LeagueID		INT = NULL
+	,@AccumTurnover MONEY = 0 OUTPUT
+	,@AccumPayout	MONEY = 0 OUTPUT
+)
+AS
+/*	
+	Created: 20210726@Max
+    Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+    DB: DBTXN/bodb02
+    Revisions:
+		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+	
+	Param's explanation:	
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+	
+	DECLARE @LastQueueID INT = 0
+		,@AccumTurnover_InQueue MONEY = 0
+		,@AccumPayout_InQueue MONEY = 0
+		
+	CREATE TABLE #CustLimitBet_tmp (
+			MatchId	INT
+			, CustId INT
+			, transid BIGINT
+		)
+
+	--For outright will be sum up to League
+	IF @EventTypeID = 2 AND @LeagueID IS NOT NULL
+	BEGIN
+		IF @sitetype = 1
+		BEGIN
+			SELECT @AccumTurnover = SUM(c.AccumTurnover), @AccumPayout = SUM(c.AccumPayout), @LastQueueID = MAX(c.LastQueueID)
+			FROM dbo.CustLimitBet_MBC c WITH (NOLOCK)
+				INNER JOIN dbo.outright o WITH (NOLOCK) ON o.orid = c.Matchid
+			WHERE c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+				AND o.oddsstatus <> 'Completed'
+				AND o.leagueid = @LeagueID
+		END
+		ELSE IF @sitetype = 2
+		BEGIN
+			SELECT @AccumTurnover = SUM(c.AccumTurnover), @AccumPayout = SUM(c.AccumPayout), @LastQueueID = MAX(c.LastQueueID)
+			FROM dbo.CustLimitBet_789 c WITH (NOLOCK)
+				INNER JOIN dbo.outright o WITH (NOLOCK) ON o.orid = c.Matchid
+			WHERE c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+				AND o.oddsstatus <> 'Completed'
+				AND o.leagueid = @LeagueID
+		END
+	
+		--get bonus data from queue
+		IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+							INNER JOIN outright o WITH (NOLOCK) ON o.orid = q.Matchid
+				WHERE q.QueueID > @LastQueueID 
+					AND q.ActionID = 3 
+					AND q.CustID = @custid  
+					AND q.EventTypeID = @EventTypeID 
+					AND o.leagueid = @LeagueID
+					AND o.oddsstatus <> 'Completed' )
+		BEGIN
+			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, transid)
+			SELECT q.Matchid, @custid, xTrans.transid
+			FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+				INNER JOIN outright o WITH (NOLOCK) ON o.orid = q.Matchid
+				CROSS APPLY (
+						SELECT CONVERT(XML, q.Transids)
+					)AS t(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@transid','BIGINT') AS transid
+						FROM t.xDATA.nodes('root/r') t(c)
+					)xTrans
+			WHERE q.QueueID > @LastQueueID 
+				AND q.ActionID = 3 
+				AND q.CustID = @custid
+				AND q.EventTypeID = @EventTypeID 
+				AND o.leagueid = @LeagueID
+				AND o.oddsstatus <> 'Completed'
+		END
+	END
+	
+	--For match normal
+	IF @EventTypeID = 1 AND @LeagueID IS NULL
+	BEGIN
+		IF @sitetype = 1
+		BEGIN
+			SELECT @AccumTurnover = c.AccumTurnover, @AccumPayout = c.AccumPayout, @LastQueueID = c.LastQueueID
+			FROM dbo.CustLimitBet_MBC c WITH (NOLOCK)
+			WHERE c.Matchid = @MatchId
+				AND c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+		END
+		ELSE IF @sitetype = 2
+		BEGIN
+			SELECT @AccumTurnover = c.AccumTurnover, @AccumPayout = c.AccumPayout, @LastQueueID = c.LastQueueID
+			FROM dbo.CustLimitBet_789 c WITH (NOLOCK)
+			WHERE c.Matchid = @MatchId
+				AND c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+		END
+	
+		--get bonus data from queue
+		IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+				WHERE q.QueueID > @LastQueueID 
+					AND q.ActionID = 3 
+					AND q.Matchid = @MatchId 
+					AND q.CustID = @custid 
+					AND q.EventTypeID = @EventTypeID )
+		BEGIN
+			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, transid)
+			SELECT @MatchId AS MatchId
+				, @custid AS custid
+				, xTrans.transid
+			FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+				CROSS APPLY (
+						SELECT CONVERT(XML, q.Transids)
+					)AS t(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@transid','BIGINT') AS transid
+						FROM t.xDATA.nodes('root/r') t(c)
+					)xTrans
+			WHERE q.QueueID > @LastQueueID 
+				AND q.ActionID = 3 
+				AND q.Matchid = @MatchId 
+				AND q.CustID = @custid
+				AND q.EventTypeID = @EventTypeID
+		END
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM #CustLimitBet_tmp)
+	BEGIN
+		IF @sitetype = 1
+		BEGIN
+			SELECT @AccumTurnover_InQueue = SUM(tmpsum.AccumTurnover)
+				,@AccumPayout_InQueue = SUM(tmpsum.AccumPayout)
+			FROM
+			(
+				SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+				FROM #CustLimitBet_tmp t1
+					INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+				GROUP BY t1.Matchid, t1.CustId, t1.transid
+			)tmpsum	
+		END
+		ELSE IF @sitetype = 2
+		BEGIN
+			SELECT @AccumTurnover_InQueue = SUM(tmpsum.AccumTurnover)
+				,@AccumPayout_InQueue = SUM(tmpsum.AccumPayout)
+			FROM
+			(
+				SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout
+				FROM #CustLimitBet_tmp t1
+					INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = @custid and t2.Transid = t1.transid
+				GROUP BY t1.Matchid, t1.CustId, t1.transid
+			)tmpsum	
+		END
+	END
+
+	SET @AccumTurnover = ISNULL(@AccumTurnover,0) + ISNULL(@AccumTurnover_InQueue,0)
+	SET @AccumPayout = ISNULL(@AccumPayout,0) + ISNULL(@AccumPayout_InQueue,0)
+
+	DROP TABLE #CustLimitBet_tmp
+END	
+GO
+
+
