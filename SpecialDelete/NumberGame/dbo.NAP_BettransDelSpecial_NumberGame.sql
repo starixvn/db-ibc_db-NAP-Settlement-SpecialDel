@@ -39,6 +39,7 @@ AS
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		
 		
 	Param's Explanation: 
@@ -567,6 +568,48 @@ BEGIN
 					AND a.winlostdate = b.winlostdate
 					AND a.gametypeid = b.gametypeid
 		WHERE (a.winlost - b.winlost) < 0
+		
+		----------------Insert Max Payout Queue----------------
+		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
+		DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, IsFinish BIT)
+
+		INSERT INTO @Match_tmp (MatchId, sporttype)
+		SELECT DISTINCT mt.matchid, m.sporttype
+		FROM @tblMatch mt
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = mt.matchid
+
+		WHILE (1=1)
+		BEGIN
+			SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL
+		
+			UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype
+			FROM @Match_tmp mt
+			WHERE mt.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK
+			SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+							,CASE 
+								WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+								WHEN c.site = '789y' THEN 2 --789y
+								ELSE 1 END AS '@sitetype'
+							,b.TransId AS '@transid'
+							,b.bettype AS '@bettype'
+						FROM #BetDelete b
+							INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+							LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+						WHERE b.matchid = @MatchId_MaxPO
+						FOR XML PATH('r'), ROOT('root')
+					)
+
+			IF @sporttype IN (164,168)
+			BEGIN
+				EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+					@MatchId = @MatchId_MaxPO
+					,@sporttype = @sporttype
+					,@TransidList = @TransIds_MaxPO
+			END
+		END
+		-------------------------------------------------------
 		
 		SELECT @LogData = CASE 
 				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) 

@@ -27,6 +27,7 @@ AS
 		- 20181017@Alan: Write log new reason chinese simplified [102918]
 		- 20201021@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		
 	Param's Explanation: Special bet delete option		
 	*/
@@ -75,6 +76,9 @@ BEGIN
 	DECLARE  @KeyID			INT			
 			,@LogData		NVARCHAR(500)
 			,@CountTransId	INT
+			, @sporttype SMALLINT = NULL
+	
+	DECLARE @match_info  AS TABLE (homeid INT, awayid INT, matchcode VARCHAR(100), leagueid INT, eventdate DATETIME, Sporttype SMALLINT, IsNeutral BIT)
 	
 	SELECT @ErrCode = 0
 		 , @ErrMsg = ''		 		
@@ -305,7 +309,43 @@ BEGIN
 		------ releasing SD process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			  @isExistOutright 	= 1			
-			, @IsReleased		= 1					
+			, @IsReleased		= 1	
+			
+	INSERT INTO @match_info (homeid, awayid, matchcode, eventdate, leagueid, Sporttype, IsNeutral)
+	SELECT m.teamid AS homeid,
+		0 AS awayid,
+		m.matchcode,
+		m.eventdate,
+		m.leagueid,
+		l.sporttype,
+		CONVERT(BIT,0) AS IsNeutral
+	FROM	Outright AS m WITH (NOLOCK)
+			INNER JOIN League AS l ON m.leagueid = l.leagueid
+	WHERE	m.orid = @OutrightID
+
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = ''
+	
+	SET @sporttype = (SELECT Sporttype FROM @match_info)
+
+	SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,10 AS '@bettype'
+				FROM #BetDelete b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+	EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+		@MatchId = @OutrightID
+		,@sporttype = @sporttype
+		,@TransidList = @TransIds_MaxPO
+	-------------------------------------------------------
 
 	------------------***** End of Special Delete *****------------------
 		SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @OutrightID) 
@@ -318,17 +358,15 @@ BEGIN
 			,@Doing = @LogData	
 		
 		-- Match info	
-		SELECT m.teamid AS homeid,
+		SELECT m.homeid,
 			0 AS awayid,
 			m.matchcode,
 			m.eventdate,
 			m.leagueid,
-			l.sporttype,
-			CONVERT(BIT,0) AS IsNeutral,
+			m.Sporttype,
+			m.IsNeutral,
 			CAST(1 AS BIT) AS IsOutright
-		FROM	Outright AS m WITH (NOLOCK)
-				INNER JOIN League AS l ON m.leagueid = l.leagueid
-		WHERE	m.orid = @OutrightID															
+		FROM	@match_info m															
 		
 		-- CHECK IT GROUP or NOT ?   
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)

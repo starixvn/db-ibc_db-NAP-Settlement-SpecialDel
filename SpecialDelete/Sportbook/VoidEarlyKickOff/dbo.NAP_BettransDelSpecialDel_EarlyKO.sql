@@ -102,6 +102,7 @@ Revisions:
 	- 20210523@Max: NAP Special Delele - The match locked Temp Variable Number while CSD doing void [Redmine: #155648]
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+	- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -308,10 +309,16 @@ BEGIN
 
 	DECLARE @SettlementStatus TINYINT = NULL
 			,@GlobalShowTime SMALLDATETIME
+			,@sporttype SMALLINT = NULL
+			,@ParentID INT = NULL
+			,@ChildMatchType TINYINT = NULL
 
 	SELECT @eventdate = m.eventdate 
 		  ,@SettlementStatus = m.SettlementStatus 
 		  ,@GlobalShowTime = m.GlobalShowTime
+		  ,@sporttype = m.sporttype
+		  ,@ParentID = ISNULL(m.ParentID, 0)
+		  ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
 	FROM dbo.match m WITH (NOLOCK)  
 	WHERE matchid = @matchid  
 
@@ -2595,6 +2602,30 @@ BEGIN
 			  , @Action = 'Void'
 			  , @IsReleased = 1  		 
 
+		----------------Insert Max Payout Queue----------------
+		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL
+
+		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId END
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+						,CASE 
+							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+							WHEN c.site = '789y' THEN 2 --789y
+							ELSE 1 END AS '@sitetype'
+						,b.TransId AS '@transid'
+						,b.Bettype AS '@bettype'
+					FROM #BetDelete b
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					FOR XML PATH('r'), ROOT('root')
+				)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+			@MatchId = @MatchId_MaxPO
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+		-------------------------------------------------------
+		
 		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
 			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC
 

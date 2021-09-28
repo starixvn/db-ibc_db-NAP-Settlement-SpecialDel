@@ -95,6 +95,7 @@ AS
 	  - 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 	  - 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 	  - 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+	  - 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 	  - 20210820@July: Integrate Bitcoin [Redmine: #159948]
 
 	 Param's Explanation:   
@@ -278,6 +279,8 @@ BEGIN
 		,MainTransId	BIGINT
 		,IsFinish		BIT
 		,actual_stake   MONEY
+		,ParentID		INT
+		,ChildMatchType TINYINT
 		,EndTime		DATETIME
 	)
 
@@ -735,6 +738,8 @@ BEGIN
 			,isNeutral 	= ISNULL(m.IsNeutral,CAST(0 AS BIT))
 			,showtime 	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') 
 			,sporttype 	= m.sporttype
+			,ParentID	= CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
+			,ChildMatchType = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
 		FROM	#BetDelete b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -2847,6 +2852,48 @@ BEGIN
 		  , @Action = 'Void' 
 		  , @IsReleased = 1				 
 
+	 
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL, @ParentID INT= NULL, @ChildMatchType TINYINT = NULL
+	DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, ParentID INT, ChildMatchType TINYINT, IsFinish BIT)
+
+	INSERT INTO @Match_tmp (MatchId, sporttype, ParentID, ChildMatchType)
+	SELECT DISTINCT t.matchid, t.sporttype, t.ParentID, t.ChildMatchType
+	FROM #BetDelete t
+
+	WHILE (1=1)
+	BEGIN
+		SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL, @ParentID = NULL, @ChildMatchType = NULL
+		
+		UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype, @ParentID = mt.ParentID, @ChildMatchType = mt.ChildMatchType
+		FROM @Match_tmp mt
+		WHERE mt.IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,b.bettype AS '@bettype'
+				FROM #BetDelete b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId_MaxPO END
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+			@MatchId = @MatchId_MaxPO
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+	END
+	-------------------------------------------------------
+	 
 	 IF @FilterUserName IS NOT NULL
 	BEGIN
 		SELECT @LogData = 'Delete transaction by Username: '+ @FilterUserName

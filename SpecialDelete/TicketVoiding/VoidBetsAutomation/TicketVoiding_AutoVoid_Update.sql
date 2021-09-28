@@ -43,6 +43,7 @@ AS
 		- 20210106@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175] 
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 
 	Param's explanation:	
@@ -147,6 +148,7 @@ BEGIN
 		,matchid			INT
 		,oddsid				INT
 		,winlostdate		DATETIME
+		,srecommend			INT
 	)
 	
 	CREATE TABLE #tmpTransId_Recalculate (
@@ -429,15 +431,15 @@ BEGIN
 		RETURN
 	END
 	-------------DATA PREPARATION ------------
-	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, RequestID, winlostdate)
-	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
-		, tl.eventID, t.RequestID, t.Winlostdate
+	INSERT INTO #tmpTransId_VOID_RequestID(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, RequestID, winlostdate, srecommend)
+	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5
+		, tl.eventID, t.RequestID, t.Winlostdate, tl.srecommend -- Metric gaming
 	FROM	@tmpInputTransId_VOID t 
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
 
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno)
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno, srecommend)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -449,7 +451,7 @@ BEGIN
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
-			,b.matchid, b.oddsid, t.Winlostdate, b.refno
+			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -2047,6 +2049,28 @@ BEGIN
 			@Mode = 'Original'
 		  , @Action = 'Void'
 		  , @IsReleased = 1  	
+	
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = ''
+
+	SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,b.bettype AS '@bettype'
+				FROM #tmpTransId_VOID_RequestID b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+	EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+		@MatchId = @MatchId
+		,@sporttype = @sporttype
+		,@TransidList = @TransIds_MaxPO
+	-------------------------------------------------------
 
 	--Insert data for TicketVoiding_Queue
 	SET @EndTime = GETDATE()

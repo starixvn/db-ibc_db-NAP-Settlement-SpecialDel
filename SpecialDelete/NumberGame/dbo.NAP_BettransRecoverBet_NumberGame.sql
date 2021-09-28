@@ -24,6 +24,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		
 	Param's Explanation:
 */
@@ -43,7 +44,8 @@ BEGIN
 								 matchid INT, 
 								 bettype SMALLINT,
 								 winlost MONEY,
-								 status  VARCHAR(20)
+								 status  VARCHAR(20),
+								 srecommend	INT
 								 )
 								 
 	SELECT @today = convert(varchar(10), getdate(),120)
@@ -69,7 +71,8 @@ BEGIN
 			   z.matchid,
 			   z.bettype,
 			   z.winlost - b.actual_stake as winlost,
-			   z.status
+			   z.status,
+			   b.srecommend
 		FROM   #tblTransId s
 			   INNER JOIN bettrans b WITH(NOLOCK)
 					ON  b.transid = s.transid
@@ -312,7 +315,47 @@ BEGIN
 	DECLARE @UUSCust TABLE (custid int)
 	DECLARE @RealCurrCust TABLE (custid int)
 
-	 ---- get UUS customer 
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
+	DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, IsFinish BIT)
+
+	INSERT INTO @Match_tmp (MatchId, sporttype)
+	SELECT DISTINCT mt.matchid, m.sporttype
+	FROM @tblTransInfo mt
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = mt.matchid
+
+	WHILE (1=1)
+	BEGIN
+		SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL
+		
+		UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype
+		FROM @Match_tmp mt
+		WHERE mt.IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,b.bettype AS '@bettype'
+				FROM @tblTransInfo b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				WHERE b.matchid = @MatchId_MaxPO
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Recover
+			@MatchId = @MatchId_MaxPO
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+	END
+	-------------------------------------------------------
+	
+	---- get UUS customer 
 	 INSERT INTO @UUSCust(custid)
 		SELECT INF.custid 
 		FROM custDB.dbo.custinfo INF WITH(nolock) 

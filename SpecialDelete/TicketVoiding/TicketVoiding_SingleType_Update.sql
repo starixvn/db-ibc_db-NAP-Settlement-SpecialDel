@@ -39,6 +39,7 @@ AS
 		- 20210601@July: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -130,6 +131,7 @@ BEGIN
 		,winlostdate		SMALLDATETIME
 		,eventdate			DATETIME
 		,isFinish			BIT
+		,srecommend			INT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -210,10 +212,11 @@ BEGIN
 								AND q.VoidingHistoryId = @VoidingHistoryId
 						FOR XML PATH('')),1,1,'')
 
-	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, winlostdate)
+	INSERT INTO #tmpTransId(custid, bettype, KeyId, Refno, actual_stake, TicketType, matchid, winlostdate, srecommend)
 	SELECT	tl.custid, tl.gameID, 3, tl.translogid, tl.actual_stake, 5 -- Metric gaming
 		, tl.eventID
 		, tl.winlostdate
+		, tl.srecommend
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON t.TransId = tl.translogid
@@ -222,7 +225,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -236,6 +239,7 @@ BEGIN
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			,b.matchid, b.oddsid
 			,b.winlostdate, b.refno
+			,b.srecommend
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -1700,6 +1704,71 @@ BEGIN
 		  , @Action = 'Void'
 		  , @IsReleased = 1
 		  
+	----------------Insert Max Payout Queue----------------
+	DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
+	DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, IsFinish BIT)
+
+	IF @IssueTypeId = 13
+	BEGIN
+		INSERT INTO @Match_tmp (MatchId, sporttype)
+		SELECT DISTINCT t.matchid, t.sporttype
+		FROM #tmpTransId t
+
+		WHILE (1=1)
+		BEGIN
+			SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL
+		
+			UPDATE TOP(1) mt SET mt.isFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype
+			FROM @Match_tmp mt
+			WHERE mt.isFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+						,CASE 
+							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+							WHEN c.site = '789y' THEN 2 --789y
+							ELSE 1 END AS '@sitetype'
+						,b.TransId AS '@transid'
+						,b.bettype AS '@bettype'
+					FROM #tmpTransId b
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
+					FOR XML PATH('r'), ROOT('root')
+				)
+
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+				@MatchId = @MatchId_MaxPO
+				,@sporttype = @sporttype
+				,@TransidList = @TransIds_MaxPO
+		END
+	END
+	ELSE
+	BEGIN
+		SET @sporttype = (SELECT DISTINCT m.sporttype FROM #tmpTransId m WITH (NOLOCK) WHERE m.matchid = @MatchID)
+
+		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+					,CASE 
+						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+						WHEN c.site = '789y' THEN 2 --789y
+						ELSE 1 END AS '@sitetype'
+					,b.TransId AS '@transid'
+					,b.bettype AS '@bettype'
+				FROM #tmpTransId b
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+				WHERE b.matchid = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
+				FOR XML PATH('r'), ROOT('root')
+			)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Void
+			@MatchId = @MatchId
+			,@sporttype = @sporttype
+			,@TransidList = @TransIds_MaxPO
+	END
+	-------------------------------------------------------
+	
 	-- get negative balance user list
 	SET @CustIds = ''
 	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
