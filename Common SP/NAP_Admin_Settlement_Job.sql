@@ -14,6 +14,7 @@ AS
 	Revision:
 		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
 		- 20201019@Louisa: Implement for 11 Jobs
+		- 20210921@Max: Add new job CustLimitBet Max Payout [Redmine: #158846]
 
 */
 /*
@@ -106,6 +107,9 @@ BEGIN
 
 		ELSE IF (@Jobname = 'bodb02: Ticket Voiding')
 			EXEC dbo.TicketVoiding_Queue_Job
+
+		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match')
+			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Job
 
 		IF DATEDIFF(SECOND, @startDate, GETDATE() ) >= 600 -- loop within 10 minutes
 			BREAK
