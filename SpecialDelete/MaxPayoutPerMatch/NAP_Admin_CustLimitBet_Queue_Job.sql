@@ -7,6 +7,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210928@Max: HotFix Issue Max Payout - [Redmine: #158846]
 	
 	Param's explanation:	
 		
@@ -34,6 +35,9 @@ BEGIN
 	
 	WHILE(1=1)
 	BEGIN
+		SELECT	@ErrCode = 0
+				,@ErrMsg = ''
+
 		UPDATE TOP (1) t
 		SET t.IsFinished = 1
 			, @QueueId = t.QueueId
@@ -46,7 +50,7 @@ BEGIN
 		
 		IF @@ROWCOUNT = 0 
 			BREAK
-		
+
 		UPDATE	q  WITH(ROWLOCK, UPDLOCK)
 			SET Exectime = GETDATE()
 		FROM	dbo.CustLimitBetQueue q
