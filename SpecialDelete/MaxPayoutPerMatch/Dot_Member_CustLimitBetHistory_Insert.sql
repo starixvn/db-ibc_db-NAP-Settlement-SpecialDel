@@ -32,7 +32,7 @@ BEGIN
 	END
 
 	IF (@sporttype > 99 AND @sporttype NOT IN (164,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
-		OR (@bettype IN(29, 2799, 38)) OR (@bettype BETWEEN 801 AND 806)
+		OR (@bettype IN(2799)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END

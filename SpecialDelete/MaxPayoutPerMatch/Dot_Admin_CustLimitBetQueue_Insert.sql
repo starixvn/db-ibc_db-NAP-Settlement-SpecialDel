@@ -3,7 +3,6 @@ CREATE PROCEDURE [dbo].[Dot_Admin_CustLimitBetQueue_Insert]
 (
 	@MatchId			INT
 	,@RejectList		VARCHAR(MAX)
-	,@EventTypeID		TINYINT = NULL
 )
 AS
 /*	
@@ -20,8 +19,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
-	SELECT @MatchId, ISNULL(@EventTypeID, 0), @RejectList, 2, 0, GETDATE()
+	INSERT INTO dbo.CustLimitBetQueue (MatchId, Transids, ActionID, Statusid, CreatedDate)
+	SELECT @MatchId, @RejectList, 2, 0, GETDATE()
 END
 GO
 	
