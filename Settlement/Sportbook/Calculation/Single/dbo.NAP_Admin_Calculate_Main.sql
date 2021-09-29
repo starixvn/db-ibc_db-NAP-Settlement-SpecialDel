@@ -68,7 +68,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@oddstype						TINYINT		= NULL
 	,@isMarked						BIT			= NULL
 	,@modds							SMALLMONEY	= NULL
-	,@RunOnServer					VARCHAR(100) = NULL
+	,@RunOnServer					VARCHAR(100)= NULL
+	,@isCashout						BIT			= 0
 
 AS
 /*
@@ -140,6 +141,7 @@ AS
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210416@Kathy: - Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 						  - Remove unused param matchCode
+		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]				  
 
     Param's Explanation:
         @action             @mode
@@ -270,6 +272,7 @@ BEGIN
 			+ CASE WHEN @isMarked IS NULL THEN '' ELSE ',@isMarked = ' + CONVERT(NVARCHAR(50), @isMarked) END
 			+ CASE WHEN @modds IS NULL THEN '' ELSE ',@modds = ' + CONVERT(NVARCHAR(50), @modds) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+			+ CASE WHEN @isCashout IS NULL THEN '' ELSE ',@isCashout = ' + CONVERT(NVARCHAR(50),@isCashout,0) END
             + ',@CalledByBrokerService = 1'
 
         EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -297,17 +300,27 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				IF @action LIKE 'CAL%'
+				IF @action LIKE 'CAL%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_TransID
 						  @transIds   		= @strTransIds
 
-				IF @action LIKE 'REFUND%'
+				IF @action LIKE 'REFUND%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Refund_TransID
 						   @transIds   		= @strTransIds
 	                  
-				IF @action LIKE 'UNDO%'
+				IF @action LIKE 'UNDO%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Undo_TransID
 						   @transIds   		= @strTransIds
+				
+				IF @sporttype = 2 AND @isCashout =  1 
+				BEGIN
+					 EXEC dbo.NAP_Admin_Calculate_911
+						@matchid        = @matchid
+						,@action        = @action
+						,@mode          = @mode
+						,@strBettypes   = @strBettypes
+						,@ResourceIDs   = @strBettypes
+				END	
 			END
 	        RETURN
         END 
