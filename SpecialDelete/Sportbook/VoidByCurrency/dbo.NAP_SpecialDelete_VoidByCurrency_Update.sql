@@ -1,5 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update] 
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
+(
 	@MatchID			INT = 0,
 	@LicenseeNames		VARCHAR(MAX),
 	@CurrencyIDs		VARCHAR(MAX),
@@ -10,11 +11,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 	@UserPassword		NVARCHAR(50),  
 	@Reason				NVARCHAR(500) = '',  
 	@ReasonSC			NVARCHAR(500) = '',
-	@IP					VARCHAR(15)  = '',  
+	@IP					VARCHAR(15)  = '',
+	@IsOutright			BIT = 0,
 	@ErrorMsg			NVARCHAR(200) = '' OUTPUT,  
 	@ErrorCode			INT  = 0  OUTPUT,
 	@InvalidTransIds	VARCHAR(MAX) = '' OUTPUT, -- invalid trans of BTrade
 	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT
+)
 AS
 /*
 	Created: Kent
@@ -56,6 +59,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210827@Max: [TVS] Support Outright on Void By Currency [Redmine: #159540]
 			
 	Param's Explanation:
 */
@@ -82,6 +86,7 @@ BEGIN
 				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
 				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @IsOutright IS NULL THEN '' ELSE ',@IsOutright = ''' + CONVERT(NVARCHAR(50), @IsOutright) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
@@ -104,14 +109,37 @@ BEGIN
 		   ,@sporttype SMALLINT = NULL
 		   ,@ParentID INT = NULL
 		   ,@ChildMatchType TINYINT = NULL
+		   ,@HomeId				INT
+		   ,@AwayId				INT
+		   ,@IsNeutral		BIT
 
-	SELECT @SettlementStatus = m.SettlementStatus
-		  ,@GlobalShowTime = m.GlobalShowTime
-		  ,@Eventdate = m.eventdate
+	IF @IsOutright = 0
+	BEGIN
+		SELECT @SettlementStatus = m.SettlementStatus
+			  ,@GlobalShowTime = m.GlobalShowTime
+			  ,@Eventdate = m.eventdate
 		  ,@sporttype = m.sporttype
 		  ,@ParentID = ISNULL(m.ParentID, 0)
 		  ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
-	FROM dbo.match m WHERE m.matchid = @MatchId
+			  ,@HomeId = m.homeid
+			  ,@AwayId = m.awayid
+			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+		FROM dbo.match m WHERE m.matchid = @MatchId
+	END
+	ELSE
+	BEGIN
+		SELECT @SettlementStatus = NULL
+			  ,@GlobalShowTime = NULL
+			  ,@Eventdate = o.eventdate
+			  ,@HomeId = o.teamid
+			  ,@AwayId = 0
+			  ,@IsNeutral = 0
+			  ,@Sporttype = l.sporttype
+		FROM dbo.outright o WITH (NOLOCK)
+			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
+		WHERE o.orid = @MatchId
+			
+	END
 
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -145,6 +173,7 @@ BEGIN
 		  , @AvaiableProcess	BIT = 1	
 		  , @isExistBT			BIT = 0 
 		  , @isExistCashOut		BIT = 0
+		  ,@isExistOutright		BIT = 0
 		  
 	DECLARE @CustIds_BT_CashOut VARCHAR(MAX) = ''	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
@@ -486,7 +515,7 @@ BEGIN
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
-					m.AwayId,
+					@AwayId,
 					b.BetCheck,
 					b.BetId,
 					b.BetTeam,
@@ -496,16 +525,16 @@ BEGIN
 					b.Creator,
 					b.Hdp1,
 					b.Hdp2,
-					m.HomeId,
+					@HomeId,
 					b.LiveIndicator AS IsLiveIndicator,
-					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
+					@IsNeutral,
 					b.LiveAwayScore,
 					b.LiveHomeScore,
 					b.Odds,	
 					b.Oddsspread,
 					b.OddsType,
 					b.RefNo,
-					m.SportType,
+					@Sporttype,
 					b.status AS STATUS,
 					b.TransDate,
 					b.TransDesc,
@@ -547,9 +576,7 @@ BEGIN
 						 ON b.recommend = c.custid
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
-				 INNER JOIN match m WITH (NOLOCK)
-						 ON b.matchid = m.matchid
-			WHERE m.sporttype BETWEEN 1 AND 99 -- sportbook only				
+			WHERE @Sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
 				AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket
@@ -633,7 +660,7 @@ BEGIN
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
-						m.AwayId,
+						@AwayId,
 						b.BetCheck,
 						b.BetId,
 						b.BetTeam,
@@ -643,15 +670,15 @@ BEGIN
 						b.Creator,					
 						b.Hdp1,
 						b.Hdp2,
-						m.HomeId,
+						@HomeId,
 						b.LiveIndicator AS IsLiveIndicator,
-						ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+						@IsNeutral,					
 						b.LiveAwayScore,
 						b.LiveHomeScore,
 						b.Odds,					
 						b.OddsType,
 						b.RefNo,
-						m.SportType,
+						@Sporttype,
 						b.status AS STATUS,
 						b.TransDate,
 						b.TransDesc,
@@ -702,8 +729,6 @@ BEGIN
 							 ON b.recommend = c.custid
 					 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
 							 ON tl.LicenseeName = c.site
-					 INNER JOIN match m WITH (NOLOCK)
-							 ON b.matchid = m.matchid
 				WHERE b.statusID NOT IN (101,102,103) -- reject, void, refund
 			END
 			
@@ -1343,7 +1368,7 @@ BEGIN
 						ActualStake
 					)
 			SELECT  main.Stake,
-					m.AwayId,
+					@AwayId,
 					main.BetCheck,
 					main.BetId,
 					main.BetTeam,
@@ -1353,16 +1378,16 @@ BEGIN
 					main.Creator,					
 					main.Hdp1,
 					main.Hdp2,
-					m.HomeId,
+					@HomeId,
 					sub.LiveIndicator AS IsLiveIndicator,
-					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,					
+					@IsNeutral,					
 					sub.LiveAwayScore,
 					sub.LiveHomeScore,
 					main.Odds,
 					main.Oddsspread,					
 					main.OddsType,
 					main.RefNo,
-					m.SportType,
+					@Sporttype,
 					main.status AS STATUS,
 					main.transdate AS TransDate,
 					main.transdesc AS TransDesc,
@@ -1393,8 +1418,6 @@ BEGIN
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
-				 INNER JOIN match m WITH (NOLOCK)
-						 ON sub.matchid = m.matchid
 				
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
 					     ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
@@ -1405,7 +1428,7 @@ BEGIN
 			WHERE main.matchid =29 AND main.bettype = 29 -- parlay
 				AND main.statusID NOT IN (101, 102) -- reject, void				
 				AND main.betfrom <> 'P' -- exclude phone betting
-				AND m.sporttype BETWEEN 1 AND 99 -- sportbook only				
+				AND @Sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND sub.matchid = @matchid -- filer for @MatchID
 				AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND sub.betfrom <> 'P' -- exclude phone betting	
@@ -1439,10 +1462,11 @@ BEGIN
 			IF @CountSingle > 0
 			BEGIN
 
-				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype <> 38 AND f.GroupID IS NULL THEN 1 ELSE 0 END)  
+				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype NOT IN (38, 10) AND f.GroupID IS NULL THEN 1 ELSE 0 END)  
 					,@isExistFM = MAX(CASE WHEN f.GroupID = 1 THEN 1 ELSE 0 END)
 					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
 					,@isExistFM2 = MAX(CASE WHEN f.GroupID = 2 THEN 1 ELSE 0 END)
+					,@isExistOutright 	= MAX (CASE WHEN b.BetType = 10 THEN 1 ELSE 0 END)
 				FROM #SpecialDeleteBets_Single b
 					OUTER APPLY (
 								SELECT GroupId
@@ -1458,6 +1482,8 @@ BEGIN
 				SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
 				UNION ALL
 				SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
+				UNION ALL
+				SELECT @MatchID AS matchid, 2 AS KeyID WHERE @isExistOutright = 1
 			END
 			
 			IF @CountParlay > 0
@@ -1485,6 +1511,7 @@ BEGIN
 						, @isExistFM		= @isExistFM				
 						, @isExistBB		= @isExistBB
 						, @isExistFM2		= @isExistFM2
+						, @isExistOutright  = @isExistOutright
 						, @spName			= @spName
 						, @avaiableProcess  = @avaiableProcess OUTPUT  
 						, @ErrCode			= @ErrorCode OUTPUT  
@@ -1520,6 +1547,7 @@ BEGIN
 							,@isExistFM		= @isExistFM		
 							,@isExistBB		= @isExistBB		
 							,@isExistFM2	= @isExistFM2
+							,@isExistOutright = @isExistOutright
 							,@IsReleased	= 1	
 										
 						-------> releasing cash-out process
@@ -1541,6 +1569,7 @@ BEGIN
 					, @IsExistParlay	= @IsExistParlay
 					, @isExistBB		= @isExistBB
 					, @isExistFM2		= @isExistFM2
+					, @isExistOutright  = @isExistOutright
 					, @spName			= @spName
 					, @avaiableProcess 	= @AvaiableProcess OUTPUT
 					, @ErrCode			= @ErrorCode OUTPUT
@@ -1585,6 +1614,7 @@ BEGIN
 							,@isExistFM		= @isExistFM		
 							,@isExistBB		= @isExistBB		
 							,@isExistFM2	= @isExistFM2
+							,@isExistOutright  = @isExistOutright
 							,@IsReleased	= 1
 					END
 					
@@ -1607,6 +1637,7 @@ BEGIN
 						,@isExistBB		= @isExistBB		
 						,@isExistParlay	= @isExistParlay
 						,@isExistFM2	= @isExistFM2
+						,@isExistOutright  = @isExistOutright
 
 				END
 				-------> releasing cash-out process
@@ -2327,6 +2358,7 @@ BEGIN
 					,@isExistFM		= @isExistFM		
 					,@isExistBB		= @isExistBB		
 					,@isExistFM2	= @isExistFM2
+					,@isExistOutright  = @isExistOutright
 					,@IsReleased	= 1
 			END
 			
@@ -2350,6 +2382,7 @@ BEGIN
 				,@isExistBB		= @isExistBB		
 				,@isExistParlay	= @isExistParlay
 				,@isExistFM2	= @isExistFM2
+				,@isExistOutright  = @isExistOutright
 		END
 			
 		-------> releasing cash-out process
