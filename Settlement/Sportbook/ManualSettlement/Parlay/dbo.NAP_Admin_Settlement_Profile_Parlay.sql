@@ -17,6 +17,7 @@ AS
 
 	Revisions:
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -46,6 +47,8 @@ BEGIN
 			,@strMainTransIds		VARCHAR(MAX)	= ''
 			,@strMainTransIdRefnos	VARCHAR(MAX) = ''			
 			,@totalMainParlay		INT
+			
+	DECLARE @ActionId_MaxPO TINYINT, @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
 	DECLARE @tmpMainTransIdBatch TABLE (TransId BIGINT, Refno BIGINT)
 	DECLARE @tmpSubTransIdBatch TABLE (TransId BIGINT, Refno BIGINT, modds MONEY, IsMarked BIT DEFAULT(0))
@@ -267,7 +270,7 @@ BEGIN
 									AND bm.statusID IN (1,101)
 						)
 	
-		SELECT	transid, refno, 0 AS IsFinished
+		SELECT	transid, refno, 0 AS IsFinished, ruben, custid
 			INTO #tmpMainTransId
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = 29
@@ -297,6 +300,14 @@ BEGIN
 			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 			VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start running CAL-29')
 
+			
+			--Prepare for Max Payout
+			SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
+										,t.ruben AS '@ruben'
+										,t.TransId AS '@transid'
+									FROM #tmpMainTransId t
+									FOR XML PATH('r'), ROOT('root')
+								)
 			-- update summary info back to bettrans
 			WHILE (1=1)
 			BEGIN
@@ -342,6 +353,13 @@ BEGIN
 					INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
 				GROUP BY b.custid
 			END
+
+			--Insert Max Payout Queue
+			SET @ActionId_MaxPO = CASE WHEN @Action LIKE 'CAL%' THEN 4 ELSE 5 END
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= 29
+				,@ActionId = @ActionId_MaxPO
+				,@TransidList = @MainParlay_MaxPO
 		END
 	END TRY
 	BEGIN CATCH
