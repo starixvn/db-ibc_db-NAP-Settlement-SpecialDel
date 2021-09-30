@@ -25,6 +25,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 	Param's Explanation:			
 			- @BetType:
@@ -54,6 +55,7 @@ BEGIN
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
 	DECLARE @tblRecoverBet TABLE (
 		 RowNumber				BIGINT IDENTITY(1, 1) PRIMARY KEY
@@ -97,7 +99,8 @@ BEGIN
 		,betfrom				NVARCHAR(1)		
 		,betcheck				NVARCHAR(50)
 		,ExtraInfo				VARCHAR(1000)
-		,ActualStake			MONEY		
+		,ActualStake			MONEY
+		,ruben					TINYINT
 	)	
 	
 	CREATE TABLE #tblMainTicket 
@@ -106,7 +109,8 @@ BEGIN
 	   ,refno		BIGINT	   
 	   ,StatusId	TINYINT	   
 	   ,custid		INT
-	   ,balance		MONEY	   
+	   ,balance		MONEY	 
+	   ,ruben		TINYINT
 	)
 	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 	
@@ -238,7 +242,8 @@ BEGIN
 				,betfrom				
 				,betcheck
 				,ExtraInfo
-				,ActualStake)
+				,ActualStake
+				,ruben)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
 				,bm.odds AS SubOdds
@@ -278,7 +283,8 @@ BEGIN
 				,b.betfrom AS betfrom				 
 				,b.betcheck AS betcheck
 				,b.ExtraInfo
-				,b.actual_stake AS ActualStake				
+				,b.actual_stake AS ActualStake
+				,b.ruben
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid
@@ -325,12 +331,14 @@ BEGIN
 								 , refno								 
 								 , StatusId								 
 								 , custid
-								 , balance)
+								 , balance
+								 , ruben)
 		SELECT t.transid
 			 , t.refno			 
 			 , t.StatusId			 
 			 , t.custid
-			 , t.balance			 
+			 , t.balance
+			 , t.ruben
 		FROM @tblRecoverBet t		
 		
 		--> capture list of settled main transIDs before do recover
@@ -346,6 +354,14 @@ BEGIN
 		FROM #tblMainTicket t					
 		GROUP BY t.CustID
 				  
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #tblMainTicket t
+								GROUP BY custid, ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
 		--> Do recover
 		-- for bettransM
 		SET @RowNumber = 0
@@ -386,6 +402,12 @@ BEGIN
 			@matchdate = @MatchDate
 			,@strXML	= @refnos_29  -- main transid + refno: refno|transid,refno|transid...
 			,@mode		= '29' 
+		
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@ActionId = 3
+			,@TransidList = @MainParlay_MaxPO
 		
 		--> capture @tblAfterBalance
 		INSERT INTO @tblAfterBalance (custid, balance)

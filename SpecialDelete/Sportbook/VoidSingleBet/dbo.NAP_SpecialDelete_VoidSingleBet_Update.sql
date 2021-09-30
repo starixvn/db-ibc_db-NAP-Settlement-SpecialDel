@@ -113,6 +113,7 @@ AS
 		- 20210727@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -196,6 +197,8 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
 
+	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
+	
 	DECLARE @session			NVARCHAR(50)
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0
@@ -290,7 +293,9 @@ BEGIN
 		FilterHdp1		 	SMALLMONEY,
         FilterHdp2		 	SMALLMONEY,
 		FilterOddsSpread	MONEY,
-		ActualStake			MONEY
+		ActualStake			MONEY,
+		main_ruben				TINYINT,
+		main_custId			INT
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -996,6 +1001,8 @@ BEGIN
 				,FilterOddsSpread
 				,ExtraInfo
 				,ActualStake
+				,main_ruben
+				,main_custId
 			)
 			SELECT
 				b.transid,
@@ -1045,7 +1052,9 @@ BEGIN
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
 				CASE WHEN b.bettype = 229 THEN ABS(bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
 				b.ExtraInfo,
-				b.actual_stake AS ActualStake
+				b.actual_stake AS ActualStake,
+				b.ruben,
+				b.custid
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
@@ -2182,6 +2191,16 @@ BEGIN
 				WHERE b.matchid = 29 AND b.bettype = 29  
 				GROUP BY b.CustID  
 
+				--Prepare for Max Payout
+				SELECT @MainParlay_MaxPO = (SELECT t.main_custId AS '@custid'
+									,t.main_ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #BetDelete t
+								WHERE bettype = 29
+								GROUP BY main_custId, main_ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
+
 				--Settlement System parlay (changed balance)  
 				BEGIN TRY  
 					SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
@@ -2294,6 +2313,7 @@ BEGIN
 					FROM #BetDelete b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					WHERE bettype NOT IN (29,2799)
 					FOR XML PATH('r'), ROOT('root')
 				)
 
@@ -2301,6 +2321,15 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+
+		IF @MainParlay_MaxPO IS NOT NULL
+		BEGIN
+			--Insert Max Payout Queue
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= 29
+				,@ActionId = 1
+				,@TransidList = @MainParlay_MaxPO
+		END
 		-------------------------------------------------------
 		IF(@FromTransId > 0)
 		BEGIN

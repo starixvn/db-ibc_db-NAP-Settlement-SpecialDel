@@ -26,6 +26,7 @@ AS
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 	Param's explanation:	
 		
@@ -42,6 +43,8 @@ BEGIN
 			,@Session			NVARCHAR(50)
 		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
 		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+
+	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
 	DECLARE @avaiableProcess BIT
 			,@MatchDate DATETIME
@@ -64,7 +67,7 @@ BEGIN
 	CREATE TABLE #BeforeUpd (custid INT, balance MONEY)  
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	CREATE TABLE #tmpSubTransId (RowId INT IDENTITY(1,1), TransId BIGINT, Refno BIGINT)
-	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT)
+	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT, ruben TINYINT, CustId INT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	SET @StartTime = GETDATE()
@@ -258,8 +261,8 @@ BEGIN
 		SET @RowId = @RowId + 100
 	END
 
-	INSERT INTO #tmpMainTransId(TransId, Refno)
-	SELECT	DISTINCT b.transid, b.refno
+	INSERT INTO #tmpMainTransId(TransId, Refno, CustId, ruben)
+	SELECT	DISTINCT b.transid, b.refno, b.custid, b.ruben
 	FROM	#tmpSubTransId t
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.Refno = b.refno
@@ -283,11 +286,29 @@ BEGIN
 			ON t.TransId = b.transid
 	GROUP BY b.custid
 	
+	--Prepare for Max Payout
+	SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
+								,t.ruben AS '@ruben'
+								,t.TransId AS '@transid'
+							FROM #tmpMainTransId t
+							GROUP BY CustId, ruben, TransId
+							FOR XML PATH('r'), ROOT('root')
+						)
+	
 	EXEC dbo.NAP_Admin_Calculate_MP_broker   
 		@matchdate = @matchdate  
 		,@strXML = @strRefno  
 		,@mode  = '29'  
 
+	IF @MainParlay_MaxPO IS NOT NULL
+	BEGIN
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@ActionId = 1
+			,@TransidList = @MainParlay_MaxPO
+	END
+	
 	INSERT INTO #AfterUpd(custid, balance)
 	SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 	FROM	#tmpMainTransId t

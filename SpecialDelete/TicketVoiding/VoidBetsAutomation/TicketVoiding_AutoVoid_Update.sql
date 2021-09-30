@@ -45,6 +45,7 @@ AS
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 	Param's explanation:	
 		
@@ -79,6 +80,8 @@ BEGIN
 			,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@totalMainParlay	INT = 0
 
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
+	
 	DECLARE @avaiableProcess BIT
 			,@isExistMatch BIT
 			,@xmlTransId VARCHAR(MAX)
@@ -149,6 +152,7 @@ BEGIN
 		,oddsid				INT
 		,winlostdate		DATETIME
 		,srecommend			INT
+		,ruben				TINYINT
 	)
 	
 	CREATE TABLE #tmpTransId_Recalculate (
@@ -172,6 +176,7 @@ BEGIN
 		,matchid			INT
 		,oddsid				INT
 		,winlostdate		DATETIME
+		,ruben				TINYINT
 	)
 	
 	DECLARE @tmpTransIDBatch TABLE (
@@ -439,7 +444,7 @@ BEGIN
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
 
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno, srecommend)
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -451,7 +456,7 @@ BEGIN
 				ELSE 1 END AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
-			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend
+			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend,b.ruben
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -461,7 +466,7 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	
-	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno)
+	INSERT INTO #tmpTransId_Recalculate(TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -472,7 +477,7 @@ BEGIN
 				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
 				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
 				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate, b.refno
+			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate, b.refno, b.ruben
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -2062,7 +2067,8 @@ BEGIN
 					,b.bettype AS '@bettype'
 				FROM #tmpTransId_VOID_RequestID b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid		
+				WHERE b.bettype NOT IN (29,2799)
 				FOR XML PATH('r'), ROOT('root')
 			)
 
@@ -2070,6 +2076,41 @@ BEGIN
 		@MatchId = @MatchId
 		,@sporttype = @sporttype
 		,@TransidList = @TransIds_MaxPO
+	
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID WHERE bettype = 29)
+	BEGIN
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #tmpTransId_VOID_RequestID t
+								GROUP BY custid, ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@ActionId = 1
+			,@TransidList = @MainParlay_MaxPO
+	END
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate WHERE bettype = 29)
+	BEGIN
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #tmpTransId_Recalculate t
+								GROUP BY custid, ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@ActionId = 4
+			,@TransidList = @MainParlay_MaxPO
+	END
+
 	-------------------------------------------------------
 
 	--Insert data for TicketVoiding_Queue

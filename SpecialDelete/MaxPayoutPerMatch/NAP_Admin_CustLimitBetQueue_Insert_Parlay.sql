@@ -2,6 +2,7 @@
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBetQueue_Insert_Parlay]
 (
 	@MatchId		INT	
+	,@ActionId		TINYINT
 	,@TransidList	VARCHAR(MAX)
 	,@Mode			VARCHAR(50) = NULL 
 )
@@ -64,7 +65,7 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = tmp.transid
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = tmp.custid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON c.srecommend = dp.custid
-	WHERE tmp.ruben <> b.ruben
+	WHERE tmp.ruben <> b.ruben 
 		AND dp.custid IS NULL --Not support deposit in this phase
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 
