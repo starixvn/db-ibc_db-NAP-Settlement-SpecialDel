@@ -12,7 +12,7 @@ AS
 		- 20210920@Louisa:	Delete ResultDetail/ProviderExternalResultDetailES - [Redmine:#161455]
 	
 	Param's Explanation: 
-		- SP test execrep local DB206, 215, db233\sqlserver2008R2 : QC_Local_ExecRep10
+		- SP test execrep local DB206, 215, DB234, db233\sqlserver2008R2 : QC_Local_ExecRep10
 		
 */
 BEGIN;
