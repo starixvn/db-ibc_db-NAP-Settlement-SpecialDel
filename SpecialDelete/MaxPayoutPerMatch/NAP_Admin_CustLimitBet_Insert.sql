@@ -183,7 +183,7 @@ BEGIN
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
 					)tmpsum
 					WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-					GROUP BY tmpsum.MatchId, tmpsum.CustId
+					GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 				)tmp
 
 			IF @ActionId IN (1,3,4,5) 
@@ -195,7 +195,7 @@ BEGIN
 					, t1.EventTypeID
 				FROM #CustLimitBet_tmp t
 					INNER JOIN dbo.CustLimitBetHistory_MBC t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
-				GROUP BY t.Matchid, t.CustId, t.transid
+				GROUP BY t.Matchid, t.CustId, t.transid, t1.EventTypeID
 			END
 			
 		END
@@ -216,7 +216,7 @@ BEGIN
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
 					)tmpsum
 					WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-					GROUP BY tmpsum.MatchId, tmpsum.CustId
+					GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
 				)tmp
 
 			IF @ActionId IN (1,3,4,5) 
@@ -228,7 +228,7 @@ BEGIN
 					, t1.EventTypeID
 				FROM #CustLimitBet_789 t
 					INNER JOIN dbo.CustLimitBetHistory_789 t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
-				GROUP BY t.Matchid, t.CustId, t.transid
+				GROUP BY t.Matchid, t.CustId, t.transid, t1.EventTypeID
 			END
 		END
 	END TRY
