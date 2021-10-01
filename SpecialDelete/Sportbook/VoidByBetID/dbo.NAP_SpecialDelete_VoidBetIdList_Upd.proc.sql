@@ -97,6 +97,7 @@ AS
 	  - 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 	  - 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 	  - 20210820@July: Integrate Bitcoin [Redmine: #159948]
+	  - 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
 
 	 Param's Explanation:   
 	*/
@@ -1994,7 +1995,7 @@ BEGIN
 		 , custid
 		 , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
+				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		   END AS balanceType
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
@@ -2110,7 +2111,7 @@ BEGIN
 		   , CustID
 		   , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
+				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		     END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
@@ -2627,7 +2628,7 @@ BEGIN
 		 , custid
 		 , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
+				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		   END AS balanceType
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
@@ -2725,7 +2726,7 @@ BEGIN
 		   , CustID
 		   , CASE 
 				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype IN (162, 175) THEN 3 -- Casino, Bitcoin
+				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 			 END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END

@@ -13,7 +13,8 @@ AS
 	
 	Revisions:
 		- 20210908@July: Integrate Bitcoin Re-cal match - [Redmine:#159714]
-		
+		- 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
+
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
 		
@@ -33,8 +34,8 @@ BEGIN
 	CREATE TABLE #Balance (custid INT, balance MONEY, Increased BIT)
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 
-	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList
+	DECLARE @tblDebitOthersPending TVP_BalanceList
+	DECLARE @tblCreditOthersPending TVP_BalanceList
 	
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
@@ -111,25 +112,25 @@ BEGIN
 					AND a.gametypeid = b.gametypeid
 		WHERE	b.balance <> a.balance
 	
-		INSERT INTO @tblDebitPending (custID, balance)
+		INSERT INTO @tblDebitOthersPending (custID, balance)
 		SELECT	custid, ABS(balance)
 		FROM	#Balance
 		WHERE	Increased = 0
 		
 		IF @@rowcount <> 0
 			EXEC dbo.Dot_BalancePendingDebitIns 
-				@BalancePending = @tblDebitPending
-				,@Type			= 1 
+				@BalancePending = @tblDebitOthersPending
+				,@Type			= 4 
 		
-		INSERT INTO @tblCreditPending (custID, balance)
+		INSERT INTO @tblCreditOthersPending (custID, balance)
 		SELECT	custid, balance
 		FROM	#Balance
 		WHERE	Increased = 1
 		
 		IF @@rowcount <> 0
 			EXEC dbo.Dot_BalancePendingCreditIns 
-				@BalancePending = @tblCreditPending
-				,@Type			= 1 
+				@BalancePending = @tblCreditOthersPending
+				,@Type			= 4
 	
 		---insert data into pending balance game table 
 		INSERT INTO BalancePendingCreditGame (
