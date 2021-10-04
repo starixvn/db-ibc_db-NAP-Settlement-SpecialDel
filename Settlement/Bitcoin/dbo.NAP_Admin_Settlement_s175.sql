@@ -17,6 +17,7 @@ AS
 	
 	Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
+		- 20210930@Kathy: Change BalanceType  [Redmine:#159714]
 		
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -192,103 +193,101 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = @action
 			   ,@strTransIds		 = @strTransIds
-		END
-
-		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
-		SELECT	custid
-				,SUM(winlost - actual_stake + playercomm)
-				,SUM(CASE 
-						WHEN ruben = 1 THEN winlost - actual_stake 
-						ELSE 0
-					END) AS winlost
-				,winlostdate
-				,bettype
-		FROM	dbo.bettrans bt WITH (ROWLOCK)
-			INNER JOIN #tmpTransId t
-				ON bt.transid = t.transid
-		WHERE matchid = @matchid 
-				AND bt.bettype = @bettype
-		GROUP BY custid, winlostdate, bettype
-		
-		INSERT INTO #Balance
-		SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-		FROM	#BalanceBefore b
-			INNER JOIN #BalanceAfter a 
-				ON	b.custid = a.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
-		WHERE	b.balance <> a.balance
-	
-		INSERT INTO @tblDebitPending (custID, balance)
-		SELECT	custid, ABS(balance)
-		FROM	#Balance
-		WHERE	Increased = 0
-		
-		IF @@rowcount <> 0
-			EXEC dbo.Dot_BalancePendingDebitIns 
-				@BalancePending = @tblDebitPending
-				,@Type			= 1 
-		
-		INSERT INTO @tblCreditPending (custID, balance)
-		SELECT	custid, balance
-		FROM	#Balance
-		WHERE	Increased = 1
-		
-		IF @@rowcount <> 0
-			EXEC dbo.Dot_BalancePendingCreditIns 
-				@BalancePending = @tblCreditPending
-				,@Type			= 1 
-	
-		---insert data into pending balance game table 
-		INSERT INTO BalancePendingCreditGame (
-			custid
-			,winlostdate
-			,balance
-			,bettype
-			,GameTypeID
-			)
-		SELECT a.custid
-			,a.winlostdate
-			,(a.winlost - b.winlost) AS Balance
-			,@bettype
-			,a.gametypeid
-		FROM #BalanceBefore b
-			INNER JOIN #BalanceAfter a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
-		WHERE (a.winlost - b.winlost) > 0
-	
-		INSERT INTO BalancePendingDebitGame (
-			custid
-			,winlostdate
-			,balance
-			,bettype
-			,GameTypeID
-			)
-		SELECT a.custid
-			,a.winlostdate
-			,ABS(a.winlost - b.winlost) AS Balance
-			,@bettype
-			,a.gametypeid
-		FROM #BalanceBefore b
-			INNER JOIN #BalanceAfter a 
-				ON	a.custid = b.custid
-					AND a.winlostdate = b.winlostdate
-					AND a.gametypeid = b.gametypeid
-		WHERE (a.winlost - b.winlost) < 0
-		
-		DROP TABLE #Balance
-		DROP TABLE #BalanceBefore
-		DROP TABLE #BalanceAfter
-		
-	
+		END	
 	END TRY
 	BEGIN CATCH
 		SELECT	@ErrCode = ERROR_NUMBER()
 				,@ErrMsg = ERROR_MESSAGE()
 				
 	END CATCH
+
+	INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
+	SELECT	custid
+			,SUM(winlost - actual_stake + playercomm)
+			,SUM(CASE 
+					WHEN ruben = 1 THEN winlost - actual_stake 
+					ELSE 0
+				END) AS winlost
+			,winlostdate
+			,bettype
+	FROM	dbo.bettrans bt WITH (ROWLOCK)
+		INNER JOIN #tmpTransId t
+			ON bt.transid = t.transid
+	WHERE matchid = @matchid 
+			AND bt.bettype = @bettype
+	GROUP BY custid, winlostdate, bettype
+		
+	INSERT INTO #Balance
+	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
+	FROM	#BalanceBefore b
+		INNER JOIN #BalanceAfter a 
+			ON	b.custid = a.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
+	WHERE	b.balance <> a.balance
+	
+	INSERT INTO @tblDebitPending (custID, balance)
+	SELECT	custid, ABS(balance)
+	FROM	#Balance
+	WHERE	Increased = 0
+		
+	IF @@rowcount <> 0
+		EXEC dbo.Dot_BalancePendingDebitIns 
+			@BalancePending = @tblDebitPending
+			,@Type			= 4 
+		
+	INSERT INTO @tblCreditPending (custID, balance)
+	SELECT	custid, balance
+	FROM	#Balance
+	WHERE	Increased = 1
+		
+	IF @@rowcount <> 0
+		EXEC dbo.Dot_BalancePendingCreditIns 
+			@BalancePending = @tblCreditPending
+			,@Type			= 4 
+	
+	---insert data into pending balance game table 
+	INSERT INTO BalancePendingCreditGame (
+		custid
+		,winlostdate
+		,balance
+		,bettype
+		,GameTypeID
+		)
+	SELECT a.custid
+		,a.winlostdate
+		,(a.winlost - b.winlost) AS Balance
+		,@bettype
+		,a.gametypeid
+	FROM #BalanceBefore b
+		INNER JOIN #BalanceAfter a 
+			ON	a.custid = b.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
+	WHERE (a.winlost - b.winlost) > 0
+	
+	INSERT INTO BalancePendingDebitGame (
+		custid
+		,winlostdate
+		,balance
+		,bettype
+		,GameTypeID
+		)
+	SELECT a.custid
+		,a.winlostdate
+		,ABS(a.winlost - b.winlost) AS Balance
+		,@bettype
+		,a.gametypeid
+	FROM #BalanceBefore b
+		INNER JOIN #BalanceAfter a 
+			ON	a.custid = b.custid
+				AND a.winlostdate = b.winlostdate
+				AND a.gametypeid = b.gametypeid
+	WHERE (a.winlost - b.winlost) < 0
+		
+	DROP TABLE #Balance
+	DROP TABLE #BalanceBefore
+	DROP TABLE #BalanceAfter
 	
 	-- Releasing settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
