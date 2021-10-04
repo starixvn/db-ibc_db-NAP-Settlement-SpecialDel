@@ -462,23 +462,25 @@ BEGIN
 		GROUP BY BatchNo
 	)
 	INSERT INTO @tmpBatchMinMaxCustId (BatchNo, MinCustId, MaxCustId)	
-	SELECT CASE
-				WHEN BatchNo <= @PrepareDataQueueSize THEN BatchNo
-				ELSE CASE 
-						WHEN @PrepareDataQueueSize%2 = 0 THEN (BatchNo + 1)/2 + @PrepareDataQueueSize/2 
-						ELSE BatchNo/2 + (@PrepareDataQueueSize+1)/2
-						END
-				END batchno
+	SELECT BatchNo
+		--CASE
+		--		WHEN BatchNo <= @PrepareDataQueueSize THEN BatchNo
+		--		ELSE CASE 
+		--				WHEN @PrepareDataQueueSize%2 = 0 THEN @PrepareDataQueueSize + (BatchNo + 1)/6 + @PrepareDataQueueSize/6 
+		--				ELSE @PrepareDataQueueSize + BatchNo/6 + (@PrepareDataQueueSize+1)/6
+		--				END
+		--		END batchno
 			,MIN(mincustId)
 			,MAX(maxcustid)
 	FROM cteBatchNo
-	GROUP BY CASE
-				WHEN batchno <= @PrepareDataQueueSize THEN BatchNo
-				ELSE CASE 
-						WHEN @PrepareDataQueueSize%2 = 0 THEN (BatchNo + 1)/2 + @PrepareDataQueueSize/2 
-						ELSE BatchNo/2 + (@PrepareDataQueueSize+1)/2
-						END
-				END
+	GROUP BY BatchNo
+		--CASE
+		--		WHEN batchno <= @PrepareDataQueueSize THEN BatchNo
+		--		ELSE CASE 
+		--				WHEN @PrepareDataQueueSize%2 = 0 THEN @PrepareDataQueueSize + (BatchNo + 1)/6 + @PrepareDataQueueSize/6 
+		--				ELSE @PrepareDataQueueSize + BatchNo/6 + (@PrepareDataQueueSize+1)/6
+		--				END
+		--		END
 
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 		,@mode = 'LockMatch'

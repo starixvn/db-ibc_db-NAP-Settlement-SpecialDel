@@ -97,6 +97,23 @@ BEGIN
 
 	IF @IsReSettledTickets = 0
 	BEGIN
+		SELECT	 b.transid
+				,b.custid
+				,b.bettype
+				,b.betteam 
+				,b.hdp1 
+				,b.hdp2 
+				,b.livehomescore
+				,b.liveawayscore
+				,b.transdesc 
+				,b.betid
+		INTO #tmpBettrans
+		FROM	dbo.bettrans b WITH (NOLOCK)		
+		  WHERE	b.matchid = @MatchId
+	  			AND b.statusID IN (0,102)	
+				AND b.custid BETWEEN @MinCustId AND @MaxCusId			
+		OPTION (MAXDOP 1)
+
 		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
 			,livehomescore, liveawayscore, transdesc, betid
 			,pfID, HomeValue, AwayValue, oddstype
@@ -116,22 +133,36 @@ BEGIN
 				,sr.HomeValue 
 				,sr.AwayValue 
 				,sr.oddstype			
-		FROM	dbo.bettrans b WITH (NOLOCK, index=IX_customerinfo)		
+		FROM	#tmpBettrans b		
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
-					AND sr.matchid = b.matchid
-		  WHERE	b.matchid = @MatchId
-	  			AND b.statusID IN (0,102)	
-				AND b.custid BETWEEN @MinCustId AND @MaxCusId
-				AND sr.IsHT = CASE 
-									WHEN @action = 'CAL-HT' THEN 1
-									WHEN @action = 'CAL-FT' THEN 0
-									ELSE sr.isht
-								END
+					AND sr.matchid = @MatchId
+		  WHERE	sr.IsHT = CASE 
+								WHEN @action = 'CAL-HT' THEN 1
+								WHEN @action = 'CAL-FT' THEN 0
+								ELSE sr.isht
+							END
 		OPTION (MAXDOP 1)
 	END
 	ELSE
 	BEGIN
+		SELECT	 b.transid
+				,b.custid
+				,b.bettype
+				,b.betteam 
+				,b.hdp1 
+				,b.hdp2 
+				,b.livehomescore
+				,b.liveawayscore
+				,b.transdesc 
+				,b.betid
+		into #tmpBettrans2
+		FROM	dbo.bettrans b WITH (NOLOCK)		
+		WHERE	b.matchid = @MatchId
+	  		AND b.statusID NOT IN (101)
+			AND b.custid BETWEEN @MinCustId AND @MaxCusId
+		OPTION (MAXDOP 1)
+
 		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
 			,livehomescore, liveawayscore, transdesc, betid
 			,pfID, HomeValue, AwayValue, oddstype
@@ -151,14 +182,11 @@ BEGIN
 				,sr.HomeValue 
 				,sr.AwayValue 
 				,sr.oddstype			
-		FROM	dbo.bettrans b WITH (NOLOCK, index=IX_customerinfo)		
+		FROM	#tmpBettrans2 b	
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
-					AND sr.matchid = b.matchid
-		WHERE	b.matchid = @MatchId
-	  		AND b.statusID NOT IN (101)
-			AND b.custid BETWEEN @MinCustId AND @MaxCusId
-			AND sr.IsHT = CASE 
+					AND sr.matchid = @matchid
+		WHERE	sr.IsHT = CASE 
 								WHEN @action = 'CAL-HT' THEN 1
 								WHEN @action = 'CAL-FT' THEN 0
 								ELSE sr.isht
@@ -188,6 +216,7 @@ BEGIN
 		)mt
 		CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid) m
 	ORDER BY filterBy, b.custid, b.bettype 
+	OPTION (MAXDOP 1)
 
 	UPDATE #tmpFinalResult	
 		SET runningtotal = @RunningTotal
@@ -209,6 +238,7 @@ BEGIN
 		@LockName = 'SettlementSSB'
 		,@ExecDataQueueSize =  @ExecDataQueueSize OUTPUT
 		,@RunExecDataBySSB = @RunExecDataBySSB OUTPUT
+
 
 	INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
 	SELECT	CAST((SELECT	t.transid AS '@t'						
