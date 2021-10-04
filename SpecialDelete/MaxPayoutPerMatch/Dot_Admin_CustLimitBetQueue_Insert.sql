@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="dot_admin" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="dot_admin,Dot_InfoSite" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Admin_CustLimitBetQueue_Insert]
 (
 	@MatchId			INT
