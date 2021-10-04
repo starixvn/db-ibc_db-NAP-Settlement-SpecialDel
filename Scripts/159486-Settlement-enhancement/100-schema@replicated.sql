@@ -9,7 +9,7 @@ GO
 
 ALTER TABLE [dbo].[SettlementLock] ADD  CONSTRAINT [DF_SettlementLock_CreatedTime]  DEFAULT (getdate()) FOR [CreatedTime]
 GO
-drop table SettlementProcessing
+--drop table SettlementProcessing
 
 CREATE TABLE [dbo].[SettlementProcessing](
 	Id bigint identity(1,1),

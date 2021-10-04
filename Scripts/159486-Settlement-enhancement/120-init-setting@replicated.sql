@@ -1,4 +1,7 @@
 /*<info serverAlias="SBSETTLE-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
+
+delete from [sb].[ConfigurationReference] where FunctionName = 'settlement'
+
 insert into [sb].[ConfigurationReference](FunctionName) 
 values('settlement')
 
