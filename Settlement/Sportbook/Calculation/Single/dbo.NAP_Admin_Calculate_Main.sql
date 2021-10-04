@@ -66,6 +66,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     ,@IsSettingByProfile            BIT 		= NULL
 	,@IsReSettledTickets			BIT			= 1
 	,@RunOnServer					VARCHAR(100)= NULL
+	,@isCashout						BIT			= 0
 	,@CustId						INT			= NULL
 	,@strCustIds					VARCHAR(MAX)= NULL
 	,@SettlementProcessingId		BIGINT		= NULL
@@ -298,6 +299,7 @@ BEGIN
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
 			+ CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+			+ CASE WHEN @isCashout IS NULL THEN '' ELSE ',@isCashout = ' + CONVERT(NVARCHAR(50),@isCashout,0) END
 			+ CASE WHEN @strCustIds IS NULL THEN '' ELSE ',@strCustIds = ' + '''' + @strCustIds + '''' END
 			+ CASE WHEN @TotalCommands IS NULL THEN '' ELSE ',@TotalCommands = ' + CONVERT(NVARCHAR(50), @TotalCommands) END
 			+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId = ' + CONVERT(NVARCHAR(50), @SessionId) END
