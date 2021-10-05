@@ -1,3 +1,1 @@
-SpecialDelete\Sportbook\RecoverByBetID\dbo.NAP_SpecialDelete_RecoverByBetId_Update.sql
-
-
+SpecialDelete\Sportbook\RecoverSingleBet\dbo.NAP_BettransRecoverBet.sql

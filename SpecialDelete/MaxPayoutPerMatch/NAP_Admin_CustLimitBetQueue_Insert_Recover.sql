@@ -68,7 +68,8 @@ BEGIN
 	DELETE t
 	FROM #CustLimitBet_tmp t
 	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,180,186) AND @sporttype NOT BETWEEN 190 AND 197)
-		OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
+		OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806)) 
+		OR (t.sitetype = 3) --Not support deposit in this phase
 	
 	SET @CreatedDate = GETDATE()
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)

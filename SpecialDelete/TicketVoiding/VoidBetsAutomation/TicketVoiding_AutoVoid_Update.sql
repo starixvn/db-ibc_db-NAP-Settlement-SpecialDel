@@ -2091,7 +2091,6 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 			@MatchId= 29
-			,@ActionId = 1
 			,@TransidList = @MainParlay_MaxPO
 	END
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate WHERE bettype = 29)
@@ -2107,7 +2106,6 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 			@MatchId= 29
-			,@ActionId = 4
 			,@TransidList = @MainParlay_MaxPO
 	END
 

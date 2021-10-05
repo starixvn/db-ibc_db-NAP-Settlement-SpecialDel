@@ -406,7 +406,6 @@ BEGIN
 		--Insert Max Payout Queue
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 			@MatchId= 29
-			,@ActionId = 3
 			,@TransidList = @MainParlay_MaxPO
 		
 		--> capture @tblAfterBalance
