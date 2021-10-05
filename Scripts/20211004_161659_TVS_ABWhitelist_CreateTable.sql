@@ -13,8 +13,8 @@
 CREATE TABLE dbo.TicketVoiding_ABWhiteList
 (
 	Custid				INT,
-	[Level]				TINYINT,
-	[Site]				INT,
+	LevelId				TINYINT,
+	SiteId				INT,
 	CreateBy			INT,
 	CreatedDate			DATETIME,
 	LastModifiedBy		INT,
