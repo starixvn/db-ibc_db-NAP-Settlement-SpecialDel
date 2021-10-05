@@ -432,7 +432,6 @@ BEGIN
 				--Insert Max Payout Queue
 				EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 					@MatchId= 29
-					,@ActionId = 5
 					,@TransidList = @MainParlay_MaxPO
 				
 				INSERT INTO @tblDebitPending_29 (custID, balance)

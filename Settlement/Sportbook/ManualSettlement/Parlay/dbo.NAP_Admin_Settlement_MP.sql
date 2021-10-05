@@ -57,7 +57,7 @@ BEGIN
 			,@strBettypes	VARCHAR(MAX)
       		,@ticketCountTotal INT
 
-	DECLARE @ActionId_MaxPO TINYINT, @MainParlay_MaxPO VARCHAR(MAX) = NULL
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -431,10 +431,8 @@ BEGIN
 		END
 
 		--Insert Max Payout Queue
-		SET @ActionId_MaxPO = CASE WHEN @ActionID = 104 THEN 4 ELSE 5 END
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 			@MatchId= 29
-			,@ActionId = @ActionId_MaxPO
 			,@TransidList = @MainParlay_MaxPO
 
 		INSERT INTO @tblDebitPending_29 (custID, balance)

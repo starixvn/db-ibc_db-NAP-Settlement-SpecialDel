@@ -48,7 +48,7 @@ BEGIN
 			,@strMainTransIdRefnos	VARCHAR(MAX) = ''			
 			,@totalMainParlay		INT
 			
-	DECLARE @ActionId_MaxPO TINYINT, @MainParlay_MaxPO	VARCHAR(MAX) = NULL
+	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
 	DECLARE @tmpMainTransIdBatch TABLE (TransId BIGINT, Refno BIGINT)
 	DECLARE @tmpSubTransIdBatch TABLE (TransId BIGINT, Refno BIGINT, modds MONEY, IsMarked BIT DEFAULT(0))
@@ -355,10 +355,8 @@ BEGIN
 			END
 
 			--Insert Max Payout Queue
-			SET @ActionId_MaxPO = CASE WHEN @Action LIKE 'CAL%' THEN 4 ELSE 5 END
 			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 				@MatchId= 29
-				,@ActionId = @ActionId_MaxPO
 				,@TransidList = @MainParlay_MaxPO
 		END
 	END TRY
