@@ -31,6 +31,7 @@ AS
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 			- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+			- 20211005@Louisa: Enhancement [Redmine:#162624]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -100,7 +101,7 @@ BEGIN
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0), IsDisplay BIT DEFAULT(0) )
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, IsConfirmed BIT DEFAULT(0) )
-	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, esourceID VARCHAR(50), Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
+	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
 	)
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
@@ -167,7 +168,7 @@ BEGIN
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
 
 		,AutoPayoutStatus				TINYINT
-		,IsExistsRunningInterval		BIT DEFAULT (0) --Apply for Basketball, Tennis, Badminton, E-sports, Cricket
+		,IsExistsConfirmedEarly			BIT DEFAULT (0)
 		,IsPending						BIT DEFAULT (0)
 		,IsMergedParlay					BIT DEFAULT(0)
 	)
@@ -556,8 +557,8 @@ BEGIN
 			FROM @tmpMatchConfirmed m
 		END
 
-		DELETE FROM #tmpMatchIds 
-		WHERE matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
+		UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1
+		WHERE matchid IN (SELECT matchid FROM @tmpMatchConfirmed WHERE IsEarly = 1 )
 
 		;WITH cte_match AS (
 			SELECT m.matchid
@@ -595,6 +596,7 @@ BEGIN
 
 		DELETE FROM #tmpMatchIds
 		WHERE matchid NOT IN (SELECT matchid FROM cte_match WHERE IsDisplay = 1 )
+
 	END
 
 	;WITH singlequeue 
@@ -942,6 +944,7 @@ BEGIN
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
+			,m.IsExistsConfirmedEarly
 			,m.AutoPayoutStatus
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q

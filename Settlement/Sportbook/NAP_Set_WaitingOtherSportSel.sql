@@ -17,6 +17,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210917@Kathy: write log if SP run too long
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211005@Louisa: Enhancement [Redmine:#162624]
 
 	Param's explanation:  
 		
@@ -149,6 +150,7 @@ BEGIN
 	USING (
 		SELECT ap.MatchId, ap.StatusId
 		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+		WHERE ap.CreatedDate >= @CheckDate
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
 	WHEN MATCHED THEN
 		UPDATE SET AutoPayoutStatus = SOURCE.statusid
