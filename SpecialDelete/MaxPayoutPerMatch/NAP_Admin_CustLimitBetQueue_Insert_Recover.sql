@@ -104,6 +104,9 @@ BEGIN
 		UNION ALL
 		SELECT c.Custid
 		FROM #CustLimitBet_Outright c
+		UNION ALL
+		SELECT c.Custid
+		FROM #CustLimitBet_38 c
 	)t
 		
 	WHILE (1=1)
