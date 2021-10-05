@@ -10,6 +10,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
+		- 20211005@Kathy: Change email on Prod [Redmine:#159714]
 		
 	Columns Explanation:    
     
@@ -50,12 +51,12 @@ RETURN (
 			, 'SIT'
 		UNION ALL 
 		SELECT 'NOTIFY'
-			,'qa@starixvn.com'
-			,'qa@starixvn.com'
-			,'qa@starixvn.com'
-			--, 'it@starixvn.com;'
-			--, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			--, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			, 'it@starixvn.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'DBTRANS'
 			, 'PROD'
 
@@ -82,8 +83,8 @@ RETURN (
 		
 		UNION ALL 
 		SELECT 'ERROR'
-			,'qa@starixvn.com'
-			--, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			--,'qa@starixvn.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'qa@starixvn.com', 'qa@starixvn.com'
 			, 'DBTRANS'
 			, 'PROD'
