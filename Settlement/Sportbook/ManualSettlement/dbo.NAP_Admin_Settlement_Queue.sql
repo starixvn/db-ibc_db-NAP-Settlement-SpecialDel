@@ -61,7 +61,7 @@ BEGIN
 		,livehomescore SMALLINT
 		,liveawayscore SMALLINT
 		,transdesc VARCHAR(1000)
-		,betid BIGINT
+		,betcheck VARCHAR(50)
 
 		,pfID INT
 		,HomeValue VARCHAR(50)
@@ -77,6 +77,8 @@ BEGIN
 		,BatchNo INT DEFAULT (0)
 		,filter INT
 		,runningtotal INT
+		,ScoreBoxOdds MONEY
+		,ScoreBoxScore INT
 		,RowId INT IDENTITY (1,1) PRIMARY KEY
 	)
 	
@@ -106,7 +108,7 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.transdesc 
-				,b.betid
+				,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
 		INTO #tmpBettrans
 		FROM	dbo.bettrans b WITH (NOLOCK)		
 		  WHERE	b.matchid = @MatchId
@@ -115,7 +117,7 @@ BEGIN
 		OPTION (MAXDOP 1)
 
 		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
-			,livehomescore, liveawayscore, transdesc, betid
+			,livehomescore, liveawayscore, transdesc, betcheck
 			,pfID, HomeValue, AwayValue, oddstype
 			)
 		SELECT	 b.transid
@@ -127,7 +129,7 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.transdesc 
-				,b.betid
+				,b.betcheck
 			
 				,sr.pfID
 				,sr.HomeValue 
@@ -155,8 +157,8 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.transdesc 
-				,b.betid
-		into #tmpBettrans2
+				,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
+		INTO #tmpBettrans2
 		FROM	dbo.bettrans b WITH (NOLOCK)		
 		WHERE	b.matchid = @MatchId
 	  		AND b.statusID NOT IN (101)
@@ -164,7 +166,7 @@ BEGIN
 		OPTION (MAXDOP 1)
 
 		INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
-			,livehomescore, liveawayscore, transdesc, betid
+			,livehomescore, liveawayscore, transdesc, betcheck
 			,pfID, HomeValue, AwayValue, oddstype
 			)
 		SELECT	 b.transid
@@ -175,9 +177,9 @@ BEGIN
 				,b.hdp2 
 				,b.livehomescore
 				,b.liveawayscore
-				,b.transdesc 
-				,b.betid
-			
+				,b.transdesc		
+				,b.betcheck
+
 				,sr.pfID
 				,sr.HomeValue 
 				,sr.AwayValue 
@@ -194,7 +196,7 @@ BEGIN
 		OPTION (MAXDOP 1)
 	END
 
-	INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype)
+	INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype, ScoreBoxOdds, ScoreBoxScore)
 	SELECT	b.transid
 			,CASE 
 				WHEN m.modds > 0.25 THEN POWER(2,0)
@@ -208,13 +210,15 @@ BEGIN
 			,m.modds
 			,ISNULL(mt.IsMarked, 0) AS IsMarked
 			,b.oddstype
+			,m.ScoreBoxOdds
+			,m.ScoreBoxScore
 	FROM	#tmpAffectedTransId b
 		OUTER APPLY (	
 			SELECT TOP 1 1 AS IsMarked
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	mt.TransId = b.transid
 		)mt
-		CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid) m
+		CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck) m
 	ORDER BY filterBy, b.custid, b.bettype 
 	OPTION (MAXDOP 1)
 
@@ -241,7 +245,9 @@ BEGIN
 
 
 	INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
-	SELECT	CAST((SELECT	t.transid AS '@t'						
+	SELECT	CAST((SELECT	t.transid AS '@t'	
+							,t.ScoreBoxOdds AS '@so'
+							,t.ScoreBoxScore AS '@ss'
 					FROM	#tmpFinalResult t
 					WHERE	t.BatchNo = b.BatchNo
 					FOR XML PATH('r'), ROOT('root'), TYPE) AS VARCHAR(MAX)) AS TransIds

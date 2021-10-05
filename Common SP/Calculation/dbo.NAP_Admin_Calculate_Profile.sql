@@ -65,14 +65,16 @@ BEGIN
 			,@CheckNegativeBalance INT = 0
 			,@StepDone			VARCHAR(50) = 'Done update'
 	
-	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
+	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0))
 
 	SET @xml = CAST(@transIds AS XML)
 
-	INSERT INTO @tmpTransId (TransID)
-	SELECT T.C.value('./@t', 'bigint') AS transid
-	FROM @xml.nodes('/root/r') AS T(C)
+	INSERT INTO @tmpTransId (TransID, ScoreBoxOdds)
+	SELECT	T.C.value('./@t', 'bigint') AS transid
+			,T.C.value('./@so', 'MONEY') AS ScoreBoxOdds
+			,T.C.value('./@ss', 'MONEY') AS ScoreBoxScore
+	FROM	@xml.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
 	SET @settlementTime = GETDATE();
@@ -91,13 +93,17 @@ BEGIN
 									WHEN '1' THEN 2
 									ELSE 1 END
 				,@commHalfWLRate = 0.5
-				,@odds = (CASE WHEN b.odds < 0 THEN 1 
+				,@odds = (CASE	
+								WHEN b.bettype IN (468, 469) THEN t.ScoreBoxOdds
+								WHEN b.odds < 0 THEN 1 
 	   							WHEN @oddstype = 1 THEN b.odds - 1  ----/*DECIMAL ONLY*/
 								ELSE b.odds END)
 				----------------------------------------------------------------------------------------------------------------
 				,@IsUpd_Void = CASE WHEN b.statusID = 102 OR @IsMarked = 1 THEN 0 ELSE 1 END
-		
 				,modds = @modds
+				,odds = CASE WHEN b.bettype IN (468, 469) THEN @odds ELSE b.odds END
+				,oddsspread = CASE WHEN b.bettype IN (468, 469) THEN t.ScoreBoxScore ELSE b.oddsspread END
+				
 				,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
 										WHEN @modds = 0.25 THEN 1 
 										WHEN @modds = 0 AND b.oddstype <> 6 THEN 0 

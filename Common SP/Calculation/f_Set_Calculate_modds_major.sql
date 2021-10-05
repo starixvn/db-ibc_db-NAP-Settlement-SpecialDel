@@ -24,6 +24,9 @@ AS
 RETURN
 (
    SELECT COALESCE(m1.modds, m2.modds, -1) AS modds
+			,CASE WHEN @pfID IN(468, 469) THEN o.odds ELSE NULL END AS ScoreBoxOdds
+			,CASE WHEN @pfID IN(468, 469) THEN fm ELSE NULL END AS ScoreBoxScore
+
    FROM
 	(
 		SELECT (CASE 
@@ -59,12 +62,12 @@ RETURN
 	) tbl
 	OUTER APPLY
 	(
-		SELECT CHARINDEX(CAST(CAST(fm AS INT) AS VARCHAR(10)) + ':', @betcheck) + LEN(CAST(fm AS INT)) + 1 AS posOdds
+		SELECT CAST(CHARINDEX(CAST(CAST(fm AS INT) AS VARCHAR(10)) + ':', @betcheck) + LEN(CAST(fm AS INT)) + 1 AS INT) AS posOdds
 		WHERE @pfID IN (468, 469)
 	)po
 	OUTER APPLY
 	(
-		SELECT SUBSTRING(@betcheck, po.posOdds, (CHARINDEX(',', @betcheck + ',', po.posOdds)) - po.posOdds) odds
+		SELECT CAST(SUBSTRING(@betcheck, po.posOdds, (CHARINDEX(',', @betcheck + ',', po.posOdds)) - po.posOdds) AS MONEY) odds
 		WHERE @pfID IN (468, 469)
 	)o
 	OUTER APPLY
