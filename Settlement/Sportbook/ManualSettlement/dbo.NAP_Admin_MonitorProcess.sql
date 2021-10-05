@@ -170,8 +170,4 @@ BEGIN
 	END
 
 	DROP TABLE #tblMatchProcess
-
-	insert into SettlementTestLog (matchid, stepname, session, logtime, doing) 
-	values (@matchid, 'cal - end', @SessionId, getdate(),'')
-	
 END
