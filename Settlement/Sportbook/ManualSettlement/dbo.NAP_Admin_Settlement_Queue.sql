@@ -205,7 +205,7 @@ BEGIN
 				WHEN m.modds = -0.25 THEN power (2,3)
 				ELSE power(2,4) END
 			+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
-			+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 			
+			+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
 				AS filterBy
 			,m.modds
 			,ISNULL(mt.IsMarked, 0) AS IsMarked
@@ -234,7 +234,10 @@ BEGIN
 			,batchno = @batchNo
 
 	INSERT INTO @tmpBatchNo(BatchNo,modds, oddstype, IsMarked)
-	SELECT	BatchNo, MIN(modds), MIN(oddstype), MIN(IsMarked)
+	SELECT	BatchNo
+			,MAX(modds)
+			,MAX(CASE WHEN ScoreBoxOdds IS NOT NULL THEN 2 ELSE oddstype END) -- scorebox has oddstype = 0
+			,MIN(IsMarked)
 	FROM	#tmpFinalResult
 	GROUP BY BatchNo
 	
