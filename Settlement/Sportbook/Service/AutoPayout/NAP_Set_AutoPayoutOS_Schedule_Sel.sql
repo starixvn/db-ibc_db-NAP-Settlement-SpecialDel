@@ -39,7 +39,6 @@ BEGIN
 			, r.AwayValue
 			, os.StatusId
 			, MIN( ISNULL(os.StatusId,99)) OVER(PARTITION BY m.MatchId)	 AS MinStatusId
-			, CAST(r.CreateDate AS DATETIME) AS CreateDate
 	FROM dbo.ResultDetailOS r WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON r.MatchID = m.matchid
