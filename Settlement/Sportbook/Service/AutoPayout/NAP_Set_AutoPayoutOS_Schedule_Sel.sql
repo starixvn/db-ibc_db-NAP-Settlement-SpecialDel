@@ -16,7 +16,7 @@ BEGIN
 	
 	SET NOCOUNT ON
 
-	DECLARE @interval INT = 90
+	DECLARE @checkTime SMALLDATETIME =  CAST( DATEADD(SECOND, -90, GETDATE() ) AS SMALLDATETIME)
 
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 	DROP TABLE #MatchInfo
@@ -57,7 +57,7 @@ BEGIN
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0
 				 ELSE 1 END
-		AND DATEDIFF( SECOND, CAST(r.CreateDate AS DATETIME), GETDATE() ) >= @interval
+		AND r.CreateDate <= @checkTime
 
 	SELECT m.matchid
 		, m.leagueid
