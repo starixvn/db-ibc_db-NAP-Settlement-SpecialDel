@@ -9,11 +9,14 @@ AS
 	Revisions:
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210915@Louisa: Checking invalid result of Virtual Cricket [Redmine:#161640]
+		- 20211006@Louisa: Get results after 90 seconds - [Redmine:#162808]
 
 */
 BEGIN
 	
 	SET NOCOUNT ON
+
+	DECLARE @checkTime SMALLDATETIME =  CAST( DATEADD(SECOND, -90, GETDATE() ) AS SMALLDATETIME)
 
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 	DROP TABLE #MatchInfo
@@ -53,7 +56,8 @@ BEGIN
 		AND ISNULL(r.ResultSetting,0) & 1  = 0
 		AND ISNULL(m.SettlementStatus,0) & 87 = 0
 		AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0
-				 ELSE 1 END 
+				 ELSE 1 END
+		AND r.CreateDate <= @checkTime
 
 	SELECT m.matchid
 		, m.leagueid
