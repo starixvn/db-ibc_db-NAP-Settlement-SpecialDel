@@ -42,6 +42,7 @@ AS
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -83,7 +84,6 @@ BEGIN
 			,@IsEarly				BIT
 			,@SelectedQuarter 	VARCHAR(50) = NULL
 			,@ParentMatchId		INT
-			,@CutOffDate		DATETIME = '2021-04-08 00:00:00.000'
 			,@procName			SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime		VARCHAR(10)
 			,@IsWaiting			BIT = 0
@@ -369,9 +369,7 @@ BEGIN
 			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
 	  		SELECT 
 				b.transid, m.modds
-				, CASE WHEN b.bettype = 501 AND b.transdate < @CutOffDate THEN 0
-						ELSE sr.OddsType
-					END AS OddsType
+				, sr.OddsType
 				, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	  		FROM bettrans b WITH (NOLOCK)
 				OUTER APPLY (

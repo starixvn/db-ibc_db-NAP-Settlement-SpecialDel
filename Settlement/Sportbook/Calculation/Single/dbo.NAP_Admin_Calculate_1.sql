@@ -49,6 +49,7 @@ AS
 		- 20201027@Kathy: - Change Calculate Formula for HDP Bet Types of Baseball
 						  - Exclude livescore for bettype moneyline [Redmine:#144297]
 		- 20210303@Kathy: Exclude LiveScores When Calculate HDP Bet Types [Redmine:#150198]
+		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
 		
 */
 BEGIN
@@ -57,6 +58,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
 
 	SET @ServerName = @@SERVERNAME
 
@@ -149,12 +151,14 @@ BEGIN
 							ELSE @fta END        
 			,@modds = CASE betteam
 				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
 																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
-																		OR @bettype = 20 THEN 0 
+																		OR @bettype = 20 THEN 0
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
+																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
 																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
 																		OR @Sporttype = 99
 																		OR @bettype = 20 THEN 0 
