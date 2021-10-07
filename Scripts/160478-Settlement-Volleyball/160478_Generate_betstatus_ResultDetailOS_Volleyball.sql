@@ -34,7 +34,7 @@ GO
 	SELECT   m.MatchId,  m.eventstatus,  m.betstatus,  m.finalhomescore,  m.finalawayscore 
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.sporttype = 6 --Volleyball
-		AND	( ISNULL(m.betstatus,'') <> ''  OR ISNULL(m.finalhomescore, '') <> '')
+		AND m.eventstatus = 'completed'
 
 	-- Generate ResourceId 0101 ~ 0105 from betsatus
 	INSERT INTO #tmpBetStatus ( Id, charIdx, MatchId, val )
@@ -78,14 +78,11 @@ GO
 		,'00' AS ResourceID
 		, CAST( m.FinalHomeScore AS VARCHAR(50) )
 		, CAST( m.FinalAwayScore AS VARCHAR(50) )
-		, CASE  m.eventstatus WHEN 'running' THEN 3 --confirmed
-							  ELSE 5				-- calculated
-							  END AS ResultStatusID
-		, CASE  m.eventstatus WHEN 'running' THEN 0 --running
-							  ELSE CASE WHEN m.betstatus LIKE '%Refund%' THEN 1 --Refund All
-										ELSE 4				-- calculated 
-										END 
-							  END AS SettlementStatusID
+		, 5 AS ResultStatusID	-- calculated
+		, CASE WHEN m.betstatus LIKE '%Refund%' THEN 1 --Refund All
+				ELSE 4	-- calculated 
+				END 
+				AS SettlementStatusID
 	FROM #tmpMatchVolleyball m
 	WHERE ISNULL(m.finalhomescore,'') IS NOT NULL
 

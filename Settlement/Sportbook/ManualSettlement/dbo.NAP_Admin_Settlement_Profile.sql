@@ -43,7 +43,6 @@ AS
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
-		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 
