@@ -130,7 +130,7 @@ GO
 						,GETDATE()
 						);
 
----------2. UPDATE wrong data from ResultDetailOS
+---------3. UPDATE wrong data from ResultDetailOS
 		UPDATE r
 		SET ResultStatusID = 5	-- calculated
 			,SettlementStatusID = 1 --Refund All 
