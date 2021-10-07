@@ -135,7 +135,7 @@ GO
 		SET ResultStatusID = 5	-- calculated
 			,SettlementStatusID = 1 --Refund All 
 		FROM dbo.ResultDetailOS r
-			INNER JOIN #tmpMatchVolleyball m ON r.MatchID = r.MatchID
+			INNER JOIN #tmpMatchVolleyball m ON r.MatchID = m.MatchID
 		WHERE m.betstatus LIKE '%Refund%'
 
 
