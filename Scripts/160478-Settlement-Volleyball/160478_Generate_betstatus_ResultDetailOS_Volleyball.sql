@@ -62,12 +62,8 @@ GO
 		,'010' + CAST(b.Id AS VARCHAR(1) )
 		, b.HomeValue
 		, b.AwayValue
-		, CASE  m.eventstatus WHEN 'running' THEN 3 --confirmed
-							  ELSE 5				-- calculated
-							  END AS ResultStatusID
-		, CASE  m.eventstatus WHEN 'running' THEN 0 --running
-							  ELSE 4				-- calculated
-							  END AS SettlementStatusID
+		, 5	AS ResultStatusID	-- calculated
+		, 4	AS SettlementStatusID -- calculated
 	FROM #tmpMatchVolleyball m
 		INNER JOIN #tmpBetStatus b ON m.MatchId = b.MatchId
 
@@ -88,47 +84,62 @@ GO
 
 
 ---------2. INSERT INTO ResultDetailOS IF NOT EXISTS
-	
-	MERGE dbo.ResultDetailOS TARGET
-	    USING (
-				SELECT  MatchID
-						,ResourceID
-						,HomeValue
-						,AwayValue
-						,ResultStatusID
-						,SettlementStatusID
-				FROM    #tmpResultDetail sr
-				) AS SOURCE 
-				 ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = SOURCE.MatchId
+	BEGIN
+
+		MERGE dbo.ResultDetailOS TARGET
+			USING (
+					SELECT  MatchID
+							,ResourceID
+							,HomeValue
+							,AwayValue
+							,ResultStatusID
+							,SettlementStatusID
+					FROM    #tmpResultDetail sr
+					) AS SOURCE 
+					 ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = SOURCE.MatchId
 	   
-	    WHEN MATCHED THEN
-	        UPDATE SET HomeValue     = SOURCE.HomeValue
-	            ,AwayValue           = SOURCE.AwayValue
-	            ,ResultStatusID      = SOURCE.ResultStatusID
-	            ,SettlementStatusID  = SOURCE.SettlementStatusID
-	            ,LastModifyDate      = GETDATE()
-	            ,LastModifyBy        = 8
+			WHEN MATCHED THEN
+				UPDATE SET HomeValue     = SOURCE.HomeValue
+					,AwayValue           = SOURCE.AwayValue
+					,ResultStatusID      = SOURCE.ResultStatusID
+					,SettlementStatusID  = SOURCE.SettlementStatusID
+					,LastModifyDate      = GETDATE()
+					,LastModifyBy        = 8
 	
-	    WHEN NOT MATCHED BY TARGET THEN
-	        INSERT 
-			(
-				MatchID
-				,ResourceID
-				,HomeValue
-				,AwayValue
-				,ResultStatusID
-				,SettlementStatusID
-				,CreateBy
-				,LastModifyBy
-				,LastModifyDate
-			)               
-	        VALUES(	SOURCE.MatchID
-					,SOURCE.ResourceID
-					,SOURCE.HomeValue
-					,SOURCE.AwayValue
-					,SOURCE.ResultStatusID
-					,SOURCE.SettlementStatusID
-					,8
-					,8
-					,GETDATE()
-					);
+			WHEN NOT MATCHED BY TARGET THEN
+				INSERT 
+				(
+					MatchID
+					,ResourceID
+					,HomeValue
+					,AwayValue
+					,ResultStatusID
+					,SettlementStatusID
+					,CreateBy
+					,LastModifyBy
+					,LastModifyDate
+				)               
+				VALUES(	SOURCE.MatchID
+						,SOURCE.ResourceID
+						,SOURCE.HomeValue
+						,SOURCE.AwayValue
+						,SOURCE.ResultStatusID
+						,SOURCE.SettlementStatusID
+						,8
+						,8
+						,GETDATE()
+						);
+
+---------2. UPDATE wrong data from ResultDetailOS
+		UPDATE r
+		SET ResultStatusID = 5	-- calculated
+			,SettlementStatusID = 1 --Refund All 
+		FROM dbo.ResultDetailOS r
+			INNER JOIN #tmpMatchVolleyball m ON r.MatchID = r.MatchID
+		WHERE m.betstatus LIKE '%Refund%'
+
+
+		END
+
+
+
