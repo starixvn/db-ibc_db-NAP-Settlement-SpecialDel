@@ -30,6 +30,7 @@ AS
 			- 20210628@Louisa: Include new Filter [Redmine: #157541]
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+			- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -319,8 +320,9 @@ BEGIN
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(
-				SELECT	f.IsMergedParlay
-				FROM	dbo.f_Set_SettingByProfile (m.sporttype) f
+				SELECT	ss.IsMergedParlay
+				FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+				WHERE ss.Sporttype = m.sporttype
 			)f
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
@@ -419,8 +421,9 @@ BEGIN
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(
-				SELECT	f.IsMergedParlay
-				FROM	dbo.f_Set_SettingByProfile (m.sporttype) f
+				SELECT	ss.IsMergedParlay
+				FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+				WHERE ss.Sporttype = m.sporttype
 			)f	
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 				AND EXISTS (

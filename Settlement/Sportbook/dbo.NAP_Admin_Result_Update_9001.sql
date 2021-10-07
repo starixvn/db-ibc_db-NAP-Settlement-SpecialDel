@@ -31,6 +31,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
+		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		
     Param's Explanation: 
     
@@ -64,7 +65,14 @@ BEGIN
 		
     -------------END DECLARE    
     
-	SELECT @ResultTable = r.ResultTable FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) WHERE r.Sporttype = @Sporttype
+	SELECT @ResultTable =  r.ResultTable
+	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE r.Sporttype = @SportType
+		/*@ResultTable:
+				1: ResultDetail
+				2: ResultDetailOS
+				3: ResultDetailES
+		*/
 
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
@@ -165,6 +173,8 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
+				,ResultSetting		 = CASE WHEN @Sporttype IN ( 6, 45) AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+											ELSE ResultSetting END
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);

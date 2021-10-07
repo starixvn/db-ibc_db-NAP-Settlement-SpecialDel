@@ -17,6 +17,7 @@ AS
 		- 20200908@Louisa: add FT and HT for Soccer [Redmine:#139979]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
    
     Parameters Explanation:        
     
@@ -84,6 +85,13 @@ RETURN
 		UNION ALL SELECT 45, '803', '3S', '0103', 'SP', 0, 3, 0
 		UNION ALL SELECT 45, '00' , 'FT', '00', 'FT', 1, 99,  1
 
+		--Sporttype, RoundID, RoundName, ResourceID, GroupType, isFinal, OrdNo, AllowDirectly
+		UNION ALL SELECT 6, '801', '1S', '0101', 'SP', 0, 1,  0
+		UNION ALL SELECT 6, '802', '2S', '0102', 'SP', 0, 2,  0
+		UNION ALL SELECT 6, '803', '3S', '0103', 'SP', 0, 3,  0
+		UNION ALL SELECT 6, '804', '4S', '0104', 'SP', 0, 4,  0
+		UNION ALL SELECT 6, '805', '5S', '0105', 'SP', 0, 5,  0
+		UNION ALL SELECT 6, '00' , 'FT', '00',	 'FT', 1, 99, 1
 		
     ) AS tbl
     WHERE Sporttype = @Sporttype 

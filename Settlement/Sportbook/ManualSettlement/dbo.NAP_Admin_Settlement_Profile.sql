@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@BetStatus			NVARCHAR(50)	= NULL
 	,@IsLeader			BIT				= 0
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+	,@ChildMatchIds		VARCHAR(500)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -43,6 +44,7 @@ AS
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
+		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -165,7 +167,8 @@ BEGIN
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
 	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.f_Set_SettingByProfile(@sportType)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @sportType
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -817,13 +820,13 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
-	IF @sportType = 45 ---for Log Only
+	IF @sportType IN ( 6, 45 ) ---for Log Only
 	BEGIN
 		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
 		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
 		FROM @tmpResourcesWeb r
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-		WHERE r.ResourceID IN ('0101','0102','0103')
+		WHERE r.ResourceID IN ('0101','0102','0103','0104','0105')
 	END
 
 	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
@@ -848,8 +851,12 @@ BEGIN
 			 
 								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
 									ELSE ' Selected:' 
-								END 
-								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog)) 
+									END 
+								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
+										ELSE '' 
+										END
+	
 	SELECT @logdata = CASE WHEN @sportType = 50 AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
