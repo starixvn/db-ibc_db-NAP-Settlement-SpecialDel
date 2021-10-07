@@ -38,6 +38,7 @@ AS
 		- 20210302@July: TVS - Integrate Cricket AIO - [Redmine: #150075] 
 		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
+		- 20210930@July: TVS - No need to check Live Score of Rugby and Ice Hockey sport [Redmine: #161877]
 
 
 	Param's Explanation:
@@ -341,7 +342,7 @@ BEGIN
 		SELECT t.transid
 			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
-				WHEN m.sporttype IN (1,4,26,28,49,51) AND t.liveindicator = 1
+				WHEN m.sporttype IN (1,28,49,51) AND t.liveindicator = 1
 					AND (m.livehomescore <> t.livehomescore OR m.liveawayscore <> t.liveawayscore)
 				THEN 1 ELSE 0
 			END
