@@ -1,0 +1,87 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Insert]
+(
+	  @UserNames			VARCHAR(MAX)
+	 ,@UserId				INT
+)
+AS
+/*
+	Created by: July
+	Task : [TVS] Implement AB Whitelist
+	DB: DBTXN/bodb02
+
+	Revisions:
+		- 20211004@July: Create new SP - Add New AB White List [Redmine:#161659]
+
+	Param's Explanation:
+
+		
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @InvalidUserName	VARCHAR(MAX) = ''
+		   ,@StartTime			DATETIME
+		   ,@EndTime			DATETIME
+		   ,@LogData			VARCHAR(MAX)
+		   ,@LogActionId		INT
+		   ,@SB_Error			BIT
+
+	CREATE TABLE #tmpUserName (Username VARCHAR(30))
+	CREATE TABLE #tmpInputUsernameList (custid INT, roleid TINYINT, [site] NVARCHAR(50))
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90004 --Add new
+	SET @SB_Error = 0
+
+	INSERT INTO #tmpUserName (Username)
+	SELECT DISTINCT val
+	FROM dbo.f_SplitString(@UserNames, ',')
+	WHERE val <> ''
+	OPTION (MAXRECURSION 0)
+
+	SET @InvalidUserName = STUFF((SELECT  ',' + l.username
+								  FROM #tmpUserName l
+									LEFT JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.username = ci.username
+								  WHERE ci.custid IS NULL	
+								  FOR XML PATH ('')),1,1,'')
+
+	IF @invalidUserName IS NOT NULL
+	BEGIN
+		SELECT @InvalidUserName
+		RETURN;
+	END
+
+	INSERT INTO #tmpInputUsernameList (custid, roleid, [site])
+	SELECT ci.custid
+		  ,ci.roleid
+		  ,ci.site
+	FROM #tmpUserName l
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.Username = ci.username
+		LEFT JOIN dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK) ON ci.custid = a.Custid
+	WHERE a.custid IS NULL
+
+	INSERT INTO dbo.TicketVoiding_ABWhiteList (Custid, LevelId, SiteId, CreateBy, LastModifiedBy)
+	SELECT i.custid, i.roleid, s.siteid, @UserId, @UserId
+	FROM #tmpInputUsernameList i
+		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON i.site = s.site
+
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+							+ ', @UserNames: ' + CAST(@UserNames AS VARCHAR(MAX))
+							AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS NVARCHAR(MAX))
+
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
+	DROP TABLE #tmpUserName
+	DROP TABLE #tmpInputUsernameList
+
+	SET NOCOUNT OFF
+END
+GO

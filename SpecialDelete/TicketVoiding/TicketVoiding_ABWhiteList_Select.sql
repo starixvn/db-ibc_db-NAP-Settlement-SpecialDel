@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Select]
 (
-	 @UserName			VARCHAR(30) = ''
+	 @UserName			VARCHAR(30) = NULL
 	,@Level				VARCHAR(5)
-	,@Site				VARCHAR(MAX)
-	,@InvalidUserName   VARCHAR(30) = '' OUTPUT
+	,@Sites				VARCHAR(MAX)
+	,@InvalidUsername   VARCHAR(30) = '' OUTPUT
 )
 AS
 /*
@@ -30,11 +30,19 @@ BEGIN
 
 	INSERT INTO #tmpSite (SiteId, SiteName)
 	SELECT e.siteid, e.site
-	FROM dbo.f_SplitString(@Site, ',') s
+	FROM dbo.f_SplitString(@Sites, ',') s
 		INNER JOIN CustDB.dbo.Site e WITH(NOLOCK)	
 			ON CAST(s.val AS INT) = e.siteid	
 	OPTION (MAXRECURSION 0)
 	
+	IF @UserName IS NOT NULL
+	BEGIN
+		SET @InvalidUsername = (SELECT username FROM  CustDB.dbo.Customer WITH(NOLOCK) WHERE username = @UserName)							  
+		IF @InvalidUsername IS NULL
+			SET @InvalidUsername = @UserName
+			RETURN;
+	END
+
 	INSERT INTO #tmpABWhiteList (Username, [Level], [Site], AddedDate, AddedBy)
 	SELECT c.username AS Username
 		 , a.LevelId AS [Level]
@@ -47,10 +55,8 @@ BEGIN
 		INNER JOIN CustDB.dbo.Customer u WITH(NOLOCK) ON u.custid = a.CreateBy
 	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
 		AND (a.LevelId = @roleid OR @roleid = 0)
+	ORDER BY a.CreatedDate DESC 
 
-	IF @@ROWCOUNT = 0 
-		SET @InvalidUserName = @UserName
-	
 	SELECT Username, [Level], [Site], AddedDate, AddedBy 
 	FROM #tmpABWhiteList
 
