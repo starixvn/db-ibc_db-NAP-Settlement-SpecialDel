@@ -88,31 +88,47 @@ GO
 
 
 ---------2. INSERT INTO ResultDetailOS IF NOT EXISTS
-
-	INSERT INTO dbo.ResultDetailOS
-	(
-		MatchID
-		,ResourceID
-		,HomeValue
-		,AwayValue
-		,ResultStatusID
-		,SettlementStatusID
-		,CreateBy
-		,LastModifyBy
-		,LastModifyDate
-	)
-	SELECT tmp.MatchID
-		,tmp.ResourceID
-		,tmp.HomeValue
-		,tmp.AwayValue
-		,tmp.ResultStatusID
-		,tmp.SettlementStatusID
-		,8 AS CreateBy
-		,8 AS LastModifyBy
-		,GETDATE() AS LastModifyDate
-	FROM #tmpResultDetail tmp
-		LEFT JOIN dbo.ResultDetailOS r WITH(NOLOCK)
-			ON tmp.MatchId = r.MatchID
-			AND tmp.ResourceId = r.ResourceID
-	WHERE r.MatchID IS NULL
-
+	
+	MERGE dbo.ResultDetailOS TARGET
+	    USING (
+				SELECT  MatchID
+						,ResourceID
+						,HomeValue
+						,AwayValue
+						,ResultStatusID
+						,SettlementStatusID
+				FROM    #tmpResultDetail sr
+				) AS SOURCE 
+				 ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = SOURCE.MatchId
+	   
+	    WHEN MATCHED THEN
+	        UPDATE SET HomeValue     = SOURCE.HomeValue
+	            ,AwayValue           = SOURCE.AwayValue
+	            ,ResultStatusID      = SOURCE.ResultStatusID
+	            ,SettlementStatusID  = SOURCE.SettlementStatusID
+	            ,LastModifyDate      = GETDATE()
+	            ,LastModifyBy        = 8
+	
+	    WHEN NOT MATCHED BY TARGET THEN
+	        INSERT 
+			(
+				MatchID
+				,ResourceID
+				,HomeValue
+				,AwayValue
+				,ResultStatusID
+				,SettlementStatusID
+				,CreateBy
+				,LastModifyBy
+				,LastModifyDate
+			)               
+	        VALUES(	SOURCE.MatchID
+					,SOURCE.ResourceID
+					,SOURCE.HomeValue
+					,SOURCE.AwayValue
+					,SOURCE.ResultStatusID
+					,SOURCE.SettlementStatusID
+					,8
+					,8
+					,GETDATE()
+					);
