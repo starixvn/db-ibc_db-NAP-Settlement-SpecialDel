@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211001@Tina: Add  more filter oddsstatus for Outright and tuning performance - [Redmine: #158073]
+		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
 	
 	Param's explanation:	
 		
