@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Insert]
 (
-	  @UserNames			VARCHAR(MAX)
+	  @UserNames			NVARCHAR(MAX) = ''
 	 ,@UserId				INT
 )
 AS
@@ -20,18 +20,17 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @InvalidUserName	VARCHAR(MAX) = ''
-		   ,@StartTime			DATETIME
+	DECLARE @StartTime			DATETIME
 		   ,@EndTime			DATETIME
 		   ,@LogData			VARCHAR(MAX)
 		   ,@LogActionId		INT
 		   ,@SB_Error			BIT
 
-	CREATE TABLE #tmpUserName (Username VARCHAR(30))
+	CREATE TABLE #tmpUserName (Username NVARCHAR(30))
 	CREATE TABLE #tmpInputUsernameList (custid INT, roleid TINYINT, [site] NVARCHAR(50))
 
 	SET @StartTime = GETDATE()
-	SET @LogActionId = 90004 --Add new
+	SET @LogActionId = 90004 
 	SET @SB_Error = 0
 
 	INSERT INTO #tmpUserName (Username)
@@ -39,18 +38,6 @@ BEGIN
 	FROM dbo.f_SplitString(@UserNames, ',')
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
-
-	SET @InvalidUserName = STUFF((SELECT  ',' + l.username
-								  FROM #tmpUserName l
-									LEFT JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.username = ci.username
-								  WHERE ci.custid IS NULL	
-								  FOR XML PATH ('')),1,1,'')
-
-	IF @invalidUserName IS NOT NULL
-	BEGIN
-		SELECT @InvalidUserName
-		RETURN;
-	END
 
 	INSERT INTO #tmpInputUsernameList (custid, roleid, [site])
 	SELECT ci.custid
@@ -71,7 +58,7 @@ BEGIN
 	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'							
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
-							+ ', @UserNames: ' + CAST(@UserNames AS VARCHAR(MAX))
+							+ ', @UserNames: ' + CAST(@UserNames AS NVARCHAR(MAX))
 							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS NVARCHAR(MAX))
