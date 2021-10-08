@@ -71,7 +71,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) mbc
-			FROM dbo.CustLimitBet_MBC mbc WITH(ROWLOCK, UPDLOCK) 
+			FROM dbo.CustLimitBet_MBC mbc
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -81,7 +81,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) m789
-			FROM dbo.CustLimitBet_789 m789 WITH(ROWLOCK, UPDLOCK) 
+			FROM dbo.CustLimitBet_789 m789 
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -91,7 +91,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) mbc
-			FROM dbo.CustLimitBetHistory_MBC mbc WITH(ROWLOCK, UPDLOCK) 
+			FROM dbo.CustLimitBetHistory_MBC mbc 
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -101,7 +101,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) m789
-			FROM dbo.CustLimitBetHistory_789 m789 WITH(ROWLOCK, UPDLOCK) 
+			FROM dbo.CustLimitBetHistory_789 m789
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 			IF @@ROWCOUNT = 0 BREAK
@@ -111,7 +111,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) q
-			FROM dbo.CustLimitBetQueue q WITH(ROWLOCK, UPDLOCK) 
+			FROM dbo.CustLimitBetQueue q
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
