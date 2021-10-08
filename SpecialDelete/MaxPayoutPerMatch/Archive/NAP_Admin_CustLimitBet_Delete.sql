@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211001@Tina: Add  more filter oddsstatus for Outright and tuning performance - [Redmine: #158073]
+		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
 	
 	Param's explanation:	
 		
@@ -15,7 +16,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #match_tmp (MatchId INT, EventTypeID TINYINT)
+	DECLARE @Matchid INT, @eventtypeID TINYINT
+	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
 	DECLARE @tmp_batch AS TABLE (MatchId INT, EventTypeID TINYINT)
 	DECLARE @Archive_Date DATETIME
@@ -49,30 +51,28 @@ BEGIN
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_MBC mc WITH (NOLOCK)
 		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND m.EventTypeID = mc.EventTypeID
-	UNION ALL
+	UNION 
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_789 mc WITH (NOLOCK)
 		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND m.EventTypeID = mc.EventTypeID
 
+	DECLARE @start INT = 1, @end INT
+
+	SET @end = (SELECT MAX(ID) FROM #match_tmp)
 	--Delete data
-	WHILE (1=1)
+	WHILE (@start <= @end)
 	BEGIN
-		DELETE @tmp_batch
-
-		DELETE TOP (1000)
-		FROM #match_tmp 
-		OUTPUT DELETED.MatchId, DELETED.EventTypeID
-		INTO @tmp_batch(MatchId, EventTypeID)
-
-		IF @@ROWCOUNT = 0
-			BREAK
 		
+		SELECT @Matchid = matchid, @eventtypeID = eventtypeID
+		FROM #match_tmp
+		WHERE ID = @start
+
 		--CustLimitBet_MBC
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) mbc
-			FROM dbo.CustLimitBet_MBC mbc WITH(ROWLOCK, UPDLOCK) 
-				INNER JOIN @tmp_batch t ON t.MatchId = mbc.Matchid AND t.EventTypeID = mbc.EventTypeID
+			FROM dbo.CustLimitBet_MBC mbc
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END	
@@ -81,8 +81,8 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) m789
-			FROM dbo.CustLimitBet_789 m789 WITH(ROWLOCK, UPDLOCK) 
-				INNER JOIN @tmp_batch t ON t.MatchId = m789.Matchid AND t.EventTypeID = m789.EventTypeID
+			FROM dbo.CustLimitBet_789 m789 
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END
@@ -91,32 +91,37 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) mbc
-			FROM dbo.CustLimitBetHistory_MBC mbc WITH(ROWLOCK, UPDLOCK) 
-				INNER JOIN @tmp_batch t ON t.MatchId = mbc.Matchid AND t.EventTypeID = mbc.EventTypeID
+			FROM dbo.CustLimitBetHistory_MBC mbc 
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
+
+			WAITFOR DELAY '00:00:00.020'
 		END
 
 		--CustLimitBetHistory_789
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) m789
-			FROM dbo.CustLimitBetHistory_789 m789 WITH(ROWLOCK, UPDLOCK) 
-				INNER JOIN @tmp_batch t ON t.MatchId = m789.Matchid AND t.EventTypeID = m789.EventTypeID
+			FROM dbo.CustLimitBetHistory_789 m789
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 			IF @@ROWCOUNT = 0 BREAK
+
+			WAITFOR DELAY '00:00:00.020'
 		END
 
 		--CustLimitBetQueue
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) q
-			FROM dbo.CustLimitBetQueue q WITH(ROWLOCK, UPDLOCK) 
-				INNER JOIN @tmp_batch t ON t.MatchId = q.Matchid AND t.EventTypeID = q.EventTypeID
+			FROM dbo.CustLimitBetQueue q
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END
 	
+		SET @start = @start + 1
 	END
 
 	DROP TABLE #match_tmp 
