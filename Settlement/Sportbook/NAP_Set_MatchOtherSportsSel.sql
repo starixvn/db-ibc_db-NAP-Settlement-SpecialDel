@@ -484,7 +484,6 @@ BEGIN
 
 			SELECT @strMatchIds = @strMatchIds + CAST(m.MatchId AS VARCHAR(20)) + ','
 			FROM	#tmpMatchIds m
-			WHERE m.matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
 
 			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
 			FROM (	SELECT DISTINCT f.ResourceID
@@ -552,13 +551,15 @@ BEGIN
 					AND NOT EXISTS (SELECT TOP 1 1 FROM [dbo].[f_Set_SettingByProfile] (m.sporttype)	)
 			END
 
+			UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1
+			WHERE matchid IN (SELECT matchid FROM @tmpMatchConfirmed WHERE IsEarly = 1 )
+
+			DELETE FROM @tmpMatchConfirmed WHERE matchid IN (SELECT matchid FROM @tmpMatchOverStatus)
+
 			INSERT INTO @tmpMatchOverStatus (matchid, IsConfirmed)
 			SELECT DISTINCT m.MatchId, 1
 			FROM @tmpMatchConfirmed m
 		END
-
-		UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1
-		WHERE matchid IN (SELECT matchid FROM @tmpMatchConfirmed WHERE IsEarly = 1 )
 
 		;WITH cte_match AS (
 			SELECT m.matchid
