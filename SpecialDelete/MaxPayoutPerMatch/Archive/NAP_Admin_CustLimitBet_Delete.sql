@@ -96,7 +96,7 @@ BEGIN
 			
 			IF @@ROWCOUNT = 0 BREAK
 
-			WAITFOR DELAY '00:00:00.050'
+			WAITFOR DELAY '00:00:00.020'
 		END
 
 		--CustLimitBetHistory_789
@@ -108,7 +108,7 @@ BEGIN
 
 			IF @@ROWCOUNT = 0 BREAK
 
-			WAITFOR DELAY '00:00:00.050'
+			WAITFOR DELAY '00:00:00.020'
 		END
 
 		--CustLimitBetQueue
