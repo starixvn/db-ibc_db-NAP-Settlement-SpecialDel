@@ -9,6 +9,7 @@ AS
 
 	Revisions:
 		20210727@Louisa: Letstalk message: Confirmed HT/FT, Completed with early running tickets [Redmine:#158331]	
+		20211008@Louisa: Return SP [Redmine:#158331]
 
 	Param explanation:
 		@MessageGroupId 
@@ -53,6 +54,27 @@ BEGIN
 		,IsRunningEarlyTicket BIT DEFAULT(0)
 		,ActionType			TINYINT  DEFAULT(0)
 	)
+
+	-- 20211008@Louisa: Stop using
+	BEGIN
+		SELECT m.MatchId
+			   ,m.eventstatus
+			   ,m.leagueid	
+			   ,m.SettlementStatus	
+			   ,m.ResourceId			
+			   ,m.HomeValue			
+			   ,m.AwayValue			
+			   ,m.ResultStatusID		
+			   ,m.ConfirmedTime		
+			   ,m.settletime			
+			   ,m.IsRunningEarlyTicket
+		FROM #MatchInfo	m
+
+		RETURN
+	END
+	--/end
+
+
 
 	SELECT @SqlQuery = 
 	'SELECT * FROM
