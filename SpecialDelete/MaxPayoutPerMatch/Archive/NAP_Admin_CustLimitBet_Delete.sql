@@ -95,6 +95,8 @@ BEGIN
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
 			IF @@ROWCOUNT = 0 BREAK
+
+			WAITFOR DELAY '00:00:00.050'
 		END
 
 		--CustLimitBetHistory_789
@@ -105,6 +107,8 @@ BEGIN
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 			IF @@ROWCOUNT = 0 BREAK
+
+			WAITFOR DELAY '00:00:00.050'
 		END
 
 		--CustLimitBetQueue
