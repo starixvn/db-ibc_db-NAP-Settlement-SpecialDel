@@ -9,7 +9,7 @@ AS
 
 	Revisions:
 		20210727@Louisa: Letstalk message: Confirmed HT/FT, Completed with early running tickets [Redmine:#158331]	
-		20211008@Louisa: Return SP [Redmine:#158331]
+		20211008@Louisa: Return SP [Redmine:#100002]
 
 	Param explanation:
 		@MessageGroupId 

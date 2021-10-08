@@ -18,6 +18,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+		- 20211008@Louisa: Update IsMergedParlay Volleyball [Redmine:#100002]
    
     Parameters Explanation:        
     
@@ -40,7 +41,7 @@ RETURN
 		UNION ALL SELECT 2,	 1	--Basketball
 		UNION ALL SELECT 50, 1	--Cricket
 		UNION ALL SELECT 45, 1	--Beach Volleyball
-		UNION ALL SELECT 6,  2	--Volleyball
+		UNION ALL SELECT 6,  1	--Volleyball
 
     ) AS tbl
     WHERE Sporttype = @Sporttype 
