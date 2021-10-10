@@ -45,6 +45,7 @@ AS
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
+		- 20211005@Max: [TVS] Implement AB Whitelist - [Redmine:#161659]
 
 	Param's explanation:	
 		
@@ -301,10 +302,19 @@ BEGIN
 									AND r.ActionId NOT IN (2,3) -- 2: Take Note, 3 Waiting 
 									AND mt.TransId = rds.TransId
 								) AS tmp
+					OUTER APPLY (
+								SELECT TOP(1) CustId
+								FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)
+								WHERE a.Custid = b.custid
+									OR a.Custid = b.recommend
+									OR a.Custid = b.mrecommend
+									OR a.Custid = b.srecommend
+							)ab
 				WHERE mt.MatchId = @MatchId 
 					AND tmp.RequestId IS NULL
 					AND b.statuswinlost IN (0,1,2,3,4)
 					AND 1 = CASE WHEN @Sporttype = 50 AND b.bettype IN (501) THEN 0 ELSE 1 END -- Exclude bettype 501 of Cricket
+					AND ab.Custid IS NULL
 					
 				-- only create request for void ticket, base on this temp table to create request for void ticket	
 				INSERT INTO #Transid_mark_void (transid)
