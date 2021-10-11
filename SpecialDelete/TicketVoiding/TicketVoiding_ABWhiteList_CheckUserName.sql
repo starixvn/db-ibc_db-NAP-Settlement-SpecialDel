@@ -19,7 +19,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @InvalidUserName	NVARCHAR(MAX) = ''
+	DECLARE @InvalidUserNames	NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpUserName (Username NVARCHAR(30))
 
@@ -29,17 +29,13 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	SET @InvalidUserName = STUFF((SELECT  ',' + l.username
+	SET @InvalidUserNames = STUFF((SELECT  ',' + l.username
 								  FROM #tmpUserName l
 									LEFT JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.username = ci.username
 								  WHERE ci.custid IS NULL	
 								  FOR XML PATH ('')),1,1,'')
 
-	IF @invalidUserName IS NOT NULL
-	BEGIN
-		SELECT @InvalidUserName
-		RETURN;
-	END
+	SELECT @InvalidUserNames AS InvalidUserNames
 
 	DROP TABLE #tmpUserName
 

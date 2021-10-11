@@ -26,7 +26,7 @@ BEGIN
 	SET @roleid = CAST( @Level AS TINYINT)
 
 	CREATE TABLE #tmpSite (SiteId INT, SiteName NVARCHAR(50))
-	CREATE TABLE #tmpABWhiteList (Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30))
+	CREATE TABLE #tmpABWhiteList (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30))
 
 	INSERT INTO #tmpSite (SiteId, SiteName)
 	SELECT e.siteid, e.site
@@ -37,14 +37,21 @@ BEGIN
 	
 	IF @UserName IS NOT NULL
 	BEGIN
-		SET @InvalidUsername = (SELECT username FROM  CustDB.dbo.Customer WITH(NOLOCK) WHERE username = @UserName)							  
-		IF @InvalidUsername IS NULL
+		SET @InvalidUsername = (SELECT username FROM  CustDB.dbo.Customer WITH(NOLOCK) WHERE username = @UserName)			
+		IF @InvalidUsername IS NOT NULL
+		BEGIN
+			SET @InvalidUsername = NULL
+		END
+		ELSE 
+		BEGIN
 			SET @InvalidUsername = @UserName
 			RETURN;
+		END
 	END
 
-	INSERT INTO #tmpABWhiteList (Username, [Level], [Site], AddedDate, AddedBy)
-	SELECT c.username AS Username
+	INSERT INTO #tmpABWhiteList (CustId, Username, [Level], [Site], AddedDate, AddedBy)
+	SELECT a.Custid
+		 , c.username AS Username
 		 , a.LevelId AS [Level]
 		 , s.SiteName AS [Site]
 		 , a.CreatedDate AS AddedDate
@@ -57,7 +64,7 @@ BEGIN
 		AND (a.LevelId = @roleid OR @roleid = 0)
 	ORDER BY a.CreatedDate DESC 
 
-	SELECT Username, [Level], [Site], AddedDate, AddedBy 
+	SELECT CustId, Username, [Level], [Site], AddedDate, AddedBy 
 	FROM #tmpABWhiteList
 
 	DROP TABLE #tmpSite

@@ -16,7 +16,8 @@ BEGIN
 		siteid AS SiteId
 	   ,[site] AS SiteName
 	   ,CASE WHEN isDeposit = 1 THEN 'Deposit' ELSE 'Credit' END AS GroupName
-	FROM dbo.Site WITH(NOLOCK) 
+	FROM dbo.Site WITH(NOLOCK)
+	WHERE isActive = 1  
 	ORDER BY [site] ASC
 
 	SET NOCOUNT OFF
