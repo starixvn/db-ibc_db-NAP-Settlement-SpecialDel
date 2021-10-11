@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingOtherSportSel] 
-	@MatchCode 		NVARCHAR(50) = ''
-	, @LeagueIds	VARCHAR(MAX)
+	@MatchIds	VARCHAR(MAX)
 AS
 /*
 	Created: 20140103@Kathy
@@ -40,8 +39,9 @@ BEGIN
 		,@SqlCommand		VARCHAR(MAX)
 
 	SET @StartTime = GETDATE()
+	SET @n = 2147483647
+	SET @CheckDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -2, GETDATE()), 102)
 		
-	DECLARE @tmpLeagueIds TABLE(LeagueId INT)
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpBettypeStatus TABLE(
@@ -54,6 +54,9 @@ BEGIN
 		,isRunningParlay	BIT DEFAULT(0)
 		,isWaitingParlay	BIT DEFAULT(0)
 	)
+
+	
+
 
 	DECLARE @tmpMatchIds TABLE (
 		MatchId							INT
@@ -92,29 +95,35 @@ BEGIN
 		,AutoPayoutStatus				TINYINT
 		,IsMergedParlay					BIT DEFAULT(0)
 	)
-	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT, Sporttype SMALLINT)
+	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT)
 	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
+	
+	CREATE TABLE #MatchIdList ( MatchId INT)
+	CREATE INDEX CIX_matchid ON #MatchIdList (MatchId)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
 	
-	SET @n = 2147483647
-	SELECT @MatchCode = ISNULL(@MatchCode, '')
-	
-	SET @CheckDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -2, GETDATE()), 102)
-	
-	INSERT INTO @tmpLeagueIds(LeagueId)
-	SELECT	DISTINCT f.val
-	FROM	dbo.f_SplitString(@LeagueIds, ',') f
-	OPTION(MAXRECURSION 0)	
+	IF ISNULL(@MatchIds,'') <> ''
+	BEGIN
+		INSERT INTO #MatchIdList (MatchId)
+		SELECT f.val from dbo.f_SplitString(@MatchIds, ',') f
+		OPTION (MAXRECURSION 0)
+	END
 
-	IF ISNUMERIC(@MatchCode) = 1
-		SET @matchid = CAST(@MatchCode AS INT)
 	
+	
+	---- Match Auto
 	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 						WHERE r.CreatedDate >= ''' + @CheckDate  +'''
-						GROUP BY r.MatchId'
+						GROUP BY r.MatchId
+					
+						UNION ALL
+						SELECT ap.MatchId, ap.StatusId
+						FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+						WHERE ap.CreatedDate  >= ''' + @CheckDate  +'''
+						'
 									
 	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)
 	EXECUTE sys.sp_executesql @remoteQuery
@@ -122,8 +131,8 @@ BEGIN
 	;WITH singlequeue AS (
 		SELECT	matchid, MIN(IsCalculating) AS IsCalculating
 		FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)
-		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE()) 
-				OR s.IsCalculating IN (0,1)
+		WHERE	( Starttime > DATEADD(MINUTE, -10, GETDATE()) OR s.IsCalculating IN (0,1) )
+			AND s.SportType <> 1
 		GROUP BY matchid
 	), parlayqueue AS (
 		SELECT	p.matchid, MIN(IsCalculating) AS IsCalculating
@@ -133,41 +142,31 @@ BEGIN
 				OR p.IsCalculating IN (0,1)
 		GROUP BY p.matchid
 	)
-	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP, Sporttype)
-	SELECT q.matchid, q.IsCalculatingSingle, q.IsCalculatingMP, m.sporttype
-	FROM (
-		SELECT	ISNULL(s.matchid, p.matchid) AS matchid
+	
+	INSERT INTO @tmpQueueStatus(MatchId, IsCalculatingSingle, IsCalculatingMP )
+	SELECT q.matchid, q.IsCalculatingSingle, q.IsCalculatingMP
+	FROM ( SELECT ISNULL(s.matchid, p.matchid) AS matchid
 				,s.IsCalculating AS IsCalculatingSingle
 				,CASE WHEN p.Running = 1 THEN p.Running ELSE p.IsCalculating END AS IsCalculatingMP
-		FROM	singlequeue s
-			FULL OUTER JOIN parlayqueue p
-				ON	s.matchid = p.matchid
-		)q
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.matchid
-	WHERE m.sporttype <> 1
-
+			FROM	singlequeue s
+				FULL OUTER JOIN parlayqueue p
+					ON	s.matchid = p.matchid
+		 ) q
+	INNER JOIN #MatchIdList tmp 
+		ON q.matchid = tmp.MatchId
+	
 	MERGE @tmpQueueStatus  TARGET
 	USING (
 		SELECT ap.MatchId, ap.StatusId
-		FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
-		WHERE ap.CreatedDate >= @CheckDate
-		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid AND TARGET.Sporttype IN (18)
-	WHEN MATCHED THEN
-		UPDATE SET AutoPayoutStatus = SOURCE.statusid
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (MatchId, AutoPayoutStatus)
-		VALUES (SOURCE.MatchId, SOURCE.statusid);
-
-	MERGE @tmpQueueStatus  TARGET
-	USING (
-		SELECT os.MatchId, os.StatusId
-		FROM	@tmpAutoPayOutResultOS os
+		FROM	 @tmpAutoPayOutResultOS ap
+		INNER JOIN #MatchIdList tmp
+			ON ap.matchid = tmp.MatchId
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
 	WHEN MATCHED THEN
 		UPDATE SET AutoPayoutStatus = SOURCE.statusid
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT (MatchId, AutoPayoutStatus)
-		VALUES (SOURCE.MatchId, SOURCE.statusid); 
+		VALUES (SOURCE.MatchId, SOURCE.statusid);
 	
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
@@ -224,21 +223,19 @@ BEGIN
 			END
 			,q.AutoPayoutStatus
 			,f.IsMergedParlay
-	FROM  dbo.match m WITH(NOLOCK)
-		INNER JOIN @tmpLeagueIds tl
-			ON	m.leagueid = tl.LeagueId
+	FROM  dbo.match m WITH(NOLOCK)	
+		INNER JOIN @tmpQueueStatus q
+			ON	m.matchid = q.MatchId
 		INNER JOIN dbo.League l WITH(NOLOCK)	
 			ON m.leagueid = l.leagueid
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON	m.matchid = mr.matchid
-		INNER JOIN @tmpQueueStatus q
-			ON	m.matchid = q.MatchId
 		OUTER APPLY(
 				SELECT	ss.IsMergedParlay
 				FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 				WHERE ss.Sporttype = m.sporttype
 			)f
-	WHERE	(@MatchCode = '' OR m.matchcode = @MatchCode OR m.matchid = @matchid)
+	WHERE m.sporttype <> 1
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay BIT DEFAULT(0))
@@ -519,22 +516,21 @@ BEGIN
 			ON tmp.MatchId = me.MatchId
 
 
-	DECLARE @matchidList VARCHAR(MAX) = ''
 	    
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
+	SELECT @MatchIds =   ',' + CAST(matchid AS VARCHAR(20))
 	FROM @tmpMatchIds
 
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
+	SET @MatchIds = SUBSTRING(@MatchIds, 2, LEN(@MatchIds))
 	    
 	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
+		@matchidList = @MatchIds
 
 	DROP TABLE #tmpMarkedTransaction
 
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
-		SET @SqlCommand = 'EXEC NAP_Set_WaitingOtherSportSel @MatchCode =''' + ISNULL(@MatchCode,'')  + ', @LeagueIds =' + @LeagueIds
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingOtherSportSel @MatchIds =''' + ISNULL(@MatchIds,'')
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
 	END
