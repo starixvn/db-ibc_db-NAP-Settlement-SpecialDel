@@ -46,6 +46,9 @@ BEGIN
 		DELETE TOP(1000) t OUTPUT DELETED.custid INTO @tmpCustIdBatch
 		FROM #tmpCustId t
 
+		IF @@ROWCOUNT = 0
+			BREAK
+
 		DELETE c
 		FROM dbo.TicketVoiding_ABWhiteList c
 		WHERE c.Custid IN (SELECT Custid FROm @tmpCustIdBatch)
