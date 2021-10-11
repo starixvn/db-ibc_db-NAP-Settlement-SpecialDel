@@ -46,7 +46,7 @@ BEGIN
 	SET @List_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(q.QueueID  AS VARCHAR(50))
 												FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 												WHERE q.Statusid = 2
-													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) <= 2
+													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
