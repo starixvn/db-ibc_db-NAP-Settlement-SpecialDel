@@ -516,8 +516,8 @@ BEGIN
 			ON tmp.MatchId = me.MatchId
 
 
-	    
-	SELECT @MatchIds =   ',' + CAST(matchid AS VARCHAR(20))
+	SET @MatchIds = ''    
+	SELECT @MatchIds = @MatchIds +  ',' + CAST(matchid AS VARCHAR(20))
 	FROM @tmpMatchIds
 
 	SET @MatchIds = SUBSTRING(@MatchIds, 2, LEN(@MatchIds))
