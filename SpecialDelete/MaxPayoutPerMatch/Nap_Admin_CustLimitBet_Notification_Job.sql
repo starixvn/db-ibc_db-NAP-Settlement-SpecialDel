@@ -23,7 +23,11 @@ BEGIN
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
 	
+	--For PROD EVN
 	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
+
+	--For local Testing, input email need to test
+	--SET @Recipients = 'max.tran@starixvn.com, xxx'
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
