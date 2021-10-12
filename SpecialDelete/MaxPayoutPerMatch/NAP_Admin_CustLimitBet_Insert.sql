@@ -16,6 +16,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20211012@Max: Exclude deposit ticket for Reject case, remove code reject outright [Redmine: #158073]
 	
 	Param's explanation:	
 		
@@ -81,10 +82,12 @@ BEGIN
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
+				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 				AND b.matchid = @MatchId
 				AND b.checktime = @RejectTime
 				AND b.statusID = 101
+				AND s.custid IS NULL
 		END
 		ELSE IF @EventTypeID = 2 --outright
 		BEGIN
@@ -99,10 +102,12 @@ BEGIN
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 				INNER JOIN dbo.outright o WITH (NOLOCK) ON o.orid = b.matchid
 				INNER JOIN dbo.League l WITH (NOLOCK) On l.leagueid = o.leagueid
+				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 				AND b.matchid = @MatchId
 				AND b.checktime = @RejectTime
 				AND b.statusID = 101
+				AND s.custid IS NULL
 		END
 
 		--Remove unsupport sporttype/bettype
