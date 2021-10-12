@@ -103,6 +103,7 @@ BEGIN
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, IsConfirmed BIT DEFAULT(0) )
 	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0)
 	)
+	DECLARE @CheckingDisplay TABLE ( matchid INT, IsDisplay BIT, IsPassEarly BIT )
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
 		MatchId				INT
@@ -551,14 +552,10 @@ BEGIN
 					AND NOT EXISTS (SELECT TOP 1 1 FROM [dbo].[f_Set_SettingByProfile] (m.sporttype)	)
 			END
 
-			UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1
-			WHERE matchid IN (SELECT matchid FROM @tmpMatchConfirmed WHERE IsEarly = 1 )
-
-			DELETE FROM @tmpMatchConfirmed WHERE matchid IN (SELECT matchid FROM @tmpMatchOverStatus)
-
 			INSERT INTO @tmpMatchOverStatus (matchid, IsConfirmed)
 			SELECT DISTINCT m.MatchId, 1
 			FROM @tmpMatchConfirmed m
+			WHERE m.matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
 		END
 
 		;WITH cte_match AS (
@@ -566,38 +563,50 @@ BEGIN
 				,MAX( CASE WHEN bt.transid IS NOT NULL 
 						   THEN 1
 						   ELSE 0 END ) AS IsDisplay
+				,MAX( CASE WHEN bt.IsPassEarly IS NOT NULL THEN IsPassEarly ELSE 0 END ) as IsPassEarly
 			FROM @tmpMatchOverStatus m
 			OUTER APPLY ( SELECT confirm.matchid, confirm.bettype, confirm.betid , confirm.IsEarly
 								FROM @tmpMatchConfirmed confirm 
 								WHERE confirm.matchid = m.matchid
-						) confirm		
+						) confirm
 				CROSS APPLY (
 				SELECT TOP 1 b.transid
+						,CASE WHEN b.bettype = confirm.bettype AND (b.betID = 0 OR b.betid = confirm.betid ) AND confirm.IsEarly = 1 AND b.StatusId = 0 THEN 1
+							 ELSE 0
+							END AS IsPassEarly
 				FROM dbo.bettrans b WITH(NOLOCK)
 				WHERE b.matchid = m.matchid
 					AND b.statusId IN ( 0, 101, 102)
-					AND 1 = CASE WHEN m.IsConfirmed = 0 THEN 1
-								 ELSE CASE WHEN b.bettype = confirm.bettype AND (b.betID = 0 OR b.betid = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 and b.StatusId IN (101,102) THEN 0
-																																	ELSE 1 END
-											ELSE 0 END
+					AND 1 = CASE WHEN b.bettype = confirm.bettype AND (b.betID = 0 OR b.betid = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 AND b.StatusId IN (101, 102) THEN 0
+																														  ELSE 1 END
+								 WHEN m.IsConfirmed = 0 THEN 1
+								 ELSE 0
 							END
 				UNION ALL
 				SELECT	TOP 1  bm.transid
+							,CASE WHEN bm.bettype = confirm.bettype AND (bm.betcheck = 0 OR bm.betcheck = confirm.betid ) AND confirm.IsEarly = 1 AND bm.StatusId = 0 THEN 1
+								 ELSE 0
+							END AS IsPassEarly
 				FROM dbo.bettransm bm WITH(NOLOCK)
 				WHERE bm.matchid = m.matchid
 					AND bm.statusId IN ( 0, 101, 102)
-					AND 1 = CASE WHEN m.IsConfirmed = 0 THEN 1
-								 ELSE CASE WHEN bm.bettype = confirm.bettype AND (bm.betcheck = 0 OR bm.betcheck = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 and bm.StatusId IN (101,102) THEN 0
-																																	ELSE 1 END
-											ELSE 0 END 
+					AND 1 = CASE WHEN bm.bettype = confirm.bettype AND (bm.betcheck = 0 OR bm.betcheck = confirm.betid ) THEN CASE WHEN confirm.IsEarly = 1 AND bm.StatusId IN (101, 102) THEN 0
+																																   ELSE 1 END
+								 WHEN m.IsConfirmed = 0 THEN 1
+								 ELSE 0
 							END
 			) bt
 			GROUP BY m.matchid
 			)
+			
+		INSERT  INTO @CheckingDisplay ( matchid, IsDisPlay, IsPassEarly )
+		SELECT m.matchid, m.IsDisplay, IsPassEarly 
+		FROM cte_match m
 
-		DELETE FROM #tmpMatchIds
-		WHERE matchid NOT IN (SELECT matchid FROM cte_match WHERE IsDisplay = 1 )
+		DELETE FROM #tmpMatchIds 
+		WHERE matchid NOT IN (SELECT matchid FROM @CheckingDisplay WHERE IsDisplay = 1)
 
+		UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT matchid FROM @CheckingDisplay WHERE IsPassEarly = 1)
 	END
 
 	;WITH singlequeue 
