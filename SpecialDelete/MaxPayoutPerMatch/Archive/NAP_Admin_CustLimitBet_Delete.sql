@@ -20,8 +20,8 @@ BEGIN
 	DECLARE @Matchid INT, @eventtypeID TINYINT
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
-	CREATE TABLE #tmp_QueueID (QueueID BIGINT)
-	DECLARE @tmp_batch AS TABLE (QueueID BIGINT)
+	CREATE TABLE #tmp_QueueID (QueueID BIGINT PRIMARY KEY)
+	DECLARE @tmp_batch AS TABLE (QueueID BIGINT PRIMARY KEY)
 	DECLARE @Archive_Date DATETIME
 	SELECT @Archive_Date = DATEADD(DAY, -6, GETDATE())
 
@@ -149,8 +149,7 @@ BEGIN
 
 			DELETE q
 			FROM dbo.CustLimitBetQueue q
-			WHERE QueueID IN (SELECT QueueID FROM @tmp_batch)
-
+				INNER JOIN @tmp_batch t ON t.QueueID = q.QueueID
 		END
 	END
 
