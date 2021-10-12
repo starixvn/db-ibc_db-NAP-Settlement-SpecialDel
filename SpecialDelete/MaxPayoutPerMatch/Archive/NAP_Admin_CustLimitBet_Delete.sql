@@ -130,27 +130,29 @@ BEGIN
 	INSERT INTO #tmp_QueueID (QueueID)
 	SELECT q.QueueID
 	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
-	WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #match_tmp m WHERE m.MatchId = q.Matchid)
-		AND q.Statusid = 1
+	WHERE q.Statusid = 1
+		AND q.ErrMsg <> ''
 		AND q.ExecTime <= @Archive_Date
 
 	--delete bonus data CustLimitBetQueue
-	WHILE (1=1)
+	IF EXISTS (SELECT TOP(1) 1 FROM #tmp_QueueID)
 	BEGIN
-		DELETE @tmp_batch
+		WHILE (1=1)
+		BEGIN
+			DELETE @tmp_batch
 
-		DELETE TOP(1000) t OUTPUT DELETED.QueueID INTO @tmp_batch (QueueID)
-		FROM #tmp_QueueID t
+			DELETE TOP(1000) t OUTPUT DELETED.QueueID INTO @tmp_batch (QueueID)
+			FROM #tmp_QueueID t
 
-		IF @@ROWCOUNT = 0 
-			BREAK
+			IF @@ROWCOUNT = 0 
+				BREAK
 
-		DELETE q
-		FROM dbo.CustLimitBetQueue q
-		WHERE QueueID IN (SELECT QueueID FROM @tmp_batch)
+			DELETE q
+			FROM dbo.CustLimitBetQueue q
+			WHERE QueueID IN (SELECT QueueID FROM @tmp_batch)
 
+		END
 	END
-
 
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
