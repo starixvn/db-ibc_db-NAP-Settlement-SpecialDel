@@ -9,6 +9,7 @@ AS
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211001@Tina: Add  more filter oddsstatus for Outright and tuning performance - [Redmine: #158073]
 		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
+		- 20211012@Max: Delete bonus for CustLimitBetQueue - [Redmine: #158073]
 	
 	Param's explanation:	
 		
@@ -19,7 +20,8 @@ BEGIN
 	DECLARE @Matchid INT, @eventtypeID TINYINT
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
-	DECLARE @tmp_batch AS TABLE (MatchId INT, EventTypeID TINYINT)
+	CREATE TABLE #tmp_QueueID (QueueID BIGINT)
+	DECLARE @tmp_batch AS TABLE (QueueID BIGINT)
 	DECLARE @Archive_Date DATETIME
 	SELECT @Archive_Date = DATEADD(DAY, -6, GETDATE())
 
@@ -124,8 +126,35 @@ BEGIN
 		SET @start = @start + 1
 	END
 
+	--Get bonus delete data for CustLimitBetQueue
+	INSERT INTO #tmp_QueueID (QueueID)
+	SELECT q.QueueID
+	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+	WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #match_tmp m WHERE m.MatchId = q.Matchid)
+		AND q.Statusid = 1
+		AND q.ExecTime <= @Archive_Date
+
+	--delete bonus data CustLimitBetQueue
+	WHILE (1=1)
+	BEGIN
+		DELETE @tmp_batch
+
+		DELETE TOP(1000) t OUTPUT DELETED.QueueID INTO @tmp_batch (QueueID)
+		FROM #tmp_QueueID t
+
+		IF @@ROWCOUNT = 0 
+			BREAK
+
+		DELETE q
+		FROM dbo.CustLimitBetQueue q
+		WHERE QueueID IN (SELECT QueueID FROM @tmp_batch)
+
+	END
+
+
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
+	DROP TABLE #tmp_QueueID
 END
 GO
 	
