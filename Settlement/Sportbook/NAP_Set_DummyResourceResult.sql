@@ -1005,6 +1005,7 @@ BEGIN
 						,@HomeRaceTo = 0
 						,@AwayRaceTo = 0
 						,@string = CASE WHEN @ResourceId = '486' THEN @FTGoalRecord ELSE @HTGoalRecord END
+						,@result = ''
 
 				SELECT @LenResultString = LEN(@string)
 			

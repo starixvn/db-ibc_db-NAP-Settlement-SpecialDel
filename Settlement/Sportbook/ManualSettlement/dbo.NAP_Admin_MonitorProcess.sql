@@ -37,7 +37,9 @@ BEGIN
 			,@hta SMALLINT
 			,@AdminId INT
 			,@IP VARCHAR(50)
+			,@SourceId TINYINT
 			,@Remark VARCHAR(500)
+			,@TicketCount INT
 			,@Starttime DATETIME
 			,@Endtime DATETIME
 
@@ -100,7 +102,9 @@ BEGIN
 				,@ActionID = T.C.value('@ActionID','INT')
 				,@Action = T.C.value('@Action','VARCHAR(20)')
 				,@IP = T.C.value('@IP','VARCHAR(50)')
+				,@SourceId = T.C.value('@SourceId','TINYINT')
 				,@AdminId = T.C.value('@AdminId','INT')
+				,@TicketCount = T.C.value('@TicketCount','INT')
 				,@Starttime = T.C.value('@Starttime','DATETIME')
 				,@ErrCode = @HasError
 		FROM	@LogData.nodes('/root/r') AS T(C)	
@@ -119,11 +123,17 @@ BEGIN
 			@UserID = @AdminId
 			,@Doing = @Remark
 
-		SELECT @Remark ='NAP: ' + CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
+		SELECT @Remark ='NAP: ' 
+						+ CASE 
+							WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
+							WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+							ELSE ''
+						END
+						+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
                                     ELSE 'Old GoalRecord:' + @oldgoalrecord + '<br/> '
                                     END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
-                        --+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
+                        + ' TC:' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) + ';'
 						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';'
                        + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
 								WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 

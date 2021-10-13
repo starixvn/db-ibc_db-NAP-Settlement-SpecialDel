@@ -36,6 +36,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 
     Param's Explanation:
         
@@ -53,6 +54,7 @@ BEGIN
 			,@HomeValue				VARCHAR(50)
 			,@AwayValue				VARCHAR(50)
 			,@LeagueGroupID			SMALLINT
+			,@KeyId					INT
 			
 	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
 								WHEN @Action = 'CAL-FT' THEN 2
@@ -228,10 +230,22 @@ BEGIN
     END
     ELSE
     BEGIN
-        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType
+        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode
+			, IsCalculating
+			, LeagueID, SportType
 			, AdminId, IP, Action, sqlCommand, execTime)
-        SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype
+        SELECT @MatchId, @matchcode
+			, CASE WHEN @sporttype = 1 THEN 99 ELSE 0 END
+			, @leagueid, @sporttype
 			, @AdminId, @IP, @Action, @sqlCommand, NULL
+
+		SET @KeyId = SCOPE_IDENTITY()
+
+		IF @sporttype = 1
+			UPDATE Single_Calculate_Queue 
+				SET sqlCommand = @sqlCommand + ', @KeyId = ' + CAST(@KeyId AS VARCHAR)
+					,IsCalculating = 0
+			WHERE	keyid = @KeyId
     END
 
 END

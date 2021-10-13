@@ -500,6 +500,7 @@ BEGIN
 						,@IsReSettledTickets = @IsReSettledTickets
 						,@ResourceResult = @ResourceResult
 						,@SessionId = @SessionId
+						,@TicketCount = @TicketCount OUTPUT
 				ELSE 
 					EXEC dbo.NAP_Admin_Settlement_3
 						@matchid            = @matchid
@@ -567,6 +568,7 @@ BEGIN
 							,@hta AS '@hta'
 							,@creator AS '@AdminId'
 							,@IP AS '@IP'
+							,@TicketCount AS '@TicketCount'
 							,@starttime AS '@Starttime'
 							,@ErrMsg AS '@ErrMsg'
 					FOR XML PATH('r'), ROOT('root'), TYPE)

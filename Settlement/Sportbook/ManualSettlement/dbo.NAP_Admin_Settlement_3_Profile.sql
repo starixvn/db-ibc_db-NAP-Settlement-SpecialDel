@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@IsReSettledTickets BIT = 1
 	,@SessionId	BIGINT = NULL
 	,@ResourceResult VARCHAR(MAX) = NULL
+	,@TicketCount INT = 0 OUTPUT
 AS
 /*
     Created: 20201123@Kathy
@@ -436,6 +437,8 @@ BEGIN
 	SELECT @TotalAffectedTicket = SUM(TotalTicket)
 	FROM	#tmpCustIds
 	
+	SET @TicketCount = @TotalAffectedTicket
+
 	EXEC dbo.NAP_Set_GlobalSettingSel	
 		@LockName = 'SettlementSSB'
 		,@PrepareDataQueueSize =  @PrepareDataQueueSize OUTPUT
