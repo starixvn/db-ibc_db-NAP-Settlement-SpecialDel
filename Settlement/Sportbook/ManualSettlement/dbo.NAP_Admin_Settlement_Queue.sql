@@ -50,6 +50,26 @@ BEGIN
 		,IsMarked TINYINT
 		,modds MONEY
 	)
+	
+	CREATE TABLE #tmpBettrans 
+	(
+		transid BIGINT
+		,custid INT
+		,bettype SMALLINT
+		,betteam VARCHAR(50)
+		,hdp1 SMALLMONEY
+		,hdp2 SMALLMONEY
+		,livehomescore SMALLINT
+		,liveawayscore SMALLINT
+		,transdesc VARCHAR(1000)
+		,betcheck VARCHAR(50)
+
+		,pfID INT
+		,HomeValue VARCHAR(50)
+		,AwayValue VARCHAR(50)
+		,oddstype SMALLINT
+	)
+
 	CREATE TABLE #tmpAffectedTransId 
 	(
 		transid BIGINT
@@ -99,6 +119,7 @@ BEGIN
 
 	IF @IsReSettledTickets = 0
 	BEGIN
+		INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
 		SELECT	 b.transid
 				,b.custid
 				,b.bettype
@@ -109,7 +130,6 @@ BEGIN
 				,b.liveawayscore
 				,b.transdesc 
 				,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
-		INTO #tmpBettrans
 		FROM	dbo.bettrans b WITH (NOLOCK)		
 		  WHERE	b.matchid = @MatchId
 	  			AND b.statusID IN (0,102)	
@@ -148,6 +168,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
+		INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
 		SELECT	 b.transid
 				,b.custid
 				,b.bettype
@@ -158,7 +179,6 @@ BEGIN
 				,b.liveawayscore
 				,b.transdesc 
 				,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
-		INTO #tmpBettrans2
 		FROM	dbo.bettrans b WITH (NOLOCK)		
 		WHERE	b.matchid = @MatchId
 	  		AND b.statusID NOT IN (101)
@@ -184,7 +204,7 @@ BEGIN
 				,sr.HomeValue 
 				,sr.AwayValue 
 				,sr.oddstype			
-		FROM	#tmpBettrans2 b	
+		FROM	#tmpBettrans b	
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
 					AND sr.matchid = @matchid
@@ -248,12 +268,7 @@ BEGIN
 
 
 	INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
-	SELECT	CAST((SELECT	t.transid AS '@t'	
-							,t.ScoreBoxOdds AS '@so'
-							,t.ScoreBoxScore AS '@ss'
-					FROM	#tmpFinalResult t
-					WHERE	t.BatchNo = b.BatchNo
-					FOR XML PATH('r'), ROOT('root'), TYPE) AS VARCHAR(MAX)) AS TransIds
+	SELECT	t.TransIds
 			,b.modds
 			,b.IsMarked
 			,b.oddstype
@@ -264,6 +279,14 @@ BEGIN
 			,@SessionId
 			,@ActionId
 	FROM	@tmpBatchNo b
+		CROSS APPLY (
+			SELECT CAST((SELECT	t.transid AS '@t'	
+							,t.ScoreBoxOdds AS '@so'
+							,t.ScoreBoxScore AS '@ss'
+					FROM	#tmpFinalResult t
+					WHERE	t.BatchNo = b.BatchNo
+					FOR XML PATH('r'), ROOT('root'), TYPE) AS VARCHAR(MAX)) AS TransIds
+		) t
 
 	SELECT @TotalBatch = @@ROWCOUNT
 	
