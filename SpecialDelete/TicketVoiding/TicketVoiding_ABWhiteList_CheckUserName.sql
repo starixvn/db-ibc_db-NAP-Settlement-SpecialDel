@@ -32,7 +32,7 @@ BEGIN
 	SET @InvalidUserNames = STUFF((SELECT  ',' + l.username
 								  FROM #tmpUserName l
 									LEFT JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.username = ci.username
-									INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON ci.site = s.site
+									LEFT JOIN CustDB.dbo.Site s WITH (NOLOCK) ON ci.site = s.site
 								  WHERE 1 = CASE WHEN ci.custid IS NULL THEN 1
 												 WHEN ci.custid IS NOT NULL AND (ci.roleid NOT IN (1,2,3,4) OR s.isActive = 0) THEN 1
 												 ELSE 0 END
