@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@FilterToTransTime	  DATETIME = NULL
 	,@FilterFromBetId	  BIGINT = NULL
 	,@FilterToBetId		  BIGINT = NULL
+	,@UserID			  INT
 	,@FilterBy			  TINYINT = 1
 	,@IssueTypeId		  INT = 1
 	,@ActionId			  INT = 5
@@ -49,6 +50,7 @@ AS
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:
 		+@Filterby:
@@ -72,6 +74,37 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	
+			SET @sqlCommand = 'EXEC dbo.TicketVoiding_LogInfo_Select '
+					+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
+					+ CASE WHEN @FilterFromTransTime IS NULL THEN '' ELSE ',@FilterFromTransTime = ''' + CONVERT(NVARCHAR(50), @FilterFromTransTime, 21) + '''' END
+					+ CASE WHEN @FilterToTransTime IS NULL THEN '' ELSE ',@FilterToTransTime = ''' + CONVERT(NVARCHAR(50), @FilterToTransTime, 21) + '''' END
+					+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+					+ CASE WHEN @FilterBy IS NULL THEN '' ELSE ',@FilterBy = ' + CONVERT(NVARCHAR(50), @FilterBy) END
+					+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
+					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
+					+ CASE WHEN @IsShowLogOnly IS NULL THEN '' ELSE ',@IsShowLogOnly = ' + CONVERT(NVARCHAR(50), @IsShowLogOnly) END
+					+ CASE WHEN @SubIssueTypeId IS NULL THEN '' ELSE ',@SubIssueTypeId = ' + CONVERT(NVARCHAR(50), @SubIssueTypeId) END
+					+ CASE WHEN @KickOffTime IS NULL THEN '' ELSE ',@KickOffTime = ''' + CONVERT(NVARCHAR(50), @KickOffTime, 21) + '''' END
+					+ CASE WHEN @WrongScoreInfo IS NULL THEN '' ELSE ',@WrongScoreInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongScoreInfo) + '''' END
+					+ CASE WHEN @DangerAcceptedInfo IS NULL THEN '' ELSE ',@DangerAcceptedInfo = ''' + CONVERT(NVARCHAR(MAX), @DangerAcceptedInfo) + '''' END
+					+ CASE WHEN @RedCardInfo IS NULL THEN '' ELSE ',@RedCardInfo = ''' + CONVERT(NVARCHAR(MAX), @RedCardInfo) + '''' END	
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserID, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE @IsInvalidTransId		  BIT = 0
 			,@IsInValidTotalTickets   BIT = 0
 			,@IsInvalidLiveScore	  BIT = 0
@@ -80,12 +113,12 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
-			,@IsExistFM			  BIT = 0
+			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
 			,@WrongScoreInfoXML		  XML = NULL
-			,@DangerAcceptedInfoXML	          XML = NULL
-			,@MatchParlayProcessXML	          XML = NULL
+			,@DangerAcceptedInfoXML	  XML = NULL
+			,@MatchParlayProcessXML	  XML = NULL
 			,@RedCardInfoXML		  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
@@ -355,11 +388,15 @@ BEGIN
 					    WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 					    END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-							ELSE CASE WHEN d.SubIssueTypeId IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+							ELSE CASE 
+									WHEN d.SubIssueTypeId IN (55,57,60,75,79,82,89) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
 									WHEN d.SubIssueTypeId IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-									WHEN d.SubIssueTypeId IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									WHEN d.SubIssueTypeId IN (56,58,61,76,80,83,90) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
 									WHEN d.SubIssueTypeId IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
-								    WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
+								    WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,72,73,74,77,81,84,91,92,93,94) THEN 1
+									WHEN d.SubIssueTypeId IN (67,78,85) AND b.bettype NOT IN (395,376,381,382,383,384,385,386,387,390,391,393) THEN 1
+									WHEN d.SubIssueTypeId IN (86,87,88) AND b.bettype NOT IN (424,455,479,481,395,376,381,382,383,384,385,386,387,390,391,393) 
+														   AND b.bettype NOT IN (SELECT bettype FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT') THEN 1 
 									ELSE 0 END
 					END
 		
@@ -430,13 +467,16 @@ BEGIN
 							 WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 						END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-								 ELSE CASE WHEN d.SubIssueTypeId IN (55,57,60,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1 
+								 ELSE CASE 
+										   WHEN d.SubIssueTypeId IN (55,57,60,75,79,82,89) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1
 										   WHEN d.SubIssueTypeId IN (68,70) AND sub.bettype NOT IN (483,485) THEN 1
-									       WHEN d.SubIssueTypeId IN (56,58,61,76,80,83) AND sub.bettype NOT IN (401,403,407,461,463) THEN 1
+									       WHEN d.SubIssueTypeId IN (56,58,61,76,80,83,90) AND sub.bettype NOT IN (401,403,407,461,463) THEN 1
 									       WHEN d.SubIssueTypeId IN (69,71) AND sub.bettype NOT IN (482,484) THEN 1
-									       WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-									       ELSE 0
-									  END
+									       WHEN d.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,72,73,74,77,81,84,91,92,93,94) THEN 1
+										   WHEN d.SubIssueTypeId IN (67,78,85) AND sub.bettype NOT IN (395,376,381,382,383,384,385,386,387,390,391,393) THEN 1 
+										   WHEN d.SubIssueTypeId IN (86,87,88) AND sub.bettype NOT IN (424,455,479,481,395,376,381,382,383,384,385,386,387,390,391,393) 
+																				AND sub.bettype NOT IN (SELECT bettype FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT') THEN 1 
+									       ELSE 0 END
 							END
 		END 
 
@@ -887,13 +927,15 @@ BEGIN
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 				AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-							  ELSE CASE WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+							  ELSE CASE WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82,89) AND b.bettype NOT IN (402,404,409,462,464) THEN 1
 									    WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-									    WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									    WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83,90) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
 									    WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
-								        WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-									    ELSE 0
-								  END
+								        WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,72,73,74,77,81,84,91,92,93,94) THEN 1
+										WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (67,78,85) AND b.bettype NOT IN (395,376,381,382,383,384,385,386,387,390,391,393) THEN 1 
+										WHEN ISNULL(t.SubIssueTypeId, @SubIssueTypeId) IN (86,87,88) AND b.bettype NOT IN (424,455,479,481,395,376,381,382,383,384,385,386,387,390,391,393) 
+																								     AND b.bettype NOT IN (SELECT bettype FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT') THEN 1 
+									    ELSE 0 END
 						END
 		END  			    				    					    				    					    	
 	END
@@ -959,13 +1001,15 @@ BEGIN
 					WHEN @ActionId =2 AND sub911.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END								
 		AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-					  ELSE CASE WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82) AND main.bettype NOT IN (402,404,409,462,464) THEN 1 
+					  ELSE CASE WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82,89) AND main.bettype NOT IN (402,404,409,462,464) THEN 1 
 								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (68,70) AND main.bettype NOT IN (483,485) THEN 1
-								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83) AND main.bettype NOT IN (401,403,407,461,463) THEN 1
+								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83,90) AND main.bettype NOT IN (401,403,407,461,463) THEN 1
 								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (69,71) AND main.bettype NOT IN (482,484) THEN 1
-								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-							    ELSE 0
-					      END
+								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,72,73,74,77,81,84,91,92,93,94) THEN 1
+							    WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (67,78,85) AND main.bettype NOT IN (395,376,381,382,383,384,385,386,387,390,391,393) THEN 1 
+								WHEN ISNULL(main.SubIssueTypeId, @SubIssueTypeId) IN (86,87,88) AND main.bettype NOT IN (424,455,479,481,395,376,381,382,383,384,385,386,387,390,391,393) 
+																								AND main.bettype NOT IN (SELECT bettype FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT') THEN 1 
+								ELSE 0 END
 				END
 	-- get cash-out member bet tickets	
 	INSERT INTO #SpecialDeleteBets(
@@ -1030,13 +1074,15 @@ BEGIN
 												WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 												ELSE 0 END
 								AND 1 = CASE WHEN @IssueTypeId NOT IN (1) THEN 1 --NOT Danger Accept
-											   ELSE CASE WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
+											   ELSE CASE WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (55,57,60,75,79,82,89) AND b.bettype NOT IN (402,404,409,462,464) THEN 1 
 														 WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (68,70) AND b.bettype NOT IN (483,485) THEN 1
-									                     WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
+									                     WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (56,58,61,76,80,83,90) AND b.bettype NOT IN (401,403,407,461,463) THEN 1
 									                     WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (69,71) AND b.bettype NOT IN (482,484) THEN 1
-													     WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-														 ELSE 0
-												  END
+													     WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (1,2,3,4,5,26,59,62,63,64,65,66,72,73,74,77,81,84,91,92,93,94) THEN 1
+														 WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (67,78,85) AND b.bettype NOT IN (395,376,381,382,383,384,385,386,387,390,391,393) THEN 1 
+														 WHEN ISNULL(sub911.SubIssueTypeId, @SubIssueTypeId) IN (86,87,88) AND b.bettype NOT IN (424,455,479,481,395,376,381,382,383,384,385,386,387,390,391,393) 
+																								AND b.bettype NOT IN (SELECT bettype FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT') THEN 1 
+														 ELSE 0 END
 										END
 						) AS b
 	WHERE sub911.bettype = 911
@@ -1924,7 +1970,16 @@ BEGIN
 		FROM #logInfo l
 		GROUP BY MatchId, LiveScores, ScoreId
 	END
-
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, @UserID, NULL, @MatchId, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TransidInRequest
