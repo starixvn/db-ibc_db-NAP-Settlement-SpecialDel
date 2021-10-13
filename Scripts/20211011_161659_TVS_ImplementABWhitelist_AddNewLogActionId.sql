@@ -18,6 +18,19 @@ VALUES (90004,
 		'Insert AB White List',
 		'Insert AB White List',
 		0
+		),
+	(90005, 
+		'TicketVoiding_ABWhiteList_Update', 
+		'Remove AB White List',
+		'Remove AB White List',
+		'Remove AB White List',
+		'Remove AB White List',
+		'Remove AB White List',
+		'Remove AB White List',
+		'Remove AB White List',
+		0
 		)
+
+
 
 GO
