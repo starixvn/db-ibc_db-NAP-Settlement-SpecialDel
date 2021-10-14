@@ -3,6 +3,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Insert]
 (
 	  @UserNames			NVARCHAR(MAX) = ''
 	 ,@UserId				INT
+	 ,@IP					VARCHAR(50) = NULL
 )
 AS
 /*
@@ -56,7 +57,8 @@ BEGIN
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
-							,@UserId AS '@UserId'							
+							,@UserId AS '@UserId'	
+							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
 							+ ', @UserNames: ' + CAST(@UserNames AS NVARCHAR(MAX))
 							AS '@LogData'
