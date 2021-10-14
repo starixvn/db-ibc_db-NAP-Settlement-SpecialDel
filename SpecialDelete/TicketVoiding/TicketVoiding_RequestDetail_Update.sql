@@ -132,8 +132,8 @@ BEGIN
 			,@IsOutright			 BIT = 0
 			,@IsSaba				 BIT = 0
 			,@IsNonSport			 BIT = 0
-			,@movebetdate			SMALLDATETIME
-			,@maxdate 				DATETIME = '9999-01-01'
+			,@movebetdate			 SMALLDATETIME
+			,@maxdate 				 DATETIME = '9999-01-01'
 			,@FromWinlostDate        DATETIME	
 			,@OldActualScore		 NVARCHAR(300) = NULL
 			,@NewActualScore		 NVARCHAR(300) = NULL
