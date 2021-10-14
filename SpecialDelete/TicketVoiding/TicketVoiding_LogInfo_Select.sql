@@ -5,8 +5,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@RequestId			  INT = 0
 	,@FilterFromTransTime DATETIME = NULL
 	,@FilterToTransTime	  DATETIME = NULL
-	,@FilterFromBetId	  BIGINT = NULL
-	,@FilterToBetId		  BIGINT = NULL
 	,@UserID			  INT
 	,@FilterBy			  TINYINT = 1
 	,@IssueTypeId		  INT = 1

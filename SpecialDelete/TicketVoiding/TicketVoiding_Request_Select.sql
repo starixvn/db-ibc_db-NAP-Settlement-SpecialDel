@@ -33,6 +33,7 @@ AS
 		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:	
 	
@@ -44,7 +45,6 @@ BEGIN
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
-			--,r.SubIssueTypeId
 			,r.ActionId
 			,r.MistakenBy
 			,r.DecidedBy
@@ -91,8 +91,6 @@ BEGIN
 				,m.GlobalShowTime
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
-				,rd.FilterFromBetId
-				,rd.FilterToBetId
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime

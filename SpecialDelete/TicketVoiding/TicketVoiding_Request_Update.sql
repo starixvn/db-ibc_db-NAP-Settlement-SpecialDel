@@ -21,8 +21,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@TransIds				VARCHAR(MAX)  = NULL
 	,@FilterFromTransTime	DATETIME	  = NULL
 	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterFromBetId		BIGINT		  = NULL
-	,@FilterToBetId			BIGINT		  = NULL
 	,@FilterBy				TINYINT		  = 1
 	,@SingleCount			INT			  = NULL
 	,@MainParlayCount		INT			  = NULL
@@ -84,6 +82,7 @@ AS
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210920@Max: TVS - Update other info of request after voided always loading [Redmine: #161852]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -260,7 +259,6 @@ BEGIN
 
 		UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 			SET @OldActionId = ActionId
-				--,@OldSubIssueTypeId = SubIssueTypeId
 				,@OldCheckedBy = CheckedBy
 				,@OldSportType = Sporttype
 				,@OldMistakenBy = MistakenBy
@@ -275,7 +273,6 @@ BEGIN
 				,Source = ISNULL(@Source, Source)
 				,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
 				,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
-				-- @SubIssueTypeId IS NULL update @CheckBy
 				,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 				,Remark = ISNULL(@Remark, Remark)
 				,IsTest = ISNULL(@IsTest, IsTest)
@@ -295,8 +292,6 @@ BEGIN
 				,@IssueTypeId = @IssueTypeId			
 				,@FilterFromTransTime = @FilterFromTransTime
 				,@FilterToTransTime	= @FilterToTransTime		
-				,@FilterFromBetId = @FilterFromBetId		
-				,@FilterToBetId	= @FilterToBetId			
 				,@FilterBy = @FilterBy				
 				,@SingleCount = @SingleCount			
 				,@MainParlayCount = @MainParlayCount		
@@ -323,7 +318,6 @@ BEGIN
 				,@ErrCode = @ErrCode OUTPUT
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-				;
 
 		EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
@@ -425,7 +419,6 @@ BEGIN
 	BEGIN
 		UPDATE	dbo.TicketVoiding_Request WITH(ROWLOCK, UPDLOCK)
 			SET @OldActionId = ActionId
-				--,@OldSubIssueTypeId = SubIssueTypeId
 				,@OldCheckedBy = CheckedBy
 				,@OldSportType = Sporttype
 				,@OldMistakenBy = MistakenBy
@@ -440,7 +433,6 @@ BEGIN
 				,Source = ISNULL(@Source, Source)
 				,DecidedBy = ISNULL(@DecidedBy, DecidedBy)
 				,MistakenBy = ISNULL(@MistakenBy, MistakenBy)
-				-- @SubIssueTypeId IS NULL update @CheckBy
 				,CheckedBy = CASE WHEN @SubIssueTypeId IS NULL THEN @CheckedBy ELSE CheckedBy END 
 				,Remark = ISNULL(@Remark, Remark)
 				,IsTest = ISNULL(@IsTest, IsTest)
