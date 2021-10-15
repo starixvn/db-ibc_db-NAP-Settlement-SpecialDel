@@ -16,6 +16,8 @@ GO
 
 SET NOCOUNT ON
 	
+	--ResultDetailOS
+
 	ALTER TABLE dbo.ResultDetailOS DROP CONSTRAINT DF_ResultDetailOS_CreateDate
 	GO
 
@@ -28,8 +30,15 @@ SET NOCOUNT ON
 	ALTER TABLE dbo.ResultDetailOS ALTER COLUMN LastModifyDate DATETIME
 	GO
 
-	---------------------------------------------------------------------------------
+	--ResultDetailOS14
 
+	ALTER TABLE dbo.ResultDetailOS14 ALTER COLUMN CreateDate DATETIME
+	GO
+
+	ALTER TABLE dbo.ResultDetailOS14 ALTER COLUMN LastModifyDate DATETIME
+	GO
+
+	--ResultDetailES
 	ALTER TABLE dbo.ResultDetailES DROP CONSTRAINT DF_ResultDetailES_CreateDate
 	GO
 
@@ -40,6 +49,13 @@ SET NOCOUNT ON
 	GO
 
 	ALTER TABLE dbo.ResultDetailES ALTER COLUMN LastModifyDate DATETIME
+	GO
+
+	--ResultDetailES14
+	ALTER TABLE dbo.ResultDetailES14 ALTER COLUMN CreateDate DATETIME
+	GO
+
+	ALTER TABLE dbo.ResultDetailES14 ALTER COLUMN LastModifyDate DATETIME
 	GO
 
 
