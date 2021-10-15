@@ -259,11 +259,6 @@ BEGIN
 					OR t.mrecommend = a.Custid
 					OR t.srecommend = a.Custid
 		)ab
-		
-	select @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #ABWhiteListTransIds t
-									FOR XML PATH('')
-							), 1, 1, ''), '')
 
 	--final valid transid
 	DELETE t
@@ -292,18 +287,12 @@ BEGIN
 			FROM #UnsupportedTransids
 			WHERE transid = temp.transid
 			) u
-			OUTER APPLY (
-			SELECT transid
-			FROM #ABWhiteListTransIds
-			WHERE transid = temp.transid
-			) ab
 		WHERE NOT EXISTS (
 				SELECT 1
 				FROM #validTransId
 				WHERE transid = TEMP.transid
 				)
 			AND u.transid IS NULL
-			AND ab.transid IS NULL
 		)
 	SELECT @InvalidTransIds = @InvalidTransIds + CASE 
 			WHEN isMoved = 0 THEN CASE 
@@ -371,6 +360,12 @@ BEGIN
 					WHERE c.CustomerClass = 1
 					FOR XML PATH('')
 					), 1, 1, ''), '')
+
+		--Check AB White List
+		SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #ABWhiteListTransIds t
+									FOR XML PATH('')
+							), 1, 1, ''), '')
 	END
 
 	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
