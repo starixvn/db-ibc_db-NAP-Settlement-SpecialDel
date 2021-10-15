@@ -238,7 +238,7 @@ BEGIN
 		INSERT (MatchId,  BetType, pfID, HomeValue, AwayValue, OddsType, IsHT)
 			VALUES (SOURCE.MatchId, SOURCE.Bettype, SOURCE.pfId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.OddsType, SOURCE.IsHT);
 	
-	IF @ChildMatchType = 204 AND @Action IN ('CAL', 'CAL-FT')
+	IF @ChildMatchType = 204
 	BEGIN
 		DECLARE @CornerResultString VARCHAR(50)
 				,@Position				TINYINT
@@ -262,7 +262,7 @@ BEGIN
 						+ CASE 
 							WHEN bettype IN (486,487) 
 								THEN CASE
-										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
+										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(CAST(hdp1 AS INT) AS VARCHAR) 
 							ELSE '' 
 						END AS ResouceId
 			FROM	dbo.bettrans b WITH(NOLOCK)
@@ -274,7 +274,7 @@ BEGIN
 						+ CASE 
 							WHEN bettype IN (486,487) 
 								THEN CASE
-										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(hdp1 AS VARCHAR) 
+										WHEN hdp1 < 10 THEN '0' ELSE '' END + CAST(CAST(hdp1 AS INT) AS VARCHAR) 
 							ELSE '' 
 						END
 		)
@@ -344,9 +344,20 @@ BEGIN
 			END
 
 			INSERT INTO @tmpCornerResultDetail (ResourceID, HomeValue)
-			SELECT	CASE WHEN Index_Round = 1 THEN '487' ELSE '486' END + ResourceID
-					,HomeValue
-			FROM	@tmpCornerRaceToResult
+			SELECT	r.ResourceID
+					,r.HomeValue
+			FROM	@tmpCornerBettype b
+				CROSS APPLY (SELECT (CAST(b.bettype AS VARCHAR) + ResourceID) AS ResourceID
+								, HomeValue
+							FROM @tmpCornerRaceToResult r
+							WHERE 1 = CASE 
+											WHEN b.bettype = 487 AND Index_Round = 1 THEN 1
+											WHEN b.bettype = 487 AND Index_Round = 2 THEN 0
+											ELSE 1
+										END	
+							
+							) AS r
+			WHERE b.bettype IN (486,487) 
 		END
 								
 		INSERT INTO @tmpCornerResultDetail(ResourceID, HomeValue)

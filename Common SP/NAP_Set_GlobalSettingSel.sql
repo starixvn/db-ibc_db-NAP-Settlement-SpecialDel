@@ -61,5 +61,6 @@ BEGIN
 		IF @RunExecDataBySSB = 0
 			SELECT @ExecDataQueueSize = 1
 	END
+	
 END
 GO

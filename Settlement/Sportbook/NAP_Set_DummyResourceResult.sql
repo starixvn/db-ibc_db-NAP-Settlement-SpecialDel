@@ -998,7 +998,11 @@ BEGIN
 					,@string VARCHAR(50)
 					,@ResourceId VARCHAR(20) 
 			
-			SET @ResourceId = '486'
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
+				SET @ResourceId = '486'
+			ELSE
+				SET @ResourceId = '487'
+
 			WHILE (@ResourceId <> '00')
 			BEGIN
 				SELECT	@Position = 1

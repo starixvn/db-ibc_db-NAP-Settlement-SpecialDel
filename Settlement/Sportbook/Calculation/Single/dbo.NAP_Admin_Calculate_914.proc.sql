@@ -265,9 +265,9 @@ BEGIN
 												,NULL --RecommDate
 											)
 			OUTPUT inserted.custid
-				,(inserted.winlost - ISNULL(deleted.winlost,0)) + (inserted.playercomm - ISNULL(deleted.playercomm,0))
-			INTO @tmpBalanceChanged (CustId, Balance)	
-			;
+				,(inserted.winlost - inserted.actual_stake + inserted.playercomm)
+					- (ISNULL(deleted.winlost,0) - ISNULL(deleted.actual_stake,0) + ISNULL(deleted.playercomm,0))
+			INTO @tmpBalanceChanged (CustId, Balance);
 
 		IF @ServerAlias = 'DBTXN' AND @Action ='CAL' AND @Sporttype = 1
 		BEGIN
