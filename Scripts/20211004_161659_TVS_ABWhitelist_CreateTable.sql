@@ -2,7 +2,7 @@
 /*
 	Created by: July
 	Task : [TVS] Implement AB Whitelist
-	DB: DBTXN/bodb02
+	DB: DBTXN/bodb02 [Replicated Server for DBTrans_API_Data]
 
 	Revisions:
 		- 20211004@July: Create new table [Redmine:#161659]
