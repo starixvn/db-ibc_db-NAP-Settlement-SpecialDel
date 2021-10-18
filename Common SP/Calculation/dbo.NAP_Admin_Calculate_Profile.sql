@@ -350,7 +350,7 @@ BEGIN
 			SET @StepDone = @StepDone + ', BalCreditSportsPending'
 
 			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
-			SELECT	custid, SUM(Balance) Balance
+			SELECT	custid, ABS(SUM(Balance)) Balance
 			FROM	@tmpBalanceChanged t
 			WHERE	BonusStatus NOT IN (1,3)
 			GROUP BY custid

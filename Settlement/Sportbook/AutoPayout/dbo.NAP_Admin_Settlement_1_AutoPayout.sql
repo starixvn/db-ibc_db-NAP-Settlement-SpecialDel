@@ -85,7 +85,7 @@ BEGIN
 										WHEN 'CAL-HT'	THEN 157
 										WHEN 'CAL'		THEN 100
 										END
-		,@SkipProcess				= CASE WHEN @sporttype = 1 THEN 1 ELSE 0 END
+		,@SkipProcess				= 0
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
@@ -126,6 +126,8 @@ BEGIN
 		INSERT INTO dbo.Settlement_SettledSession (MatchId)
 		SELECT @matchid
 		SET @SessionId = SCOPE_IDENTITY()
+
+		SET @SkipProcess = 1
 	END
  
 	SELECT @strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))

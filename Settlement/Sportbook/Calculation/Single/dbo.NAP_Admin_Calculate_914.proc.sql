@@ -278,7 +278,7 @@ BEGIN
 			HAVING SUM(Balance) > 0
 		
 			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
-			SELECT	custid, SUM(Balance) Balance
+			SELECT	custid, ABS(SUM(Balance)) Balance
 			FROM	@tmpBalanceChanged t
 			GROUP BY custid
 			HAVING SUM(Balance) < 0
