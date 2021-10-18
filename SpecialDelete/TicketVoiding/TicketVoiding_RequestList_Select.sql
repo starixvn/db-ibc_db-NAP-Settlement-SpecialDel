@@ -8,6 +8,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 	,@IssueTypeId	VARCHAR(100)	= NULL
 	,@SubIssueType  VARCHAR(MAX)	= NULL
 	,@RequestId		INT				= NULL
+	,@CreatedBy		INT				= 0
+
 )
 AS
 /*	Created by: Kathy
@@ -40,6 +42,7 @@ AS
 		- 20210527@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
+		- 20211013@Max: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:	
 		@Status: 
@@ -445,6 +448,7 @@ BEGIN
 						FOR XML PATH('')
 						)w (scores)
 		WHERE	(@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0
+			AND ((r.UserId = @CreatedBy) OR @CreatedBy = 0)
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
@@ -493,6 +497,7 @@ BEGIN
 						FOR XML PATH('')
 						)w (scores)
 		WHERE ((@IsExcludeTest = 1 AND r.IsTest = 0) OR @IsExcludeTest = 0)
+			AND ((r.UserId = @CreatedBy) OR @CreatedBy = 0)
 	END
 
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId)
@@ -598,7 +603,8 @@ BEGIN
 			,t.FromWinlostDate
 			,t.ToWinlostDate
 			,t.TotalUserName --no.of accounts
-			,t.WrongScores 
+			,t.WrongScores
+			,mr.Settlement_state
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -626,16 +632,23 @@ BEGIN
 					ORDER BY VoidingHistory DESC 
 					)l
 		OUTER APPLY (
-					SELECT	m.matchcode
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.matchid = t.MatchId
-						AND t.IssueTypeId = 1
+						--AND t.IssueTypeId = 1
 					UNION
-					SELECT	m.matchcode
+					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 					FROM	dbo.match14 m WITH(NOLOCK)
 					WHERE	m.matchid = t.matchid
-						AND t.IssueTypeId = 1
+						--AND t.IssueTypeId = 1
 			)m
+		OUTER APPLY(
+					SELECT CASE WHEN mr.calculate = 1 THEN 'FT: ' + CAST(m.finalhomescore AS VARCHAR(2)) + '-' + CAST(finalawayscore AS VARCHAR(2))
+								WHEN mr.IsHTCal = 1 THEN 'HT' + CAST(m.hthomescore AS VARCHAR(2)) + '-' + CAST(m.htawayscore AS VARCHAR(2))
+							ELSE 'HT: _-_' END AS Settlement_state
+					FROM dbo.match_remark mr WITH (NOLOCK) 
+					WHERE mr.matchid = t.MatchId
+			)mr
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
 				WHEN @Status = 0 AND f.statusID IS NULL AND l.statusID IS NULL THEN 1 --New
