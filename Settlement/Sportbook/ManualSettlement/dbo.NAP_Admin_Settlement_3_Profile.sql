@@ -70,6 +70,9 @@ BEGIN
 		,AwayValue VARCHAR(50)
 	)
 	
+	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT)
+	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT)
+	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -83,7 +86,6 @@ BEGIN
 		,BetID			BIGINT
 		,pfID			SMALLINT
 		,OddsType		SMALLINT
-		,IsHT			BIT DEFAULT(0)
 		,PRIMARY KEY (BetType,BetID)
 	)	
 	
@@ -158,12 +160,66 @@ BEGIN
 	SELECT	ResourceID, HomeValue, AwayValue
 	FROM	cteResource
 
+	INSERT INTO @tmpAllBettypes(Bettype)
+	SELECT	s.BetType
+	FROM	@tmpResources t
+		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+			ON t.ResourceID = s.ResourceID
+	WHERE	s.SportType = @sporttype
+			AND s.SettleType = 'MNL'
+
+	INSERT INTO @tmpAllBettypes(Bettype)
+	SELECT	s.BetType
+	FROM	@tmpResources t
+		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+			ON t.ResourceID = s.RefResourceId
+	WHERE	s.RefResourceId IS NOT NULL
+			AND s.SportType = @sporttype
+			AND s.SettleType = 'MNL'
+
+	IF @IsReSettledTickets = 0
+	BEGIN
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		SELECT	b.custid
+				,b.bettype
+				,COUNT(1) AS TotalTicket
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.statusID IN (0,102)
+		GROUP BY b.custid, b.bettype
+	END 
+	ELSE
+	BEGIN
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		SELECT	b.custid
+				,b.bettype
+				,COUNT(1) AS TotalTicket
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = @matchid
+				AND b.statusID <> 101
+		GROUP BY b.custid, b.bettype
+	END
+
+	DELETE	
+	FROM	#tmpCustBettypes
+	WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM @tmpAllBettypes)
+
+	;WITH cteAffectedBettypes
+	AS (
+		SELECT	Bettype
+		FROM	#tmpCustBettypes
+		GROUP BY Bettype
+	)
+	INSERT INTO @tmpAffectedBettypes(BetType)
+	SELECT	bettype
+	FROM	cteAffectedBettypes
+
 	-- insert dummy resouceid
 	-----------------------------------------add more info-----------------------------------------
 	SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
 	FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-		INNER JOIN @tmpResources t
-			ON s.RefResourceId = t.ResourceID
+		INNER JOIN @tmpAffectedBettypes t
+			ON s.BetType = t.BetType
 	WHERE	s.SportType = @sportType
 			AND s.SettleType = 'MNL'
 			AND s.RefResourceId IS NOT NULL
@@ -180,8 +236,8 @@ BEGIN
 		INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
 		SELECT Id, Home, Away
 		FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-															,Home VARCHAR(50)
-															,Away VARCHAR(50)
+												,Home VARCHAR(50)
+												,Away VARCHAR(50)
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 	END
@@ -195,49 +251,37 @@ BEGIN
 		,BetID
 		,pfID
 		,OddsType	
-		,IsHT
 	)
 	SELECT DISTINCT tbl.ResourceID
 			,tbl.HomeValue
 			,tbl.AwayValue
 			,sp.BetType, sp.BetID, sp.pfID
 			, sp.OddsType				
-			,CASE WHEN f.groupId IN (1,3,5) THEN 1 ELSE 0 END AS IsHT
 	FROM	@tmpResources tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.ResourceID
 		INNER JOIN dbo.f_Set_GetGroupBettypes() AS f
 			ON	sp.bettype = f.BetType
+		INNER JOIN @tmpAffectedBettypes ab
+			ON	sp.BetType = ab.Bettype
 	WHERE	sp.SportType = @SportType
 			AND 1 = CASE	
-						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND Is3x30 = 1 AND GroupId = 2 THEN 0 
+						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND f.Is3x30 = 1 AND f.GroupId = 2 THEN 0 
 						ELSE 1
 					END
-			AND SettleType = 'MNL'
-			AND pfID > 0
+			AND sp.SettleType = 'MNL'
+			AND sp.pfID > 0
 	
-	MERGE dbo.SettlementBettypeResult AS TARGET
-	USING (
-		SELECT	@MatchId AS MatchId
-				,BetType
-				,pfID
-				,HomeValue
-				,AwayValue
-				,OddsType
-				,IsHT
-		FROM	#tmpSelectedRID
-	) AS SOURCE
-		ON	TARGET.MatchId = SOURCE.MatchId
-			AND TARGET.Bettype = SOURCE.Bettype
-			AND TARGET.Pfid = SOURCE.pfId
-	WHEN MATCHED THEN 
-		UPDATE SET TARGET.HomeValue = SOURCE.HomeValue
-					,TARGET.AwayValue = SOURCE.AwayValue
-					,TARGET.OddsType = SOURCE.OddsType
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (MatchId,  BetType, pfID, HomeValue, AwayValue, OddsType, IsHT)
-			VALUES (SOURCE.MatchId, SOURCE.Bettype, SOURCE.pfId, SOURCE.HomeValue, SOURCE.AwayValue, SOURCE.OddsType, SOURCE.IsHT);
-	
+	INSERT INTO dbo.SettlementBettypeResult (MatchId, Bettype, pfId, HomeValue, AwayValue, OddsType, SessionId)
+	SELECT	@MatchId AS MatchId
+			,BetType
+			,pfID
+			,HomeValue
+			,AwayValue
+			,OddsType
+			,@SessionId
+	FROM	#tmpSelectedRID
+		
 	IF @ChildMatchType = 204
 	BEGIN
 		DECLARE @CornerResultString VARCHAR(50)
@@ -393,29 +437,6 @@ BEGIN
 				@creator        = @creator
 		END	
 	END
-		
-	IF @IsReSettledTickets = 0
-	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
-		SELECT	b.custid
-				,b.bettype
-				,COUNT(1) AS TotalTicket
-		FROM	dbo.bettrans b WITH(NOLOCK)
-		WHERE	b.matchid = @matchid
-				AND b.statusID IN (0,102)
-		GROUP BY b.custid, b.bettype
-	END 
-	ELSE
-	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
-		SELECT	b.custid
-				,b.bettype
-				,COUNT(1) AS TotalTicket
-		FROM	dbo.bettrans b WITH(NOLOCK)
-		WHERE	b.matchid = @matchid
-				AND b.statusID <> 101
-		GROUP BY b.custid, b.bettype
-	END
 	
 	IF @action IN ('CAL', 'CAL-FT')
 	BEGIN
@@ -434,10 +455,6 @@ BEGIN
 							FOR XML PATH ('r'),ROOT ('ROOT'), TYPE
 						) AS VARCHAR(MAX))
 	END
-
-	DELETE	
-	FROM	#tmpCustBettypes
-	WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM #tmpSelectedRID)
 
 	INSERT INTO #tmpCustIds (CustId, TotalTicket)
 	SELECT	CustId, SUM(TotalTicket)
@@ -477,24 +494,10 @@ BEGIN
 	)
 	INSERT INTO @tmpBatchMinMaxCustId (BatchNo, MinCustId, MaxCustId)	
 	SELECT BatchNo
-		--CASE
-		--		WHEN BatchNo <= @PrepareDataQueueSize THEN BatchNo
-		--		ELSE CASE 
-		--				WHEN @PrepareDataQueueSize%2 = 0 THEN @PrepareDataQueueSize + (BatchNo + 1)/6 + @PrepareDataQueueSize/6 
-		--				ELSE @PrepareDataQueueSize + BatchNo/6 + (@PrepareDataQueueSize+1)/6
-		--				END
-		--		END batchno
 			,MIN(mincustId)
 			,MAX(maxcustid)
 	FROM cteBatchNo
 	GROUP BY BatchNo
-		--CASE
-		--		WHEN batchno <= @PrepareDataQueueSize THEN BatchNo
-		--		ELSE CASE 
-		--				WHEN @PrepareDataQueueSize%2 = 0 THEN @PrepareDataQueueSize + (BatchNo + 1)/6 + @PrepareDataQueueSize/6 
-		--				ELSE @PrepareDataQueueSize + BatchNo/6 + (@PrepareDataQueueSize+1)/6
-		--				END
-		--		END
 
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 		,@mode = 'LockMatch'

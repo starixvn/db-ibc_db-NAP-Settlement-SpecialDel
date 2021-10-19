@@ -58,6 +58,11 @@ BEGIN
 			,@FTGoalRecord VARCHAR(50)
 			,@HTGoalRecord VARCHAR(50)
 
+			,@home_firstteam2goals INT
+			,@away_firstteam2goals INT
+			,@home_firstteam3goals INT
+			,@away_firstteam3goals INT
+
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 
@@ -758,9 +763,6 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '422')
 		BEGIN
-			DECLARE @home_firstteam2goals INT
-					,@away_firstteam2goals INT
-
 			SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
 			SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
 
@@ -778,9 +780,9 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '423')
 		BEGIN
-			DECLARE @home_firstteam3goals INT
-					,@away_firstteam3goals INT
-
+			SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
+			SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
+			
 			SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@FTGoalRecord, @home_firstteam2goals + 1) ELSE 0 END
 			SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@FTGoalRecord, @away_firstteam2goals + 1) ELSE 0 END
 

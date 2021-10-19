@@ -49,11 +49,13 @@ BEGIN
 		, @SSBCommand		NVARCHAR(MAX)
 		, @SSBStatusMonitor	TINYINT 
 		, @IsCompletedSSB   BIT
+		, @IsRunBySSB		BIT
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
 			,@IsCompletedSSB = 0
 			,@SSBStatus = 0
+			,@IsRunBySSB = 0
 
 	;WITH cteCricketRunning
 	AS(
@@ -74,6 +76,7 @@ BEGIN
 			,@SSBStatus = ISNULL(SSBStatus,0)
 			,@SSBCommand = SSBCommand
 			,@sporttype = SportType
+			,@Action = Action
 	FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
 	WHERE	IsCalculating = 1 
 			AND sqlCommand <> ''
@@ -83,6 +86,8 @@ BEGIN
 
 	IF @SSBStatus = 1
 	BEGIN
+		SET @IsRunBySSB = 1
+
 		BEGIN TRY
 			EXEC sys.sp_executesql @SSBCommand
 				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
@@ -117,17 +122,20 @@ BEGIN
 		--Giving priority to calcualate the match which has sporttype <> previous calculated match
 		SELECT TOP 1 @keyId =  keyid
 				,@sporttype = SportType
+				,@Action = Action
 		FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
 		WHERE	IsCalculating = 0
 		ORDER BY CASE WHEN SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,TryCount, starttime, keyid
 	
-		IF @sporttype = 1
+		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') THEN 1 ELSE 0 END
+
+		IF @IsRunBySSB = 1
 			SET @SSBStatus = 1
 
 		UPDATE TOP (1) dbo.Single_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 		SET IsCalculating	= 1
-			, SSBStatus		= CASE WHEN SportType = 1 THEN @SSBStatus ELSE SSBStatus END
+			, SSBStatus		= CASE WHEN @IsRunBySSB = 1 THEN @SSBStatus ELSE SSBStatus END
 			, execTime 		= GETDATE()
 			, @MatchId 		= matchid
 			, @Adminid 		= AdminId
@@ -149,7 +157,7 @@ BEGIN
 			SET @ErrMsg = @ErrMsg + ERROR_MESSAGE()
 		END CATCH
 
-		IF @sporttype = 1 AND @ErrCode <> 0
+		IF @IsRunBySSB = 1 AND @ErrCode <> 0
 			SET @SSBStatus = 3
 	END
 
@@ -159,7 +167,7 @@ BEGIN
 	IF (ISNULL(@ErrCode, 0) <> 0 OR ISNULL(@ErrMsg, '') <> '' ) -- calculate failed set calculating = 0 and back
 		AND ISNULL(@ErrCode, 0) <> 1000006 --- 1000006: Betfair & Betdaq - Warning message
 	BEGIN
-		IF @sporttype <> 1
+		IF @IsRunBySSB = 0
 			UPDATE dbo.Single_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 				SET IsCalculating = 0
 					,TryCount = TryCount + 1
@@ -209,7 +217,7 @@ BEGIN
 			SELECT @AdminId, @MatchId, @IP, GETDATE(), @Action, @ErrMsg, NULL 
 		END
 
-		IF @sporttype <> 1 OR (@sporttype = 1 AND @SSBStatus = 2)
+		IF @IsRunBySSB = 0 OR (@IsRunBySSB = 1 AND @SSBStatus = 2)
 		BEGIN
 			UPDATE	dbo.Single_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 				SET	IsCalculating = 2

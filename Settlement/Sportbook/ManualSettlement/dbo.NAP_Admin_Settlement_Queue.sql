@@ -159,11 +159,7 @@ BEGIN
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
 					AND sr.matchid = @MatchId
-		  WHERE	sr.IsHT = CASE 
-								WHEN @action = 'CAL-HT' THEN 1
-								WHEN @action = 'CAL-FT' THEN 0
-								ELSE sr.isht
-							END
+		WHERE	sr.SessionId = @SessionId
 		OPTION (MAXDOP 1)
 	END
 	ELSE
@@ -208,11 +204,7 @@ BEGIN
 	  		INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
 	  			ON	sr.BetType = b.bettype
 					AND sr.matchid = @matchid
-		WHERE	sr.IsHT = CASE 
-								WHEN @action = 'CAL-HT' THEN 1
-								WHEN @action = 'CAL-FT' THEN 0
-								ELSE sr.isht
-							END
+		WHERE	sr.SessionId = @SessionId
 		OPTION (MAXDOP 1)
 	END
 

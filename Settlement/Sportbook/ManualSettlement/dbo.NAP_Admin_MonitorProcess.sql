@@ -69,6 +69,11 @@ BEGIN
 		END
 	END
 
+	DELETE
+	FROM	dbo.SettlementBettypeResult WITH(ROWLOCK, UPDLOCK)
+	WHERE	matchid = @MatchId
+			AND SessionId = @SessionId
+
 	-- cal 914	
 	EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
 		@MatchId = @matchid
