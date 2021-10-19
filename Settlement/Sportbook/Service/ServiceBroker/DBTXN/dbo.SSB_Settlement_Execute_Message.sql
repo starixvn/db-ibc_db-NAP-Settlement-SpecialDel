@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02, SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 alter procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
 	, @MessageBody nvarchar(max)
@@ -7,7 +7,7 @@ alter procedure dbo.SSB_Settlement_Execute_Message @ConversationHandle uniqueide
 as
 /*  Created: Patrick@20210801
 	Task: Execute message
-	DB: DBTXN-bodb02, SBSETTLE-bodb02
+	DB: DBTXN-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 */

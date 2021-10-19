@@ -53,3 +53,22 @@ create queue dbo.bet_settle_queue_06 with status = on, retention = off
 create service bet_settle_send_service_06 on queue bet_settle_queue_06(bet_settle_contract_06)
 create service bet_settle_receive_service_06 on queue bet_settle_queue_06(bet_settle_contract_06)
 
+
+--07
+create message type bet_settle_msg_type_07 validation = none
+create contract bet_settle_contract_07(bet_settle_msg_type_07 sent by any)
+create queue dbo.bet_settle_queue_07 with status = on, retention = off
+	--, activation (status = on, procedure_name = '', max_queue_readers = 10, execute as N'dbo')
+	, poison_message_handling (status = on) on [serviceBroker]
+create service bet_settle_send_service_07 on queue bet_settle_queue_07(bet_settle_contract_07)
+create service bet_settle_receive_service_07 on queue bet_settle_queue_07(bet_settle_contract_07)
+
+--08
+create message type bet_settle_msg_type_08 validation = none
+create contract bet_settle_contract_08(bet_settle_msg_type_08 sent by any)
+create queue dbo.bet_settle_queue_08 with status = on, retention = off
+	--, activation (status = on, procedure_name = '', max_queue_readers = 10, execute as N'dbo')
+	, poison_message_handling (status = on) on [serviceBroker]
+create service bet_settle_send_service_08 on queue bet_settle_queue_08(bet_settle_contract_08)
+create service bet_settle_receive_service_08 on queue bet_settle_queue_08(bet_settle_contract_08)
+
