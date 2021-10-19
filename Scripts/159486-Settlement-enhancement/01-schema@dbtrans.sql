@@ -158,3 +158,24 @@ GO
 
 ALTER TABLE [dbo].[SettlementProcessing] ADD CONSTRAINT [DF_SettlementProcessing_IsMarked] DEFAULT ((0)) FOR [IsMarked]
 GO
+
+
+CREATE TABLE [dbo].[SettlementBettypeResult](
+	[MatchId] [int] NOT NULL,
+	[BetType] [smallint] NOT NULL,
+	[pfID] [smallint] NULL,
+	[HomeValue] [varchar](50) NULL,
+	[AwayValue] [varchar](50) NULL,
+	[OddsType] [smallint] NULL,
+	[SessionId] [bigint] NULL
+) ON [DATA]
+GO
+
+/****** Object:  Index [CIX_SettlementBettypeResult_MatchId]    Script Date: 10/19/2021 9:30:19 AM ******/
+CREATE CLUSTERED INDEX [CIX_SettlementBettypeResult_MatchId] ON [dbo].[SettlementBettypeResult]
+(
+	[MatchId] ASC
+)ON [DATA]
+GO
+
+
