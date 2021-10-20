@@ -7,7 +7,7 @@
 	DB: DBPRO/bodb02
 
 	Revisions:
-		- 20211015@Louisa: Update data type [Redmine:#]
+		- 20211015@Louisa: Update data type [Redmine:#163474]
 				  
 */
 
