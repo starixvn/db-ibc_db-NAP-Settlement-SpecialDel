@@ -151,7 +151,14 @@ CREATE TABLE [dbo].[SettlementProcessing](
 ) ON [DATA]
 GO
 
-CREATE CLUSTERED INDEX CIX_SettlementProcessing ON SettlementProcessing(SessionId, MessageType) ON [DATA]
+CREATE CLUSTERED INDEX [CIX_SettlementProcessing] ON [dbo].[SettlementProcessing]
+(
+	[SessionId] ASC,
+	[MessageType] ASC,
+	[modds] DESC
+) ON [DATA]
+GO
+
 
 ALTER TABLE [dbo].[SettlementProcessing] ADD CONSTRAINT [DF_SettlementProcessing_StatusId]  DEFAULT ((0)) FOR [StatusId]
 GO
