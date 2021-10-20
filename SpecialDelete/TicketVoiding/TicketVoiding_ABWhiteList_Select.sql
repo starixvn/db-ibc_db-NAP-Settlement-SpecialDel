@@ -62,7 +62,7 @@ BEGIN
 		INNER JOIN CustDB.dbo.Customer u WITH(NOLOCK) ON u.custid = a.CreateBy
 	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
 		AND (a.LevelId = @roleid OR @roleid = 0)
-	ORDER BY a.CreatedDate DESC 
+	ORDER BY a.CreatedDate DESC, c.username ASC
 
 	SELECT CustId, Username, [Level], [Site], AddedDate, AddedBy 
 	FROM #tmpABWhiteList
