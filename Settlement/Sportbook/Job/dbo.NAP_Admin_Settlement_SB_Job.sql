@@ -47,7 +47,7 @@ BEGIN
 		, @sporttype		SMALLINT
 		, @SSBStatus		TINYINT
 		, @SSBCommand		NVARCHAR(MAX)
-		, @SSBStatusMonitor	TINYINT 
+		--, @SSBStatusMonitor	TINYINT 
 		, @IsCompletedSSB   BIT
 		, @IsRunBySSB		BIT
 
@@ -176,7 +176,7 @@ BEGIN
 		UPDATE dbo.Single_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 		SET IsCalculating = 3
 			, duration = DATEDIFF(ms, execTime, GETDATE())
-			, SSBStatus = CASE WHEN @SSBStatusMonitor = 1 THEN 2 ELSE SSBStatus END
+			, SSBStatus = CASE WHEN @SSBStatus = 3 THEN 3 ELSE SSBStatus END
 		WHERE keyid = @keyId AND (TryCount = 3 OR @SSBStatus = 3)
 
 		IF @@ROWCOUNT > 0
@@ -222,6 +222,7 @@ BEGIN
 			UPDATE	dbo.Single_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 				SET	IsCalculating = 2
 					,duration = DATEDIFF(ms, execTime, GETDATE())
+					,SSBStatus = CASE WHEN @SSBStatus = 2 THEN 2 ELSE SSBStatus END
 			WHERE	keyid = @keyId			
 		
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action)

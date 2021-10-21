@@ -303,7 +303,7 @@ BEGIN
 		BEGIN
 			SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
 		
-			EXEC [sb].[SSB_Send_Message] @MessageContent = @SessionId
+			EXEC [dbo].[SSB_Send_Message] @MessageContent = @SessionId
 				, @FunctionName = 'settlement'
 				, @MessageType = @MessageType
 			

@@ -22,12 +22,12 @@ AS
 	Param's Explanation:  
 		   
 		@transIds = '<root>
-						<r t="104730774034" m="1"/>
-						<r t="104729373985" m="0" ot="1"/>
+						<r t="104730774034"/>
+						<r t="104729373985"/>
 					</root>'
 					t:  transid
-					m:  modds
-					ot: oddstype: 1: DECIMAL ONLY
+					so:  ScoreBoxOdds
+					ss: ScoreBoxScore
 */
 BEGIN
 	
@@ -331,6 +331,7 @@ BEGIN
 
 			-- balance
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE WalletType = 1)
+			BEGIN				
 				UPDATE t 
 					SET BonusStatus = bw.StatusID
 				FROM	@tmpBalanceChanged t
@@ -339,6 +340,42 @@ BEGIN
 							AND t.BonusId = bw.BonusID
 				WHERE	t.WalletType = 1
 						AND t.BonusId > 0
+						
+				BEGIN TRY	
+					INSERT INTO dbo.BonusWalletPending	(
+						CustID
+						, BonusID
+						, Amount
+					)
+					SELECT 	bn.CustID
+							, bn.BonusID
+							, SUM(bn.balance) AS Amount
+					FROM 	@tmpBalanceChanged bn
+					WHERE 	bn.walletType			= 1
+							AND bn.bonusID			> 0
+					GROUP BY bn.CustId
+							,bn.BonusId
+					HAVING SUM(bn.balance) <> 0
+					
+					SET @StepDone = @StepDone + ', BonusWalletPending'
+				END TRY	
+				BEGIN CATCH
+				
+					INSERT INTO dbo.BalanceErr ( Custid, BalanceGroup, BalanceAmt, ExecutedSP, ErrMsg, BonusID)
+					SELECT	bn.Custid
+							, 1 AS BalanceGroup
+							, SUM(bn.balance) AS BalanceAmt
+							, 'NAP_Admin_Calculate_Profile' AS ExecutedSP
+							, LEFT(ERROR_MESSAGE(),500) AS ErrMsg
+							, bn.BonusID
+					FROM	@tmpBalanceChanged bn
+					WHERE	bn.walletType			= 1
+							AND bn.bonusID			> 0
+					GROUP BY bn.CustId
+							,bn.BonusId
+					HAVING SUM(bn.balance) <> 0					
+				END CATCH
+			END
 
 			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
 			SELECT	custid, SUM(Balance) Balance

@@ -42,7 +42,7 @@ BEGIN
 					
 					SET @MessageContent = @SessionId
 
-					EXEC [sb].[SSB_Send_Message] @MessageContent = @MessageContent
+					EXEC [dbo].[SSB_Send_Message] @MessageContent = @MessageContent
 						, @FunctionName = 'settlement'
 						, @MessageType = @MessageType
 							

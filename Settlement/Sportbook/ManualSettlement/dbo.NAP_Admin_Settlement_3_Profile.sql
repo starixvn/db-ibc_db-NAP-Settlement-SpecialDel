@@ -256,7 +256,7 @@ BEGIN
 			,tbl.HomeValue
 			,tbl.AwayValue
 			,sp.BetType, sp.BetID, sp.pfID
-			, sp.OddsType				
+			,ISNULL(sp.OddsType,0)				
 	FROM	@tmpResources tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.ResourceID
@@ -558,7 +558,7 @@ BEGIN
 		
 			SELECT @MessageType = @MessageTypePattern + CASE WHEN @QueueNo < 10 THEN '0' ELSE '' END + CAST(@QueueNo AS VARCHAR)
 		
-			EXEC [sb].[SSB_Send_Message] @MessageContent = @messageBody
+			EXEC [dbo].[SSB_Send_Message] @MessageContent = @messageBody
 				, @FunctionName = 'settlement'
 				, @MessageType = @MessageType 
 		
