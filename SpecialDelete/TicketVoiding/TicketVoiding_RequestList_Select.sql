@@ -604,7 +604,7 @@ BEGIN
 			,t.ToWinlostDate
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
-			,mr.Settlement_state
+			,mr.SettlementState
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -645,7 +645,7 @@ BEGIN
 		OUTER APPLY(
 					SELECT CASE WHEN mr.calculate = 1 THEN 'FT: ' + CAST(m.finalhomescore AS VARCHAR(2)) + '-' + CAST(finalawayscore AS VARCHAR(2))
 								WHEN mr.IsHTCal = 1 THEN 'HT' + CAST(m.hthomescore AS VARCHAR(2)) + '-' + CAST(m.htawayscore AS VARCHAR(2))
-							ELSE 'HT: _-_' END AS Settlement_state
+							ELSE 'HT: _-_' END AS SettlementState
 					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
