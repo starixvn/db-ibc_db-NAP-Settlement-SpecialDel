@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CheckUserName]
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
-	 @UserNames	 VARCHAR(MAX) = ''
+	 @UserNames	 NVARCHAR(MAX) = ''
 	,@RequestId	 INT = 0
 	,@ActionId	 INT = 0
 	,@ProductIds VARCHAR(50)  = NULL
@@ -23,13 +23,14 @@ AS
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20211007@July: Change datatype validation username [Redmine:#161659]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @InvalidUserName		  VARCHAR(MAX) = ''
+	DECLARE @InvalidUserName		  NVARCHAR(MAX) = ''
 			,@IsExistedInOtherRequest BIT = 0
 			,@MatchIDs				  VARCHAR(MAX) = ''
 			,@NumberOfTickets		  INT = 0
@@ -60,8 +61,8 @@ BEGIN
 			,@ThreadHold			  INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
 
 	
-	CREATE TABLE #TmpInValidUserName ( Username VARCHAR(30))
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT, recommend INT)
+	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)

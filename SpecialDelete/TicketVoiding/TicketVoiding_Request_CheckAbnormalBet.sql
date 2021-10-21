@@ -39,6 +39,7 @@ AS
 		- 20210304@July: TVS - Abnormal Bet - Auto void before KO time - [Redmine: #150522] 
 		- 20210408@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210930@July: TVS - No need to check Live Score of Rugby and Ice Hockey sport [Redmine: #161877]
+		- 20211005@Max: [TVS] Implement AB Whitelist - [Redmine:#161659]
 
 
 	Param's Explanation:
@@ -71,6 +72,7 @@ BEGIN
 			,@IsExistFM2				 BIT = 0
 			,@MatchProcessXML			 XML = NULL
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
+			,@ABWhiteListTransIds				VARCHAR(MAX) = ''
 	
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -111,6 +113,7 @@ BEGIN
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
+			,@ABWhiteListTransIds AS ABWhiteListTransIds
 
 		RETURN;
 	END
@@ -130,8 +133,12 @@ BEGIN
 		,matchid INT
 		,sporttype SMALLINT
 		,betfrom NVARCHAR(1)
+		,recommend INT
+		,mrecommend INT
+		,srecommend INT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
+	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
 		TransId BIGINT PRIMARY KEY
 		,IsNonLive BIT
@@ -201,6 +208,9 @@ BEGIN
 		,matchid
 		,sporttype
 		,betfrom
+		,recommend
+		,mrecommend
+		,srecommend
 		)
 	SELECT b.transid
 		,CASE 
@@ -216,6 +226,9 @@ BEGIN
 		,@MatchId
 		,m.sporttype
 		,b.betfrom
+		,b.recommend
+		,b.mrecommend
+		,b.srecommend
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
@@ -233,6 +246,20 @@ BEGIN
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
 							), 1, 1, ''), '')
+
+	-- get ABWhiteList transid
+	INSERT #ABWhiteListTransIds (transid)
+	SELECT t.transid
+	FROM #validTransId t
+		CROSS APPLY (
+				SELECT TOP(1) 1 CustId
+				FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)
+				WHERE t.custId = a.Custid
+					OR t.recommend = a.Custid
+					OR t.mrecommend = a.Custid
+					OR t.srecommend = a.Custid
+		)ab
+
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
@@ -333,6 +360,12 @@ BEGIN
 					WHERE c.CustomerClass = 1
 					FOR XML PATH('')
 					), 1, 1, ''), '')
+
+		--Check AB White List
+		SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #ABWhiteListTransIds t
+									FOR XML PATH('')
+							), 1, 1, ''), '')
 	END
 
 	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
@@ -422,6 +455,7 @@ BEGIN
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
 			,@MatchProcessXML AS MatchProcessXML
+			,@ABWhiteListTransIds AS ABWhiteListTransIds
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp
@@ -429,4 +463,5 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #LiveTransIds
+	DROP TABLE #ABWhiteListTransIds
 END
