@@ -22,6 +22,7 @@ AS
 			- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 			- 20200721@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
+			- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 
 	Param's Explanation:		
 		
@@ -51,8 +52,8 @@ BEGIN
 		,@DummyResourceIds VARCHAR(MAX) = ''
 		,@DummyResourceResults VARCHAR(MAX) = ''
 	
-	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
-	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT)
+	DECLARE @tempRefno TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT, isMarked BIT)
+	DECLARE @tempBatch TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsRefundGame BIT, isMarked BIT)
 	DECLARE @tempResultDetail TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), Bettype SMALLINT, Betid NVARCHAR(50), pfID SMALLINT, ssID TINYINT, IsDetermined BIT)
 	DECLARE @tempSelectedResource TABLE (ResourceID VARCHAR(20))
 	DECLARE @tempResource TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssID TINYINT)
@@ -240,6 +241,24 @@ BEGIN
 			AND statusID NOT IN (101, 1, 0)
 	END
 	
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE MatchId = @matchId)
+	BEGIN
+		;WITH cteMarkedTrans
+		AS(
+			SELECT	b.refno
+			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON mt.TransId = b.transid
+			WHERE	mt.MatchId = @matchid
+					AND b.matchid = 29
+		)
+		UPDATE r 
+			SET ismarked = 1
+		FROM	@tempRefno r
+			INNER JOIN cteMarkedTrans c
+				ON r.refno = c.refno
+	END
+
 	SELECT @batchNo			= 2000
 		, @batchCount		= 0
 		, @fromTransId		= 0
@@ -250,8 +269,8 @@ BEGIN
 		DELETE @tempBatch
 		
 		DELETE TOP(@batchNo) t
-		OUTPUT deleted.refno, DELETED.transid, DELETED.modds
-		INTO @tempBatch(refno, transid, modds)
+		OUTPUT DELETED.refno, DELETED.transid, DELETED.modds, DELETED.isMarked
+		INTO @tempBatch(refno, transid, modds, isMarked)
 		FROM @tempRefno t	
 
 		SELECT @batchCount 	= @@ROWCOUNT
@@ -269,6 +288,7 @@ BEGIN
 									  ,refno	AS r
 	                                  ,modds    AS m
 	                                  ,'0'      AS i
+									  ,isMarked AS im
 	                             FROM @tempBatch
 								 WHERE modds IS NOT NULL
 	                        )AS b FOR XML AUTO
@@ -292,6 +312,7 @@ BEGIN
 									  ,refno	AS r
 	                                  ,'0'    AS m
 	                                  ,'0'      AS i
+									  ,isMarked AS im
 	                             FROM @tempBatch
 								 WHERE modds IS NULL
 	                        )AS b FOR XML AUTO
@@ -316,6 +337,7 @@ BEGIN
 										  ,refno	AS r
 										  ,modds    AS m
 										  ,'0'      AS i
+										  ,isMarked AS im
 									 FROM @tempBatch
 								)AS b FOR XML AUTO
 							 ) AS VARCHAR(MAX))

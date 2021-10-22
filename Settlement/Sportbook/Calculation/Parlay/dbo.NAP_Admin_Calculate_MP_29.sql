@@ -16,18 +16,20 @@ AS
 		- 20161114@Kathy: Wrongly update winlostdate of parlay running ticket [Redmine#67084]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT)
+	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
 	DECLARE @minRefno BIGINT	
 			
 	DECLARE @xml XML
 			,@statusId TINYINT
 			,@winlost MONEY
+			,@settlementTime DATETIME
 			
 	SET @xml = CONVERT(XML, N'<root><r rn="' + REPLACE(REPLACE(@strXML, '|', '" t="'), ',', '"/><r rn="') + '"/></root>')
 	
@@ -39,7 +41,14 @@ BEGIN
 	
 	SELECT @minRefno = MIN(refno)
 	FROM #Refno
-	DECLARE @settlementTime DATETIME
+	
+	UPDATE	r
+		SET IsMarked = 1
+	FROM	#Refno r
+		INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+			ON r.transid = mt.TransId
+	WHERE	mt.MatchId = 29
+
 	SET @settlementTime = GETDATE();
 
 	;WITH _source AS (
@@ -56,11 +65,12 @@ BEGIN
 		,acomm = SUM(pr.acomm) 
 		,scomm = SUM(pr.scomm) 			
 		,ruben = CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
+		,IsMarked = b.IsMarked
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
 			ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
-	GROUP BY b.refno, b.transid
+	GROUP BY b.refno, b.transid, b.IsMarked
 	)
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusId = CASE
@@ -78,28 +88,43 @@ BEGIN
 							END
 					END
 		,@winlost = s.winlost * s.ruben
-		,SettlementTime = CASE WHEN @statusId <> 0 AND (b.winlost <> @winlost OR statusID <> @statusId) THEN @settlementTime ELSE SettlementTime END
-		,statusID = @statusId
+		,SettlementTime = CASE 
+							WHEN s.IsMarked = 1 THEN b.SettlementTime
+							WHEN @statusId <> 0 AND (b.winlost <> @winlost OR statusID <> @statusId) THEN @settlementTime 
+							ELSE SettlementTime 
+						END
+		,statusID = CASE WHEN s.IsMarked = 1 THEN b.statusID ELSE @statusId END
 		,[status] = CASE 
+						WHEN s.IsMarked = 1 THEN b.status 
 						WHEN @statusId = 0 THEN 'running' 
 						WHEN @statusId = 111 THEN 'DRAW' -- winlost = stake, member DRAW
 						WHEN @statusId = 112 THEN 'WON' -- winlost > stake, member WIN
 						WHEN @statusId = 113 THEN 'LOSE' -- winlost < stake, member LOSE
 						ELSE b.[status] -- uncontrollale situation, hope it's not happen in real life
 					END
-		,winlostdate = CASE WHEN @statusId <> b.statusID THEN s.winlostdate ELSE b.winlostdate END
+		,winlostdate = CASE 
+							WHEN s.IsMarked = 1 THEN b.winlostdate
+							WHEN @statusId <> b.statusID THEN s.winlostdate 
+							ELSE b.winlostdate 
+						END
 		--,modds = s.modds
 		---,actual_stake = s.totalStake
-		,betdaqid = s.totalStake							
-		,ruben = s.ruben
-		,winlost =  @winlost
-		,awinlost = s.awinlost * s.ruben
-		,mwinlost = s.mwinlost * s.ruben
-		,swinlost = s.swinlost * s.ruben
-		,playercomm = s.playercomm * s.ruben
-		,comm = s.comm * s.ruben
-		,acomm = s.acomm * s.ruben
-		,scomm = s.scomm * s.ruben
+		,betdaqid = CASE WHEN s.IsMarked = 1 THEN b.betdaqid ELSE s.totalStake END						
+		,ruben = CASE WHEN s.IsMarked = 1 THEN b.ruben ELSE s.ruben END
+		,winlost =  CASE WHEN s.IsMarked = 1 THEN b.winlost ELSE @winlost END
+		,awinlost = CASE WHEN s.IsMarked = 1 THEN b.awinlost ELSE s.awinlost * s.ruben END
+		,mwinlost = CASE WHEN s.IsMarked = 1 THEN b.mwinlost ELSE s.mwinlost * s.ruben END
+		,swinlost = CASE WHEN s.IsMarked = 1 THEN b.swinlost ELSE s.swinlost * s.ruben END
+		,playercomm = CASE WHEN s.IsMarked = 1 THEN b.playercomm ELSE s.playercomm * s.ruben END
+		,comm = CASE WHEN s.IsMarked = 1 THEN b.comm ELSE s.comm * s.ruben END
+		,acomm = CASE WHEN s.IsMarked = 1 THEN b.acomm ELSE s.acomm * s.ruben END
+		,scomm = CASE WHEN s.IsMarked = 1 THEN b.scomm ELSE s.scomm * s.ruben END
+		,statuswinlost = CASE 
+							WHEN @statusId = 112 THEN 2							
+							WHEN @statusId = 111 THEN 0 							
+							WHEN @statusId = 113 THEN 4								
+							WHEN @statusId = 0 THEN NULL
+						END 
 	FROM dbo.bettrans b
 		INNER JOIN _source s
 			ON b.transid = s.transid

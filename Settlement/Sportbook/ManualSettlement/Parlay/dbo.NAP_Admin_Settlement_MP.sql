@@ -44,6 +44,7 @@ AS
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -160,20 +161,6 @@ BEGIN
 			RETURN
 		END
 	END
-
-	-- check marked ticket
-	IF @action = 'CAL'
-	BEGIN
-		EXEC dbo.NAP_Set_CheckingMarkedTransaction
-			@MatchID  = @matchid
-			,@Action  = 'MP'
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	OUTPUT
-
-		IF @ErrCode <> 0
-			RETURN
-	END
-
 	----------------------------------------------------------------------------------------------------------------------------------------
 	BEGIN --BEGIN: handle bettransM ----------------------------------
 

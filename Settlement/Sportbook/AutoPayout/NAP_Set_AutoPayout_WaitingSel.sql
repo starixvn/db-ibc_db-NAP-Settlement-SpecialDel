@@ -35,7 +35,7 @@ AS
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
-
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	Param's explanation: 
 		
 */
@@ -72,6 +72,7 @@ BEGIN
 		,IsExistFTLG					BIT
 		,IsExistMarkedTicket			BIT
 		,IsExistRunningTicket			BIT
+		,IsExistRunningTicketParlay		BIT
 		,IsExistMarkedTicketParlay		BIT
 	)
 	
@@ -326,7 +327,8 @@ BEGIN
 
 	END
 
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
+	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT)
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
 	SELECT	mq.matchid
@@ -356,8 +358,44 @@ BEGIN
 				GROUP BY b.matchid
 			)b
 
+		-- parlay
+		INSERT INTO #temp_match_parlay (transid, matchid, refno)
+		SELECT	0, m.MatchId, bm.refno
+		FROM @tmpMatchCompleted m
+			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
+		WHERE	bm.statusID = 0
+
+		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
+		BEGIN
+			UPDATE   t
+				SET transid = b.transid
+			FROM   #temp_match_parlay  t
+				INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+			
+			UPDATE	m 
+				SET IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
+			FROM	@tmpMatchCompleted m
+					CROSS APPLY (
+								SELECT 1 AS IsExistRunningTicketParlay										
+								FROM (
+										SELECT	transid, MatchId
+										FROM	#temp_match_parlay p
+										WHERE p.matchid = m.MatchId
+									) b
+									OUTER APPLY (
+										SELECT TOP 1 mt.transId
+										FROM	#tmpMarkedTransaction mt 
+										WHERE	b.transid = mt.TransId
+												AND b.MatchId = mt.matchId
+									)mt
+									WHERE	mt.transId IS NULL
+									GROUP BY b.matchid
+								) t
+		END
+
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
+				,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
 		FROM	#tblMatchInQueue m
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
@@ -438,6 +476,7 @@ BEGIN
 
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
+			,m.IsExistRunningTicketParlay
 			,m.IsExistMarkedTicketParlay
 			,i.EventStatusReason
 	FROM	@tblMatchInfo i

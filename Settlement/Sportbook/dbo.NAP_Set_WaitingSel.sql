@@ -45,7 +45,8 @@ AS
 		- 20210917@Kathy: write log if SP run too long
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
-	
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+
 	Param's explanation:  
 		
 */
@@ -98,6 +99,7 @@ BEGIN
 		,IsWaitingEarlyBettypesParlay	BIT DEFAULT (0)
 		,IsExistMarkedTicket			BIT DEFAULT (0)
 		,IsExistRunningTicket			BIT DEFAULT (0)
+		,IsExistRunningTicketParlay		BIT DEFAULT (0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT (0)
 		,IsMergedParlay					BIT DEFAULT(0)
 		,EventStatusReason				TINYINT
@@ -112,7 +114,7 @@ BEGIN
 	
 	CREATE TABLE #tblBetStatus (matchid INT, ParentId INT, bettype SMALLINT, isRunning INT, IsWaiting INT, groupId TINYINT ,IsParlay BIT, IsFGLG BIT, IsEarly BIT)
 	
-	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
+	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT)
 	
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
 	BEGIN
@@ -406,7 +408,7 @@ BEGIN
 
 	END
 
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0),IsExistRunningTicketParlay BIT DEFAULT(0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
 	SELECT	t.matchid
@@ -444,14 +446,17 @@ BEGIN
 			) t
 		
 		-- parlay
-		INSERT INTO #temp_match_parlay (ParentID, transid, matchid, refno)
-		SELECT	tmp.ParentId, 0, tmp.MatchId, bm.refno
+		INSERT INTO #temp_match_parlay (ParentID, transid, matchid, refno, IsMergedParlay)
+		SELECT	tmp.ParentId, 0, tmp.MatchId, bm.refno, tmp.IsMergedParlay
 		FROM @tmpMatchCompleted m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
-		WHERE	m.IsExistRunningTicket = 0
-				AND bm.statusID = 0
-				AND tmp.IsMergedParlay = 1
+		WHERE	bm.statusID = 0
+			AND 1 = CASE 
+						WHEN m.IsExistRunningTicket = 0								
+								AND tmp.IsMergedParlay = 1 THEN 1
+						WHEN tmp.IsMergedParlay = 0 THEN 1
+					END
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
 		BEGIN
@@ -460,13 +465,15 @@ BEGIN
 			FROM   #temp_match_parlay  t
 				INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
 			
-			UPDATE m 
-			SET IsExistRunningTicket = t.IsExistRunningTicket
+			UPDATE	m 
+				SET IsExistRunningTicket = CASE WHEN t.IsMergedParlay = 1 AND m.IsExistRunningTicket = 0 THEN t.IsExistRunningTicketParlay ELSE m.IsExistRunningTicket END
+					,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
 			FROM	@tmpMatchCompleted m
 					CROSS APPLY (
-								SELECT 1 AS IsExistRunningTicket
+								SELECT 1 AS IsExistRunningTicketParlay
+										,MAX(CASE WHEN b.IsMergedParlay = 1 THEN 1 ELSE 0 END) AS IsMergedParlay
 								FROM (
-										SELECT	ParentId, transid, MatchId
+										SELECT	ParentId, transid, MatchId, IsMergedParlay
 										FROM	#temp_match_parlay p
 										WHERE p.matchid = m.MatchId
 									) b
@@ -479,11 +486,12 @@ BEGIN
 									WHERE	mt.transId IS NULL
 									GROUP BY b.ParentId
 								) t
-			WHERE m.IsExistRunningTicket = 0
+			--WHERE m.IsExistRunningTicket = 0
 		END
 				
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
+				,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
 		FROM	@TempMatch m
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
@@ -537,6 +545,7 @@ BEGIN
 		END AS EarlySettleStatus
 		,m.IsExistMarkedTicket
 		,m.IsExistRunningTicket
+		,m.IsExistRunningTicketParlay
 		,m.IsExistMarkedTicketParlay
 		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
 		,ISNULL(ciFT.username,'') AS suspenderFullTime
