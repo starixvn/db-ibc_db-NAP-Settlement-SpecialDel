@@ -28,7 +28,7 @@ BEGIN
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
-	IF @MainSubIssueTypeId IN (2, 58, 69) --Main Corner Home/Away
+	IF @MainSubIssueTypeId IN (2, 68, 69) --Main Corner Home/Away
 	BEGIN
 		SELECT m.MatchId
 			,CASE WHEN mr.matchid IS NOT NULL THEN 
