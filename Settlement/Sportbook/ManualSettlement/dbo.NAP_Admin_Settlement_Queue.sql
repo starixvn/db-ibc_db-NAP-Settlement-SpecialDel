@@ -282,35 +282,38 @@ BEGIN
 
 	SELECT @TotalBatch = @@ROWCOUNT
 	
-	IF @TotalBatch < @ExecDataQueueSize
-		SET @ExecDataQueueSize = @TotalBatch
-		
-	SET @QueueExecNo = 1
-
-	IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
-		OR @RunExecDataBySSB = 0
+	IF @TotalBatch > 0
 	BEGIN
-		SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
+		IF @TotalBatch < @ExecDataQueueSize
+			SET @ExecDataQueueSize = @TotalBatch
 		
-		EXEC dbo.SSB_Settlement_UpdateData @ConversationHandle = NULL
-			,@MessageType = @MessageType
-			,@MessageBody = @SessionId
-			,@MessageId = NULL
-	END
-	ELSE
-	BEGIN	
-		WHILE(1=1)
+		SET @QueueExecNo = 1
+
+		IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
+			OR @RunExecDataBySSB = 0
 		BEGIN
 			SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
 		
-			EXEC [dbo].[SSB_Send_Message] @MessageContent = @SessionId
-				, @FunctionName = 'settlement'
-				, @MessageType = @MessageType
+			EXEC dbo.SSB_Settlement_UpdateData @ConversationHandle = NULL
+				,@MessageType = @MessageType
+				,@MessageBody = @SessionId
+				,@MessageId = NULL
+		END
+		ELSE
+		BEGIN	
+			WHILE(1=1)
+			BEGIN
+				SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
+		
+				EXEC [dbo].[SSB_Send_Message] @MessageContent = @SessionId
+					, @FunctionName = 'settlement'
+					, @MessageType = @MessageType
 			
-			IF @QueueExecNo = @ExecDataQueueSize
-				BREAK
+				IF @QueueExecNo = @ExecDataQueueSize
+					BREAK
 
-			SET @QueueExecNo = @QueueExecNo + 1
+				SET @QueueExecNo = @QueueExecNo + 1
+			END
 		END
 	END
 

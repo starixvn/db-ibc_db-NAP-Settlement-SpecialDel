@@ -1,6 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile] 
 	@matchid INT
+	,@hth INT
+	,@hta INT
+	,@fth INT
+	,@fta INT
+	,@goalrecord NVARCHAR(50)
+	,@BetStatus NVARCHAR(50)
     ,@action VARCHAR(6) = 'CAL'
 	,@ActionID	INT = 0
 	,@creator INT = 0
@@ -24,14 +30,11 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-	DECLARE @fth			INT
-			,@fta			INT
-			,@hth			INT
-			,@hta			INT
-			,@goalrecord	NVARCHAR(50)
-			,@sporttype		SMALLINT
+	DECLARE @sporttype		SMALLINT
 			,@isRefundHT	BIT
-		
+			,@matchcode		VARCHAR(50)
+			,@eventstatus	NVARCHAR(50)
+			,@HTDone		BIT
 			,@handle		INT
 			,@DummyResourceIds		VARCHAR(MAX) 
 			,@DummyResourceResults VARCHAR(MAX)
@@ -89,7 +92,7 @@ BEGIN
 		,PRIMARY KEY (BetType,BetID)
 	)	
 	
-	CREATE TABLE #tmpCustBettypes (CustId INT, Bettype SMALLINT, TotalTicket INT)
+	CREATE TABLE #tmpCustBettypes (CustId INT, Bettype SMALLINT, TotalTicket INT, IsExistRunning TINYINT)
 	CREATE TABLE #tmpCustIds (CustId INT PRIMARY KEY, BatchNo INT, TotalTicket INT, runningtotal int)
 	CREATE TABLE #tmpSettlementProcessing (CustIds VARCHAR(MAX), QueueNo SMALLINT)
 	
@@ -101,8 +104,8 @@ BEGIN
 		,bettype SMALLINT
 	)
 
-	SELECT	
-			@DummyResourceIds = ''
+	SELECT	@HTDone = 0
+			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
 			,@MaxThreadHold = 50000
@@ -117,18 +120,8 @@ BEGIN
 			,@messageBody = ''
 			,@SettlementProcessingId = 0
 			,@SPName = OBJECT_NAME(@@PROCID)
-		
-	SELECT	@fth = FinalHomeScore
-			,@fta = FinalAwayScore
-			,@hth = HTHomeScore
-			,@hta = HTAwayScore
-			,@sporttype = sporttype
-			,@goalrecord = goalrecord
-			,@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
-			,@ChildMatchType = ChildMatchType
-	FROM	 DBPRO.bodb02.dbo.match WITH (NOLOCK) 
-	WHERE	matchid = @matchid
-   
+			,@Sporttype = 1
+
 	;WITH cteGoalResource
 	AS
 	(
@@ -179,10 +172,11 @@ BEGIN
 
 	IF @IsReSettledTickets = 0
 	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket, IsExistRunning)
 		SELECT	b.custid
 				,b.bettype
 				,COUNT(1) AS TotalTicket
+				,MAX(CASE WHEN b.statusId = 0 THEN 1 ELSE 0 END) AS IsExistRunning
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
 				AND b.statusID IN (0,102)
@@ -190,14 +184,33 @@ BEGIN
 	END 
 	ELSE
 	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket, IsExistRunning)
 		SELECT	b.custid
 				,b.bettype
 				,COUNT(1) AS TotalTicket
+				,MAX(CASE WHEN b.statusId = 0 THEN 1 ELSE 0 END) AS IsExistRunning
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
 				AND b.statusID <> 101
 		GROUP BY b.custid, b.bettype
+	END
+
+	IF @action IN ('CAL', 'CAL-FT')
+	BEGIN
+		IF EXISTS (SELECT	TOP 1 1
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.MatchId = @matchid
+							AND EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE mt.bettype = f.bettype AND f.GroupId IN (1,3,5))
+		)
+			SET @HTDone = 0
+		ELSE IF EXISTS (SELECT TOP 1 1
+						FROM	#tmpCustBettypes t
+						WHERE	EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE t.bettype = f.bettype AND f.GroupId IN (1,3,5))
+								AND t.IsExistRunning = 1
+					)
+			SET @HTDone = 0
+		ELSE
+			SET @HTDone = 1
 	END
 
 	DELETE	
@@ -213,6 +226,44 @@ BEGIN
 	INSERT INTO @tmpAffectedBettypes(BetType)
 	SELECT	bettype
 	FROM	cteAffectedBettypes
+			
+	-- update match
+	SELECT	@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
+			,@ChildMatchType = ChildMatchType
+			,@eventstatus = CASE 
+								WHEN @action = 'CAL' THEN N'completed'
+								WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+								ELSE eventstatus
+								END
+	FROM	 DBPRO.bodb02.dbo.match WITH (NOLOCK) 
+	WHERE	matchid = @matchid
+
+	EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+		@Command            = 'NAP_Admin_Settlement_1-CAL'
+		,@MatchID            = @matchid
+		,@FTHome            = @fth
+		,@FTAway            = @fta
+		,@HTHome            = @hth
+		,@HTAway            = @hta
+		,@BetStatus         = @betstatus
+		,@GoalRecord        = @goalrecord              
+		,@Action            = @action
+		,@HTDone            = @HTDone
+		,@creator            = @creator
+
+	-- update resultdetail
+    EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+        @Command        = 'NAP_Admin_Settlement_1-CAL',
+        @MatchID        = @MatchID,
+        @fth             = @fth,
+        @fta             = @fta,
+        @hth             = @hth,
+        @hta             = @hta,
+        @ResourceResult	 = @ResourceResult,
+        @Action            = @Action,
+        @IsAuto            = 0,
+        @creator        = @creator
 
 	-- insert dummy resouceid
 	-----------------------------------------add more info-----------------------------------------
@@ -576,4 +627,17 @@ BEGIN
 			,@strBettypes   = @strCashoutBettype
 			,@sporttype		= @sporttype
 	END
+
+	IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
+    BEGIN
+        EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+            @matchid    = @matchid
+            ,@command    = 'C'                
+    END
+    ELSE IF (@action = 'CAL-HT')
+    BEGIN
+        EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+            @matchid    = @matchid
+            ,@command    = 'H'
+    END
 END

@@ -63,10 +63,10 @@ BEGIN
 			,@batchno			INT = 2000
 			,@settlementTime	DATETIME
 			,@CheckNegativeBalance INT = 0
-			,@StepDone			VARCHAR(50) = 'Done update'
+			,@StepDone			VARCHAR(300) = 'Done update'
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
-	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0))
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT)
 
 	SET @xml = CAST(@transIds AS XML)
 
@@ -321,13 +321,17 @@ BEGIN
 					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 					,inserted.WalletType
 					,inserted.BonusID
-			INTO @tmpBalanceChanged (CustId, Balance, WalletType, BonusId)
+					,inserted.matchId
+			INTO @tmpBalanceChanged (CustId, Balance, WalletType, BonusId, MatchId)
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 					ON  t.transid = b.transid 
 			OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 		
 			SET @StepDone = @StepDone + ' bettrans'
+
+			SELECT TOP 1 @matchid = MatchId
+			FROM	@tmpBalanceChanged
 
 			-- balance
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE WalletType = 1)
