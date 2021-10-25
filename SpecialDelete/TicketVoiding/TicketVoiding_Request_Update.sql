@@ -482,11 +482,11 @@ BEGIN
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 								+ CASE WHEN @SportType IS NOT NULL AND (ISNULL(@SportType, 0) <> ISNULL(@OldSportType,0)) THEN ' Old SportType: ' + CAST(@OldSportType AS VARCHAR(20)) + ' New SportType: ' + CAST(@SportType AS VARCHAR(20)) ELSE '' END
 								+ CASE WHEN @ActionId IS NOT NULL AND (ISNULL(@ActionId, 0) <> ISNULL(@OldActionId, 0)) THEN ', Old ActionId: ' + CAST(@OldActionId AS VARCHAR(20)) + ' New ActionId: ' + CAST(@ActionId AS VARCHAR(20)) ELSE '' END
-								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ' Old CheckedBy: ' + CASE WHEN @OldCheckedBy IS NULL THEN 'NULL' ELSE CAST(@OldCheckedBy AS VARCHAR(20)) END
+								+ CASE WHEN ISNULL(@CheckedBy, 0) <> ISNULL(@OldCheckedBy,0) THEN ', Old CheckedBy: ' + CASE WHEN @OldCheckedBy IS NULL THEN 'NULL' ELSE CAST(@OldCheckedBy AS VARCHAR(20)) END
 								+ ' New CheckedBy: ' + CASE WHEN @CheckedBy IS NULL THEN 'NULL' ELSE CAST(@CheckedBy AS VARCHAR(20)) END ELSE '' END
 								+ CASE WHEN @MistakenBy IS NOT NULL AND (ISNULL(@MistakenBy, '') <> ISNULL(@OldMistakenBy, '')) THEN ', Old MistakenBy: ' + ISNULL(@OldMistakenBy, 'NULL') + ' New MistakenBy: ' + ISNULL(@MistakenBy, 'NULL') ELSE '' END
 								+ CASE WHEN @DecidedBy IS NOT NULL AND ISNULL(@DecidedBy, '') <> ISNULL(@OldDecidedBy, '') THEN ', Old DecidedBy: ' + ISNULL(@OldDecidedBy, 'NULL') + ' New DecidedBy: ' + ISNULL(@DecidedBy, 'NULL') ELSE '' END
-								+ CASE WHEN @Operators IS NOT NULL THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX)) ELSE '' END
+								+ CASE WHEN ISNULL(CAST(@Operators AS VARCHAR(MAX)),'') <> '' THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX)) ELSE '' END
 								+ CASE WHEN @Provider IS NOT NULL AND (ISNULL(@Provider, '') <> ISNULL(@OldProvider, '')) THEN ', Old Provider: ' + ISNULL(@OldProvider, 'NULL') + ' New Provider: ' + ISNULL(@Provider, 'NULL') ELSE '' END
 								+ CASE WHEN @Source IS NOT NULL AND (ISNULL(@Source, '') <> ISNULL(@OldSource, '')) THEN ', Old Source: ' + ISNULL(@OldSource, 'NULL') + ' New Source: ' + ISNULL(@Source, 'NULL') ELSE '' END
 								+ CASE WHEN @Remark IS NOT NULL AND (ISNULL(@Remark, '') <> ISNULL(@OldRemark, '')) THEN ', Old Remark: ' + ISNULL(@OldRemark, 'NULL') + ' New Remark: ' + ISNULL(@Remark, 'NULL') ELSE '' END

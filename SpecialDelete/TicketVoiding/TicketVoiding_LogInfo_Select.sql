@@ -1470,6 +1470,16 @@ BEGIN
 			WHERE rd.RequestId = @RequestId
 		END
 
+		-- Write useraction log	
+		BEGIN TRY
+			IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+			BEGIN	       
+				INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+				VALUES (@ID, @spName, NULL, @UserID, @MatchId, GETDATE(),@SubmittedDate)
+			END        
+		END TRY
+		BEGIN CATCH
+		END CATCH
 		RETURN;
 	END
 
@@ -1942,7 +1952,7 @@ BEGIN
         IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN	       
             INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-            VALUES (@ID, @spName, @UserID, NULL, @MatchId, GETDATE(),@SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserID, @MatchId, GETDATE(),@SubmittedDate)
         END        
 	END TRY
 	BEGIN CATCH
