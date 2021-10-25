@@ -32,6 +32,7 @@ AS
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		
     Param's Explanation: 
     
@@ -43,6 +44,12 @@ AS
 */
 BEGIN
     SET NOCOUNT ON 
+
+	DECLARE @IsApplyRefundSOP BIT
+
+	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 5, 43, 6, 45, 9, 2, 50) THEN 1
+									 ELSE 0
+									 END
 
 	IF @Sporttype = 50
 	BEGIN
@@ -140,7 +147,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' THEN ResultSetting & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND (@Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%') THEN ResultSetting & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
@@ -173,7 +180,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @Sporttype IN ( 6, 45) AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
 	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
@@ -204,7 +211,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @Sporttype = 5 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ResultSetting & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
