@@ -372,7 +372,12 @@ BEGIN
 			INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
 		GROUP BY b.custid
 
-			SELECT	@ErrCode = 1001017
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
+		
+		SELECT	@ErrCode = 1001017
 				,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE() 
 
 	END CATCH
