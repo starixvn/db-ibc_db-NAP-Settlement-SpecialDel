@@ -93,30 +93,32 @@ BEGIN
 	
 	
 	SET @CreatedDate = GETDATE()
-	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp)
+	IF @Mode IS NULL
 	BEGIN
-		WHILE (1=1)
+		IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp)
 		BEGIN
-			DELETE @CustLimitBet_Batch
-			SET @TransIds = ''
+			WHILE (1=1)
+			BEGIN
+				DELETE @CustLimitBet_Batch
+				SET @TransIds = ''
 
-			DELETE TOP (1000) t
-				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid
-				INTO @CustLimitBet_Batch (CustId, sitetype, transid)
-			FROM #CustLimitBet_tmp t
+				DELETE TOP (1000) t
+					OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid
+					INTO @CustLimitBet_Batch (CustId, sitetype, transid)
+				FROM #CustLimitBet_tmp t
 
-			IF @@ROWCOUNT = 0 BREAK
+				IF @@ROWCOUNT = 0 BREAK
 
-			SELECT @TransIds = (SELECT t.CustId AS '@custid'
-									,t.sitetype AS '@sitetype'
-									,t.TransId AS '@transid'
-								FROM	@CustLimitBet_Batch t
-								FOR XML PATH('r'), ROOT('root')
-							)
-			INSERT INTO dbo.CustLimitBetQueue (MatchId, Transids, ActionID, Statusid, CreatedDate)
+				SELECT @TransIds = (SELECT t.CustId AS '@custid'
+										,t.sitetype AS '@sitetype'
+										,t.TransId AS '@transid'
+									FROM	@CustLimitBet_Batch t
+									FOR XML PATH('r'), ROOT('root')
+								)
+				INSERT INTO dbo.CustLimitBetQueue (MatchId, Transids, ActionID, Statusid, CreatedDate)
 				SELECT @MatchId, @TransIds, 4, 0, @CreatedDate
+			END
 		END
-	END
 
 		IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp_ruben_0)
 		BEGIN
@@ -162,29 +164,30 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK
 
-			WHILE (1=1)
-			BEGIN
-				DELETE @CustLimitBet_Batch
-				SET @TransIds = ''
+				WHILE (1=1)
+				BEGIN
+					DELETE @CustLimitBet_Batch
+					SET @TransIds = ''
 
-				DELETE TOP (1000) t
-					OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid
-					INTO @CustLimitBet_Batch (CustId, sitetype, transid)
+					DELETE TOP (1000) t
+						OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid
+						INTO @CustLimitBet_Batch (CustId, sitetype, transid)
 					FROM #CustLimitBet_tmp_ruben_0 t
-				WHERE t.CustId = @CustId
+					WHERE t.CustId = @CustId
 
-				IF @@ROWCOUNT = 0 BREAK
+					IF @@ROWCOUNT = 0 BREAK
 
-				SELECT @TransIds = (SELECT t.CustId AS '@custid'
-										,t.sitetype AS '@sitetype'
-										,t.TransId AS '@transid'
-									FROM	@CustLimitBet_Batch t
-									FOR XML PATH('r'), ROOT('root')
-								)
-				INSERT INTO dbo.CustLimitBetQueue (MatchId, CustID, Transids, ActionID, Statusid, CreatedDate)
+					SELECT @TransIds = (SELECT t.CustId AS '@custid'
+											,t.sitetype AS '@sitetype'
+											,t.TransId AS '@transid'
+										FROM	@CustLimitBet_Batch t
+										FOR XML PATH('r'), ROOT('root')
+									)
+					INSERT INTO dbo.CustLimitBetQueue (MatchId, CustID, Transids, ActionID, Statusid, CreatedDate)
 					SELECT @MatchId, @CustId, @TransIds, 5, 0, @CreatedDate
-			END
+				END
 			END	
+		END
 		END
 	
 	DROP TABLE #CustLimitBet_tmp

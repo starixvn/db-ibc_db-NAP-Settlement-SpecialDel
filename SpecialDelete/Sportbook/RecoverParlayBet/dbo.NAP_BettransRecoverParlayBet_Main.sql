@@ -286,6 +286,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
 			@MatchId= 29
 			,@TransidList = @MainParlay_MaxPO
+			,@Mode = 'RECOVER'
 		
 		-- capture after recover
 		INSERT INTO @tblAfterBalance (custid, balance)
