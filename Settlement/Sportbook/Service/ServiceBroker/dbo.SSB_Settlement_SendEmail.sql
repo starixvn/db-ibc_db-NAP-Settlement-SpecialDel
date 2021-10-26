@@ -37,6 +37,7 @@ begin
 		, @blind_copy_recipients	= ''
 		, @subject					= @Subject
 		, @profile_name				= default
+		, @body_format = 'HTML'
 	
 end
 go
