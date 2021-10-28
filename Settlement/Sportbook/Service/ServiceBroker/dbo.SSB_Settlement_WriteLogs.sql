@@ -2,8 +2,8 @@
 alter procedure dbo.SSB_Settlement_WriteLogs @MessageId varchar(128)
 	, @MessageType varchar(200) = null
 	, @MessageBody nvarchar(max) = null
-	, @StartTime datetime = null
-	, @EndTime datetime = null
+	, @StartTime datetime2 = null
+	, @EndTime datetime2 = null
 	, @MatchId int = null
 	, @SessionId bigint = null
 	, @ErrorMessage varchar(1024) = ''
