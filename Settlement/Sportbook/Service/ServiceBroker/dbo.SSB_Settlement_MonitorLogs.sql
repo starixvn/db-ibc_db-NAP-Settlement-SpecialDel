@@ -80,7 +80,7 @@ begin
 		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = N'PONTUS'
 			, @JobId = NULL
 			, @JobName = N'Custom Message'
-			, @Message = @__errorMessage
+			, @Message = @__errorMessageTemp
 			, @CaseId = 1;
 	
 	end
