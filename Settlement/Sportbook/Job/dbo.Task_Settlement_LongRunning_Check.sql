@@ -9,7 +9,6 @@ as
 	
 	Revisions:
 		- 20210824@Kathy: Check cricket long running [Redmine:#154737]
-		- 20211026@Kathy: Check SSB [Redmine:#158477]
 */
 begin
 	set nocount on
@@ -110,11 +109,6 @@ begin
 
 		return
 	end
-
-	IF @Step = 5 -- check SSB 
-	BEGIN
-		EXEC dbo.SSB_Settlement_MonitorLogs @MonitorDurationWithInMin = 120
-	END
 end
 
 go

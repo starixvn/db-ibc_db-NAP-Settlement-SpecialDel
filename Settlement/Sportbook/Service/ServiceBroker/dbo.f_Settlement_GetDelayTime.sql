@@ -12,7 +12,7 @@ alter function dbo.f_Settlement_GetDelayTime
 returns varchar(50)
 as
 begin
-	return (select case when @KeyId = 'Wait_Exec_Each_Batch' then '00:00:00:001' -- waitfor on each batch update bettrans, ...
+	return (select case when @KeyId = 'Wait_Exec_Each_Batch' then '00:00:00:005' -- waitfor on each batch update bettrans, ...
 						when @KeyId = 'Rep_Wait_Send_Exec' then '00:00:00:100' -- waitfor DBTrans sending exec command to processing
 						else '00:00:00:100' end)
 end
