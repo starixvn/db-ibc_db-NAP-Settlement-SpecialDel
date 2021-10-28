@@ -33,7 +33,7 @@ BEGIN
 	VALUES ('ParlayRefno', 10000)
 
 	INSERT INTO @tmpGlobalSetting(LockName, RunPrepareDataBySSB, RunExecDataBySSB, PrepareDataQueueSize, ExecDataQueueSize)
-	VALUES ('SettlementSSB', 1, 1, 4, 4)
+	VALUES ('SettlementSSB', 1, 1,8, 8)
 
 	SET @ThreadHold = 0
 	SET @PrepareDataQueueSize = 0
