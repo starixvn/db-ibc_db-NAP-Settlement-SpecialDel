@@ -77,6 +77,9 @@ BEGIN
 			,@SSBCommand = SSBCommand
 			,@sporttype = SportType
 			,@Action = Action
+			,@AdminId = AdminId
+			,@MatchId = matchid
+			,@IP = IP
 	FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
 	WHERE	IsCalculating = 1 
 			AND sqlCommand <> ''
@@ -98,6 +101,8 @@ BEGIN
 
 		BEGIN CATCH
 			SET @ErrMsg = @ErrMsg + ERROR_MESSAGE()
+			SET @ErrCode = ERROR_NUMBER()
+			SET @IsCompletedSSB = 1
 		END CATCH
 
 		IF @IsCompletedSSB = 0
