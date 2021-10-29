@@ -26,7 +26,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
+	
 	DECLARE @MatchId		INT
 		, @AdminId			INT
 		, @IP				VARCHAR(15)
@@ -47,13 +47,10 @@ BEGIN
 		, @sporttype		SMALLINT
 		, @SSBStatus		TINYINT
 		, @SSBCommand		NVARCHAR(MAX)
-		--, @SSBStatusMonitor	TINYINT 
-		, @IsCompletedSSB   BIT
 		, @IsRunBySSB		BIT
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
-			,@IsCompletedSSB = 0
 			,@SSBStatus = 0
 			,@IsRunBySSB = 0
 
@@ -93,19 +90,19 @@ BEGIN
 
 		BEGIN TRY
 			EXEC sys.sp_executesql @SSBCommand
-				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus tinyint OUTPUT'
 				, @ErrMsg	= @ErrMsg	OUTPUT
 				, @ErrCode	= @ErrCode	OUTPUT
-				, @IsCompletedSSB	= @IsCompletedSSB	OUTPUT
+				, @SSBStatus= @SSBStatus OUTPUT
 		END TRY
 
 		BEGIN CATCH
 			SET @ErrMsg = @ErrMsg + ERROR_MESSAGE()
 			SET @ErrCode = ERROR_NUMBER()
-			SET @IsCompletedSSB = 1
+			SET @SSBStatus = 3
 		END CATCH
 
-		IF @IsCompletedSSB = 0
+		IF @SSBStatus = 1
 			RETURN
 
 		IF @ErrCode <> 0

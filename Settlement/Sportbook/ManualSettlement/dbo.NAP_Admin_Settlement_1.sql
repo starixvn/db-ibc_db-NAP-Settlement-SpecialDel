@@ -119,7 +119,7 @@ BEGIN
 		,@LogDataSoccer					XML
 		,@CommandMonitor				NVARCHAR(MAX)
 		,@SessionId						BIGINT
-		,@IsCompletedSSB				BIT
+		,@SSBStatus						TINYINT
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -238,10 +238,12 @@ BEGIN
 				,@ResourceResult = @ResourceResult
 				,@SessionId = @SessionId
 				,@TicketCount = @TicketCount OUTPUT
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT
 		END TRY
 		BEGIN CATCH
 				SELECT  @ErrCode = 1001017 
-					,@ErrMsg = ERROR_MESSAGE()   
+						,@ErrMsg = ERROR_MESSAGE()   
 		END CATCH
 
 		SELECT @LogDataSoccer = (					
@@ -269,7 +271,7 @@ BEGIN
 						+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
-						+ ', @IsCompletedSSB = @IsCompletedSSB OUTPUT'
+						+ ', @SSBStatus = @SSBStatus OUTPUT'
 
 		UPDATE dbo.Single_Calculate_Queue 
 			SET SSBCommand = @CommandMonitor
@@ -280,10 +282,10 @@ BEGIN
 			SET @CommandMonitor = @CommandMonitor + ', @NeedWaiting = 1' 
 
 			EXEC sys.sp_executesql @CommandMonitor
-				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus TINYINT OUTPUT'
 				, @ErrMsg	= @ErrMsg	OUTPUT
 				, @ErrCode	= @ErrCode	OUTPUT
-				, @IsCompletedSSB = @IsCompletedSSB OUTPUT
+				, @SSBStatus = @SSBStatus OUTPUT
 		END
 
 		RETURN

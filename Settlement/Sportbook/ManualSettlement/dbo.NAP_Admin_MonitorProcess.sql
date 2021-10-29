@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_MonitorProcess]
 	,@NeedWaiting BIT = 0 
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
-	,@IsCompletedSSB BIT = 0 OUTPUT
+	,@SSBStatus TINYINT = 0 OUTPUT
 AS
 /*
 	Created by: 20210809@Kathy
@@ -43,27 +43,48 @@ BEGIN
 			,@Starttime DATETIME
 			,@Endtime DATETIME
 
+			,@FailedSettlementProcessingId INT
+			,@RunningSettlementProcessingId INT
+
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
+			,@FailedSettlementProcessingId = 0
+			,@RunningSettlementProcessingId = 0
 
 	WHILE (1=1)
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.SettlementProcessing WHERE SessionId = @SessionId)
+		SELECT	@FailedSettlementProcessingId = SUM(CASE WHEN statusId = 3 THEN 1 ELSE 0 END)
+				,@RunningSettlementProcessingId = SUM(CASE WHEN StatusId <> 3 THEN 1 ELSE 0 END)
+		FROM	dbo.SettlementProcessing
+		WHERE	SessionId = @SessionId
+
+		SELECT @FailedSettlementProcessingId = ISNULL(@FailedSettlementProcessingId,0)
+				,@RunningSettlementProcessingId = ISNULL(@RunningSettlementProcessingId,0)
+			
+		IF @RunningSettlementProcessingId > 0
 		BEGIN
 			IF @NeedWaiting = 1
 				WAITFOR DELAY '00:00:00:010'
 			ELSE 
 			BEGIN
-				SET @IsCompletedSSB = 0
+				SET @SSBStatus = 1
 
 				RETURN
 			END
 		END
+		ELSE IF @FailedSettlementProcessingId > 0
+		BEGIN
+			SELECT	@SSBStatus = 3
+					,@ErrCode = 1001066
+					,@ErrMsg = 'Some tickets cannot be calculated due to fail SSB. Please contact Starix IT for further support.'
+					,@HasError = 1
+			BREAK
+		END
 		ELSE
 		BEGIN
-			SET @IsCompletedSSB = 1
+			SET @SSBStatus = 2
 
 			BREAK
 		END
@@ -179,10 +200,11 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT	@ErrMsg = T.C.value('@ErrMsg','VARCHAR(300)')
-				,@ErrCode = @HasError
+		SELECT	@ErrMsg = CASE WHEN @ErrMsg = '' THEN T.C.value('@ErrMsg','VARCHAR(300)') ELSE @ErrMsg END
+				,@ErrCode = CASE WHEN @ErrCode = 0 THEN @HasError ELSE @ErrCode END
 		FROM	@LogData.nodes('/root/r') AS T(C)	
 	END
 
 	DROP TABLE #tblMatchProcess
+
 END

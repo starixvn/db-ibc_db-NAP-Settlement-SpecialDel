@@ -456,14 +456,19 @@ BEGIN
 			END
 
 			SET @StepDone = @StepDone + ', BonusAdjustmentTransfer'
+
+			DELETE 
+			FROM	dbo.SettlementProcessing 
+			WHERE	id = @SettlementProcessingId
 		END TRY
 		BEGIN CATCH
 			SET @ErrMessage = @StepDone + 'Error: ' + ERROR_MESSAGE()
-		END CATCH
 
-		DELETE 
-		FROM	dbo.SettlementProcessing 
-		WHERE	id = @SettlementProcessingId
+			UPDATE	dbo.SettlementProcessing
+				SET StatusId = 3 -- failed
+			WHERE	Id = @SettlementProcessingId
+
+		END CATCH
 
 		RETURN
 	END 

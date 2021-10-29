@@ -14,6 +14,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@SessionId	BIGINT = NULL
 	,@ResourceResult VARCHAR(MAX) = NULL
 	,@TicketCount INT = 0 OUTPUT
+	,@ErrCode INT = 0 OUTPUT
+	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
 /*
     Created: 20201123@Kathy
@@ -195,23 +197,31 @@ BEGIN
 		GROUP BY b.custid, b.bettype
 	END
 
-	IF @action IN ('CAL', 'CAL-FT')
+	IF @action = 'CAL-FT'
 	BEGIN
-		IF EXISTS (SELECT	TOP 1 1
-					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-					WHERE	mt.MatchId = @matchid
-							AND EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE mt.bettype = f.bettype AND f.GroupId IN (1,3,5))
-		)
-			SET @HTDone = 0
-		ELSE IF EXISTS (SELECT TOP 1 1
+		IF EXISTS (SELECT TOP 1 1
 						FROM	#tmpCustBettypes t
 						WHERE	EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE t.bettype = f.bettype AND f.GroupId IN (1,3,5))
 								AND t.IsExistRunning = 1
 					)
-			SET @HTDone = 0
-		ELSE
+		BEGIN
+			SELECT	TOP 1 @HTDone = 0
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON b.transid = mt.TransId
+			WHERE	b.matchid = @matchid
+					AND b.statusID = 0
+					AND mt.TransId IS NULL
+					AND EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE b.bettype = f.bettype AND f.GroupId IN (1,3,5))
+			
+			IF @@ROWCOUNT = 0
+				SET @HTDone = 1
+		END
+		ELSE 
 			SET @HTDone = 1
 	END
+	ELSE IF @action = 'CAL'
+		SET @HTDone = 1
 
 	DELETE	
 	FROM	#tmpCustBettypes
@@ -251,7 +261,7 @@ BEGIN
 		,@Action            = @action
 		,@HTDone            = @HTDone
 		,@creator            = @creator
-
+		
 	-- update resultdetail
     EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
         @Command        = 'NAP_Admin_Settlement_1-CAL',
@@ -576,6 +586,8 @@ BEGIN
 			,@SessionId  = @SessionId
 			,@ActionId  = @ActionID
 			,@SettlementProcessingId  = @SettlementProcessingId
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
 
 	END
 	ELSE
@@ -597,16 +609,18 @@ BEGIN
 
 			SET @SettlementProcessingId = SCOPE_IDENTITY()
 
-			SET @messageBody = 'EXEC dbo.NAP_Admin_Settlement_Queue @matchid = ' + CAST(@MatchId AS VARCHAR)
-									+ ',@action  = ''' + @action + ''''
-									+ ',@MinCustId = ' + CAST(@mincustid AS VARCHAR)
-									+ ',@MaxCusId = ' + CAST(@maxcustid  AS VARCHAR)
-									+ ',@IsReSettledTickets  = ' + CAST(@IsReSettledTickets  AS VARCHAR)
-									+ ',@QueueNo  = ' + CAST(@QueueNo  AS VARCHAR)								
-									+ ',@SessionId  = ' + CAST(@SessionId  AS VARCHAR(50))
-									+ ',@ActionId  = ' + CAST(@ActionId  AS VARCHAR(50))
-									+ ',@SettlementProcessingId  = ' + CAST(@SettlementProcessingId  AS VARCHAR(50))
-		
+			SET @messageBody = CAST((SELECT @matchid AS '@MatchId'
+											,@action AS '@Action'
+											,@MinCustId AS '@MinCustId'
+											,@MaxCustId AS '@MaxCustId'
+											,@IsReSettledTickets AS '@IsReSettledTickets'
+											,@QueueNo AS '@QueueNo'
+											,@SessionId AS '@SessionId'
+											,@ActionID AS '@ActionID'
+											,@SettlementProcessingId AS '@SettlementProcessingId'
+									FOR XML PATH('r'), ROOT('root')
+									) AS VARCHAR(MAX))
+
 			SELECT @MessageType = @MessageTypePattern + CASE WHEN @QueueNo < 10 THEN '0' ELSE '' END + CAST(@QueueNo AS VARCHAR)
 		
 			EXEC [dbo].[SSB_Send_Message] @MessageContent = @messageBody
