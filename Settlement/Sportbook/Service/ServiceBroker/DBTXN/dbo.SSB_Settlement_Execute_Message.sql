@@ -14,11 +14,45 @@ as
 begin
 	set nocount on
 	declare @__startTime datetime2, @__endtime datetime2, @__errmsg varchar(1024)
+			,@__matchid int
+			,@__action varchar(20)
+			,@__mincustid int
+			,@__maxcustid int
+			,@__isresettledtickets bit
+			,@__queueno smallint
+			,@__sessionid bigint
+			,@__actionid int
+			,@__settlementprocessingid bigint
+			,@__errcode int
+			,@__paramxml xml
+
 	select @__startTime = sysdatetime()
-	
+			,@__paramxml = cast(@MessageBody as xml)
+
+	select	@__matchid = T.C.value('@MatchId', 'int') 
+			,@__action = T.C.value('@Action','varchar(20)')
+			,@__mincustid = T.C.value('@MinCustId','int')
+			,@__maxcustid = T.C.value('@MaxCustId','int')
+			,@__isresettledtickets = T.C.value('@IsReSettledTickets','bit')
+			,@__queueno = T.C.value('@QueueNo','smallint')
+			,@__sessionid = T.C.value('@SessionId','bigint') 
+			,@__actionid = T.C.value('@ActionID','int')
+			,@__settlementprocessingid = T.C.value('@SettlementProcessingId','bigint')
+	from	@__paramxml.nodes('/root/r') AS T(C)	
+
 	set deadlock_priority high
 	begin try
-		exec sp_executesql @MessageBody
+		EXEC dbo.NAP_Admin_Settlement_Queue @matchid = @__matchid
+			,@action  = @__action
+			,@MinCustId = @__MinCustId
+			,@MaxCusId = @__MaxCustId
+			,@IsReSettledTickets = @__IsReSettledTickets
+			,@QueueNo  = @__queueno
+			,@SessionId  = @__SessionId
+			,@ActionId  = @__ActionID
+			,@SettlementProcessingId  = @__SettlementProcessingId
+			,@ErrCode = @__errcode output
+			,@ErrMsg = @__errmsg output
 	end try
 	begin catch
 		set @__errmsg = error_message()
@@ -35,5 +69,6 @@ begin
 		, @ErrorMessage = @__errmsg
 		, @ConversationHandle = @ConversationHandle
 		, @QueueNo = @QueueNo
+		, @SessionId = @__sessionid
 end
 go
