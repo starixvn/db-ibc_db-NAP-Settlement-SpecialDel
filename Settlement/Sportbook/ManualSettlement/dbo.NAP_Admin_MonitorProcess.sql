@@ -96,16 +96,24 @@ BEGIN
 			AND SessionId = @SessionId
 
 	-- cal 914	
-	EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
-		@MatchId = @matchid
-		,@Action = 'CAL'
-		,@Sporttype = 1
+	BEGIN TRY
+		EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
+			@MatchId = @matchid
+			,@Action = 'CAL'
+			,@Sporttype = 1
+	END TRY
+	BEGIN CATCH
+		SELECT	@SSBStatus = 3
+				,@ErrCode = 1001017
+				,@ErrMsg = ERROR_MESSAGE()  
+				,@HasError = 1
+	END CATCH
 
 	EXEC dbo.NAP_Admin_Calculate_Main @mode = 'ReleaseMatch'
 		,@IsSettingByProfile = 1
 		,@SessionId = @SessionId
 		,@MatchId = @MatchId
-
+	
 	IF @HasError = 0
 	BEGIN
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -180,10 +188,7 @@ BEGIN
 				,@Remark            = @Remark
 				,@IP                = @IP
 		END TRY
-
 		BEGIN CATCH
-			--SELECT @LogData = @LogData + ' ErrMsg=' + left(error_message(), 250)
-
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID                = @AdminId
 				,@Matchid            = @matchid
