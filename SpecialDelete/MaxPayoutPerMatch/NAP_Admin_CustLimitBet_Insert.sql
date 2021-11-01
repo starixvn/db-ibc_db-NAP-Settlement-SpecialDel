@@ -29,6 +29,7 @@ BEGIN
 		,@MaxTransId	BIGINT
 		,@RejectTime	DATETIME
 		,@InvalidTransIds	VARCHAR(200) = ''
+		,@Creator		INT
 
 
 	CREATE TABLE #CustLimitBet_tmp (
@@ -68,6 +69,7 @@ BEGIN
 		SELECT @MinTransId = t.c.value('@mintransid','bigint')
 			,@MaxTransId = t.c.value('@maxtransid','bigint')
 			,@RejectTime = t.c.value('@rejecttime','datetime')
+			,@Creator = t.c.value('@creator','int')
 		FROM @xml.nodes('root/rejectTicket') t(c)
 		OPTION (OPTIMIZE FOR (@xml = NULL))
 
@@ -105,6 +107,7 @@ BEGIN
 				AND b.checktime = @RejectTime
 				AND b.statusID = 101
 				AND s.custid IS NULL
+				AND b.creator = @Creator
 		END
 
 		--Remove unsupport sporttype/bettype
