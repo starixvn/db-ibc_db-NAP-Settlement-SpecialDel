@@ -61,6 +61,7 @@ GO
 				,( 45	, 2 ) --Beach Volleyball
 				,( 50	, 2 ) --Cricket
 
+	-- match
 	INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
 	SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
 			,m.sporttype, s.SportName
@@ -81,9 +82,53 @@ GO
 					ELSE 1 END
 		AND m.eventStatus = 'completed'
 		AND m.sporttype <= 99
+	
+	--match14
+	INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
+	SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
+			,m.sporttype, s.SportName
+			,home.teamname AS HomeName, away.teamname AS AwayName
+			,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
+			,m.betstatus
+	FROM dbo.match14 m WITH(NOLOCK)
+		INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
+		INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
+		INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
+		INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
+	WHERE m.eventdate BETWEEN @fromDate AND @toDate
+		AND l.isTest = 0 --exclude test match
+		AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
+				  ELSE 1 END
+		AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
+					ELSE 1 END
+		AND m.eventStatus = 'completed'
+		AND m.sporttype <= 99
+
+	--match_bk
+	INSERT INTO #TempMatchInfo (matchid , eventdate, sporttype , sportName, HomeName, AwayName, leagueid , leaguename , LeagueGroupID, LeagueGroupName, betstatus )
+	SELECT	m.matchid, CONVERT(  VARCHAR(10), m.eventdate, 120 ) AS eventdate
+			,m.sporttype, s.SportName
+			,home.teamname AS HomeName, away.teamname AS AwayName
+			,m.leagueid, l.leaguename, l.LeagueGroupID, lg.GroupName AS LeagueGroupName
+			,m.betstatus
+	FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
+		INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.SportType
+		INNER JOIN League l WITH(NOLOCK) ON m.leagueid = l.leagueid
+		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK) ON l.LeagueGroupID = lg.GroupID
+		INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
+		INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
+	WHERE m.eventdate BETWEEN @fromDate AND @toDate
+		AND l.isTest = 0 --exclude test match
+		AND 1 =  CASE WHEN m.ParentID IS NOT NULL AND ISNULL(m.ChildMatchType,'')  IN( 100, 200) THEN 0 ---exclude hedge match, child match Cricket
+				  ELSE 1 END
+		AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
+					ELSE 1 END
+		AND m.eventStatus = 'completed'
+		AND m.sporttype <= 99
 
 	INSERT INTO #MatchId (matchid, sporttype, ResultTable, eventdate, betstatus )
-	SELECT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus
+	SELECT DISTINCT m.matchid, m.sporttype, ISNULL(ss.ResultTable,0), m.eventdate, m.betstatus
 	FROM #TempMatchInfo m
 		LEFT JOIN #ResultTableSetting ss ON m.sporttype = ss.sporttype
 
@@ -93,14 +138,41 @@ GO
 			, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 			, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
 			, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
-	FROM dbo.ResultDetail r WITH(NOLOCK)
-		INNER JOIN #MatchId m ON m.matchid = r.MatchId
-	WHERE m.ResultTable  = 1
-		AND r.ResultStatusID  IN ( 2, 5) ---settled
-		AND r.SettlementStatusID > 0
-		AND r.ResourceId not LIKE '22[1-9]%'	--exclude Fastmarkets, Time Machine
-		AND 1 =  CASE WHEN m.sporttype = 1 THEN CASE WHEN r.ResourceId IN ('09','127F','127L','14F','14L') THEN 0 ELSE 1 END
-						ELSE 1 END
+	FROM #MatchId m 
+		CROSS APPLY (
+						SELECT r.MatchId, r.LastModifyBy, r.SettlementStatusID
+						FROM dbo.ResultDetail r WITH(NOLOCK)
+						WHERE r.ResultStatusID  IN ( 2, 5) ---settled
+							AND r.SettlementStatusID > 0
+							AND r.ResourceId not LIKE '22[1-9]%'	--exclude Fastmarkets, Time Machine
+							AND 1 =  CASE WHEN m.sporttype = 1 THEN CASE WHEN r.ResourceId IN ('09','127F','127L','14F','14L') THEN 0 
+																	ELSE 1 
+																	END
+										  ELSE 1 
+										  END --Goal result
+							AND m.matchid = r.MatchId
+							AND m.ResultTable  = 1
+						UNION
+						SELECT *
+						FROM dbo.ResultDetail14 r WITH(NOLOCK)
+						WHERE r.ResultStatusID  IN ( 2, 5) ---settled
+							AND r.SettlementStatusID > 0
+							AND r.ResourceId not LIKE '22[1-9]%'	--exclude Fastmarkets, Time Machine
+							AND 1 =  CASE WHEN m.sporttype = 1 THEN CASE WHEN r.ResourceId IN ('09','127F','127L','14F','14L') THEN 0 
+																	ELSE 1 
+																	END
+										  ELSE 1 
+										  END --Goal result
+							AND m.matchid = r.MatchId
+							AND m.ResultTable  = 1
+						UNION
+						SELECT *
+						FROM bodb_archive.dbo.ResultDetail_bk r WITH(NOLOCK)
+						WHERE r.ResultStatusID  IN ( 2, 5) ---settled
+							AND r.SettlementStatusID > 0
+							AND r.ResourceId not LIKE '22[1-9]%'	--exclude Fastmarkets, Time Machine
+					) r
+	
 	GROUP BY r.MatchId
 
 	----ResultDetailES
