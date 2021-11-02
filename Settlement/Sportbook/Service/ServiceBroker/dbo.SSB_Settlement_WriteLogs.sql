@@ -4,7 +4,6 @@ alter procedure dbo.SSB_Settlement_WriteLogs @MessageId varchar(128)
 	, @MessageBody nvarchar(max) = null
 	, @StartTime datetime2 = null
 	, @EndTime datetime2 = null
-	, @MatchId int = null
 	, @SessionId bigint = null
 	, @ErrorMessage varchar(1024) = ''
 	, @ConversationHandle varchar(128) = ''
@@ -18,8 +17,8 @@ as
 */
 begin
 	set nocount on
-	insert into dbo.SSB_SettlementLogs(MessageId, MessageType, MessageBody, StartTime, EndTime, SessionId, MatchId, ErrorMessage, ConversationHandle, QueueNo)
-	values(@MessageId, @MessageType, @MessageBody, isnull(@StartTime, sysdatetime()), isnull(@EndTime, sysdatetime()), @SessionId, @MatchId, @ErrorMessage, @ConversationHandle, @QueueNo)
+	insert into dbo.SSB_SettlementLogs(MessageId, MessageType, MessageBody, StartTime, EndTime, SessionId, ErrorMessage, ConversationHandle, QueueNo)
+	values(@MessageId, @MessageType, @MessageBody, isnull(@StartTime, sysdatetime()), isnull(@EndTime, sysdatetime()), @SessionId, @ErrorMessage, @ConversationHandle, @QueueNo)
 
 	--send notification will be handled by another process
 end
