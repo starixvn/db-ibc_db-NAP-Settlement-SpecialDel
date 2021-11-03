@@ -82,13 +82,13 @@ begin
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128), @__delayTime varchar(50)
 		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Main @matchid = 0,@IsSettingByProfile=1,@mode=''profile-major'''
-				+ case when @__strTransIds is not null then ',@strTransIds=' + @__strTransIds else '' end
+				+ case when @__strTransIds is not null then ',@strTransIds=''' + @__strTransIds + '''' else '' end
 				+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
 				+ case when @__modds is not null then ',@modds=' + cast(@__modds as varchar(20)) else '' end
 				+ case when @__IsMarked is not null then ',@IsMarked=' + cast(@__IsMarked as varchar(20)) else '' end
 				+ case when @__oddsType is not null then ',@OddsType=' + cast(@__oddsType as varchar(20)) else '' end
 				+ case when @__actionId is not null then ',@ActionId=' + cast(@__actionId as varchar(20)) else '' end
-				+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
+				+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(30)) else '' end
 			, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
 			, @__endtime = sysdatetime()
 		

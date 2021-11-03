@@ -27,8 +27,8 @@ BEGIN
 
 		IF @@ROWCOUNT > 0
 		BEGIN
-			SET @SubjectMessage ='[' + @@SERVERNAME + ']Please check [SettlementLock] have event stay in queue more than '+ CAST(@MonitorDurationWithInMin AS VARCHAR) + ' minutes.'
-		
+			SET @SubjectMessage	= N'Settlement - SSB - Notification at ' + @@servername
+
 			SET @TableHTML = @TableHTML + 
 					N'<br><table border="1">' +
 					N'<tr>' +

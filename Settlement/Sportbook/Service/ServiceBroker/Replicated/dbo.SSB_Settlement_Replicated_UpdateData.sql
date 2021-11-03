@@ -92,7 +92,7 @@ begin
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
 		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Main @matchid = 0,@ServerAlias=' + @@servername
-				+ case when @__strTransIds is not null then ',@strTransIds=' + @__strTransIds else '' end
+				+ case when @__strTransIds is not null then ',@strTransIds=''' + @__strTransIds + '''' else '' end
 				+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
 				+ case when @__modds is not null then ',@modds=' + cast(@__modds as varchar(20)) else '' end
 				+ case when @__IsMarked is not null then ',@IsMarked=' + cast(@__IsMarked as varchar(20)) else '' end

@@ -25,6 +25,7 @@ begin
 			,@__settlementprocessingid bigint
 			,@__errcode int
 			,@__paramxml xml
+			,@__Log varchar(max)
 
 	select @__startTime = sysdatetime()
 			,@__paramxml = cast(@MessageBody as xml)
@@ -61,9 +62,20 @@ begin
 	set deadlock_priority normal
 
 	select @__endtime = sysdatetime()
+
+	set @__Log = 'EXEC dbo.NAP_Admin_Settlement_Queue @matchid = ' + cast(@__matchid as varchar(20)) 
+			+ ',@action  = ''' + @__action + ''''
+			+ ',@MinCustId = ' + cast(@__MinCustId as varchar(20))
+			+ ',@MaxCusId = ' + cast(@__MaxCustId as varchar(20))
+			+ ',@IsReSettledTickets = ' + cast(@__IsReSettledTickets as varchar)
+			+ ',@QueueNo  = ' + cast(@__queueno as varchar(20))
+			+ ',@SessionId  =' + cast(@__SessionId as varchar(30))
+			+ ',@ActionId  =' + cast(@__ActionID as varchar(20))
+			+ ',@SettlementProcessingId  =' + cast(@__SettlementProcessingId as varchar(30))
+
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType = @MessageType
-		, @MessageBody = @MessageBody
+		, @MessageBody = @__Log
 		, @StartTime = @__startTime
 		, @EndTime = @__endtime
 		, @ErrorMessage = @__errmsg
