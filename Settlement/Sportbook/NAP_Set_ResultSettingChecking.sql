@@ -55,7 +55,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetail r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
@@ -67,7 +67,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetailOS r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
@@ -79,7 +79,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetailES r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
