@@ -201,11 +201,7 @@ BEGIN
 		,@ErrMsg	= @ErrMsg  OUTPUT
 	
 	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-	    RETURN
-	END
+	RETURN
 
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess

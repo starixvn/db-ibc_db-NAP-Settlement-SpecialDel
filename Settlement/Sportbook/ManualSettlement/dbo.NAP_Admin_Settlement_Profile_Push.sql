@@ -135,11 +135,8 @@ BEGIN
 		,@ErrMsg	= @ErrMsg  OUTPUT
 	
 	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-	    RETURN
-	END
+	RETURN
+
 
 	IF EXISTS (
 			SELECT 1
