@@ -45,6 +45,7 @@ BEGIN
 			,@TotalBatch INT
 			,@SPName NVARCHAR(128)
 			,@RunExecDataBySSB BIT
+			,@i INT
 
 	DECLARE @tmpBatchNo TABLE (
 		BatchNo INT
@@ -106,7 +107,7 @@ BEGIN
 	
 	SELECT	@strTransIds = ''
 			,@QueueExecNo = 0
-			,@batchSize = 2000
+			,@batchSize = 2--000
 			,@messageBody = ''
 			,@IsMarked = 0
 			,@oddstype = 0
@@ -118,6 +119,8 @@ BEGIN
 			,@MessageType = ''
 			,@TotalBatch = 0
 			,@SPName = OBJECT_NAME(@@procId)
+			,@ExecDataQueueSize = 0
+			,@RunExecDataBySSB = 0
 
 	BEGIN TRY
 		IF @IsReSettledTickets = 0
@@ -242,7 +245,7 @@ BEGIN
 				,@PreviousFilter = @CurrentFilter
 				,@CurrentFilter = filter
 				,@runningtotal = CASE 
-									WHEN (@RunningTotal + 1 > 2000 AND @PreviousFilter = @CurrentFilter) 
+									WHEN (@RunningTotal + 1 > @batchSize AND @PreviousFilter = @CurrentFilter) 
 										OR @PreviousFilter <> @CurrentFilter THEN 1 
 									ELSE @RunningTotal + 1 END
 				,@batchNo = CASE WHEN @runningtotal = 1 THEN @batchNo + 1 ELSE @batchNo END
@@ -287,11 +290,6 @@ BEGIN
 	
 		IF @TotalBatch > 0
 		BEGIN
-			IF @TotalBatch < @ExecDataQueueSize
-				SET @ExecDataQueueSize = @TotalBatch
-		
-			SET @QueueExecNo = 1
-
 			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
 				OR @RunExecDataBySSB = 0
 			BEGIN
@@ -304,6 +302,9 @@ BEGIN
 			END
 			ELSE
 			BEGIN	
+				SET @QueueExecNo = @QueueNo
+				SET @i = 1
+				
 				WHILE(1=1)
 				BEGIN
 					SELECT @MessageType = @MessageTypePattern + CAST(@QueueExecNo AS VARCHAR)
@@ -312,10 +313,11 @@ BEGIN
 						, @FunctionName = 'settlement'
 						, @MessageType = @MessageType
 			
-					IF @QueueExecNo = @ExecDataQueueSize
-						BREAK
+					IF @i = CASE WHEN @TotalBatch > @ExecDataQueueSize THEN @ExecDataQueueSize ELSE @TotalBatch END
+						BREAK					
 
-					SET @QueueExecNo = @QueueExecNo + 1
+					SET @i = @i + 1
+					SET @QueueExecNo = CASE WHEN @QueueExecNo = @ExecDataQueueSize THEN 1 ELSE @QueueExecNo + 1 END
 				END
 			END
 		END

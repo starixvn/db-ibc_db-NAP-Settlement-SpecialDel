@@ -69,7 +69,7 @@ BEGIN
 		, @LogDataSoccer				XML
 		, @CommandMonitor				NVARCHAR(MAX)
 		, @goalrecord_old               VARCHAR(50)
-		, @IsCompletedSSB				BIT
+		, @SSBStatus					TINYINT
 		, @TypeId						TINYINT
 
 	--START Balance tables	
@@ -206,7 +206,7 @@ BEGIN
 							+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 							+ ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
-							+ ', @IsCompletedSSB = @IsCompletedSSB OUTPUT'
+							+ ', @SSBStatus = @SSBStatus OUTPUT'
 
 		UPDATE dbo.Single_Calculate_Queue 
 			SET SSBCommand = @CommandMonitor
@@ -217,10 +217,10 @@ BEGIN
 			SET @CommandMonitor = @CommandMonitor + ', @NeedWaiting = 1' 
 
 			EXEC sys.sp_executesql @CommandMonitor
-				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @IsCompletedSSB BIT OUTPUT'
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus TINYINT OUTPUT'
 				, @ErrMsg	= @ErrMsg	OUTPUT
 				, @ErrCode	= @ErrCode	OUTPUT
-				, @IsCompletedSSB = @IsCompletedSSB OUTPUT
+				, @SSBStatus = @SSBStatus OUTPUT
 		END
 
 		RETURN

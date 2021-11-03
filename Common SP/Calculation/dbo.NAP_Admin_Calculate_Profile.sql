@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Profile]
 	,@transIds		VARCHAR(MAX) = ''
 	,@SettlementProcessingId BIGINT
 	,@ServerAlias VARCHAR(50) = ''
+	,@ServerName SYSNAME = ''
 	,@modds MONEY
 	,@IsMarked BIT
 	,@OddsType SMALLINT
@@ -34,10 +35,12 @@ BEGIN
 	SET NOCOUNT ON
 
 	-----------------------CHECK SERVER-----------------------------------------
-	DECLARE @ServerName			SYSNAME 
-			,@AllowCalculation	BIT
+	DECLARE @AllowCalculation	BIT
 
-	SET @ServerName = @@SERVERNAME
+	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
+
+	IF @ServerName <> @@SERVERNAME
+		RETURN
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN

@@ -1,12 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile] 
 	@matchid INT
-	,@hth INT
-	,@hta INT
-	,@fth INT
-	,@fta INT
-	,@goalrecord NVARCHAR(50)
-	,@BetStatus NVARCHAR(50)
+	,@hth INT = 0
+	,@hta INT = 0
+	,@fth INT = 0
+	,@fta INT = 0
+	,@goalrecord NVARCHAR(50) = ''
+	,@BetStatus NVARCHAR(50) = ''
     ,@action VARCHAR(6) = 'CAL'
 	,@ActionID	INT = 0
 	,@creator INT = 0
@@ -110,8 +110,8 @@ BEGIN
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@MaxThreadHold = 50000
-			,@MinThreadHold = 10000
+			,@MaxThreadHold = 5--0000
+			,@MinThreadHold = 1--0000
 			,@BatchNo = 0
 			,@TotalTicket = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
@@ -123,6 +123,14 @@ BEGIN
 			,@SettlementProcessingId = 0
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@Sporttype = 1
+
+	IF @SessionId IS NULL
+	BEGIN
+		SELECT	@ErrCode = 1001017
+				,@ErrMsg = 'The SessionId is missing.'
+
+		RETURN
+	END
 
 	;WITH cteGoalResource
 	AS
