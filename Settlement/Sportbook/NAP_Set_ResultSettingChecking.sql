@@ -38,7 +38,7 @@ BEGIN
 
 	SELECT @Sporttype	= m.Sporttype FROM dbo.match m WITH(NOLOCK) where m.matchid = @MatchId
 	
-	IF @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) RETURN
+	IF @SelectedResources = '' OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) RETURN
 
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
@@ -88,9 +88,13 @@ BEGIN
 	END
 
 	IF @Action  LIKE 'Refund%'
+	BEGIN
+		IF ( SELECT COUNT(1) FROM @tmpResultSetting ) = 0
+			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 )
+		
 		SELECT @ErrCode = 1001055
 			 , @ErrMsg	= 'WARNING! Cannot continue due to selected results are not confirmed to refund. Please confirm refund and try again.'
-		FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0
+	END
 
 	ELSE IF @Action LIKE 'CAL%'
 		SELECT @ErrCode = 1001056
