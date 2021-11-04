@@ -14,46 +14,26 @@
 */
 
 ---------------DATA PREPARATION-------------------------
-CREATE TABLE #Customer (CustID INT, CurrentUserName VARCHAR(30), Currentrecommend INT, CorrectUserName VARCHAR(30), CorrectRecommend INT)
+CREATE TABLE #Customer (CustID INT, UserName VARCHAR(30), recommend INT)
 CREATE TABLE #bettransbk_Adjust (transid BIGINT, CorrectRecommend INT)
 CREATE TABLE #bettrans_Batch (transid BIGINT, CorrectRecommend INT)
 
-
-INSERT INTO #Customer (CustID,CurrentRecommend,CorrectRecommend,CurrentUserName,CorrectUserName)
+INSERT INTO #Customer (CustID,Recommend,UserName)
 SELECT custid, 
        recommend, 
-       56713996 AS new_recommend, 
-       username, 
-       REPLACE(username, 'MYGAMECVRMB201', 'MYGAMECVRMB203') AS New_username
+       username
 FROM bodb02.dbo.custinfo ci WITH (NOLOCK)
-WHERE recommend = 56713984
-      AND username LIKE 'MYGAMECVRMB%'
-      AND username <> 'MYGAMECVRMB201'
-      AND username <> 'MYGAMECVRMB201ClearBal'
-      AND username <> 'MYGAMECVRMB201CashOut'
+WHERE recommend = 56713996 and roleid = 1
 UNION ALL
 SELECT custid, 
        recommend, 
-       56948082 AS new_recommend, 
-       username, 
-       REPLACE(username, 'dfbetCVRMB201', 'dfbetCVRMB203') AS New_username
+       username
 FROM bodb02.dbo.custinfo ci WITH (NOLOCK)
-WHERE recommend = 56948071
-      AND username LIKE 'dfbetCVRMB%'
-      AND username <> 'dfbetCVRMB201'
-      AND username <> 'dfbetCVRMB201ClearBal'
-      AND username <> 'dfbetCVRMB201CashOut';
-
-
---Update Username of MYGAMECVRMB201001 
-UPDATE t
-SET t.CorrectUserName = 'MYGAMECVRMB203xxx' 
-FROM #Customer t
-WHERE t.CurrentUserName = 'MYGAMECVRMB201001'
+WHERE recommend = 56948082 and roleid = 1
 
 
 INSERT INTO #bettransbk_Adjust(transid, CorrectRecommend)
-SELECT b.transid, c.CorrectRecommend
+SELECT b.transid, c.recommend
 FROM #Customer c
 	INNER JOIN bettrans_bk b WITH (NOLOCK) ON b.custid = c.CustID
 
