@@ -153,8 +153,9 @@ BEGIN
   RAISERROR (@debug_message, 0, 1) WITH NOWAIT
   
   UPDATE b
-    SET b.recommend = t.CorrectRecommend
+    SET recommend = t.CorrectRecommend
   FROM bettrans_bk b WITH (ROWLOCK)
     INNER JOIN #bettrans_Batch t ON t.transid = b.transid
 
+  WAITFOR DELAY '00:00:00.020'
 END

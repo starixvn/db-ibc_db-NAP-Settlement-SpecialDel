@@ -166,6 +166,8 @@ BEGIN
     INNER JOIN #bettrans_Batch t ON t.transid = b.transid
   
   TRUNCATE TABLE #bettrans_Batch
+
+  WAITFOR DELAY '00:00:00.020'
     
 END
 
@@ -187,9 +189,11 @@ BEGIN
   RAISERROR (@debug_message, 0, 1) WITH NOWAIT
   
   UPDATE b
-    SET b.recommend = t.CorrectRecommend,
-		b.Username = t.CorrectUserName
+    SET recommend = t.CorrectRecommend,
+		Username = t.CorrectUserName
   FROM bettrans14 b WITH (ROWLOCK)
     INNER JOIN #bettrans_Batch t ON t.transid = b.transid
+
+  WAITFOR DELAY '00:00:00.020'
     
 END
