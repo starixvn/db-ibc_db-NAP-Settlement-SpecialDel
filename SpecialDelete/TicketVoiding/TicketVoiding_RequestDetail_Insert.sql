@@ -76,6 +76,7 @@ AS
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -99,10 +100,10 @@ BEGIN
 			,@LogActionId		 INT
 			,@LogData			 VARCHAR(MAX)
 			,@SB_Error			 BIT
-			,@LeagueId			 INT
-			,@HomeId			 INT
-			,@AwayId			 INT
-			,@Sporttype 		 SMALLINT
+			,@LeagueId			 INT = 0
+			,@HomeId			 INT = 0
+			,@AwayId			 INT = 0
+			,@Sporttype 		 SMALLINT = 0
 			,@MarkedTransIds	 VARCHAR(MAX)
 			,@Username			 NVARCHAR(200)
 			,@IsCalQueue		 BIT = 0
@@ -328,6 +329,7 @@ BEGIN
 			, KickOffTime
 			, RequestType
 			, SubIssueTypeId
+			, FilterBy
 		)
 		SELECT @RequestId
 			, @MatchId
@@ -340,6 +342,7 @@ BEGIN
 				   ELSE 0
 				END
 			, @SubIssueTypeId
+			, CASE WHEN @IssueTypeId = 11 THEN @FilterBy ELSE NULL END
 	END
 	ELSE IF @IssueTypeId IN (1,10,3) --DA,RC,WC
 	BEGIN

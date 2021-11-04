@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@ActionId				TINYINT = 0
 	,@FilterFromTransTime	DATETIME = NULL
 	,@FilterToTransTime		DATETIME = NULL
-	,@FilterBy				TINYINT = 1
+	,@FilterBy				TINYINT = NULL
 	,@UserNames				VARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)  = NULL
 	,@StatusIds				VARCHAR(50)  = NULL
@@ -55,12 +55,13 @@ AS
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210827@Max: [TVS] Wrong Score Enhancement 2 - Do not exclude ticket in other request for Take Note action [Redmine: #157096]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 
 	Param's explanation:
-		(+) @FilterBy:	0 - by BetID
-						1 - by Trans time
-				 		2 - by Accepted time
+		(+) @FilterBy:	
+					  Danger Accepted, Red Card issuetype( 1 - by Trans time, 2 - by Accepted time)
+					  Abnormal Bet issuetype (NULL - Single ticket, 1- Mix-parlay ticket)
 		(+) @Products : 1 - Sportbook
 						2 - Parlay
 						3 - Bet Builder
@@ -203,7 +204,7 @@ BEGIN
 	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, bettype SMALLINT, betid BIGINT)
 
 	-- Check edit request after voided
-	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
+	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH(NOLOCK) WHERE RequestId = @RequestId))
 	BEGIN
 		RETURN;
 	END
@@ -526,6 +527,8 @@ BEGIN
 							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
 						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
 							AND l.val = b.transid
+							AND 1 = CASE WHEN @FilterBy = NULL THEN 1
+										 WHEN @FilterBy = 1 AND b.betteam = 1 THEN 1 ELSE 0 END
 						)tmp
 		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)

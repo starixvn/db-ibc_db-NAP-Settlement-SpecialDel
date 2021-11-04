@@ -43,6 +43,7 @@ AS
 		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20211013@Max: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@July: Change length datatatype [Redmine:#164819]
 
 	Param's explanation:	
@@ -136,7 +137,7 @@ BEGIN
 	-----------------------------GET eventdate of match---------------------------------------------
 	IF @FilteredBy = 1
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
+		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13)))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 									   WHERE matchid IN (9, 29, 2799) AND RequestId = @RequestId
@@ -205,7 +206,7 @@ BEGIN
 	ELSE
 	IF @FilteredBy = 2
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
+		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13)))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 					   WHERE matchid IN (9, 29, 2799)
@@ -279,7 +280,7 @@ BEGIN
 	END
 	ELSE IF @FilteredBy = 3
 	BEGIN
-		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
+		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13)))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 											INNER JOIN @tmpRequest r 

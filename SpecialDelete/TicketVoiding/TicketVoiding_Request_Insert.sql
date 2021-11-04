@@ -18,7 +18,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@TransIds				VARCHAR(MAX)  = NULL
 	,@FilterFromTransTime	DATETIME	  = NULL
 	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterBy				TINYINT		  = 1
+	,@FilterBy				TINYINT		  = NULL
 	,@SingleCount			INT			  = NULL
 	,@MainParlayCount		INT			  = NULL
 	,@MinSingleTransId		BIGINT		  = NULL
@@ -73,6 +73,7 @@ AS
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -80,7 +81,7 @@ AS
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
-		+ @MatchParlayProcessXML: : <root><r MatchId="1" Refno="1"/></root>
+		+ @MatchParlayProcessXML: : <root><r MatchId="1" RefNo="1"/></root>
 		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
 		+ @WrongScoreInfo: 
 			<root>
@@ -417,10 +418,11 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId <> 13 THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
-								+ CASE WHEN @IssueTypeId <> 13 THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
+								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)
+															   THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
 																  + ', Provider: ' + CASE WHEN @Provider IS NOT NULL THEN @Provider ELSE 'NULL' END
 																  + ', Source: ' + CASE WHEN @Source IS NOT NULL THEN @Source ELSE 'NULL' END
 															   ELSE '' END
