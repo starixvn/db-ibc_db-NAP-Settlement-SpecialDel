@@ -23,7 +23,8 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
-		
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+
 	Param's Explanation:
 	
 */
@@ -34,6 +35,8 @@ BEGIN
 		  , @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
+		  , @RepUpdateTime		DATETIME2
+	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 	DECLARE @before_yesterday DATETIME		  		  
@@ -568,6 +571,7 @@ BEGIN
 		,b.statuswinlost = CASE WHEN @statusid = 103 THEN 0 ELSE NULL END
 		,b.ruben = 1
 		,b.creator = sub911.zzzCreator
+		,b.RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b
 		 INNER JOIN #CashOutSubTicket sub911
 				 ON b.transid = sub911.transid
@@ -601,6 +605,7 @@ BEGIN
 		,b.statuswinlost = CASE WHEN @statusid = 103 THEN 0 ELSE NULL END
 		,b.ruben = 1
 		,b.creator = sub912.zzzCreator 
+		,b.RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b
 		 INNER JOIN #CashOutSubTicket sub912
 				 ON b.transid = sub912.transid
@@ -624,6 +629,7 @@ BEGIN
 		,b.statuswinlost = CASE WHEN @statusid = 103 THEN 0 ELSE NULL END
 		,b.ruben = 1
 		,b.creator = sub913.zzzCreator		
+		,b.RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b
 		 INNER JOIN #CashOutSubTicket sub913
 				 ON b.transid = sub913.transid
@@ -640,6 +646,7 @@ BEGIN
 	  , ruben = t_main.ruben				
 	  , creator = t.zzzCreator
 	  , modds = t_main.modds	  	  
+	  , RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b 
 		INNER JOIN #CashOutSubTicket AS t
 			    ON b.transid = t.transId

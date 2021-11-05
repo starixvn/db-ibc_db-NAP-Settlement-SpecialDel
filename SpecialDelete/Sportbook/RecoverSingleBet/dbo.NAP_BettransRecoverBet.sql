@@ -63,6 +63,7 @@ AS
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 
 	Param's Explanation:
 */
@@ -81,7 +82,9 @@ BEGIN
 			,@avaiableProcess	BIT	= 0
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
-	
+			,@RepUpdateTime		DATETIME2
+	SET @RepUpdateTime = SYSDATETIME()
+
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	SELECT	@ErrCode = 0
@@ -1207,6 +1210,7 @@ BEGIN
 							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
 							ELSE main.transdesc END
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
+		,RepUpdateTime  = @RepUpdateTime
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	WHERE t.bettype NOT IN (468, 469)
@@ -1263,6 +1267,7 @@ BEGIN
 		,odds = bc.odds
 		,oddsspread = bc.score
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
+		,RepUpdateTime  = @RepUpdateTime
 	FROM bettrans main 
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
@@ -1418,6 +1423,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub911
 				INNER JOIN dbo.bettrans sub912 WITH(NOLOCK)
 					ON	sub911.transid = sub912.refno
@@ -1443,6 +1449,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub912
 				INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					ON	sub911.transid = sub912.refno
@@ -1468,6 +1475,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub913
 				INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					ON	sub911.transid = sub913.refno

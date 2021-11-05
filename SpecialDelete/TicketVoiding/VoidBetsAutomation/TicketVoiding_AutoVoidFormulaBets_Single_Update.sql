@@ -20,7 +20,8 @@ AS
 		- 20200308@Helen: Create new SP [Redmine:#129971]
 		- 20200811@Charles: Exclude Saba Promotion - [Redmine: #139255]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
-		
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+
 	Param's explanation:	
 		
 */      
@@ -41,7 +42,10 @@ BEGIN
 			--,@isExistVS					BIT = 0
 			,@IsExistBB					BIT = 0
 			,@isExistFM2				BIT = 0
-			
+			,@RepUpdateTime				DATETIME2
+	SET @RepUpdateTime = SYSDATETIME()
+
+	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 	
 	SELECT @InvalidTransIds		= '' 
@@ -728,6 +732,7 @@ BEGIN
 		, @isExistBB				= @isExistBB
 		--, @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar
 		, @isExistFM2				= @isExistFM2
+		, @spName					= @spName
 		, @avaiableProcess 			= @avaiableProcess OUTPUT
 		, @ErrCode					= @ErrCode OUTPUT
 		, @ErrMsg					= @ErrMsg OUTPUT
@@ -1336,6 +1341,7 @@ BEGIN
 			,status = 'VOID'
 			,ExtraInfo = CASE WHEN tmpmain.IsCashOutMemberTicket = 1 THEN main.ExtraInfo
 				ELSE dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) END
+			,RepUpdateTime  = @RepUpdateTime
 		FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
 			INNER JOIN #BetDelete_AutoVoidFormula AS tmpmain ON	main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid			
@@ -1361,7 +1367,7 @@ BEGIN
 					,scomm = 0
 					,statusID = 102
 					,status = 'VOID'
-					
+					,RepUpdateTime  = @RepUpdateTime
 			FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblMatch tm 
 					ON main.matchid = tm.matchid

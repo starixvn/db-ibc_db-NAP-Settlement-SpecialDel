@@ -28,7 +28,8 @@ AS
 		- 20201021@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-		
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+
 	Param's Explanation: Special bet delete option		
 	*/
 BEGIN
@@ -38,7 +39,9 @@ BEGIN
 			,@avaiableProcess	BIT = 0 					
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME			
-	
+			,@RepUpdateTime		DATETIME2
+	SET @RepUpdateTime = SYSDATETIME()
+
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)		
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
@@ -282,6 +285,7 @@ BEGIN
 				,scomm			= 0
 				,statusID		= 102       
 				,status			= 'VOID'
+				,RepUpdateTime  = @RepUpdateTime
 		FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete tmpmain
 				ON	main.transid = tmpmain.transid 					

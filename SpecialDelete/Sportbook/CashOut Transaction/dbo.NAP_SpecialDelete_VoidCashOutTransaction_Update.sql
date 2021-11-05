@@ -30,6 +30,7 @@ AS
 		- 20190731@Raymond.Le: Return column for display Deposit name in Email [Redmine: #117896]
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 
 	Explanation's Param:
 
@@ -41,6 +42,8 @@ BEGIN
 		  , @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
+		  , @RepUpdateTime		DATETIME2
+	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		  
@@ -525,6 +528,7 @@ BEGIN
 			,b.statuswinlost = 6
 			,b.ruben = 1
 			,b.creator = @UserId
+			,RepUpdateTime  = @RepUpdateTime
 	FROM	dbo.bettrans b 
 		INNER JOIN #CashOutSubTicket s
 			ON	b.transid = s.transId
