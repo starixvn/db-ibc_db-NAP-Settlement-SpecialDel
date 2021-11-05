@@ -13,6 +13,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -51,7 +52,10 @@ BEGIN
 	EXEC sp_xml_removedocument @handle  
 	
 	DECLARE @settlementTime DATETIME
+			,@RepUpdateTime DATETIME2
+
 	SET @settlementTime = GETDATE();
+	SET @RepUpdateTime = SYSDATETIME()
 
 	UPDATE	b
 	SET				
@@ -79,6 +83,7 @@ BEGIN
 		,ruben = 1
 		,statuswinlost = 6
 		,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
+		,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 END

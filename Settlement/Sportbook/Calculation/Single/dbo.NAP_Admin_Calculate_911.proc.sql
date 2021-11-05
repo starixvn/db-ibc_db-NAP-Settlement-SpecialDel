@@ -19,6 +19,7 @@ AS
 		- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		
 	Parameter's Explanation:
 		- @Action: CAL, Refund
@@ -30,8 +31,9 @@ BEGIN
 	
 	IF(@Action NOT IN ('CAL', 'UNDO', 'REFUND')) RETURN
 	
-	DECLARE @xml XML	
-			,@ServerAlias VARCHAR(50) = ''
+	DECLARE @xml			XML	
+			,@ServerAlias	VARCHAR(50) = ''
+			,@RepUpdateTime	DATETIME2
 			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY)
@@ -169,18 +171,28 @@ BEGIN
 		WHERE b913.bettype = 913
 			AND b912.bettype = 912
 		
+		SET @RepUpdateTime = SYSDATETIME()
+
 		--UPDATE back to bettrans
 		UPDATE b
 		SET winlost = t.winlost
 			,awinlost = t.awinlost
 			,[status] = t.[status]
 			,statusId = t.statusId
+			,RepUpdateTime = CASE 
+								WHEN @Action = 'UNDO' 
+									THEN CASE 
+											WHEN t.statusId = 0 THEN b.RepUpdateTime 
+											ELSE @RepUpdateTime 
+										END
+								ELSE b.RepUpdateTime
+							END
 		OUTPUT	deleted.custid
 				,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 		INTO @tmpBalanceChanged (CustId, Balance)	
 		FROM dbo.bettrans b WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN #tempCashOutTrans t 
-			ON b.transid = t.transid
+				ON b.transid = t.transid
 			
 		IF @ServerAlias = 'DBTXN' AND @Action ='CAL' AND @Sporttype = 1
 		BEGIN
@@ -228,13 +240,14 @@ BEGIN
 	
 	IF(@Action = 'REFUND')
 	BEGIN
+		SET @RepUpdateTime = SYSDATETIME()
 		---Zeroize data
 		UPDATE b
 		SET winlost = t.actual_stake
 			,awinlost = 0
 			,[status] = 'Refund'
 			,statusId = 103
-			
+			,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		FROM dbo.bettrans b WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN #tempCashOutTrans t 
 			ON b.transid = t.transid
