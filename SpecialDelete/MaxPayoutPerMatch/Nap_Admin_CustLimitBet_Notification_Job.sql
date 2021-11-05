@@ -42,7 +42,7 @@ BEGIN
 													AND DATEDIFF(MINUTE, q.CreatedDate, @CurrentTime) BETWEEN 5 AND 6
 													--temp config for phase 2
 													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
-																WHEN q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
+																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
 															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
@@ -53,7 +53,7 @@ BEGIN
 													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
 													--temp config for phase 2
 													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
-																WHEN q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
+																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
 															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
