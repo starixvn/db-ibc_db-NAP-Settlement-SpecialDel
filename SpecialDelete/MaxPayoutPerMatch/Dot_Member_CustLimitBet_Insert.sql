@@ -8,6 +8,7 @@ CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBet_Insert]
 	,@bettype		SMALLINT
 	,@payout		MONEY
 	,@turnover		MONEY
+	,@EventTypeID	TINYINT = NULL
 )
 AS
 /*	
@@ -16,6 +17,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	
 	Param's explanation:	
 		
@@ -23,12 +25,14 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @EventTypeID TINYINT
-	SET @EventTypeID = CASE WHEN @bettype = 10 THEN 2 ELSE 1 END
+	IF @EventTypeID IS NULL
+	BEGIN
+		SET @EventTypeID = CASE WHEN @bettype = 10 THEN 2 ELSE 1 END
+	END
 	
 
 	IF (@sporttype > 99 AND @sporttype NOT IN (164,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
-		OR (@bettype IN(29, 2799, 38)) OR (@bettype BETWEEN 801 AND 806)
+		OR (@bettype IN(2799)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
