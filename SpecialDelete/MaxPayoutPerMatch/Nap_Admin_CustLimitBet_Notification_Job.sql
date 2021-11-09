@@ -7,39 +7,54 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-	
+		- 20211011@Max: Change logic send Notification - [Redmine: #158073]
+
 	Param's explanation:		
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @List_Waiting_5minutes VARCHAR(MAX) = '',
-			@List_Failed VARCHAR(MAX) = ''
+			@List_Failed VARCHAR(MAX) = '',
+			@CurrentTime DATETIME = NULL
 			
 	--SEND NOTIFICATION VIA EMAIL
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
 	
+	--For PROD EVN
 	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
+
+	--For local Testing, input email need to test
+	--SET @Recipients = 'max.tran@starixvn.com, xxx'
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
 		 ,@title NVARCHAR(200)	= 'CustLimitBet: Notification'
 	
+	SET @CurrentTime = GETDATE()
 	------Sending notification if stay in queue too long, over 5 minutes -----------
 	SET @List_Waiting_5minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(q.QueueID  AS VARCHAR(50))
 												FROM dbo.CustLimitBetQueue q  WITH (NOLOCK)
 												WHERE q.StatusId = 0
-													AND DATEDIFF(MINUTE, q.CreatedDate, GETDATE()) > 5
+													AND q.ExecTime IS NULL
+													AND DATEDIFF(MINUTE, q.CreatedDate, @CurrentTime) BETWEEN 5 AND 6
+													--temp config for phase 2
+													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
+																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
+															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	--Sending notification if failed
-	SET @List_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(QueueID  AS VARCHAR(50))
-												FROM dbo.CustLimitBetQueue WITH (NOLOCK)
-												WHERE 1 = CASE WHEN StatusId = 2 AND ErrMsg NOT LIKE 'Some transids not found%' THEN 1
-																WHEN Statusid = 2 AND ErrMsg LIKE 'Some transids not found%' AND CreatedDate > '2021-10-04' THEN 1 --Temp config for release
-															ELSE 0 END
+	SET @List_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(q.QueueID  AS VARCHAR(50))
+												FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
+												WHERE q.Statusid = 2
+													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
+													--temp config for phase 2
+													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
+																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
+															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
