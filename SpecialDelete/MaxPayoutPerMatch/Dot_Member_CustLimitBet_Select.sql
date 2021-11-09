@@ -16,6 +16,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	
 	Param's explanation:	
 		
@@ -87,8 +88,8 @@ BEGIN
 		END
 	END
 	
-	--For match normal
-	IF @EventTypeID = 1 AND @LeagueID IS NULL
+	--For match normal, Bettype 38
+	IF @EventTypeID IN (1,5) AND @LeagueID IS NULL
 	BEGIN
 		IF @sitetype = 1
 		BEGIN
@@ -132,6 +133,81 @@ BEGIN
 				AND q.Matchid = @MatchId 
 				AND q.CustID = @custid
 				AND q.EventTypeID = @EventTypeID
+		END
+	END
+
+	--For Parlay
+	IF @EventTypeID IN (3,4) AND @MatchId = 29
+	BEGIN
+		IF @sitetype = 1
+		BEGIN
+			SELECT @AccumTurnover = c.AccumTurnover, @AccumPayout = c.AccumPayout, @LastQueueID = c.LastQueueID
+			FROM dbo.CustLimitBet_MBC c WITH (NOLOCK)
+			WHERE c.Matchid = @MatchId
+				AND c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+			
+			--get bonus data from queue
+			IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+					WHERE q.QueueID > @LastQueueID 
+						AND q.ActionID = 3 
+						AND q.Matchid = @MatchId 
+						AND q.CustID = @custid )
+			BEGIN
+				INSERT INTO #CustLimitBet_tmp(MatchId, CustId, transid)
+				SELECT @MatchId AS MatchId
+					, @custid AS custid
+					, xTrans.transid
+				FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+					CROSS APPLY (
+							SELECT CONVERT(XML, q.Transids)
+						)AS t(xDATA)
+					CROSS APPLY (
+							SELECT t.c.value('@transid','BIGINT') AS transid
+							FROM t.xDATA.nodes('root/r') t(c)
+						)xTrans
+					INNER JOIN dbo.CustLimitBetHistory_MBC ch WITH (NOLOCK) ON ch.Matchid = @MatchId AND ch.CustID = @custid AND ch.Transid = xTrans.transid
+				WHERE q.QueueID > @LastQueueID 
+					AND q.ActionID = 3 
+					AND q.Matchid = @MatchId 
+					AND q.CustID = @custid
+					AND ch.EventTypeID = @EventTypeID
+			END
+		END
+		ELSE IF @sitetype = 2
+		BEGIN
+			SELECT @AccumTurnover = c.AccumTurnover, @AccumPayout = c.AccumPayout, @LastQueueID = c.LastQueueID
+			FROM dbo.CustLimitBet_789 c WITH (NOLOCK)
+			WHERE c.Matchid = @MatchId
+				AND c.CustID = @custid
+				AND c.EventTypeID = @EventTypeID
+
+			--get bonus data from queue
+			IF EXISTS ( SELECT TOP(1) 1 FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+					WHERE q.QueueID > @LastQueueID 
+						AND q.ActionID = 3 
+						AND q.Matchid = @MatchId 
+						AND q.CustID = @custid )
+			BEGIN
+				INSERT INTO #CustLimitBet_tmp(MatchId, CustId, transid)
+				SELECT @MatchId AS MatchId
+					, @custid AS custid
+					, xTrans.transid
+				FROM dbo.CustLimitBetQueue q WITH (NOLOCK) 
+					CROSS APPLY (
+							SELECT CONVERT(XML, q.Transids)
+						)AS t(xDATA)
+					CROSS APPLY (
+							SELECT t.c.value('@transid','BIGINT') AS transid
+							FROM t.xDATA.nodes('root/r') t(c)
+						)xTrans
+					INNER JOIN dbo.CustLimitBetHistory_789 ch WITH (NOLOCK) ON ch.Matchid = @MatchId AND ch.CustID = @custid AND ch.Transid = xTrans.transid
+				WHERE q.QueueID > @LastQueueID 
+					AND q.ActionID = 3 
+					AND q.Matchid = @MatchId 
+					AND q.CustID = @custid
+					AND ch.EventTypeID = @EventTypeID
+			END
 		END
 	END
 
