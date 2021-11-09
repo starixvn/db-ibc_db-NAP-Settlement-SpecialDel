@@ -43,6 +43,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
+		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -55,6 +56,8 @@ BEGIN
 			,@ActionID	INT
 			,@strBettypes	VARCHAR(MAX)
       		,@ticketCountTotal INT
+
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -343,7 +346,7 @@ BEGIN
 	SET @rowCnt = @@ROWCOUNT --number of tickets of the match
 
 	BEGIN --BEGIN: calculate 29 ----------------------------------
-		SELECT transid, refno, 0 AS IsFinished
+		SELECT transid, refno, 0 AS IsFinished, ruben, custid
 		INTO #temp_bettrans_29
 		FROM bettrans b WITH(NOLOCK)
 		WHERE b.matchid = 29
@@ -372,6 +375,14 @@ BEGIN
 			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 			VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start running CAL-29')
 
+			
+			--Prepare for Max Payout
+			SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
+										,t.ruben AS '@ruben'
+										,t.TransId AS '@transid'
+									FROM #temp_bettrans_29 t
+									FOR XML PATH('r'), ROOT('root')
+								)
 			-- update summary info back to bettrans
 			WHILE (1=1)
 			BEGIN
@@ -418,6 +429,11 @@ BEGIN
 				GROUP BY b.custid
 			END
 		END
+
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
 
 		INSERT INTO @tblDebitPending_29 (custID, balance)
 		SELECT t.custid, ABS(t.balance)
