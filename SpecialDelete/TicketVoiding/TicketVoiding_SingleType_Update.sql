@@ -40,6 +40,8 @@ AS
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -58,6 +60,8 @@ BEGIN
 			,@MatchDate			DATETIME
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay	INT = 0
+
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
 	DECLARE @avaiableProcess BIT
 			,@isExistMG BIT
@@ -132,6 +136,7 @@ BEGIN
 		,eventdate			DATETIME
 		,isFinish			BIT
 		,srecommend			INT
+		,ruben				TINYINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -225,7 +230,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -240,6 +245,7 @@ BEGIN
 			,b.matchid, b.oddsid
 			,b.winlostdate, b.refno
 			,b.srecommend
+			,b.ruben
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -1742,6 +1748,22 @@ BEGIN
 				@MatchId = @MatchId_MaxPO
 				,@sporttype = @sporttype
 				,@TransidList = @TransIds_MaxPO
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE bettype = 29)
+		BEGIN
+			--Prepare for Max Payout
+			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+										,t.ruben AS '@ruben'
+										,t.transid AS '@transid'
+									FROM #tmpTransId t
+									GROUP BY custid, ruben, transid
+									FOR XML PATH('r'), ROOT('root')
+								)
+
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= 29
+				,@TransidList = @MainParlay_MaxPO
 		END
 	END
 	ELSE

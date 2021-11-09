@@ -26,6 +26,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -51,6 +52,8 @@ BEGIN
 			,@AvaiableProcess	BIT
 			,@Movebetdate		DATETIME
 	
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
+
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalMainParlay	INT = 0 
@@ -70,6 +73,7 @@ BEGIN
 								,recommend		INT
 								,isdeposit		BIT
 								,winlostdate    SMALLDATETIME
+								,ruben			TINYINT
 								)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
 	
@@ -99,6 +103,7 @@ BEGIN
 					,recommend
 					,isdeposit
 					,winlostdate
+					,ruben
 		)
 		SELECT	b.transid
 				,b.matchid
@@ -108,6 +113,7 @@ BEGIN
 				,b.recommend
 				,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
 				,b.winlostdate
+				,b.ruben
 		FROM	@tblTransIds s 
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid
 		WHERE b.matchid = 29 AND b.bettype = 29
@@ -211,7 +217,14 @@ BEGIN
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 		GROUP BY b.CustID
 		---- end capture
-	
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.TransId AS '@transid'
+								FROM #tblRecoverBet t
+								FOR XML PATH('r'), ROOT('root')
+							)
+		
 		UPDATE	b WITH(ROWLOCK, UPDLOCK)
 		SET status = 'running'
 			,statusID = 0
@@ -262,13 +275,19 @@ BEGIN
 				,@mode = 'PRECAL-29'
 				,@matchdate = @matchdate
 				,@strXML = @tmp_TransIds
-
+			
 			EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@matchdate = @MatchDate
 					,@strXML	= @refnos_29
 					,@mode		= '29' 
 		END
 
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
+			,@Mode = 'RECOVER'
+		
 		-- capture after recover
 		INSERT INTO @tblAfterBalance (custid, balance)
 		SELECT	b.custid

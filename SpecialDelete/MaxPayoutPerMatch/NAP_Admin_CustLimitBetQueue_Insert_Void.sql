@@ -12,6 +12,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	
 	Param's explanation:	
 		
@@ -46,6 +47,13 @@ BEGIN
 		, transid BIGINT
 		, bettype SMALLINT
 	)
+
+	CREATE TABLE #CustLimitBet_38 (
+		CustId INT
+		, sitetype TINYINT
+		, transid BIGINT
+		, bettype SMALLINT
+	)
 	
 	SET @xml = CONVERT(XML, @TransidList)
 
@@ -61,7 +69,8 @@ BEGIN
 	DELETE t
 	FROM #CustLimitBet_tmp t
 	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,180,186) AND @sporttype NOT BETWEEN 190 AND 197)
-		OR (t.bettype IN(29, 2799, 38) OR (t.bettype BETWEEN 801 AND 806))
+		OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
+		OR (t.sitetype = 3) --Not support deposit in this phase
 	
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)
 	BEGIN
@@ -73,6 +82,18 @@ BEGIN
 			INTO #CustLimitBet_Outright (CustId, sitetype, transid, bettype)
 		FROM #CustLimitBet_tmp t
 		WHERE bettype = 10
+	END
+
+	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 38)
+	BEGIN
+		DELETE t
+			OUTPUT DELETED.CustId
+				,DELETED.sitetype
+				,DELETED.transid
+				,DELETED.bettype
+			INTO #CustLimitBet_38 (CustId, sitetype, transid, bettype)
+		FROM #CustLimitBet_tmp t
+		WHERE bettype = 38
 	END
 
 	SET @CreatedDate = GETDATE()
@@ -125,9 +146,35 @@ BEGIN
 			SELECT @MatchId, 2, @TransIds, 1, 0, @CreatedDate
 		END
 	END
+
+	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_38)
+	BEGIN
+		WHILE (1=1)
+		BEGIN
+			DELETE @CustLimitBet_Batch
+			SET @TransIds = ''
+
+			DELETE TOP (1000) t
+				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype
+				INTO @CustLimitBet_Batch
+			FROM #CustLimitBet_38 t
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			SELECT @TransIds = (SELECT t.CustId AS '@custid'
+									,t.sitetype AS '@sitetype'
+									,t.TransId AS '@transid'
+								FROM	@CustLimitBet_Batch t
+								FOR XML PATH('r'), ROOT('root')
+							)
+			INSERT INTO dbo.CustLimitBetQueue (MatchId, EventTypeID, Transids, ActionID, Statusid, CreatedDate)
+			SELECT @MatchId, 5, @TransIds, 1, 0, @CreatedDate
+		END
+	END
 	
 	DROP TABLE #CustLimitBet_tmp
 	DROP TABLE #CustLimitBet_Outright
+	DROP TABLE #CustLimitBet_38
 END
 GO
 	

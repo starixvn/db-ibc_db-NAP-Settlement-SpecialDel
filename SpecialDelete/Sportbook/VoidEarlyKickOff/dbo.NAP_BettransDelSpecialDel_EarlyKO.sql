@@ -103,6 +103,7 @@ Revisions:
 	- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 	- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 	- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+	- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -166,7 +167,9 @@ BEGIN
 			,@IsExistBB			BIT = 0
 			,@isExistFM2		BIT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
-		
+	
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
+	
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	 	 
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0
@@ -286,6 +289,8 @@ BEGIN
 		,mainstatusID INT
 		,ExtraInfo VARCHAR(1000)
 		,ActualStake MONEY
+		,main_ruben TINYINT
+		,main_custId INT
 	)  
 
 	DECLARE @Status TABLE (statusID TINYINT)  
@@ -968,6 +973,8 @@ BEGIN
 			,mainstatusID
 			,ExtraInfo
 			,ActualStake
+			,main_ruben
+			,main_custId
 		)  
 		SELECT   
 			sub.transid  
@@ -1006,6 +1013,8 @@ BEGIN
 			,main.statusID AS mainstatusID
 			,main.ExtraInfo
 			,main.actual_stake AS ActualStake
+			,main.ruben
+			,main.custid
 		FROM #tblTransIds t
 			INNER LOOP JOIN dbo.bettransm AS sub WITH (NOLOCK) ON t.transid = sub.transid  
 			INNER HASH JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid = 29
@@ -2525,6 +2534,15 @@ BEGIN
 				 AND b.bettype = 29  
 				GROUP BY b.CustID  
 
+				--Prepare for Max Payout
+				SELECT @MainParlay_MaxPO = (SELECT t.main_custId AS '@custid'
+											,t.main_ruben AS '@ruben'
+											,t.maintransid AS '@transid'
+										FROM #BetmDelete t
+										GROUP BY main_custId, main_ruben, maintransid
+										FOR XML PATH('r'), ROOT('root')
+									)
+				
 				--Settlement System parlay (changed balance)  
 				BEGIN TRY  
 					EXEC dbo.NAP_Admin_Calculate_MP_broker  
@@ -2624,6 +2642,14 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+
+		IF @MainParlay_MaxPO IS NOT NULL
+		BEGIN
+			--Insert Max Payout Queue
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= 29
+				,@TransidList = @MainParlay_MaxPO
+		END
 		-------------------------------------------------------
 		
 		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)

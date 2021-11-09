@@ -97,6 +97,7 @@ AS
 	  - 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 	  - 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 	  - 20210820@July: Integrate Bitcoin [Redmine: #159948]
+	  - 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	  - 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
 
 	 Param's Explanation:   
@@ -160,6 +161,8 @@ BEGIN
 			,@ExecuteSQL				NVARCHAR(MAX) = ''
 			,@Movebetdate				DATETIME
 			,@isExistMatch3rd			BIT = 0
+
+	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))							
 			,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
@@ -283,6 +286,7 @@ BEGIN
 		,ParentID		INT
 		,ChildMatchType TINYINT
 		,EndTime		DATETIME
+		,ruben			TINYINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -478,6 +482,7 @@ BEGIN
 		,RefCode
 		,BonusID
 		,actual_stake
+		,ruben
 	)
 	SELECT	
 		b.refno AS groupTransId
@@ -531,6 +536,7 @@ BEGIN
 		,b.RefCode
 		,b.BonusID
 		,tl.actual_stake
+		,b.ruben
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 	= tl.custid
@@ -597,6 +603,7 @@ BEGIN
 		,b.RefCode
 		,b.BonusID
 		,b.actual_stake
+		,b.ruben
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON b.transid = t.transid
@@ -2882,7 +2889,7 @@ BEGIN
 				FROM #BetDelete b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype
+				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype AND b.Bettype NOT IN (29,2799)
 				FOR XML PATH('r'), ROOT('root')
 			)
 
@@ -2892,6 +2899,22 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+
+		IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE bettype = 29)
+		BEGIN
+			--Prepare for Max Payout
+			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+										,t.ruben AS '@ruben'
+										,t.transid AS '@transid'
+									FROM #BetDelete t
+									GROUP BY custid, ruben, transid
+									FOR XML PATH('r'), ROOT('root')
+								)
+
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+				@MatchId= 29
+				,@TransidList = @MainParlay_MaxPO
+		END
 	END
 	-------------------------------------------------------
 	 
