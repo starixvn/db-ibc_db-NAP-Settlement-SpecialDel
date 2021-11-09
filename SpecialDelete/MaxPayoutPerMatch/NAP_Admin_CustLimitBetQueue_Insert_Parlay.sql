@@ -81,17 +81,6 @@ BEGIN
 	END
 	
 	
-	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp WHERE ruben = 0)
-	IF @Mode IS NULL
-	BEGIN
-		DELETE t
-			OUTPUT DELETED.CustId, DELETED.sitetype, deleted.transid
-			INTO #CustLimitBet_tmp_ruben_0 (CustId, sitetype, transid)
-		FROM #CustLimitBet_tmp t
-		WHERE t.ruben = 0
-	END
-	
-	
 	SET @CreatedDate = GETDATE()
 	IF @Mode IS NULL
 	BEGIN
@@ -188,7 +177,7 @@ BEGIN
 				END
 			END	
 		END
-		END
+	END
 	
 	DROP TABLE #CustLimitBet_tmp
 	DROP TABLE #CustLimitBet_tmp_ruben_0
