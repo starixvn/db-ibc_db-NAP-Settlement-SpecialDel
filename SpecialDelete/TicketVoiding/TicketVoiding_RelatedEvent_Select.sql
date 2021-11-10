@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 (	
 	@MatchId		INT
 	,@EventDate		DATETIME = NULL
@@ -18,7 +18,8 @@ AS
 		- 20200921@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
 		- 20201113@Charles: Danger Accept/Red Card Enhancement - Phase 5 [Redmine: #145102]
 		- 20210608@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
-	
+		- 20211019@July: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
 						0: Get normal match
@@ -40,24 +41,25 @@ BEGIN
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.ParentID = @MatchId
 		UNION ALL
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM #LinkedMatch_tmp lm
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.LinkedMatchID = m.matchid
-		ORDER BY matchcode
+		ORDER BY matchcode ASC
 
 		DROP TABLE #LinkedMatch_tmp
 	END
 	ELSE
 	BEGIN
-		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
+		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 0 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
 			AND m.sporttype IN (1)
+		ORDER BY matchcode ASC
 	END
 	
 END

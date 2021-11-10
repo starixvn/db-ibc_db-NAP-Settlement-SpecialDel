@@ -11,8 +11,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@IssueTypeId			TINYINT
 	,@FilterFromTransTime	DATETIME = NULL
 	,@FilterToTransTime		DATETIME = NULL
-	,@FilterFromBetId		BIGINT = NULL
-	,@FilterToBetId			BIGINT = NULL
 	,@FilterBy				TINYINT = 1
 	,@SingleCount			INT = NULL
 	,@MainParlayCount		INT = NULL
@@ -82,6 +80,7 @@ AS
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -133,8 +132,8 @@ BEGIN
 			,@IsOutright			 BIT = 0
 			,@IsSaba				 BIT = 0
 			,@IsNonSport			 BIT = 0
-			,@movebetdate			SMALLDATETIME
-			,@maxdate 				DATETIME = '9999-01-01'
+			,@movebetdate			 SMALLDATETIME
+			,@maxdate 				 DATETIME = '9999-01-01'
 			,@FromWinlostDate        DATETIME	
 			,@OldActualScore		 NVARCHAR(300) = NULL
 			,@NewActualScore		 NVARCHAR(300) = NULL
@@ -159,8 +158,6 @@ BEGIN
 			,MatchID				INT
 			,FilterFromTransTime	DATETIME 
 			,FilterToTransTime		DATETIME 
-			,FilterFromBetId		BIGINT 
-			,FilterToBetId			BIGINT 
 			,FilterBy				TINYINT 
 			,SingleCount			INT 
 			,MainParlayCount		INT 
@@ -181,8 +178,6 @@ BEGIN
 			, MatchId INT
 			, FilterFromTransTime DATETIME
 			, FilterToTransTime DATETIME
-			, FilterFromBetId BIGINT
-			, FilterToBetId BIGINT
 			, FilterBy TINYINT
 			, LiveHomeScore INT
 			, LiveAwayScore INT
@@ -215,13 +210,17 @@ BEGIN
 		FROM	dbo.match WITH(NOLOCK)
 		WHERE	matchid = @MatchId
 		
+		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (20))
+								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
+								  WHERE RequestId = @RequestId
+								  FOR XML PATH ('')),1,1,'')
+
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
 			SET	LeagueId = ISNULL(@LeagueId, LeagueId)
 				,@OldMatchId = MatchId
 				,MatchId = ISNULL(@MatchId, MatchId)
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
-				,@OldTransIds = TransIds
 				,RequestType = CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
 								    WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7,8) THEN 1
 								    ELSE 0
@@ -316,13 +315,11 @@ BEGIN
 			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
 		END
 
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterFromBetId, FilterToBetId, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, SubIssueTypeId)
+		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, SubIssueTypeId)
 		SELECT RequestId
 			 , MatchId
 			 , FilterFromTransTime
 			 , FilterToTransTime
-			 , FilterFromBetId
-			 , FilterToBetId
 			 , FilterBy
 			 , LiveHomeScore
 			 , LiveAwayScore
@@ -340,8 +337,6 @@ BEGIN
 		UPDATE	r
 		SET	  FilterFromTransTime = l.FilterFromTransTime
 			, FilterToTransTime = l.FilterToTransTime
-			, FilterFromBetId = l.FilterFromBetId
-			, FilterToBetId = l.FilterToBetId
 			, FilterBy = l.FilterBy
 			, SingleCount = l.SingleCount
 			, MainParlayCount = l.MainParlayCount
@@ -369,8 +364,6 @@ BEGIN
 			, RequestType
 			, FilterFromTransTime
 			, FilterToTransTime
-			, FilterFromBetId
-			, FilterToBetId
 			, FilterBy
 			, SingleCount
 			, MainParlayCount
@@ -395,8 +388,6 @@ BEGIN
 			, 0
 			, l.FilterFromTransTime
 			, l.FilterToTransTime
-			, l.FilterFromBetId
-			, l.FilterToBetId
 			, l.FilterBy
 			, l.SingleCount
 			, l.MainParlayCount
@@ -498,8 +489,6 @@ BEGIN
 			, RequestType
 			, FilterFromTransTime
 			, FilterToTransTime
-			, FilterFromBetId
-			, FilterToBetId
 			, FilterBy
 			, SingleCount
 			, MainParlayCount
@@ -524,8 +513,6 @@ BEGIN
 			, 0
 			, l.FilterFromTransTime
 			, l.FilterToTransTime
-			, l.FilterFromBetId
-			, l.FilterToBetId
 			, l.FilterBy
 			, l.SingleCount
 			, l.MainParlayCount

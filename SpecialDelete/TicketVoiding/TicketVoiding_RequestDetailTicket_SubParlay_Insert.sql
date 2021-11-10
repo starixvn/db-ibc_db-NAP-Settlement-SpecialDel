@@ -43,6 +43,7 @@ AS
 		- 20210714@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210827@Max: [TVS] Wrong Score Enhancement 2 - Do not exclude ticket in other request for Take Note action [Redmine: #157096]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -129,8 +130,6 @@ BEGIN
 			,MatchID				INT
 			,FilterFromTransTime	DATETIME 
 			,FilterToTransTime		DATETIME 
-			,FilterFromBetId		BIGINT 
-			,FilterToBetId			BIGINT 
 			,FilterBy				TINYINT 
 			,SingleCount			INT 
 			,MainParlayCount		INT 
@@ -232,13 +231,10 @@ BEGIN
 							 WHEN @ActionId =2 AND sub.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
 				AND sub.betfrom <> 'P'
-				AND 1 = CASE WHEN l.SubIssueTypeId IN (55,57,60,75,79,82) AND sub.bettype NOT IN (402,404,409,462,464) THEN 1 
-									WHEN l.SubIssueTypeId IN (68,70) AND sub.bettype NOT IN (483,485) THEN 1
-									WHEN l.SubIssueTypeId IN (56,58,61,76,80,83) AND sub.bettype NOT IN (401,403,407,461,463) THEN 1
-									WHEN l.SubIssueTypeId IN (69,71) AND sub.bettype NOT IN (482,484) THEN 1
-									WHEN l.SubIssueTypeId IN (1,2,3,4,5,26,59,62,63,64,65,66,67,72,73,74,77,78,81,84,85) THEN 1
-								    ELSE 0
-							  END
+				AND NOT EXISTS (SELECT TOP 1 1 
+								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
+								WHERE f.bettype = sub.bettype 
+									AND f.SubIssueTypeId = l.SubIssueTypeId )
 		END
 		IF @IssueTypeId = 10
 		BEGIN

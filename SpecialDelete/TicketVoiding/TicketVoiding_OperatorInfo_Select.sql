@@ -10,6 +10,8 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
+		- 20211101@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine:#155792]
+
 	Param's explanation:	
 */
 BEGIN
@@ -33,7 +35,8 @@ BEGIN
 				LEFT JOIN dbo.CustInfo ct WITH (NOLOCK) ON ct.custid = dt.TraderID
 				LEFT JOIN dbo.CustInfo cs WITH (NOLOCK) ON cs.custid = dt.SuspenderID
 			WHERE dt.matchid = m.MatchId
-		) o		
+		) o	
+	ORDER BY o.TraderName ASC
 END
 GO
 

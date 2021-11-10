@@ -11,8 +11,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@ActionId				TINYINT
 	,@FilterFromTransTime	DATETIME = NULL
 	,@FilterToTransTime		DATETIME = NULL
-	,@FilterFromBetId		BIGINT = NULL
-	,@FilterToBetId			BIGINT = NULL
 	,@FilterBy				TINYINT = 1
 	,@SingleCount			INT = NULL
 	,@MainParlayCount		INT = NULL
@@ -77,6 +75,7 @@ AS
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -135,8 +134,6 @@ BEGIN
 			,MatchID				INT
 			,FilterFromTransTime	DATETIME 
 			,FilterToTransTime		DATETIME 
-			,FilterFromBetId		BIGINT 
-			,FilterToBetId			BIGINT 
 			,FilterBy				TINYINT 
 			,SingleCount			INT 
 			,MainParlayCount		INT 
@@ -357,8 +354,6 @@ BEGIN
 			, RequestType
 			, FilterFromTransTime
 			, FilterToTransTime
-			, FilterFromBetId
-			, FilterToBetId
 			, FilterBy
 			, SingleCount
 			, MainParlayCount
@@ -383,8 +378,6 @@ BEGIN
 			, 0
 			, l.FilterFromTransTime
 			, l.FilterToTransTime
-			, l.FilterFromBetId
-			, l.FilterToBetId
 			, l.FilterBy
 			, l.SingleCount
 			, l.MainParlayCount

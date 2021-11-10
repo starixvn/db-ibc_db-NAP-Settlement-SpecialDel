@@ -18,8 +18,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@TransIds				VARCHAR(MAX)  = NULL
 	,@FilterFromTransTime	DATETIME	  = NULL
 	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterFromBetId		BIGINT		  = NULL
-	,@FilterToBetId			BIGINT		  = NULL
 	,@FilterBy				TINYINT		  = 1
 	,@SingleCount			INT			  = NULL
 	,@MainParlayCount		INT			  = NULL
@@ -74,6 +72,7 @@ AS
 		- 20210524@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
+		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -271,8 +270,6 @@ BEGIN
 				,@ActionId = @ActionId
 				,@FilterFromTransTime = @FilterFromTransTime
 				,@FilterToTransTime	= @FilterToTransTime
-				,@FilterFromBetId = @FilterFromBetId		
-				,@FilterToBetId	= @FilterToBetId			
 				,@FilterBy = @FilterBy				
 				,@SingleCount = @SingleCount			
 				,@MainParlayCount = @MainParlayCount		
