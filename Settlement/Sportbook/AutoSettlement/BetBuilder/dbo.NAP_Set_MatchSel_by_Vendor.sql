@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for BBD   [Redmine:#138475]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -119,7 +120,8 @@ BEGIN
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
 				AND v.vendorId = @VendorID 
-				AND v.Opened = 1 
+				AND v.Opened = 1
+				AND ISNULL(m.IsDeleted,0) = 0
 	END
 	ELSE
 	BEGIN
@@ -159,6 +161,7 @@ BEGIN
 		WHERE  m.eventdate BETWEEN @FromDate AND @ToDate
 				AND v.vendorId = @VendorID 
 				AND v.Opened = 1 
+				AND ISNULL(m.IsDeleted,0) = 0
 
 	END
 	

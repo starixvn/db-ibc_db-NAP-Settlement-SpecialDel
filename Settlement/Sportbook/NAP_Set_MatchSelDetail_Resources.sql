@@ -27,6 +27,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 */
 BEGIN
@@ -84,7 +85,8 @@ BEGIN
 		SET @OpenQuery = 'SELECT ResourceId, Bettype
 						 FROM OPENQUERY(DBPRO, '' SELECT o.ResourceId, o.Bettype 
 												 FROM bodb02.dbo.OddsES o WITH(NOLOCK)
-												 WHERE o.Matchid = '+ CAST( @matchid AS VARCHAR) +'	 '')'
+												 WHERE o.Matchid = '+ CAST( @matchid AS VARCHAR) +
+												 ' AND ISNULL(o.IsDeleted,0) = 0	 '')'
 		INSERT INTO @tblOddsES (ResourceId, Bettype)
 		EXECUTE	sys.sp_executesql @OpenQuery
 

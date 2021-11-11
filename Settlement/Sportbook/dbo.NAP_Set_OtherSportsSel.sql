@@ -9,7 +9,8 @@ AS
 	DB:DBPRO.BODB02
 	
 	Revisions:
-		- 20200604@Kathy: Get the list other sports [Redmine:#134843] 
+		- 20200604@Kathy: Get the list other sports [Redmine:#134843]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
 	Param's Explanation:
 		
@@ -21,6 +22,7 @@ BEGIN
 	SELECT	DISTINCT m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
+			AND ISNULL(m.IsDeleted,0) = 0
 			AND EXISTS (SELECT TOP 1 1 
 						FROM	dbo.Sports s WITH(NOLOCK) 
 						WHERE	s.SportType = m.sporttype

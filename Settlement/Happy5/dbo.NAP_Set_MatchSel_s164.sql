@@ -14,10 +14,11 @@ AS
 	
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 		
 	Param's Explanation:	
-		@Status: All, Completed, Refund, Closed
+		@Status: All, Completed, Refund, Closed 
 				
 */
 BEGIN
@@ -29,7 +30,7 @@ BEGIN
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
 	
 	-------------------------------------------------------------------------------------------------
-	SET @MatchCode = ISNULL(@MatchCode,'')
+	SET @MatchCode = ISNULL(@MatchCode,'') 
 	
 	IF @MatchCode <> ''
 	BEGIN 
@@ -78,6 +79,7 @@ BEGIN
 				OR (@IsRefund = 0 AND ISNULL(m.betstatus,'') NOT LIKE 'Refund%')
 				OR (@IsRefund = 1 AND ISNULL(m.betstatus,'') LIKE 'Refund%')
 			)
+			AND ISNULL(m.IsDeleted,0) = 0
 	ORDER BY m.Matchid
 	
 END

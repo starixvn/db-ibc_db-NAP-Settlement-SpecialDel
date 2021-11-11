@@ -32,6 +32,7 @@ AS
 			- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 			- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 			- 20211005@Louisa: Enhancement [Redmine:#162624]
+			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -331,6 +332,7 @@ BEGIN
 															WHEN @Page = 1 AND  l.LeagueGroupID = 42 THEN 0
 															ELSE 1 END
 									ELSE 1 END
+				AND ISNULL(m.IsDeleted,0) = 0
 
 	END
 	ELSE
@@ -456,6 +458,7 @@ BEGIN
 										ELSE h.HoldStatus & m.SettlementStatus
 									END > 0 
 							)
+				AND ISNULL(m.IsDeleted,0) = 0
 	
 	END	
 	

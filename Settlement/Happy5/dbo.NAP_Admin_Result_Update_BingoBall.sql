@@ -12,6 +12,7 @@ AS
 	Revision
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
+		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 
 	Param's Explanation: 
 
@@ -60,8 +61,8 @@ BEGIN
 				   ,UpdateTime		   = GETDATE()
 
 	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (MatchId,  Seq,				 Number,		UpdateTime, 	   SportType,  isTest)
-		VALUES (@matchid, SOURCE.ResourceId, SOURCE.Result, CURRENT_TIMESTAMP, @Sporttype, @IsTest);
+		INSERT (MatchId,  Seq,				 Number,		UpdateTime, 	   SportType,  isTest	, IsDeleted)
+		VALUES (@matchid, SOURCE.ResourceId, SOURCE.Result, CURRENT_TIMESTAMP, @Sporttype, @IsTest	, 0 );
 	
 END 
 GO

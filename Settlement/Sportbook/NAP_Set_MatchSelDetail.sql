@@ -64,6 +64,7 @@ AS
 		- 20201208@Louisa: Child match: get ET and PEN matches [Redmine:#145597]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 
 */
 BEGIN
@@ -665,6 +666,7 @@ BEGIN
 								WHERE btr.transID = mt.TransId AND btr.statusID IN ( 0 , 1) ) mt
 			WHERE   m.ParentID =   @matchid  
 				AND m.ChildMatchType IN ( 201,202,203)
+				AND ISNULL(m.IsDeleted,0) = 0
 			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, m.BetStatus
 	END
 

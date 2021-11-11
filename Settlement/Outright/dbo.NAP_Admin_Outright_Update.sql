@@ -15,6 +15,7 @@ AS
 	Original: Dot_Admin_SettleOutright_Event 
 	
 	Revision: 
+		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393]	
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO | REFUND
@@ -29,6 +30,7 @@ BEGIN
 		Update Outright WITH (UPDLOCK,ROWLOCK)
 		SET		oddsstatus	= 'Running'
 				,status		= NULL
+				,changetime = GETDATE()
 		WHERE Orid = @MatchID 
 	END
 

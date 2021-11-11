@@ -57,7 +57,8 @@ AS
 	- 20200904@Louisa: Get external score [Redmine:#139979]
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
-	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
+	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
+	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 
 	
  Param explanation:  
@@ -314,6 +315,7 @@ BEGIN
 					ELSE 1
 				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
+		AND ISNULL(m.IsDeleted,0) = 0
 
 	IF (@IsInstant = 1)
 	BEGIN

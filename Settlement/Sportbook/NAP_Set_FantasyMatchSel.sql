@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_FantasyMatchSel]
-	@matchid INT
+	 @matchid INT
 AS
 /* 
 	Created by: 20210920@Louisa
@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20210920@Louisa:  Linked result for Fantasy match [Redmine:#161268]
+		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -32,6 +33,7 @@ BEGIN
 		, htawayscore	 INT
 		, finalhomescore INT
 		, finalawayscore INT
+		, IsDeleted		 BIT
 	)
 
 	SELECT   @fantasy = pv.fantasy
@@ -68,7 +70,8 @@ BEGIN
 			, hthomescore	 
 			, htawayscore	 
 			, finalhomescore 
-			, finalawayscore 
+			, finalawayscore
+			, IsDeleted
 		)
 		SELECT m.matchid
 			, m.matchcode
@@ -82,6 +85,7 @@ BEGIN
 			, m.htawayscore
 			, m.finalhomescore
 			, m.finalawayscore
+			, m.IsDeleted
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpRelatedMatchIds tmp
 				ON m.matchid = tmp.MatchId
@@ -89,6 +93,7 @@ BEGIN
 	END
 
 	---- Return data
+
 	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
 
 	SELECT   matchid		 
@@ -103,6 +108,7 @@ BEGIN
 			, htawayscore	 
 			, finalhomescore 
 			, finalawayscore 
+			, IsDeleted
 	FROM @tmpRelatedMatchInfo
 
 END

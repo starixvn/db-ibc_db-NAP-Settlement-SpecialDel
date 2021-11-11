@@ -16,6 +16,7 @@ AS
 		- 20150612@Kathy: Not allow to insert/delete table TempVariableNumber by linked server. Use SP NAP_UpdateTempVariableNumber   [Redmine:#36216](Migrate custDB to new server - DBCust)
 		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
+		- 20211108@Louisa: In-house Replicator: Updated/Delete Action [Redmine:#164393]  
 */
 BEGIN	
 
@@ -87,152 +88,27 @@ BEGIN
 		SET 
 			hthomescore = @FirstBall
 			,livehomescore = @ThirdBall
-			,finalhomescore = @ThirdBall  
-	WHERE matchid = @MatchId
-		
-	DELETE bingoball
+			,finalhomescore = @ThirdBall
+			,changetime = GETDATE()
 	WHERE matchid = @MatchId
 
-	-- FIRST ball
-	IF @FirstBall IS NULL 
-	BEGIN 
-		--DELETE FROM DBTXN.bodb02.dbo.TempVariableNumber WITH (ROWLOCK,UPDLOCK) 
-		--WHERE KeyID = 1 AND KeyValue = @MatchId	
-		--IF (@@Error = 0)
-		EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 0, @ErrCode = @ErrCode OUTPUT
-		IF @ErrCode = 0
-		BEGIN	
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@Matchid = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH	
-		END				
-		ELSE
-		BEGIN
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@Matchid = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH					
-		END
-		RETURN
-	END
-	ELSE	
-	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest, Color)
-	SELECT @MatchId, Seq, Number, CURRENT_TIMESTAMP, @SportType, @IsTest, Color
-	FROM @tblResult
-	WHERE Seq = 1
+	MERGE dbo.BingoBall WITH (UPDLOCK,ROWLOCK) TARGET
+	USING (
+		SELECT  Seq, Number, Color
+		FROM @tblResult
+		WHERE Number IS NOT NULL
+		) AS SOURCE ON  TARGET.Seq = SOURCE.Seq AND TARGET.MatchId = @matchid
+	WHEN MATCHED AND (Source.Number <> TARGET.Number OR SOURCE.Color <> TARGET.Color)  THEN
+		UPDATE SET Number	 	= SOURCE.Seq
+				   ,Color		= SOURCE.Color
+				   ,UpdateTime	= GETDATE()
+	WHEN NOT MATCHED BY TARGET THEN
+		INSERT (MatchId,  Seq,			Number,		UpdateTime, SportType,  isTest, Color, IsDeleted)
+		VALUES (@matchid, SOURCE.Seq, SOURCE.Number, GETDATE(), @Sporttype, @IsTest, SOURCE.Color, 0)
+	WHEN NOT MATCHED BY SOURCE THEN
+		DELETE ;
 
-	-- SECOND ball
-	IF @SecondBall IS NULL 
-	BEGIN 
-		--DELETE FROM DBTXN.bodb02.dbo.TempVariableNumber WITH (ROWLOCK,UPDLOCK) 
-		--WHERE KeyID = 1 AND KeyValue = @MatchId	
-		--IF (@@Error = 0)
-		EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 0, @ErrCode = @ErrCode OUTPUT
-		
-		IF @ErrCode = 0
-		BEGIN	
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@Matchid = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH	
-		END				
-		ELSE
-		BEGIN
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@Matchid = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH					
-		END
-		RETURN
-	END	
-	ELSE
-	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest, Color)
-	SELECT @MatchId, Seq, Number, CURRENT_TIMESTAMP, @SportType, @IsTest, Color
-	FROM @tblResult
-	WHERE Seq = 2
 
-	-- THIRD ball
-	IF @ThirdBall IS NULL 
-	BEGIN 
-		EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 0, @ErrCode = @ErrCode OUTPUT
-		
-		IF @ErrCode = 0
-		BEGIN	
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@Matchid = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH	
-		END				
-		ELSE
-		BEGIN
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-					@UserID = 5838421, --dbaAdmin
-					@MatchId = @MatchId, 
-					@KeyID = 1,
-					@ActionID = 0, 
-					@Remark = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls'
-			END TRY
-			BEGIN CATCH
-				SELECT @LogData = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-				EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-									  @Doing = @LogData	
-			END CATCH					
-		END
-		RETURN
-	END	
-	ELSE	
-	INSERT INTO bingoball(matchid, seq, number, updatetime, SportType, isTest, Color)
-	SELECT @MatchId, Seq, Number, CURRENT_TIMESTAMP, @SportType, @IsTest, Color
-	FROM @tblResult
-	WHERE Seq = 3
-	
 	EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 0, @ErrCode = @ErrCode OUTPUT
 	IF @ErrCode = 0
 	BEGIN	

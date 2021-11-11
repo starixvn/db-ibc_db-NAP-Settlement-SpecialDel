@@ -14,10 +14,11 @@ AS
 	Revisions:   
 		- 20150226@Kathy: Don't show match in match14 [Redmine:#29990]
 		- 20200218@Sol: Incorporate Number Game - Color Ball - Move to DBPRO [Redmine:#128203]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
 	Param explanation:  
 		@matchcode: match code
-		@matchstatus: 0: all, 1: running; 2: closed; 3: completed; 4: refund;   
+		@matchstatus: 0: all, 1: running; 2: closed; 3: completed; 4: refund;
 */  
 BEGIN
 
@@ -28,7 +29,7 @@ BEGIN
 
 	IF @ToDate IS NULL
 	BEGIN
-		SELECT @ToDate = DATEADD(s,-1, DATEADD(d, 1, @FromDate))  
+		SELECT @ToDate = DATEADD(s,-1, DATEADD(d, 1, @FromDate))    
 	END  
 
 	SELECT @matchcode = ISNULL(@matchcode,'')
@@ -73,6 +74,7 @@ BEGIN
 			FROM MATCH WITH(NOLOCK)  
 			WHERE	eventdate BETWEEN  @FromDate  AND  @ToDate 
 					AND sporttype=161
+					AND ISNULL(IsDeleted,0) = 0
 	   ) AS m 
 		LEFT OUTER JOIN (
 							SELECT matchid, seq, number, Color FROM bingoball WITH(NOLOCK)

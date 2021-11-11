@@ -18,7 +18,7 @@ AS
 		- 20200819@Kathy: Allow to Refund a postponed match without checking Refund flag [Redmine:#139903]
 		- 20201123@Kathy: Not Allow to refund determined match (Fast market) [Redmine:#143573]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
-
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 	Parameters Explanation:    
 		@Action: CAL, REFUND
@@ -56,7 +56,7 @@ BEGIN
 		END
 		ELSE IF @Action = 'REFUND'
 		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal')) 	-- check running odds
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal') AND ISNULL(o.IsDeleted,0) = 0 ) 	-- check running odds
 				SELECT	@ErrCode = 1001035
 						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
 		END

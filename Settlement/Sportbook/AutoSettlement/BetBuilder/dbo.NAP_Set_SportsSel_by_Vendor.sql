@@ -12,7 +12,8 @@ AS
 	 DB: DBPRO/bodb02
 	 
 	 Revisions:  
-			- 20200730@July: Get sporttype according to eventdate for BetBuilder [Redmine:#138475] 
+			- 20200730@July: Get sporttype according to eventdate for BetBuilder [Redmine:#138475]
+			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
       
 	 Param explanation:  
 
@@ -27,6 +28,7 @@ BEGIN
 		AND vs.opened = 1		
 		AND vs.VendorID = @vendorId
 		AND m.sporttype IN (1,2)
+		AND ISNULL(m.IsDeleted,0) = 0
 END
 
 GO

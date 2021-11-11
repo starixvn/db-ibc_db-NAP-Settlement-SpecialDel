@@ -60,6 +60,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#163733]
 
       
  Param explanation:  
@@ -353,6 +354,8 @@ BEGIN
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 			AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
+			AND ISNULL(m.IsDeleted,0) = 0
+			AND ISNULL(l.IsDeleted,0) = 0
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	OUTER APPLY (

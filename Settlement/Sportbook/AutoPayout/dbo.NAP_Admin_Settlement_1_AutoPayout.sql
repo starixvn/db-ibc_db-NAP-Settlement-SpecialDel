@@ -39,6 +39,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		
 	Param's Explanation:
 		 
@@ -350,6 +351,8 @@ BEGIN
 				FROM dbo.match m WITH(NOLOCK)
 				WHERE ParentID = @matchid
 					AND m.ChildMatchType IN ( 201,202,203 )
+					AND ISNULL(m.IsDeleted,0) = 0
+
 				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
 			END
 	END
