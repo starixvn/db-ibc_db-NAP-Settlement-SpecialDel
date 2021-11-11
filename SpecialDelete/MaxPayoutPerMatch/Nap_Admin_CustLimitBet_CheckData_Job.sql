@@ -23,7 +23,7 @@ BEGIN
 	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
 	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 
-	SELECT TOP 1 @ErrorMessage = '1. 789y - History table is inserted data for excluded sporttype
+	SELECT TOP 1 @ErrorMessage = '1. 789y - Main table is inserted data for excluded sporttype
 	'
 	FROM CustLimitBet_789 cb WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
@@ -31,7 +31,7 @@ BEGIN
 	WHERE m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
 		AND cb.ModifiedDate BETWEEN @StartTime AND @EndTime
 
-	SELECT TOP 1 @ErrorMessage = @ErrorMessage + '1. MBC - History table is inserted data for excluded sporttype
+	SELECT TOP 1 @ErrorMessage = @ErrorMessage + '1. MBC - Main table is inserted data for excluded sporttype
 	'
 	FROM CustLimitBet_MBC cb WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
