@@ -18,6 +18,7 @@ AS
 	Revisions:  
 		- 20190723@Raymond.Le: Create new SP [Redmine: #117343]
 		- 20201223@Charles: Optimize Voiding Workflow [Redmine: #145719]
+		- 20211111@Zane: Permission to void the settled tickets [Redmine: #162646]
 
 	Param's Explanation:
 		+ @CashOutTransIds: List id of cash out sub-ticket (911)
@@ -123,7 +124,7 @@ BEGIN
 				END
 	END
 	
-	IF @MatchId = 0
+	IF ISNULL(@MatchId,0) = 0
 	BEGIN
 	-- check Instant, normal settled of single ticket
 		;WITH CTE_TransId (
