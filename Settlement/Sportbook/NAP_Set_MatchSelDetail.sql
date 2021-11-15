@@ -583,7 +583,7 @@ BEGIN
 		,SettlementStatus
 		,EventStatusReason
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
-        LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid AND (mr.IsDeleted IS NULL OR mr.IsDeleted = 0 )
+        LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		INNER JOIN DBPRO.bodb02.dbo.league l WITH (NOLOCK) ON match.leagueid = l.leagueid
 		OUTER APPLY (
 			SELECT TOP(1) CAST(1 AS BIT) AS HasInstantCompleted

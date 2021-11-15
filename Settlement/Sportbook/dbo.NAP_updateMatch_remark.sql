@@ -62,11 +62,6 @@ BEGIN
 		VALUES (@matchid, '01 JAN 2000',0,0,0, SYSDATETIME(), 0)
 	END
 
-	UPDATE dbo.match_remark WITH(ROWLOCK, UPDLOCK)
-	SET IsDeleted = 0
-	WHERE matchid = @matchid
-		AND ISNULL(IsDeleted,0) = 1
-
 	--IF @command = 'Q' UPDATE match_remark with (rowlock, updlock) SET Calculate = 0, multiple = 0, calrefund = 0, calStatus = 'Q' WHERE matchid = @matchid
 	
 	-- Completed
