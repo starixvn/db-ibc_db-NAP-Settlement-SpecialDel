@@ -80,7 +80,7 @@ BEGIN
 							SELECT matchid, seq, number, Color FROM bingoball WITH(NOLOCK)
 							WHERE ISNULL(IsDeleted,0) = 0
 						) AS B ON B.matchid = m.matchid
-		LEFT OUTER JOIN match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid  AND (mr.IsDeleted IS NULL OR mr.IsDeleted = 0 )
+		LEFT OUTER JOIN match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 	WHERE (
 			m.eventstatus NOT IN ('internal','running')  
 				OR (m.eventstatus = 'running' AND mr.ishtcal=1)
