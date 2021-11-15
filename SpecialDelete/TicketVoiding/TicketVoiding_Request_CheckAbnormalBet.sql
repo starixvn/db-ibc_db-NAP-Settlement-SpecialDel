@@ -77,39 +77,76 @@ BEGIN
 			,@MatchParlayProcessXML	     XML = NULL
 			,@TotalRefnoParlay		     INT = 0
 			,@ThreadHold			     INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
+			,@MixParlayTransIds			 VARCHAR(MAX) = ''
+			,@SingleTransIds			 VARCHAR(MAX) = ''
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
-					
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
+				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
-		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+		AND 1 = CASE WHEN @FilterBy IS NULL AND  pt.bettype NOT IN (10, 9, 29) THEN 1 
+					 WHEN @FilterBy = 1 AND pt.bettype NOT IN (10) THEN 1 
+					 ELSE 0 END
+
+	IF (@TransIds IS NULL
+		OR LEN(@TransIds) = 0
+			) RETURN;
+
+	INSERT INTO #transIdTemp (transid)
+	SELECT DISTINCT val
+	FROM dbo.f_SplitString(@TransIds, ',')
+	WHERE val <> ''
+	OPTION (MAXRECURSION 0)
 
 	-- check valid match id
-	IF @FilterBy IS NULL 
-		AND NOT EXISTS (
-			SELECT TOP 1 1
-			FROM dbo.match AS m WITH (NOLOCK)
-			WHERE m.matchid = @MatchId
-				AND EXISTS (
-					SELECT TOP 1 1
-					FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
-						INNER JOIN dbo.Sports AS s WITH (NOLOCK) ON s.SportType = bm.sporttype
-					WHERE bm.ProductID = 1
-						AND s.SportType = m.sporttype
-					)
-			)
+	IF (@FilterBy IS NULL AND NOT EXISTS (SELECT TOP 1 1
+											FROM dbo.match AS m WITH (NOLOCK)
+											WHERE m.matchid = @MatchId
+												AND EXISTS (
+													SELECT TOP 1 1
+													FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
+														INNER JOIN dbo.Sports AS s WITH (NOLOCK) ON s.SportType = bm.sporttype
+													WHERE bm.ProductID = 1
+														AND s.SportType = m.sporttype
+													)
+											)) 	
+		OR(@FilterBy = 1 AND EXISTS (SELECT TOP 1 1 
+									 FROM #transIdTemp t
+									 INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+									 WHERE b.matchid <> @MatchId OR (b.matchid = @MatchId AND b.betteam <> 1)
+									 ))
 	BEGIN
+		SELECT @UnsupportedTransids = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
+												FROM #transIdTemp t
+												INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+												WHERE b.matchid = @MatchId AND b.betteam <> 1
+												FOR XML PATH('')
+									), 1,1,'') 
+
+		IF @FilterBy = 1
+		BEGIN
+			SELECT @SingleTransIds = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
+													FROM #transIdTemp t
+													INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+													WHERE b.matchid <> @MatchId
+													FOR XML PATH('')
+										), 1,1,'') 
+		END
+
 		SELECT @InvalidMatchId = @MatchId
 
 		SELECT @InvalidMatchId AS InvalidMatchId
 			,@InvalidTransIds AS InvalidTransIds
+			,@SingleTransIds AS SingleTransIds
+			,@MixParlayTransIds AS MixParlayTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@SettledTransIds AS SettledTransIds
@@ -126,7 +163,6 @@ BEGIN
 		RETURN;
 	END
 
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 	CREATE TABLE #validTransId (
@@ -153,16 +189,6 @@ BEGIN
 		,IsNonLive BIT
 		,IsDifferentScore BIT
 		)
-
-	IF (@TransIds IS NULL
-		OR LEN(@TransIds) = 0
-			) RETURN;
-
-	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
 
 	-- Check auto calculator
     SELECT @OldAction = r.ActionId 
@@ -252,15 +278,15 @@ BEGIN
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-		
+	
 	-- get unsuppored transid
 	INSERT #UnsupportedTransids (transid)
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
 	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL THEN 1
-				WHEN  t.sporttype = 50 THEN 1
-				ELSE 0 END
+				   WHEN  t.sporttype = 50 THEN 1
+				   ELSE 0 END
 		
 	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
@@ -387,7 +413,7 @@ BEGIN
 									FOR XML PATH('')
 							), 1, 1, ''), '')
 	END
-
+	
 	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
 	BEGIN
 		-- get non-live and different score transids
@@ -432,6 +458,8 @@ BEGIN
 	SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+			,@IsExistParlay = MAX(CASE WHEN t.Bettype IN (9, 29) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+
 	FROM #validTransId AS t
 		OUTER APPLY (
 				SELECT GroupId
@@ -439,22 +467,25 @@ BEGIN
 				WHERE Bettype = t.Bettype
 		)f
 
-	SET @MatchProcessXML = (
-		SELECT DISTINCT MatchId "@MatchId"
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
-				END AS "@KeyID" 
-		FROM #validTransId t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-		FOR XML PATH('r'), ROOT('root')
-		)
+	IF @FilterBy IS NULL
+	BEGIN
+		SET @MatchProcessXML = (
+			SELECT DISTINCT MatchId "@MatchId"
+				,CASE 
+					WHEN f.GroupId IS NULL THEN 1 --SB
+					WHEN f.GroupId = 1 THEN 6 -- Fast Market
+					WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+					ELSE 0
+					END AS "@KeyID" 
+			FROM #validTransId t
+				OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+			FOR XML PATH('r'), ROOT('root')
+			)
+	END
 
 	IF @FilterBy = 1 --Mixparlay ticket
 	BEGIN
@@ -486,6 +517,8 @@ BEGIN
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@InvalidTransIds AS InvalidTransIds
+			,@SingleTransIds AS SingleTransIds
+			,@MixParlayTransIds AS MixParlayTransIds
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids
@@ -494,13 +527,13 @@ BEGIN
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
+			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
 			,@IsExistFM2 AS IsExistFM2
 			,@MatchProcessXML AS MatchProcessXML
-			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@MatchParlayProcessXML AS MatchParlayProcessXML
 
 	DROP TABLE #transIdTemp

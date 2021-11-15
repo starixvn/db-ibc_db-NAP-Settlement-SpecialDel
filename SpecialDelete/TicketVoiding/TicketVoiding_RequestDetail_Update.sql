@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@IssueTypeId			TINYINT
 	,@FilterFromTransTime	DATETIME = NULL
 	,@FilterToTransTime		DATETIME = NULL
-	,@FilterBy				TINYINT = 1
+	,@FilterBy				TINYINT = NULL
 	,@SingleCount			INT = NULL
 	,@MainParlayCount		INT = NULL
 	,@MinSingleTransId		BIGINT = NULL
@@ -81,6 +81,7 @@ AS
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -107,10 +108,10 @@ BEGIN
 			,@LogDataContent		 VARCHAR(MAX)
 			,@SB_Error				 BIT
 			,@OldKickOffTime		 DATETIME
-			,@LeagueId				 INT = NULL
-			,@HomeId				 INT = NULL
-			,@AwayId				 INT = NULL
-			,@Sporttype				 SMALLINT = NULL
+			,@LeagueId				 INT = 0
+			,@HomeId				 INT = 0
+			,@AwayId				 INT = 0
+			,@Sporttype				 SMALLINT = 0
 			,@OldMatchId			 INT
 			,@OldTransIds 			 VARCHAR(MAX) = NULL
 			,@MarkedTransIds		 VARCHAR(MAX)
@@ -144,7 +145,7 @@ BEGIN
 			,@RedCardInfoXML		 XML = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
@@ -189,13 +190,14 @@ BEGIN
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @tblMatchId AS TABLE (MatchId INT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90003
 	SET @SB_Error = 0
 
 	-- Check edit request after voided
-	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WHERE RequestId = @RequestId))
+	IF (EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH(NOLOCK) WHERE RequestId = @RequestId))
 	BEGIN
 		RETURN;
 	END
@@ -887,17 +889,32 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 		
-		INSERT INTO #transid_tmp (transid, bettype, StatusId,statuswinlost)
-		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
+		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		WHERE b.statusID IN (0, 1) --if status of ticket is running
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+		
+		IF @FilterBy = 1
+		BEGIN
+			UPDATE tmp
+				SET matchid = m.matchid
+			FROM #transid_tmp tmp
+			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
+			
+			INSERT INTO @tblMatchId (MatchId)
+			SELECT DISTINCT matchid FROM #transid_tmp 
+		END
+
 		SET @IsCalQueue = ( SELECT TOP (1) 1
-				FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-				WHERE StatusId IN (1,2,4) AND matchid = @MatchId AND RequestId = 0
-				)
+							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+							WHERE StatusId IN (1,2,4) AND RequestId = 0
+							AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
+										 WHEN @FilterBy = 1 AND matchid IN (SELECT MatchId FROM @tblMatchId) THEN 1
+										 ELSE 0 END
+								)
 
 		--2.4 remove transid from request => unmark ticket
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -955,16 +972,39 @@ BEGIN
 			--resettle ticket
 			IF (@IsConfirmCalculator = 1 AND @ResettleTransids <> '')
 			BEGIN
-				EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
-							@Matchid = @Matchid	,
-							@TransIds = @ResettleTransids,
-							@UserId  = @UserId,
-							@IP = @IP,
-							@FailedTransIds = @FailedTransIds OUTPUT,
-							@ErrMsg = @ErrMsg OUTPUT,
-							@ErrCode = @ErrCode OUTPUT,
-							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+				IF @FilterBy IS NULL --single ticket
+				BEGIN
+					EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
+								@Matchid = @Matchid	,
+								@TransIds = @ResettleTransids,
+								@UserId  = @UserId,
+								@IP = @IP,
+								@FailedTransIds = @FailedTransIds OUTPUT,
+								@ErrMsg = @ErrMsg OUTPUT,
+								@ErrCode = @ErrCode OUTPUT,
+								@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			     
+				END
+				IF @FilterBy = 1 --mixparlay ticket
+				BEGIN
+					BEGIN TRY  
+						DECLARE @refnos_29  VARCHAR(MAX) = '' 
+						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
+						FROM #transid_tmp  
+						WHERE bettype = 29 
+							AND (statusID IS NULL OR statusID <> 102) 
+						GROUP BY refno, transid
+						SET @refnos_29 = STUFF(@refnos_29,1,1,'')
+
+						EXEC dbo.NAP_Admin_Calculate_MP_broker  
+								@matchdate = ''  
+								,@strXML = @refnos_29  
+								,@mode  = '29'  
+					END TRY  
+					BEGIN CATCH   
+						SELECT @ErrCode = 100, @ErrMsg = ERROR_MESSAGE()  
+					END CATCH  
+				END
 			END
 		END
 		
@@ -978,6 +1018,19 @@ BEGIN
 											  WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
 											  ELSE '' END 
 			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+		END
+
+		-- Abnormal Bet - Mixparlay ticket
+		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
+		BEGIN
+		     INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			 SELECT @RequestId, MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			 FROM @tblMatchId 
+
+			UPDATE q SET q.StatusId = 0
+			FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
+			WHERE q.RequestId = @RequestId AND q.StatusId = 99
+			AND EXISTS ( SELECT TOP 1 1 FROM #transid_tmp tmp WHERE q.MatchId = tmp.matchid AND tmp.statuswinlost IS NOT NULL)
 		END
 	END
 

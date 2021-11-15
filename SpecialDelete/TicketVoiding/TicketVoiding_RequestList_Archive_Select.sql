@@ -195,11 +195,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -244,11 +244,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -294,11 +294,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
