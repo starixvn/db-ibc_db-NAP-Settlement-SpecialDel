@@ -333,7 +333,6 @@ BEGIN
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 		AND ISNULL(m.IsDeleted,0) = 0
 		AND ISNULL(l.IsDeleted,0) = 0
-		AND ISNULL(mr.IsDeleted,0) = 0
 
 	IF (@IsInstant = 1)
 	BEGIN

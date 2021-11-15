@@ -56,7 +56,7 @@ BEGIN
 			RETURN
 	END
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid AND ISNULL(IsDeleted,0) = 0 )
+	IF NOT EXISTS (SELECT TOP 1 1 FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid)
 	BEGIN
 		INSERT INTO match_remark (matchid, LiveTimer, LivePeriod, HomeRedCard, AwayRedCard, RepUpdateTime, IsDeleted) 
 		VALUES (@matchid, '01 JAN 2000',0,0,0, SYSDATETIME(), 0)
