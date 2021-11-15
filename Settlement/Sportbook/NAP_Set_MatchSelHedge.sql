@@ -12,6 +12,7 @@ AS
 		- 20170210@bobby: #71292 - Check sporttype for hedge match
 		- 20170527@Kathy: Not alow to execute settlement action on an undecided hedge match when settling the main match [Redmine:#77046]
 		- 20170719@Kathy: Change the logic to detect hedge match [Redmine:#78748]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 	Param's Explanation:     
 */
@@ -34,6 +35,7 @@ BEGIN
 			ON	m.matchid = mr.matchid
 	WHERE	m.ParentID = @MatchId
 			AND m.ChildMatchType = 100
+			AND ISNULL(m.IsDeleted,0) = 0
 	ORDER BY m.matchid
 END
 GO

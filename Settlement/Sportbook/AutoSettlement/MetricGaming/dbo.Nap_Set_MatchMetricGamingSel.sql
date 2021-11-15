@@ -1,4 +1,5 @@
-﻿ ALTER PROCEDURE [dbo].[Nap_Set_MatchMetricGamingSel]
+﻿  /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+  ALTER PROCEDURE [dbo].[Nap_Set_MatchMetricGamingSel]
 	@fromdate	DATETIME,
 	@todate		DATETIME,
 	@MatchCode	VARCHAR(50)='',
@@ -12,6 +13,7 @@
 		DB: DBPRO/bodb02
 		
 		Revisions:
+			- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 		
 		Parameter's Explanation:
 			- @StatusID: 0: all, 1: running, 3: completed
@@ -49,7 +51,7 @@ BEGIN
 					GROUP BY matchid
 					) rs  ON m.matchid = rs.matchid
 		INNER JOIN VendorStatus vs WITH(NOLOCK) ON m.matchid = vs.matchid		
-		LEFT JOIN match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid 
+		LEFT JOIN match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 	WHERE m.eventdate BETWEEN @fromdate AND @todate
 		AND m.sporttype = 1
 		AND (ISNULL(@matchcode,'') = '' OR m.matchid = @matchid OR m.matchcode = @matchcode)
@@ -61,8 +63,8 @@ BEGIN
 				END
 		AND vs.opened = 1 -- this match is offered Metric Gaming		
 		AND vs.VendorID = 5
+		AND ISNULL(m.IsDeleted,0) = 0
 	ORDER BY EventStatus DESC, leagueid, kickofftime
 		
 END
 GO
-GRANT EXECUTE ON [dbo].[Nap_Set_MatchMetricGamingSel] TO [bodbAdminNet]

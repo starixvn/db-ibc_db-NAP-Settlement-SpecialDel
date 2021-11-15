@@ -65,6 +65,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 		- 20220106@Louisa: Enhancement [Redmine:#164905]
 
 */
@@ -582,7 +583,7 @@ BEGIN
 		,SettlementStatus
 		,EventStatusReason
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
-        LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
+        LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid AND (mr.IsDeleted IS NULL OR mr.IsDeleted = 0 )
 		INNER JOIN DBPRO.bodb02.dbo.league l WITH (NOLOCK) ON match.leagueid = l.leagueid
 		OUTER APPLY (
 			SELECT TOP(1) CAST(1 AS BIT) AS HasInstantCompleted
@@ -682,7 +683,8 @@ BEGIN
 								WHERE btr.transID = mt.TransId AND btr.statusID IN ( 0 , 1) ) mt
 			WHERE   m.ParentID =   @matchid  
 				AND m.ChildMatchType IN ( 201,202,203)
-			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, homeid, awayid ,m.BetStatus
+				AND ISNULL(m.IsDeleted,0) = 0
+			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, m.BetStatus
 	END
 
 	SELECT Matchid, matchcode, eventstatus, SettlementStatus, homeid, awayid, BetStatus, IsExistMarkedTicket, IsExistRunningTicket FROM @tmp_ChildMatch

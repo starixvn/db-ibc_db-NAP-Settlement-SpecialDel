@@ -33,6 +33,7 @@ AS
 			- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 			- 20211005@Louisa: Enhancement [Redmine:#162624]
 			- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]
       
 	 Param explanation:  
@@ -334,7 +335,8 @@ BEGIN
 															WHEN @Page = 1 AND  l.LeagueGroupID = 42 THEN 0
 															ELSE 1 END
 									ELSE 1 END
-
+				AND ISNULL(m.IsDeleted,0) = 0
+				AND ISNULL(l.IsDeleted,0) = 0
 	END
 	ELSE
 	BEGIN
@@ -459,7 +461,8 @@ BEGIN
 										ELSE h.HoldStatus & m.SettlementStatus
 									END > 0 
 							)
-	
+				AND ISNULL(m.IsDeleted,0) = 0
+				AND ISNULL(l.IsDeleted,0) = 0
 	END	
 	
 	--- Filter by Over Status
@@ -928,7 +931,8 @@ BEGIN
 							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
 							WHERE	o.matchid IN (' + @strMatchIds + ')
 									AND bettype IN (' + @strEarlyBettypes + ')
-									AND o.sporttype = 43'
+									AND o.sporttype = 43
+									AND ISNULL(o.IsDeleted,0) = 0'
 
 		INSERT INTO @tmpMatchEsport (MatchId)
 		EXECUTE sys.sp_executesql @remoteQuery

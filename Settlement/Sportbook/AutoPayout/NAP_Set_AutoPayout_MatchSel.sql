@@ -57,7 +57,7 @@ AS
 	- 20200904@Louisa: Get external score [Redmine:#139979]
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
-	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
+	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 	- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	
@@ -331,6 +331,9 @@ BEGIN
 					ELSE 1
 				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
+		AND ISNULL(m.IsDeleted,0) = 0
+		AND ISNULL(l.IsDeleted,0) = 0
+		AND ISNULL(mr.IsDeleted,0) = 0
 
 	IF (@IsInstant = 1)
 	BEGIN

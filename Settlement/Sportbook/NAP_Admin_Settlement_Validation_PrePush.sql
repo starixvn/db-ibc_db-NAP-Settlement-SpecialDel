@@ -24,6 +24,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
      
     Param's Explanation:
 
@@ -140,6 +141,7 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+								AND ISNULL(o.IsDeleted,0) = 0
 							)
 		END
 
@@ -153,6 +155,7 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+								AND ISNULL(o.IsDeleted,0) = 0
 							)
 		END
 
@@ -166,6 +169,7 @@ BEGIN
 								AND o.liveindicator = 1
 								AND o.oddsstatus <> 'closed'
 								AND ( r.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+								AND ISNULL(o.IsDeleted,0) = 0
 							)
 		END
 
@@ -189,6 +193,7 @@ BEGIN
 						AND ( b.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
 						AND o.liveindicator = 1
 						AND o.oddsstatus <> 'closed'
+						AND ISNULL(o.IsDeleted,0) = 0
 				) r
 
 				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)

@@ -11,6 +11,7 @@ AS
 
     Revisions:
        - 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
+	   - 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		
     Parameters Explanation:
 
@@ -22,6 +23,7 @@ BEGIN
 	UPDATE m 
 		SET	eventstatus = 'completed'
 			,betstatus = CASE WHEN @Action = 'REFUND' THEN 'Refund' ELSE NULL END
+			,UpdateTime = GETDATE()
 	FROM	dbo.match3rd m WITH(ROWLOCK, UPDLOCK)
 	WHERE	m.Match3rdId = @MatchId
 

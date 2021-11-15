@@ -40,6 +40,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		
 	Param's Explanation:

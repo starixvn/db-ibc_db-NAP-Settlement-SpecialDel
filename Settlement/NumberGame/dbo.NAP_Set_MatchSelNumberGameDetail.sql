@@ -12,6 +12,7 @@ AS
 		- 20150226@Kathy: Don't show match in match14 [Redmine:#29990]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball - Move to DBPRO [Redmine:#128203]
 		- 20200821@Kathy: Get event status [Redmine:#128203]
+		- 20211108@Louisa: In-house Replicator: Updated/Delete Action [Redmine:#164393]  
 
 	Param explanation:  
 	
@@ -40,6 +41,7 @@ BEGIN
 	   )AS m 
 		LEFT OUTER JOIN (
 							SELECT matchid, seq, number, Color FROM bingoball WITH(NOLOCK)
+							WHERE ISNULL(IsDeleted,0) = 0
 					) AS B ON B.matchid = m.matchid
 	ORDER BY b.seq
 

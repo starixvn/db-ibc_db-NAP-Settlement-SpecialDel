@@ -11,6 +11,7 @@ AS
 
 	Revisions:
 		- 20201216@Louisa: Insert ET & PEN match [Redmine:#145597]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
@@ -36,6 +37,7 @@ BEGIN
 			AND NOT EXISTS (	SELECT TOP 1 1 FROM dbo.AutoRefundResult ar WITH(NOLOCK)
 								WHERE ar.MatchId = m.matchid AND ar.SourceId = 105 AND ar.TypeId =  @TypeId
 							)
+			AND ISNULL(m.IsDeleted,0) = 0
 		OPTION (maxrecursion 0)
 	END
 

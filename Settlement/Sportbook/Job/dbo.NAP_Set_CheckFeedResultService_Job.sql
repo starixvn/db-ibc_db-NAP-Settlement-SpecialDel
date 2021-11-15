@@ -14,6 +14,7 @@ AS
 		- 20201009@Louisa: Change email domain to @starixvn.com [Redmine:#143284]
 		- 20201224@Louisa: Add Singz, Kid to recipients [Redmine:#111576]
 		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#100002]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 */
 BEGIN
 
@@ -64,6 +65,7 @@ BEGIN
 	BEGIN
 		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
 									WHERE m.sporttype =1
+										 AND ISNULL(m.IsDeleted,0) = 0
 									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
 										 AND m.AutoSetting & 1 = 1 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''
@@ -90,6 +92,7 @@ BEGIN
 	BEGIN
 		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
 									WHERE m.sporttype =1
+										 AND ISNULL(m.IsDeleted,0) = 0
 									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
 										 AND m.AutoSetting & 2 = 2 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''

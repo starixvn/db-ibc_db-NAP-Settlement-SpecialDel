@@ -1,4 +1,5 @@
-﻿ ALTER PROCEDURE [dbo].[Nap_Set_LeagueMetricGamingSel]
+﻿ /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ ALTER PROCEDURE [dbo].[Nap_Set_LeagueMetricGamingSel]
 	@fromdate	DATETIME,
 	@todate		DATETIME
  AS
@@ -7,6 +8,9 @@
 		Date: 2015-06-29
 		Task: Get all leagues offer Metric Gaming
 		DB: DBPRO/bodb02
+
+		Revisions:
+		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393]  
 	*/
 BEGIN
 	SET NOCOUNT ON
@@ -20,9 +24,10 @@ BEGIN
 		AND m.sporttype = 1
 		AND vs.opened = 1-- this match is offered Metric Gaming		
 		AND vs.VendorID = 5
+		AND ISNULL(m.IsDeleted,0) = 0
+		AND ISNULL(l.IsDeleted,0) = 0
 	ORDER BY leaguename
 END
 
 
 GO
-GRANT EXECUTE ON [dbo].[Nap_Set_LeagueMetricGamingSel] TO [bodbAdminNet]

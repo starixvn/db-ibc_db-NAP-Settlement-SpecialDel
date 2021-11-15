@@ -27,6 +27,7 @@ WITH RECOMPILE
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
+		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 
 	Param's Explanation: 
 */
@@ -55,11 +56,16 @@ BEGIN
 			RETURN
 	END
 
-	IF NOT EXISTS (SELECT * FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid)
+	IF NOT EXISTS (SELECT TOP 1 1 FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid AND ISNULL(IsDeleted,0) = 0 )
 	BEGIN
-		INSERT INTO match_remark (matchid, LiveTimer, LivePeriod, HomeRedCard, AwayRedCard) 
-		VALUES (@matchid, '01 JAN 2000',0,0,0)
+		INSERT INTO match_remark (matchid, LiveTimer, LivePeriod, HomeRedCard, AwayRedCard, RepUpdateTime, IsDeleted) 
+		VALUES (@matchid, '01 JAN 2000',0,0,0, SYSDATETIME(), 0)
 	END
+
+	UPDATE dbo.match_remark WITH(ROWLOCK, UPDLOCK)
+	SET IsDeleted = 0
+	WHERE matchid = @matchid
+		AND ISNULL(IsDeleted,0) = 1
 
 	--IF @command = 'Q' UPDATE match_remark with (rowlock, updlock) SET Calculate = 0, multiple = 0, calrefund = 0, calStatus = 'Q' WHERE matchid = @matchid
 	
@@ -71,7 +77,8 @@ BEGIN
 			,calrefund		= 0
 			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' THEN 1 ELSE IsHTCal END
 			,isPending		= 0
-			,isUndecided	= 0 
+			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid -- whole match calculated
 	END
 
@@ -84,6 +91,7 @@ BEGIN
 								   ELSE isPending 
 							  END
 			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END
 	
@@ -98,7 +106,8 @@ BEGIN
 			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' OR @SelectedQuarter LIKE '%80[1,2]%' THEN 0 ELSE IsHTCal END
 			,calrefund		= 1
 			,isPending		= 0
-			,isUndecided	= 0			
+			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME()			
 		WHERE matchid = @matchid 
 	END
 
@@ -107,7 +116,8 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET IsHTCal		= 0
 			,isPending		= 0
-			,isUndecided	= 0			
+			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME()			
 		WHERE matchid = @matchid 
 	END
 	
@@ -117,7 +127,8 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET multiple		= 1
 			,refund			= 0
-			,isUndecided	= 0 
+			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid 
 	END
 	
@@ -127,7 +138,8 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET multiple		= 0
 			,refund			= 1
-			,isUndecided	= 0 
+			,isUndecided	= 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid 
 	END
 	
@@ -144,6 +156,7 @@ BEGIN
 			,calrefund				= 0
 			,refund					= 0
 			,isUndecided			= 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid 
 	END
 	
@@ -153,6 +166,7 @@ BEGIN
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET IsHTCal					= 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid 
 	END
 	
@@ -162,7 +176,8 @@ BEGIN
 	IF @command = 'HF'  
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
-		SET HedgeForecast = 1 
+		SET HedgeForecast = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 
@@ -173,7 +188,8 @@ BEGIN
 		SET IsTotalBetDenied_1	= 1
 			,IsTotalBetDenied_3 = 1
 			,IsTotalBetDenied_7 = 1
-			,IsTotalBetDenied_8 = 1 
+			,IsTotalBetDenied_8 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	
@@ -181,25 +197,29 @@ BEGIN
 	IF @command = 'TD1' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_1 = 1 
+		SET IsTotalBetDenied_1 = 1
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END	
 	IF @command = 'TD3' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_3 = 1 
+		SET IsTotalBetDenied_3 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END	
 	IF @command = 'TD7' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_7 = 1 
+		SET IsTotalBetDenied_7 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END	
 	IF @command = 'TD8' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_8 = 1 
+		SET IsTotalBetDenied_8 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 
@@ -208,14 +228,16 @@ BEGIN
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET IsTotalBetDenied_1	= 1
-			,IsTotalBetDenied_7 = 1 
+			,IsTotalBetDenied_7 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END	
 	IF @command IN ('TP3', 'TP8') 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET IsTotalBetDenied_3	= 1
-			,IsTotalBetDenied_8 = 1 
+			,IsTotalBetDenied_8 = 1
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	
@@ -223,25 +245,29 @@ BEGIN
 	IF @command = 'TA1' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_1 = 0 
+		SET IsTotalBetDenied_1 = 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END
 	IF @command = 'TA3' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_3 = 0 
+		SET IsTotalBetDenied_3 = 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END
 	IF @command = 'TA7' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_7 = 0 
+		SET IsTotalBetDenied_7 = 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	IF @command = 'TA8' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_8 = 0 
+		SET IsTotalBetDenied_8 = 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	
@@ -252,7 +278,8 @@ BEGIN
 		SET IsTotalBetDenied_1	= 0
 			,IsTotalBetDenied_3 = 0
 			,IsTotalBetDenied_7 = 0
-			,IsTotalBetDenied_8 = 0 
+			,IsTotalBetDenied_8 = 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	
@@ -260,25 +287,29 @@ BEGIN
 	IF @command = 'TAA1' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_1		= 0 
+		SET IsTotalBetDenied_1		= 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE IsTotalBetDenied_1 = 1
 	END
 	IF @command = 'TAA3' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_3		= 0 
+		SET IsTotalBetDenied_3		= 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE IsTotalBetDenied_3 = 1
 	END
 	IF @command = 'TAA7' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_7		= 0 
+		SET IsTotalBetDenied_7		= 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE IsTotalBetDenied_7 = 1
 	END
 	IF @command = 'TAA8' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET IsTotalBetDenied_8		= 0 
+		SET IsTotalBetDenied_8		= 0
+			,RepUpdateTime = SYSDATETIME() 
 		WHERE IsTotalBetDenied_8 = 1
 	END
 	
@@ -290,20 +321,23 @@ BEGIN
 		,IsTotalBetDenied_3 	= 0
 		,IsTotalBetDenied_7 	= 0
 		,IsTotalBetDenied_8 	= 0
+		,RepUpdateTime = SYSDATETIME()
 	END
 
 	-- LiveTimer section , @ivalue will pass adjustment (in seconds) to adjust with CURRENT_TIMESTAMP
 	IF @command = 'LP0' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
-		SET LivePeriod = 0 
+		SET LivePeriod = 0
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END
 	IF @command = 'LP1' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET LivePeriod	= 1
-		,LiveTimer		= DATEADD(second, @ivalue, CURRENT_TIMESTAMP) 
+		,LiveTimer		= DATEADD(second, @ivalue, CURRENT_TIMESTAMP)
+		,RepUpdateTime = SYSDATETIME() 
 		WHERE matchid = @matchid
 	END
 	IF @command = 'LP2' 
@@ -311,6 +345,7 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET LivePeriod	= 2
 		,LiveTimer		= DATEADD(second, @ivalue, CURRENT_TIMESTAMP) 
+		,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid
 	END
 		
@@ -320,7 +355,8 @@ BEGIN
 	IF @command = 'IsP' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
-		SET isPending = @ivalue 
+		SET isPending = @ivalue
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid   
 	END
 	  
@@ -328,7 +364,8 @@ BEGIN
 	IF @command = 'IsU' 
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
-		SET isUndecided = @ivalue 
+		SET isUndecided = @ivalue
+			,RepUpdateTime = SYSDATETIME()
 		WHERE matchid = @matchid	--20120306@Hurri
 	END
 

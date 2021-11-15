@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Set_LeagueSelOutright]
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Set_LeagueSelOutright]
 	@FromDate datetime,
 	@ToDate datetime,
 	@sporttype smallint = 0
@@ -11,6 +12,7 @@ AS
 
  * Revisions	:
 	-- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
+	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
  * Parameters:
  *  @FromDate: From  date,
@@ -28,6 +30,8 @@ BEGIN
 			INNER JOIN league l (NOLOCK) ON o.leagueid = l.leagueid 
 		WHERE o.eventdate BETWEEN @FromDate AND @ToDate		
 			  AND l.sporttype <=99 
+			  AND ISNULL(o.IsDeleted,0) = 0
+			  AND ISNULL(l.IsDeleted,0) = 0
 		ORDER BY l.sporttype, l.leaguename
 	END 
 	ELSE 
@@ -37,6 +41,8 @@ BEGIN
 			INNER JOIN league l (NOLOCK) ON o.leagueid = l.leagueid 
 		WHERE o.eventdate BETWEEN @FromDate AND @ToDate		
 			AND l.sporttype = @sporttype
+			AND ISNULL(o.IsDeleted,0) = 0
+			AND ISNULL(l.IsDeleted,0) = 0
 		ORDER BY l.leaguename 
 	END 
 END

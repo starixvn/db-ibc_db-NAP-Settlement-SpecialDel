@@ -1,4 +1,5 @@
-﻿ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfoByLeagueID]
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Set_OutrightSelInfoByLeagueID]
 	 @LeagueID	INT 
 	,@StatusID	INT = 0 
 AS 
@@ -9,6 +10,7 @@ AS
  * DB			: DBPRO/bodb02
 
  * Revisions	:
+	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
  * Parameters: 
 	@StatusID: 0=ALL (N/A)| 1=Running | 2=Closed (N/A) | 3=Completed (Already settled: WON/LOSE/REFUND) 
@@ -35,7 +37,8 @@ BEGIN
 			AND o.oddsstatus = CASE WHEN @StatusID = 0 THEN o.oddsstatus	-- ALL
 									WHEN @StatusID = 3 THEN 'Completed'		--	Settled already 
 									ELSE o.oddsstatus END 
-				 
+			AND ISNULL(o.IsDeleted,0) = 0
+			AND ISNULL(l.IsDeleted,0) = 0
 	ORDER BY o.[teamid] ASC 
 END
 GO
