@@ -46,6 +46,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211110@Max: TVS - HotFix - Void Abnormal Acc - ErrMsg when void all multi match [Redmine: #164475]
 
 	Param's explanation:	
 		
@@ -2069,6 +2070,7 @@ BEGIN
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid		
 				WHERE b.bettype NOT IN (29,2799)
+					AND b.matchid = @MatchId
 				FOR XML PATH('r'), ROOT('root')
 			)
 
