@@ -1851,7 +1851,7 @@ BEGIN
 								,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 									+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
 									+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
-									+ ' Single ticket with TransId: ' + @TransIds
+									+ CASE WHEN @IssueTypeId = 11 AND @MatchId = 29 THEN  ' Main Parlay ticket with TransId: ' ELSE ' Single ticket with TransId: '  END + @TransIds
 									AS '@LogData'
 						FOR XML PATH ('r'), ROOT ('root'), TYPE
 		) AS VARCHAR(MAX))
