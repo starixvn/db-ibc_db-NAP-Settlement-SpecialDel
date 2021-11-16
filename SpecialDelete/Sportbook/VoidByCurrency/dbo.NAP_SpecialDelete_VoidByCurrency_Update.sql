@@ -115,7 +115,6 @@ BEGIN
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
 		   ,@RepUpdateTime DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
@@ -1941,6 +1940,7 @@ BEGIN
 		IF @CountSingle > 0
 		BEGIN
 			-- update status for normal, main bettrade, main cash-out, cash-out member bet ticket
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	main
 				SET winlost		= main.actual_stake
 					,ruben			= 1
@@ -1987,6 +1987,7 @@ BEGIN
 				
 				-- update status for sub cash-out ticket (911,912,913)
 				IF (@isExistCashOut = 1)
+					SET @RepUpdateTime = SYSDATETIME()
 					UPDATE sub
 					SET winlost = sub.actual_stake
 						,ruben = 1

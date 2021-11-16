@@ -43,7 +43,6 @@ BEGIN
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		  
@@ -514,6 +513,7 @@ BEGIN
 	GROUP BY temp.custid
 	
 	--> update status 911, 912, 913, cash-out bet ticket
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET		b.winlost = b.actual_stake
 			,b.awinlost = 0

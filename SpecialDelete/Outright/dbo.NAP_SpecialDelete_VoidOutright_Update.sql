@@ -40,7 +40,6 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME			
 			,@RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)		
 	
@@ -271,6 +270,7 @@ BEGIN
 		
 		-- Step 2: Update bettrans
 		-- 2.1. Update normal, main bettrade, main cash-out, cash-out member bet ticket
+		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE	main
 			SET winlost			= main.actual_stake
 				,ruben			= 1

@@ -198,7 +198,6 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
 			,@RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 	
@@ -1815,6 +1814,7 @@ BEGIN
 		
 		-- Step 2: Update bettrans
 		-- 2.1. Update normal, main bettrade, main cash-out, cash-out member bet ticket
+		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE	main
 			SET winlost		= main.actual_stake
 				,ruben			= 1
@@ -1883,6 +1883,7 @@ BEGIN
 		IF (@isExistCashOut = 1)
 		BEGIN
 			-- 2.2.2. Update Cash-out's subtickets (911,912,913)
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	b
 				SET winlost			= b.actual_stake
 					,ruben			= 1

@@ -36,7 +36,6 @@ BEGIN
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 	DECLARE @before_yesterday DATETIME		  		  
@@ -547,6 +546,7 @@ BEGIN
 	
 	DECLARE @statusid TINYINT
 	--> update SOLD tickets (911)
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusid = b.statusID = CASE
 									WHEN sub911.MainStatusId = 103 THEN 103
@@ -581,6 +581,7 @@ BEGIN
 					AND sub912.bettype = 912
 	
 	--> update BOUGHT tickets (912)
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusid = b.statusID = CASE
 									WHEN sub912.MainStatusId = 103 THEN 103
@@ -615,6 +616,7 @@ BEGIN
 					AND sub911.bettype = 911								 						 								 
 	
 	--> update COMM tickets (913)
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusid = b.statusID = CASE WHEN sub913.MainStatusId = 103 THEN 103 ELSE 113 END
 		,b.status = CASE WHEN @statusid = 103 THEN 'Refund'	ELSE 'LOSE' END		
@@ -639,6 +641,7 @@ BEGIN
 					AND sub912.bettype = 912		 									
 						    
 	--> update cash-out bet ticket
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET statusID = t_main.statusID
 	  , status = t_main.status

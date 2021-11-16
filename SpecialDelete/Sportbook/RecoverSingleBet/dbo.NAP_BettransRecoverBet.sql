@@ -83,7 +83,6 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
@@ -1196,6 +1195,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
 	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE main
 	SET winlost = 0
 	    ,ruben = 0
@@ -1216,6 +1216,7 @@ BEGIN
 	WHERE t.bettype NOT IN (468, 469)
 
 	---- recover: bettype ScoreBox (468, 469)
+	SET @RepUpdateTime = SYSDATETIME()
 	;WITH CTE_Betcheck_1
 	AS (
 		SELECT t.transid
@@ -1408,6 +1409,7 @@ BEGIN
 		IF (@isExistCashOut = 1)
 		BEGIN
 			-- update sub911
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub911 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub912.actual_stake
 					,awinlost = sub911.actual_stake - sub912.actual_stake
@@ -1434,6 +1436,7 @@ BEGIN
 					ON	sub911.transid = tmp911.transid
 			
 			-- update sub912
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub912 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub911.actual_stake
 					,awinlost = sub912.actual_stake - sub911.actual_stake
@@ -1460,6 +1463,7 @@ BEGIN
 					ON	sub911.transid = tmp911.transid
 			
 			--UPDATED: Use odds to store the deduction rate of OW , here is 50% of 3% BetTrade Commision (sub913)
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub913 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub911.winlost * sub913.odds 
 					,awinlost = sub913.discount * sub911.winlost

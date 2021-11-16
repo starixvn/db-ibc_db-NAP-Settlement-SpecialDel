@@ -158,7 +158,6 @@ BEGIN
 			,@Remark		VARCHAR(500) 
 			,@CountTransId	INT
 			,@RepUpdateTime		DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @isExistMatch		BIT = 0  
 			,@isExistMG			BIT = 0 
@@ -2079,6 +2078,7 @@ BEGIN
 
 		-- STEP 3 : Update bettrans/translog  
 		-- 3.1. Update normal, main bettrade, main cash-out, cash-out member bet ticket  
+		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE main  
 		SET   
 			winlost = main.actual_stake  
@@ -2176,6 +2176,7 @@ BEGIN
 						
 			-- 3.4. Cash-out's subtickets (911,912,913)
 			IF (@isExistCashOut = 1)
+				SET @RepUpdateTime = SYSDATETIME()
 				UPDATE b  
 				SET winlost = b.actual_stake  
 					,ruben = 1  

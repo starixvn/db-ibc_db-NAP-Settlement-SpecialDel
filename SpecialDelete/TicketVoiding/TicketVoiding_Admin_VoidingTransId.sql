@@ -60,7 +60,6 @@ BEGIN
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
-	SET @RepUpdateTime = SYSDATETIME()
 
 	IF @RunOnServer <> @@SERVERNAME
 	BEGIN
@@ -153,7 +152,8 @@ BEGIN
 			SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
 			SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
 			SET @Sporttype = (SELECT TOP 1 sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
-		
+			SET @RepUpdateTime = SYSDATETIME()
+
 			UPDATE	b
 			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake
@@ -182,6 +182,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	b
 			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake

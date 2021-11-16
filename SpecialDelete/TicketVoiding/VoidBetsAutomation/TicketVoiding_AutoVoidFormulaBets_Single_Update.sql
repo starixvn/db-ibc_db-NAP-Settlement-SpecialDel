@@ -43,7 +43,6 @@ BEGIN
 			,@IsExistBB					BIT = 0
 			,@isExistFM2				BIT = 0
 			,@RepUpdateTime				DATETIME2
-	SET @RepUpdateTime = SYSDATETIME()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
@@ -1324,6 +1323,7 @@ BEGIN
 	-- STEP 2 : Update bettrans/translog
 	BEGIN TRY
 		-- 2.1. Update bettrans	for normal, main bettrade, main cash-out, cash-out member bet ticket
+		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE main
 		SET 
 			winlost = main.actual_stake
@@ -1351,6 +1351,7 @@ BEGIN
 		-- 2.2 - void MetricGaming
 		IF (@isExistMG = 1)
 		BEGIN
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE main
 				SET betid = ISNULL(main.BetID, rs.ResultID)
 					,actual_stake = tl.actual_stake
@@ -1413,6 +1414,7 @@ BEGIN
 		BEGIN		
 			-- update status for sub cash-out ticket (911,912,913)
 			IF (@isExistCashOut = 1)
+				SET @RepUpdateTime = SYSDATETIME()
 				UPDATE sub
 				SET winlost = sub.actual_stake
 					,ruben = 1
@@ -1427,6 +1429,7 @@ BEGIN
 					,scomm = 0
 					,statusID = 102
 					,status = 'VOID'
+					,RepUpdateTime = @RepUpdateTime
 				FROM dbo.bettrans AS sub WITH (ROWLOCK, UPDLOCK)
 					INNER JOIN #CashOutTransActive bt
 					ON sub.matchid 		= bt.matchid			
