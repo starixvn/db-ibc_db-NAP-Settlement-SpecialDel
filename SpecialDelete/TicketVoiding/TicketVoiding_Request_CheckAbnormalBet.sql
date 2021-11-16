@@ -77,8 +77,6 @@ BEGIN
 			,@MatchParlayProcessXML	     XML = NULL
 			,@TotalRefnoParlay		     INT = 0
 			,@ThreadHold			     INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
-			,@MixParlayTransIds			 VARCHAR(MAX) = ''
-			,@SingleTransIds			 VARCHAR(MAX) = ''
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -124,16 +122,21 @@ BEGIN
 									 WHERE b.matchid <> @MatchId OR (b.matchid = @MatchId AND b.betteam <> 1)
 									 ))
 	BEGIN
-		SELECT @UnsupportedTransids = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
-												FROM #transIdTemp t
-												INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
-												WHERE b.matchid = @MatchId AND b.betteam <> 1
-												FOR XML PATH('')
-									), 1,1,'') 
+		IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp t 
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+					WHERE b.matchid = 29 AND b.betteam <> 1) --Unsupported System parlay Transids
+		BEGIN
+			SELECT @UnsupportedTransids = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
+													FROM #transIdTemp t
+													INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
+													WHERE b.matchid = 29 AND b.betteam <> 1
+													FOR XML PATH('')
+										), 1,1,'') 
+		END
 
 		IF @FilterBy = 1
 		BEGIN
-			SELECT @SingleTransIds = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
+			SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50)) 
 													FROM #transIdTemp t
 													INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid
 													WHERE b.matchid <> @MatchId
@@ -145,8 +148,6 @@ BEGIN
 
 		SELECT @InvalidMatchId AS InvalidMatchId
 			,@InvalidTransIds AS InvalidTransIds
-			,@SingleTransIds AS SingleTransIds
-			,@MixParlayTransIds AS MixParlayTransIds
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@SettledTransIds AS SettledTransIds
@@ -284,7 +285,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL THEN 1
+	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL AND t.bettype <> 29 THEN 1
 				   WHEN  t.sporttype = 50 THEN 1
 				   ELSE 0 END
 		
@@ -517,8 +518,6 @@ BEGIN
 			,@MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@InvalidTransIds AS InvalidTransIds
-			,@SingleTransIds AS SingleTransIds
-			,@MixParlayTransIds AS MixParlayTransIds
 			,@SettledTransIds AS SettledTransIds
 			,@ExistingReqTransIds AS ExistingReqTransIds
 			,@UnsupportedTransids AS UnsupportedTransids

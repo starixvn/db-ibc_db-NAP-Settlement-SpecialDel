@@ -527,7 +527,7 @@ BEGIN
 							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
 						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
 							AND l.val = b.transid
-							AND 1 = CASE WHEN @FilterBy = NULL THEN 1
+							AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 										 WHEN @FilterBy = 1 AND b.betteam = 1 THEN 1 ELSE 0 END
 						)tmp
 		WHERE l.val <> ''
