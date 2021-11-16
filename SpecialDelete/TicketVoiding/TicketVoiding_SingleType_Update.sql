@@ -41,6 +41,7 @@ AS
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211115@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 
 
@@ -355,7 +356,7 @@ BEGIN
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
-	IF @IssueTypeId = 13 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @Movebetdate)
+	IF @IssueTypeId IN (11,13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate <= @Movebetdate)
 	BEGIN	
 		DELETE 
 		FROM #tmpTransId
@@ -376,7 +377,7 @@ BEGIN
 	END
 
 	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
-		OR (@IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
+		OR (@IssueTypeId IN (11,13) AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
 	BEGIN   
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
@@ -1750,22 +1751,6 @@ BEGIN
 				,@sporttype = @sporttype
 				,@TransidList = @TransIds_MaxPO
 		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE bettype = 29)
-		BEGIN
-			--Prepare for Max Payout
-			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
-										,t.ruben AS '@ruben'
-										,t.transid AS '@transid'
-									FROM #tmpTransId t
-									GROUP BY custid, ruben, transid
-									FOR XML PATH('r'), ROOT('root')
-								)
-
-			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-				@MatchId= 29
-				,@TransidList = @MainParlay_MaxPO
-		END
 	END
 	ELSE
 	BEGIN
@@ -1789,6 +1774,22 @@ BEGIN
 			@MatchId = @MatchId
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE bettype = 29)
+	BEGIN
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #tmpTransId t
+								GROUP BY custid, ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
+
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
 	END
 	-------------------------------------------------------
 	
