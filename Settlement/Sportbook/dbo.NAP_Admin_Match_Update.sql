@@ -573,7 +573,7 @@ BEGIN
         END
     END
 
-	IF @Command = 'NAP_Admin_Settlement_MoveTicket'
+	IF @Command = 'NAP_Admin_Settlement-MoveTicket'
 	BEGIN
 		SELECT @NewMatchCode = 'betdaq' + m.matchcode
 		FROM dbo.match m WITH(NOLOCK)
@@ -584,12 +584,6 @@ BEGIN
 		SET matchcode = @NewMatchCode
 			,changetime = GETDATE()
 		WHERE matchid = @MatchId
-
-		--Update new match
-		UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-		SET eventstatus = 'running'
-			,changetime = GETDATE()
-		WHERE matchid = @DestinationMatchId
 		
 	END
 

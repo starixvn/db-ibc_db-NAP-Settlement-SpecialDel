@@ -14,7 +14,7 @@ AS
 		- 20200210@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200703@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
-		- 20210930@Louisa: Move running ticket to new match for Sportbook [Redmine:#159271]
+		- 20210930@Louisa: Move running ticket to new match for E-Sports [Redmine:#159271]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
 */

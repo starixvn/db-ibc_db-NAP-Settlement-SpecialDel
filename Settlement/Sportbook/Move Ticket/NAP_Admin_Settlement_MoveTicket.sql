@@ -34,33 +34,15 @@ BEGIN
 			,@NewAccumTurnover MONEY
 			,@NewMatchCode	NVARCHAR(100)
 
-	DECLARE @tmpCustLimit TABLE ( CustID INT, AccumTurnover MONEY, LastQueueID	BIGINT, SiteType TINYINT )
+	DECLARE @tmpCustLimit TABLE ( CustID INT, AccumTurnover MONEY, AccumPayout MONEY, LastQueueID	BIGINT, SiteType TINYINT )
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-
-	IF OBJECT_ID('tempdb..#tmpTransIds') IS NOT NULL
-	DROP TABLE #tmpTransIds
-
-	CREATE TABLE #tmpTransIds	( RowId INT IDENTITY(1,1) PRIMARY KEY, custid INT, transid BIGINT, oddsid INT,  bettype SMALLINT, BetId INT, liveindicator BIT, StatusId TINYINT)
-	
-	IF OBJECT_ID('tempdb..#tmpNewOdds') IS NOT NULL
-	DROP TABLE #tmpNewOdds
-
+	CREATE TABLE #tmpTransIds	( RowId INT IDENTITY(1,1) PRIMARY KEY, custid INT, transid BIGINT, oddsid INT,  bettype SMALLINT, BetId INT, liveindicator BIT, StatusId TINYINT, srecommend INT )
 	CREATE TABLE #tmpNewOdds	( oddsid INT, bettype SMALLINT, liveindicator BIT, ResourceId VARCHAR(20) )
-						
-	EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking
-		 @MatchId			 = @MatchId
-		,@DestinationMatchId = @DestinationMatchId
-		,@ErrCode			 = @ErrCode OUTPUT
-		,@ErrMsg			 = @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) > 0
-	RETURN
-
-	---Lock match
+	
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	VALUES (@MatchId, 1)
-			,(@DestinationMatchId, 1)
+		 ,(@DestinationMatchId, 1)
 
 	EXEC dbo.NAP_Admin_CheckingProcess		
 	@isExistMatch		= 1		
@@ -69,7 +51,22 @@ BEGIN
 	, @ErrMsg			= @ErrMsg OUTPUT
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	RETURN
+									
+	EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking
+		 @MatchId			 = @MatchId
+		,@DestinationMatchId = @DestinationMatchId
+		,@ErrCode			 = @ErrCode OUTPUT
+		,@ErrMsg			 = @ErrMsg OUTPUT
+
+	IF ISNULL(@ErrCode,0) > 0
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistMatch		= 1
+		,@IsReleased		= 1
+
 		RETURN
+	END
 
 	--backup old info before moving: this table can be removed after data stable
 	IF EXISTS (SELECT TOP 1 1 FROM sys.tables WHERE name = 'SettlementMoveTicketHistoryTemp' )
@@ -119,24 +116,32 @@ BEGIN
 	EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update
 		@matchid = @matchid
 		,@DestinationMatchId =  @DestinationMatchId
-		,@Command = 'NAP_Admin_Settlement_MoveTicket'
-
+		,@Command = 'NAP_Admin_Settlement-MoveTicket'
+			 
 	--Start: Update MaxPayout
-	---- currently, ESporst hasn's PayoutAdjust, AccumPayout
-	INSERT INTO  @tmpCustLimit ( CustID, AccumTurnover, SiteType )
+	--ESports hasn's PayoutAdjust, AccumPayout, not support Deposite
+
+	DELETE tr
+	FROM #tmpTransIds tr
+		INNER JOIN CustDB.dbo.Dep_CustSuper cus WITH(NOLOCK)
+			ON tr.srecommend = cus.custid
+
+	INSERT INTO  @tmpCustLimit ( CustID, AccumTurnover, AccumPayout, SiteType )
 	SELECT ch.CustID
 			,SUM(ch.TurnoverAdjust) AS AccumTurnover
+			,SUM(ch.PayoutAdjust) AS AccumPayout
 			, 1
 	FROM dbo.CustLimitBetHistory_MBC ch WITH(NOLOCK)
 		INNER JOIN #tmpTransIds tr
-			ON ch.Transid = tr.transid
+			ON ch.Transid = tr.transid	
 	WHERE ch.Matchid = @MatchId
 		AND ch.EventTypeID = 1
 	GROUP BY ch.custid
 
-	INSERT INTO  @tmpCustLimit ( CustID, AccumTurnover, SiteType )
+	INSERT INTO  @tmpCustLimit ( CustID, AccumTurnover, AccumPayout, SiteType )
 	SELECT ch.CustID
 			,SUM(ch.TurnoverAdjust) AS AccumTurnover
+			,SUM(ch.PayoutAdjust) AS AccumPayout
 			, 2
 	FROM dbo.CustLimitBetHistory_789 ch WITH(NOLOCK)
 		INNER JOIN #tmpTransIds tr
@@ -161,7 +166,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpCustLimit WHERE SiteType = 1) --MBC
 	BEGIN
 		UPDATE c
-		SET AccumTurnover	= c.AccumTurnover - tmp.AccumTurnover	 
+		SET AccumTurnover	= c.AccumTurnover - tmp.AccumTurnover
+			,AccumPayout	= c.AccumPayout - tmp.AccumPayout	 
 			,ModifiedDate	=  GETDATE()
 		FROM dbo.CustLimitBet_MBC c
 			INNER JOIN @tmpCustLimit tmp
@@ -171,14 +177,15 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_MBC AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
+				SELECT CustID, AccumTurnover, AccumPayout, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
+					 , AccumPayout	 = TARGET.AccumPayout + SOURCE.AccumPayout
 					 , ModifiedDate  = GETDATE()
 		WHEN NOT MATCHED BY TARGET THEN
 			INSERT (Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate )
-			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, 0, 1, SOURCE.LastQueueID, GETDATE() );
+			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, SOURCE.LastQueueID, GETDATE() );
 
 
 		SET @rowId = 1
@@ -205,7 +212,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpCustLimit WHERE SiteType = 2) --789y
 	BEGIN
 		UPDATE c
-		SET AccumTurnover	= c.AccumTurnover - tmp.AccumTurnover	 
+		SET AccumTurnover	= c.AccumTurnover - tmp.AccumTurnover
+			,AccumPayout	= c.AccumPayout - tmp.AccumPayout	 
 			,ModifiedDate	=  GETDATE()
 		FROM dbo.CustLimitBet_789 c
 			INNER JOIN @tmpCustLimit tmp
@@ -215,14 +223,15 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_789 AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
+				SELECT CustID, AccumTurnover, AccumPayout, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
+					 , AccumPayout	 = TARGET.AccumPayout + SOURCE.AccumPayout
 					 , ModifiedDate  = GETDATE()
 		WHEN NOT MATCHED BY TARGET THEN
 			INSERT (Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate )
-			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, 0, 1, SOURCE.LastQueueID, GETDATE() );
+			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, SOURCE.LastQueueID, GETDATE() );
 
 
 		SET @rowId = 1
