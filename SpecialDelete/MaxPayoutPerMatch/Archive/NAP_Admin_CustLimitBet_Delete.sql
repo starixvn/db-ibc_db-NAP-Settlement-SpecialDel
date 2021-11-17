@@ -10,6 +10,7 @@ AS
 		- 20211001@Tina: Add  more filter oddsstatus for Outright and tuning performance - [Redmine: #158073]
 		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
 		- 20211012@Max: Delete bonus for CustLimitBetQueue - [Redmine: #158073]
+		- 20211112@Max: MPO Phase 2 - Clean up data for Parlay [Redmine: #159626]
 	
 	Param's explanation:	
 		
@@ -18,12 +19,24 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @Matchid INT, @eventtypeID TINYINT
+
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
 	CREATE TABLE #tmp_QueueID (QueueID BIGINT PRIMARY KEY)
+
+	------------declare temporary table for phase 2 ---------------
+	CREATE TABLE #tmp_TransId_pre_mbc (Transid BIGINT PRIMARY KEY, custid INT)
+	CREATE TABLE #tmp_TransId_Parlay_mbc (CustId INT, TransId BIGINT)
+	CREATE TABLE #tmp_TransId_pre_789 (Transid BIGINT PRIMARY KEY, custid INT)
+	CREATE TABLE #tmp_TransId_Parlay_789 (CustId INT, TransId BIGINT)
+	CREATE TABLE #tmp_TransId_Parlay_batch (CustId INT, TransId BIGINT)
+	
 	DECLARE @tmp_batch AS TABLE (QueueID BIGINT PRIMARY KEY)
+
 	DECLARE @Archive_Date DATETIME
 	SELECT @Archive_Date = DATEADD(DAY, -6, GETDATE())
+
+	DECLARE @start INT = 1, @end INT
 
 	--Get event
 	INSERT INTO #match_archive(MatchId, EventTypeID)
@@ -57,8 +70,6 @@ BEGIN
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_789 mc WITH (NOLOCK)
 		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND m.EventTypeID = mc.EventTypeID
-
-	DECLARE @start INT = 1, @end INT
 
 	SET @end = (SELECT MAX(ID) FROM #match_tmp)
 	--Delete data
@@ -130,9 +141,9 @@ BEGIN
 	INSERT INTO #tmp_QueueID (QueueID)
 	SELECT q.QueueID
 	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
-	WHERE q.Statusid = 1
-		AND q.ErrMsg <> ''
-		AND q.ExecTime <= @Archive_Date
+	WHERE 1= CASE WHEN q.Statusid = 1 AND q.ErrMsg <> '' AND q.ExecTime <= @Archive_Date THEN 1
+				WHEN q.Matchid = 29 AND DATEDIFF(DAY, q.CreatedDate, GETDATE()) >= 10 THEN 1 --Phase 2 delete for Parlay
+			ELSE 0 END
 
 	--delete bonus data CustLimitBetQueue
 	IF EXISTS (SELECT TOP(1) 1 FROM #tmp_QueueID)
@@ -153,9 +164,89 @@ BEGIN
 		END
 	END
 
+	--Phase 2 - Clean up data for parlay - Only table CustLimitBetHistory_XXX
+	---MBC
+	INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
+	SELECT transid, custid
+	FROM dbo.CustLimitBetHistory_MBC m1 WITH (NOLOCK)
+	WHERE m1.Matchid = 29
+	GROUP BY matchid,transid,custid
+
+	INSERT INTO #tmp_TransId_Parlay_mbc (CustId, TransId)
+	SELECT t.custid, t.transid
+	FROM #tmp_TransId_pre_mbc t
+		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.transid IS NULL
+
+	--789
+	INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
+	SELECT transid,custid
+	FROM dbo.CustLimitBetHistory_789  m2 WITH (NOLOCK)
+	WHERE m2.Matchid = 29
+	GROUP BY matchid,transid,custid
+
+	INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
+	SELECT t.custid, t.transid
+	FROM #tmp_TransId_pre_789 t
+		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.transid IS NULL
+
+	--Delete Data
+	---------mbc-----------
+	WHILE (1 = 1)
+	BEGIN
+  
+		DELETE TOP (1000) r 
+		OUTPUT DELETED.custid,DELETED.TransId
+		INTO #tmp_TransId_Parlay_batch (custid, TransId)    
+		FROM #tmp_TransId_Parlay_mbc r 
+  
+		IF @@ROWCOUNT = 0
+		BREAK
+  
+		DELETE t
+		FROM dbo.CustLimitBetHistory_MBC t 
+			INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
+		WHERE t.matchid = 29 
+
+		TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+		WAITFOR DELAY '00:00:00.020'
+    
+	END
+	----------789-----------
+	TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+	WHILE (1 = 1)
+	BEGIN
+  
+		DELETE TOP (1000) r 
+		OUTPUT DELETED.custid,DELETED.TransId
+		INTO #tmp_TransId_Parlay_batch (custid, TransId)    
+		FROM #tmp_TransId_Parlay_789 r 
+  
+		IF @@ROWCOUNT = 0
+		BREAK
+  
+		DELETE t
+		FROM dbo.CustLimitBetHistory_789 t 
+			INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
+		WHERE t.matchid = 29 
+
+		TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+		WAITFOR DELAY '00:00:00.020'
+    
+	END
+
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
 	DROP TABLE #tmp_QueueID
+	DROP TABLE #tmp_TransId_Parlay_789
+	DROP TABLE #tmp_TransId_Parlay_batch
+	DROP TABLE #tmp_TransId_Parlay_mbc
+	DROP TABLE #tmp_TransId_pre_789
+	DROP TABLE #tmp_TransId_pre_mbc
 END
 GO
 	
