@@ -177,7 +177,7 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_MBC AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, AccumPayout, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
+				SELECT CustID, AccumTurnover, AccumPayout, ISNULL(LastQueueID,0) AS LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
@@ -223,7 +223,7 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_789 AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, AccumPayout, LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
+				SELECT CustID, AccumTurnover, AccumPayout, ISNULL(LastQueueID,0) AS LastQueueID FROM @tmpCustLimit WHERE SiteType = 2
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
