@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210928@Max: HotFix Issue Max Payout - [Redmine: #158846]
+		- 20211112@Max: MPO Phase 2 - Enhancement [Redmine #159626]
 	
 	Param's explanation:	
 		
@@ -25,28 +26,29 @@ BEGIN
 
 
 	----- Starting auto voiding process--------
-	CREATE TABLE #CustLimitBet_Queue (QueueId INT, matchid INT, CustId INT, EventTypeID TINYINT, Transids VARCHAR(MAX), ActionId TINYINT, IsFinished INT DEFAULT(0))
+	CREATE TABLE #CustLimitBet_Queue (QueueId INT, matchid INT, CustId INT, EventTypeID TINYINT, Transids VARCHAR(MAX), ActionId TINYINT, CreatedDate DATETIME, IsFinished INT DEFAULT(0))
 
-	INSERT #CustLimitBet_Queue (QueueId, matchid, CustId, EventTypeID, Transids, ActionId)
-	SELECT q.QueueId, q.matchid, q.CustID, q.EventTypeID, q.Transids, q.ActionID
+	CREATE INDEX IX_IsFinished ON #CustLimitBet_Queue (IsFinished, CreatedDate)
+
+	INSERT #CustLimitBet_Queue (QueueId, matchid, CustId, EventTypeID, Transids, ActionId, CreatedDate)
+	SELECT q.QueueId, q.matchid, q.CustID, q.EventTypeID, q.Transids, q.ActionID, q.CreatedDate
 	FROM dbo.CustLimitBetQueue q WITH(NOLOCK)
 	WHERE q.StatusId = 0
-	ORDER BY CreatedDate
 	
 	WHILE(1=1)
 	BEGIN
 		SELECT	@ErrCode = 0
 				,@ErrMsg = ''
-
-		UPDATE TOP (1) t
+	
+		;WITH t AS (SELECT TOP (1) * FROM #CustLimitBet_Queue WHERE IsFinished = 0 ORDER BY CreatedDate)
+		UPDATE t
 		SET t.IsFinished = 1
 			, @QueueId = t.QueueId
 			, @MatchId = t.matchid
 			, @Transids = t.Transids
 			, @EventTypeID = t.EventTypeID
 			, @ActionId = t.ActionId
-		FROM #CustLimitBet_Queue t
-		WHERE IsFinished = 0 
+		FROM t
 		
 		IF @@ROWCOUNT = 0 
 			BREAK
