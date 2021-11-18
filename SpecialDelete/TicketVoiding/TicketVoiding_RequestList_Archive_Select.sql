@@ -27,6 +27,7 @@ AS
 		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20211013@Max: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211118@July: Change length datatatype [Redmine:#164819]
 
 	Param's explanation:	
 		@Status: 
@@ -465,10 +466,10 @@ BEGIN
 						--AND t.IssueTypeId = 1
 			)m
 		OUTER APPLY(
-					SELECT CASE WHEN mr.calculate = 1 THEN 'FT: ' + CAST(m.finalhomescore AS VARCHAR(2)) + '-' + CAST(finalawayscore AS VARCHAR(2))
-								WHEN mr.IsHTCal = 1 THEN 'HT: ' + CAST(m.hthomescore AS VARCHAR(2)) + '-' + CAST(m.htawayscore AS VARCHAR(2))
+					SELECT CASE WHEN mr.calculate = 1 THEN 'FT: ' + CAST(m.finalhomescore AS VARCHAR(10)) + '-' + CAST(finalawayscore AS VARCHAR(10))
+								WHEN mr.IsHTCal = 1 THEN 'HT: ' + CAST(m.hthomescore AS VARCHAR(10)) + '-' + CAST(m.htawayscore AS VARCHAR(10))
 							ELSE 'HT: _-_' END AS SettlementStatus
-					FROM bodb02.dbo.match_remark mr WITH (NOLOCK) 
+					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
 
