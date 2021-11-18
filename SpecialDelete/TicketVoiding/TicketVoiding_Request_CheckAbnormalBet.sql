@@ -82,25 +82,16 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)	
 				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID = 1 -- Sportsbook
+		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-		AND pt.bettype NOT IN (10, 9, 29)
 
-	IF (@TransIds IS NULL
-		OR LEN(@TransIds) = 0
-			) RETURN;
 
-	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
 
 	-- check valid match id
 	IF @FilterBy IS NULL AND @MatchId <> 0 AND NOT EXISTS (SELECT TOP 1 1
@@ -134,7 +125,8 @@ BEGIN
 
 		RETURN;
 	END
-
+	
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
@@ -162,6 +154,16 @@ BEGIN
 		,IsNonLive BIT
 		,IsDifferentScore BIT
 		)
+	
+	IF (@TransIds IS NULL
+		OR LEN(@TransIds) = 0
+			) RETURN;
+
+	INSERT INTO #transIdTemp (transid)
+	SELECT DISTINCT val
+	FROM dbo.f_SplitString(@TransIds, ',')
+	WHERE val <> ''
+	OPTION (MAXRECURSION 0)
 
 	-- Check auto calculator
     SELECT @OldAction = r.ActionId 
