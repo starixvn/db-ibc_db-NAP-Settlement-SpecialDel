@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20200811@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
+		- 20211118@Kathy: Tuning performance - hardcode on UAT [Redmine:#164819]
 
 	Param's explanation:
 	- @RequestInfo : 
@@ -58,12 +59,18 @@ BEGIN
 	
 	INSERT INTO #tblResult(RequestId, Bettype, BetId)
 	SELECT req.RequestId
-			,bt.bettype AS Bettype
-			,CASE WHEN f.IsNameXBettype = 1 THEN bt.betid ELSE NULL END AS BetId
+			,1
+			,NULL
+			--,bt.bettype AS Bettype
+			--,bt.betid
 	FROM #tblRequestInfo_Detail req
-		INNER JOIN dbo.bettrans_bk bt WITH(NOLOCK) on req.TransId = bt.transid
-		INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
+		--INNER JOIN dbo.bettrans_bk bt WITH(NOLOCK) on req.TransId = bt.transid
 	
+	UPDATE 	bt
+		SET betid = CASE WHEN f.IsNameXBettype = 1 THEN bt.betid ELSE NULL END
+	FROM	#tblResult bt
+		INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
+			
 	-- Return data
 	SELECT RequestId, Bettype, BetId
 	FROM #tblResult
