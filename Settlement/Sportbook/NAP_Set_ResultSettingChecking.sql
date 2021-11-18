@@ -16,6 +16,7 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210925@Helen: Nap Settlement - Cricket - Cannot refund due to selected results are not confirmed to refund - [162244]
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
+		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -37,7 +38,7 @@ BEGIN
 
 	SELECT @Sporttype	= m.Sporttype FROM dbo.match m WITH(NOLOCK) where m.matchid = @MatchId
 	
-	IF @Sporttype NOT IN (5, 6, 43, 45) RETURN
+	IF @SelectedResources = '' OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) RETURN
 
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
@@ -54,7 +55,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetail r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
@@ -66,7 +67,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetailOS r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
@@ -78,7 +79,7 @@ BEGIN
 	BEGIN
 		
 		INSERT INTO @tmpResultSetting (ResultSetting)
-		SELECT DISTINCT r.ResultSetting
+		SELECT DISTINCT ISNULL(r.ResultSetting,0)
 		FROM dbo.ResultDetailES r WITH(NOLOCK)
 			INNER JOIN @tmpResourceID tmp
 				ON r.ResourceId = tmp.ResourceID
@@ -87,9 +88,13 @@ BEGIN
 	END
 
 	IF @Action  LIKE 'Refund%'
+	BEGIN
+		IF ( SELECT COUNT(1) FROM @tmpResultSetting ) = 0
+			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 )
+		
 		SELECT @ErrCode = 1001055
 			 , @ErrMsg	= 'WARNING! Cannot continue due to selected results are not confirmed to refund. Please confirm refund and try again.'
-		FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0
+	END
 
 	ELSE IF @Action LIKE 'CAL%'
 		SELECT @ErrCode = 1001056

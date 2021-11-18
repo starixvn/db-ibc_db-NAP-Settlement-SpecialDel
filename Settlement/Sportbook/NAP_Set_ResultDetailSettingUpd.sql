@@ -19,6 +19,7 @@ AS
 		- 20210811@Louisa: SOP Refund for Tennis, E-Sports [Redmine:#159270]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
+		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -47,7 +48,7 @@ BEGIN
 						 END
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
-	IF @ActionId IS NULL OR ( @Type = 2 AND @SportType NOT IN ( 5, 6, 43, 45 ) )
+	IF @ActionId IS NULL OR ( @Type = 2 AND @SportType NOT IN ( 5, 43, 6, 45, 9, 2, 50 ) )
 	RETURN
 
 	SELECT @ResultTable =  r.ResultTable 

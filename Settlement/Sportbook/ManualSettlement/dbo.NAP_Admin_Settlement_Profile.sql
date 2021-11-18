@@ -45,6 +45,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -200,11 +201,7 @@ BEGIN
 		,@ErrMsg	= @ErrMsg  OUTPUT
 	
 	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg  
-	    RETURN
-	END
+	RETURN
 
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
