@@ -65,11 +65,11 @@ BEGIN
 	INSERT INTO #match_tmp (MatchId, EventTypeID)
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_MBC mc WITH (NOLOCK)
-		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND m.EventTypeID = mc.EventTypeID
+		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND (m.EventTypeID = mc.EventTypeID OR mc.EventTypeID = 5)
 	UNION 
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_789 mc WITH (NOLOCK)
-		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND m.EventTypeID = mc.EventTypeID
+		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND (m.EventTypeID = mc.EventTypeID OR mc.EventTypeID = 5)
 
 	SET @end = (SELECT MAX(ID) FROM #match_tmp)
 	--Delete data
