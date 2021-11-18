@@ -21,7 +21,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@TransIds				VARCHAR(MAX)  = NULL
 	,@FilterFromTransTime	DATETIME	  = NULL
 	,@FilterToTransTime		DATETIME	  = NULL
-	,@FilterBy				TINYINT		  = 1
+	,@FilterBy				TINYINT		  = NULL
 	,@SingleCount			INT			  = NULL
 	,@MainParlayCount		INT			  = NULL
 	,@MinSingleTransId		BIGINT		  = NULL
@@ -83,6 +83,7 @@ AS
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210920@Max: TVS - Update other info of request after voided always loading [Redmine: #161852]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -113,7 +114,6 @@ BEGIN
 			,@LogData			NVARCHAR(MAX)
 			,@SB_Error			BIT
 			,@OldSportType		INT
-			,@OldSubIssueTypeId SMALLINT
 			,@OldActionId		TINYINT
 			,@OldCheckedBy		INT
 			,@OldMistakenBy		NVARCHAR(200)
@@ -267,7 +267,6 @@ BEGIN
 				,@OldSource = Source
 				,@OldRemark = Remark
 				,@OldIsTest = IsTest
-				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 				,ActionId = ISNULL(@ActionId, ActionId)
 				,Provider = ISNULL(@Provider, Provider)
 				,Source = ISNULL(@Source, Source)
@@ -427,7 +426,6 @@ BEGIN
 				,@OldSource = Source
 				,@OldRemark = Remark
 				,@OldIsTest = IsTest
-				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 				,ActionId = ISNULL(@ActionId, ActionId)
 				,Provider = ISNULL(@Provider, Provider)
 				,Source = ISNULL(@Source, Source)
