@@ -7,12 +7,19 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20211111@Tina: create
+		- 20211119@Tina: run each 30 minutes (minute = 5 or 35)
 
 	Param's explanation:		
 		
 */
 BEGIN
 	SET NOCOUNT ON
+
+	IF(DATEPART(MINUTE, GETDATE()) NOT IN (5,35))
+	BEGIN
+		RETURN;
+	END
+
 	DECLARE @StartTime DATETIME = getdate(),
 			@EndTime DATETIME = getdate(),
 			@ErrorMessage VARCHAR(MAX) = 'error message'
@@ -20,10 +27,10 @@ BEGIN
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
+	
 
-
-	--SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
-	SET @Recipients = 'max.tran@starixvn.com;helen.do@starixvn.com;tina.vo@starixvn.com'
+	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
+	--SET @Recipients = 'max.tran@starixvn.com;helen.do@starixvn.com;tina.vo@starixvn.com'
 
 	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT
 

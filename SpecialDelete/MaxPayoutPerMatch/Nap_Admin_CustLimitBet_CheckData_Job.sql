@@ -181,6 +181,7 @@ BEGIN
 	FROM CustLimitBet_MBC lb WITH (NOLOCK)
 	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
 		AND NOT EXISTS (SELECT 1 FROM CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
+		AND lb.MatchID <> 29
 
 	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
 	SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'MBC: Sum on history not equal with main table'
@@ -197,6 +198,7 @@ BEGIN
 	FROM CustLimitBet_789 lb WITH (NOLOCK)
 	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
 		AND NOT EXISTS (SELECT 1 FROM CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
+		AND lb.MatchID <> 29
 
 	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
 	SELECT TOP 1 @ErrorMessage = @ErrorMessage +  '789y: Sum on history not equal with main table'
@@ -221,6 +223,28 @@ BEGIN
 	ORDER BY q.Matchid
 
 	-------------------------------------------------------------
+
+	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int)
+
+	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype)
+	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype
+	FROM bettrans b WITH (NOLOCK)        
+			INNER JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid 
+			LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON b.srecommend = d.custid
+	WHERE b.statusID = 101
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			AND d.custid IS NULL
+			AND ( m.sporttype <= 99 OR m.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))
+
+
+	SELECT TOP 1 @ErrorMessage = 'Reject tickets are missing on CustLimitBetQueue table.'
+	FROM #TempReject T
+	WHERE NOT EXISTS (SELECT *
+	FROM CustLimitBetQueue Q with (nolock)
+	WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%')
+
+
+	DROP TABLE #TempReject
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
 END
