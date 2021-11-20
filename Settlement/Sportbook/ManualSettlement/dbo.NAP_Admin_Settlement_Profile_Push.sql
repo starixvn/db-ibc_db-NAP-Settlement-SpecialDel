@@ -35,7 +35,8 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
-		
+		- 20211120@Helen: Pingoal issue - get match from dbpro [Redmine:#164940]
+
 	Param's Explanation:
 		  @SelectedResources: <Resources>
 						    	<Resource Id="M1" Home="1" Away="3" />
@@ -82,7 +83,7 @@ BEGIN
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
-	FROM	dbo.match m WITH(NOLOCK)
+	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
 	IF @@ROWCOUNT = 0
