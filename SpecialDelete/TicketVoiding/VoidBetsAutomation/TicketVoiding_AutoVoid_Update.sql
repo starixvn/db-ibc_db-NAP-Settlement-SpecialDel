@@ -47,6 +47,7 @@ AS
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211110@Max: TVS - HotFix - Void Abnormal Acc - ErrMsg when void all multi match [Redmine: #164475]
+		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 
 	Param's explanation:	
 		
@@ -882,8 +883,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype, matchid, srecommend)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype, sub.srecommend, sub.matchid
 		FROM	#tmpTransId_VOID_RequestID main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -894,8 +895,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype)
-		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype
+		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype, srecommend, matchid)
+		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype, sub.srecommend, sub.matchid
 		FROM	#tmpTransId_VOID_RequestID sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
