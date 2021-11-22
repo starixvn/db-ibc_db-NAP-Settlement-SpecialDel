@@ -1,2 +1,1 @@
 SpecialDelete\Sportbook\RecoverSingleBet\dbo.NAP_BettransRecoverBet.sql
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Update.sql
