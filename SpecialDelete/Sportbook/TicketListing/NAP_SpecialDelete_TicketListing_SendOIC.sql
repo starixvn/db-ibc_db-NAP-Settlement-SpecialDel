@@ -3,9 +3,9 @@ CREATE PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_SendOIC]
 (
 	 @SiteName				NVARCHAR(50)
 	,@MatchID				INT
+	,@SessionID				VARCHAR(50)
 	,@EventDate				DATETIME
 	,@ResultAmendmentXML	XML
-	,@IsSent				BIT
 )
 AS
 /*  
@@ -18,22 +18,20 @@ AS
 		- 20211119@July: Create new SP [Redmine: #159115]
 
 	Param's explanation:	
-		@ResultAmendmentXML:  <root><r TransID="111" CustID="1112"/></root>
+		@ResultAmendmentXML:  <root><r TransId="111" CustId="1112"/></root>
 */   
 BEGIN
 	SET NOCOUNT ON
 	DECLARE  @ResultID		BIGINT
-			,@SessionID		UNIQUEIDENTIFIER
-	SET @SessionID = NEWID()
 
 	DECLARE @tmpResultAmendment TABLE (TransID BIGINT, CustID INT)
 	INSERT INTO @tmpResultAmendment (TransID, CustID)
-	SELECT   T.C.value('@TransID', 'BIGINT') AS TransID
-			,T.C.value('@CustID', 'INT') AS CustID
+	SELECT   T.C.value('@TransId', 'BIGINT') AS TransID
+			,T.C.value('@CustId', 'INT') AS CustID
 	FROM @ResultAmendmentXML.nodes('/root/r') as [T](C)
 
-	INSERT INTO dbo.LicenseeResultAmendment (SiteName, SessionID, MatchID, EventDate, IsSent)
-	SELECT @SiteName, @SessionID, @MatchID, @EventDate, @IsSent
+	INSERT INTO dbo.LicenseeResultAmendment (SiteName, SessionID, MatchID, EventDate)
+	SELECT @SiteName, @SessionID, @MatchID, @EventDate
 
 	SET @ResultID = SCOPE_IDENTITY()
 

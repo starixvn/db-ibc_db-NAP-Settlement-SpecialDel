@@ -15,8 +15,7 @@ CREATE TABLE dbo.LicenseeResultAmendment
 	MatchID		 INT,
 	EventDate	 DATETIME,
 	CreatedDate  DATETIME,
-	ModifiedDate DATETIME,
-	IsSent		 BIT
+	ModifiedDate DATETIME
  CONSTRAINT [PK_LicenseeResultAmendment_ResultID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC

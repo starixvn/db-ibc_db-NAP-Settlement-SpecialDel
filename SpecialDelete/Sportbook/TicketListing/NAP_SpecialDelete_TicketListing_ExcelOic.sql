@@ -49,6 +49,7 @@ AS
 		- 20201202@Max: Tuning SP [Redmine: #146485]
 		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
 		- 20210517@July: Enhance performance of Ticket Listing function [Redmine: #154732]
+		- 20211122@July: SD - Send data to OIC instead of file [Redmine: #159115]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -190,7 +191,6 @@ BEGIN
 
 	CREATE TABLE #SpecialDeleteBets 
 	(
-		username VARCHAR(50),	
 		transid BIGINT,
 		CustId INT,
 		FilterBettype		SMALLINT,
@@ -241,7 +241,7 @@ BEGIN
 	)
 
 	-- Parse xml @BetTeams
-		INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice
@@ -298,9 +298,8 @@ BEGIN
 			-- Select Happy 5
 			IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username, transid, CustId)
-				SELECT	b.username,
-						b.transid,
+				INSERT INTO #SpecialDeleteBets (transid, CustId)
+				SELECT	b.transid,
 						b.custid
 				FROM	dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
@@ -314,9 +313,8 @@ BEGIN
 			-- Select Number Game
 			ELSE
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username, transid, CustId)
-				SELECT	b.username,
-						b.transid,
+				INSERT INTO #SpecialDeleteBets (transid, CustId)
+				SELECT	b.transid,
 						b.custid
 				FROM	dbo.bettrans b WITH (NOLOCK)
 				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
@@ -334,9 +332,8 @@ BEGIN
 		END
 		ELSE IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
-			SELECT	b.username
-					,CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid
+			INSERT INTO #SpecialDeleteBets (transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
+			SELECT	CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid
 					,b.custid
 					,b.bettype AS FilterBetType
 					,b.betteam AS FilterBetTeam
@@ -365,8 +362,7 @@ BEGIN
 																										WHERE b.betid LIKE q.Id + '%')))
 
 			UNION ALL
-			SELECT	b.username,
-					b.translogid transID,
+			SELECT	b.translogid transID,
 					b.custid,
 					NULL AS FilterBetType,
 					NULL AS FilterBetTeam,
@@ -455,9 +451,8 @@ BEGIN
 	-- System parlay - Sportsbook 29
      IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (username, transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)	
-		SELECT	b.username,
-				b.transid,
+		INSERT INTO #SpecialDeleteBets (transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)	
+		SELECT	b.transid,
 				b.custid,
 				bm.bettype AS FilterBetType,
 				bm.betteam AS FilterBetTeam,
@@ -550,9 +545,8 @@ BEGIN
     -- System parlay Virtual Sports 2799
     IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (username, transid, CustId)	
-		SELECT	b.username,
-				b.transid,
+		INSERT INTO #SpecialDeleteBets (transid, CustId)	
+		SELECT	b.transid,
 				b.custid
 		FROM	dbo.bettransm bm WITH (NOLOCK)	
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
@@ -576,10 +570,8 @@ BEGIN
 	END
 
 	SELECT	tmp.transid,
-			tmp.username,
-			c.username2
+			tmp.CustId
 	FROM #SpecialDeleteBets tmp
-		INNER JOIN dbo.Customer c WITH(NOLOCK) ON c.custid = tmp.custid
 	ORDER BY transid
 	
 	DROP TABLE #SpecialDeleteBets
