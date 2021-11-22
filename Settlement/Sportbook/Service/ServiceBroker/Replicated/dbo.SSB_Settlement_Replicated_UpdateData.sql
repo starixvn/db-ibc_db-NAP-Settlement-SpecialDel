@@ -80,7 +80,8 @@ begin
 				, @Oddstype					= @__oddsType
 				, @IsMarked					= @__IsMarked
 				, @matchid					= 0 -- for replicated no need pass matchid value
-				, @ServerAlias				= @@servername
+				, @ServerAlias				= ''
+				, @ServerName				= @@servername
 				, @SettlementProcessingId	= @__processingId
 				, @ErrMessage				= @__errmsg
 		end try
@@ -91,7 +92,7 @@ begin
 		set deadlock_priority normal
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
-		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Main @matchid = 0,@ServerAlias=' + @@servername
+		select @__messageBodyTemp = 'exec dbo.NAP_Admin_Calculate_Profile @matchid = 0,@ServerAlias=''' + @@servername + ''''
 				+ case when @__strTransIds is not null then ',@strTransIds=''' + @__strTransIds + '''' else '' end
 				+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
 				+ case when @__modds is not null then ',@modds=' + cast(@__modds as varchar(20)) else '' end
