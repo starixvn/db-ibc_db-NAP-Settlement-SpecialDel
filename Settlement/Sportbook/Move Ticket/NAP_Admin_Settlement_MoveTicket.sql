@@ -34,7 +34,7 @@ BEGIN
 			,@NewAccumTurnover MONEY
 			,@NewMatchCode	NVARCHAR(100)
 
-	DECLARE @tmpCustLimit TABLE ( CustID INT, AccumTurnover MONEY, AccumPayout MONEY, LastQueueID	BIGINT, SiteType TINYINT )
+	DECLARE @tmpCustLimit TABLE ( CustID INT, AccumTurnover MONEY, AccumPayout MONEY, SiteType TINYINT )
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpTransIds	( RowId INT IDENTITY(1,1) PRIMARY KEY, custid INT, transid BIGINT, oddsid INT,  bettype SMALLINT, BetId INT, liveindicator BIT, StatusId TINYINT, srecommend INT )
@@ -149,19 +149,6 @@ BEGIN
 	WHERE ch.Matchid = @MatchId
 		AND ch.EventTypeID = 1
 	GROUP BY ch.custid
-
-	;WITH cte_CustLimitBetQueue ( CustID, LastQueueID) AS 
-	(
-		SELECT CustID, MAX(QueueID) AS LastQueueID
-		FROM  dbo.CustLimitBetQueue q WITH(NOLOCK)
-		WHERE q.Matchid = @MatchId
-		GROUP BY q.CustID
-	)
-	UPDATE tmp
-	SET LastQueueID  = q.LastQueueID
-	FROM @tmpCustLimit tmp
-		INNER JOIN cte_CustLimitBetQueue q
-			ON tmp.CustID = q.CustID
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpCustLimit WHERE SiteType = 1) --MBC
 	BEGIN
@@ -177,7 +164,7 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_MBC AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, AccumPayout, ISNULL(LastQueueID,0) AS LastQueueID FROM @tmpCustLimit WHERE SiteType = 1
+				SELECT CustID, AccumTurnover, AccumPayout FROM @tmpCustLimit WHERE SiteType = 1
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
@@ -185,7 +172,7 @@ BEGIN
 					 , ModifiedDate  = GETDATE()
 		WHEN NOT MATCHED BY TARGET THEN
 			INSERT (Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate )
-			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, SOURCE.LastQueueID, GETDATE() );
+			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, 0, GETDATE() );
 
 
 		SET @rowId = 1
@@ -223,7 +210,7 @@ BEGIN
 
 		MERGE dbo.CustLimitBet_789 AS TARGET
 		USING (
-				SELECT CustID, AccumTurnover, AccumPayout, ISNULL(LastQueueID,0) AS LastQueueID FROM @tmpCustLimit WHERE SiteType = 2
+				SELECT CustID, AccumTurnover, AccumPayout FROM @tmpCustLimit WHERE SiteType = 2
 			  ) AS SOURCE ON TARGET.Matchid = @DestinationMatchId AND TARGET.CustID = SOURCE.CustID
 		WHEN MATCHED THEN
 			UPDATE SET AccumTurnover = TARGET.AccumTurnover + SOURCE.AccumTurnover
@@ -231,7 +218,7 @@ BEGIN
 					 , ModifiedDate  = GETDATE()
 		WHEN NOT MATCHED BY TARGET THEN
 			INSERT (Matchid, CustID, AccumTurnover, AccumPayout, EventTypeID, LastQueueID, ModifiedDate )
-			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, SOURCE.LastQueueID, GETDATE() );
+			VALUES (@DestinationMatchId, SOURCE.CustID, SOURCE.AccumTurnover, SOURCE.AccumPayout, 1, 0, GETDATE() );
 
 
 		SET @rowId = 1
