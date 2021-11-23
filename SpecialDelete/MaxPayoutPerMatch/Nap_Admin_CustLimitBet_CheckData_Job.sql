@@ -53,7 +53,7 @@ BEGIN
 				FROM bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 					INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
-				WHERE B.bettype NOT IN (10,29,2799,38,801,802,803,804,805,806) 
+				WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
 					AND NOT EXISTS(SELECT TOP 1 1 FROM CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72)
@@ -66,7 +66,7 @@ BEGIN
 			FROM bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 				INNER JOIN #RunningMatch m ON b.matchid = m.matchid
-			WHERE B.bettype NOT IN (10,29,2799,38,801,802,803,804,805,806)
+			WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
 				AND NOT EXISTS (SELECT TOP 1 1 FROM CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 				AND b.transdate BETWEEN @StartTime AND @EndTime
 				AND ci.currency NOT IN (20,72)
