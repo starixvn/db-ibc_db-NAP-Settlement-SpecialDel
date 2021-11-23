@@ -28,7 +28,7 @@ BEGIN
 
 	INSERT INTO #RunningMatch(matchid, sporttype)
 	SELECT m.matchid, m.sporttype
-	FROM [match] m WITH (NOLOCK)
+	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
 		AND (m.sporttype <= 99 OR m.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))
 	UNION ALL
@@ -36,12 +36,12 @@ BEGIN
 
 	INSERT INTO #NonSBRunningMatch(matchid)
 	SELECT m.matchid
-	FROM [match] m WITH (NOLOCK)
+	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
 		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
 
 	IF EXISTS (SELECT TOP 1 1
-				FROM CustLimitBet_789 cb WITH (NOLOCK)
+				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
@@ -50,7 +50,7 @@ BEGIN
 	END
 
 	IF EXISTS (SELECT TOP 1 1
-				FROM CustLimitBet_MBC cb WITH (NOLOCK)
+				FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
@@ -59,11 +59,11 @@ BEGIN
 	END
 	
 	IF EXISTS (SELECT TOP 1 1
-				FROM bettrans b WITH (NOLOCK)
+				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 					INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 				WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
-					AND NOT EXISTS(SELECT TOP 1 1 FROM CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+					AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72)
 					AND b.statusID NOT IN (101, 0))
@@ -72,11 +72,11 @@ BEGIN
 	END
 	
 	IF EXISTS(SELECT TOP 1 1
-			FROM bettrans b WITH (NOLOCK)
+			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 				INNER JOIN #RunningMatch m ON b.matchid = m.matchid
 			WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
-				AND NOT EXISTS (SELECT TOP 1 1 FROM CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
+				AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 				AND b.transdate BETWEEN @StartTime AND @EndTime
 				AND ci.currency NOT IN (20,72)
 				AND b.statusID NOT IN (101, 0)
@@ -86,11 +86,11 @@ BEGIN
 	END
 
 	IF EXISTS (SELECT TOP 1 1
-				FROM bettrans b WITH (NOLOCK)
-					INNER JOIN outright O WITH (NOLOCK) ON b.matchid = o.orid
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 				WHERE B.bettype = 10
-					AND NOT EXISTS (SELECT TOP 1 1 FROM CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
+					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72))
 	BEGIN
@@ -98,11 +98,11 @@ BEGIN
 	END
 
 	IF EXISTS (SELECT TOP 1 1
-				FROM bettrans b WITH (NOLOCK)
-					INNER JOIN outright O WITH (NOLOCK) ON b.matchid = o.orid
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 				WHERE B.bettype = 10
-					AND NOT EXISTS (SELECT TOP 1 1 FROM CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
+					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 					AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72))
@@ -118,7 +118,7 @@ BEGIN
 
 	INSERT INTO #Queue_Reject(QueueID, MatchID, CustID, EventTypeID, Transids, StatusID, CreatedDate)
 	SELECT Q.QueueID, Q.MatchID, Q.CustID, Q.EventTypeID, Q.Transids, Q.StatusID, Q.CreatedDate
-	FROM CustLimitBetQueue Q WITH (NOLOCK)
+	FROM dbo.CustLimitBetQueue Q WITH (NOLOCK)
 	WHERE Q.ActionID = 2
 		AND Q.CreatedDate BETWEEN @StartTime AND @EndTime
 
@@ -167,10 +167,10 @@ BEGIN
 			SELECT r.QueueID
 			FROM #RejectInfo_Batch r
 				CROSS APPLY (SELECT TOP 1 matchid
-							FROM bettrans b WITH (NOLOCK) 
+							FROM dbo.bettrans b WITH (NOLOCK) 
 							WHERE b.matchid = r.matchid
 								AND b.transid BETWEEN r.MinTransID AND r.MaxTransID AND b.statusID = 101 AND b.checktime = r.RejectTime
-							) AS t
+							) AS T
 	
 			IF (@@ROWCOUNT < 100 ) AND (@@ROWCOUNT < @queueid_max - @queueid_min)
 			BEGIN
@@ -192,14 +192,14 @@ BEGIN
 	--MBC
 	INSERT INTO #CustLimitBet_MBC(MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID)
 	SELECT MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID
-	FROM CustLimitBet_MBC lb WITH (NOLOCK)
+	FROM dbo.CustLimitBet_MBC lb WITH (NOLOCK)
 	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
-		AND NOT EXISTS (SELECT 1 FROM CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
+		AND NOT EXISTS (SELECT 1 FROM dbo.CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
 		AND lb.MatchID <> 29
 
 	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
 	IF EXISTS (SELECT TOP 1 1
-				FROM CustLimitBetHistory_MBC hs WITH (NOLOCK)
+				FROM dbo.CustLimitBetHistory_MBC hs WITH (NOLOCK)
 					INNER JOIN #CustLimitBet_MBC lb ON lb.MatchID = hs.Matchid AND lb.CustID = hs.CustID AND lb.EventTypeID = hs.EventTypeID 
 				GROUP BY hs.Matchid, hs.CustID, hs.EventTypeID, lb.AccumPayout, lb.AccumTurnover
 				HAVING SUM(hs.TurnoverAdjust) <> lb.AccumTurnover OR SUM(hs.PayoutAdjust) <> lb.AccumPayout)
@@ -212,14 +212,14 @@ BEGIN
 
 	INSERT INTO #CustLimitBet_789(MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID)
 	SELECT MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID
-	FROM CustLimitBet_789 lb WITH (NOLOCK)
+	FROM dbo.CustLimitBet_789 lb WITH (NOLOCK)
 	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
-		AND NOT EXISTS (SELECT 1 FROM CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
+		AND NOT EXISTS (SELECT 1 FROM dbo.CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
 		AND lb.MatchID <> 29
 
 	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
 	IF EXISTS (SELECT TOP 1 1
-				FROM CustLimitBetHistory_789 hs WITH (NOLOCK)
+				FROM dbo.CustLimitBetHistory_789 hs WITH (NOLOCK)
 					INNER JOIN #CustLimitBet_789 lb ON lb.MatchID = hs.Matchid AND lb.CustID = hs.CustID AND lb.EventTypeID = hs.EventTypeID 
 				GROUP BY hs.Matchid, hs.CustID, hs.EventTypeID, lb.AccumPayout, lb.AccumTurnover
 				HAVING SUM(hs.TurnoverAdjust) <> lb.AccumTurnover OR SUM(hs.PayoutAdjust) <> lb.AccumPayout)
@@ -234,7 +234,7 @@ BEGIN
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
 	IF EXISTS (SELECT TOP 1 1
-				FROM CustLimitBetQueue Q with (nolock)
+				FROM dbo.CustLimitBetQueue Q with (nolock)
 				WHERE q.ActionID = 2
 					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
 				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
@@ -250,7 +250,7 @@ BEGIN
 
 	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype)
 	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype
-	FROM bettrans b WITH (NOLOCK)        
+	FROM dbo.bettrans b WITH (NOLOCK)        
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 	WHERE b.statusID = 101
 			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
@@ -260,7 +260,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 	FROM #TempReject T
 	WHERE NOT EXISTS (SELECT *
-	FROM CustLimitBetQueue Q with (nolock)
+	FROM dbo.CustLimitBetQueue Q with (nolock)
 	WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'))
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + 'Reject tickets are missing on CustLimitBetQueue table.' + CHAR(13) + CHAR(10)
