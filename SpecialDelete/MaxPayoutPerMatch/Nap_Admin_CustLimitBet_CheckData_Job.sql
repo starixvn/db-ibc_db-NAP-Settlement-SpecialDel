@@ -31,6 +31,9 @@ BEGIN
 	WHERE m.eventstatus = 'running'
 		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
 
+	INSERT INTO #RunningMatch(matchid)
+	SELECT 29 matchid
+
 	IF EXISTS (SELECT TOP 1 1
 				FROM CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
