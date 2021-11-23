@@ -17,6 +17,7 @@ AS
 		- 20161205@Bobby: #61352 - Apply settle determined for parlay bet types
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210904@Kathy: Data is Inserted into Table Settled_Message Continuously [Redmine:#161175]
+		- 20211122@Max: Support Settlement Exclusion for Parlay Sub Tickets [Redmine: #163172]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -185,6 +186,13 @@ BEGIN
 				AND IsCalculating = 1
 	END
 	
+	--Update for Auto Void Job
+	UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+		SET StatusId = 0
+	WHERE MatchId = @matchid
+		AND Action = 'MixParlay'
+		AND StatusId = 99
+	---
 	IF @LockedBySystemSetting = 1
 		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
 			SET VValue = 0
