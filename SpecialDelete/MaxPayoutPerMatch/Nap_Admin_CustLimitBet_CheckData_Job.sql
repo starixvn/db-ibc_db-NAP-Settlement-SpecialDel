@@ -23,9 +23,9 @@ BEGIN
 	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
 	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 
-	DECLARE @RunningMatch TABLE (matchid INT, sporttype SMALLINT)
+	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
 
-	INSERT INTO @RunningMatch(matchid, sporttype)
+	INSERT INTO #RunningMatch(matchid, sporttype)
 	SELECT m.matchid, m.sporttype
 	FROM [match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
@@ -34,7 +34,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
-					INNER JOIN @RunningMatch m ON cb.matchid = m.matchid
+					INNER JOIN #RunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage = '1. 789y - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
@@ -43,7 +43,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM CustLimitBet_MBC cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
-					INNER JOIN @RunningMatch m ON cb.matchid = m.matchid
+					INNER JOIN #RunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage =  @ErrorMessage + '1. MBC - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
@@ -52,7 +52,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
-					INNER JOIN @RunningMatch m ON b.matchid = m.matchid 
+					INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 				WHERE B.bettype NOT IN (10,29,2799,38,801,802,803,804,805,806) 
 					AND NOT EXISTS(SELECT TOP 1 1 FROM CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
@@ -65,7 +65,7 @@ BEGIN
 	IF EXISTS(SELECT TOP 1 1
 			FROM bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
-				INNER JOIN @RunningMatch m ON b.matchid = m.matchid
+				INNER JOIN #RunningMatch m ON b.matchid = m.matchid
 			WHERE B.bettype NOT IN (10,29,2799,38,801,802,803,804,805,806)
 				AND NOT EXISTS (SELECT TOP 1 1 FROM CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 				AND b.transdate BETWEEN @StartTime AND @EndTime
@@ -177,11 +177,6 @@ BEGIN
 		SET @start = @start + 1000
 	END
 
-	DROP TABLE #Queue_Reject
-	DROP TABLE #RejectInfo
-	DROP TABLE #RejectInfo_Batch
-	DROP TABLE #queue_issue
-
 	---------------------------------------------------Check sum--------------------------------------------------
 	CREATE TABLE #CustLimitBet_MBC (MatchID INT, CustID INT, AccumTurnover MONEY, AccumPayout MONEY, EventTypeID TINYINT)
 
@@ -223,8 +218,7 @@ BEGIN
 		SET @ErrorMessage = @ErrorMessage +  '789y: Sum on history not equal with main table'  + CHAR(13) + CHAR(10)
 	END
 
-	DROP TABLE #CustLimitBet_789
-	DROP TABLE #CustLimitBet_MBC
+	
 
 	-------------------------------------------------------
 	--check duplicate data in queue table for reject action
@@ -248,7 +242,7 @@ BEGIN
 	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype)
 	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype
 	FROM bettrans b WITH (NOLOCK)        
-			INNER JOIN @RunningMatch m ON b.matchid = m.matchid 
+			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 	WHERE b.statusID = 101
 			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
 			AND b.transdate BETWEEN @StartTime AND @EndTime
@@ -263,13 +257,20 @@ BEGIN
 		SET @ErrorMessage = @ErrorMessage + 'Reject tickets are missing on CustLimitBetQueue table.' + CHAR(13) + CHAR(10)
 	END
 
-
-	DROP TABLE #TempReject
-
 	IF (@ErrorMessage <> '')
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + 'SP: Nap_Admin_CustLimitBet_CheckData_Job'
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
+
+	DROP TABLE #TempReject
+	DROP TABLE #RunningMatch
+	DROP TABLE #Queue_Reject
+	DROP TABLE #RejectInfo
+	DROP TABLE #RejectInfo_Batch
+	DROP TABLE #queue_issue
+	DROP TABLE #CustLimitBet_789
+	DROP TABLE #CustLimitBet_MBC
+	
 END
