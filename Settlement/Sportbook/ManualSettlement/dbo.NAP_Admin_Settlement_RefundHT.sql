@@ -47,6 +47,7 @@ AS
 		- 20200519@Kathy: Do not update match_remark.calculate if match is refund HT [Redmine:#134192]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -119,12 +120,19 @@ BEGIN
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
+	IF ISNULL(@ErrCode,0) <> 0    
+	RETURN
+
+	IF @sporttype = 1
 	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= 'REFUND-HT'
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+		RETURN
 	END
 		
     --check settlement process

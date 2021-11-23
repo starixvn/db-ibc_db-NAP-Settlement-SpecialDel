@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_WaitingSel] @SportType SMALLINT = 0
-										  , @LeagueId INT = 0 -- 0 for ALL Leagues
+ALTER PROCEDURE [dbo].[NAP_Set_AutoPayout_WaitingSel] 
+	@SportType SMALLINT = 0
+	, @LeagueId INT = 0 -- 0 for ALL Leagues
 AS
 /*
 	Created: 20160314@Patrick
@@ -33,6 +34,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20200619@Kathy: Duplicate transid on table MarkedTransaction [Redmine:#136146]
 		- 20200827@Louisa: Get external score [Redmine:#139979]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
 	Param's explanation: 
 		
@@ -106,7 +108,7 @@ BEGIN
 		, FTLGResultStatusId		    TINYINT
 		, HTFGNGResultStatusId		    TINYINT		
 		, HTLGResultStatusId		    TINYINT
-		
+		, EventStatusReason				TINYINT
 	)
 	
 	DECLARE @strBettypesParlay VARCHAR (MAX)

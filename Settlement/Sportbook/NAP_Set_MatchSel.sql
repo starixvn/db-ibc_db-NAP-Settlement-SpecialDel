@@ -60,12 +60,14 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
       
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
-	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund, 5: Postponed, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold
+	@StatusId:  0: all, 1: running; 2: closed; 3: completed; 4: refund, 5: Postponed, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold, 11: Hold Key
+				12: Irregular Time 1H	13:Irregular Time	14:Wrong Team Name	15:Suspended
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -86,6 +88,7 @@ BEGIN
 		,@isSettingByProfile BIT = 0
 		,@existSettingEarly BIT = 0		
 		,@matchidList VARCHAR(MAX) = ''
+		,@EventStatusReason TINYINT = 0
 	
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT)
 		
@@ -140,12 +143,20 @@ BEGIN
 	ELSE
 	BEGIN
 		SELECT @eventstatus = CASE 
-				WHEN @statusid = 1 THEN 'running'
+				WHEN @statusid IN (1, 12, 13, 14, 15) THEN 'running'
 				WHEN @statusid = 2 THEN 'closed'
 				WHEN @statusid IN (3, 6) THEN 'completed'
 				WHEN @statusid = 5 THEN 'postponed'
 				ELSE ''
 				END
+			,@EventStatusReason = CASE @StatusId
+				WHEN 12 THEN 1
+				WHEN 13 THEN 2
+				WHEN 14 THEN 3
+				WHEN 15 THEN 4
+				ELSE 0
+				END
+						
 			,@isRefund = CASE 
 				WHEN @statusid IN (4, 6) THEN 1
 				WHEN @statusid = 0 THEN NULL
@@ -217,6 +228,7 @@ BEGIN
 		,IsExistMarkedTicketParlay BIT
 		,ChildMatchType TINYINT
 		,IsMergedParlay BIT DEFAULT(0)
+		,EventStatusReason TINYINT
 		)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay BIT DEFAULT(0))
@@ -236,7 +248,7 @@ BEGIN
 		,IsExistFastMarketResult
 		,IsExistEarlyBettypes,IsExistEarlyBettypesParlay,IsRunningEarlyBettypes,IsRunningEarlyBettypesParlay, IsWaitingEarlyBettypes, IsWaitingEarlyBettypesParlay
 		,IsExistRunningTicket, IsExistMarkedTicket, IsExistMarkedTicketParlay
-		,ChildMatchType, IsMergedParlay
+		,ChildMatchType, IsMergedParlay, EventStatusReason
 	)
 	SELECT 
 		tmp.hthomescore
@@ -295,6 +307,7 @@ BEGIN
 		,0 AS IsExistMarkedTicketParlay
 		,tmp.ChildMatchType
 		,ISNULL(f.IsMergedParlay,0) AS IsMergedParlay
+		,tmp.EventStatusReason
 	FROM (
 		SELECT hthomescore
 			,htawayscore			
@@ -317,7 +330,8 @@ BEGIN
 			,0 as IsExistHTFGLG
 			,ISNULL(m.AutoSetting, 0) AS AutoSetting
 			,ISNULL(m.SettlementStatus, 0) AS SettlementStatus
-			,m.ChildMatchType			
+			,m.ChildMatchType
+			,m.EventStatusReason			
 		FROM	dbo.match m WITH (NOLOCK)
 				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = r.MatchId AND r.ResourceId ='00'
 				INNER JOIN dbo.League l WITH(NOLOCK)
@@ -336,7 +350,11 @@ BEGIN
 				END IS NOT NULL 
 			AND m.sporttype = @sporttype 
 			AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode LIKE + '%' + @matchcode + '%')) 
-			AND (@eventstatus = '' OR eventstatus IN (@eventstatus, 'internal')) 
+			AND 1 = CASE WHEN @eventstatus = '' THEN 1
+						 WHEN @EventStatusReason = 0 AND eventstatus IN (@eventstatus, 'internal') THEN 1
+						 WHEN @SportType = 1 AND ISNULL(m.EventStatusReason,0) = @EventStatusReason AND m.eventstatus = @eventstatus THEN 1
+						 ELSE 0
+					END
 			AND (@isRefund IS NULL 
 						OR (
 							m.sporttype <> 5 AND @isRefund = 1 
@@ -781,6 +799,7 @@ BEGIN
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
+			,m.EventStatusReason
 	FROM	#matchList m
 			LEFT JOIN #tempmatch t 
 				ON	t.matchid = m.matchid

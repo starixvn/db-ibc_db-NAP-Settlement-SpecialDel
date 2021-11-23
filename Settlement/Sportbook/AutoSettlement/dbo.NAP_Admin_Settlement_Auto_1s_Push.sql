@@ -24,7 +24,8 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
-		
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+
 	Param's Explanation:
 		 @SelectedResources: <Resources>
 						    	<Resource Id="" Home="" Away="" />
@@ -42,6 +43,10 @@ BEGIN
 			,@leagueid		INT
 			,@sqlCommand	NVARCHAR(MAX)
 			,@procName		NVARCHAR(50)
+			,@CheckingAction VARCHAR(20)
+
+	SELECT @CheckingAction = CASE WHEN @Action = 'REFUND' THEN 'REFUND-EAR'
+								ELSE @Action END
 
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
@@ -64,19 +69,14 @@ BEGIN
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
+	IF ISNULL(@ErrCode,0) <> 0	    
+	RETURN
 
 	IF @Action IN ('CAL', 'REFUND')
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
-			,@Action	= @action
+			,@Action	= @CheckingAction
 			,@IsEarly	= 1
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT

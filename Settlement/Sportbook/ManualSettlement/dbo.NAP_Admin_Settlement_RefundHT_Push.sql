@@ -31,6 +31,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20190813@Helen: Remove vnteam in metadata
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -75,11 +76,18 @@ BEGIN
 	,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
+	RETURN
+
+	IF @sporttype = 1
 	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @Action
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+		RETURN
 	END
 
     IF EXISTS (
@@ -108,13 +116,9 @@ BEGIN
         ,@Mode = 'REFUND'
         ,@ErrCode = @ErrCode OUTPUT
         ,@ErrMsg = @ErrMsg OUTPUT
+
     IF @ErrCode <> 0
-    BEGIN
-        SELECT @ErrCode
-            ,@ErrMsg
-        
-        RETURN
-    END
+	RETURN
 
 
     SELECT @ErrCode        = 0

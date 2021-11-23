@@ -64,6 +64,7 @@ AS
 		- 20201208@Louisa: Child match: get ET and PEN matches [Redmine:#145597]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
 */
 BEGIN
@@ -566,6 +567,8 @@ BEGIN
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
 		,l.LeagueGroupID 
 		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
+		,SettlementStatus
+		,EventStatusReason
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
         LEFT OUTER JOIN DBPRO.bodb02.dbo.match_remark mr WITH (NOLOCK) ON match.matchid = mr.matchid
 		INNER JOIN DBPRO.bodb02.dbo.league l WITH (NOLOCK) ON match.leagueid = l.leagueid

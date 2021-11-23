@@ -189,11 +189,19 @@ BEGIN
 	,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
+	RETURN
+
+	IF @sporttype = 1
 	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= 'REFUND-FT'
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
 	END
 			
 	--check settlement process

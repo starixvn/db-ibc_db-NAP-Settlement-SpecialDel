@@ -46,7 +46,8 @@ AS
 		- 20201211@Louisa: remove unused code [Redmine:#146239]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
-		
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -76,7 +77,7 @@ BEGIN
 		, IsMultiCaled BIT, IsRefund BIT, IsCalRefund BIT, homeid INT, awayid INT, matchcode VARCHAR(50)
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
-		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT)
+		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT, EventStatusReason TINYINT)
 	
 	DECLARE @BettypeFGLG TABLE (bettype SMALLINT, GroupID SMALLINT)
 	
@@ -95,7 +96,7 @@ BEGIN
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, m.sporttype, m.IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League
+		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League, m.EventStatusReason
 	FROM bodb02.dbo.match m WITH(NOLOCK)
 		INNER JOIN bodb02.dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -119,7 +120,7 @@ BEGIN
 		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, SettlementStatus, AutoSetting, AutoSetting_League)
+		, SettlementStatus, AutoSetting, AutoSetting_League, EventStatusReason)
 	EXEC (@SqlQuery)
 	
 	INSERT INTO @BettypeFGLG (bettype,GroupID)
@@ -266,6 +267,7 @@ BEGIN
 		, ISNULL(m.AutoSetting, ISNULL(m.AutoSetting_League, 0)) AS AutoSetting
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
+		, m.EventStatusReason
 	FROM @DataTmp m
 		INNER JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN @tblSingle t ON m.matchid = t.matchid

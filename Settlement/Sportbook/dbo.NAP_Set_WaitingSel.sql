@@ -44,6 +44,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210917@Kathy: write log if SP run too long
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 	
 	Param's explanation:  
 		
@@ -98,8 +99,8 @@ BEGIN
 		,IsExistMarkedTicket			BIT DEFAULT (0)
 		,IsExistRunningTicket			BIT DEFAULT (0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT (0)
-
 		,IsMergedParlay					BIT DEFAULT(0)
+		,EventStatusReason				TINYINT
 	)
 	DECLARE @tmp_ESportMatch TABLE (matchid INT)
 	
@@ -165,6 +166,7 @@ BEGIN
 		,IsSingle
 		,IsMixParlay
 		,IsMergedParlay
+		,EventStatusReason
 	)
 	SELECT m.MatchId
 		,leagueid			
@@ -188,6 +190,7 @@ BEGIN
 		,IsSingle
 		,IsMixParlay
 		,f.IsMergedParlay
+		,m.EventStatusReason
 	FROM  (
 		SELECT ISNULL(sg.matchid, pl.matchid) AS MatchId
 			, ISNULL(sg.SportType, pl.sporttype) AS SportType
@@ -537,6 +540,7 @@ BEGIN
 		,m.IsExistMarkedTicketParlay
 		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
 		,ISNULL(ciFT.username,'') AS suspenderFullTime
+		,m.EventStatusReason
 	FROM @TempMatch m
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		LEFT JOIN @tmp_ESportMatch te ON te.matchid = m.matchid
