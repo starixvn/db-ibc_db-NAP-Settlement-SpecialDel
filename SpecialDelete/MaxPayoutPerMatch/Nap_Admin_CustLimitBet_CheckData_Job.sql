@@ -24,20 +24,26 @@ BEGIN
 	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 
 	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
+	CREATE TABLE #NonSBRunningMatch (matchid INT PRIMARY KEY)
 
 	INSERT INTO #RunningMatch(matchid, sporttype)
 	SELECT m.matchid, m.sporttype
 	FROM [match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
+		AND (m.sporttype <= 99 OR m.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))
+	UNION ALL
+	SELECT 29 matchid, NULL sporttype
 
-	INSERT INTO #RunningMatch(matchid)
-	SELECT 29 matchid
+	INSERT INTO #NonSBRunningMatch(matchid)
+	SELECT m.matchid
+	FROM [match] m WITH (NOLOCK)
+	WHERE m.eventstatus = 'running'
+		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
-					INNER JOIN #RunningMatch m ON cb.matchid = m.matchid
+					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage = '1. 789y - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
@@ -46,7 +52,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM CustLimitBet_MBC cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
-					INNER JOIN #RunningMatch m ON cb.matchid = m.matchid
+					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage =  @ErrorMessage + '1. MBC - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
@@ -62,7 +68,7 @@ BEGIN
 					AND ci.currency NOT IN (20,72)
 					AND b.statusID NOT IN (101, 0))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. 789y - History table is missing data which EventTypeID = 1'  + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + '2. 789y - History table is missing data'  + CHAR(13) + CHAR(10)
 	END
 	
 	IF EXISTS(SELECT TOP 1 1
@@ -76,7 +82,7 @@ BEGIN
 				AND b.statusID NOT IN (101, 0)
 				AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. MBC - History table is missing data which EventTypeID = 1'  + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + '2. MBC - History table is missing data'  + CHAR(13) + CHAR(10)
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -275,5 +281,5 @@ BEGIN
 	DROP TABLE #queue_issue
 	DROP TABLE #CustLimitBet_789
 	DROP TABLE #CustLimitBet_MBC
-	
+	DROP TABLE #NonSBRunningMatch
 END
