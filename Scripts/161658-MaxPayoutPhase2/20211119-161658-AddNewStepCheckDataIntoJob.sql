@@ -7,19 +7,9 @@
 
 USE [msdb]
 GO
-EXEC msdb.dbo.sp_delete_jobstep @job_name=N'vndba:Check slowly parlay settlement', @step_id=6
-GO
-EXEC msdb.dbo.sp_add_jobstep @job_name=N'vndba:Check slowly parlay settlement', @step_name=N'Check CustLimitBet Queue', 
+EXEC msdb.dbo.sp_update_jobstep @job_name=N'vndba:Check slowly parlay settlement',
 		@step_id=6, 
-		@cmdexec_success_code=0, 
-		@on_success_action=3, 
-		@on_fail_action=2, 
-		@retry_attempts=0, 
-		@retry_interval=0, 
-		@os_run_priority=0, @subsystem=N'TSQL', 
-		@command=N'EXEC dbo.Nap_Admin_CustLimitBet_Notification_Job', 
-		@database_name=N'bodb02', 
-		@flags=0
+		@on_success_action=3 
 GO
 EXEC msdb.dbo.sp_add_jobstep @job_name=N'vndba:Check slowly parlay settlement', @step_name=N'Check data for Max payout per Match/Bettype', 
 		@step_id=7, 
