@@ -49,9 +49,9 @@ BEGIN
 					,@Subject = @SubjectMessage
 					,@MessageBody = @TableHTML
 
-			EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = N'PONTUS'
+			EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				, @JobId = NULL
-				, @JobName = N'Custom Message'
+				, @JobName = N'vndba:Check slowly parlay settlement'
 				, @Message = @SubjectMessage
 				, @CaseId = 1;			
 		END

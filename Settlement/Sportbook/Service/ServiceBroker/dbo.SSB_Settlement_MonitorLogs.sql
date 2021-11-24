@@ -77,9 +77,9 @@ begin
 	begin -- --++letstalk to notify for dba check
 		
 		set @__errorMessageTemp = 'Hey guys, Settlement got errors at ['+convert(varchar(50), @__errorStartTime, 121)+'] on [' + @@servername + ']. Please check logs at dbo.SSB_SettlementLogs table!!! Err: ' + isnull(@__errorMessage, '???')
-		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = N'PONTUS'
+		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 			, @JobId = NULL
-			, @JobName = N'Custom Message'
+			, @JobName = N'bodb02: Check Settlement status'
 			, @Message = @__errorMessageTemp
 			, @CaseId = 1;
 	
