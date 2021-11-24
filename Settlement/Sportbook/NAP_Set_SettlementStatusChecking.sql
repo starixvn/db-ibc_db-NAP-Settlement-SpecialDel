@@ -84,7 +84,7 @@ BEGIN
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
 
-		-- check running odds: REFUND ALL(POS), REFUND EARLY with bit[6] = 1
+		-- check running odds: REFUND ALL(POS)
 		IF EXISTS (	SELECT TOP 1 1 
 					FROM dbo.odds o WITH(NOLOCK) 
 					WHERE @Action = 'REFUND' 
