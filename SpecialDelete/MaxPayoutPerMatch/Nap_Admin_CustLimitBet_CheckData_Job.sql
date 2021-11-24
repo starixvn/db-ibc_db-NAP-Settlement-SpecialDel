@@ -40,13 +40,14 @@ BEGIN
 	WHERE m.eventstatus = 'running'
 		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
 
+	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
-		SET @ErrorMessage = '1. 789y - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = '1. CustLimitBet_789 table is inserted data for excluded sporttype. ' + CHAR(13) + CHAR(10)
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -55,9 +56,10 @@ BEGIN
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
-		SET @ErrorMessage =  @ErrorMessage + '1. MBC - Main table is inserted data for excluded sporttype' + CHAR(13) + CHAR(10)
+		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + CHAR(13) + CHAR(10)
 	END
 	
+	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
@@ -68,7 +70,7 @@ BEGIN
 					AND ci.currency NOT IN (20,72)
 					AND b.statusID NOT IN (101, 0))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. 789y - History table is missing data'  + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. '  + CHAR(13) + CHAR(10)
 	END
 	
 	IF EXISTS(SELECT TOP 1 1
@@ -82,7 +84,7 @@ BEGIN
 				AND b.statusID NOT IN (101, 0)
 				AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. MBC - History table is missing data'  + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. '  + CHAR(13) + CHAR(10)
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -94,7 +96,7 @@ BEGIN
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '3. 789y - History table is missing data which EventTypeID = 2'  + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -107,7 +109,7 @@ BEGIN
 					AND b.transdate BETWEEN @StartTime AND @EndTime
 					AND ci.currency NOT IN (20,72))
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. MBC - History table is missing data which EventTypeID = 2'  + CHAR(13) + CHAR(10)
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
 
 	--------------------------------------------------Transids on table Queue----------------------------------------------------------
@@ -175,7 +177,7 @@ BEGIN
 			IF (@@ROWCOUNT < 100 ) AND (@@ROWCOUNT < @queueid_max - @queueid_min)
 			BEGIN
 				--SELECT @queueid_min MinID, @queueid_max MaxID, @Index [Index], @@ROWCOUNT [RowCount], 'No ticket found on Queue'
-				SELECT @ErrorMessage = @ErrorMessage +  'No ticket found on Queue ['+CAST(@queueid_min AS VARCHAR(128))+','+CAST(@queueid_max AS VARCHAR(128))+']'  + CHAR(13) + CHAR(10)
+				SELECT @ErrorMessage = @ErrorMessage +  'No ticket found on Queue ['+CAST(@queueid_min AS VARCHAR(128))+','+CAST(@queueid_max AS VARCHAR(128))+']. '  + CHAR(13) + CHAR(10)
 				BREAK
 			END	
 
@@ -186,51 +188,7 @@ BEGIN
 		SET @start = @start + 1000
 	END
 
-	---------------------------------------------------Check sum--------------------------------------------------
-	CREATE TABLE #CustLimitBet_MBC (MatchID INT, CustID INT, AccumTurnover MONEY, AccumPayout MONEY, EventTypeID TINYINT)
-
-	--MBC
-	INSERT INTO #CustLimitBet_MBC(MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID)
-	SELECT MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID
-	FROM dbo.CustLimitBet_MBC lb WITH (NOLOCK)
-	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
-		AND NOT EXISTS (SELECT 1 FROM dbo.CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
-		AND lb.MatchID <> 29
-
-	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
-	IF EXISTS (SELECT TOP 1 1
-				FROM dbo.CustLimitBetHistory_MBC hs WITH (NOLOCK)
-					INNER JOIN #CustLimitBet_MBC lb ON lb.MatchID = hs.Matchid AND lb.CustID = hs.CustID AND lb.EventTypeID = hs.EventTypeID 
-				GROUP BY hs.Matchid, hs.CustID, hs.EventTypeID, lb.AccumPayout, lb.AccumTurnover
-				HAVING SUM(hs.TurnoverAdjust) <> lb.AccumTurnover OR SUM(hs.PayoutAdjust) <> lb.AccumPayout)
-	BEGIN
-		SET @ErrorMessage = @ErrorMessage +  'MBC: Sum on history not equal with main table'  + CHAR(13) + CHAR(10)
-	END
-
-	 --789y
-	CREATE TABLE #CustLimitBet_789 (MatchID INT, CustID INT, AccumTurnover MONEY, AccumPayout MONEY, EventTypeID TINYINT)
-
-	INSERT INTO #CustLimitBet_789(MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID)
-	SELECT MatchID, CustID, AccumTurnover, AccumPayout, EventTypeID
-	FROM dbo.CustLimitBet_789 lb WITH (NOLOCK)
-	WHERE lb.ModifiedDate BETWEEN @StartTime AND @EndTime
-		AND NOT EXISTS (SELECT 1 FROM dbo.CustLimitBetQueue Q WITH (NOLOCK) WHERE lb.Matchid = Q.Matchid AND Q.ActionID = 2)
-		AND lb.MatchID <> 29
-
-	--SELECT TOP 1 hs.MatchID, hs.CustID, SUM(hs.TurnoverAdjust) SumTurnover, lb.AccumTurnover, SUM(hs.PayoutAdjust) SumPayout, lb.AccumPayout, hs.EventTypeID
-	IF EXISTS (SELECT TOP 1 1
-				FROM dbo.CustLimitBetHistory_789 hs WITH (NOLOCK)
-					INNER JOIN #CustLimitBet_789 lb ON lb.MatchID = hs.Matchid AND lb.CustID = hs.CustID AND lb.EventTypeID = hs.EventTypeID 
-				GROUP BY hs.Matchid, hs.CustID, hs.EventTypeID, lb.AccumPayout, lb.AccumTurnover
-				HAVING SUM(hs.TurnoverAdjust) <> lb.AccumTurnover OR SUM(hs.PayoutAdjust) <> lb.AccumPayout)
-	BEGIN
-		SET @ErrorMessage = @ErrorMessage +  '789y: Sum on history not equal with main table'  + CHAR(13) + CHAR(10)
-	END
-
-	
-
-	-------------------------------------------------------
-	--check duplicate data in queue table for reject action
+	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
 	IF EXISTS (SELECT TOP 1 1
@@ -241,10 +199,10 @@ BEGIN
 				HAVING count(1) > 1
 				ORDER BY q.Matchid)
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table.' + CHAR(13) + CHAR(10)
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
 	END
 
-	-------------------------------------------------------------
+	----------------------------------------------------------------------------------------------------------------------------------------------------
 
 	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int)
 
@@ -263,12 +221,12 @@ BEGIN
 	FROM dbo.CustLimitBetQueue Q with (nolock)
 	WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'))
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + 'Reject tickets are missing on CustLimitBetQueue table.' + CHAR(13) + CHAR(10)
+		SET @ErrorMessage = @ErrorMessage + 'Reject tickets are missing on CustLimitBetQueue table. ' + CHAR(13) + CHAR(10)
 	END
 
 	IF (@ErrorMessage <> '')
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + 'SP: Nap_Admin_CustLimitBet_CheckData_Job'
+		SET @ErrorMessage = @ErrorMessage + CHAR(13) + CHAR(10) + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. '
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
@@ -279,7 +237,5 @@ BEGIN
 	DROP TABLE #RejectInfo
 	DROP TABLE #RejectInfo_Batch
 	DROP TABLE #queue_issue
-	DROP TABLE #CustLimitBet_789
-	DROP TABLE #CustLimitBet_MBC
 	DROP TABLE #NonSBRunningMatch
 END

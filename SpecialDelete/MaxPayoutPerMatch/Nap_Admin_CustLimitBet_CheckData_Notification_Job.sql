@@ -40,7 +40,7 @@ BEGIN
 		SET @Subject = 'NAP: CustLimitBet Failed !'	
 			
 		SET @Body = 'NAP: '+ @ErrorMessage + CHAR(13) + CHAR(10) 
-				  + 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @StartTime, 120)
+				  + 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120)
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients
