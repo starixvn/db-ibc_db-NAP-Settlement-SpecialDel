@@ -29,7 +29,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM dbo.SettlementLock WHERE matchid = @MatchId)
-				WAITFOR DELAY '00:00:00.005'
+				WAITFOR DELAY '00:00:00.005' -- wait for another session of this match being executed
 			ELSE
 			BEGIN
 				INSERT INTO dbo.SettlementLock (MatchId, SessionId) VALUES (@MatchId, @SessionId)
@@ -62,7 +62,7 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 
 						FROM dbo.SettlementProcessing 
 						WHERE SessionId = @SessionId)
-				WAITFOR DELAY '00:00:00.005'
+				WAITFOR DELAY '00:00:00.005' -- wait for release match
 			ELSE
 			BEGIN
 				DELETE
