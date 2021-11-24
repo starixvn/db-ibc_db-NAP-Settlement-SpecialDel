@@ -62,6 +62,7 @@ BEGIN
 			,@MatchDate			DATETIME
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay	INT = 0
+			,@IsAbnormalMixParlay	BIT = 0
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
@@ -177,6 +178,7 @@ BEGIN
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 	
 	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH (NOLOCK) WHERE RequestId = @RequestId)
+	SET @IsAbnormalMixParlay = CASE WHEN @IssueTypeId = 11 AND @MatchId = 29 THEN 1 ELSE 0 END
 
 	IF @IssueTypeId <> 13 AND @TransIds <> ''
 	BEGIN
@@ -1270,6 +1272,7 @@ BEGIN
 			@TransIds = @xmlTransId
 			,@UserId = @UserId
 			,@IssueTypeId = @IssueTypeId
+			,@IsAbnormalMixParlay = @IsAbnormalMixParlay
 
 		SET @xmlTransId = ''
 
