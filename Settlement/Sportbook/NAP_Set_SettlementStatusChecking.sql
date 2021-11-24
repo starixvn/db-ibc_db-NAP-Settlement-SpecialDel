@@ -35,11 +35,15 @@ BEGIN
 			,@LeagueId INT
 			,@LeagueGroupId INT
 			,@EventStatusReason TINYINT
+			,@IsMarkedRefund BIT = 0
 
 	SELECT	@SettlementStatus = m.SettlementStatus
 			,@EventStatus = m.eventstatus
 			,@LeagueId = m.leagueid
 			,@EventStatusReason = ISNULL(m.EventStatusReason,0)
+			,@IsMarkedRefund = CASE WHEN ISNULL(m.SettlementStatus,0) & 32 = 32 THEN 1
+									ELSE 0
+								END
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
@@ -50,63 +54,75 @@ BEGIN
 	IF @LeagueGroupId = 113 -- skip check refund flag for PinGoal
 	RETURN
 
-	IF @SettlementStatus & 32 > 0 OR (@Action LIKE 'REFUND%' AND @EventStatus = 'Postponed')
+	IF @EventStatusReason > 0 AND @IsEarly = 0 AND @IsAutoRefund = 0 -- exclude Refund Fast market, Refund early, Auto Refund	
 	BEGIN
-		SELECT  @ErrCode = 1001033 
-				,@ErrMsg = 'WARNING! Cannot proceed due to this match is marked for Refund All.	'
-		WHERE 1 = CASE  WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsSettleDetermined = 0 THEN 0 --REFUND ALL (SUS)
-						WHEN @Action IN ('REFUND-HT','REFUND-EAR') THEN 0
-						ELSE 1
-					END
+		SELECT  @ErrCode = CASE WHEN @Action LIKE 'CAL%' AND @IsMarkedRefund = 1 THEN 1001033
+								WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsMarkedRefund = 0 THEN 1001034
+								ELSE 1001068
+								END
+				,@ErrMsg = CASE WHEN @Action LIKE 'CAL%' AND @IsMarkedRefund = 1 THEN 'WARNING! Cannot proceed due to this match is marked for Refund All.	'
+								WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsMarkedRefund = 0 THEN 'WARNING! Cannot proceed due to this match is NOT marked for Refund All.'
+								ELSE 'WARNING! Cannot proceed this action with current match''s status.	'
+								END
+		WHERE 1 = CASE WHEN @Action = 'REFUND-HT' THEN 1
+						 
+						WHEN @IsSettleAbandonedMatchIBC = 1 
+							AND ( @EventStatusReason <> 4 OR @IsMarkedRefund = 1) THEN 1 ---REFUND-FT(SUS), REFUND All(SUS)
+						 
+						WHEN @Action = 'REFUND-FT' AND @IsSettleAbandonedMatchIBC = 0 
+							AND ( @EventStatusReason <> 2 OR @IsMarkedRefund = 1) THEN 1
+						 
+						WHEN @Action ='REFUND' 
+							AND @IsSettleAbandonedMatchIBC = 0 
+							AND (@EventStatusReason NOT IN ( 1, 3) OR @IsMarkedRefund = 0 ) THEN 1
+
+						WHEN @Action IN ('CAL', 'CAL-FT')
+							AND (@EventStatusReason IN ( 2, 4) OR @IsMarkedRefund = 1 ) THEN 1
+							ELSE 0
+							END
 
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
+
+		-- check running odds: REFUND ALL(POS), REFUND EARLY with bit[6] = 1
+		IF EXISTS (	SELECT TOP 1 1 
+					FROM dbo.odds o WITH(NOLOCK) 
+					WHERE @Action = 'REFUND' 
+						AND @IsSettleAbandonedMatchIBC = 0
+						AND o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal') 
+					)
+		SELECT	@ErrCode = 1001035
+				,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
+
+		IF ISNULL(@ErrCode,0) > 0
+		RETURN
+
 	END
 
+	ELSE IF @IsMarkedRefund = 1 OR (@Action = 'REFUND' AND @EventStatus = 'Postponed')
+	BEGIN
+		IF @Action LIKE 'CAL%' 
+			OR (@Action = 'REFUND' AND @IsSettleDetermined = 1) -- fast SDT market
+		BEGIN
+    		SELECT	@ErrCode = 1001033
+					,@ErrMsg = 'WARNING! Cannot proceed due to this match is marked for Refund All.	'
+		END
+		ELSE IF @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 -- Refund ALL (POS), Refund early, refund fast market
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.odds o WITH(NOLOCK) WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal')) 	-- check running odds
+				SELECT	@ErrCode = 1001035
+						,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
+		END
+    END
 	ELSE
 	BEGIN
-		SELECT  @ErrCode = 1001034
-				,@ErrMsg = 'WARNING! Cannot proceed due to this match is NOT marked for Refund All.	'
-		WHERE 1 = CASE  WHEN @Action LIKE 'CAL%' THEN 0
-						WHEN @Action IN ('REFUND-FT', 'REFUND-EAR') THEN 0
-						WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 1 THEN 0
-						WHEN @IsSettleDetermined = 1 THEN 0 --fast market
-						ELSE 1 END
+		IF @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsEarly = 0 ---- Refund ALL (POS), refund fast market
+			SELECT	@ErrCode = 1001034
+					,@ErrMsg = 'WARNING! Cannot proceed due to this match is NOT marked for Refund All.'
 
-		IF ISNULL(@ErrCode,0) > 0
-		RETURN
 	END
-	
 
-	SELECT  @ErrCode = 1001068
-			,@ErrMsg = 'WARNING! Cannot proceed this action with current match''s status.'
-	WHERE @IsSettleDetermined = 0 --  Fastmarket
-		AND @IsAutoRefund = 0 --Auto Refund
-		AND 1 = CASE  WHEN @Action = 'REFUND-HT' AND @EventStatusReason > 0 THEN 1
-					WHEN @Action IN ('REFUND-FT', 'REFUND') AND @IsSettleAbandonedMatchIBC = 1 AND @EventStatusReason <> 4 THEN 1 ---REFUND-FT (Sus), REFUND All(SUS)
-					WHEN @Action = 'REFUND-FT' AND @IsSettleAbandonedMatchIBC = 0 AND @EventStatusReason <> 2 THEN 1
-					WHEN @Action = 'REFUND'	AND @IsSettleAbandonedMatchIBC = 0 AND @EventStatusReason NOT IN ( 1, 3) THEN 1
-					WHEN @Action IN ('CAL','CAL-FT') AND @EventStatusReason IN (2, 4) THEN 1
-					ELSE 0
-			  END
-
-	IF ISNULL(@ErrCode,0) > 0
-	RETURN
 	
-	
-	-- check running odds: REFUND ALL(POS), REFUND EARLY with bit[6] = 1
-	IF EXISTS (SELECT TOP 1 1 
-			FROM dbo.odds o WITH(NOLOCK) 
-			WHERE o.matchid = @matchid AND o.oddsstatus NOT IN ('closed', 'internal')
-			AND 1 = CASE WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsSettleDetermined = 0 THEN 1
-							WHEN @Action = 'REFUND-EAR' AND @SettlementStatus & 32 > 0 THEN 1
-							ELSE 0 END
-			)
-	SELECT	@ErrCode = 1001035
-			,@ErrMsg = 'WARNING! Cannot proceed due to running odds. Please close them all and try again.'
-
-	IF ISNULL(@ErrCode,0) > 0
-	RETURN
 
 END
 GO
