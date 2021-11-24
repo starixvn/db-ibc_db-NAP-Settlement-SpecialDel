@@ -43,7 +43,7 @@ BEGIN
 								FOR XML PATH('tr'), TYPE 
 						) AS NVARCHAR(MAX) ) +
 					N'</table>' +
-					N'<H4> select * from bodb02.dbo.SettlementLock with (nolock) </H4>' ;
+					N'<H4>Hey guys, Settlement is running at [' + @@servername + '] over [' + cast(@MonitorDurationWithInMin as varchar(20)) + '] mins still not complete. Please check data at bodb02.dbo.SettlementLock</H4>' ;
 
 			EXEC dbo.SSB_Settlement_SendEmail @Recipients = ''--get email address by enviroment
 					,@Subject = @SubjectMessage
@@ -51,7 +51,7 @@ BEGIN
 
 			EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				, @JobId = NULL
-				, @JobName = N'vndba:Check slowly parlay settlement'
+				, @JobName = N'bodb02: Check Settlement status'
 				, @Message = @SubjectMessage
 				, @CaseId = 1;			
 		END

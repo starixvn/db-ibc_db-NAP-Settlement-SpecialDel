@@ -32,7 +32,7 @@ begin
 			, @__oddsType = s.OddsType
 			, @__actionId = s.ActionId
 			, @__processingId = s.Id
-		from dbo.SettlementProcessing s with(rowlock, updlock)
+		from dbo.SettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
 			and s.MessageType = @MessageType
 			and s.StatusId = 0
@@ -49,7 +49,7 @@ begin
 				, @__actionId = s.ActionId
 				, @__processingId = s.Id
 				, @__messageTypeNew = s.MessageType
-			from dbo.SettlementProcessing s with(rowlock, updlock)
+			from dbo.SettlementProcessing s with(readpast)
 			where s.sessionId = @__sessionId
 				and s.StatusId = 0
 				and s.MessageType <> ''
@@ -104,7 +104,7 @@ begin
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('Wait_Exec_Each_Batch')
-		waitfor delay @__delayTime
+		waitfor delay @__delayTime -- delay between batches updated
 		
 	end	
 end
