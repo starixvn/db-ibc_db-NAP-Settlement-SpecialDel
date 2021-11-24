@@ -128,8 +128,8 @@ begin
 		)
 		begin
 			set @__errorMessage = 'Hey guys, process insert balance pending got error (table BalanceErr). Please check!!!'
-			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = N'PONTUS'
-				, @JobId = NULL, @JobName = N'Custom Message'
+			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				, @JobId = NULL, @JobName = N'vndba:Check slowly parlay settlement'
 				, @Message = @__errorMessage
 				, @CaseId = 1;
 
