@@ -41,6 +41,7 @@ AS
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 
 
 	Param's explanation:	
@@ -886,8 +887,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
 	BEGIN
 		-- get 911
-		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid, main.sporttype
+		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
+		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid, main.sporttype, sub.srecommend
 		FROM	#tmpTransId main
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
@@ -898,8 +899,8 @@ BEGIN
 				AND sub.statusID NOT IN (101, 102)
 
 		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid, sub911.sporttype
+		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
+		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid, sub911.sporttype, sub.srecommend
 		FROM	#tmpTransId sub911
 			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
