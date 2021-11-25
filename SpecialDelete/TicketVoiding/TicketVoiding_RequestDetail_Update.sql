@@ -143,9 +143,11 @@ BEGIN
 			,@OldSubIssueTypeId		 SMALLINT
 			,@DangerAcceptedInfoXML	 XML  = NULL
 			,@RedCardInfoXML		 XML = NULL
+			,@refnos_29				 VARCHAR(MAX) = '' 
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
+	CREATE TABLE #transidremove_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
@@ -909,7 +911,7 @@ BEGIN
 			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
 		END
 
-		--2.4 remove transid from request => unmark ticket
+		--2.4 remove transid from request => unmark ticket & re-cal ticket
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #inputTransid it WHERE rdt.TransId=it.transid) -- exist vs input
@@ -922,6 +924,56 @@ BEGIN
 		BEGIN
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
 																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
+		
+			INSERT INTO #transidremove_tmp (transid, bettype, StatusId, statuswinlost, refno)
+			SELECT t.val, b.bettype, b.statusID, b.statuswinlost, b.refno
+			FROM dbo.f_SplitString(@RemoveTransIds, ',') t
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.val = b.transid
+			WHERE t.val <> '' AND b.statusID IN (0, 1) --if status of ticket is running
+			OPTION (maxrecursion 0)
+			
+			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM #transidremove_tmp
+											WHERE statuswinlost IS NOT NULL
+											FOR XML PATH('')
+								), 1,1,'')
+			--resettle ticket
+			IF @ResettleTransids <> ''
+			BEGIN
+				IF @FilterBy IS NULL --single ticket
+				BEGIN
+					EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
+								@Matchid = @Matchid	,
+								@TransIds = @ResettleTransids,
+								@UserId  = @UserId,
+								@IP = @IP,
+								@FailedTransIds = @FailedTransIds OUTPUT,
+								@ErrMsg = @ErrMsg OUTPUT,
+								@ErrCode = @ErrCode OUTPUT,
+								@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			     
+				END
+				IF @FilterBy = 1 --mixparlay ticket
+				BEGIN
+					BEGIN TRY  
+						SET @refnos_29 =''
+						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
+						FROM #transidremove_tmp  
+						WHERE bettype = 29 
+							AND (statusID IS NULL OR statusID <> 102) 
+						GROUP BY refno, transid
+						SET @refnos_29 = STUFF(@refnos_29,1,1,'')
+
+						EXEC dbo.NAP_Admin_Calculate_MP_broker  
+								@matchdate = ''  
+								,@strXML = @refnos_29  
+								,@mode  = '29'  
+					END TRY  
+					BEGIN CATCH   
+						SELECT @ErrCode = 100, @ErrMsg = ERROR_MESSAGE()  
+					END CATCH  
+				END
+			END
 		END
 
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
@@ -956,7 +1008,7 @@ BEGIN
 				EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @UnmarkTransids, @UserId = @UserId, @Username = @Username, @IP = @IP
 																	, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 			END
-
+			SET @ResettleTransids =''
 			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 												FROM #transid_tmp
 												WHERE statuswinlost IS NOT NULL
@@ -981,7 +1033,7 @@ BEGIN
 				IF @FilterBy = 1 --mixparlay ticket
 				BEGIN
 					BEGIN TRY  
-						DECLARE @refnos_29  VARCHAR(MAX) = '' 
+						SET @refnos_29 = '' 
 						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
 						FROM #transid_tmp  
 						WHERE bettype = 29 
@@ -1016,9 +1068,16 @@ BEGIN
 		-- Abnormal Bet - Mixparlay ticket
 		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
 		BEGIN
-		     INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-			 SELECT @RequestId, MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
-			 FROM @tblMatchId 
+			DELETE q
+			FROM TicketVoiding_AutoVoidRequest_Queue q WITH	(ROWLOCK)
+			WHERE q.RequestId = @RequestId 
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchId t WHERE q.MatchId = t.MatchId)
+
+		    INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			FROM @tblMatchId t
+				LEFT JOIN TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK) ON t.MatchId = q.MatchId
+			WHERE q.RequestId = @RequestId AND q.RequestId IS NULL
 		END
 	END
 
@@ -1129,6 +1188,6 @@ BEGIN
 	DROP TABLE #transIdTemp
 	DROP TABLE #tblGetLogInfo
 	DROP TABLE #tblOldResulDetail
-
+	DROP TABLE #transidremove_tmp
 END
 GO
