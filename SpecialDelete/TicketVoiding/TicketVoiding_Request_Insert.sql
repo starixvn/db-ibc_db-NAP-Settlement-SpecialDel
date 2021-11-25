@@ -74,6 +74,7 @@ AS
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -293,7 +294,7 @@ BEGIN
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
 	
-	IF (@IssueTypeId IN(8,9,11,13,15) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
+	IF (@IssueTypeId IN(8,9,11,13,15,17) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			

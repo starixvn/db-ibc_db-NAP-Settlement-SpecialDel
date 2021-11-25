@@ -57,6 +57,7 @@ AS
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:
 		(+) @FilterBy:	
@@ -1337,6 +1338,26 @@ BEGIN
 					SET @MarkedTransIds = ''
 			END
 		END
+	END
+	ELSE IF @IssueTypeId = 17 AND @TransIds IS NOT NULL --Archived Ticket
+	BEGIN
+		IF @IsEditRequest = 1
+		BEGIN
+			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
+			WHERE RequestId = @RequestId
+		END
+
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, l.val, tmp.matchid , tmp.Id AS RequestDetailId
+		FROM dbo.f_SplitString(@TransIds, ',') l
+			CROSS APPLY (
+						SELECT rd.Id, b14.matchid
+						FROM dbo.bettrans14 b14 WITH(NOLOCK) 
+							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b14.matchid = rd.MatchId
+						WHERE  rd.RequestId = @RequestId AND l.val = b14.transid
+						)tmp
+		WHERE l.val <> ''
+		OPTION (MAXRECURSION 0)
 	END
 	ELSE --EKO,WKO
 	BEGIN

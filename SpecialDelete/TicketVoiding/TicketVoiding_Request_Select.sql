@@ -35,6 +35,7 @@ AS
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:	
 	
@@ -75,7 +76,7 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,8,9,10,11,15,3) -- DA,EKO,WKO,RC,AB,AB(Real Member),WC
+	IF @IssueTypeId IN (1,8,9,10,11,15,3,17) -- DA,EKO,WKO,RC,AB,AB(Real Member),WC, Archived ticket
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -114,7 +115,7 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15)
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15,17)
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId
