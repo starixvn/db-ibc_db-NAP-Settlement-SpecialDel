@@ -123,7 +123,7 @@ BEGIN
 			,@DangerAcceptedInfoXML	XML  = NULL
 			,@RedCardInfoXML	 XML = NULL
 
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -184,21 +184,15 @@ BEGIN
 		
 		IF @FilterBy = 1
 		BEGIN
-			UPDATE tmp
-				SET matchid = m.matchid
+			INSERT INTO @tblMatchId (MatchId)
+			SELECT DISTINCT m.matchid
 			FROM #transid_tmp tmp
 			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
-			
-			INSERT INTO @tblMatchId (MatchId)
-			SELECT DISTINCT matchid FROM #transid_tmp 
 		END
 
 		SET @IsCalQueue = ( SELECT TOP (1) 1
-							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-							WHERE StatusId IN (1,2,4) AND RequestId = 0
-							AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
-										 WHEN @FilterBy = 1 AND matchid IN (SELECT MatchId FROM @tblMatchId) THEN 1
-										 ELSE 0 END
+								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+								WHERE StatusId IN (1,2,4) AND matchid = @MatchId  AND RequestId = 0
 								)
 	
 		IF EXISTS (SELECT TOP (1) 1 FROM #transid_tmp WHERE statusid = 0 AND statuswinlost IS NOT NULL)
@@ -696,11 +690,6 @@ BEGIN
 		     INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			 SELECT @RequestId, MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
 			 FROM @tblMatchId 
-
-			 UPDATE q SET q.StatusId = 0
-			 FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
-			 WHERE q.RequestId = @RequestId AND q.StatusId = 99
-			 AND EXISTS ( SELECT TOP 1 1 FROM #transid_tmp tmp WHERE q.MatchId = tmp.matchid AND tmp.statuswinlost IS NOT NULL)
 		END
 	END
 	-- Get content of log data 

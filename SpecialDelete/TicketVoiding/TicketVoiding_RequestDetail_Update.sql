@@ -145,7 +145,7 @@ BEGIN
 			,@RedCardInfoXML		 XML = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, groupid INT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
@@ -896,25 +896,18 @@ BEGIN
 		WHERE b.statusID IN (0, 1) --if status of ticket is running
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
-		
-		IF @FilterBy = 1
-		BEGIN
-			UPDATE tmp
-				SET matchid = m.matchid
-			FROM #transid_tmp tmp
-			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
-			
-			INSERT INTO @tblMatchId (MatchId)
-			SELECT DISTINCT matchid FROM #transid_tmp 
-		END
-
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 							WHERE StatusId IN (1,2,4) AND RequestId = 0
-							AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
-										 WHEN @FilterBy = 1 AND matchid IN (SELECT MatchId FROM @tblMatchId) THEN 1
-										 ELSE 0 END
-								)
+							AND matchid = @MatchId)
+
+		IF @FilterBy = 1
+		BEGIN
+			INSERT INTO @tblMatchId (MatchId)
+			SELECT DISTINCT m.matchid 
+			FROM #transid_tmp tmp
+			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
+		END
 
 		--2.4 remove transid from request => unmark ticket
 		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -1026,11 +1019,6 @@ BEGIN
 		     INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			 SELECT @RequestId, MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
 			 FROM @tblMatchId 
-
-			UPDATE q SET q.StatusId = 0
-			FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
-			WHERE q.RequestId = @RequestId AND q.StatusId = 99
-			AND EXISTS ( SELECT TOP 1 1 FROM #transid_tmp tmp WHERE q.MatchId = tmp.matchid AND tmp.statuswinlost IS NOT NULL)
 		END
 	END
 
