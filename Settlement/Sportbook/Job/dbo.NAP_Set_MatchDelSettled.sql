@@ -18,6 +18,7 @@ AS
 		- 20210426@Kathy: Remove Old Command Logs of Settlement by Profile [Redmine:#153976]
 	    - 20210706@Louisa: Letstalk message [Redmine:#157540]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20211028@Kathy: Remove log on table SSB_SettlementLogs [Redmine:#159486]
 
 	 Param's Explanation:  
     
@@ -189,6 +190,14 @@ BEGIN
 			BREAK
 	END
 
+	DECLARE @8DaysBefore DATETIME = DATEADD (DD, -8, GETDATE())	
+	WHILE(1=1)
+	BEGIN
+		DELETE TOP(2000) FROM dbo.SSB_SettlementLogs WITH(ROWLOCK)
+		WHERE StartTime <= @8DaysBefore
 
+		IF @@ROWCOUNT = 0
+			BREAK
+	END
 END  
 GO
