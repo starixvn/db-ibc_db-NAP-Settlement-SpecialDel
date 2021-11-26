@@ -1068,16 +1068,23 @@ BEGIN
 		-- Abnormal Bet - Mixparlay ticket
 		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
 		BEGIN
-			DELETE q
-			FROM TicketVoiding_AutoVoidRequest_Queue q WITH	(ROWLOCK)
-			WHERE q.RequestId = @RequestId 
-				AND NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchId t WHERE q.MatchId = t.MatchId)
+			--Re-insert ticket the deleted ticket
+			UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
+			SET StatusId = 99, ErrMsg = NULL
+			WHERE RequestId = @RequestId AND StatusId = 4
+				AND MatchId IN (SELECT MatchId FROM @tblMatchId )
 
+			--Remove ticket
+			UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
+			SET StatusId = 4, ErrMsg = 'Remove Mix-parlay ticket from action Auto Void Winning'
+			WHERE RequestId = @RequestId 
+				AND MatchId NOT IN (SELECT MatchId FROM @tblMatchId )
+			
+			--Insert new ticket
 		    INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
 			SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
 			FROM @tblMatchId t
-				LEFT JOIN TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK) ON t.MatchId = q.MatchId
-			WHERE q.RequestId = @RequestId AND q.RequestId IS NULL
+			WHERE  MatchId NOT IN (SELECT MatchId FROM TicketVoiding_AutoVoidRequest_Queue (NOLOCK) WHERE RequestId = @RequestId)
 		END
 	END
 
