@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_914]
 	@MatchId		INT 
 	,@Action		VARCHAR(20)
 	,@CustIds		VARCHAR(MAX) = ''
-	
+	,@Sporttype		SMALLINT = NULL
 AS
 /*
 	Created: 20170313@Bobby.Nguyen	
@@ -12,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20200205@Helen: Support CashOut for Non-live Market [Redmine:#127807]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		
 	Parameter's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT, REFUND-HT, REFUND-FT, REFUND, UNDO
@@ -20,7 +21,14 @@ AS
 */ 
 BEGIN
 	SET NOCOUNT ON
-	
+
+	DECLARE @ServerAlias VARCHAR(50) = ''
+
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY)
+
+	EXEC dbo.NAP_Set_ServerInfo 
+		@ServerAlias = @ServerAlias OUTPUT	
+
 	IF @Action <> 'UNDO'
 	BEGIN
 		CREATE TABLE #CashOutWLSharing (
@@ -255,7 +263,26 @@ BEGIN
 												,0 --SecAcceptFlag
 												,bt.transid2
 												,NULL --RecommDate
-											);
+											)
+			OUTPUT inserted.custid
+				,(inserted.winlost - inserted.actual_stake + inserted.playercomm)
+					- (ISNULL(deleted.winlost,0) - ISNULL(deleted.actual_stake,0) + ISNULL(deleted.playercomm,0))
+			INTO @tmpBalanceChanged (CustId, Balance);
+
+		IF @ServerAlias = 'DBTXN' AND @Action ='CAL' AND @Sporttype = 1
+		BEGIN
+			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
+			SELECT	custid, SUM(Balance) Balance
+			FROM	@tmpBalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) > 0
+		
+			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
+			SELECT	custid, ABS(SUM(Balance)) Balance
+			FROM	@tmpBalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) < 0
+		END
 	END
 	ELSE
 	BEGIN

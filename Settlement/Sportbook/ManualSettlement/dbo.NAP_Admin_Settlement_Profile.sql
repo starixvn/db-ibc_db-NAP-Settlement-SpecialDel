@@ -46,6 +46,7 @@ AS
 		- 20210922@Louisa: Remove @CutOffDate [Redmine:#159903]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
+		- 20211027@Kathy: Apply all bettype for pingoal [Redmine:#163762]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -366,29 +367,58 @@ BEGIN
 			FROM @tmpSelectedRID t
 			WHERE t.BetType IN (2, 3) AND @sportType IN (5, 9) 
 
-			INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
-	  		SELECT 
-				b.transid, m.modds
-				, sr.OddsType
-				, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
-	  		FROM bettrans b WITH (NOLOCK)
-				OUTER APPLY (
-								SELECT TOP (1) mt.TransId
-								FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-								WHERE	mt.TransId = b.transId
-				) mt
-	  			CROSS APPLY(
-	  							SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
-	  							FROM @tmpSelectedRID t
-	  							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-	  						) sr
-	  			CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
-	  		WHERE b.matchid = @MatchId
-	  			AND b.statusID NOT IN (101)
-				AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-								 WHEN @IsReSettledTickets = 1 THEN 1
-								 ELSE 0
-							END
+			IF @sportType <> 1
+			BEGIN
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
+	  			SELECT 
+					b.transid, m.modds
+					, sr.OddsType
+					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	  			FROM bettrans b WITH (NOLOCK)
+					OUTER APPLY (
+									SELECT TOP (1) mt.TransId
+									FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+									WHERE	mt.TransId = b.transId
+					) mt
+	  				CROSS APPLY(
+	  								SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
+	  								FROM @tmpSelectedRID t
+	  								WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  							) sr
+	  				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
+	  			WHERE b.matchid = @MatchId
+	  				AND b.statusID NOT IN (101)
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+									 WHEN @IsReSettledTickets = 1 THEN 1
+									 ELSE 0
+								END
+			END
+			ELSE
+			BEGIN
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
+	  			SELECT 
+					b.transid, m.modds
+					, sr.OddsType
+					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	  			FROM bettrans b WITH (NOLOCK)
+					OUTER APPLY (
+									SELECT TOP (1) mt.TransId
+									FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+									WHERE	mt.TransId = b.transId
+					) mt
+	  				CROSS APPLY(
+	  								SELECT TOP 1 pfID, HomeValue, AwayValue, t.OddsType
+	  								FROM @tmpSelectedRID t
+	  								WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+	  							) sr
+	  				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
+	  			WHERE b.matchid = @MatchId
+	  				AND b.statusID NOT IN (101)
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+									 WHEN @IsReSettledTickets = 1 THEN 1
+									 ELSE 0
+								END
+			END
 			
 			IF @IsMergedParlay = 1
 				SELECT @TotalSubParlay = COUNT(1)			

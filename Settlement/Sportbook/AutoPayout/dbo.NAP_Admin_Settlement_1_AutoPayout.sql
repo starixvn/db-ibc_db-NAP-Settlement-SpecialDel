@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]
 	, @BetStatus		NVARCHAR(50)	= ''
 	, @ResourceResult	VARCHAR(MAX)	= NULL
 	, @SourceId			TINYINT			= 5 -- default SoccerWay
+	, @KeyId			INT				= 0
 	, @ErrCode			INT				= 0		OUTPUT
 	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -39,6 +40,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		
 	Param's Explanation:
 		 
@@ -62,7 +64,14 @@ BEGIN
 		, @avaiableProcess				BIT
 		, @sporttype                    SMALLINT
 		, @matchcode					NVARCHAR(50)
-		
+		, @SessionId					BIGINT
+		, @RunBySSBProcess				BIT
+		, @LogDataSoccer				XML
+		, @CommandMonitor				NVARCHAR(MAX)
+		, @goalrecord_old               VARCHAR(50)
+		, @SSBStatus					TINYINT
+		, @TypeId						TINYINT
+
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -77,12 +86,12 @@ BEGIN
 										WHEN 'CAL-HT'	THEN 157
 										WHEN 'CAL'		THEN 100
 										END
- 
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT @ErrCode = 1001001, @ErrMsg = 'Match does not exist!'
-		RETURN
-	END
+		,@RunBySSBProcess			= 0
+		,@TypeId = CASE @Action 
+					WHEN 'CAL-HT' THEN 1
+					WHEN 'CAL-FT' THEN 2
+					WHEN 'CAL'		THEN 2
+					ELSE -1	END --not supported
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
@@ -111,7 +120,112 @@ BEGIN
 	--CHECK avaiable process
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
+	SELECT @eventstatus = m.eventstatus
+		, @matchcode = m.matchcode
+		, @sporttype = m.sporttype
+		, @goalrecord_old = m.GoalRecord
+	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+	WHERE m.matchid = @matchid
  
+	IF @sporttype = 1
+	BEGIN
+		INSERT INTO dbo.Settlement_SettledSession (MatchId)
+		SELECT @matchid
+		SET @SessionId = SCOPE_IDENTITY()
+
+		SET @RunBySSBProcess = 1
+
+		BEGIN TRY
+			EXEC dbo.NAP_Admin_Settlement_3_profile
+				@matchId	= @matchid
+				,@hth = @hth
+				,@hta = @hta
+				,@fth = @fth 
+				,@fta = @fta
+				,@goalrecord = @goalrecord
+				,@BetStatus = @BetStatus
+				,@action	= @action
+				,@ActionID	= @ActionID
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@ResourceResult = @ResourceResult
+				,@SessionId = @SessionId
+				,@TicketCount = @TicketCount OUTPUT
+		END TRY
+		BEGIN CATCH
+			SELECT	@ErrCode = 1001017
+					,@ErrMsg = ERROR_MESSAGE()
+		END CATCH
+			
+		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+																		, @SourceId = @SourceId
+
+		IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
+		BEGIN
+			DECLARE @LeagueGroupID	SMALLINT
+					, @ChildMatchIds	VARCHAR(500)
+
+			SELECT	@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+			FROM dbo.Match m WITH(NOLOCK)
+				INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
+			WHERE m.MatchId = @matchid
+
+			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
+			BEGIN
+				SELECT @ChildMatchIds = STUFF( COALESCE(@ChildMatchIds + ',' + CAST(m.matchid AS VARCHAR), CAST(m.matchid AS VARCHAR)) , 1, 0, '' ) 
+				FROM dbo.match m WITH(NOLOCK)
+				WHERE ParentID = @matchid
+					AND m.ChildMatchType IN ( 201,202,203 )
+				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
+			END
+		END
+ 
+		SELECT @LogDataSoccer = (					
+					SELECT	@goalrecord_old AS '@oldGoalRecord'
+							,@goalrecord AS '@goalrecord'
+							,@betstatus AS '@betstatus'
+							,@IsReSettledTickets AS '@IsReSettledTickets'
+							,@ChildMatchIds AS '@ChildMatchIds'
+							,@ActionID AS '@ActionID'
+							,@action AS '@Action'
+							,@fth AS '@fth'
+							,@fta AS '@fta'
+							,@hth AS '@hth'
+							,@hta AS '@hta'
+							,@creator AS '@AdminId'
+							,@IP AS '@IP'
+							,@TicketCount AS '@TicketCount'
+							,@SourceId AS '@SourceId'
+							,@start AS '@Starttime'
+							,@ErrMsg AS '@ErrMsg'
+					FOR XML PATH('r'), ROOT('root'), TYPE)
+
+		SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
+							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
+							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
+							+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
+							+ ', @ErrCode = @ErrCode OUTPUT' 
+                            + ', @ErrMsg = @ErrMsg OUTPUT'
+							+ ', @SSBStatus = @SSBStatus OUTPUT'
+
+		UPDATE dbo.Single_Calculate_Queue 
+			SET SSBCommand = @CommandMonitor
+		WHERE	keyid = @KeyId
+
+		IF @@ROWCOUNT = 0
+		BEGIN
+			SET @CommandMonitor = @CommandMonitor + ', @NeedWaiting = 1' 
+
+			EXEC sys.sp_executesql @CommandMonitor
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus TINYINT OUTPUT'
+				, @ErrMsg	= @ErrMsg	OUTPUT
+				, @ErrCode	= @ErrCode	OUTPUT
+				, @SSBStatus = @SSBStatus OUTPUT
+		END
+
+		RETURN
+	END
+
 	SELECT @strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (1, 3) -- inclued FGLG bettype -- #106901
@@ -119,14 +233,14 @@ BEGIN
 	SELECT @strFTBettypes = COALESCE(@strFTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM dbo.f_Set_GetGroupBettypes() f 
 	WHERE f.GroupId IN (2, 4) -- inclued FGLG bettype -- #106901
- 
+	
 	IF @Action IN ('CAL-HT', 'CAL')
 	BEGIN
 		SELECT @TicketCount = COUNT(1)
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE b.matchid = @matchid
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 1
-					 ELSE 0	END
+						ELSE 0	END
 	END
 	IF @Action IN ('CAL-FT', 'CAL')
 	BEGIN
@@ -134,19 +248,12 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE b.matchid = @matchid
 			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strFTBettypes + ',') > 0 THEN 1
-					 ELSE 0	END
+						ELSE 0	END
 	END
-
-
-	SELECT @eventstatus = m.eventstatus
-		, @matchcode = m.matchcode
-		, @sporttype = m.sporttype
-	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
-	WHERE m.matchid = @matchid
- 
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
+	
 	INSERT INTO @BalanceWalletBefore (
 		matchid
 		, custid
@@ -161,27 +268,13 @@ BEGIN
 		, @Action		= @Action
 		, @Mode 		= 2
 		
- 
-	--SET total affected accounts
 	SELECT @TotalAccount = COUNT(DISTINCT custid)
 	FROM @BalanceWalletBefore
  
 	BEGIN TRY
-		/* 06 OCT 2008 : Joe
-		As of Today.  Match Remark can't tell game just settled for HT yet
-		need below code to determine for mark match as calculated (all bets settled)
-		*/
 		EXEC dbo.NAP_Admin_Settlement_1_CheckBetStatus @MatchId = @matchid
 			, @HTDone = @HTDone OUTPUT
 			, @FTDone = @FTDone OUTPUT
- 
-		/* Mode
-		CAL : (default) Settle ALL BetTypes
-		CAL-FT : Full Time Only
-		CAL-HT : Half Time Only
-		SCORE : Only Save Score -- not use
-		UNDO : Unsettle the match  -- not use
-		*/
 
 		SELECT @eventstatus = CASE WHEN @action = 'CAL'  THEN N'completed'
 									WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
@@ -201,43 +294,14 @@ BEGIN
 			, @Action					= @action
 			, @FTDone					= @FTDone
 			, @HTDone					= @HTDone
-			, @creator					= @creator
- 
-		IF @sporttype = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s @Command = 'NAP_Admin_Settlement_1-CAL'
-				, @MatchID			= @MatchID
-				, @fth 				= @fth
-				, @fta 				= @fta
-				, @hth 				= @hth
-				, @hta 				= @hta
-				, @Action			= @Action
-				, @creator			= @creator
-				, @ResourceResult	= @ResourceResult
-		END
-		
-		IF @sporttype = 1
-		BEGIN
-			EXEC dbo.NAP_Admin_Settlement_3_profile
-				@matchId = @matchid
-				,@action	= @action
-			,@ActionID	= @ActionID
-				,@IsReSettledTickets = @IsReSettledTickets
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg = @ErrMsg OUTPUT
+			, @creator					= @creator		
+	
+		EXEC dbo.NAP_Admin_Settlement_3
+			@matchid            = @matchid
+			,@mode                = @action    
+			,@IsReSettledTickets = @IsReSettledTickets
+			,@creator = @creator
 
-			IF @ErrCode <> 0
-				RETURN
-		END
-		ELSE
-		BEGIN
-			EXEC dbo.NAP_Admin_Settlement_3
-				@matchid            = @matchid
-				,@mode                = @action    
-				,@IsReSettledTickets = @IsReSettledTickets
-				,@creator = @creator
-		END
-			
 		IF @eventstatus = 'completed'
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
@@ -248,12 +312,7 @@ BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
 				, @command = 'H'
 		END
- 
-		DECLARE @TypeId TINYINT
-		SET @TypeId = CASE @Action WHEN 'CAL-HT' THEN 1
-									WHEN 'CAL-FT' THEN 2
-									WHEN 'CAL'		THEN 2
-						ELSE -1	END --not supported
+		
 		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
  
@@ -286,17 +345,19 @@ BEGIN
 			INNER JOIN @BalanceWalletAfter a 
 			ON b.custid = a.custid
 		WHERE b.balance <> a.balance
-			
+
 		SELECT @ErrCode = 1001017
 			, @ErrMsg = ERROR_MESSAGE()
 		
-		RETURN
 	END CATCH
 	
+	IF @ErrCode <> 0
+		RETURN
+
 	-------------------------------------------------------------
 	---         CAPTURE value BALANCE after settlement        ---
 	---------------------------VVVV------------------------------
- 
+
 	INSERT INTO @BalanceWalletAfter (
 		matchid
 		, custid
@@ -327,33 +388,12 @@ BEGIN
 		INNER JOIN @BalanceWalletAfter a 
 		ON b.custid = a.custid
 	WHERE b.balance <> a.balance
-		
+	
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
 
-	IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
-	BEGIN
-			DECLARE @LeagueGroupID	SMALLINT
-					, @ChildMatchIds	VARCHAR(500)
-
-			SELECT	@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
-			FROM dbo.Match m WITH(NOLOCK)
-				INNER JOIN dbo.League l WITH(NOLOCK)
-					ON m.leagueid = l.leagueid
-			WHERE m.MatchId = @matchid
-
-			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
-			BEGIN
-				SELECT @ChildMatchIds = STUFF( COALESCE(@ChildMatchIds + ',' + CAST(m.matchid AS VARCHAR), CAST(m.matchid AS VARCHAR)) , 1, 0, '' ) 
-				FROM dbo.match m WITH(NOLOCK)
-				WHERE ParentID = @matchid
-					AND m.ChildMatchType IN ( 201,202,203 )
-				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
-			END
-	END
- 
 	SELECT @LogData = 'NAP: Auto Payout Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
 		+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
 		+ ' HT:' + CAST(@hth AS NVARCHAR(10)) + '-' + CAST(@hta AS NVARCHAR(10)) 
@@ -375,9 +415,9 @@ BEGIN
 							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
 														+ '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 							+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-								   WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-								   ELSE ' RefChild:(' + @ChildMatchIds +')' 
-								   END
+									WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+									ELSE ' RefChild:(' + @ChildMatchIds +')' 
+									END
 	
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
@@ -416,5 +456,4 @@ BEGIN
 	
 	DROP TABLE #tblMatchProcess
 	RETURN	
-	
 END

@@ -2,6 +2,10 @@
 ALTER PROCEDURE [dbo].[NAP_Set_GlobalSettingSel]
 	@LockName VARCHAR(100)
 	,@ThreadHold INT = 0 OUTPUT
+	,@PrepareDataQueueSize SMALLINT = 0 OUTPUT
+	,@ExecDataQueueSize SMALLINT = 0 OUTPUT
+	,@RunPrepareDataBySSB BIT = 0 OUTPUT
+	,@RunExecDataBySSB BIT = 0 OUTPUT
 AS
 
 /*
@@ -10,21 +14,53 @@ AS
     DB: DBTXN/bodb02
     Revisions:       
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20210809@Kathy: Settle by custid [Redmine:159486]
    
     Parameters Explanation:        
     
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @tmpGlobalSetting TABLE (LockName VARCHAR(100) PRIMARY KEY, ThreadHold INT)
+	DECLARE @tmpGlobalSetting TABLE (LockName VARCHAR(100) PRIMARY KEY
+		,ThreadHold 			INT
+		,RunPrepareDataBySSB 	BIT
+		,RunExecDataBySSB 		BIT
+		,PrepareDataQueueSize 	SMALLINT
+		,ExecDataQueueSize 		SMALLINT
+	)
 	
 	INSERT INTO @tmpGlobalSetting(LockName, ThreadHold)
 	VALUES ('ParlayRefno', 10000)
 
-	SET @ThreadHold = 0
+	INSERT INTO @tmpGlobalSetting(LockName, RunPrepareDataBySSB, RunExecDataBySSB, PrepareDataQueueSize, ExecDataQueueSize)
+	VALUES ('SettlementSSB', 1, 1,8, 8)
 
-	SELECT	@ThreadHold = ThreadHold
-	FROM	@tmpGlobalSetting
-	WHERE	LockName = @LockName
+	SET @ThreadHold = 0
+	SET @PrepareDataQueueSize = 0
+	SET @ExecDataQueueSize = 0
+	SET @RunPrepareDataBySSB = 0
+	SET @RunExecDataBySSB = 0
+
+	IF @LockName = 'ParlayRefno'
+		SELECT	@ThreadHold = ThreadHold
+		FROM	@tmpGlobalSetting
+		WHERE	LockName = @LockName
+		
+	IF @LockName = 'SettlementSSB'
+	BEGIN
+		SELECT	@PrepareDataQueueSize = PrepareDataQueueSize
+				,@ExecDataQueueSize = ExecDataQueueSize
+				,@RunPrepareDataBySSB = RunPrepareDataBySSB
+				,@RunExecDataBySSB = RunExecDataBySSB
+		FROM	@tmpGlobalSetting
+		WHERE	LockName = @LockName
+		
+		IF @RunPrepareDataBySSB = 0
+			SELECT @PrepareDataQueueSize = 1
+		
+		IF @RunExecDataBySSB = 0
+			SELECT @ExecDataQueueSize = 1
+	END
+	
 END
 GO
