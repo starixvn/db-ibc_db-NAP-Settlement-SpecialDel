@@ -76,10 +76,12 @@ BEGIN
 							AND @IsSettleAbandonedMatchIBC = 0 
 							AND (@EventStatusReason NOT IN ( 1, 3) OR @IsMarkedRefund = 0 ) THEN 1
 
-						WHEN @Action IN ('CAL', 'CAL-FT')
-							AND (@EventStatusReason IN ( 2, 4) OR @IsMarkedRefund = 1 ) THEN 1
-							ELSE 0
-							END
+						WHEN @Action IN ('CAL', 'CAL-FT') AND @EventStatusReason IN ( 2, 4) THEN 1
+						
+						WHEN @Action LIKE 'CAL%' AND @IsMarkedRefund = 1 THEN 1
+						
+						ELSE 0
+					END
 
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
