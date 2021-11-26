@@ -110,8 +110,8 @@ BEGIN
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@MaxThreadHold = 5--0000
-			,@MinThreadHold = 1--0000
+			,@MaxThreadHold = 50000
+			,@MinThreadHold = 10000
 			,@BatchNo = 0
 			,@TotalTicket = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
