@@ -54,7 +54,7 @@ BEGIN
 	IF @LeagueGroupId = 113 -- skip check refund flag for PinGoal
 	RETURN
 
-	IF @EventStatusReason > 0 AND @IsEarly = 0 AND @IsAutoRefund = 0 -- exclude Refund Fast market, Refund early, Auto Refund	
+	IF @EventStatusReason > 0 AND @EventStatus = 'running' AND @IsEarly = 0 AND @IsAutoRefund = 0 -- exclude Refund Fast market, Refund early, Auto Refund	
 	BEGIN
 		SELECT  @ErrCode = CASE WHEN @Action LIKE 'CAL%' AND @IsMarkedRefund = 1 THEN 1001033
 								WHEN @Action = 'REFUND' AND @IsSettleAbandonedMatchIBC = 0 AND @IsMarkedRefund = 0 THEN 1001034
