@@ -17,6 +17,8 @@ AS
 		- 20210925@Helen: Nap Settlement - Cricket - Cannot refund due to selected results are not confirmed to refund - [162244]
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
+		- 20211127@Helen: Settlement - The Volleyball match cannot key refund. [Redmine:#165296]
+
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -43,13 +45,17 @@ BEGIN
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
-
 	
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
 	INSERT INTO @tmpResourceID(ResourceID)
 	SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
 	EXEC sp_xml_removedocument @handle
+
+	IF @Sporttype IN (6,45)
+	BEGIN
+		DELETE @tmpResourceID WHERE ResourceID <> '00'
+	END
 
 	IF @ResultTable = 1
 	BEGIN
@@ -86,7 +92,7 @@ BEGIN
 		WHERE r.MatchId = @MatchId
 
 	END
-
+	
 	IF @Action  LIKE 'Refund%'
 	BEGIN
 		IF ( SELECT COUNT(1) FROM @tmpResultSetting ) = 0
@@ -95,12 +101,9 @@ BEGIN
 		SELECT @ErrCode = 1001055
 			 , @ErrMsg	= 'WARNING! Cannot continue due to selected results are not confirmed to refund. Please confirm refund and try again.'
 	END
-
 	ELSE IF @Action LIKE 'CAL%'
 		SELECT @ErrCode = 1001056
 			 , @ErrMsg  = 'WARNING! Cannot continue due to selected results are confirmed to refund. Please undo-confirm refund and try again.'
 		FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 2
-
-
 END
 GO
