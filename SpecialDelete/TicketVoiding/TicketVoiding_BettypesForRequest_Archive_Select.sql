@@ -11,7 +11,7 @@ AS
 	
 	Revisions: 
 		- 20200811@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
-		- 20211118@Kathy: Tuning performance - hardcode on UAT [Redmine:#164819]
+		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 
 	Param's explanation:
 	- @RequestInfo : 
@@ -34,52 +34,47 @@ BEGIN
 	CREATE TABLE #tblRequestInfo_Detail
 	(
 		RequestId		INT,
-		TransId			BIGINT
-	)
-
-	CREATE TABLE #tblResult
-	(
-		RequestId		INT,
+		TransId			BIGINT,
 		Bettype			SMALLINT,
 		BetId			BIGINT
 	)
 
 	-- Parse xml @RequestInfo
 	INSERT INTO #tblRequestInfo(RequestId, TransIds)
-	SELECT t.c.value('@RequestId','INT') AS RequestId
-			, t.c.value('@TransIds','VARCHAR(MAX)') AS TransIds
-	FROM @RequestInfo.nodes('Requests/Request') t(c)
+	SELECT	t.c.value('@RequestId','INT') AS RequestId
+			,t.c.value('@TransIds','VARCHAR(MAX)') AS TransIds
+	FROM	@RequestInfo.nodes('Requests/Request') t(c)
 	OPTION (OPTIMIZE FOR (@RequestInfo = NULL))
 
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
-	SELECT req.RequestId, CAST(tr.val AS BIGINT)
-	FROM #tblRequestInfo req
+	SELECT	req.RequestId, CAST(tr.val AS BIGINT)
+	FROM	#tblRequestInfo req
 		CROSS APPLY bodb02.dbo.f_SplitString(req.TransIds, ',') tr
 	OPTION (MAXRECURSION 0)
 	
-	INSERT INTO #tblResult(RequestId, Bettype, BetId)
-	SELECT req.RequestId
-			,1
-			,NULL
-			--,bt.bettype AS Bettype
-			--,bt.betid
-	FROM #tblRequestInfo_Detail req
-		--INNER JOIN dbo.bettrans_bk bt WITH(NOLOCK) on req.TransId = bt.transid
+	UPDATE t
+		SET Bettype = s.Bettype
+			,BetId = CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END
+	FROM	#tblRequestInfo_Detail t
+		CROSS APPLY (
+			SELECT	TOP 1 s.Bettype, s.BetId
+			FROM	dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH(NOLOCK)
+			WHERE	s.RequestId = t.RequestId
+					AND s.TransId = t.TransId
+		)s
+		OUTER APPLY (
+			SELECT	TOP 1 f.IsNameXBettype
+			FROM	dbo.f_SD_GetGroupBettypes () f
+			WHERE	f.bettype = s.Bettype
+		)f
 	
-	UPDATE 	bt
-		SET betid = CASE WHEN f.IsNameXBettype = 1 THEN bt.betid ELSE NULL END
-	FROM	#tblResult bt
-		INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
-			
 	-- Return data
-	SELECT RequestId, Bettype, BetId
-	FROM #tblResult
+	SELECT	RequestId, Bettype, BetId
+	FROM	#tblRequestInfo_Detail
 	GROUP BY RequestId, Bettype, BetId
 	ORDER BY Bettype DESC
 
-
 	DROP TABLE #tblRequestInfo
 	DROP TABLE #tblRequestInfo_Detail
-	DROP TABLE #tblResult
 END
 GO
