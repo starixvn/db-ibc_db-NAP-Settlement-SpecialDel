@@ -19,6 +19,7 @@ AS
 	Revisions:	
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
+		- 20211129@Kathy: fix issue bettype 486, 487
 		
 */
 RETURN
@@ -74,7 +75,7 @@ RETURN
 	(
 		SELECT CASE WHEN @pfID = 486 THEN 
 					CASE
-						WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @HomeValue) > 0 THEN 1
+						WHEN CHARINDEX(';' + CAST(CAST(@hdp1 AS INT) AS VARCHAR) + @betteam + ';', ';' + @HomeValue + ';') > 0 THEN 1
 						WHEN @betteam = 'N' AND @AwayValue <= @hdp1 THEN 1
 						ELSE -1
 					END
