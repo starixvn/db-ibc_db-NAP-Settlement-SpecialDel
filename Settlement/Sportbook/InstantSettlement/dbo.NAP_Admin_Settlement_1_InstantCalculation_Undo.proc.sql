@@ -25,6 +25,7 @@ AS
 		- 20190621@Sol: Auto Payout Phase 3 - Change command for Instant Calculation to avoid wrong replacing SP deployment [Redmine:#116073]
 		- 20191213@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -272,6 +273,7 @@ BEGIN
 		AND (
 			ods.StatusId = 0 OR b.statusId <> ods.statusId
 		)
+		AND ISNULL(b.betdaqid,0) <> -2
 	
 	IF @ChildMatchType = 204 
 	BEGIN

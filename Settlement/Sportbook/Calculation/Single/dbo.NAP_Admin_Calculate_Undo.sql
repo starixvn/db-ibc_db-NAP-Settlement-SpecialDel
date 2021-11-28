@@ -37,6 +37,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		
 	Param's Explanation:
 			• @matchid: matchid of match to be unsettled 
@@ -233,7 +234,8 @@ BEGIN
 							WHEN @SelectedQuarter LIKE '%' + t.GroupName + '%' THEN 1
 							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
 							ELSE 0
-							END							
+							END		
+				AND ISNULL(b.betdaqid,0) <> - 2
 			
 		SET @BatchNo = @BatchNo - 1
 

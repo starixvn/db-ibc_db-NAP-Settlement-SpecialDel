@@ -9,6 +9,7 @@ AS
 	DB: DBTXN/bodb02
 	Revisions:
 		- 20201216@Louisa: Get ET & PEN match for Auto Refund Service [Redmine:#145597]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
 	
 	Param's explaination: 
 	- @TypeId:   1 - Auto refund single
@@ -74,6 +75,7 @@ BEGIN
 				OUTER APPLY ( SELECT TOP 1 TransId FROM dbo.MarkedTransaction mt  WITH(NOLOCK) WHERE btr.transID = mt.TransId ) mt
 			WHERE btr.statusID IN ( 0 , 103, 111, 112, 113)
 				AND btr.matchid = @MatchId
+				AND ISNULL(btr.betdaqid,0) <> -2
 		END
 
 		IF @TypeId = 10 AND EXISTS (SELECT TOP 1 1 FROM #tmpResultDetail r WHERE r.MatchType ='c' AND r.ResourceId = '00' AND r.SettlementStatusId = 1)

@@ -35,6 +35,7 @@ AS
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 
 		
     Param's Explanation:
@@ -107,7 +108,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #temp_bettrans (TransID bigint, MOdds money, CustID int, Balance money, BetType smallint, BonusID int, WalletType tinyint, actual_stake MONEY, srecommend INT, hdp1 SMALLMONEY)
-	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY, IsSettled BIT)
 	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10))
 	DECLARE @ResultDetail_Corner_tickets AS TABLE (ResourceID VARCHAR(20))
 	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
@@ -502,10 +503,11 @@ BEGIN
 				BEGIN
 					SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
 					
-					INSERT INTO @CashoutTickets_tmp(transid,custid, balance)
+					INSERT INTO @CashoutTickets_tmp(transid,custid, balance, IsSettled)
 					SELECT T.C.value('./@t', 'BIGINT') 		AS transid
 							, T.C.value('./@c', 'INT') 	AS custid
 							,T.C.value('./@b', 'MONEY') 	AS balance
+							,T.C.value('./@s', 'BIT') 	AS IsSettled
 					FROM @xmlCashoutTicket.nodes('/b') AS T(C)
 					OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
@@ -515,8 +517,26 @@ BEGIN
 						INNER JOIN  (SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
 									 FROM  @CashoutTickets_tmp tmp 
 												INNER JOIN @tempInstantBatch C ON c.TransID = tmp.transid AND tmp.custid = c.custid
+									WHERE IsSettled = 1
 									 GROUP BY c.custid,c.BonusID,c.WalletType
 									 ) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+					UPDATE bf
+						SET balance = bf.balance - bl.balance_old
+					FROM @BalanceWalletBefore bf
+						INNER JOIN  (SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old
+									 FROM  @CashoutTickets_tmp tmp 
+												INNER JOIN @tempInstantBatch C ON c.TransID = tmp.transid
+									WHERE IsSettled = 0
+									GROUP BY c.custid,c.BonusID,c.WalletType
+									 ) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+					DELETE t
+					FROM @tempInstantBatch t
+						INNER JOIN @CashoutTickets_tmp c
+							ON t.transid = c.TransID
+					WHERE c.IsSettled = 0
+
 				END
 				-------------------------------------------------------------
 				---        CAPTURE value BALANCE after settlement        ---
@@ -558,6 +578,32 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			--capture balance with error
+			DELETE @CashoutTickets_tmp
+
+			INSERT INTO @CashoutTickets_tmp (TransID)
+			SELECT t.transid
+			FROM @tempInstantBatch t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON t.transid = b.transid
+			WHERE ISNULL(b.betdaqid,0) = -2
+
+			IF @@ROWCOUNT > 0
+			BEGIN
+				UPDATE bf
+						SET balance = bf.balance - bl.balance_old
+					FROM @BalanceWalletBefore bf
+						INNER JOIN  (SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old
+									 FROM  @CashoutTickets_tmp tmp 
+												INNER JOIN @tempInstantBatch C ON c.TransID = tmp.transid
+									GROUP BY c.custid,c.BonusID,c.WalletType
+									 ) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+				DELETE t
+				FROM @tempInstantBatch t
+					INNER JOIN @CashoutTickets_tmp c
+						ON t.transid = c.TransID
+			END
+
 			INSERT INTO @BalanceWalletAfter (
 				matchid
 				,custid					

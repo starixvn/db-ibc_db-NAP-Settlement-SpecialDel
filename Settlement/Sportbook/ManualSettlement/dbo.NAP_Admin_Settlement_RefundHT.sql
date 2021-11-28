@@ -48,6 +48,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -82,6 +83,7 @@ BEGIN
 		-- for corner bettype 
 		,@ChildMatchType		TINYINT
 		,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
+		,@strTransIds	VARCHAR(MAX)
 
 
     --START Balance tables	
@@ -90,6 +92,7 @@ BEGIN
 	--END Balance tables      
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	DECLARE @tmpCashoutTransId TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT)
     
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -98,6 +101,7 @@ BEGIN
 	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
 	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
 	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 
 	SELECT @matchdate = eventdate
         , @sporttype    = sporttype
@@ -361,6 +365,51 @@ BEGIN
 				EXEC dbo.NAP_Admin_Calculate_914
 				@MatchId = @matchid
 				,@Action = 'REFUND-HT'
+			END
+
+			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost)
+			SELECT	b.transid, 6
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_GetCashoutBettypes() f
+					ON b.bettype = f.bettype
+			WHERE	matchid = @matchid
+					AND b.statusID NOT IN (101, 102)
+					AND ISNULL(b.betdaqid,0) = - 2
+					AND f.GroupName = 'HT'
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+			BEGIN
+				UPDATE t 
+					SET winlost = c.Winlost
+				FROM	@tmpCashoutTransId t
+					INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+						ON t.TransId = c.TransID
+
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @strTransIds = ''
+
+					DELETE 	TOP (2000)
+					FROM	@tmpCashoutTransId
+						OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+					IF @@ROWCOUNT = 0
+						BREAK
+
+					SET @strTransIds = (SELECT transid	AS '@t'
+												,winlost	AS '@w'	
+												,statuswinlost AS '@s'
+										FROM @tmpTransIDBatch
+										FOR XML PATH('r'), ROOT( 'root' ))
+
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  = @matchid
+						,@action	  = 'Cashout'
+						,@mode		  = 'REFUND'
+						,@strTransIds = @strTransIds
+
+				END
 			END
 		END
 	END TRY

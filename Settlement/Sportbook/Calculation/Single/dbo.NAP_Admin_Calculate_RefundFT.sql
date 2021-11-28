@@ -46,6 +46,7 @@ AS
         - 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		
     Param's Explanation:
         @IsRefundHT: Indicate whether or not match has been refunded HT
@@ -215,6 +216,7 @@ BEGIN
 								THEN 0
 							ELSE 1
 						END
+				AND ISNULL(b.betdaqid,0) <> -2
 
 		SET @BatchNo = @BatchNo - 1
 

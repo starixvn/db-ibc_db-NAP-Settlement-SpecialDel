@@ -22,6 +22,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost - [Redmine:115377]
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		
     Param's Explanation:
         
@@ -204,16 +205,30 @@ BEGIN
 					WHERE	mt.TransId = t.transid
 				)mt
 			WHERE	mt.TransId IS NULL
+					AND ISNULL(b.betdaqid,0) <> -2
 
 			OPTION(MAXDOP 1)
 			
 			-- Process for cashout tickets make change Balance before
-			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
+			SET @strTransCashout = ISNULL(CAST((SELECT t,c,b,s
+												FROM
+												(SELECT b.transid AS t
 														, b.custid AS c
 														, b.winlost-b.actual_stake + b.playercomm as b
+														, 1  AS 's'
 												FROM @instantTicket_beforeUpd b
 													INNER JOIN #InstantTicket_Input t ON b.transid = t.transid
 												WHERE 	b.betdaqid = 0 AND b.actual_stake <> t.actual_stake
+												UNION ALL
+												SELECT  t.transid AS t
+														,0 AS c
+														,0 AS b
+														,0 AS 's'
+												FROM 	#InstantTicket_Input t
+													LEFT JOIN @instantTicket_beforeUpd b 
+														ON t.transid = b.transid
+												WHERE b.transid IS NULL
+											)b
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')
 				
@@ -324,6 +339,7 @@ BEGIN
 						WHERE	mt.TransId = t.transid
 				)mt
 			WHERE	mt.TransId IS NULL
+					AND ISNULL(b.betdaqid,0) <> -2
 
 				OPTION(MAXDOP 1)
 		END

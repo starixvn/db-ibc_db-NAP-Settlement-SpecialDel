@@ -20,6 +20,7 @@ AS
 	Revisions:
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 		
 	Param's Explanation:  
 		   
@@ -140,6 +141,7 @@ BEGIN
 			FROM	dbo.bettrans b WITH (NOLOCK)		
 			  WHERE	b.matchid = @MatchId
 	  				AND b.statusID IN (0,102)	
+					AND ISNULL(b.betdaqid,0) <> -2
 					AND b.custid BETWEEN @MinCustId AND @MaxCusId			
 			OPTION (MAXDOP 1)
 
@@ -185,6 +187,7 @@ BEGIN
 			FROM	dbo.bettrans b WITH (NOLOCK)		
 			WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
+				AND ISNULL(b.betdaqid,0) <> -2
 				AND b.custid BETWEEN @MinCustId AND @MaxCusId
 			OPTION (MAXDOP 1)
 
