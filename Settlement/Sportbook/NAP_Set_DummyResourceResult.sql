@@ -16,6 +16,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
+		- 20211129@Kathy: fix issue bettype 486, 487
 */
 
 BEGIN
@@ -1041,8 +1042,9 @@ BEGIN
 				SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
 
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-				SELECT	@ResourceId
-						,@result
+				SELECT	@ResourceId	
+						,case when right(@result,1) = ';' then SUBSTRING(@result,1,len(@result) - 1) else @result end
+						--,@result
 						,@NeitherRaceTo
 						,ssId
 				FROM	@tmpResultDetail
