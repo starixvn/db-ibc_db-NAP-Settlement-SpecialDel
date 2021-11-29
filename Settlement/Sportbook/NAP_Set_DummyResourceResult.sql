@@ -17,6 +17,7 @@ AS
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 		- 20211129@Kathy: fix issue bettype 486, 487
+		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 */
 
 BEGIN
@@ -64,8 +65,8 @@ BEGIN
 			,@home_firstteam3goals INT
 			,@away_firstteam3goals INT
 
-	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
-	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
+	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
+	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 
 	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 

@@ -27,6 +27,7 @@ AS
 	   - 20210326@Louisa: Negative balance [Redmine:#152345]
 	   - 20210621@Kathy: Prevent lock escalation [Redmine:#157286]
 	   - 20210809@Kathy: Settle by custid [Redmine:159486]
+	   - 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 
 */
 BEGIN
@@ -71,8 +72,8 @@ BEGIN
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
-		,HomeValue VARCHAR(50)
-		,AwayValue VARCHAR(50)
+		,HomeValue VARCHAR(2000)
+		,AwayValue VARCHAR(2000)
 	)
 	
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT)
@@ -85,8 +86,8 @@ BEGIN
 
 	CREATE TABLE #tmpSelectedRID (
 		ResourceID		VARCHAR(20)
-		,HomeValue		VARCHAR(50)
-		,AwayValue		VARCHAR(50)
+		,HomeValue		VARCHAR(2000)
+		,AwayValue		VARCHAR(2000)
 		,BetType		SMALLINT
 		,BetID			BIGINT
 		,pfID			SMALLINT
@@ -305,8 +306,8 @@ BEGIN
 		INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
 		SELECT Id, Home, Away
 		FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-												,Home VARCHAR(50)
-												,Away VARCHAR(50)
+												,Home VARCHAR(2000)
+												,Away VARCHAR(2000)
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 	END
