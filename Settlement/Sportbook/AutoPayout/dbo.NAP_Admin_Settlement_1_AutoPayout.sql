@@ -170,6 +170,7 @@ BEGIN
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
 			WHERE m.MatchId = @matchid
+				AND ISNULL(l.IsDeleted,0) = 0
 
 			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
 			BEGIN
@@ -177,6 +178,8 @@ BEGIN
 				FROM dbo.match m WITH(NOLOCK)
 				WHERE ParentID = @matchid
 					AND m.ChildMatchType IN ( 201,202,203 )
+					AND ISNULL(m.IsDeleted,0) = 0
+
 				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
 			END
 		END
