@@ -184,14 +184,15 @@ BEGIN
 				duration = DATEDIFF(ms,execTime,GETDATE())
 		WHERE	matchid = @matchid 
 				AND IsCalculating = 1
+		
+		--Update for Auto Void Job
+		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+			SET StatusId = 0
+		WHERE MatchId = @matchid
+			AND Action = 'MixParlay'
+			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
 	END
-	
-	--Update for Auto Void Job
-	UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-		SET StatusId = 0
-	WHERE MatchId = @matchid
-		AND Action = 'MixParlay'
-		AND StatusId = 99
+
 	---
 	IF @LockedBySystemSetting = 1
 		UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
