@@ -114,6 +114,7 @@ AS
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -196,6 +197,7 @@ BEGIN
 			,@ValueDefault		SMALLMONEY = 9999.00
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
+			,@RepUpdateTime		DATETIME2
 
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 	
@@ -1812,6 +1814,7 @@ BEGIN
 		
 		-- Step 2: Update bettrans
 		-- 2.1. Update normal, main bettrade, main cash-out, cash-out member bet ticket
+		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE	main
 			SET winlost		= main.actual_stake
 				,ruben			= 1
@@ -1826,6 +1829,7 @@ BEGIN
 				,scomm			= 0
 				,statusID		= 102       
 				,status			= 'VOID'
+				,RepUpdateTime  = @RepUpdateTime
 		FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete tmpmain 
 				ON	main.transid = tmpmain.transid 
@@ -1879,6 +1883,7 @@ BEGIN
 		IF (@isExistCashOut = 1)
 		BEGIN
 			-- 2.2.2. Update Cash-out's subtickets (911,912,913)
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	b
 				SET winlost			= b.actual_stake
 					,ruben			= 1
@@ -1893,6 +1898,7 @@ BEGIN
 					,scomm			= 0
 					,statusID		= 102 
 					,status			= 'VOID'      
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #CashOutSubTicket sub ON b.transid = sub.transid														
 			

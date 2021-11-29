@@ -61,6 +61,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210827@Max: [TVS] Support Outright on Void By Currency [Redmine: #159540]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 			
 	Param's Explanation:
 */
@@ -113,6 +114,7 @@ BEGIN
 		   ,@HomeId				INT
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
+		   ,@RepUpdateTime DATETIME2
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
@@ -1938,6 +1940,7 @@ BEGIN
 		IF @CountSingle > 0
 		BEGIN
 			-- update status for normal, main bettrade, main cash-out, cash-out member bet ticket
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	main
 				SET winlost		= main.actual_stake
 					,ruben			= 1
@@ -1952,6 +1955,7 @@ BEGIN
 					,scomm			= 0
 					,statusID		= 102       
 					,status			= 'VOID'
+					,RepUpdateTime = @RepUpdateTime
 			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
@@ -1983,6 +1987,7 @@ BEGIN
 				
 				-- update status for sub cash-out ticket (911,912,913)
 				IF (@isExistCashOut = 1)
+					SET @RepUpdateTime = SYSDATETIME()
 					UPDATE sub
 					SET winlost = sub.actual_stake
 						,ruben = 1
@@ -1997,6 +2002,7 @@ BEGIN
 						,scomm = 0
 						,statusID = 102
 						,status = 'VOID'
+						,RepUpdateTime = @RepUpdateTime
 					FROM dbo.bettrans AS sub WITH (ROWLOCK, UPDLOCK)
 						INNER JOIN #CashOutTransActive bt
 						ON sub.transId = bt.transId

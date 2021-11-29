@@ -63,6 +63,7 @@ AS
 		- 20210514@July: SD - Remove unused code/products [Redmine: #121752]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 
 	Param's Explanation:
 */
@@ -81,7 +82,8 @@ BEGIN
 			,@avaiableProcess	BIT	= 0
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
-	
+			,@RepUpdateTime		DATETIME2
+
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	SELECT	@ErrCode = 0
@@ -1193,6 +1195,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
 	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
+	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE main
 	SET winlost = 0
 	    ,ruben = 0
@@ -1207,11 +1210,13 @@ BEGIN
 							THEN STUFF(main.transdesc,CHARINDEX('bettypetime',main.transdesc)+12,CHARINDEX(';time',main.transdesc)-CHARINDEX('bettypetime',main.transdesc)-12,@newBettypeTime)       
 							ELSE main.transdesc END
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
+		,RepUpdateTime  = @RepUpdateTime
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	WHERE t.bettype NOT IN (468, 469)
 
 	---- recover: bettype ScoreBox (468, 469)
+	SET @RepUpdateTime = SYSDATETIME()
 	;WITH CTE_Betcheck_1
 	AS (
 		SELECT t.transid
@@ -1263,6 +1268,7 @@ BEGIN
 		,odds = bc.odds
 		,oddsspread = bc.score
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
+		,RepUpdateTime  = @RepUpdateTime
 	FROM bettrans main 
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
@@ -1403,6 +1409,7 @@ BEGIN
 		IF (@isExistCashOut = 1)
 		BEGIN
 			-- update sub911
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub911 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub912.actual_stake
 					,awinlost = sub911.actual_stake - sub912.actual_stake
@@ -1418,6 +1425,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub911
 				INNER JOIN dbo.bettrans sub912 WITH(NOLOCK)
 					ON	sub911.transid = sub912.refno
@@ -1428,6 +1436,7 @@ BEGIN
 					ON	sub911.transid = tmp911.transid
 			
 			-- update sub912
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub912 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub911.actual_stake
 					,awinlost = sub912.actual_stake - sub911.actual_stake
@@ -1443,6 +1452,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub912
 				INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					ON	sub911.transid = sub912.refno
@@ -1453,6 +1463,7 @@ BEGIN
 					ON	sub911.transid = tmp911.transid
 			
 			--UPDATED: Use odds to store the deduction rate of OW , here is 50% of 3% BetTrade Commision (sub913)
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	sub913 WITH(ROWLOCK, UPDLOCK)
 				SET winlost = sub911.winlost * sub913.odds 
 					,awinlost = sub913.discount * sub911.winlost
@@ -1468,6 +1479,7 @@ BEGIN
 								END
 					,statuswinlost = NULL
 					,creator = tmp911.creator
+					,RepUpdateTime  = @RepUpdateTime
 			FROM	dbo.bettrans sub913
 				INNER JOIN dbo.bettrans sub911 WITH(NOLOCK)
 					ON	sub911.transid = sub913.refno

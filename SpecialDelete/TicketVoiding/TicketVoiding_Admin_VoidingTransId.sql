@@ -25,7 +25,8 @@ AS
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20210422@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
-	
+		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
 			- @transIds = '<root>
@@ -53,7 +54,8 @@ BEGIN
 			,@transid BIGINT
 			,@matchid INT
 			,@IsEnableServiceBroker BIT -- server is using service broker or not
-
+			,@RepUpdateTime DATETIME2
+	
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
@@ -150,7 +152,8 @@ BEGIN
 			SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
 			SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
 			SET @Sporttype = (SELECT TOP 1 sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
-		
+			SET @RepUpdateTime = SYSDATETIME()
+
 			UPDATE	b
 			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake
@@ -170,7 +173,7 @@ BEGIN
 				,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
 									ELSE b.ExtraInfo 
 							END
-						
+				,RepUpdateTime  = @RepUpdateTime
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
@@ -179,6 +182,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	b
 			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake
@@ -195,7 +199,7 @@ BEGIN
 				,statusID = 102
 				,status = 'VOID'
 				,betid = t.BetId
-						
+				,RepUpdateTime  = @RepUpdateTime
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
