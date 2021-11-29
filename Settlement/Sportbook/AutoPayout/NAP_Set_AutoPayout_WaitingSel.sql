@@ -439,6 +439,7 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
 			,m.IsExistMarkedTicketParlay
+			,m.EventStatusReason
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
