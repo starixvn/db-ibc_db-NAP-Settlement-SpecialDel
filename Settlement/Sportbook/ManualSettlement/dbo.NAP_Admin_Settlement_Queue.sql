@@ -19,6 +19,7 @@ AS
 	
 	Revisions:
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		
 	Param's Explanation:  
 		   
@@ -68,8 +69,8 @@ BEGIN
 		,betcheck VARCHAR(50)
 
 		,pfID INT
-		,HomeValue VARCHAR(50)
-		,AwayValue VARCHAR(50)
+		,HomeValue VARCHAR(2000)
+		,AwayValue VARCHAR(2000)
 		,oddstype SMALLINT
 	)
 
@@ -87,8 +88,8 @@ BEGIN
 		,betcheck VARCHAR(50)
 
 		,pfID INT
-		,HomeValue VARCHAR(50)
-		,AwayValue VARCHAR(50)
+		,HomeValue VARCHAR(2000)
+		,AwayValue VARCHAR(2000)
 		,oddstype SMALLINT
 	)
 

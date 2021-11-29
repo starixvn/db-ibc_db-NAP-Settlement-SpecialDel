@@ -47,6 +47,7 @@ AS
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211027@Kathy: Apply all bettype for pingoal [Redmine:#163762]
+		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -112,12 +113,12 @@ BEGIN
 	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
-	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),
+	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20)
 								  ,PRIMARY KEY (BetType,BetID))
-	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
+	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
 	
 	-- for cashout
 	DECLARE @strBettypes VARCHAR(MAX) = '', @mode VARCHAR(20) = ''
@@ -289,8 +290,8 @@ BEGIN
 			INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
 			SELECT Id, Home, Away
 			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-																,Home VARCHAR(50)
-																,Away VARCHAR(50)
+																,Home VARCHAR(2000)
+																,Away VARCHAR(2000)
 												) AS tbl
 			EXEC sp_xml_removedocument @handle
 		END

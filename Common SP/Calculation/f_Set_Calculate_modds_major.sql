@@ -4,8 +4,8 @@ ALTER FUNCTION [dbo].[f_Set_Calculate_modds_major] (
 		,@betteam 		NVARCHAR(10)
 		,@hdp1			SMALLMONEY
 		,@hdp2			SMALLMONEY
-		,@HomeValue 	VARCHAR(50)
-		,@AwayValue 	VARCHAR(50)
+		,@HomeValue 	VARCHAR(2000)
+		,@AwayValue 	VARCHAR(2000)
 		,@LiveHomeScore SMALLINT
 		,@LiveAwayScore SMALLINT
 		,@Transdesc		NVARCHAR(1000)
@@ -20,6 +20,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 		- 20211129@Kathy: fix issue bettype 486, 487
+		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		
 */
 RETURN
