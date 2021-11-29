@@ -66,6 +66,7 @@ BEGIN
 			,@IsCalQueue				 BIT = 0
 			,@ResettleTransids			 VARCHAR(MAX) = ''
 			,@IsCheckAutoCal			 BIT=0
+			,@IsHasWarningRemovedTickets BIT=0
 			,@OldAction					 TINYINT
 			,@IsExistSingle				 BIT = 0
 			,@IsExistParlay				 BIT = 0
@@ -82,6 +83,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
+	DECLARE @tblRemoveTickets AS TABLE (TransId BIGINT)
 				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -128,6 +130,7 @@ BEGIN
 	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT, refno BIGINT)
+	CREATE TABLE #transidremove_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
@@ -300,6 +303,31 @@ BEGIN
 										   )
 		OR t.betfrom ='p'
 		
+	IF @RequestId <> 0
+	BEGIN
+		INSERT INTO @tblRemoveTickets (TransId)
+		SELECT transid
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+		WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
+				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+				AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
+				AND rdt.RequestId = @RequestId
+
+		IF @@ROWCOUNT > 0
+		BEGIN
+			SET @IsHasWarningRemovedTickets = 1
+							
+			INSERT INTO #transidremove_tmp (transid, bettype, StatusId, statuswinlost, refno)
+			SELECT  t.TransId, b.bettype, b.statusID, b.statuswinlost, b.refno
+			FROM @tblRemoveTickets t
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
+			WHERE b.statusID IN (0,1) AND statuswinlost IS NOT NULL
+
+			IF @@ROWCOUNT > 0 -- ticket have statuswinlost
+				SET @IsCheckAutoCal = 1	
+		END
+	END
+
 	-- invalid transId
 	;WITH t_invalid
 	AS (
@@ -511,6 +539,7 @@ BEGIN
 			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
+			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
@@ -525,4 +554,5 @@ BEGIN
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #LiveTransIds
 	DROP TABLE #ABWhiteListTransIds
+	DROP TABLE #transidremove_tmp
 END

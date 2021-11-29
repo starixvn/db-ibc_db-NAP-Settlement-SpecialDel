@@ -928,7 +928,7 @@ BEGIN
 			INSERT INTO #transidremove_tmp (transid, bettype, StatusId, statuswinlost, refno)
 			SELECT t.val, b.bettype, b.statusID, b.statuswinlost, b.refno
 			FROM dbo.f_SplitString(@RemoveTransIds, ',') t
-				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.val = b.transid
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON CAST (t.val AS BIGINT) = b.transid
 			WHERE t.val <> '' AND b.statusID IN (0, 1) --if status of ticket is running
 			OPTION (maxrecursion 0)
 			
