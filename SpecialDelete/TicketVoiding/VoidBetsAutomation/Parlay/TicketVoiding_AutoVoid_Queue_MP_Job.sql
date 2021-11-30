@@ -193,7 +193,7 @@ BEGIN
 				BEGIN
 					UPDATE	q WITH(ROWLOCK, UPDLOCK)
 						SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE 0 END			
-							,StatusId = 99
+							,StatusId = 100
 							,ErrMsg = @ErrMsg
 							,Starttime = GETDATE()
 					FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
