@@ -69,6 +69,7 @@ BEGIN
 			,betstatus			NVARCHAR(50)
 			,settlementstatus	TINYINT
 			,EventStatusReason	TINYINT
+			,IsNeutral			BIT
 			,IsRunningOdds		BIT DEFAULT (0)
 		)
 	
@@ -129,6 +130,7 @@ BEGIN
 			,betstatus	
 			,settlementStatus
 			,EventStatusReason
+			,IsNeutral
 		)
 		SELECT m.matchid
 		 , m.matchcode
@@ -141,6 +143,7 @@ BEGIN
 		 , m.betstatus	
 		 , m.settlementStatus
 		 , m.EventStatusReason
+		 , ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
 		INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -164,6 +167,7 @@ BEGIN
 			,betstatus	
 			,settlementStatus
 			,EventStatusReason
+			,IsNeutral
 		)
 		SELECT m.matchid
 			 , m.matchcode
@@ -176,6 +180,7 @@ BEGIN
 			 , m.betstatus	
 			 , m.settlementStatus
 			 , m.EventStatusReason
+			 , ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
 		FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -304,7 +309,8 @@ BEGIN
 			,eventstatus		
 			,betstatus			
 			,settlementstatus	
-			,EventStatusReason	
+			,EventStatusReason
+			,IsNeutral
 			,IsRunningOdds		
 	FROM #tmpMatchIds
 		
