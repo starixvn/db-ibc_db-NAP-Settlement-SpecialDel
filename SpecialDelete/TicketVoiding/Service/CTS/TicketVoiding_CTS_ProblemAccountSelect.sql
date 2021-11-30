@@ -23,11 +23,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #tmpResult (CustId INT, reasonID TINYINT, CreatedDate DATETIME)
+	CREATE TABLE #tmpResult (CustId INT, ReasonID TINYINT, CreatedDate DATETIME)
 	
 	IF @CustIds = '0'
 	BEGIN
-		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
 		WHERE pa.ReasonId IS NOT NULL
@@ -53,7 +53,7 @@ BEGIN
 	END
 	ELSE IF ISNULL(@CustIds,'') = '' AND @datetime IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
 		WHERE pa.ReasonId IS NOT NULL 
@@ -87,7 +87,7 @@ BEGIN
 		FROM dbo.f_SplitString (@CustIds,',') AS t
 		OPTION (MAXRECURSION 0)
 		
-		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl c ON c.custID = pa.custid
@@ -115,7 +115,7 @@ BEGIN
 		
 	END
 
-	SELECT CustId, reasonID, CreatedDate
+	SELECT DISTINCT CustId, ReasonID, CreatedDate
 	FROM #tmpResult
 	ORDER BY CustId, CreatedDate
 
