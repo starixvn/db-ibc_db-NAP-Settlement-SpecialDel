@@ -989,6 +989,7 @@ BEGIN
 				,oddsspread
 				,OddsType
 				,STATUS
+				,SubStatus
 				,stake
 				,transdate
 				,betteam
@@ -1024,6 +1025,7 @@ BEGIN
 			,0 AS oddsspread
 			,b.custom1 OddsType
 			,b.STATUS
+			,b.STATUS AS SubStatus
 			,b.stake
 			,b.transdate
 			,NULL betteam
@@ -1069,7 +1071,8 @@ BEGIN
 			,odds
 			,oddsspread				
 			,OddsType		
-			,STATUS					
+			,STATUS	
+			,SubStatus				
 			,stake							
 			,transdate		
 			,betteam		
@@ -1115,6 +1118,11 @@ BEGIN
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS END AS STATUS
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS SubStatus
 			,b.stake
 			,b.transdate
 			,b.betteam
@@ -1178,6 +1186,11 @@ BEGIN
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS END AS STATUS
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS SubStatus
 			,b.stake				
 			,b.transdate
 			,b.betteam
