@@ -187,7 +187,7 @@ BEGIN
 		
 		--Update for Auto Void Job
 		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = 0
+			SET StatusId = 0, Starttime = GETDATE()
 		WHERE MatchId = @matchid
 			AND Action = 'MixParlay'
 			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
