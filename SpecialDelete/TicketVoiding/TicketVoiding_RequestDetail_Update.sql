@@ -938,7 +938,7 @@ BEGIN
 											FOR XML PATH('')
 								), 1,1,'')
 			--resettle ticket
-			IF @ResettleTransids <> ''
+			IF (@IsConfirmCalculator = 1 AND @ResettleTransids <> '')
 			BEGIN
 				IF @FilterBy IS NULL --single ticket
 				BEGIN
