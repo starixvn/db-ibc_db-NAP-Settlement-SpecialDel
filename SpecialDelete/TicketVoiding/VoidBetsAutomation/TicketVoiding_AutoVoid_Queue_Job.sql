@@ -21,6 +21,8 @@ AS
 		- 20210608@Max: TVS - Abnormal Account - Update Min/MaxWinlostdate into dbo.TicketVoiding_VoidingHistory [Redmine:#152175]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
+		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+
 	Param's explanation:	
 	
 	--[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY')
@@ -93,6 +95,7 @@ BEGIN
 			INNER JOIN TicketVoiding_AutoVoidRequest_Queue q (NOLOCK) ON q.MatchId = rd.MatchId 
 	WHERE req.IssueTypeId IN (11,15) AND q.StatusId = 0 
 			AND q.RequestId = 0 AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
+			AND rd.FilterBy IS NULL
 		
 	UPDATE q
 		SET StatusId = 4
@@ -138,9 +141,10 @@ BEGIN
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 		OUTER APPLY (
-				SELECT TOP 1 ActionId
-				FROM dbo.TicketVoiding_Request WITH (NOLOCK)
-				WHERE RequestId = q.RequestId
+				SELECT TOP 1 r.ActionId
+				FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
+					INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = r.RequestId AND rd.FilterBy IS NULL
+				WHERE r.RequestId = q.RequestId
 			)r
 	WHERE StatusId = 0 AND t.KeyID IS NULL -- waiting
 		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
