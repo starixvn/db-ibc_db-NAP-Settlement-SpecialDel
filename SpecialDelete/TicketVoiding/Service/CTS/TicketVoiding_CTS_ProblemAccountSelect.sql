@@ -23,10 +23,14 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	CREATE TABLE #tmpResult (CustId INT, reasonID TINYINT, CreatedDate DATETIME)
+	
 	IF @CustIds = '0'
 	BEGIN
+		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
+		WHERE pa.ReasonId IS NOT NULL
 
 		UNION ALL
 		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId), ISNULL (tmp.CreatedDate, upline.CreatedDate)
@@ -49,9 +53,11 @@ BEGIN
 	END
 	ELSE IF ISNULL(@CustIds,'') = '' AND @datetime IS NOT NULL
 	BEGIN
+		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
-		WHERE pa.CreatedDate >= @datetime 
+		WHERE pa.ReasonId IS NOT NULL 
+			AND pa.CreatedDate >= @datetime 
 
 		UNION ALL
 		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId), ISNULL (tmp.CreatedDate, upline.CreatedDate)
@@ -81,9 +87,11 @@ BEGIN
 		FROM dbo.f_SplitString (@CustIds,',') AS t
 		OPTION (MAXRECURSION 0)
 		
+		INSERT INTO #tmpResult (CustId, reasonID, CreatedDate)
 		SELECT pa.custid, pa.reasonID, pa.CreatedDate
 		FROM ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl c ON c.custID = pa.custid
+		WHERE pa.ReasonId IS NOT NULL
 		
 		UNION ALL
 		
@@ -106,6 +114,12 @@ BEGIN
 		WHERE ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL	
 		
 	END
+
+	SELECT CustId, reasonID, CreatedDate
+	FROM #tmpResult
+	ORDER BY CustId, CreatedDate
+
+	DROP TABLE #tmpResult
 END
 GO
 
