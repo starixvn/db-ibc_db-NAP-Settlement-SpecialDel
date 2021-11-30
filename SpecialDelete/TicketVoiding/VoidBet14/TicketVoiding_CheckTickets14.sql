@@ -1,9 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CheckArchivedTicket]
+CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds	VARCHAR(MAX) = NULL
-	,@RequestId INT = 0
-	,@ActionId	TINYINT	= 0
 )
 AS
 /*  
