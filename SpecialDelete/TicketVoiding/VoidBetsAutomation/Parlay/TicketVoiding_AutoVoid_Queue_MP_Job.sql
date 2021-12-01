@@ -43,7 +43,7 @@ BEGIN
 	SELECT @Max_QueueId = MAX(q.QueueId)
 		  ,@Min_QueueId = MIN(q.QueueId)
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
-	WHERE q.StatusId = 0
+	WHERE q.StatusId IN (0,100)
 
 	--Update cancel for action change to Manual Action
 	UPDATE q
@@ -70,7 +70,7 @@ BEGIN
 		AND q.StatusId = 0
 		AND rd.FilterBy = 1
 		AND r.IssueTypeId = 11
-		AND 1 = CASE WHEN r.ActionId = 1 AND DATEADD(SECOND,60,q.Starttime) <= GETDATE() THEN 1
+		AND 1 = CASE WHEN r.ActionId = 1 AND DATEADD(SECOND,300,q.Starttime) <= GETDATE() THEN 1
 					WHEN r.ActionId IN (4,8) THEN 1
 				ELSE 0 END
 	UNION ALL
@@ -105,9 +105,9 @@ BEGIN
 		WHERE	q.RequestId = @RequestId
 
 		INSERT INTO @tmpMatch (MatchId)
-		SELECT m.matchid
-		FROM #Match_AutoVoid m
-		WHERE m.RequestId = @RequestId
+		SELECT q.matchid
+		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
+		WHERE q.RequestId = @RequestId
 
 		BEGIN TRY
 			EXEC dbo.TicketVoiding_AutoVoid_Update_MP 
@@ -150,7 +150,6 @@ BEGIN
 					,StatusId = 3
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-					INNER JOIN #Match_AutoVoid m ON m.QueueId = q.QueueId
 				WHERE q.RequestId = @RequestId	
 
 				UPDATE s WITH (ROWLOCK, UPDLOCK)
@@ -233,15 +232,13 @@ BEGIN
 				,StatusId = @StatusId
 				,ErrMsg = @ErrMsg
 			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-				INNER JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 			WHERE q.RequestId  = @RequestId
 
 			UPDATE s WITH (ROWLOCK, UPDLOCK)
 			SET s.statusID = 3
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
-		END	
-			
+		END				
 	END
 
 	DROP TABLE #Match_AutoVoid
