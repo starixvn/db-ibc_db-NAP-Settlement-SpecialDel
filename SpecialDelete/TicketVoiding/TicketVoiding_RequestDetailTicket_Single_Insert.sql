@@ -1343,18 +1343,18 @@ BEGIN
 	BEGIN
 		IF @IsEditRequest = 1
 		BEGIN
-			DELETE dbo.TicketVoiding_RequestDetailTicket_Single
+			DELETE dbo.TicketVoiding_RequestDetailTicket_Single WITH(ROWLOCK)
 			WHERE RequestId = @RequestId
 		END
 
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, l.val, tmp.matchid , tmp.Id AS RequestDetailId
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, Bettype, BetId)
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, l.val, tmp.matchid , tmp.Id AS RequestDetailId, tmp.bettype, tmp.betid
 		FROM dbo.f_SplitString(@TransIds, ',') l
 			CROSS APPLY (
-						SELECT rd.Id, b14.matchid
+						SELECT rd.Id, b14.matchid, b14.bettype, b14.betid
 						FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b14.matchid = rd.MatchId
-						WHERE  rd.RequestId = @RequestId AND l.val = b14.transid
+						WHERE  rd.RequestId = @RequestId AND CAST(l.val AS BIGINT) = b14.transid
 						)tmp
 		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)

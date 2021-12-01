@@ -28,9 +28,18 @@ BEGIN
 			,@TotalRefnoParlay		     INT = 0
 			,@ThreadHold			     INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
 
-	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @before_movebetday				DATETIME
+	       ,@MovebetDate					DATETIME
+		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
+
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+
+	SELECT @before_movebetday = CONVERT(varchar(10), DATEADD(DAY, -3, @Movebetdate), 120)	
+	
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
-					
+	DECLARE @UnsupportedTransids AS TABLE (transid BIGINT)	
+	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+		
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -39,13 +48,13 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
-		transid		BIGINT PRIMARY KEY
-		,StatusId	INT
-		,bettype	SMALLINT
-		,custId		INT
-		,matchid	INT
-		,betfrom	NVARCHAR(1)
-		,refno		BIGINT
+		transid			BIGINT PRIMARY KEY
+		,StatusId		INT
+		,bettype		SMALLINT
+		,matchid		INT
+		,betfrom		NVARCHAR(1)
+		,refno			BIGINT
+		,winlostdate	DATETIME
 		)
 
 	IF (@TransIds IS NULL
@@ -63,18 +72,18 @@ BEGIN
 		transid
 		,StatusId
 		,bettype
-		,custId
 		,matchid
 		,betfrom
 		,refno
+		,winlostdate
 		)
 	SELECT b14.transid
 		,statusID
 		,bettype
-		,custid
 		,matchid
 		,betfrom
 		,refno
+		,winlostdate
 	FROM dbo.bettrans14 AS b14 WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b14.transid = tmp.transid
 	
@@ -91,6 +100,20 @@ BEGIN
 										FROM #transIdTemp t
 										WHERE NOT EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE transid = t.transid)
 										FOR XML PATH('')), 1, 1, ''), '')
+
+	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @before_movebetday)
+	BEGIN
+		DELETE 
+		FROM #validTransId
+			OUTPUT	DELETED.TransId
+			INTO @UnsupportedTransids (TransId)
+		WHERE winlostdate < @before_movebetday
+
+		SELECT @UnsupportedDateRangeTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+														FROM @UnsupportedTransids t
+														FOR XML PATH('')
+													), 1, 1, ''), '')
+	END	
 
 	---Prepare for lock match---
 	SELECT @IsExistSingle	= MAX(CASE WHEN t.Bettype NOT IN (9, 29, 2799, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
@@ -148,6 +171,7 @@ BEGIN
 
 	-- return table result
 	SELECT @InvalidTransIds AS InvalidTransIds
+			,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 			,@IsExistSingle AS IsExistSingle
 			,@IsExistParlay AS IsExistParlay
 			,@IsExistFM AS IsExistFM
