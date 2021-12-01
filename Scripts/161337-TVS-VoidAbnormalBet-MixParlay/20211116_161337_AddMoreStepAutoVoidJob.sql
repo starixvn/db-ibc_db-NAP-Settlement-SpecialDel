@@ -12,6 +12,11 @@ GO
 BEGIN TRANSACTION
 DECLARE @ReturnCode INT
 SELECT @ReturnCode = 0
+
+EXEC @ReturnCode = msdb.dbo.sp_update_jobstep @job_name = 'bodb02 : TicketVoiding - VoidBets Automation',
+		@step_id=2, 
+		@step_name=N'Step 1.1: Void Single Abnormal Bet'
+IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
  
 EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_name = 'bodb02 : TicketVoiding - VoidBets Automation', @step_name=N'Step 1: Void Abnormal Mix Parlay', 
 		@step_id=2, 
