@@ -59,52 +59,52 @@ BEGIN
 		END
 
 		ELSE IF @Mode = 'subParlay'
-																																										BEGIN
-		-- bettransM
-		UPDATE	bm WITH(UPDLOCK, ROWLOCK)
-			SET matchid = @MatchId
-		FROM	@tmpTrans t
-			INNER JOIN dbo.bettransm bm 
-				ON	bm.transid = t.transid
-
-		-- BetParlayDetail
-		IF OBJECT_ID('BetParlayDetail','U') IS NOT NULL 
-			UPDATE	d  WITH(ROWLOCK, UPDLOCK)
+		BEGIN
+			-- bettransM
+			UPDATE	bm WITH(UPDLOCK, ROWLOCK)
 				SET matchid = @MatchId
 			FROM	@tmpTrans t
-				INNER JOIN dbo.BetParlayDetail d
-					ON	d.transid = t.TransId
+				INNER JOIN dbo.bettransm bm 
+					ON	bm.transid = t.transid
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
-		BEGIN
-			IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
-				UPDATE	zb WITH(ROWLOCK, UPDLOCK)
+			-- BetParlayDetail
+			IF OBJECT_ID('BetParlayDetail','U') IS NOT NULL 
+				UPDATE	d  WITH(ROWLOCK, UPDLOCK)
 					SET matchid = @MatchId
 				FROM	@tmpTrans t
-					INNER JOIN dbo.zzzbettrans zb
-						ON	t.TransID = zb.transId
-				WHERE	t.StatusId = 102
+					INNER JOIN dbo.BetParlayDetail d
+						ON	d.transid = t.TransId
 
-			IF OBJECT_ID('zzzbettransm','U') IS NOT NULL 
-				UPDATE zbm WITH(ROWLOCK, UPDLOCK)
-					SET matchid = @MatchId
-				FROM	@tmpTrans t
-					INNER JOIN dbo.zzzbettransm zbm
-						ON	t.TransID = zbm.transId
-				WHERE	t.StatusId = 102
-
-			IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
 			BEGIN
-				UPDATE	vt WITH(ROWLOCK, UPDLOCK)
-					SET matchid = @MatchId
-				FROM	@tmpTrans t
-					INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-						ON	t.MainTransId = vt.transId
-				WHERE	t.StatusId = 102
+				IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
+					UPDATE	zb WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.zzzbettrans zb
+							ON	t.TransID = zb.transId
+					WHERE	t.StatusId = 102
 
+				IF OBJECT_ID('zzzbettransm','U') IS NOT NULL 
+					UPDATE zbm WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.zzzbettransm zbm
+							ON	t.TransID = zbm.transId
+					WHERE	t.StatusId = 102
+
+				IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+				BEGIN
+					UPDATE	vt WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
+							ON	t.MainTransId = vt.transId
+					WHERE	t.StatusId = 102
+
+				END
 			END
 		END
-	END
 	END
 
 	ELSE IF @Mode = 'SingleRunning' -- Move single running ticket for E-SPorts
