@@ -72,8 +72,6 @@ BEGIN
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @tmpCustCashOut TABLE (CustId INT)		
-	DECLARE @tmpCustCashOut_VOID TABLE (CustId INT)
-	DECLARE @tmpCustCashOut_Recalculate TABLE (CustId INT)
 						
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)

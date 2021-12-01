@@ -171,7 +171,7 @@ BEGIN
 						,Starttime = GETDATE()
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
 				WHERE q.RequestId = @RequestId
-					AND q.StatusId IN (0,1,99)
+					AND q.StatusId IN (0,1,99,100)
 			END
 			ELSE IF EXISTS (SELECT TOP (1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 										INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.TransId
@@ -187,7 +187,7 @@ BEGIN
 							,ErrMsg = @ErrMsg
 					FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
 					WHERE q.RequestId = @RequestId
-						AND q.StatusId IN (0,1,99)
+						AND q.StatusId IN (0,1,99,100)
 				END
 				ELSE
 				BEGIN
@@ -198,7 +198,7 @@ BEGIN
 							,Starttime = GETDATE()
 					FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
 					WHERE q.RequestId = @RequestId
-						AND q.StatusId IN (0,1,99)
+						AND q.StatusId IN (0,1,99,100)
 				END
 			END
 			ELSE
@@ -209,7 +209,7 @@ BEGIN
 						,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
 				WHERE q.RequestId = @RequestId
-					AND q.StatusId IN (0,1,99)
+					AND q.StatusId IN (0,1,99,100)
 			END
 			
 			UPDATE s WITH (ROWLOCK, UPDLOCK)
