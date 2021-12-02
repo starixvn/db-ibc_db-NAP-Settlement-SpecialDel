@@ -528,7 +528,7 @@ BEGIN
 						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
 							AND l.val = b.transid
 							AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-										 WHEN @FilterBy = 1 AND b.betteam = 1 THEN 1 ELSE 0 END
+										 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
 						)tmp
 		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)

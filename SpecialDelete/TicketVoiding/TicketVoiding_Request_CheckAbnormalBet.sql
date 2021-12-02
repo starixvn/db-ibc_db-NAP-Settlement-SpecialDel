@@ -267,7 +267,7 @@ BEGIN
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
 	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL 
-						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> 1)) --Unsupported System parlay Transids
+						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
 				   THEN 1
 				   WHEN  t.sporttype = 50 THEN 1
 				   ELSE 0 END
@@ -298,7 +298,7 @@ BEGIN
 				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
 					ELSE 0 END)
 		OR (bt.bettype IS NULL AND 1 = CASE WHEN @FilterBy IS NULL THEN 1 
-										    WHEN @FilterBy = 1 AND t.bettype = 29  AND t.betteam <> 1 THEN 1
+										    WHEN @FilterBy = 1 AND t.bettype = 29  AND t.betteam <> '1' THEN 1
 										    ELSE 0 END 
 										   )
 		OR t.betfrom ='p'
