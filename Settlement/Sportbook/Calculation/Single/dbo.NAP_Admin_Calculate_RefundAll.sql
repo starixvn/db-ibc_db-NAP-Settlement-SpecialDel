@@ -46,6 +46,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 
     Note: For settlement SPs should hardcode the custid of betdaq customer to avoid replication problem
 */
@@ -79,7 +80,8 @@ BEGIN
 			,@MaxTransId			BIGINT
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT	
-			,@IsUpd_Void BIT = 0
+			,@IsUpd_Void			BIT = 0
+			,@RepUpdateTime			DATETIME2
 			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, GroupId SMALLINT, GroupName VARCHAR(50))	
 
@@ -153,6 +155,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
+		SET @RepUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -181,7 +184,8 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,ruben = 1
-				,statuswinlost = 6		
+				,statuswinlost = 6	
+				,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
@@ -220,7 +224,7 @@ BEGIN
 
 		SET @BatchNo = @BatchNo - 1
 
-		WAITFOR DELAY '00:00:00:010'
+		WAITFOR DELAY '00:00:00:050'
 	END
 END
 GO

@@ -23,6 +23,7 @@ AS
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		
     Param's Explanation:
 
@@ -70,6 +71,7 @@ BEGIN
 			,@ActionId TINYINT
 
 	DECLARE @settlementTime DATETIME
+			,@RepUpdateTime DATETIME2
 			
 	SET @xmlData = CONVERT(XML, @result)
 	SET @ActionId = CASE 
@@ -395,6 +397,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 2) AND @AllowRefund = 1 -- REFUND
 		BEGIN
 			SET @settlementTime = GETDATE()
+			SET @RepUpdateTime = SYSDATETIME()
 
 			UPDATE	b
 				SET 
@@ -419,7 +422,8 @@ BEGIN
 					, acomm = 0
 					, scomm = 0
 					, ruben = 1
-					, statuswinlost = 6								
+					, statuswinlost = 6	
+					, RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
 					ON	b.transid = t.transid	
@@ -428,6 +432,8 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 0) AND @AllowUndo = 1 -- UNDO
 		BEGIN
+			SET @RepUpdateTime = SYSDATETIME()
+
 			UPDATE	b
 				SET 
 					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -443,6 +449,7 @@ BEGIN
 					, scomm = 0
 					, ruben = CASE WHEN @IsUpd_Void= 0 THEN ruben ELSE 0 END 
 					, statuswinlost = NULL
+					, RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
 					ON	b.transid = t.transid

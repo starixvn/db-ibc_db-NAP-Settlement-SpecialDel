@@ -36,6 +36,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		
 	Param's Explanation:
 			• @matchid: matchid of match to be unsettled 
@@ -74,8 +75,9 @@ BEGIN
 			,@odds					MONEY
 			,@posOdds				INT
 			,@posComma				INT
-			,@IsUpd_Void BIT = 0
-			
+			,@IsUpd_Void			BIT = 0
+			,@RepUpdateTime			DATETIME2
+
 	DECLARE @tblBettypes TABLE (bettype SMALLINT,GroupName VARCHAR(50), GroupId SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (
@@ -147,6 +149,8 @@ BEGIN
 		FROM	@tmpBatch
 		WHERE	BatchNo = @BatchNo
 
+		SET @RepUpdateTime = SYSDATETIME()
+
 		UPDATE	b
 			SET 
 				@totalWinScore = CASE WHEN b.bettype IN (468,469) 
@@ -192,6 +196,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = NULL
+				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo

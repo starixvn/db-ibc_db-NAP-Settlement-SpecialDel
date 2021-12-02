@@ -13,6 +13,7 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		
 	Param's Explanation:
 			@transIds = '<root>
@@ -26,7 +27,8 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
-		
+			,@RepUpdateTime		DATETIME2
+
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -52,6 +54,8 @@ BEGIN
 	FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT ) tbl
 	EXEC sp_xml_removedocument @handle
 	
+	SET @RepUpdateTime = SYSDATETIME()
+
 	UPDATE	b
 	SET 
 		@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -82,6 +86,7 @@ BEGIN
 		,scomm = 0
 		,statuswinlost = NULL
 		,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
+		,RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		

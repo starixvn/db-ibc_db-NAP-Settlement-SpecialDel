@@ -45,6 +45,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
         - 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		
     Param's Explanation:
         @IsRefundHT: Indicate whether or not match has been refunded HT
@@ -80,7 +81,8 @@ BEGIN
 			,@MaxTransId			BIGINT
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT		
-			,@IsUpd_Void BIT = 0
+			,@IsUpd_Void			BIT = 0
+			,@RepUpdateTime			DATETIME2
 			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT)
 
@@ -155,6 +157,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
+		SET @RepUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -181,6 +184,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = 6
+				,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
@@ -214,7 +218,7 @@ BEGIN
 
 		SET @BatchNo = @BatchNo - 1
 
-		WAITFOR DELAY '00:00:00:010'
+		WAITFOR DELAY '00:00:00:050'
 	END
 END
 GO

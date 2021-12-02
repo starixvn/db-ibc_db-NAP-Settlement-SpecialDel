@@ -15,6 +15,7 @@ AS
 		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
+		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 
 */
 BEGIN
@@ -37,12 +38,14 @@ BEGIN
 	END
 	-- END CHECK
 	DECLARE @settlementTime DATETIME
+			,@RepUpdateTime	DATETIME2
 
 	BEGIN
 		WHILE 1=1
 		BEGIN
 			
 			SET @settlementTime = GETDATE();
+			SET @RepUpdateTime = SYSDATETIME()
 
 			UPDATE TOP (10000) dbo.bettrans with (ROWLOCK, UPDLOCK)
 			SET
@@ -57,7 +60,8 @@ BEGIN
 				playercomm=0,
 				comm=0,
 				acomm=0,
-				scomm=0
+				scomm=0,
+				RepUpdateTime = CASE WHEN statusId = 103 THEN RepUpdateTime ELSE @RepUpdateTime END
 			where
 				matchid=@matchid
 				--AND [status] not in (N'Void', N'Reject')
