@@ -13,6 +13,7 @@ AS
 	Revisions: 		
 		- 20210112@Zane: Create new SP [Redmine:#145719]
 		- 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
+		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 
 	Param's explanation:
 		
@@ -36,9 +37,11 @@ BEGIN
 						ON rd.requestid = r.RequestId 
 				INNER JOIN dbo.ticketvoiding_requestdetailticket_single_bk s WITH(NOLOCK) 
 						ON rd.requestid = s.requestid 
-				INNER JOIN dbo.bettrans_bk b WITH(NOLOCK) 
-						ON rd.matchid = b.matchid 
-							AND s.transid = b.transid 
+				CROSS APPLY(
+					SELECT 	TOP 1 b.transid, b.winlostdate
+					FROM	dbo.bettrans_bk b WITH(NOLOCK)
+					WHERE	b.transid = s.transid
+				)b
 		WHERE  rd.matchid IN ( 9, 29, 2799 ) 
 				AND b.winlostdate BETWEEN @FromDate AND @ToDate 
 		GROUP  BY rd.requestid, r.IssueTypeId, rd.Usernames, r.RequestId
