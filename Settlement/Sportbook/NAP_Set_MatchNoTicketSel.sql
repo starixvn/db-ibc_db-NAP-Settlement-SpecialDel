@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_MatchNoTicketSel
 (
 	@FromDate		DATETIME
@@ -14,7 +14,7 @@ AS
 /*
 		Created By : 20211125@Louisa
 		Task: Delete Match no ticket
-		DB: DBTXN-bodb02
+		DB: DBPRO-bodb02
 
 		Revisions:
 				- 20211125@Louisa: query main page [Redmine:#163469]
@@ -44,14 +44,7 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF OBJECT_ID('tempdb..#tmpMatchIds') IS NOT NULL DROP TABLE #tmpMatchIds
-	IF OBJECT_ID('tempdb..#CheckOdds') IS NOT NULL DROP TABLE #CheckOdds
-
 	DECLARE @MatchId		INT
-			,@RemoteQuery	VARCHAR(MAX) = ''
-			,@strMatchId	VARCHAR(MAX) = ''
-			,@strMatchIdOS	VARCHAR(MAX) = ''
-			,@strMatchIdES	VARCHAR(MAX) = ''
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
 	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT)
 	DECLARE @tmpMatchStatus TABLE (Id TINYINT, EventStatus NVARCHAR(50))
@@ -71,6 +64,7 @@ BEGIN
 			,EventStatusReason	TINYINT
 			,IsNeutral			BIT
 			,IsRunningOdds		BIT DEFAULT (0)
+			,OddsTable			TINYINT
 		)
 	
 	CREATE TABLE #CheckOdds ( MatchId INT )
@@ -131,6 +125,7 @@ BEGIN
 			,settlementStatus
 			,EventStatusReason
 			,IsNeutral
+			,OddsTable
 		)
 		SELECT m.matchid
 		 , m.matchcode
@@ -144,7 +139,11 @@ BEGIN
 		 , m.settlementStatus
 		 , m.EventStatusReason
 		 , ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
-	FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+		 , CASE WHEN m.sporttype = 43 THEN 3
+				WHEN m.sporttype IN ( 9, 45, 50 ) THEN 2
+				ELSE 1
+			END AS OddsTable
+	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
 	WHERE (m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
@@ -168,6 +167,7 @@ BEGIN
 			,settlementStatus
 			,EventStatusReason
 			,IsNeutral
+			,OddsTable
 		)
 		SELECT m.matchid
 			 , m.matchcode
@@ -181,7 +181,11 @@ BEGIN
 			 , m.settlementStatus
 			 , m.EventStatusReason
 			 , ISNULL(m.isNeutral, CONVERT(BIT, 0)) AS IsNeutral
-		FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+			 , CASE WHEN m.sporttype = 43 THEN 3
+					WHEN m.sporttype IN ( 9, 45, 50 ) THEN 2
+					ELSE 1
+				END AS OddsTable
+		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
 			INNER JOIN @tmpLeagueIds tmp
@@ -224,73 +228,65 @@ BEGIN
 	DELETE tmp
 	FROM #tmpMatchIds tmp
 		CROSS APPLY (	SELECT TOP 1 m.ParentID
-						FROM DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+						FROM dbo.match m WITH(NOLOCK)
 						WHERE	m.ParentID IS NOT NULL
 							AND m.ParentID = tmp.matchid
 							AND ISNULL(m.IsDeleted,0) = 0
 					) m
+			
+	DELETE tmp
+	FROM #tmpMatchIds tmp
+		CROSS APPLY (
+					SELECT TOP 1 b.matchid
+					FROM DBTXN.bodb02.dbo.Bettrans b WITH(NOLOCK)
+					WHERE b.matchid = tmp.matchid
+				) b
 
 	DELETE tmp
 	FROM #tmpMatchIds tmp
 		CROSS APPLY (
-			SELECT TOP 1 b.matchid
-			FROM dbo.Bettrans b WITH(NOLOCK)
-			WHERE b.matchid = tmp.matchid
-
-			UNION ALL
-			SELECT TOP 1 bm.matchid
-			FROM dbo.Bettransm bm WITH(NOLOCK)
-			WHERE bm.matchid = tmp.matchid
-		) b
+						SELECT TOP 1 bm.matchid
+						FROM DBTXN.bodb02.dbo.Bettransm bm WITH(NOLOCK)
+						WHERE bm.matchid = tmp.matchid
+				) bm
 		
-	SELECT @strMatchIdES =  @strMatchIdES + ',' + CAST(matchid AS VARCHAR(20))	FROM #tmpMatchIds WHERE sporttype = 43
-	SELECT @strMatchIdOS =  @strMatchIdOS + ',' + CAST(matchid AS VARCHAR(20))	FROM #tmpMatchIds WHERE sporttype  IN ( 9, 45, 50)
-	SELECT @strMatchId	 =  @strMatchId + ',' + CAST(matchid AS VARCHAR(20))	FROM #tmpMatchIds WHERE sporttype NOT IN ( 9, 45, 43, 50 )
-		
-	SET @strMatchIdES = SUBSTRING(@strMatchIdES, 2, LEN(@strMatchIdES))
-	SET @strMatchIdOS = SUBSTRING(@strMatchIdOS, 2, LEN(@strMatchIdOS))
-	SET @strMatchId = SUBSTRING(@strMatchId, 2, LEN(@strMatchId))
-
-	IF ISNULL(@strMatchIdES,'') <> ''
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE OddsTable = 1 )
 	BEGIN
-		SET @remoteQuery = '
-		SELECT *
-		FROM OPENQUERY(DBPRO, ''SELECT	DISTINCT o.matchid 
-							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
-							WHERE o.MatchId IN ('+@strMatchIdES+')
-								AND o.OddsStatus NOT IN (''''closed'''', ''''internal'''')
-								AND ISNULL(o.IsDeleted,0) = 0
-						'')' 
 		INSERT INTO #CheckOdds (Matchid)
-		EXECUTE (@remoteQuery)
+		SELECT	tmp.matchid 
+		FROM #tmpMatchIds tmp
+			CROSS APPLY ( SELECT TOP 1 o.MatchId
+							FROM dbo.odds o WITH(NOLOCK)
+							WHERE o.MatchId = tmp.matchid
+								AND o.OddsStatus NOT IN ('closed', 'internal')
+								AND ISNULL(o.IsDeleted,0) = 0
+						) o
 	END
 
-	IF ISNULL(@strMatchIdOS,'') <> ''
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE OddsTable = 2 )
 	BEGIN
-		SET @remoteQuery = '
-		SELECT *
-		FROM OPENQUERY(DBPRO, ''SELECT	DISTINCT o.matchid 
-							FROM	DBPRO.bodb02.dbo.oddsOS o WITH(NOLOCK)
-							WHERE o.MatchId IN ('+@strMatchIdOS+')
-								AND o.OddsStatus NOT IN (''''closed'''', ''''internal'''')
-								AND ISNULL(o.IsDeleted,0) = 0
-						'')' 
 		INSERT INTO #CheckOdds (Matchid)
-		EXECUTE (@remoteQuery)
+		SELECT	tmp.matchid 
+		FROM #tmpMatchIds tmp
+			CROSS APPLY ( SELECT TOP 1 o.MatchId
+							FROM dbo.oddsOS o WITH(NOLOCK)
+							WHERE o.MatchId = tmp.matchid
+								AND o.OddsStatus NOT IN ('closed', 'internal')
+								AND ISNULL(o.IsDeleted,0) = 0
+						) o
 	END
 
-	IF ISNULL(@strMatchId,'') <> ''
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE OddsTable = 3 )
 	BEGIN
-		SET @remoteQuery = '
-		SELECT *
-		FROM OPENQUERY(DBPRO, ''SELECT	DISTINCT o.matchid 
-							FROM	DBPRO.bodb02.dbo.odds o WITH(NOLOCK)
-							WHERE o.MatchId IN ('+@strMatchId+')
-								AND o.OddsStatus NOT IN (''''closed'''', ''''internal'''')
-								AND ISNULL(o.IsDeleted,0) = 0
-						'')' 
 		INSERT INTO #CheckOdds (Matchid)
-		EXECUTE (@remoteQuery)
+		SELECT	tmp.matchid 
+		FROM #tmpMatchIds tmp
+			CROSS APPLY ( SELECT TOP 1 o.MatchId
+							FROM dbo.oddsES o WITH(NOLOCK)
+							WHERE o.MatchId = tmp.matchid
+								AND o.OddsStatus NOT IN ('closed', 'internal')
+								AND ISNULL(o.IsDeleted,0) = 0
+						) o
 	END
 
 	UPDATE m

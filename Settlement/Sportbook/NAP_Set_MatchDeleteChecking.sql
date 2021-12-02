@@ -17,6 +17,9 @@ BEGIN
 	
 	SET NOCOUNT ON;
 
+	IF ISNULL(@matchids,'') = '' 
+	RETURN
+
 	DECLARE @tmpMatchId	TABLE ( MatchId INT, eventstatus NVARCHAR(100), SettlementStatus TINYINT, OddsTable TINYINT )
 
 	INSERT INTO @tmpMatchId ( Matchid, eventstatus, SettlementStatus, OddsTable )
@@ -39,10 +42,9 @@ BEGIN
 	END
 
 	IF EXISTS ( SELECT TOP 1 1 FROM @tmpMatchId tmp
-								INNER JOIN dbo.match m WITH(NOLOCK)
-									ON m.ParentID IS NOT NULL
-									AND m.ParentID = tmp.MatchId
-							WHERE ISNULL(m.IsDeleted,0) = 0
+					INNER JOIN dbo.match m WITH(NOLOCK)
+						ON m.ParentID IS NOT NULL AND m.ParentID = tmp.MatchId
+				WHERE ISNULL(m.IsDeleted,0) = 0
 				)
 	BEGIN
 		SELECT	@ErrCode = 1001069
@@ -54,13 +56,14 @@ BEGIN
 	BEGIN
 		SELECT	@ErrCode = 1001069
 				,@ErrMsg =  'WARNING! Cannot continue due to selected matches are not ready to delete or are on-hold. Please check and try again.'
-		FROM (	SELECT TOP 1 o.matchid 
+		FROM (	
+				SELECT TOP 1 o.matchid 
 				FROM dbo.odds o WITH(NOLOCK)
 					INNER JOIN @tmpMatchId tmp
 						ON o.matchid = tmp.MatchId
-					WHERE o.OddsStatus NOT IN ('closed', 'internal')
-						AND ISNULL(o.IsDeleted,0) = 0
-						AND tmp.OddsTable = 1
+				WHERE o.OddsStatus NOT IN ('closed', 'internal')
+					AND ISNULL(o.IsDeleted,0) = 0
+					AND tmp.OddsTable = 1
 			) err
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
@@ -70,13 +73,14 @@ BEGIN
 	BEGIN
 		SELECT	@ErrCode = 1001069
 				,@ErrMsg =  'WARNING! Cannot continue due to selected matches are not ready to delete or are on-hold. Please check and try again.'
-		FROM (	SELECT TOP 1 o.matchid 
+		FROM (	
+				SELECT TOP 1 o.matchid 
 				FROM dbo.oddsOS o WITH(NOLOCK)
 					INNER JOIN @tmpMatchId tmp
 						ON o.matchid = tmp.MatchId
-					WHERE o.OddsStatus NOT IN ('closed', 'internal')
-						AND ISNULL(o.IsDeleted,0) = 0
-						AND tmp.OddsTable = 2
+				WHERE o.OddsStatus NOT IN ('closed', 'internal')
+					AND ISNULL(o.IsDeleted,0) = 0
+					AND tmp.OddsTable = 2
 			) err
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
@@ -86,13 +90,14 @@ BEGIN
 	BEGIN
 		SELECT	@ErrCode = 1001069
 				,@ErrMsg =  'WARNING! Cannot continue due to selected matches are not ready to delete or are on-hold. Please check and try again.'
-		FROM (	SELECT TOP 1 o.matchid 
+		FROM (	
+				SELECT TOP 1 o.matchid 
 				FROM dbo.oddsES o WITH(NOLOCK)
 					INNER JOIN @tmpMatchId tmp
 						ON o.matchid = tmp.MatchId
-					WHERE o.OddsStatus NOT IN ('closed', 'internal')
-						AND ISNULL(o.IsDeleted,0) = 0
-						AND tmp.OddsTable = 3
+				WHERE o.OddsStatus NOT IN ('closed', 'internal')
+					AND ISNULL(o.IsDeleted,0) = 0
+					AND tmp.OddsTable = 3
 			) err
 		IF ISNULL(@ErrCode,0) > 0
 		RETURN
