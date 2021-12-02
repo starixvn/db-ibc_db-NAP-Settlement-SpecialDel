@@ -13,6 +13,7 @@ AS
 		- 20200921@July: CTS - Cannot categorize for new PA member [Redmine:#142051]
 		- 20200903@Max: Enhance Problem Account Category - Multiple Reason - [Redmine: #140211]
 		- 20201215@Max: CTS - Missing Category/Class [Redmine: #146822]
+		- 20211124@Max: [CTS] Update Category when PA updated [Redmine: #156935]
 	
 	Param's explanation:
 		+ @CustIds = 0: the first run then get all data
@@ -22,53 +23,63 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	CREATE TABLE #tmpResult (CustId INT, ReasonID TINYINT, CreatedDate DATETIME)
+	
 	IF @CustIds = '0'
 	BEGIN
-		SELECT pa.custid, pa.reasonID
-		FROM ProblemAccount pa WITH (NOLOCK)
-		WHERE pa.ReasonId IS NOT NULL
-		UNION ALL
-		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
+		SELECT pa.custid, ISNULL(pa.reasonID, upline.ReasonId), ISNULL(pa.CreatedDate, upline.CreatedDate)
 		FROM ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
-			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
-						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
-						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-						) AS tmp
-			OUTER APPLY (SELECT TOP 1 pma.ReasonId
-						FROM dbo.ProblemAccount pma WITH (NOLOCK)
+			OUTER APPLY (
+						SELECT TOP 1 pma.ReasonId, pma.CreatedDate
+						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
 							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
-						) AS upline
-		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL
-	
+				) AS upline
+		WHERE ISNULL(pa.reasonID, upline.ReasonId) IS NOT NULL
+
+		UNION ALL
+		SELECT pa.custid, tmp.reasonID, tmp.CreatedDate
+		FROM ProblemAccount pa WITH (NOLOCK)
+			CROSS APPLY (
+						SELECT tv.SubIssueTypeId AS reasonID, MAX(tv.CreatedDate) AS CreatedDate
+						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
+						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
+						GROUP BY tv.SubIssueTypeID
+					) AS tmp
+		WHERE tmp.reasonID IS NOT NULL
 	END
 	ELSE IF ISNULL(@CustIds,'') = '' AND @datetime IS NOT NULL
 	BEGIN
-		SELECT pa.custid, pa.reasonID
-		FROM ProblemAccount pa WITH (NOLOCK)
-		WHERE pa.CreatedDate >= @datetime 
-			AND pa.ReasonId IS NOT NULL
-		UNION ALL
-		SELECT pa.custid, ISNULL (tmp.reasonID, upline.ReasonId)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
+		SELECT pa.custid, ISNULL(pa.reasonID, upline.ReasonId), ISNULL(pa.CreatedDate, upline.CreatedDate)
 		FROM ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN customer c (NOLOCK) ON c.custid = pa.CustId
-			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
-						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
-						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-						) AS tmp
-			OUTER APPLY (SELECT TOP 1 pma.ReasonId
-						FROM dbo.ProblemAccount pma WITH (NOLOCK)
+			OUTER APPLY (
+						SELECT TOP 1 pma.ReasonId, pma.CreatedDate
+						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
 							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
-						) AS upline
-		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL	
-			AND pa.CreatedDate >= @datetime
-		ORDER BY pa.CustId
+				) AS upline
+		WHERE ISNULL(pa.reasonID, upline.ReasonId) IS NOT NULL 
+			AND ISNULL(pa.CreatedDate, upline.CreatedDate) >= @datetime 
+
+		UNION ALL
+		SELECT pa.custid, tmp.reasonID, tmp.CreatedDate
+		FROM ProblemAccount pa WITH (NOLOCK)
+			CROSS APPLY (
+						SELECT tv.SubIssueTypeId AS reasonID, MAX(tv.CreatedDate) AS CreatedDate
+						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
+						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
+						GROUP BY tv.SubIssueTypeID
+					) AS tmp
+		WHERE tmp.CreatedDate >= @datetime
+			AND tmp.reasonID IS NOT NULL
 	END
 	ELSE IF @CustIds <> ''
 	BEGIN
@@ -78,31 +89,39 @@ BEGIN
 		FROM dbo.f_SplitString (@CustIds,',') AS t
 		OPTION (MAXRECURSION 0)
 		
-		SELECT pa.custid, pa.reasonID
-		FROM ProblemAccount pa WITH (NOLOCK)
-			INNER JOIN @custid_tbl c ON c.custID = pa.custid
-		WHERE pa.ReasonId IS NOT NULL
-		
-		UNION ALL
-		
-		SELECT pa.custid,ISNULL (tmp.reasonID, upline.ReasonId)
+		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate)
+		SELECT pa.custid, ISNULL(pa.reasonID, upline.ReasonId), ISNULL(pa.CreatedDate, upline.CreatedDate)
 		FROM ProblemAccount pa WITH (NOLOCK)
 			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid
 			INNER JOIN customer c (NOLOCK) ON c.custid = ct.CustId
-			OUTER APPLY (SELECT DISTINCT tv.SubIssueTypeId AS reasonID
-						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
-						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
-						) AS tmp
-			OUTER APPLY (SELECT TOP 1 pma.ReasonId
+			OUTER APPLY (
+						SELECT TOP 1 pma.ReasonId, pma.CreatedDate
 						FROM dbo.ProblemAccount pma WITH (NOLOCK) 
 							INNER JOIN customer sma WITH (NOLOCK) ON sma.custid = pma.CustId
 						WHERE pma.CustId IN (c.srecommend, c.mrecommend, c.recommend)
 							AND pma.ReasonId IS NOT NULL
 						ORDER BY CreatedDate DESC, sma.roleid ASC
-						) AS upline
-		WHERE pa.ReasonId IS NULL AND ISNULL (tmp.reasonID, upline.ReasonId) IS NOT NULL	
+				) AS upline
+		WHERE ISNULL(pa.reasonID, upline.ReasonId) IS NOT NULL
 		
+		UNION ALL
+		SELECT pa.custid, tmp.reasonID, tmp.CreatedDate
+		FROM ProblemAccount pa WITH (NOLOCK)
+			INNER JOIN @custid_tbl ct ON ct.custID = pa.custid			
+			CROSS APPLY (
+						SELECT tv.SubIssueTypeId AS reasonID, MAX(tv.CreatedDate) AS CreatedDate
+						FROM Ticketvoiding_VoidedTransaction tv WITH (NOLOCK) 
+						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
+						GROUP BY tv.SubIssueTypeID
+					) AS tmp
+		WHERE tmp.reasonID IS NOT NULL
 	END
+
+	SELECT CustId, ReasonID, CreatedDate
+	FROM #tmpResult
+	ORDER BY CustId, CreatedDate
+
+	DROP TABLE #tmpResult
 END
 GO
 
