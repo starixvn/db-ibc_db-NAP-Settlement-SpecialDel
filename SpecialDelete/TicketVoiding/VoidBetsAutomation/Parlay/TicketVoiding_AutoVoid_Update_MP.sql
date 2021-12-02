@@ -10,7 +10,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoid_Update_MP]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@VoidingHistoryIds VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT
-	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 )
 AS
 /*	
@@ -40,10 +39,8 @@ BEGIN
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@query NVARCHAR(MAX) = ''
 			,@ExecuteSQL NVARCHAR(MAX) = ''
-			,@VoidDataXML       XML = NULL
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@Movebetdate		DATETIME
-			,@MatchId_cnt		INT = 0
 			,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@totalMainParlay	INT = 0
 			,@strRefno		VARCHAR(MAX) = ''
@@ -70,10 +67,8 @@ BEGIN
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
 	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
-	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
-	DECLARE @tmpCustCashOut TABLE (CustId INT)		
+	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)	
 						
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	
 	CREATE TABLE #tmpTransId_VOID_RequestID (
@@ -526,19 +521,6 @@ BEGIN
 		FROM #tmpTransId_Recalculate  t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-				
-		UNION ALL
-		
-		SELECT b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tmpCustCashOut c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-				ON	b914.matchid = @MatchId
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
 		
 	)b
 	GROUP BY b.custid
@@ -548,31 +530,16 @@ BEGIN
 	
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestID = @RequestID)
-	BEGIN
-		SET @VoidDataXML = ( SELECT DISTINCT 
-									'starixIT' AS "@CreatorName"
-									,a.DecidedBy AS "@DecidedBy"
-									,MIN(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidFromDate"
-									,MAX(CONVERT(VARCHAR, a.Winlostdate, 101)) AS "@VoidToDate"
-									,MAX (CASE WHEN a.statusID IN (111, 112, 113) THEN 1 ELSE 0 END) AS "@IsHasSettledTicket"
-							FROM @tmpInputTransId_VOID a
-							WHERE a.IssueTypeId = 13
-							GROUP BY a.DecidedBy
-							FOR XML PATH('VoidData')
-							)
-		
+	BEGIN		
 		-- Insert Voiding History first
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds, VoidData, MinWinlostdate, MaxWinlostdate)
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds)
 		OUTPUT INSERTED.RequestID
 				,INSERTED.VoidingHistoryId
 		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
 		SELECT  RequestID
 				,@UserId
 				, 1
-				,CASE WHEN IssueTypeId IN (11,15) THEN TransIds ELSE NULL END
-				,@VoidDataXML
-				,CASE WHEN IssueTypeId = 13 THEN MinWinlostdate ELSE NULL END
-				,CASE WHEN IssueTypeId = 13 THEN MaxWinlostdate ELSE NULL END
+				,TransIds
 		FROM @AutoVoid_ValidRequest
 
 		UPDATE v SET v.IssueTypeId = r.IssueTypeId
@@ -606,56 +573,32 @@ BEGIN
 			SELECT r.matchid, r.winlostdate
 			FROM #tmpTransId_Recalculate r
 		 )t
-	
-	SELECT @MatchId_cnt = COUNT(MatchId)
-	FROM @tmpMatch_Eventdate t
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 	BEGIN
-		DECLARE @tblMatchProcess_1 TABLE (matchid INT, KeyID TINYINT)
-		DECLARE @tblCashOutProcess_1 TABLE (transid BIGINT)
-
-		DELETE 
-		FROM #tblMatchProcess
-		OUTPUT	DELETED.matchid, DELETED.KeyID
-		INTO  @tblMatchProcess_1 (matchid, KeyID)
-		WHERE matchid NOT IN (SELECT matchid FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
-
-		------ releasing process
-		EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay 				= @isExistParlay
-				, @IsReleased				= 1
-
-		DELETE #tblMatchProcess
-		INSERT INTO #tblMatchProcess(matchid, KeyID)
-		SELECT matchid, KeyID FROM @tblMatchProcess_1
-
-		IF (@MatchId_cnt = 1) OR (NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchProcess_1))
+		IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 		BEGIN
-			SELECT	@ErrCode = 99
-					,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
-
-			RETURN
-		END	
-		ELSE
-		BEGIN
-			SELECT @MoveBetMatchIds = STUFF((SELECT DISTINCT  ',' + CAST( m.matchid AS VARCHAR(20))
-							FROM @tmpMatch_Eventdate m
-							WHERE eventdate <= @Movebetdate
-							FOR XML PATH ('')
-						),1,1,'')
-
-			DELETE t
-			FROM #tmpTransId_VOID_RequestID t
-				INNER JOIN @tmpMatch_Eventdate m 
-			ON t.matchid = m.matchid  AND t.winlostdate <= @Movebetdate
-				
-			DELETE r
-			FROM #tmpTransId_Recalculate r
-				INNER JOIN @tmpMatch_Eventdate m 
-			ON r.matchid = m.matchid  AND r.winlostdate <= @Movebetdate	 	
-					 	 
+			IF @totalMainParlay	> 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1				
+			END
 		END
+		ELSE IF @totalMainParlay > @ThreadHold
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+					@isExistParlay 				= @isExistParlay
+					, @IsReleased				= 1
+		END
+
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+		RETURN
 	END
 
 	BEGIN TRY			  
@@ -801,19 +744,6 @@ BEGIN
 			FROM	#tmpTransId_Recalculate t
 				INNER JOIN dbo.bettrans b WITH(NOLOCK)
 					ON	t.TransId = b.transid
-					
-			UNION ALL
-			
-			SELECT b914.custid
-					,1 AS balanceType
-					,0 AS BonusId
-					,2 AS WalletType
-					,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-			FROM	@tmpCustCashOut c
-				INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-					ON	b914.matchid = @MatchId
-						AND b914.custid = c.CustId
-						AND b914.bettype = 914
 		)b
 		GROUP BY b.custid
 				,b.balanceType
@@ -885,19 +815,6 @@ BEGIN
 		FROM	#tmpTransId_Recalculate t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-				
-		UNION ALL
-		
-		SELECT b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tmpCustCashOut c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-				ON	b914.matchid = @MatchId
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
 	)b
 	GROUP BY b.custid
 			,b.balanceType
@@ -921,81 +838,6 @@ BEGIN
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
-	-- Update BetTradeSellingCancelled information
-	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	#tmpTransId_VOID_RequestID t
-	WHERE	t.bettype = 911
-	GROUP BY t.custid
-
-	EXEC dbo.TicketVoiding_BalanceMember_Select 
-		@CustIds = @CustIds
-		,@CustBalance = @CustBalance OUTPUT
-
-	INSERT INTO @tmpBalanceMember (CustId, Balance)
-	SELECT	T.C.value('./@c', 'int')
-			,T.C.value('./@b', 'money')
-	FROM	@CustBalance.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@CustBalance = NULL ))
-
-	;WITH CTE_Source AS
-		(
-			SELECT	bts.TradeID AS TradeID
-					,bts.TicketID AS [TicketID]					
-					,'SB void ticket due to ' AS [Remark]
-					,sub.awinlost AS [BTBuyBack]
-					,0 AS [BTComission]
-					,c.Balance AS [AfterBalance]
-					,'SB' AS [Owner]
-					,1 AS [Cancelled]
-					,GETDATE() AS [ChangeDate]
-					,GETDATE() AS [CreateDate]
-			FROM	#tmpTransId_VOID_RequestID sub						 											 
-				 INNER JOIN [dbo].[BetTradeSelling] bts WITH(NOLOCK)			    
-						 ON bts.TicketID = sub.refno -- bettrade + cash-out
-							AND CASE																				 
-									WHEN sub.bettype = 911 -- cash-out													 
-											THEN CASE
-													WHEN bts.SoldTicketID = sub.transid THEN 1
-													ELSE 0
-												 END																							
-									ELSE 1
-								END = 1	
-				 INNER JOIN @tmpBalanceMember c
-						 ON sub.custid = c.custid						 							
-			WHERE sub.BetType = 911
-		)
-		MERGE INTO [dbo].[BetTradeSellingCancelled] AS [Target]
-		USING (SELECT * FROM CTE_Source) AS [Source]
-		ON [Target].TradeID = [Source].TradeID
-		WHEN MATCHED THEN UPDATE SET [Remark] = [Source].[Remark]
-									,[BTBuyBack] = [Source].[BTBuyBack]
-									,[BTComission] = [Source].[BTComission]
-									,[AfterBalance] = [Source].[AfterBalance]
-									,[Owner] = [Source].[Owner]
-									,[Cancelled] = [Source].[Cancelled]
-									,[ChangeDate] = [Source].[ChangeDate]										
-		WHEN NOT MATCHED THEN INSERT(TradeID
-									,[TicketID]										
-									,[Remark]
-									,[BTBuyBack]
-									,[BTComission]
-									,[AfterBalance]
-									,[Owner]
-									,[Cancelled]
-									,[ChangeDate]
-									,[CreateDate])
-							  VALUES([Source].TradeID
-									,[Source].[TicketID]										
-									,[Source].[Remark]
-									,[Source].[BTBuyBack]
-									,[Source].[BTComission]
-									,[Source].[AfterBalance]
-									,[Source].[Owner]
-									,[Source].[Cancelled]
-									,[Source].[ChangeDate]
-									,[Source].[CreateDate]); 
 
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN
@@ -1111,7 +953,6 @@ BEGIN
 	
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
-	DROP TABLE #tblMatchProcess
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tmpTransId_Recalculate
 	DROP TABLE #tmpTransId_VOID_RequestID

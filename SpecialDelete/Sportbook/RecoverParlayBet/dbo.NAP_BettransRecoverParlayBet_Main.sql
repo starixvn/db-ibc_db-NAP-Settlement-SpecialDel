@@ -27,6 +27,7 @@ AS
 		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -240,6 +241,7 @@ BEGIN
 			,scomm = 0		
 			,statuswinlost = NULL
 			,creator = b.custid
+			,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(2,'recover',b.ExtraInfo,NULL, b.bettype)
 		FROM dbo.bettrans b
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 

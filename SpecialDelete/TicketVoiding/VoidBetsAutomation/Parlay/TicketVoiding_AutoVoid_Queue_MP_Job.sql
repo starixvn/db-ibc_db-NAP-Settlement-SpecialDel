@@ -15,8 +15,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @RequestId			INT
-			,@MatchId			INT
-			,@QueueId			INT
 			,@UserId			INT = 10278938
 			,@Action			VARCHAR(50)
 			,@IP				VARCHAR(50) = '125.227.140.97'
@@ -27,13 +25,11 @@ BEGIN
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
-			,@MoveBetMatchIds	VARCHAR(MAX)
 
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
-	DECLARE @tmpMatchMoveBet_update TABLE (MatchId	INT)	
 	DECLARE @tmpMatch TABLE (MatchId INT)
 	
-	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
+	IF EXISTS(SELECT TOP (1) 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 1)
 		RETURN
 
 	----- Starting auto voiding process--------
@@ -119,7 +115,6 @@ BEGIN
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@VoidingHistoryIds = @VoidingHistoryIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 			
 			SET @StatusId = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
 		END TRY
@@ -146,7 +141,7 @@ BEGIN
 			ELSE -- other errors
 			BEGIN
 				UPDATE	q WITH(ROWLOCK, UPDLOCK)
-				SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
+				SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE q.Duration END			
 					,StatusId = 3
 					,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
@@ -181,7 +176,7 @@ BEGIN
 									WHERE m.eventstatus <> 'completed')
 				BEGIN
 					UPDATE	q WITH(ROWLOCK, UPDLOCK)
-						SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE 0 END			
+						SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE q.Duration END			
 							,StatusId = 99
 							,ErrMsg = @ErrMsg
 					FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
@@ -191,7 +186,7 @@ BEGIN
 				ELSE
 				BEGIN
 					UPDATE	q WITH(ROWLOCK, UPDLOCK)
-						SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE 0 END			
+						SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE q.Duration END			
 							,StatusId = 100
 							,ErrMsg = @ErrMsg
 							,Starttime = GETDATE()
@@ -203,7 +198,7 @@ BEGIN
 			ELSE
 			BEGIN
 				UPDATE	q WITH(ROWLOCK, UPDLOCK)
-					SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE 0 END			
+					SET	Duration = CASE WHEN q.StatusId = 1 THEN DATEDIFF(MILLISECOND, q.Exectime, GETDATE()) ELSE q.Duration END			
 						,StatusId = 2
 						,ErrMsg = @ErrMsg
 				FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q 
@@ -216,29 +211,7 @@ BEGIN
 					,s.NegativeBalanceUsers = @NegativeBalanceUsers
 			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
 				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
-		END
-		
-		IF @MoveBetMatchIds IS NOT NULL
-		BEGIN
-			SELECT	@StatusId= 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
-
-			INSERT INTO @tmpMatchMoveBet_update(MatchId)
-			SELECT	val AS MatchId
-			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
-			OPTION (maxrecursion 0)
-
-			UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				
-				,StatusId = @StatusId
-				,ErrMsg = @ErrMsg
-			FROM	dbo.TicketVoiding_AutoVoidRequest_Queue q
-			WHERE q.RequestId  = @RequestId
-
-			UPDATE s WITH (ROWLOCK, UPDLOCK)
-			SET s.statusID = 3
-			FROM dbo.Ticketvoiding_VoidBetAutomation_Service s 
-				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
-		END				
+		END			
 	END
 
 	DROP TABLE #Match_AutoVoid
