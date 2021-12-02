@@ -50,6 +50,7 @@ BEGIN
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
 						GROUP BY tv.SubIssueTypeID
 					) AS tmp
+		WHERE tmp.reasonID IS NOT NULL
 	END
 	ELSE IF ISNULL(@CustIds,'') = '' AND @datetime IS NOT NULL
 	BEGIN
@@ -78,6 +79,7 @@ BEGIN
 						GROUP BY tv.SubIssueTypeID
 					) AS tmp
 		WHERE tmp.CreatedDate >= @datetime
+			AND tmp.reasonID IS NOT NULL
 	END
 	ELSE IF @CustIds <> ''
 	BEGIN
@@ -112,6 +114,7 @@ BEGIN
 						WHERE tv.custid = pa.custid AND tv.IssueTypeId = 11
 						GROUP BY tv.SubIssueTypeID
 					) AS tmp
+		WHERE tmp.reasonID IS NOT NULL
 	END
 
 	SELECT CustId, ReasonID, CreatedDate
