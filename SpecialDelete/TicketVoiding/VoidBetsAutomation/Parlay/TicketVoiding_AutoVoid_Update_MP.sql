@@ -528,24 +528,22 @@ BEGIN
 			,b.BonusID
 			,b.WalletType
 	
+	
+	-- Insert Voiding History first
+	INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds)
+	OUTPUT INSERTED.RequestID
+			,INSERTED.VoidingHistoryId
+	INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
+	SELECT  RequestID
+			,@UserId
+			, 1
+			,TransIds
+	FROM @AutoVoid_ValidRequest
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_VoidingHistory WITH (NOLOCK) WHERE RequestID = @RequestID)
-	BEGIN		
-		-- Insert Voiding History first
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (RequestId, UserId, StatusId, TransIds)
-		OUTPUT INSERTED.RequestID
-				,INSERTED.VoidingHistoryId
-		INTO @VoidingHistory_tmp (RequestID,VoidingHistoryId)	
-		SELECT  RequestID
-				,@UserId
-				, 1
-				,TransIds
-		FROM @AutoVoid_ValidRequest
+	UPDATE v SET v.IssueTypeId = r.IssueTypeId
+	FROM @VoidingHistory_tmp v
+		INNER JOIN @AutoVoid_ValidRequest r ON r.RequestID = v.RequestID
 
-		UPDATE v SET v.IssueTypeId = r.IssueTypeId
-		FROM @VoidingHistory_tmp v
-			INNER JOIN @AutoVoid_ValidRequest r ON r.RequestID = v.RequestID
-	END
 
 	SELECT @VoidingHistoryIds = STUFF((SELECT ',' + CAST(VoidingHistoryId AS VARCHAR(50)) FROM @VoidingHistory_tmp FOR XML PATH('')),1,1,'')
 
