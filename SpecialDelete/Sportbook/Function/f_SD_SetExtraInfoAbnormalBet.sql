@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBACC-bodb02,DBAGE-bodb02" executers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_SD_SetExtraInfoAbnormalBet] 
 (
 	@IsAbnormalBet	TINYINT = 0,
