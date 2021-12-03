@@ -93,8 +93,6 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
-
-
 	-- check valid match id
 	IF @FilterBy IS NULL AND @MatchId <> 0 AND NOT EXISTS (SELECT TOP 1 1
 					FROM dbo.match AS m WITH (NOLOCK)
@@ -271,8 +269,20 @@ BEGIN
 				   THEN 1
 				   WHEN  t.sporttype = 50 THEN 1
 				   ELSE 0 END
-		
-	select @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+
+	IF @FilterBy = 1
+	BEGIN
+		-- Unsupported mixparlay tickets have submatch cricket
+		INSERT #UnsupportedTransids (transid)
+		SELECT t.transid
+		FROM #validTransId t
+			INNER JOIN dbo.bettransm b WITH(NOLOCK) ON t.refno = b.refno
+			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
+		WHERE t.bettype = 29 AND t.betteam = '1' AND m.sporttype = 50 
+		AND t.transid NOT IN (SELECT transid FROM #UnsupportedTransids)
+	END	
+
+	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
 							), 1, 1, ''), '')
