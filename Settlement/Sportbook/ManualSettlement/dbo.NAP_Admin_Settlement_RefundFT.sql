@@ -63,6 +63,7 @@ AS
 		- 20191223@Max: Instant Calculation for Corner Bet Types - Update result for Refund [Redmine:#124951]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
