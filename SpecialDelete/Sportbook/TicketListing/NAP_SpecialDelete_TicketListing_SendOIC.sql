@@ -35,9 +35,10 @@ BEGIN
 
 	SET @ResultID = SCOPE_IDENTITY()
 
-	INSERT INTO dbo.LicenseeResultAmendmentDetails (ResultID, TransID, CustID)
-	SELECT @ResultID, TransID, CustID
-	FROM @tmpResultAmendment
+	INSERT INTO dbo.LicenseeResultAmendmentDetails (ResultID, TransID, CustID, Recommend)
+	SELECT @ResultID, t.TransID, t.CustID, c.recommend
+	FROM @tmpResultAmendment t
+		INNER JOIN bodb02.dbo.CustInfo c WITH(NOLOCK) ON t.CustID = c.custid 
 	 
 	SET NOCOUNT OFF
 END

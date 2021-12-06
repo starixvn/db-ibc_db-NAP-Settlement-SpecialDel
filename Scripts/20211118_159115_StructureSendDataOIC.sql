@@ -43,7 +43,8 @@ CREATE TABLE dbo.LicenseeResultAmendmentDetails
 (
 	ResultID	BIGINT,
 	TransID		BIGINT,
-	CustID		INT
+	CustID		INT,
+	Recommend	INT
 CONSTRAINT [PK_LicenseeResultAmendmentDetails_ResultID_TransID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC, TransID ASC
