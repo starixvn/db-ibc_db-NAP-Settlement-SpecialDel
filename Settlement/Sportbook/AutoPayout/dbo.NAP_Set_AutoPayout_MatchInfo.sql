@@ -23,7 +23,7 @@ AS
 		- 20181127@Vicky: Add MTD Hold status & Postponed [Redmine: #104948]
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
-
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		
 	Param's explanation: 
 */
@@ -374,6 +374,7 @@ BEGIN
 			,ISNULL(q.FTLGResultStatusId,0) AS FTLGResultStatusId
 			,ISNULL(q.HTFGNGResultStatusId,0) AS HTFGNGResultStatusId
 			,ISNULL(q.HTLGResultStatusId,0) AS HTLGResultStatusId
+			,m.EventStatusReason
 	FROM	@tblMatchInQueue q
 		INNER JOIN match m WITH(NOLOCK)
 			ON	q.MatchId = m.matchid

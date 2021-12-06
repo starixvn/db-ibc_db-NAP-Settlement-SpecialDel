@@ -53,6 +53,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -122,13 +123,8 @@ BEGIN
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
+	IF ISNULL(@ErrCode,0) <> 0	    
+	RETURN
 
 	-- Verify whether Instant Settlement has been executed with larger value than suspended score
 	SELECT	@Inst_HomeScore = HomeValue
@@ -152,16 +148,18 @@ BEGIN
         RETURN
 	END
 	
-	IF @sporttype = 1 AND @IsSettleAbandonedMatchIBC = 0
+	IF @sporttype = 1
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
 			,@Action	= 'REFUND'
+			,@IsAutoRefund = @IsAutoRefund
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT
 
 		IF @ErrCode > 0
-			RETURN
+		RETURN
 	END
 
     IF EXISTS (

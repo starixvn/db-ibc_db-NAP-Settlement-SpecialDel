@@ -44,6 +44,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200427@Kathy: Check HT ticket before refund FT [Redmine:#131765]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -91,12 +92,20 @@ BEGIN
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
+	IF ISNULL(@ErrCode,0) <> 0    
+	RETURN
+
+	IF @sporttype = 1
 	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
+			@MatchId	= @matchid
+			,@Action	= @Action
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+			,@ErrCode	= @ErrCode	OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
 	END
 
 	-- Verify whether Instant Settlement has been executed with larger value than suspended score
@@ -148,13 +157,8 @@ BEGIN
         ,@ErrCode = @ErrCode OUTPUT
         ,@ErrMsg = @ErrMsg OUTPUT
         
-    IF @ErrCode <> 0
-    BEGIN
-        SELECT @ErrCode
-            ,@ErrMsg
-        
-        RETURN
-    END
+    IF @ErrCode <> 0     
+    RETURN
 
 	-- check HT running 
 	;WITH cteBettypes

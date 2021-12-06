@@ -58,12 +58,13 @@ AS
 	- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
 	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
-
+	- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 	
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
 	@StatusId: 0: all, 1: running; 2: closed; 3: completed; 4: refund; 5: Postponed, 6:Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold, 11: Hold Key
+				12: Irregular Time 1H	13:Irregular Time	14:Wrong Team Name	15:Suspended
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
@@ -75,6 +76,7 @@ BEGIN
 	DECLARE @UncalOnly BIT, @UncalMultiOnly BIT, @EventStatus NVARCHAR(50), @IsRefund BIT
 		,@MatchId INT, @Today DATETIME
 		,@SettlementStatus TINYINT
+		,@EventStatusReason TINYINT = 0
 
 	SELECT @matchcode 	= ISNULL(@matchcode, '')
 		, @LeagueID 	= ISNULL(@LeagueID, 0)
@@ -112,11 +114,17 @@ BEGIN
 	ELSE
 	BEGIN
 		SELECT @eventstatus = CASE 
-								WHEN @statusid = 1 THEN 'running'
+								WHEN @statusid IN (1, 12, 13, 14, 15) THEN 'running'
 								WHEN @statusid = 2 THEN 'closed'
 								WHEN @statusid IN (3,6) THEN 'completed'
 								WHEN @statusid = 5 THEN 'postponed'
 								ELSE ''	END
+			,@EventStatusReason = CASE @StatusId
+									WHEN 12 THEN 1
+									WHEN 13 THEN 2
+									WHEN 14 THEN 3
+									WHEN 15 THEN 4
+									ELSE 0	END
 			, @isRefund = CASE 
 							WHEN @statusid IN (4,6) THEN 1
 							WHEN @statusid = 0 THEN NULL
@@ -188,6 +196,7 @@ BEGIN
 		,IsExistRunningTicket BIT
 		,IsExistMarkedTicket BIT
 		,IsExistMarkedTicketParlay BIT
+		,EventStatusReason TINYINT
 	)
 	--for instant match info
 	CREATE TABLE #InstMatchInfo (
@@ -210,7 +219,7 @@ BEGIN
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
 		,AutoSetting, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
-		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket, IsExistMarkedTicketParlay
+		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket, IsExistMarkedTicketParlay, EventStatusReason
 	)
 	SELECT m.hthomescore
 		, m.htawayscore
@@ -258,6 +267,7 @@ BEGIN
 		,0 AS IsExistRunningTicket
 		,0 AS IsExistMarkedTicket
 		,0 AS IsExistMarkedTicketParlay
+		,m.EventStatusReason
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -278,7 +288,11 @@ BEGIN
 			END IS NOT NULL 
 		AND m.sporttype = CASE WHEN @sporttype = 0 THEN m.sporttype ELSE @sporttype END 
 		AND (@MatchCode = '' OR (m.matchid = @matchid OR m.matchcode LIKE '%'+ @MatchCode +'%'))
-		AND (@eventstatus = '' OR eventstatus IN (@eventstatus, 'internal')) 
+		AND 1 = CASE WHEN @eventstatus = '' THEN 1
+						 WHEN @EventStatusReason = 0 AND eventstatus IN (@eventstatus, 'internal') THEN 1
+						 WHEN @SportType = 1 AND ISNULL(m.EventStatusReason,0) = @EventStatusReason AND m.eventstatus = @eventstatus THEN 1
+						 ELSE 0
+					END				 
 		AND (@isRefund IS NULL
 				OR (@isRefund = 1 
 					AND (1 = CASE 
@@ -816,6 +830,7 @@ BEGIN
 		, m.IsExistMarkedTicket
 		, m.IsExistMarkedTicketParlay
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
+		, m.EventStatusReason
 	FROM #matchList m
 		LEFT JOIN #tempmatch t ON t.matchid = m.matchid
 		LEFT JOIN #InstMatchInfo im ON m.matchid = im.matchid

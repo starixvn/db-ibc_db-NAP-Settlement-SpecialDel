@@ -80,6 +80,7 @@ AS
 		- 20200820@Kathy: Do not check refund flag if refund FT [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
+		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -160,6 +161,7 @@ BEGIN
 			,@Index_Round_tmp		TINYINT = 0
 			,@Index_Round			TINYINT = 1
 			,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
+			,@CheckingAction VARCHAR(20)
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -225,30 +227,32 @@ BEGIN
             ,@HomeValue = CAST(@fth AS VARCHAR(20))
             ,@HomeValue = CAST(@fta AS VARCHAR(20))
             ,@IsHedgeMatch = CASE WHEN @matchcode LIKE '%hedge%' AND @IsSettleAbandonedMatchIBC = 1 THEN 1 ELSE 0 END
+			,@CheckingAction = CASE @Action WHEN 'CAL' THEN 'REFUND'
+										  WHEN 'CAL-HT' THEN 'REFUND-HT'
+										  WHEN 'CAL-FT' THEN 'REFUND-FT'
+										ELSE ''
+							 END
 			
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
+	IF ISNULL(@ErrCode,0) <> 0	    
+	RETURN
 
-	IF @sporttype = 1 AND @IsSettleAbandonedMatchIBC = 0 AND @action = 'CAL' -- refund all
+	IF @sporttype = 1
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
-			,@Action	= 'REFUND'
+			,@Action	= @CheckingAction
+			,@IsAutoRefund = @IsAutoRefund
+			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 			,@ErrCode	= @ErrCode	OUTPUT
 			,@ErrMsg	= @ErrMsg	OUTPUT
 
 		IF @ErrCode > 0
-			RETURN
+		RETURN
 	END
 
 	IF @IsAutoRefund = 1
@@ -260,10 +264,7 @@ BEGIN
 			,@ErrMsg  = @ErrMsg	 OUTPUT
 
 		IF ISNULL(@ErrCode,0) <> 0
-		BEGIN
-			SELECT    @ErrCode, @ErrMsg
-			RETURN
-		END
+		RETURN
 	END
 
     -- check and not allow attempt to settlement same game while it's still not finish
