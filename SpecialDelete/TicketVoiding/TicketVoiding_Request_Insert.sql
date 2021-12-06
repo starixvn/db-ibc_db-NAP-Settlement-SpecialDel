@@ -147,7 +147,7 @@ BEGIN
 			,@ThreadHold = @ThreadHold OUTPUT
 
 	/*Apply new way to lock parlay tickets - SportBook*/
-	IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+	IF (@TotalParlay = 0 OR @TotalParlay <= @ThreadHold) AND @IssueTypeId <> 17 
 	BEGIN
 		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
 			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1
@@ -345,7 +345,7 @@ BEGIN
 	END
 
 
-	IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+	IF (@TotalParlay = 0 OR @TotalParlay <= @ThreadHold) AND @IssueTypeId <> 17 
 	BEGIN
 		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
 			OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 

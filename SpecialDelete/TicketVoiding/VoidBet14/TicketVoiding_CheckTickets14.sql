@@ -18,25 +18,15 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @InvalidTransIds			 VARCHAR(MAX) = ''
-			,@IsExistSingle				 BIT = 0
-			,@IsExistParlay				 BIT = 0
-			,@IsExistFM					 BIT = 0
-			,@IsExistFM2				 BIT = 0
-			,@MatchProcessXML			 XML = NULL
-			,@MatchParlayProcessXML	     XML = NULL
-			,@TotalRefnoParlay		     INT = 0
-			,@ThreadHold			     INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
-
-	DECLARE @before_movebetday				DATETIME
-	       ,@MovebetDate					DATETIME
+	DECLARE @InvalidTransIds				VARCHAR(MAX) = ''
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
+		   ,@before_movebetday				DATETIME
+	       ,@MovebetDate					DATETIME
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
 	SELECT @before_movebetday = CONVERT(varchar(10), DATEADD(DAY, -3, @Movebetdate), 120)	
 	
-	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @UnsupportedTransids AS TABLE (transid BIGINT)	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 		
@@ -115,69 +105,9 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
-	---Prepare for lock match---
-	SELECT @IsExistSingle	= MAX(CASE WHEN t.Bettype NOT IN (9, 29, 2799, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-		  ,@IsExistFM		= MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-		  ,@IsExistFM2		= MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-		  ,@IsExistParlay	= MAX(CASE WHEN t.Bettype IN (9, 29, 2799) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-	FROM #validTransId AS t
-		OUTER APPLY (
-				SELECT GroupId
-				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-				WHERE Bettype = t.Bettype
-		)f
-	
-	SET @MatchProcessXML = (
-		SELECT DISTINCT MatchId "@MatchId"
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
-				END AS "@KeyID" 
-		FROM #validTransId t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-		WHERE bettype NOT IN (9,29,2799)
-		FOR XML PATH('r'), ROOT('root')
-		)
-	
-	--Lock Refno process - SportBook
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-			@LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
-
-	INSERT INTO @tblMatchParlay (MatchId, RefNo)
-	SELECT DISTINCT MatchId, refno
-	FROM #validTransId 
-	WHERE bettype IN (9,29,2799)
-	SET @TotalRefnoParlay = @@ROWCOUNT
-
-	IF @TotalRefnoParlay <= @ThreadHold
-	BEGIN
-		SET @MatchParlayProcessXML = (
-		SELECT  MatchId "@MatchId"
-				,refno AS "@RefNo"
-		FROM @tblMatchParlay 
-		FOR XML PATH('r'), ROOT('root'))
-	END	
-	ELSE
-	BEGIN
-		SET @MatchParlayProcessXML = NULL
-	END
-
 	-- return table result
 	SELECT @InvalidTransIds AS InvalidTransIds
-			,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-			,@IsExistSingle AS IsExistSingle
-			,@IsExistParlay AS IsExistParlay
-			,@IsExistFM AS IsExistFM
-			,@IsExistFM2 AS IsExistFM2
-			,@MatchProcessXML AS MatchProcessXML
-			,@MatchParlayProcessXML AS MatchParlayProcessXML
+		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

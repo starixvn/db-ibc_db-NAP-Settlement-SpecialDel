@@ -84,6 +84,7 @@ AS
 		- 20210920@Max: TVS - Update other info of request after voided always loading [Redmine: #161852]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -172,7 +173,7 @@ BEGIN
 				,@ThreadHold = @ThreadHold OUTPUT
 
 		/*Apply new way to lock parlay tickets - SportBook*/
-		IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+		IF (@TotalParlay = 0 OR @TotalParlay <= @ThreadHold) AND @IssueTypeId <> 17 
 		BEGIN
 			IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
 				OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
@@ -365,7 +366,7 @@ BEGIN
 				,@RedCardInfo = @RedCardInfo
 		END
 
-		IF @TotalParlay = 0 OR @TotalParlay <= @ThreadHold
+		IF (@TotalParlay = 0 OR @TotalParlay <= @ThreadHold) AND @IssueTypeId <> 17 
 		BEGIN
 			IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @IsExistSingle = 1 OR @isExistNG = 1
 				OR @isExistVS = 1 OR @isExistBB = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistFM2 = 1 
