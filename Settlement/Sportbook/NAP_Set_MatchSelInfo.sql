@@ -36,6 +36,7 @@ BEGIN
 		,eventstatus NVARCHAR(100)
 		,ConfirmFT	INT
 		,SettlementStatus	TINYINT
+		,EventStatusReason	TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -51,6 +52,7 @@ BEGIN
 			,sporttype
 			,eventstatus
 			,SettlementStatus
+			,EventStatusReason
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -62,6 +64,7 @@ BEGIN
 			,m.sporttype
 			,m.eventstatus
 			,m.SettlementStatus
+			,m.EventStatusReason
 		 FROM dbo.[match] m WITH (NOLOCK)
 			CROSS APPLY ( SELECT TOP 1 val FROM dbo.f_SplitString(@matchIds, ',') f WHERE CAST(f.val AS INT) = m.matchid  ) f
 		OPTION (MAXRECURSION 0)
@@ -84,6 +87,7 @@ BEGIN
 		,eventstatus
 		,ConfirmFT
 		,SettlementStatus
+		,EventStatusReason
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -119,6 +123,7 @@ BEGIN
 		,eventstatus
 		,ConfirmFT
 		,SettlementStatus
+		,EventStatusReason
 	FROM @tmpMatchInfo
 
 END
