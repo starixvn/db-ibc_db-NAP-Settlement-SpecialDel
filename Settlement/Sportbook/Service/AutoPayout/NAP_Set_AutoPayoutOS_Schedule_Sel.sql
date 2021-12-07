@@ -10,13 +10,13 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210915@Louisa: Checking invalid result of Virtual Cricket [Redmine:#161640]
 		- 20211006@Louisa: Get results after 90 seconds - [Redmine:#162808]
-
+		- 20211206@Louisa: Enhancemant [Redmine:#165659]
 */
 BEGIN
 	
 	SET NOCOUNT ON
 
-	DECLARE @checkTime SMALLDATETIME =  CAST( DATEADD(SECOND, -90, GETDATE() ) AS SMALLDATETIME)
+	DECLARE @checkTime DATETIME =  CAST( DATEADD(SECOND, -30, GETDATE() ) AS DATETIME)
 
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 	DROP TABLE #MatchInfo
