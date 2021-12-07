@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
-CREATE FUNCTION [dbo].[f_TVS_CheckingSubIssueTypeIdExcludeBettypes] ()
+ALTER FUNCTION [dbo].[f_TVS_CheckingSubIssueTypeIdExcludeBettypes] ()
 RETURNS TABLE
-WITH SCHEMABINDING
+--WITH SCHEMABINDING
 AS
 
 /*
@@ -10,6 +10,7 @@ AS
 	 DB: DBTXN/bodb02
     Revisions:
 		- 20211014@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211207@Kathy: Remove 'with schemabinding' [Redmine:#164819 ]
 
     Parameters Explanation:    
 		IssueTypeId = 1 Danger Accepted
