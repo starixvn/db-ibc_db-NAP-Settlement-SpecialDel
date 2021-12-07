@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
 	Created: 20211122@July 
 	Task: [TVS] Void Archived Tickets - [Redmine: #140180]
@@ -16,3 +16,5 @@ SET IDENTITY_INSERT TicketVoiding_SubIssueType ON
 INSERT INTO TicketVoiding_SubIssueType (SubIssueTypeId,IssueTypeId,SubIssueTypeName)
 VALUES (93,17,'Archived Ticket')
 SET IDENTITY_INSERT TicketVoiding_SubIssueType OFF
+
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype,SubIssueTypeId,ReasonEnglish,ReasonChineseSimplified) VALUES (0,93,'Technical Issue',N'技术问题')
