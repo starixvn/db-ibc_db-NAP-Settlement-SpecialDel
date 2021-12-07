@@ -61,7 +61,7 @@ RETURN (
 	UNION ALL SELECT 414,'1H',0
 	UNION ALL SELECT 426,'1H',0
 	UNION ALL SELECT 427,'1H',0
-	UNION ALL SELECT 606,'1H',0 -- Basketball
+	UNION ALL SELECT 606,'1H',1 -- Basketball
 	UNION ALL SELECT 608,'1H',0 -- Basketball
 	--End HT
 	 
@@ -171,7 +171,7 @@ RETURN (
 	UNION ALL SELECT 603,'FT',0 -- Basketball
 	UNION ALL SELECT 604,'FT',0 -- Basketball
 	UNION ALL SELECT 605,'FT',0 -- Basketball
-	UNION ALL SELECT 607,'2H',0 -- Basketball
+	UNION ALL SELECT 607,'2H',1 -- Basketball
 	--End FT
 	 
 	--HT-FGLG
