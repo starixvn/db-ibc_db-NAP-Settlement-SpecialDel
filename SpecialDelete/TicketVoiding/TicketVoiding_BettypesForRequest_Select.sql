@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20200602@Charles: Create new SP [Redmine:#135041]
 		- 20200812@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
+		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 
 	Param's explanation:
 	- @RequestInfo : 
@@ -34,15 +35,17 @@ BEGIN
 	CREATE TABLE #tblRequestInfo_Detail
 	(
 		RequestId		INT,
-		TransId			BIGINT
-	)
-
-	CREATE TABLE #tblResult
-	(
-		RequestId		INT,
+		TransId			BIGINT,
 		Bettype			SMALLINT,
 		BetId			BIGINT
 	)
+
+	--CREATE TABLE #tblResult
+	--(
+	--	RequestId		INT,
+	--	Bettype			SMALLINT,
+	--	BetId			BIGINT
+	--)
 
 	-- Parse xml @RequestInfo
 	INSERT INTO #tblRequestInfo(RequestId, TransIds)
@@ -57,29 +60,29 @@ BEGIN
 		CROSS APPLY dbo.f_SplitString(req.TransIds, ',') tr
 	OPTION (MAXRECURSION 0)
 	
-	INSERT INTO #tblResult(RequestId, Bettype, BetId)
-	SELECT req.RequestId
-			,bt.bettype AS Bettype
-			,CASE WHEN f.IsNameXBettype = 1 THEN bt.betid ELSE NULL END AS BetId
-	FROM #tblRequestInfo_Detail req
-		INNER JOIN (
-			SELECT b.transid, b.bettype, b.betid
-			FROM dbo.bettrans b WITH(NOLOCK)
-			UNION
-			SELECT b14.transid, b14.bettype, b14.betid
-			FROM dbo.bettrans14 b14 WITH(NOLOCK)
-		) bt on req.TransId = bt.transid
-		INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = bt.bettype
-	
+	UPDATE t
+		SET Bettype = s.Bettype
+			,BetId = CASE WHEN f.IsNameXBettype = 1 THEN s.BetId ELSE NULL END
+	FROM	#tblRequestInfo_Detail t
+		CROSS APPLY (
+			SELECT	TOP 1 s.Bettype, s.BetId
+			FROM	dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+			WHERE	s.RequestId = t.RequestId
+					AND s.TransId = t.TransId
+		)s
+		OUTER APPLY (
+			SELECT	TOP 1 f.IsNameXBettype
+			FROM	dbo.f_SD_GetGroupBettypes () f
+			WHERE	f.bettype = s.Bettype
+		)f
+
 	-- Return data
-	SELECT RequestId, Bettype, BetId
-	FROM #tblResult
+	SELECT	RequestId, Bettype, BetId
+	FROM	#tblRequestInfo_Detail
 	GROUP BY RequestId, Bettype, BetId
 	ORDER BY Bettype DESC
 
-
 	DROP TABLE #tblRequestInfo
 	DROP TABLE #tblRequestInfo_Detail
-	DROP TABLE #tblResult
 END
 GO
