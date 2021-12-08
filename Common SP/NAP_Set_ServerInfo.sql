@@ -15,6 +15,7 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211208@Louisa: Add ServerAlias DBTP10C [Redmine:#164060]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -97,6 +98,10 @@ BEGIN
 
 	UNION ALL
 	SELECT 'DBBAL', 'DBBAL', 1, 6, 'DBBAL'
+
+	UNION ALL
+	SELECT 'DBTP10C', 'DBACC', 1, 6, 'PROD'
+
 
 	SELECT	@ServerAlias = ServerAlias
 			,@IsEnableServiceBroker = IsEnableServiceBroker
