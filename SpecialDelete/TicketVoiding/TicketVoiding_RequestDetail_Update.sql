@@ -146,7 +146,7 @@ BEGIN
 			,@refnos_29				 VARCHAR(MAX) = '' 
 
 	CREATE TABLE #inputTransid (transid BIGINT)
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #transidremove_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
 
@@ -891,8 +891,8 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 		
-		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno)
-		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno
+		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid
 		FROM #inputTransid t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		WHERE b.statusID IN (0, 1) --if status of ticket is running
@@ -985,7 +985,7 @@ BEGIN
 			SELECT @MarkedTransIds = STUFF(
 				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 				FROM #transid_tmp tp
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid AND mt.matchid = tp.matchid)
 				GROUP BY TransId for XML PATH('')), 1, 1, ''
 				)
 			IF @MarkedTransIds IS NOT NULL
@@ -998,7 +998,7 @@ BEGIN
 		BEGIN
 			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM #transid_tmp tp
-											WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+											WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid AND mt.matchid = tp.matchid)
 												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)
 											FOR XML PATH('')
 								), 1,1,'')

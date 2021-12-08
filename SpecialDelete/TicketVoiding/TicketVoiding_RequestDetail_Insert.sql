@@ -123,7 +123,7 @@ BEGIN
 			,@DangerAcceptedInfoXML	XML  = NULL
 			,@RedCardInfoXML	 XML = NULL
 
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -177,8 +177,8 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno)
-		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno
+		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid
 		FROM #transIdTemp t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		
@@ -660,7 +660,7 @@ BEGIN
 			SELECT @MarkedTransIds = STUFF(
 				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 				FROM #transid_tmp tp
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid AND mt.matchid = tp.matchid)
 					AND  tp.StatusId IN (0, 1) 
 				GROUP BY TransId for XML PATH('')), 1, 1, ''
 				)

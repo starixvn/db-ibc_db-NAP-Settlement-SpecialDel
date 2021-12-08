@@ -270,6 +270,7 @@ BEGIN
 				,ActualStake
 				,matchid
 				,IsMixParlay
+				,winlostdate
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -322,11 +323,11 @@ BEGIN
 				,b.actual_stake AS ActualStake
 				,b.matchid
 				,CASE WHEN @IssueTypeId = 11 AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
+				,b.winlostdate
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-			  	
 					
 	END
 	ELSE IF @IssueTypeId IN (1, 10, 3) -- Danger Accept, Red Card, WrongScore

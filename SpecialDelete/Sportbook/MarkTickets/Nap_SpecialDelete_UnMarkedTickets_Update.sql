@@ -146,7 +146,7 @@ BEGIN
 	,NULL
 	FROM #transIds t
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId
+	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
 	WHERE m.TransId IS NULL
 	AND 1 = CASE WHEN @IsLockMatch = 0 THEN 1
 				   WHEN @IsLockMatch = 1 AND b.matchid <> 29 THEN 1
