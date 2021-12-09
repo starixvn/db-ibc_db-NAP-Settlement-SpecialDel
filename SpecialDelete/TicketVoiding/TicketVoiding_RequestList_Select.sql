@@ -362,7 +362,7 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
@@ -412,7 +412,7 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
@@ -463,7 +463,7 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
