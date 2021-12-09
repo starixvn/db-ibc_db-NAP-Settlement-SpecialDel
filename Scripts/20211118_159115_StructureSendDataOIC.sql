@@ -7,6 +7,29 @@
 
 USE bodb_Licensee
 GO
+
+--- CREATING FILE GROUP AND DATA FILE
+IF NOT EXISTS (SELECT TOP 1 1 FROM sys.filegroups where name='LicenseeResultAmendment_table')
+BEGIN
+	ALTER DATABASE bodb_Licensee
+	ADD FILEGROUP LicenseeResultAmendment_table;
+END
+GO
+
+IF NOT EXISTS (SELECT TOP 1 1 FROM sys.database_files where name='LicenseeResultAmendment_table_01')
+BEGIN
+ALTER DATABASE bodb_Licensee 
+ADD FILE 
+(
+	NAME = LicenseeResultAmendment_table_01,
+	FILENAME = 'D:\IBC_DB\bodb_Licensee\LicenseeResultAmendment_table_01.NDF'
+	, SIZE = 32MB , MAXSIZE = UNLIMITED, FILEGROWTH = 32MB
+)
+TO FILEGROUP LicenseeResultAmendment_table;
+END
+GO
+
+
 CREATE TABLE dbo.LicenseeResultAmendment
 (
 	ResultID	 BIGINT IDENTITY(1,1),
@@ -19,7 +42,8 @@ CREATE TABLE dbo.LicenseeResultAmendment
  CONSTRAINT [PK_LicenseeResultAmendment_ResultID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC
-))
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [LicenseeResultAmendment_table]
+) ON [LicenseeResultAmendment_table]
 
 CREATE NONCLUSTERED INDEX [IX_LicenseeResultAmendment_EventDate_SiteName] ON [dbo].[LicenseeResultAmendment]
 (
@@ -48,4 +72,5 @@ CREATE TABLE dbo.LicenseeResultAmendmentDetails
 CONSTRAINT [PK_LicenseeResultAmendmentDetails_ResultID_TransID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC, TransID ASC
-))
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [LicenseeResultAmendment_table]
+) ON [LicenseeResultAmendment_table]
