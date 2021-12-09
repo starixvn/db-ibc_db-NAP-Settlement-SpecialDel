@@ -7,28 +7,11 @@
 
 USE bodb_Licensee
 GO
+IF OBJECT_ID (N'LicenseeResultAmendment', N'U') IS NOT NULL
+	DROP TABLE dbo.LicenseeResultAmendment
 
---- CREATING FILE GROUP AND DATA FILE
-IF NOT EXISTS (SELECT TOP 1 1 FROM sys.filegroups where name='LicenseeResultAmendment_table')
-BEGIN
-	ALTER DATABASE bodb_Licensee
-	ADD FILEGROUP LicenseeResultAmendment_table;
-END
-GO
-
-IF NOT EXISTS (SELECT TOP 1 1 FROM sys.database_files where name='LicenseeResultAmendment_table_01')
-BEGIN
-ALTER DATABASE bodb_Licensee 
-ADD FILE 
-(
-	NAME = LicenseeResultAmendment_table_01,
-	FILENAME = 'D:\IBC_DB\bodb_Licensee\LicenseeResultAmendment_table_01.NDF'
-	, SIZE = 32MB , MAXSIZE = UNLIMITED, FILEGROWTH = 32MB
-)
-TO FILEGROUP LicenseeResultAmendment_table;
-END
-GO
-
+IF OBJECT_ID (N'LicenseeResultAmendmentDetails', N'U') IS NOT NULL
+	DROP TABLE dbo.LicenseeResultAmendmentDetails	
 
 CREATE TABLE dbo.LicenseeResultAmendment
 (
@@ -42,19 +25,19 @@ CREATE TABLE dbo.LicenseeResultAmendment
  CONSTRAINT [PK_LicenseeResultAmendment_ResultID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [LicenseeResultAmendment_table]
-) ON [LicenseeResultAmendment_table]
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [user_table]
+) ON [user_table]
 
 CREATE NONCLUSTERED INDEX [IX_LicenseeResultAmendment_EventDate_SiteName] ON [dbo].[LicenseeResultAmendment]
 (
 	EventDate ASC, SiteName ASC
-)
+) ON [user_table]
 GO
 
 CREATE NONCLUSTERED INDEX [IX_LicenseeResultAmendment_SessionID] ON [dbo].[LicenseeResultAmendment]
 (
 	SessionID ASC
-)
+) ON [user_table]
 GO
 
 ALTER TABLE dbo.LicenseeResultAmendment ADD  CONSTRAINT [DF_LicenseeResultAmendment_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
@@ -62,6 +45,7 @@ GO
 
 ALTER TABLE dbo.LicenseeResultAmendment ADD  CONSTRAINT [DF_LicenseeResultAmendment_ModifiedDate]  DEFAULT (getdate()) FOR [ModifiedDate]
 GO
+
 
 CREATE TABLE dbo.LicenseeResultAmendmentDetails
 (
@@ -72,5 +56,5 @@ CREATE TABLE dbo.LicenseeResultAmendmentDetails
 CONSTRAINT [PK_LicenseeResultAmendmentDetails_ResultID_TransID] PRIMARY KEY CLUSTERED 
 (
 	ResultID ASC, TransID ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [LicenseeResultAmendment_table]
-) ON [LicenseeResultAmendment_table]
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [user_table]
+) ON [user_table]
