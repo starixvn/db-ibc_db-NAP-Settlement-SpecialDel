@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 (
     @Command                    VARCHAR(100),
     @MatchID                    INT,
+	@DestinationMatchid			INT = NULL,
     @FTHome                     SMALLINT = NULL,
     @FTAway                     SMALLINT = NULL,
     @HTHome                     SMALLINT = NULL,
@@ -62,6 +63,7 @@ AS
 		- 20200728@Kathy: update htscore for basketball when HT is done [Redmine:#135846]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		
     Parameters Explanation:
 
@@ -73,6 +75,7 @@ BEGIN
     DECLARE @Sporttype		INT
 			,@eventstatus	VARCHAR(20)
 			,@ParentMatchId	INT
+			,@NewMatchCode NVARCHAR(100)
 
     SET @BetStatus = ISNULL(@BetStatus, N'')
 
@@ -569,5 +572,20 @@ BEGIN
             WHERE matchid = @matchid
         END
     END
+
+	IF @Command = 'NAP_Admin_Settlement-MoveTicket'
+	BEGIN
+		SELECT @NewMatchCode = 'betdaq' + m.matchcode
+		FROM dbo.match m WITH(NOLOCK)
+		WHERE m.matchid = @DestinationMatchid
+		
+		--Update old match
+		UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
+		SET matchcode = @NewMatchCode
+			,changetime = GETDATE()
+		WHERE matchid = @MatchId
+		
+	END
+
 END
 GO

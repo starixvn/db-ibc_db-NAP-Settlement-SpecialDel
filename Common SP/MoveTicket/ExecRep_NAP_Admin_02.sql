@@ -11,92 +11,116 @@ AS
 
 	Revisions:
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
+		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 
 	Param's Explanation:
 		@matchid: child matchid
 		@Mode: single
 				subparlay
+				SingleRunning
+
 */
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @xml XML
 
-	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT, MainTransId BIGINT)
+	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT, MainTransId BIGINT, oddsid INT)
 	
 	SET @xml = CAST(@strTransIds AS XML)
 
-	INSERT INTO @tmpTrans (TransID, StatusId, MainTransId)
-	SELECT	T.C.value('./@t', 'bigint') AS transid
-			,T.C.value('./@s', 'tinyint') AS statusId
-			,T.C.value('./@mt', 'bigint') AS maintransid
-	FROM	@xml.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@xml = NULL ))
-
-	IF @Mode = 'Single'
+	IF @Mode IN ('Single', 'subParlay' ) -- move ticket for Cricket Test match
 	BEGIN
-		-- bettrans
-		UPDATE	b WITH(ROWLOCK, UPDLOCK)
-			SET matchid = @MatchId
-		FROM	@tmpTrans t
-			INNER JOIN dbo.bettrans b
-				ON	t.TransID = b.transid
+		INSERT INTO @tmpTrans (TransID, StatusId, MainTransId)
+		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,T.C.value('./@s', 'tinyint') AS statusId
+				,T.C.value('./@mt', 'bigint') AS maintransid
+		FROM	@xml.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@xml = NULL ))
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
+		IF @Mode = 'Single'
 		BEGIN
-			IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
-				UPDATE	zb WITH(ROWLOCK, UPDLOCK)
-					SET matchid = @MatchId
-				FROM	@tmpTrans t
-					INNER JOIN dbo.zzzbettrans zb
-						ON	t.TransID = zb.transId
-				WHERE	t.StatusId = 102
-		END
-	END
-	ELSE IF @Mode = 'subParlay'
-	BEGIN
-		-- bettransM
-		UPDATE	bm WITH(UPDLOCK, ROWLOCK)
-			SET matchid = @MatchId
-		FROM	@tmpTrans t
-			INNER JOIN dbo.bettransm bm 
-				ON	bm.transid = t.transid
-
-		-- BetParlayDetail
-		IF OBJECT_ID('BetParlayDetail','U') IS NOT NULL 
-			UPDATE	d  WITH(ROWLOCK, UPDLOCK)
+			-- bettrans
+			UPDATE	b WITH(ROWLOCK, UPDLOCK)
 				SET matchid = @MatchId
 			FROM	@tmpTrans t
-				INNER JOIN dbo.BetParlayDetail d
-					ON	d.transid = t.TransId
+				INNER JOIN dbo.bettrans b
+					ON	t.TransID = b.transid
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
-		BEGIN
-			IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
-				UPDATE	zb WITH(ROWLOCK, UPDLOCK)
-					SET matchid = @MatchId
-				FROM	@tmpTrans t
-					INNER JOIN dbo.zzzbettrans zb
-						ON	t.TransID = zb.transId
-				WHERE	t.StatusId = 102
-
-			IF OBJECT_ID('zzzbettransm','U') IS NOT NULL 
-				UPDATE zbm WITH(ROWLOCK, UPDLOCK)
-					SET matchid = @MatchId
-				FROM	@tmpTrans t
-					INNER JOIN dbo.zzzbettransm zbm
-						ON	t.TransID = zbm.transId
-				WHERE	t.StatusId = 102
-
-			IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
 			BEGIN
-				UPDATE	vt WITH(ROWLOCK, UPDLOCK)
+				IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
+					UPDATE	zb WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.zzzbettrans zb
+							ON	t.TransID = zb.transId
+					WHERE	t.StatusId = 102
+			END
+		END
+
+		ELSE IF @Mode = 'subParlay'
+		BEGIN
+			-- bettransM
+			UPDATE	bm WITH(UPDLOCK, ROWLOCK)
+				SET matchid = @MatchId
+			FROM	@tmpTrans t
+				INNER JOIN dbo.bettransm bm 
+					ON	bm.transid = t.transid
+
+			-- BetParlayDetail
+			IF OBJECT_ID('BetParlayDetail','U') IS NOT NULL 
+				UPDATE	d  WITH(ROWLOCK, UPDLOCK)
 					SET matchid = @MatchId
 				FROM	@tmpTrans t
-					INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-						ON	t.MainTransId = vt.transId
-				WHERE	t.StatusId = 102
+					INNER JOIN dbo.BetParlayDetail d
+						ON	d.transid = t.TransId
 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
+			BEGIN
+				IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
+					UPDATE	zb WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.zzzbettrans zb
+							ON	t.TransID = zb.transId
+					WHERE	t.StatusId = 102
+
+				IF OBJECT_ID('zzzbettransm','U') IS NOT NULL 
+					UPDATE zbm WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.zzzbettransm zbm
+							ON	t.TransID = zbm.transId
+					WHERE	t.StatusId = 102
+
+				IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+				BEGIN
+					UPDATE	vt WITH(ROWLOCK, UPDLOCK)
+						SET matchid = @MatchId
+					FROM	@tmpTrans t
+						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
+							ON	t.MainTransId = vt.transId
+					WHERE	t.StatusId = 102
+
+				END
 			END
 		END
 	END
+
+	ELSE IF @Mode = 'SingleRunning' -- Move single running ticket for E-SPorts
+	BEGIN
+		INSERT INTO @tmpTrans (TransID, oddsid)
+		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,T.C.value('./@o', 'int') AS oddsid
+		FROM	@xml.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@xml = NULL ))
+
+		UPDATE	b WITH(ROWLOCK, UPDLOCK)
+				SET matchid = @MatchId
+					,oddsid = t.oddsid
+			FROM	@tmpTrans t
+				INNER JOIN dbo.bettrans b
+					ON	t.TransID = b.transid
+	END
+	
 END
