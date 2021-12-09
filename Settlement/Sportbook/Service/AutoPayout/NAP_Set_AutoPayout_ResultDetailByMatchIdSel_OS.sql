@@ -28,6 +28,7 @@ BEGIN
 			INNER JOIN match_remark mr WITH(NOLOCK)
 				ON m.matchid = mr.matchid
 		WHERE m.matchid = @MatchId
+			AND m.eventstatus = 'running'
 			AND mr.ConfirmFT > 0
 	END
 
