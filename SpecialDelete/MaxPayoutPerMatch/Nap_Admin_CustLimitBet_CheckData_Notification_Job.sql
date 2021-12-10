@@ -8,7 +8,7 @@ AS
     Revisions:
 		- 20211111@Tina: create
 		- 20211119@Tina: run each 30 minutes (minute = 5 or 35)
-		- 20211210@Titan: send Letstalk [Redmine: #159626]
+		- 20211210@Tina: send Letstalk [Redmine: #159626]
 
 	Param's explanation:		
 		
