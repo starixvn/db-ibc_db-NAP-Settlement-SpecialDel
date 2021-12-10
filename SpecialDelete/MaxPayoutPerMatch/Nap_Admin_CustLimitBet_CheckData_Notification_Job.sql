@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Notification_Job]
+ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Notification_Job]
 AS
 /*	
 	Created: 20211111@Tina
@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20211111@Tina: create
 		- 20211119@Tina: run each 30 minutes (minute = 5 or 35)
+		- 20211210@Titan: send Letstalk [Redmine: #159626]
 
 	Param's explanation:		
 		
@@ -32,6 +33,7 @@ BEGIN
 	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
 	--SET @Recipients = 'max.tran@starixvn.com;helen.do@starixvn.com;tina.vo@starixvn.com'
 
+
 	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT
 
 	IF @ErrorMessage <> ''
@@ -50,6 +52,9 @@ BEGIN
 				,@subject =@Subject
 				,@body_format = 'HTML'
 				,@profile_name =DEFAULT;
+
+		-- send letstalk
+		EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'DB.Job.Monitor', @Msg = @Body, @Title=@Subject;
 	END
 	
 END		
