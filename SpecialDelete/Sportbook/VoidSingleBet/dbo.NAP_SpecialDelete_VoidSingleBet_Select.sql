@@ -84,7 +84,8 @@ AS
 		- 20210622@Helen: [TVS] SP Tuning [Redmine: #157354]
 		- 20210630@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
-		
+		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
 	      + 0: All tickets
@@ -266,7 +267,6 @@ BEGIN
               transdate          DATETIME,
 			  checktime          DATETIME,
               bettype            SMALLINT,
-              OriginalBetType    SMALLINT,
               betteam            NVARCHAR(10),
               betcheck           NVARCHAR(50),
               hdp1               SMALLMONEY,
@@ -287,12 +287,11 @@ BEGIN
               betid              BIGINT,
               betdaqid           BIGINT,
               SportType          SMALLINT,
-              SoldId             BIGINT, -- stored transid of BTrade's subticket (bettype 901)
               TransDesc          NVARCHAR(1000),
               refno              BIGINT,
               mainstatusid       TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901		
               ExtraInfo          VARCHAR(1000),
-              MainCashoutId      BIGINT,
+              IsCashOut			 BIT DEFAULT(0),
               matchid            INT,
               WalletType         TINYINT,
               RefCode            BIGINT,
@@ -401,7 +400,7 @@ BEGIN
 			,refno
 			,mainstatusid
 			,ExtraInfo
-			,MainCashoutId
+			,IsCashOut
 			,WalletType
 			,RefCode
 			,BonusID
@@ -452,9 +451,7 @@ BEGIN
 			b.refno,			
 			b.statusID AS mainstatusid,
 			b.ExtraInfo,
-			CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid
-				ELSE NULL
-			END	AS MainCashoutId,
+			CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,
 			b.WalletType,
 			b.RefCode,
 			b.BonusID,
@@ -519,7 +516,7 @@ BEGIN
 			,refno
 			,mainstatusid
 			,ExtraInfo
-			,MainCashoutId
+			,IsCashOut
 			,WalletType
 			,RefCode
 			,BonusID
@@ -570,9 +567,7 @@ BEGIN
 			b.refno,			
 			b.statusID AS mainstatusid,
 			b.ExtraInfo,
-			CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid
-				ELSE NULL
-			END	AS MainCashoutId,
+			CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,
 			b.WalletType,
 			b.RefCode,
 			b.BonusID,
@@ -854,14 +849,6 @@ BEGIN
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 	END	
 
-	-- delete cash-out member bet tickets
-	DELETE t
-	FROM #SpecialDeleteBets t
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM bettrans sub911 (NOLOCK)
-				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)
-	
 	-- update MainTransId	
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
 	BEGIN
@@ -916,7 +903,7 @@ BEGIN
 					,refno			
 					,mainstatusid
 					,ExtraInfo	
-					,MainCashoutId
+					,IsCashOut
 					,WalletType
 					,RefCode
 					,BonusID
@@ -955,9 +942,7 @@ BEGIN
 					b.refno,			
 					b.statusID AS mainstatusid,	
 					b.ExtraInfo,			
-					CASE WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0 THEN b.transid
-						ELSE NULL
-					END AS MainCashoutId,					
+					CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,			
 					b.WalletType,
 					b.RefCode,
 					b.BonusID,
@@ -975,286 +960,6 @@ BEGIN
 			WHERE b.statusID NOT IN (101,102, 103) -- reject, void, refund	  
 		END 			    				    				    				    					    
 	END
-
-	-- update SoldId column: if main ticket is BT, update SoldId = transid of subticket(901)
-	CREATE TABLE #tblSoldTicket (transid BIGINT PRIMARY KEY)
-	
-	UPDATE	main
-		SET main.SoldId = sub.transid
-	OUTPUT INSERTED.SoldId
-	INTO #tblSoldTicket(transid)
-	FROM #SpecialDeleteBets main 
-		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
-			ON	main.transid = sub.refno
-				AND main.betdaqid = 0 -- main ticket is BTrade
-				AND main.extrainfo is null -- main ticket is BTrade
-				AND sub.matchid = @MatchId
-				AND sub.bettype = 901
-				
-	-- get sub ticket of BetTrade (901)
-	INSERT INTO #SpecialDeleteBets (			 
-			GroupID
-			,transid			
-			,custid				
-			,odds
-			,oddsspread			
-			,OddsType		
-			,transdate
-			,checktime
-			,bettype
-			,OriginalBetType			
-			,betteam			
-			,betcheck		
-			,hdp1			
-			,hdp2			
-			,IsLiveIndicator	
-			,livehomescore 	
-			,liveawayscore 	
-			,creator			
-			,Stake			
-			,CurrencyName			
-			,status			
-			,srecommend
-			,mrecommend		
-			,recommend		
-			,SecAcceptFlag	
-			,betid			
-			,betdaqid			
-			,mainstatusid	
-			,ExtraInfo					
-			,refno
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,WinLost
-			,IsMarked
-			,ActualStake
-		)
-	SELECT  main.transid
-			,sub.transid
-			,sub.custid
-			,main.odds
-			,main.oddsspread
-			,main.OddsType
-			,sub.transdate
-			,sub.checktime
-			,sub.bettype
-			,main.bettype  AS OriginalBetType
-			,main.betteam
-			,main.betcheck
-			,main.hdp1
-			,main.hdp2
-			,main.IsLiveIndicator
-			,main.livehomescore
-			,main.liveawayscore
-			,sub.creator
-			,main.Stake
-			,main.CurrencyName
-			,'SOLD'
-			,main.srecommend
-			,main.mrecommend
-			,main.recommend
-			,ISNULL(main.SecAcceptFlag,0) SecAcceptFlag
-			,main.bettype AS betid
-			,sub.betdaqid			
-			,main.mainstatusid
-			,sub.ExtraInfo			
-			,sub.refno
-			,sub.WalletType
-			,sub.RefCode
-			,sub.BonusID
-			,main.transid AS MainTransId
-			,sub.WinLost - sub.actual_stake AS WinLost
-			,IsMarked
-			,main.ActualStake
-	FROM	#SpecialDeleteBets main
-		INNER JOIN dbo.bettrans sub WITH (NOLOCK)
-			ON	main.transid = sub.refno
-				AND main.betdaqid = 0 -- main ticket is BTrade
-				AND main.extrainfo is null -- main ticket is BTrade
-				AND sub.matchid = @MatchId
-				AND sub.bettype = 901
-		INNER JOIN #tblSoldTicket sold ON sold.transid = sub.transid							
-			
-	-- get sub ticket of Cash-out (911)	
-	INSERT INTO #SpecialDeleteBets (
-			GroupID
-			,transid			
-			,custid				
-			,odds	
-			,oddsspread			
-			,OddsType		
-			,transdate
-			,checktime
-			,bettype
-			,OriginalBetType			
-			,betteam			
-			,betcheck		
-			,hdp1			
-			,hdp2			
-			,IsLiveIndicator	
-			,livehomescore 	
-			,liveawayscore 	
-			,creator			
-			,Stake			
-			,CurrencyName			
-			,status			
-			,srecommend
-			,mrecommend		
-			,recommend		
-			,SecAcceptFlag	
-			,betid			
-			,betdaqid			
-			,mainstatusid	
-			,ExtraInfo
-			,MainCashoutId
-			,refno
-			,matchid
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,WinLost
-			,IsMarked
-			,ActualStake
-		)
-	SELECT  sub911.transid
-			,sub911.transid
-			,sub911.custid
-			,main.odds
-			,main.oddsspread
-			,main.OddsType
-			,sub911.transdate
-			,sub911.checktime
-			,sub911.bettype
-			,main.bettype  AS OriginalBetType
-			,main.betteam
-			,main.betcheck
-			,main.hdp1
-			,main.hdp2
-			,main.IsLiveIndicator
-			,main.livehomescore
-			,main.liveawayscore
-			,sub911.creator
-			,sub911.Stake
-			,main.CurrencyName
-			,'Cash out'
-			,main.srecommend
-			,main.mrecommend
-			,main.recommend
-			,ISNULL(main.SecAcceptFlag,0) SecAcceptFlag
-			,main.bettype AS betid
-			,sub911.betdaqid			
-			,main.mainstatusid
-			,sub911.ExtraInfo
-			,main.transid AS MainCashoutId
-			,sub911.refno
-			,sub911.matchid
-			,sub911.WalletType
-			,sub911.RefCode
-			,sub911.BonusID
-			,main.transid AS MainTransId
-			,sub911.WinLost - sub911.actual_stake AS WinLost
-			,main.IsMarked
-			,main.ActualStake
-	FROM dbo.bettrans sub911 WITH (NOLOCK)
-		 INNER HASH JOIN #SpecialDeleteBets main
-				ON	sub911.refno = main.transid	
-					AND sub911.custid = main.custid
-					AND main.betdaqid = 0
-					AND charindex ('p25',main.extrainfo)> 0			
-					AND sub911.bettype = 911
-					AND sub911.matchid = @matchid
-	WHERE sub911.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund																			
-	
-	-- get cash-out member bet tickets
-	INSERT INTO #SpecialDeleteBets(
-			GroupID
-			,transid			
-			,custid						
-			,odds	
-			,oddsspread			
-			,OddsType		
-			,transdate
-			,checktime
-			,bettype
-			,OriginalBetType						
-			,betteam			
-			,betcheck		
-			,hdp1			
-			,hdp2			
-			,IsLiveIndicator	
-			,livehomescore 	
-			,liveawayscore 	
-			,creator			
-			,Stake			
-			,CurrencyName				
-			,status			
-			,srecommend
-			,mrecommend		
-			,recommend		
-			,SecAcceptFlag	
-			,betid			
-			,betdaqid
-			,refno			
-			,mainstatusid	
-			,ExtraInfo
-			,MainCashoutId
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,WinLost
-			,IsMarked
-			,ActualStake
-		)
-	SELECT  sub911.transid,
-			b.transid,
-			b.custid,			
-			b.odds,  
-			b.oddsspread,
-			b.OddsType,  
-			b.transdate,
-			b.checktime,
-			b.bettype,
-			sub911.OriginalBetType,			  
-			b.betteam,
-			b.betcheck,
-			b.hdp1,
-			b.hdp2,
-			b.liveindicator,
-			b.livehomescore,
-			b.liveawayscore,
-			b.creator,
-			b.stake,
-			b.CurrencyName, 			
-			b.status,
-			b.srecommend,
-			b.mrecommend,
-			b.recommend,
-			ISNULL(b.SecAcceptFlag,0) SecAcceptFlag,
-			b.betid,
-			b.betdaqid,
-			b.refno,			
-			b.statusID AS mainstatusid,
-			b.ExtraInfo,
-			sub911.MainCashoutId,
-			b.WalletType,
-			b.RefCode,
-			b.BonusID,
-			sub911.MainTransId,
-			b.WinLost - b.actual_stake AS WinLost,
-			sub911.IsMarked,
-			b.actual_stake AS ActualStake
-	FROM #SpecialDeleteBets sub911
-		INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON
-						b.refno = sub911.transid
-						AND b.matchid = sub911.matchid
-						AND b.bettype = sub911.OriginalBetType
-						AND b.matchid = @MatchId
-						AND b.statusID NOT IN (102, 101, 103) -- VOID, REJECT, refund
-	WHERE sub911.bettype = 911
 	
 	-- update username/creatorname column, Isdeposit
 	UPDATE al
@@ -1289,7 +994,6 @@ BEGIN
 			   ,s.transdate
 			   ,s.checktime
 			   ,s.bettype
-			   ,s.OriginalBetType		
 			   ,s.betteam		
 			   ,s.betcheck
 			   ,s.hdp1		
@@ -1306,7 +1010,6 @@ BEGIN
 			   ,s.SecAcceptFlag	
 			   ,s.betid	
 			   ,s.SportType	 
-			   ,s.SoldID
 			   ,NULL AS followedId
 			   ,NULL AS followedUsername
 			   ,s.TransDesc
@@ -1316,7 +1019,7 @@ BEGIN
 			   ,'Credit' AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,s.MainCashoutId
+			   ,s.IsCashOut
 			   ,s.WalletType
 			   ,s.RefCode
 			   ,s.BonusID
@@ -1356,7 +1059,6 @@ BEGIN
 			   ,s.transdate
 			   ,s.checktime	
 			   ,s.bettype
-			   ,s.OriginalBetType		
 			   ,s.betteam		
 			   ,s.betcheck
 			   ,s.hdp1		
@@ -1373,7 +1075,6 @@ BEGIN
 			   ,s.SecAcceptFlag	
 			   ,s.betid	
 			   ,s.SportType	 
-			   ,s.SoldID
 			   ,b.transid AS followedId
 			   ,b.Username AS followedUsername
 			   ,s.TransDesc
@@ -1383,7 +1084,7 @@ BEGIN
 			   ,'8RM/BARM' AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,s.MainCashoutId
+			   ,s.IsCashOut
 			   ,s.WalletType
 			   ,s.RefCode
 			   ,s.BonusID
@@ -1415,7 +1116,6 @@ BEGIN
 			   ,s.transdate
 			   ,s.checktime	
 			   ,s.bettype
-			   ,s.OriginalBetType		
 			   ,s.betteam		
 			   ,s.betcheck
 			   ,s.hdp1		
@@ -1432,7 +1132,6 @@ BEGIN
 			   ,s.SecAcceptFlag	
 			   ,s.betid		 
 			   ,s.SportType
-			   ,s.SoldID
 			   ,NULL AS followedId
 			   ,NULL AS followedUsername
 			   ,s.TransDesc
@@ -1442,7 +1141,7 @@ BEGIN
 			   ,'Deposit' AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,s.MainCashoutId
+			   ,s.IsCashOut
 			   ,s.WalletType
 			   ,s.RefCode
 			   ,s.BonusID
@@ -1485,7 +1184,6 @@ BEGIN
 			   ,s.transdate
 			   ,s.checktime	
 			   ,s.bettype
-			   ,s.OriginalBetType		
 			   ,s.betteam		
 			   ,s.betcheck
 			   ,s.hdp1		
@@ -1502,7 +1200,6 @@ BEGIN
 			   ,s.SecAcceptFlag	
 			   ,s.betid	
 			   ,s.SportType	 
-			   ,s.SoldID
 			   ,NULL AS followedId
 			   ,NULL AS followedUsername
 			   ,s.TransDesc
@@ -1512,7 +1209,7 @@ BEGIN
 			   ,'Betfair' AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,s.MainCashoutId
+			   ,s.IsCashOut
 			   ,s.WalletType
 			   ,s.RefCode
 			   ,s.BonusID
@@ -1537,10 +1234,7 @@ BEGIN
 	)
 	, CTE_CalculateMainBettype AS (
 		SELECT s.*
-			 , CASE
-					WHEN s.bettype IN (901, 911) THEN s.OriginalBetType -- sub bettrade 901 and sub cashout 911, then based on bettype of main
-					ELSE s.bettype -- normal ticket, then based on its bettype
-			   END AS MainBettype
+			 , s.bettype AS MainBettype -- normal ticket, then based on its bettype
 		FROM CTE_OriginResult s
 	)
 	, CTE_InstantSettlementSubgrouping AS (
@@ -1598,7 +1292,6 @@ BEGIN
 			,s.transdate
 			,s.checktime	
 			,s.bettype
-			,s.OriginalBetType		
 			,s.betteam		
 			,s.betcheck
 			,s.hdp1		
@@ -1615,7 +1308,6 @@ BEGIN
 			,s.SecAcceptFlag	
 			,s.betid	
 			,s.SportType	 
-			,s.SoldID
 			,s.followedId
 			,s.followedUsername
 			,s.TransDesc
@@ -1624,7 +1316,7 @@ BEGIN
 			,s.SubGroupName AS GroupName
 			,s.betdaqid
 			,s.ExtraInfo
-			,s.MainCashoutId
+			,s.IsCashOut
 			,s.WalletType		   
 			,S.MainTransId
 			,s.RefCode	
@@ -1664,7 +1356,6 @@ BEGIN
 	DROP TABLE #SpecialDeleteBetsm
 	DROP TABLE #tblBettype
 	DROP TABLE #tblBetType_Detail
-	DROP TABLE #tblSoldTicket
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tmpRefCodeSummary
 	SET NOCOUNT OFF
