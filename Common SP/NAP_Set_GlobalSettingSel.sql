@@ -6,6 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_Set_GlobalSettingSel]
 	,@ExecDataQueueSize SMALLINT = 0 OUTPUT
 	,@RunPrepareDataBySSB BIT = 0 OUTPUT
 	,@RunExecDataBySSB BIT = 0 OUTPUT
+	,@MaxThreadHold INT = 0 OUTPUT
+	,@MinThreadHold INT = 0 OUTPUT
 AS
 
 /*
@@ -15,7 +17,8 @@ AS
     Revisions:       
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
-   
+		- 20211210@Kathy: Improve performance 
+
     Parameters Explanation:        
     
 */
@@ -60,6 +63,9 @@ BEGIN
 		
 		IF @RunExecDataBySSB = 0
 			SELECT @ExecDataQueueSize = 1
+
+		SET @MaxThreadHold = 50000
+		SET @MinThreadHold = 10000
 	END
 	
 END

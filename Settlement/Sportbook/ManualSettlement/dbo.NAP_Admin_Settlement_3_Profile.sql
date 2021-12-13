@@ -28,6 +28,7 @@ AS
 	   - 20210621@Kathy: Prevent lock escalation [Redmine:#157286]
 	   - 20210809@Kathy: Settle by custid [Redmine:159486]
 	   - 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
+	   - 20211210@Kathy: Improve performance [Redmine:#165996]
 
 */
 BEGIN
@@ -69,15 +70,17 @@ BEGIN
 			,@SettlementProcessingId BIGINT
 			,@SPName NVARCHAR(128)
 			,@RunPrepareDataBySSB BIT
+			,@openquery NVARCHAR(MAX)
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
 		,HomeValue VARCHAR(2000)
 		,AwayValue VARCHAR(2000)
 	)
-	
-	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT)
-	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT)
+	DECLARE @tmpMatchInfo TABLE (betstatus VARCHAR(50), childmatchtype TINYINT, eventstatus VARCHAR(50), HTResultStatusID TINYINT)
+
+	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
 
@@ -95,7 +98,7 @@ BEGIN
 		,PRIMARY KEY (BetType,BetID)
 	)	
 	
-	CREATE TABLE #tmpCustBettypes (CustId INT, Bettype SMALLINT, TotalTicket INT, IsExistRunning TINYINT)
+	CREATE TABLE #tmpCustBettypes (CustId INT, Bettype SMALLINT, TotalTicket INT)
 	CREATE TABLE #tmpCustIds (CustId INT PRIMARY KEY, BatchNo INT, TotalTicket INT, runningtotal int)
 	CREATE TABLE #tmpSettlementProcessing (CustIds VARCHAR(MAX), QueueNo SMALLINT)
 	
@@ -111,8 +114,8 @@ BEGIN
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@MaxThreadHold = 50000
-			,@MinThreadHold = 10000
+			,@MaxThreadHold = 0
+			,@MinThreadHold = 0
 			,@BatchNo = 0
 			,@TotalTicket = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
@@ -165,76 +168,49 @@ BEGIN
 	FROM	cteResource
 
 	INSERT INTO @tmpAllBettypes(Bettype)
-	SELECT	s.BetType
-	FROM	@tmpResources t
-		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			ON t.ResourceID = s.ResourceID
-	WHERE	s.SportType = @sporttype
-			AND s.SettleType = 'MNL'
+	SELECT bettype
+	FROM (
+		SELECT	s.BetType
+		FROM	@tmpResources t
+			INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				ON t.ResourceID = s.ResourceID
+		WHERE	s.SportType = @sporttype
+				AND s.SettleType = 'MNL'
 
-	INSERT INTO @tmpAllBettypes(Bettype)
-	SELECT	s.BetType
-	FROM	@tmpResources t
-		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			ON t.ResourceID = s.RefResourceId
-	WHERE	s.RefResourceId IS NOT NULL
-			AND s.SportType = @sporttype
-			AND s.SettleType = 'MNL'
+		UNION 
+		SELECT	s.BetType
+		FROM	@tmpResources t
+			INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				ON t.ResourceID = s.RefResourceId
+		WHERE	s.RefResourceId IS NOT NULL
+				AND s.SportType = @sporttype
+				AND s.SettleType = 'MNL'
+		) t
 
 	IF @IsReSettledTickets = 0
 	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket, IsExistRunning)
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
 		SELECT	b.custid
 				,b.bettype
 				,COUNT(1) AS TotalTicket
-				,MAX(CASE WHEN b.statusId = 0 THEN 1 ELSE 0 END) AS IsExistRunning
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
 				AND b.statusID IN (0,102)
+				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
 	END 
 	ELSE
 	BEGIN
-		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket, IsExistRunning)
+		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
 		SELECT	b.custid
 				,b.bettype
 				,COUNT(1) AS TotalTicket
-				,MAX(CASE WHEN b.statusId = 0 THEN 1 ELSE 0 END) AS IsExistRunning
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
 				AND b.statusID <> 101
+				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
 	END
-
-	IF @action = 'CAL-FT'
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1
-						FROM	#tmpCustBettypes t
-						WHERE	EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE t.bettype = f.bettype AND f.GroupId IN (1,3,5))
-								AND t.IsExistRunning = 1
-					)
-		BEGIN
-			SELECT	TOP 1 @HTDone = 0
-			FROM	dbo.bettrans b WITH(NOLOCK)
-				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-					ON b.transid = mt.TransId
-			WHERE	b.matchid = @matchid
-					AND b.statusID = 0
-					AND mt.TransId IS NULL
-					AND EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_GetGroupBettypes() f WHERE b.bettype = f.bettype AND f.GroupId IN (1,3,5))
-			
-			IF @@ROWCOUNT = 0
-				SET @HTDone = 1
-		END
-		ELSE 
-			SET @HTDone = 1
-	END
-	ELSE IF @action = 'CAL'
-		SET @HTDone = 1
-
-	DELETE	
-	FROM	#tmpCustBettypes
-	WHERE	bettype NOT IN (SELECT DISTINCT bettype FROM @tmpAllBettypes)
 
 	;WITH cteAffectedBettypes
 	AS (
@@ -246,17 +222,33 @@ BEGIN
 	SELECT	bettype
 	FROM	cteAffectedBettypes
 			
+	SET @openquery = 'SELECT betstatus, childmatchtype, eventstatus, ResultStatusID
+					  FROM	OPENQUERY(DBPRO, ''SELECT m.betstatus, m.childmatchtype, m.eventstatus, r.ResultStatusID 
+											   FROM bodb02.dbo.match m WITH(NOLOCK)
+													LEFT JOIN bodb02.dbo.resultdetail r WITH(NOLOCK)
+														ON	r.matchid = m.matchid
+															AND r.resourceId =''''01''''
+											   WHERE m.matchid = ' + CAST(@matchid AS VARCHAR)+ '
+													'')'
+
+	INSERT INTO @tmpMatchInfo(betstatus,childmatchtype,eventstatus,HTResultStatusID)
+	EXEC (@openquery)
+
 	-- update match
 	SELECT	@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
 			,@ChildMatchType = ChildMatchType
 			,@eventstatus = CASE 
 								WHEN @action = 'CAL' THEN N'completed'
 								WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+								WHEN @action = 'CAL-FT' AND HTResultStatusID = 5 THEN N'completed'
 								ELSE eventstatus
 								END
-	FROM	 DBPRO.bodb02.dbo.match WITH (NOLOCK) 
-	WHERE	matchid = @matchid
+			,@HTDone = CASE 
+							WHEN @action = 'CAL' THEN 1
+							WHEN @action = 'CAL-FT' AND HTResultStatusID = 5 THEN 1 
+							ELSE 0 
+						END
+	FROM	 @tmpMatchInfo
 
 	EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
 		@Command            = 'NAP_Admin_Settlement_1-CAL'
@@ -541,6 +533,8 @@ BEGIN
 		@LockName = 'SettlementSSB'
 		,@PrepareDataQueueSize =  @PrepareDataQueueSize OUTPUT
 		,@RunPrepareDataBySSB = @RunPrepareDataBySSB OUTPUT
+		,@MaxThreadHold = @MaxThreadHold OUTPUT
+		,@MinThreadHold = @MinThreadHold OUTPUT
 
 	SELECT @ThreadHold = CASE 
 							WHEN @TotalAffectedTicket > @MaxThreadHold * @PrepareDataQueueSize THEN @MaxThreadHold 
@@ -568,7 +562,7 @@ BEGIN
 			,MAX(maxcustid)
 	FROM cteBatchNo
 	GROUP BY BatchNo
-
+	
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 		,@mode = 'LockMatch'
 		,@IsSettingByProfile = 1
