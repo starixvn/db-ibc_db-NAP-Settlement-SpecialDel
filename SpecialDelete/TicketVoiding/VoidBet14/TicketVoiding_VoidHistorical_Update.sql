@@ -11,6 +11,7 @@ CREATE PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(1000)	= ''	OUTPUT
 	,@FailedTransIds    VARCHAR(MAX) = '' OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 )
 AS
 /*		
@@ -36,6 +37,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@xmlTransId		VARCHAR(MAX)
 			,@IsAbnormalBet		TINYINT
+			,@CustIds			VARCHAR(MAX)
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 
@@ -529,6 +531,26 @@ BEGIN
 		  @BalanceWalletBefore	= @BeforeUpd
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
+	
+	
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @BeforeUpd b
+			INNER JOIN @AfterUpd a
+				ON b.custid = a.custid
+					AND b.matchid = a.matchid
+					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	
 	-- update summary ticket
 	DECLARE @AffectedList		VARCHAR(MAX)
