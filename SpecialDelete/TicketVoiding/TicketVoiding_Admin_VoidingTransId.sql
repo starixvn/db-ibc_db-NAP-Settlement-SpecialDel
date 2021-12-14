@@ -28,6 +28,7 @@ AS
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211124@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+		- 20211214@July: Remove code CashOut [Redmine: #165097]
 
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
@@ -58,7 +59,7 @@ BEGIN
 			,@IsEnableServiceBroker BIT -- server is using service broker or not
 			,@RepUpdateTime DATETIME2
 	
-	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, IsCashOutMember BIT) 
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -139,13 +140,12 @@ BEGIN
 	END
     ELSE
 	BEGIN
-		INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake, IsCashOutMember)
+		INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake)
 		SELECT	T.C.value('./@transid', 'bigint')
 				,T.C.value('./@translogid', 'bigint')
 				,T.C.value('./@betid', 'bigint')
 				,T.C.value('./@isMG', 'bit')
 				,T.C.value('./@actual_stake', 'money')
-				,T.C.value('./@IsCashOutMember', 'bit')
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
@@ -172,9 +172,7 @@ BEGIN
 				,statusID = 102
 				,status = 'VOID'
 				,betid = t.BetId
-				,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 THEN dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
-									ELSE b.ExtraInfo 
-							END
+				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
 				,RepUpdateTime  = @RepUpdateTime
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
