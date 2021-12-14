@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.NAP_Set_AutoPayout_ResultDetailByMatchIdSel_OS
+ALTER PROCEDURE dbo.NAP_Set_AutoPayout_ResultDetailByMatchIdSel_OS
 	@MatchId INT
+	,@SportType SMALLINT
 AS
 /*
 	Creator: 20210311@Max
@@ -9,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
+		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
 
 	Param's Explanation:
  
@@ -16,11 +18,25 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT TOP 1 MatchId, SourceId, 2 AS TypeId, HomeValue, AwayValue
-	FROM dbo.ProviderExternalResultDetail p WITH (NOLOCK)
-	WHERE  p.MatchId = @MatchId
-		AND p.ResourceId = '00' 
-		AND p.SourceId = 1
-	ORDER BY ProviderExternalId DESC
+	DECLARE @tmpResultDetail TABLE (MatchId INT, TypeId TINYINT, finalhomescore INT, finalawayscore INT )
+
+	IF @SportType = 18 --Table Tennis
+	BEGIN
+		INSERT INTO @tmpResultDetail (MatchId, TypeId, finalhomescore, finalawayscore)
+		SELECT m.MatchId, 2 AS TypeId, m.finalhomescore, m.finalawayscore
+		FROM dbo.match m WITH(NOLOCK)
+			INNER JOIN match_remark mr WITH(NOLOCK)
+				ON m.matchid = mr.matchid
+		WHERE m.matchid = @MatchId
+			AND mr.ConfirmFT > 0
+	END
+
+	SELECT MatchId, TypeId, finalhomescore, finalawayscore
+	FROM @tmpResultDetail
+
 END
 GO
+
+
+
+
