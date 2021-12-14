@@ -46,6 +46,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 
 	Param's Explanation:		
 		
@@ -64,7 +65,6 @@ BEGIN
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
 			--,@IsExistsResourceEarlyRunning BIT = 0
-			,@HaveMarkedTicket VARCHAR(200)
 			,@HoldSettingMatchIds VARCHAR(200) = ''
 			,@ParentIds VARCHAR(MAX) = ''
 			
@@ -451,32 +451,7 @@ BEGIN
 	WHERE matchid IN (SELECT val FROM dbo.f_SplitString(@MatchIds, ','))
 	OPTION (maxrecursion 0)
 	
-	-- check marked ticket
-	SELECT  @HaveMarkedTicket = COALESCE(@HaveMarkedTicket + ',' + m.matchcode, m.matchcode)
-	FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT  TOP 1 b.refno
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.transid = mt.transid
-					AND b.matchid = 29
-		) b
-		CROSS APPLY (
-			SELECT	TOP 1 bm.matchid
-			FROM	dbo.bettransm bm WITH(NOLOCK)
-			WHERE	bm.refno = b.refno
-					AND bm.statusID = 0
-					AND bm.matchid = mt.MatchId
-		)bm
-		INNER JOIN #Match m 
-			ON mt.matchid = m.matchid	
-		WHERE m.sporttype <> 50 --  currenlty, not exists marked ticket in Cricket
-	GROUP BY m.matchid, m.matchcode
-
-	DELETE FROM #Match
-	WHERE	matchcode IN (SELECT val FROM dbo.f_SplitString(@HaveMarkedTicket, ','))
-	
 	IF (ISNULL(@HoldSettingMatchIds,'') <> '' OR ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
-		OR ISNULL(@HaveMarkedTicket,'') <> ''
 	BEGIN
 		SELECT   @ErrCode = 1001011
 				,@ErrMsg = 'All matches are being calculated, except following matches ' 
@@ -499,11 +474,7 @@ BEGIN
 							+ CASE WHEN ISNULL(@NotExecutedFGLG, '') <> ''
 									THEN ' (need to be executed "Calc FGLG"): ' + @NotExecutedFGLG
 									ELSE ''
-								END
-							+ CASE WHEN ISNULL(@HaveMarkedTicket, '') <> ''
-								THEN ' (existing some MARKED tickets): ' + @HaveMarkedTicket
-								ELSE ''
-								END
+								END				
 							+ CASE WHEN ISNULL(@MovingMatchIds, '') <> ''
 									THEN ' (during move-bet progress): ' + @MovingMatchIds + '. Please contact Starix IT for further support!'
 									ELSE ''

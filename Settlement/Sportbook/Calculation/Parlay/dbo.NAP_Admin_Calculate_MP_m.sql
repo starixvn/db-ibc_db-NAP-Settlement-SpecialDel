@@ -53,6 +53,7 @@ AS
 		- 20201027@Kathy: Change Calculate Formula for HDP Bet Types of Baseball [Redmine:#144297]
 		- 20210303@Kathy: Exclude LiveScores When Calculate HDP Bet Types [Redmine:#150198]
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
+		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		
     Param's Explanation:
        
@@ -723,12 +724,14 @@ BEGIN
                 transid         BIGINT
                 ,refno          BIGINT
 				,modds			MONEY
+				,ismarked		BIT
             )
 			
 			DECLARE @tmptransid TABLE (
 				transid			BIGINT
 				,refno			BIGINT
 				,modds			MONEY
+				,ismarked		BIT
 			)
 						
 			INSERT INTO #Result(
@@ -2302,7 +2305,25 @@ BEGIN
 								WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
 								ELSE 0
 								END		
-					
+				
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE matchid = @matchid)
+			BEGIN
+				;WITH cteMarkedTrans
+				AS(
+					SELECT	b.refno
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						INNER JOIN dbo.bettrans b WITH(NOLOCK)
+							ON mt.TransId = b.transid
+					WHERE	mt.MatchId = @matchid
+							AND b.matchid = 29
+				)
+				UPDATE r 
+					SET ismarked = 1
+				FROM	#Result r
+					INNER JOIN cteMarkedTrans c
+						ON r.refno = c.refno
+			END
+
 			WHILE (1 = 1)
 			BEGIN
 				
@@ -2311,15 +2332,15 @@ BEGIN
 				
 				DELETE TOP (2000 )
 				FROM #Result
-				OUTPUT deleted.transid, deleted.refno, deleted.modds
-				INTO @tmptransid (transid, refno, modds)				
+				OUTPUT deleted.transid, deleted.refno, deleted.modds, deleted.ismarked
+				INTO @tmptransid (transid, refno, modds, ismarked)				
 				
 				IF @@ROWCOUNT = 0
 					BREAK									
 			
 				UPDATE	bm WITH (ROWLOCK, UPDLOCK)
 					SET 
-						@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+						@IsUpd_Void = CASE WHEN bm.statusID = 102 OR t.ismarked = 1 THEN 0 ELSE 1 END
 						,ruben = CASE 
 									WHEN @IsUpd_Void = 0 THEN bm.ruben 
 									ELSE CASE 
@@ -2367,12 +2388,15 @@ BEGIN
 				
 				UPDATE	pd 
 					SET winlostdate = @matchdate
-						 ,statusID = CASE 
-										WHEN t.modds IS NULL THEN 0
-										WHEN t.modds = 0 THEN 111
-										WHEN t.modds < 0 THEN 113
-										WHEN t.modds > 0 THEN 112
-									END
+						,statusID = CASE 
+									WHEN t.ismarked = 1 THEN pd.statusID 
+									ELSE CASE 
+											WHEN t.modds IS NULL THEN 0
+											WHEN t.modds = 0 THEN 111
+											WHEN t.modds < 0 THEN 113
+											WHEN t.modds > 0 THEN 112
+										END
+								END						
 						,statuswinlost = CASE 
 											WHEN t.modds <= - 0.5 THEN 4 -- LOSE
 											WHEN t.modds >= 0.5 THEN 2 -- WIN

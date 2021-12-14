@@ -59,6 +59,7 @@ AS
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
 	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 	- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -194,6 +195,7 @@ BEGIN
 		, liveawayscore	INT
 
 		,IsExistRunningTicket BIT
+		,IsExistRunningTicketParlay BIT
 		,IsExistMarkedTicket BIT
 		,IsExistMarkedTicketParlay BIT
 		,EventStatusReason TINYINT
@@ -219,7 +221,7 @@ BEGIN
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
 		,AutoSetting, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
-		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket, IsExistMarkedTicketParlay, EventStatusReason
+		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay,EventStatusReason
 	)
 	SELECT m.hthomescore
 		, m.htawayscore
@@ -265,6 +267,7 @@ BEGIN
 		, m.livehomescore
 		, m.liveawayscore
 		,0 AS IsExistRunningTicket
+		,0 AS IsExistRunningTicketParlay
 		,0 AS IsExistMarkedTicket
 		,0 AS IsExistMarkedTicketParlay
 		,m.EventStatusReason
@@ -745,7 +748,8 @@ BEGIN
 		WHERE	IsExistMarkedTicket = 0 AND m.IsExistMarkedTicketParlay = 0
 	END
 
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
+	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT)
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
 	SELECT	matchid
@@ -773,8 +777,46 @@ BEGIN
 				GROUP BY b.matchid
 			)b
 
+		-- parlay
+		INSERT INTO #temp_match_parlay (transid, matchid, refno)
+		SELECT	0, m.MatchId, bm.refno
+		FROM @tmpMatchCompleted m
+			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
+		WHERE	bm.statusID = 0
+				
+		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
+		BEGIN
+			UPDATE   t
+				SET transid = b.transid
+			FROM   #temp_match_parlay  t
+				INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+			
+			UPDATE	m 
+				SET IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
+			FROM	@tmpMatchCompleted m
+					CROSS APPLY (
+								SELECT 1 AS IsExistRunningTicketParlay										
+								FROM (
+										SELECT	transid, MatchId
+										FROM	#temp_match_parlay p
+										WHERE p.matchid = m.MatchId
+									) b
+									OUTER APPLY (
+										SELECT TOP 1 mt.transId
+										FROM	#tmpMarkedTransaction mt 
+										WHERE	b.transid = mt.TransId
+												AND b.MatchId = mt.matchId
+									)mt
+									WHERE	mt.transId IS NULL
+									GROUP BY b.matchid
+								) t
+
+							
+		END
+
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
+				,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
 		FROM	#matchList m
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
@@ -827,6 +869,7 @@ BEGIN
 		, ISNULL(im.InstantScoreDiff, 0) AS InstantScoreDiff
 		, ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
 		, m.IsExistRunningTicket
+		, m.IsExistRunningTicketParlay
 		, m.IsExistMarkedTicket
 		, m.IsExistMarkedTicketParlay
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
